@@ -13,12 +13,15 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from neoaprs import ax25, kiss
 from neoaprs.aprsmessage import format_ack, format_message
 from neoaprs.clock import utcnow
 from neoaprs.controller import Controller
 from neoaprs.message import MessageRecord
+from neoaprs.radioregistry import LiveRadio
+from neoaprs.radiospec import FM_ID, RadioId
 from neoaprs.source import Source
 
 HOST = "127.0.0.1"
@@ -26,6 +29,7 @@ ME = "OH2GBA"
 HOME = (60.2231, 24.7152)                              # Espoo
 SAMPLE = Path(__file__).resolve().parent.parent / "neoaprs" / "samples" / "thd7.kiss"
 PATH = "WIDE1-1,WIDE2-1"
+DEMO_RADIO: RadioId = FM_ID                            # the daemon's radio that the DemoRadio is: radio 1, given by --port
 
 
 class DemoRadio:
@@ -167,6 +171,13 @@ class Event:
     action: Callable[["Scene"], Awaitable[None]]
 
 
+def demo_radio(ctl: Controller) -> LiveRadio[Any]:
+    """The daemon's radio that the DemoRadio is: radio 1, the one `--port` (the Controller's `port`) gives this run, found in the registry by its id (not by the old names of the FM radio's line and beacon)."""
+    radio = ctl.radios.get(DEMO_RADIO)
+    assert radio is not None, "the daemon has no radio 1"
+    return radio
+
+
 class Scene:
     """The daemon, its clock and its radio, with the verbs the day is written in."""
 
@@ -192,15 +203,15 @@ class Scene:
                 self.radio.feed(on_air(ME, body, copy, str(frame.destination)))
 
     async def hear(self, source: str, info: bytes, path: str = "OH2RCH-2*", destination: str = "APRS") -> None:
-        before = self.ctl.tnc.stats.packets
+        before = demo_radio(self.ctl).stats.packets
         self.radio.feed(on_air(source, info, path, destination))
-        await _until(lambda: self.ctl.tnc.stats.packets > before)
+        await _until(lambda: demo_radio(self.ctl).stats.packets > before)
 
     async def hear_frames(self, data: bytes) -> None:
         count = len(kiss.KissDecoder().feed(data))
-        before = self.ctl.tnc.stats.packets
+        before = demo_radio(self.ctl).stats.packets
         self.radio.feed(data)
-        await _until(lambda: self.ctl.tnc.stats.packets >= before + count)
+        await _until(lambda: demo_radio(self.ctl).stats.packets >= before + count)
 
     async def say_to_me(self, source: str, text: str, msg_id: str, path: str = "OH2RCH-2*") -> None:
         await self.hear(source, b":" + format_message(ME, text, msg_id), path)
@@ -245,8 +256,8 @@ class Scene:
         return any(when is not None and when <= now for when in due)
 
     async def own_object(self, name: str, kind: str, lat: float, lon: float, symbol: str, comment: str, path: str | None = None, qru_group: str = "") -> None:
-        """We make an object or an item (the Objects tab's `object_set`, with its category when it has one); it is on the air once this returns."""
-        self.ctl.ownobjects.set(name, kind, lat, lon, symbol[0], symbol[1], comment, path=path, qru_group=qru_group)
+        """We make an object or an item (the Objects tab's `object_set`, with its category when it has one) on the DemoRadio's radio, named as `object_set {radios}` names it; it is on the air once this returns."""
+        self.ctl.ownobjects.set(name, kind, lat, lon, symbol[0], symbol[1], comment, path=path, qru_group=qru_group, radios=(DEMO_RADIO,))
         await _until(lambda: (held := self.ctl.ownobjects.get(name)) is not None and held.sent >= 1)
 
     async def own_bulletin(self, slot: str, text: str) -> None:
@@ -394,7 +405,8 @@ async def _send_beacon(s: Scene) -> None:
     config = s.ctl.config
     s.ctl.config = replace(config, beacon_interval_min=30)         # (the day is played with the beacon Off, its default, so that no timer fires as the clock moves; for this one send it is On, with no await in between for a tick to run)
     try:
-        assert s.ctl.beacon.send_now("timer"), s.ctl.beacon.problem
+        beacon = demo_radio(s.ctl).beacon
+        assert beacon.send_now("timer"), beacon.problem
     finally:
         s.ctl.config = config
     await _until(lambda: len(s.radio.sent) > before)
@@ -418,7 +430,7 @@ async def history(data_dir: Path, radio: DemoRadio) -> int:
     ctl.ownobjects.tick_sec = ctl.ownbulletins.tick_sec = 0.03   # (our own objects and bulletins go out as soon as the moved clock says so, a few frames of the day in a second)
     ctl.sender.spacing_sec = 0.2
     await ctl.start()
-    await _until(lambda: ctl.tnc.state is Source.State.CONNECTED and radio.connected, 30)
+    await _until(lambda: demo_radio(ctl).state is Source.State.CONNECTED and radio.connected, 30)
     await asyncio.sleep(3.5)                                    # (the TNC settles after the open)
     scene = Scene(ctl, radio, clock)
     played = 0

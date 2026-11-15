@@ -7,7 +7,9 @@ have all of it. Run with the Python that has neoaprs installed (/opt/neoaprs/bin
   install-probe.py verify --command PROGRAM --data FOLDER --in FILE --version V   starts the daemon of PROGRAM on the same FOLDER and must find every station, the message and the settings of FILE, the version V
                                                                       in its hello, and a clean stop (exit code 0, `NeoAPRS ended`, a database that passes its integrity check)
 
-Only what the page's WebSocket has told since the first release of the two radios is used: the topics `stations`, `messages` and `config`, the commands `set_config` and `send_message`, and the `hello` of a connection.
+Only what the page's WebSocket has told since the first release of the two radios is used: the topics `stations`, `messages` and `config`, the commands `set_config` and `send_message`, and the `hello` of a connection;
+and for the radios, the wire the hello names (scripts/smoke.py, `give_radio` and `radio_of`): the topic `radios` and the radio commands of a daemon of the round of the radios, the topics `tnc` and `hf` and the flat keys
+(`hf/enabled`, `hf/profile`) of one before it, so that either may be the old release and the new build is checked on its own.
 Nothing is sent to a radio (the Dummy radio makes its traffic up, and the daemon is started with NEOAPRS_NO_DEVICES) and nothing leaves the loopback. Exit code 0: all is well; 1: the first thing that was not."""
 import argparse
 import asyncio
@@ -19,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 from types import ModuleType
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 
@@ -37,51 +39,34 @@ def load_smoke() -> ModuleType:
 
 smoke = load_smoke()
 
-SETTINGS = {"station/call": "OH2TST", "hf/enabled": "true", "hf/profile": "dummy-hf"}      # a station with both radios: the FM radio is the fake TNC given by --port
+SETTINGS = {"station/call": "OH2TST"}                               # the station's own settings; its radios are told apart below
+HF_TYPE = "dummy-hf"                                                # a station with both radios: the FM radio is the fake TNC given by --port, the HF radio the Dummy HF radio
 MESSAGE_TO, MESSAGE_TEXT = "OH2XYZ", "kept over the upgrade"
 
 
 class Seen:
     """What a connection to the page's WebSocket has told: the hello, and the topics as the page keeps them."""
 
-    def __init__(self) -> None:
-        self.hello: dict[str, Any] = {}
-        self.topics: dict[str, Any] = {}
-        self.errors: list[str] = []
+    def __init__(self, page: "smoke.PageSocket") -> None:
+        self.hello, self.topics = page.hello, page.topics
+        self.errors = [str(m.get("text")) for m in page.messages if m.get("type") == "error"]
 
 
-async def follow(base: str, ready: Callable[[Seen], bool], seconds: float, send: list[tuple[Callable[[Seen], bool], dict[str, Any]]] | None = None) -> Seen:
-    """Opens /ws as the page does and reads until `ready(seen)` says all is there or the time is up. Each of `send` is a command with the condition that must hold before it is sent: the next one waits for the last one's answer."""
-    from tornado.websocket import websocket_connect
-    seen = Seen()
-    connection = await websocket_connect("ws://" + base.removeprefix("http://") + "ws", connect_timeout=15)
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + seconds
-    commands = list(send or [])
+async def follow(base: str, ready: Callable[[Seen], bool], seconds: float, work: Callable[["smoke.PageSocket"], Awaitable[None]] | None = None) -> Seen:
+    """Opens /ws as the page does, does `work` on it (the commands of the seed), and reads until `ready(seen)` says all is there or the time is up."""
+    page = await smoke.PageSocket.open(base)
     try:
-        while True:
-            if commands and "config" in seen.topics and commands[0][0](seen):
-                await connection.write_message(json.dumps(commands.pop(0)[1]))
-            if ready(seen) and not commands:
-                return seen
-            left = deadline - loop.time()
-            if left <= 0:
-                raise smoke.Failure(f"within {seconds:g} s the page was not told what was waited for (settings {has_settings(seen)}, message {has_message(seen)}, {len(stations_of(seen))} stations, the TNC {(seen.topics.get('tnc') or {}).get('state')!r}, errors {seen.errors})")
-            try:
-                raw = await asyncio.wait_for(connection.read_message(), min(left, 1.0))
-            except TimeoutError:
-                continue
-            if raw is None:
-                raise smoke.Failure("the daemon closed the WebSocket")
-            message = json.loads(raw)
-            if message.get("type") == "hello":
-                seen.hello = message
-            elif message.get("type") == "error":
-                seen.errors.append(str(message.get("text")))
-            else:
-                smoke.apply(seen.topics, message)
+        if work is not None:
+            await work(page)
+        try:
+            await page.until("what was waited for", lambda p: ready(Seen(p)), seconds)
+        except smoke.Failure:
+            seen = Seen(page)
+            raise smoke.Failure(f"within {seconds:g} s the page was not told what was waited for (settings {has_settings(seen)}, message {has_message(seen)}, {len(stations_of(seen))} stations, "
+                                f"the FM radio {smoke.radio_state(seen.topics, 'fm')!r}, errors {seen.errors})") from None
+        return Seen(page)
     finally:
-        connection.close()
+        page.close()
 
 
 def wait_for_page(daemon: "subprocess.Popen[bytes]", log: Path, offset: int, seconds: float) -> str:
@@ -105,8 +90,13 @@ def has_message(seen: Seen) -> bool:
 
 
 def has_settings(seen: Seen) -> bool:
+    """The station's settings and its HF radio, on the wire the hello names: the radio's type and its tick in the topic `radios`, or the flat keys of `config` before it."""
     config = (seen.topics.get("config") or {}).get("values") or {}
-    return all(config.get(key) == value for key, value in SETTINGS.items())
+    if not all(config.get(key) == value for key, value in SETTINGS.items()):
+        return False
+    if smoke.wire_of(seen.hello) == smoke.RADIOS:
+        return any(radio.get("type") == HF_TYPE and radio.get("enabled") for radio in smoke.live_radios(seen.topics, "hf"))
+    return config.get(smoke.OLD_KEYS["hf"]["enabled"]) == "true" and config.get(smoke.OLD_KEYS["hf"]["type"]) == HF_TYPE
 
 
 def stations_of(seen: Seen) -> list[str]:
@@ -114,7 +104,7 @@ def stations_of(seen: Seen) -> list[str]:
 
 
 def seed_ready(seen: Seen) -> bool:
-    return has_settings(seen) and has_message(seen) and bool(stations_of(seen)) and (seen.topics.get("tnc") or {}).get("state") == "connected"
+    return has_settings(seen) and has_message(seen) and bool(stations_of(seen)) and smoke.radio_state(seen.topics, "fm") == "connected"
 
 
 def run_with_daemon(args: argparse.Namespace, work: Any) -> None:
@@ -140,11 +130,16 @@ def run_with_daemon(args: argparse.Namespace, work: Any) -> None:
 
 
 def seed(args: argparse.Namespace) -> None:
+    async def commands(page: "smoke.PageSocket") -> None:
+        await page.until("the settings told", lambda p: "config" in p.topics, args.timeout)
+        await page.set_config(SETTINGS, args.timeout)
+        await smoke.give_radio(page, "hf", HF_TYPE, {}, args.timeout)
+        await page.send({"cmd": "send_message", "to": MESSAGE_TO, "text": MESSAGE_TEXT})
+
     def work(base: str) -> None:
-        commands = [(lambda seen: True, {"cmd": "set_config", "values": SETTINGS}), (has_settings, {"cmd": "send_message", "to": MESSAGE_TO, "text": MESSAGE_TEXT})]
         seen = asyncio.run(follow(base, seed_ready, args.timeout, commands))
         stations = stations_of(seen)
-        Path(args.out).write_text(json.dumps({"stations": stations, "message": MESSAGE_TEXT, "settings": SETTINGS, "from_version": seen.hello.get("version")}), encoding="utf-8")
+        Path(args.out).write_text(json.dumps({"stations": stations, "message": MESSAGE_TEXT, "settings": SETTINGS, "hf_radio": HF_TYPE, "from_version": seen.hello.get("version")}), encoding="utf-8")
         smoke.say(f"the old daemon ({seen.hello.get('version')}) has {len(stations)} stations, one message and both radios set")
     run_with_daemon(args, work)
 

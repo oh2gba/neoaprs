@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from smoke import FIXTURE, Failure, FakeTnc, apply  # noqa: E402
+from smoke import FIXTURE, Failure, FakeTnc, apply, radio_state  # noqa: E402
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: E402
@@ -213,7 +213,7 @@ class Page:
         while not condition(self):
             left = deadline - asyncio.get_running_loop().time()
             if left <= 0:
-                raise Failure(f"{what}: not within {seconds:g} s (tnc {(self.topics.get('tnc') or {}).get('state')}, update {self.topics.get('update')}, {self.status.get('packets')} packets)")
+                raise Failure(f"{what}: not within {seconds:g} s (the FM radio {radio_state(self.topics, 'fm')}, update {self.topics.get('update')}, {self.status.get('packets')} packets)")
             if self.closed:
                 raise Failure(f"{what}: the daemon closed the socket first")
             try:
@@ -241,7 +241,34 @@ class Page:
 
 
 def connected(page: Page) -> bool:
-    return (page.topics.get("tnc") or {}).get("state") == "connected" and int(page.status.get("packets") or 0) > 0
+    """The FM radio (the fake TNC of the settings) connected and a packet kept: the radio read as smoke.radio_state reads it, from the topic `radios` of a daemon of the round of the radios on and from `tnc`
+    of one before it (the old version A is one of those for a long while yet, B may be either)."""
+    return radio_state(page.topics, "fm") == "connected" and int(page.status.get("packets") or 0) > 0
+
+
+PORT_KEYS = ("serial/port", "radio/1/port")          # the FM radio's port as the settings name it: the flat key of every version before the round of the radios (kept there as radio 1's), its own key after it
+
+
+def set_port(install: "Install", data: Path, url: str) -> str:
+    """The old version's `db set` of the FM radio's port, by the first of PORT_KEYS that it takes; the key it took. Both refused is a Failure with both answers. The data folder is fresh (no database
+    yet), where a version of the round of the radios has no radio 1 and refuses radio/1/port ("there is no database ... so no radio"): the second key is only for a version whose command line can make radio 1
+    on a fresh folder, or for a folder its daemon has started on once (W3's list, with serial/port, the one old name the scripts keep, for the old release)."""
+    answers = []
+    for key in PORT_KEYS:
+        done = install.run("db", "--data", str(data), "set", key, url)
+        if done.returncode == 0:
+            return key
+        answers.append(f"{key}: {done.stdout.strip()} {done.stderr.strip()}")
+    raise Failure(f"db set of the FM radio's port refused: {'; '.join(answers)}")
+
+
+def get_port(install: "Install", data: Path) -> str:
+    """The new version's FM radio's port: its own key first (radio/1/port, which a version of the round of the radios answers), else the flat key of a version before it."""
+    for key in reversed(PORT_KEYS):
+        done = install.run("db", "--data", str(data), "get", key)
+        if done.returncode == 0:
+            return done.stdout.strip()
+    return ""
 
 
 class Install:
@@ -528,7 +555,8 @@ def run(args: argparse.Namespace) -> None:
         install.put_old()
         say(f"the old version is in place: {' '.join(install.command())}")
         web_port = free_port()
-        settings = {"serial/port": tnc.url, "web/port": str(web_port), "update/url": f"{release.url}/version.php", "station/comment": "update e2e", "map/radius_km": "42"}
+        port_key = set_port(install, data, tnc.url)
+        settings = {"web/port": str(web_port), "update/url": f"{release.url}/version.php", "station/comment": "update e2e", "map/radius_km": "42"}
         for key, value in settings.items():
             done = install.run("db", "--data", str(data), "set", key, value)
             if done.returncode != 0:
@@ -553,7 +581,9 @@ def run(args: argparse.Namespace) -> None:
             got = install.run("db", "--data", str(data), "get", key).stdout.strip()
             if value not in got:
                 raise Failure(f"the setting {key} is {got!r} after the update, not {value!r}")
-        say(f"the settings are still there: {', '.join(settings)}")
+        if tnc.url not in (got := get_port(install, data)):
+            raise Failure(f"the FM radio's port ({port_key} before the update) is {got!r} after it, not {tnc.url!r}")
+        say(f"the settings are still there: the FM radio's port, {', '.join(settings)}")
         if (later := install.outside()) != before:
             changed = [name for name in before if before[name] != later.get(name)]
             raise Failure(f"the update changed {', '.join(changed)}: {[(before[n], later.get(n)) for n in changed]}")

@@ -328,7 +328,7 @@ def test_the_probe_seeds_a_daemon_and_finds_all_of_it_in_the_next_one_and_refuse
     seeded = probe("seed", "--out", str(seen))
     assert seeded.returncode == 0, seeded.stdout + seeded.stderr
     kept = json.loads(seen.read_text(encoding="utf-8"))
-    assert kept["stations"] and kept["message"] == "kept over the upgrade" and kept["settings"]["hf/profile"] == "dummy-hf" and kept["from_version"] == version
+    assert kept["stations"] and kept["message"] == "kept over the upgrade" and kept["settings"]["station/call"] == "OH2TST" and kept["hf_radio"] == "dummy-hf" and kept["from_version"] == version
     verified = probe("verify", "--in", str(seen), "--version", version)
     assert verified.returncode == 0, verified.stdout + verified.stderr
     assert f"the new daemon ({version}) has the {len(kept['stations'])} stations, the message and the settings" in verified.stdout

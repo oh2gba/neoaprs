@@ -1,12 +1,18 @@
 """Takes the screenshots of the README and the project page (site/): a daemon of its own on a temporary data folder, a made-up day on the air (scripts/demoscene.py), Chromium through Playwright.
 
-    uv run --with playwright --with pillow python scripts/screenshots.py                  # all of them into site/shots/, seven of them also into docs/screenshots/
-    uv run --with playwright --with pillow python scripts/screenshots.py --only map weather
+    uv run --with playwright --with pillow python scripts/screenshots.py                  # everything: every shot light and dark into site/shots/, their thumbnails and WebP copies, og.png,
+                                                                                          # seven of them into docs/screenshots/, and the sizes site/index.html declares made those of the files
+    uv run --with playwright --with pillow python scripts/screenshots.py --only map weather    # these, with their thumbnails and WebP copies (og.png too when map is one of them)
     python scripts/screenshots.py --chromium /path/to/chrome --no-sandbox                  # a browser Playwright did not install, or one that cannot make its sandbox
+    python scripts/screenshots.py --check                                                  # no browser: every shot has its files, and every picture of site/ is declared at the size of its file
 
 Nothing touches a radio: the daemon's TNC is a KISS server on a TCP port of the loopback that this script serves (the `kiss-tcp` profile), and the fresh folder of the setup guide is given that port on the
-command line. The version beside Check now is hidden in every shot and the newer version of the update shot is made from VERSION, so the shots do not go old with a release: they are retaken when the page changes. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read). Needs Playwright and, to
-make the PNG files small, Pillow; `playwright install chromium` fetches the browser. Needs `uv sync` first (or `uv run`, which does it) so that `neoaprs` is importable."""
+command line. The HF radio of the two HF shots is given through the page, as the operator gives it (scripts/smoke.py `give_radio`: the radio commands, or the flat keys of a daemon before them). The version
+beside Check now is hidden in every shot and the newer version of the update shot is made from VERSION, so the shots do not go old with a release: they are retaken when the page changes. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read): a run into site/shots/ or with no --only refuses to start without it, since the placeholder map would replace the site's. Needs Playwright and, to
+make the PNG files small, Pillow; `playwright install chromium` fetches the browser. Needs `uv sync` first (or `uv run`, which does it) so that `neoaprs` is importable.
+
+At the end the run says what of site/shots/ and docs/screenshots/ it did not write, and why (not asked for, a shot that needs what is not here such as the Mercury program, a shot that failed), and a picture of site/
+still declared at another size than its file: a run with no --only that leaves anything exits 1. What it never makes is said too: the icons (scripts/make-icon.py) and GitHub's link preview, a setting of the repository."""
 import argparse
 import asyncio
 import io
@@ -18,9 +24,12 @@ import shutil
 import signal
 import socket
 import subprocess
+import struct
 import sys
 import tempfile
-from collections.abc import Awaitable, Callable
+import time
+from collections.abc import Awaitable, Callable, Collection
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -31,11 +40,13 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 
 import demoscene                                                  # noqa: E402  (the scene needs the path above)
+import smoke                                                      # noqa: E402  (the page's socket and the radios on either wire)
 from neoaprs import VERSION                                       # noqa: E402
 from neoaprs.controller import Controller                         # noqa: E402
 from neoaprs import mercury as mercuryrules                        # noqa: E402
 from neoaprs.mercuryhelper import find as find_mercury             # noqa: E402
 from neoaprs.mercuryspeaker import SpeakerAudio                    # noqa: E402
+from neoaprs.radiospec import HF_ID                               # noqa: E402
 
 DESKTOP = {"width": 1440, "height": 900}
 PHONE = {"width": 390, "height": 844}
@@ -114,6 +125,27 @@ def neoaprs_db_set(data: Path, key: str, value: str) -> None:
     subprocess.run([sys.executable, "-m", "neoaprs", "db", "--data", str(data), "set", key, value], check=True, capture_output=True, cwd=ROOT)
 
 
+async def give_hf_radio(url: str, radio_type: str, values: dict[str, str]) -> None:
+    """The HF radio of a daemon that is up, given through its page as the operator gives it (smoke.give_radio: `radio_add` or `radio_change` and its own keys from the round of the radios on, the flat keys
+    `hf/enabled`, `hf/profile` and `mercury/*` before it). `neoaprs db set` of an HF key is refused on a folder whose daemon ran without an HF radio, which every copy of the day's folder is."""
+    page = await smoke.PageSocket.open(url)
+    try:
+        await hf_radio_given(page, radio_type, values, 60.0)
+    finally:
+        page.close()
+
+
+async def hf_radio_given(page: smoke.PageSocket, radio_type: str, values: dict[str, str], seconds: float) -> None:
+    """give_hf_radio on an open socket. A Mercury radio is the one --hf-port names (radio 2), and its modem, the Mercury on pipes, must be `running` before its shot is taken: a radio of another id, or a
+    modem that does not come up, is a Failure, which leaves its shots out with the reason, never a picture of a Mercury radio with no modem."""
+    id = await smoke.give_radio(page, "hf", radio_type, values, seconds)
+    if radio_type != "mercury":
+        return
+    if id is not None and id != HF_ID:
+        raise smoke.Failure(f"the Mercury radio given is radio {id}, and --hf-port names radio {HF_ID}")
+    await page.until("the Mercury modem of the HF radio running", lambda p: smoke.modem_state(p.topics, "hf", id) == "running", seconds)
+
+
 def put_map(source: Path, target: Path) -> None:
     """The map file in a data folder: the page's server does not follow a symbolic link out of the folder, so it is a hard link, else a copy (the source is only read)."""
     try:
@@ -190,6 +222,7 @@ class Shots:
         self.hf_url = ""                                           # the page of the daemon with the HF radio on as the Dummy HF radio (the "stations-hf" shot)
         self.hf_mercury_url = ""                                   # the page of the daemon whose HF radio is the Mercury modem, a real one on pipes that hears silence (the "settings-hf" shot)
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
+        self.contexts: list[Any] = []                              # the browser contexts of the shot being taken (a shot that fails leaves its own open: they are closed after it)
         self.started = asyncio.get_running_loop().time()
 
     async def since_start(self, seconds: float) -> None:
@@ -214,6 +247,7 @@ class Shots:
             keys["view"] = phone_view                              # (a phone shows the map or the panel, one at a time)
         script = "".join(f"try{{localStorage.setItem('NeoAPRS.{k}',{v!r})}}catch(e){{}};" for k, v in keys.items())
         await context.add_init_script(script)
+        self.contexts.append(context)
         page = await context.new_page()
         await page.goto(url or self.url)
         await page.add_style_tag(content=HIDE_VERSION)
@@ -230,6 +264,14 @@ class Shots:
         self.written[name] = len(data)
         print(f"{name}.png  {len(data) // 1024} KB")
         await page.context.close()
+        if page.context in self.contexts:
+            self.contexts.remove(page.context)
+
+    async def close_left(self) -> None:
+        """Closes what a shot that failed left open."""
+        for context in self.contexts:
+            await context.close()
+        self.contexts.clear()
 
 
 def shrink(png: bytes) -> bytes:
@@ -464,8 +506,7 @@ async def made_up_web(page: Any) -> None:
         const put = () => {
             const field = document.getElementById("set-web-key");
             if (field) field.value = key;
-            const port = document.getElementById("set-tcp-port");
-            if (port) port.value = "8001";                        // (Direwolf's usual KISS port; the demo's own TNC listens where there was room)
+            for (const port of document.querySelectorAll('#set-tcp-port, [id$="-tcp_port"]')) port.value = "8001";       // (Direwolf's usual KISS port; the demo's own TNC listens where there was room. The field's id of today, and a radio's own, radio-ID-tcp_port, as 1.12 of the round names it)
             const inputs = [...document.querySelectorAll('[id^="set-web-url-"]')];
             while (inputs.length && inputs.length < urls.length) { const copy = inputs[0].cloneNode(true); inputs[0].parentElement.append(copy); inputs.push(copy); }
             inputs.forEach((input, i) => { if (i < urls.length) input.value = urls[i]; else input.remove(); });
@@ -494,14 +535,14 @@ async def shot_settings_tnc(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_rx(s: Shots, _: str) -> None:
-    """The My station tab of a station that is set to RX only (the daemon's setting station/transmit: the amber badge in the header, beside the title) and has the Beacon Off: the status block has its pill off in the warn colour and says RX only: nothing is sent, and what belongs to the beacon is grey."""
+    """The My station tab of a station that is set to RX only (the daemon's setting station/transmit: the RX only mark on the warn plate in the header, beside the title) and has the Beacon Off: the status block has its pill off on the warn plate and says RX only: nothing is sent, and what belongs to the beacon is grey."""
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, url=s.receive_url)
     await settle(page, 400)
     await s.save(page, "beacon-rx")
 
 
 async def shot_phone_beacon_rx(s: Shots, _: str) -> None:
-    """A phone set to RX only with the Beacon Off: the amber badge beside the title and, under the tab bar, the My station tab with its status block saying RX only: nothing is sent and the fields of the beacon grey."""
+    """A phone set to RX only with the Beacon Off: the RX only mark on the warn plate beside the title and, under the tab bar, the My station tab with its status block saying RX only: nothing is sent and the fields of the beacon grey."""
     page = await s.page(PHONE, tab="beacon", view=CITY, phone_view="panel", url=s.receive_url)
     await s.save(page, "phone-beacon-rx")
 
@@ -620,7 +661,7 @@ async def shot_settings_hf(s: Shots, _: str) -> None:
 
 
 async def shot_stations_hf(s: Shots, _: str) -> None:
-    """The Stations table of a station with both radios, the map zoomed out to hold both: the day's stations round Helsinki tagged FM, and the six made-up stations of the Dummy HF radio, hundreds of kilometres away, tagged HF. Their first beacons come within two minutes of the daemon's start."""
+    """The Stations table of a station with both radios, the map zoomed out to hold both: the day's stations round Helsinki tagged FM, and the six made-up stations of the Dummy HF radio, hundreds of kilometres away, tagged HF. The HF radio is given through the page once the daemon is up; their first beacons come within two minutes of that."""
     page = await s.page(DESKTOP, tab="stations", view=HF_WORLD, panel=760, url=s.hf_url)
     rows = page.locator("#pane-stations tbody tr", has_text="HF")
     async with asyncio.timeout(170):
@@ -677,20 +718,28 @@ async def shot_setup(s: Shots, fresh_url: str) -> None:
     await s.save(page, "setup")
 
 
-def make_thumbs(out: Path) -> None:
-    """thumbs/NAME.png next to each shot: 640 px wide (270 for a phone), what the page shows before a picture is opened; and NAME.webp beside every shot and thumb, which the page offers first."""
+def thumbs_of(out: Path, names: set[str] | None = None, skip: Collection[str] = ()) -> list[Path]:
+    """The shots whose thumbnails and WebP copies make_thumbs makes: with `names`, only those (the ones a run with --only took); else every PNG but og.png; never those of `skip`, the shots a run
+    asked for and did not take, whose PNG is an earlier run's (copies made again from it would pass for this run's)."""
+    return [path for path in sorted(out.glob("*.png")) if path.name != "og.png" and (names is None or path.stem in names) and path.stem not in skip]
+
+
+def make_thumbs(out: Path, names: set[str] | None = None, skip: Collection[str] = ()) -> int:
+    """thumbs/NAME.png next to each shot: 640 px wide (270 for a phone), what the page shows before a picture is opened; and NAME.webp beside every shot and thumb, which the page offers first; for the
+    shots of thumbs_of. How many shots had theirs made."""
     from PIL import Image
     (out / "thumbs").mkdir(exist_ok=True)
-    for path in sorted(out.glob("*.png")):
-        if path.name == "og.png":
-            continue
+    made = 0
+    for path in thumbs_of(out, names, skip):
         image = Image.open(path).convert("RGB")
         width = 270 if path.name.startswith("phone-") else 640
         small = image.resize((width, round(image.height * width / image.width)), Image.LANCZOS).quantize(128, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
         small.save(out / "thumbs" / path.name, optimize=True)
         image.save(path.with_suffix(".webp"), quality=82, method=6)                                       # (the page offers the WebP first: a third of the PNG's bytes)
         image.resize(small.size, Image.LANCZOS).save((out / "thumbs" / path.name).with_suffix(".webp"), quality=80, method=6)
-    print(f"thumbs/: {len(list((out / 'thumbs').glob('*.png')))} files, and a .webp beside each picture")
+        made += 1
+    print(f"thumbs/: {made} shots' thumbnails, and a .webp beside each picture")
+    return made
 
 
 def _font(size: int, bold: bool) -> Any:
@@ -705,12 +754,27 @@ def _font(size: int, bold: bool) -> Any:
     return ImageFont.load_default(size)
 
 
-def make_og(out: Path) -> None:
-    """og.png, 1200x630: the map shot on the petrol of the icon, the name and the pitch beside it (what a link to the site shows)."""
+PITCH = "A modern, easy-to-use APRS client for Windows, macOS, Linux and the Raspberry Pi"      # the systems as the site's own first lines name them (site/index.html: the title and the line under the name)
+PITCH_WIDTH = 396                                                  # the room for the pitch beside the map: from its left edge (58) to 14 px before the map (468)
+
+
+def lines_of(text: str, fits: Callable[[str], bool]) -> list[str]:
+    """`text` cut at its spaces into lines that each fit (a word longer than the room is a line of its own)."""
+    lines: list[str] = []
+    for word in text.split():
+        if lines and fits(f"{lines[-1]} {word}"):
+            lines[-1] = f"{lines[-1]} {word}"
+        else:
+            lines.append(word)
+    return lines
+
+
+def make_og(out: Path) -> bool:
+    """og.png, 1200x630: the map shot on the petrol of the icon, the name and the pitch beside it (what a link to the site shows); False when there is no map shot to draw it from."""
     from PIL import Image, ImageDraw
     source = out / "map.png"
     if not source.exists():
-        return
+        return False
     card = Image.new("RGB", (1200, 630), (10, 42, 61))                # petrol #0a2a3d, the icon's tile
     shot = Image.open(source).convert("RGB")
     shot = shot.resize((round(shot.width * 0.62), round(shot.height * 0.62)), Image.LANCZOS)
@@ -719,13 +783,15 @@ def make_og(out: Path) -> None:
     card.paste(shot, (468, 112), mask)
     draw = ImageDraw.Draw(card)
     draw.text((56, 150), "NeoAPRS", font=_font(84, True), fill=(255, 255, 255))
-    for i, line in enumerate(("A modern, easy-to-use", "APRS client for Windows,", "Linux and the Raspberry Pi")):
-        draw.text((58, 262 + i * 40), line, font=_font(28, False), fill=(166, 215, 212))       # mint #a6d7d4, as the site's dark band has it on petrol: 9.4 to 1
+    font = _font(28, False)
+    for i, line in enumerate(lines_of(PITCH, lambda text: draw.textlength(text, font=font) <= PITCH_WIDTH)):
+        draw.text((58, 262 + i * 40), line, font=font, fill=(166, 215, 212))       # mint #a6d7d4, as the site's dark band has it on petrol: 9.4 to 1
     if ICON.exists():
         mark = Image.open(ICON).convert("RGBA").resize((72, 72), Image.LANCZOS)
         card.paste(mark, (58, 56), mark)
     card.save(out / "og.png", optimize=True)
     print("og.png")
+    return True
 
 
 EXTRAS = ("thumbs", "og")                                          # what is made from the shots, with no browser
@@ -752,6 +818,187 @@ def in_the_dark(shot: Shot) -> Shot:
 SHOTS.update({f"{name}-dark": in_the_dark(SHOTS[name]) for name in DARK_TOO})
 
 
+# ---- the files: what a run leaves, and the sizes the site declares
+
+SITE = ROOT / "site"
+SITE_URL = "https://neo.oh2gba.eu/"                                # (where og:image points: its file is site/ under it)
+
+
+def image_size(path: Path) -> tuple[int, int] | None:
+    """The width and height of a PNG or WebP file read from its header (no Pillow needed); None for a file that is neither or cannot be read."""
+    try:
+        with path.open("rb") as f:
+            head = f.read(30)
+    except OSError:
+        return None
+    if head[:8] == b"\x89PNG\r\n\x1a\n" and head[12:16] == b"IHDR":
+        width, height = struct.unpack(">II", head[16:24])
+        return width, height
+    if head[:4] != b"RIFF" or head[8:12] != b"WEBP" or len(head) < 30:
+        return None
+    chunk = head[12:16]
+    if chunk == b"VP8 ":                                            # (lossy: the frame's 14-bit sizes after its start code)
+        return struct.unpack("<H", head[26:28])[0] & 0x3FFF, struct.unpack("<H", head[28:30])[0] & 0x3FFF
+    if chunk == b"VP8L":                                            # (lossless: 14 bits each, less one, after the signature byte)
+        bits = int.from_bytes(head[21:25], "little")
+        return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+    if chunk == b"VP8X":                                            # (extended: the canvas, 24 bits each, less one)
+        return int.from_bytes(head[24:27], "little") + 1, int.from_bytes(head[27:30], "little") + 1
+    return None
+
+
+IMG = re.compile(r"<img\b[^>]*>")
+PICTURE = re.compile(r"<picture\b.*?</picture>", re.S)
+
+
+def _attr(tag: str, name: str) -> str | None:
+    found = re.search(rf'\b{name}="([^"]*)"', tag)
+    return found.group(1) if found else None
+
+
+def wrong_sizes(site: Path = SITE) -> list[str]:
+    """What the pages of the site declare at another size than the file's: an <img> of a PNG or WebP of the site whose width and height are not the file's, the dark copy a <picture> offers in the same
+    box at another size, and og:image:width and height against og.png; a line for each, [] when all agree."""
+    wrong: list[str] = []
+    for page in sorted(site.glob("*.html")):
+        html = page.read_text(encoding="utf-8")
+        for tag in IMG.findall(html):
+            src, size = _attr(tag, "src"), image_size(site / (_attr(tag, "src") or ""))
+            if src is None or size is None:
+                continue
+            declared = (_attr(tag, "width"), _attr(tag, "height"))
+            if declared != (str(size[0]), str(size[1])):
+                wrong.append(f"{page.name}: {src} is declared {declared[0]}x{declared[1]}, the file is {size[0]}x{size[1]}")
+        for picture in PICTURE.findall(html):
+            tag = next(iter(IMG.findall(picture)), "")
+            src = _attr(tag, "src") or ""
+            dark = f"{Path(src).with_suffix('')}-dark{Path(src).suffix}"
+            if f'srcset="{dark}"' in picture and (size := image_size(site / src)) is not None and (dark_size := image_size(site / dark)) not in (None, size):
+                wrong.append(f"{page.name}: {dark} is {dark_size[0]}x{dark_size[1]} in the box of {src}, {size[0]}x{size[1]}")
+        og = re.search(rf'<meta property="og:image" content="{re.escape(SITE_URL)}([^"]+)">', html)
+        if og and (size := image_size(site / og.group(1))) is not None:
+            for name, value in (("width", size[0]), ("height", size[1])):
+                said = re.search(rf'<meta property="og:image:{name}" content="(\d+)">', html)
+                if said and said.group(1) != str(value):
+                    wrong.append(f"{page.name}: og:image:{name} says {said.group(1)}, {og.group(1)} is {value}")
+    return wrong
+
+
+def sized(html: str, site: Path) -> tuple[str, list[str]]:
+    """A page with the width and height of each <img> of a file of the site made the file's, and og:image:width and height og.png's; and what changed."""
+    changed: list[str] = []
+
+    def one(found: re.Match[str]) -> str:
+        tag = found.group(0)
+        size, declared = image_size(site / (_attr(tag, "src") or "")), (_attr(tag, "width"), _attr(tag, "height"))
+        if size is None or None in declared or declared == (str(size[0]), str(size[1])):
+            return tag
+        changed.append(f"{_attr(tag, 'src')} {declared[0]}x{declared[1]} -> {size[0]}x{size[1]}")
+        return re.sub(r'\bheight="\d*"', f'height="{size[1]}"', re.sub(r'\bwidth="\d*"', f'width="{size[0]}"', tag))
+
+    html = IMG.sub(one, html)
+    og = re.search(rf'<meta property="og:image" content="{re.escape(SITE_URL)}([^"]+)">', html)
+    if og and (size := image_size(site / og.group(1))) is not None:
+        for name, value in (("width", size[0]), ("height", size[1])):
+            html, count = re.subn(rf'(<meta property="og:image:{name}" content=")(?!{value}")\d+(">)', rf"\g<1>{value}\g<2>", html)
+            changed += [f"og:image:{name} -> {value}"] if count else []
+    return html, changed
+
+
+def fix_sizes(site: Path = SITE) -> list[str]:
+    """Writes into the pages of the site the sizes of their pictures' files (`sized`); what it changed, a line each. The dark copies' sizes are the files' own: a line of wrong_sizes, never written."""
+    changed: list[str] = []
+    for page in sorted(site.glob("*.html")):
+        html = page.read_text(encoding="utf-8")
+        new, lines = sized(html, site)
+        if new != html:
+            page.write_text(new, encoding="utf-8")
+        changed += [f"{page.name}: {line}" for line in lines]
+    return changed
+
+
+def missing_files(out: Path, docs: Path | None) -> list[str]:
+    """What a whole run makes and is not there: each shot's PNG and WebP, its thumbnail in both, og.png, and the README's copies; and the PNG of the folder that no shot makes."""
+    wanted = [out / f"{folder}{name}{suffix}" for name in SHOTS for folder in ("", "thumbs/") for suffix in (".png", ".webp")]
+    wanted += [out / "og.png", *(docs / f"{name}.png" for name in README_SHOTS if docs is not None)]
+    missing = [path.relative_to(path.parents[1] if path.parent.name == "thumbs" else path.parent).as_posix() for path in wanted if not path.is_file()]
+    return missing + [f"{path.name} is made by no shot" for path in sorted(out.glob("*.png")) if path.stem not in SHOTS and path.name != "og.png"]
+
+
+@dataclass
+class Run:
+    """What one run took, and for what it did not, why: by shot, and by "thumbs", "og" and "docs" for what is made from the shots."""
+    started: float = field(default_factory=time.time)
+    taken: list[str] = field(default_factory=list)
+    why_not: dict[str, str] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)                 # what was made, but not as a run with everything makes it
+    sizes: list[str] = field(default_factory=list)                 # what the site still declares at another size than its file once the sizes are written (wrong_sizes: a dark copy of another size)
+
+
+def why_left(run: Run, out: Path, docs: Path | None, path: Path) -> str:
+    """Why a file of site/shots/ or docs/screenshots/ was not written by this run."""
+    stem, thumb = path.stem, path.parent.name == "thumbs"
+    if docs is not None and path.parent == docs:
+        return run.why_not.get(stem) or run.why_not.get("docs") or ("not asked for (--only)" if stem not in run.taken else "not copied")
+    if stem == "og":
+        return run.why_not.get("og", "og.png not drawn")
+    if stem not in SHOTS:
+        return "made by no shot of this script: left as it is"
+    if stem in run.why_not:
+        return run.why_not[stem]
+    if stem not in run.taken:
+        return "not asked for (--only)"
+    return run.why_not.get("thumbs", "its thumbnail or WebP copy not made") if thumb or path.suffix == ".webp" else "not written"
+
+
+def leftovers(run: Run, out: Path, docs: Path | None) -> dict[str, list[str]]:
+    """The files of site/shots/ (its thumbnails too) and docs/screenshots/ this run did not write, by the reason; and every file of a shot asked for and not taken, whatever its time (a copy made
+    again from its earlier PNG is not this run's picture)."""
+    files = [(out.parent, f) for f in (*out.glob("*.png"), *out.glob("*.webp"), *(out / "thumbs").glob("*.png"), *(out / "thumbs").glob("*.webp"))]
+    files += [(docs.parent, f) for f in docs.glob("*.png")] if docs is not None and docs.is_dir() else []
+    left: dict[str, list[str]] = {}
+    for base, path in sorted(files):
+        if path.stat().st_mtime < run.started - MTIME_SLACK_SEC or (path.stem in run.why_not and path.stem in SHOTS):
+            left.setdefault(why_left(run, out, docs, path), []).append(path.relative_to(base).as_posix())
+    return left
+
+
+MTIME_SLACK_SEC = 1.0                                              # (a file's time is the system's coarse clock, which may be a little behind time.time() when the run starts)
+NEVER_MADE_HERE = "not made by this script: the icons (scripts/make-icon.py; ui/public/icons by hand), and GitHub's link preview, a setting of the repository (upload site/shots/og.png)"
+
+
+def say_what_was_left(run: Run, out: Path, docs: Path | None) -> int:
+    """The end of a run: the shots asked for and not taken with why, the files it did not write with why, what it made otherwise than a whole run would, and what the site still declares at another
+    size than its file; how many shots, files and sizes were left (a run with no --only exits 1 for any, as --check does)."""
+    for note in run.notes:
+        print(f"note: {note}")
+    not_taken = {name: why for name, why in run.why_not.items() if name in SHOTS}
+    for name, why in not_taken.items():
+        print(f"not taken: {name}: {why}")
+    left = leftovers(run, out, docs)
+    for why, names in left.items():
+        print(f"not retaken ({why}): {len(names)} files: {', '.join(names)}")
+    for line in run.sizes:
+        print(f"site, at another size (--check fails on it): {line}")
+    if not left and not not_taken and not run.sizes:
+        print("everything of site/shots/ and docs/screenshots/ was written by this run")
+    print(NEVER_MADE_HERE)
+    return len(not_taken) + sum(len(names) for names in left.values()) + len(run.sizes)
+
+
+# ---- the run
+
+EXTRA_DAEMONS = {"updating": ("update", "update-dark"), "receiving": ("beacon-rx", "beacon-rx-dark", "phone-beacon-rx", "phone-beacon-rx-dark"), "moving": ("beacon-gps", "beacon-gps-dark"),
+                 "hf": ("stations-hf", "stations-hf-dark"), "hf-mercury": ("settings-hf", "settings-hf-dark")}       # the shots each extra daemon is for (a copy of the day's folder, set otherwise)
+
+
+def cannot_take() -> dict[str, str]:
+    """The shots this checkout cannot take, with why."""
+    if find_mercury() is None and find_mercury(ROOT / ".venv" / "tools") is None:
+        return {name: "no Mercury in this checkout: scripts/build-mercury --install" for name in EXTRA_DAEMONS["hf-mercury"]}
+    return {}
+
+
 async def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=ROOT / "site" / "shots", help="where the PNG files go (default %(default)s)")
@@ -761,24 +1008,59 @@ async def main(argv: list[str]) -> int:
     parser.add_argument("--chromium", default=os.environ.get("CHROMIUM"), help="the browser's executable, when Playwright's own is not installed")
     parser.add_argument("--no-sandbox", action="store_true", help="start the browser without its sandbox (a container, a user namespace that is refused)")
     parser.add_argument("--keep", action="store_true", help="keep the temporary data folders and say where they are")
+    parser.add_argument("--check", action="store_true", help="take nothing: say what of site/shots/ and docs/screenshots/ is missing and which picture of site/ is declared at another size than its file; exit 1 for any")
     args = parser.parse_args(argv)
-    os.environ["NEOAPRS_UPDATE_CHECK"] = "0"                          # (no daemon of the shots asks the version page: the header shows no newer-version link)
-    logging.getLogger("neoaprs").setLevel(logging.ERROR)              # (the day has a message that fails, on purpose: the log's warning about it is not news)
+    docs = None if args.docs.name == "none" else args.docs
+    if args.check:
+        found = [*missing_files(args.out, docs), *wrong_sizes(SITE)]
+        for line in found:
+            print(line)
+        return 1 if found else 0
     chosen = sorted(args.only or SHOTS, key=lambda name: not name.startswith("setup"))      # (the guide's shots first: its daemon hears the air of the day, our own bulletins repeated among it, and the guide's table is to be empty)
     if unknown := [n for n in chosen if n not in SHOTS and n not in EXTRAS]:
         parser.error(f"no such shot: {', '.join(unknown)}")
-    taking = [n for n in chosen if n in SHOTS]
+    if not args.basemap.exists() and any(n in SHOTS for n in chosen) and (args.only is None or args.out.resolve() == (SITE / "shots").resolve()):
+        parser.error(f"there is no street map at {args.basemap}: name one with --basemap FILE (the site's shots are not drawn on the placeholder map)")
+    try:
+        import PIL  # noqa: F401
+        if any(n in SHOTS for n in chosen):
+            import playwright.async_api  # noqa: F401
+    except ImportError as e:
+        parser.error(f"{e.name} is not installed: run it with uv run --with playwright --with pillow (and playwright install chromium once)")
+    os.environ["NEOAPRS_UPDATE_CHECK"] = "0"                          # (no daemon of the shots asks the version page: the header shows no newer-version link)
+    logging.getLogger("neoaprs").setLevel(logging.ERROR)              # (the day has a message that fails, on purpose: the log's warning about it is not news)
+    run = Run()
+    run.why_not.update({name: why for name, why in cannot_take().items() if name in chosen})
+    taking = [n for n in chosen if n in SHOTS and n not in run.why_not]
     args.out.mkdir(parents=True, exist_ok=True)
     if taking:
-        await take(args, taking)
-    if args.only is None or "thumbs" in chosen:
-        make_thumbs(args.out)
-    if args.only is None or "og" in chosen:
-        make_og(args.out)
-    return 0
+        if not args.basemap.exists():
+            run.notes.append(f"the street maps are the placeholder: there is no {args.basemap} (--basemap)")
+        await take(args, taking, run)
+    made_from_all = args.only is None or "thumbs" in chosen
+    if made_from_all or run.taken:
+        make_thumbs(args.out, None if made_from_all else set(run.taken), skip={name for name in run.why_not if name in SHOTS})
+    else:
+        run.why_not["thumbs"] = "no shot taken"
+    if args.only is None or "og" in chosen or "map" in run.taken:
+        if not make_og(args.out):
+            run.why_not["og"] = "there is no map.png to draw it from"
+        elif "map" not in run.taken:
+            run.notes.append("og.png is drawn from a map.png of an earlier run")
+    else:
+        run.why_not["og"] = "drawn only by a run with everything, --only og or --only map"
+    if docs is None:
+        run.why_not["docs"] = "--docs none"
+    if args.out.resolve() == (SITE / "shots").resolve():
+        for line in fix_sizes(SITE):
+            print(f"site: {line}")
+        run.sizes = wrong_sizes(SITE)
+    left = say_what_was_left(run, args.out, docs)
+    return 1 if args.only is None and left else 0
 
 
-async def take(args: argparse.Namespace, chosen: list[str]) -> None:
+async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
+    """Takes the shots `chosen` into args.out (and the README's into args.docs); what it took is in `run`, and for each it did not, why."""
     from playwright.async_api import async_playwright
     work = Path(tempfile.mkdtemp(prefix="neoaprs-shots-"))
     radio = demoscene.DemoRadio()
@@ -789,48 +1071,9 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
     modems: list[PipeMercury] = []
     try:
         data = await prepare(work, radio, args.basemap if args.basemap.exists() else None)
-        updating: Daemon | None = None
-        if {"update", "update-dark"} & set(chosen):
-            copy_data(data, work / "updating")
-            versions = await serve_version(UPDATE_TO)
-            servers.append(versions)
-            neoaprs_db_set(work / "updating", "update/url", f"http://{demoscene.HOST}:{versions.sockets[0].getsockname()[1]}/version.php")
-            updating = Daemon(work / "updating", env={"NEOAPRS_INSTALL_KIND": "windows-installer"})        # (a simulated install: Update now is offered, and would only rehearse)
-            daemons.append(updating)
-        receiving: Daemon | None = None
-        if {"beacon-rx", "beacon-rx-dark", "phone-beacon-rx", "phone-beacon-rx-dark"} & set(chosen):
-            copy_data(data, work / "receiving")
-            neoaprs_db_set(work / "receiving", "station/transmit", "false")
-            neoaprs_db_set(work / "receiving", "beacon/interval_min", "0")
-            receiving = Daemon(work / "receiving")                                                   # (the same day on the air, with station/transmit false: RX only, and the beacon Off)
-            daemons.append(receiving)
-        moving: Daemon | None = None
-        if {"beacon-gps", "beacon-gps-dark"} & set(chosen):
-            gpsd = await start_gps_replay()
-            gpsds.append(gpsd)
-            assert gpsd.stdout is not None
-            address = (await asyncio.wait_for(gpsd.stdout.readline(), 20)).decode().strip()          # (its first line: 127.0.0.1:PORT, a free port of the loopback)
-            copy_data(data, work / "moving")
-            for key, value in {"gps/source": "gpsd", "gps/host": address, "beacon/interval_min": "30"}.items():       # (30 is On for a moving station: SmartBeaconing, travelling by car as it is by default)
-                neoaprs_db_set(work / "moving", key, value)
-            moving = Daemon(work / "moving")
-            daemons.append(moving)
-        hf: Daemon | None = None
-        if {"stations-hf", "stations-hf-dark"} & set(chosen):
-            copy_data(data, work / "hf")
-            neoaprs_db_set(work / "hf", "hf/enabled", "true")
-            neoaprs_db_set(work / "hf", "hf/profile", "dummy-hf")
-            hf = Daemon(work / "hf", env={"PATH": "/nonexistent"})                                   # (the same day on the air and the Dummy HF radio beside it; with no player on the PATH its frames are not played through this machine's speakers)
-            daemons.append(hf)
-        hf_mercury: Daemon | None = None
-        if {"settings-hf", "settings-hf-dark"} & set(chosen):
-            copy_data(data, work / "hf-mercury")
-            for key, value in {"hf/enabled": "true", "hf/profile": "mercury", "mercury/keying": "vox", "mercury/sound_card": ""}.items():
-                neoaprs_db_set(work / "hf-mercury", key, value)
-            pipes = PipeMercury(work / "hf-mercury")
-            modems.append(pipes)
-            hf_mercury = Daemon(work / "hf-mercury", "--hf-port", pipes.start())                   # (the same day on the air and the Mercury modem beside it, a real one on pipes that hears silence and keys nothing)
-            daemons.append(hf_mercury)
+        wanted = {key for key, shots in EXTRA_DAEMONS.items() if set(shots) & set(chosen)}
+        for key in wanted:
+            copy_data(data, work / key)                                                               # (each extra daemon on a copy of the day, made while no daemon runs on it)
         main_daemon = Daemon(data)
         daemons.append(main_daemon)
         url = await main_daemon.start()
@@ -842,29 +1085,73 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         daemons.append(fresh)
         fresh_url = await fresh.start() if {"setup", "setup-dark"} & set(chosen) else ""
         print("the page:", url, " the fresh one:", fresh_url)
-        update_url = await updating.start() if updating else ""
-        receive_url = await receiving.start() if receiving else ""
-        moving_url = await moving.start() if moving else ""
-        hf_url = await hf.start() if hf else ""
-        hf_mercury_url = await hf_mercury.start() if hf_mercury else ""
+
+        async def started(daemon: Daemon) -> str:
+            daemons.append(daemon)
+            return await daemon.start()
+
+        async def updating() -> str:
+            versions = await serve_version(UPDATE_TO)
+            servers.append(versions)
+            neoaprs_db_set(work / "updating", "update/url", f"http://{demoscene.HOST}:{versions.sockets[0].getsockname()[1]}/version.php")
+            return await started(Daemon(work / "updating", env={"NEOAPRS_INSTALL_KIND": "windows-installer"}))        # (a simulated install: Update now is offered, and would only rehearse)
+
+        async def receiving() -> str:
+            neoaprs_db_set(work / "receiving", "station/transmit", "false")
+            neoaprs_db_set(work / "receiving", "beacon/interval_min", "0")
+            return await started(Daemon(work / "receiving"))                                       # (the same day on the air, with station/transmit false: RX only, and the beacon Off)
+
+        async def moving() -> str:
+            gpsd = await start_gps_replay()
+            gpsds.append(gpsd)
+            assert gpsd.stdout is not None
+            address = (await asyncio.wait_for(gpsd.stdout.readline(), 20)).decode().strip()          # (its first line: 127.0.0.1:PORT, a free port of the loopback)
+            for key, value in {"gps/source": "gpsd", "gps/host": address, "beacon/interval_min": "30"}.items():       # (30 is On for a moving station: SmartBeaconing, travelling by car as it is by default)
+                neoaprs_db_set(work / "moving", key, value)
+            return await started(Daemon(work / "moving"))
+
+        async def hf() -> str:
+            hf_url = await started(Daemon(work / "hf", env={"PATH": "/nonexistent"}))               # (the same day on the air and the Dummy HF radio beside it; with no player on the PATH its frames are not played through this machine's speakers)
+            await give_hf_radio(hf_url, "dummy-hf", {})
+            return hf_url
+
+        async def hf_mercury() -> str:
+            pipes = PipeMercury(work / "hf-mercury")
+            modems.append(pipes)
+            mercury_url = await started(Daemon(work / "hf-mercury", "--hf-port", pipes.start()))   # (the same day on the air and the Mercury modem beside it, a real one on pipes that hears silence and keys nothing:
+            await give_hf_radio(mercury_url, "mercury", {"keying": "vox", "sound_card": ""})        #  the radio given through the page is radio 2, which --hf-port names)
+            return mercury_url
+
+        starts: dict[str, Callable[[], Awaitable[str]]] = {"updating": updating, "receiving": receiving, "moving": moving, "hf": hf, "hf-mercury": hf_mercury}
+        urls: dict[str, str] = {}
+        for key in sorted(wanted):
+            try:
+                urls[key] = await starts[key]()
+            except (RuntimeError, TimeoutError, OSError, subprocess.CalledProcessError, smoke.Failure) as e:
+                run.why_not.update({name: f"its daemon did not come up: {e}" for name in EXTRA_DAEMONS[key] if name in chosen})
         async with async_playwright() as p:
             options: dict[str, Any] = {"args": ["--no-sandbox"] if args.no_sandbox else []}
             if args.chromium:
                 options["executable_path"] = args.chromium
             browser = await p.chromium.launch(**options)
             shots = Shots(browser, url, args.out)
-            shots.update_url = update_url
-            shots.receive_url = receive_url
-            shots.moving_url = moving_url
-            shots.hf_url = hf_url
-            shots.hf_mercury_url = hf_mercury_url
+            shots.update_url, shots.receive_url, shots.moving_url = urls.get("updating", ""), urls.get("receiving", ""), urls.get("moving", "")
+            shots.hf_url, shots.hf_mercury_url = urls.get("hf", ""), urls.get("hf-mercury", "")
             for name in chosen:
-                await SHOTS[name](shots, fresh_url)
+                if name in run.why_not:
+                    continue
+                try:
+                    await SHOTS[name](shots, fresh_url)
+                    run.taken.append(name)
+                except Exception as e:                                                             # (a shot that fails is said at the end; the others are taken)
+                    run.why_not[name] = f"failed: {e.__class__.__name__}: {str(e).splitlines()[0] if str(e) else ''}"
+                    print(f"{name}: {run.why_not[name]}")
+                    await shots.close_left()
             await browser.close()
         if args.docs.name != "none":
             args.docs.mkdir(parents=True, exist_ok=True)
             for name in README_SHOTS:
-                if (args.out / f"{name}.png").exists() and name in chosen:
+                if (args.out / f"{name}.png").exists() and name in run.taken:
                     shutil.copyfile(args.out / f"{name}.png", args.docs / f"{name}.png")
     finally:
         for daemon in daemons:

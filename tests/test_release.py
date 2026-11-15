@@ -1,5 +1,5 @@
 """The release's own files, as far as a test can see them without GitHub or a Windows machine: the notes taken out of the changelog, the install script's template rendered and read by `sh -n`, the workflow's
-pins and permissions, the Windows installer script's promises (per user, the tasks, the uninstaller), the bundled pmtiles that the program looks for first, and the bundled Mercury (the job that builds it, the Windows script that unpacks it, what the Linux jobs prove of it). The whole of it is run by `.github/workflows/release.yml`."""
+pins and permissions, the Windows installer script's promises (per user, the tasks, the uninstaller), that the Windows app carries no pmtiles program (and an update clears the one of an earlier version), the bundled Mercury (the job that builds it, the Windows script that unpacks it, what the Linux jobs prove of it), and the pieces of the end-to-end test of Update now (`scripts/update-e2e.py`) that read the daemon on either wire. The whole of it is run by `.github/workflows/release.yml`."""
 import re
 import subprocess
 import sys
@@ -359,3 +359,48 @@ def test_the_installers_are_built_from_the_lock_with_every_hash_required() -> No
     installs = [line for line in re.findall(r"uv pip install .*", WORKFLOW) if " -r " in line]
     assert installs and all("--require-hashes" in line for line in installs), installs
     assert not [line for line in re.findall(r"uv pip install .*", WORKFLOW) if "-r " not in line and "--no-deps" not in line and "smoke-venv" not in line and "e2e-venv" not in line], "a build installs only with the lock's hashes"
+
+
+def test_the_update_test_reads_the_fm_radio_and_its_port_on_the_old_wire_and_on_the_wire_of_the_radios() -> None:
+    """scripts/update-e2e.py runs an old version and then a new one, which from the round of the radios on tell the FM radio in the topic `radios` and keep its port as `radio/1/port`: the test reads either
+    (the topic the daemon tells, the key the program takes), and a port that neither key takes is a Failure that names both answers."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("update_e2e", ROOT / "scripts" / "update-e2e.py")
+    assert spec and spec.loader
+    e2e = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(e2e)
+
+    class Seen:
+        def __init__(self, topics: dict[str, object], packets: int) -> None:
+            self.topics, self.status = topics, {"packets": packets}
+
+    old, new = {"tnc": {"state": "connected"}}, {"tnc": {"state": "stopped"}, "radios": {"1": {"id": 1, "kind": "fm", "enabled": True, "removed": False, "position": 1, "state": "connected"}}}
+    assert e2e.connected(Seen(old, 3)) and e2e.connected(Seen(new, 3)) and not e2e.connected(Seen(new, 0)) and not e2e.connected(Seen({"radios": {}}, 3))
+
+    class Install:
+        """The command line of a version as `neoaprs db` answers (tests/test_scripts.py holds the real one): `set` of a station key makes the database of a fresh folder; a radio's own key needs radio 1,
+        which a fresh folder of a version of the round has not ("there is no database ... so no radio", exit 1), and `get` prints the value alone."""
+        def __init__(self, takes: set[str], stored: dict[str, str], database: bool = False) -> None:
+            self.takes, self.stored, self.asked, self.database = takes, stored, [], database
+
+        def run(self, *args: str, timeout: float = 120) -> subprocess.CompletedProcess[str]:
+            self.asked.append(args[3:])
+            verb, key = args[3], args[4]
+            if key.startswith("radio/") and not self.database:
+                return subprocess.CompletedProcess(list(args), 1, "", "neoaprs db: there is no database at d/neoaprs.sqlite, so no radio (has the daemon run? --data DIR)")
+            if key not in self.takes:
+                return subprocess.CompletedProcess(list(args), 2, "", f"neoaprs db: {key}: no such setting")
+            if verb == "set":
+                self.database, self.stored[key] = True, args[5]
+            return subprocess.CompletedProcess(list(args), 0, f"{key} = {args[5]}" if verb == "set" else self.stored.get(key, ""), "")
+
+    before = Install({"serial/port"}, {})
+    assert e2e.set_port(before, Path("d"), "socket://127.0.0.1:1") == "serial/port" and before.asked == [("set", "serial/port", "socket://127.0.0.1:1")]
+    with pytest.raises(e2e.Failure, match="serial/port: .*no such setting; radio/1/port: .*no database .* so no radio"):
+        e2e.set_port(Install({"radio/1/port"}, {}), Path("d"), "socket://127.0.0.1:1")      # (a version with only the radio's own key, on the fresh folder the test gives it: loud, both answers named)
+    after = Install({"radio/1/port"}, {}, database=True)
+    assert e2e.set_port(after, Path("d"), "socket://127.0.0.1:1") == "radio/1/port", "a version with only the radio's own key, on a folder whose daemon has run"
+    assert e2e.get_port(after, Path("d")) == "socket://127.0.0.1:1" and e2e.get_port(Install({"serial/port"}, {"serial/port": "x"}, database=True), Path("d")) == "x"
+    assert e2e.get_port(Install({"serial/port"}, {"serial/port": "x"}), Path("d")) == "x", "a version before the round, whose `get` of radio/1/port is refused"
+    with pytest.raises(e2e.Failure, match="serial/port: .*no such setting; radio/1/port: .*no such setting"):
+        e2e.set_port(Install(set(), {}, database=True), Path("d"), "socket://127.0.0.1:1")
