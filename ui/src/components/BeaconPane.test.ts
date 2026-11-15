@@ -1,8 +1,10 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BeaconPane from "@/components/BeaconPane.vue";
-import { fakeDaemon, withDaemon } from "@/test/context";
-import { NOW, ago, configValues, gpsOff, gpsState, status } from "@/test/fixtures";
+import type { RadioRow } from "@/protocol/protocol";
+import { fakeDaemon, tell, withDaemon } from "@/test/context";
+import { cssRule } from "@/test/css";
+import { NOW, ago, configValues, gpsOff, gpsState, radioRow, radiosTopic, status } from "@/test/fixtures";
 
 type Opts = { connected?: boolean; picking?: boolean; status?: ReturnType<typeof status> | null; gps?: ReturnType<typeof gpsState> | null };
 
@@ -529,5 +531,349 @@ describe("BeaconPane with the beacon Off", () => {
       [true, "RX only: nothing is sent"],
       [true, "RX only: nothing is sent"],
     ]);
+  });
+});
+
+describe("BeaconPane with several radios", () => {
+  // the radios as the daemon tells them, and their own settings in radio_values (as the daemon sends them beside the settings of before)
+  const later = (seconds: number) => new Date(NOW + seconds * 1000).toISOString();
+  const FM = (extra: Partial<RadioRow> = {}) => radioRow(1, "kenwood-tnc2", extra);
+  const HF = (extra: Partial<RadioRow> = {}) => radioRow(2, "mercury", extra);
+  const FM3 = (extra: Partial<RadioRow> = {}) => radioRow(3, "kiss", { number: 2, ...extra });
+  const SIX = () => [
+    FM({ name: "Shack" }),
+    HF({ name: "20 m" }),
+    FM3({ name: "Mobile12" }),
+    radioRow(4, "kiss", { number: 3, name: "Kitchen" }),
+    radioRow(5, "dummy-hf", { number: 2, name: "Dummy" }),
+    radioRow(6, "kiss-tcp", { number: 4, name: "Direwolf" }),
+  ];
+  const valuesOf = (rows: RadioRow[]): Record<string, string> =>
+    Object.fromEntries(
+      rows.flatMap((row): [string, string][] => [
+        [`radio/${row.id}/beacon`, String(row.choices.beacon)],
+        ...(row.choices.path === null ? [] : [[`radio/${row.id}/path`, row.choices.path] as [string, string]]),
+      ]),
+    );
+  function radiosPane(
+    rows: RadioRow[] | null,
+    extra: Record<string, string> = {},
+    opts: { status?: ReturnType<typeof status>; attach?: boolean; gps?: ReturnType<typeof gpsState>; values?: RadioRow[] } = {},
+  ) {
+    const told = rows ?? opts.values ?? [];
+    const base = configValues({ "hf/enabled": told.some((row) => row.id === 2 && row.enabled && !row.removed) ? "true" : "false", ...extra });
+    const daemon = fakeDaemon({
+      status: opts.status ?? status({ beacon_interval_min: 20, beacon_last_sent: ago(240), beacon_next_due: later(16 * 60) }),
+      config: { ...base, radio_values: { ...base.radio_values, ...valuesOf(told) } },
+      radios: rows === null ? null : radiosTopic(...rows),
+      gps: opts.gps ?? null,
+    });
+    const wrapper = mount(BeaconPane, { global: withDaemon(daemon), attachTo: opts.attach ? document.body : undefined });
+    return { wrapper, send: daemon.send, daemon };
+  }
+  const sendOn = (wrapper: Wrapper) => wrapper.find("#beacon-send-on").element.closest(".field");
+  const ticks = (wrapper: Wrapper) => wrapper.findAll<HTMLInputElement>("#beacon-send-on ~ .field-control input[type=checkbox]");
+  const tickNames = (wrapper: Wrapper) => wrapper.findAll("#beacon-send-on ~ .field-control label.check").map((l) => l.text());
+  const fold = (wrapper: Wrapper) =>
+    block(wrapper)
+      .findAll(".igatefold")
+      .map((p) => p.text());
+  const configs = (send: ReturnType<typeof pane>["send"]) => send.mock.calls.map(([command]) => command).filter((command) => command.cmd === "set_config");
+
+  describe("Send on", () => {
+    it("is not there with one radio on: the tab is as it was (the FM radio alone, the HF radio alone, a radio that is off or removed beside it)", () => {
+      for (const rows of [[FM()], [FM({ enabled: false }), HF()], [FM(), HF({ enabled: false })], [FM(), HF({ removed: true, enabled: false })]]) {
+        const { wrapper } = radiosPane(rows, rows[0]?.enabled === false ? { "fm/enabled": "false" } : {});
+        expect(wrapper.find("#beacon-send-on").exists()).toBe(false);
+        expect(fold(wrapper).filter((line) => /^(FM|HF)( \d)?: /.test(line))).toEqual([]);
+      }
+      expect(pane().wrapper.find("#beacon-send-on").exists()).toBe(false);
+    });
+
+    it("is a tick for each radio that is on, by its name, under the Beacon choice and before the state of the beacon, each ticked as the daemon has it", () => {
+      const { wrapper } = radiosPane([FM(), HF({ choices: { beacon: false, path: null, digipeat: null } }), FM3({ enabled: false })]);
+      const row = sendOn(wrapper);
+      expect(row?.querySelector(".field-label")?.textContent).toBe("Send on");
+      expect(row?.getAttribute("role")).toBe("group");
+      expect(wrapper.find("#set-beacon-interval_min").element.closest(".field")?.nextElementSibling).toBe(row);
+      expect(row?.nextElementSibling).toBe(block(wrapper).element);
+      expect(tickNames(wrapper)).toEqual(["FM", "HF"]);
+      expect(ticks(wrapper).map((tick) => [tick.attributes("id"), tick.element.checked])).toEqual([
+        ["set-radio-1-beacon", true],
+        ["set-radio-2-beacon", false],
+      ]);
+      expect(wrapper.find("#set-radio-3-beacon").exists()).toBe(false);
+    });
+
+    it("greys the last tick that is ticked, so that the beacon is switched off by the interval alone, and only that one", () => {
+      const { wrapper } = radiosPane([FM(), HF({ choices: { beacon: false, path: null, digipeat: null } })]);
+      expect(ticks(wrapper).map((tick) => tick.attributes("disabled") !== undefined)).toEqual([true, false]);
+      const all = radiosPane([FM(), HF()]).wrapper;
+      expect(ticks(all).map((tick) => tick.attributes("disabled") !== undefined)).toEqual([false, false]);
+    });
+
+    it("applies a tick at once as the radio's own setting, and the other is greyed while it is on its way", async () => {
+      const { wrapper, send, daemon } = radiosPane([FM(), HF(), FM3()]);
+      await ticks(wrapper)[1]?.setValue(false);
+      expect(configs(send)).toEqual([{ cmd: "set_config", values: { "radio/2/beacon": "false" } }]);
+      expect(ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined])).toEqual([
+        [true, false],
+        [false, false],
+        [true, false],
+      ]);
+      await ticks(wrapper)[2]?.setValue(false);
+      expect(ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined])).toEqual([
+        [true, true],
+        [false, false],
+        [false, false],
+      ]);
+      // the daemon takes both: the ticks are what it says from then on, also when another page changes them again
+      const base = daemon.config.value;
+      if (base === null) throw new Error("no config");
+      await tell(daemon, { config: { ...base, radio_values: { ...base.radio_values, "radio/2/beacon": "false", "radio/3/beacon": "false" } } });
+      await tell(daemon, { config: { ...base, radio_values: { ...base.radio_values, "radio/2/beacon": "false", "radio/3/beacon": "false" } } });
+      expect(ticks(wrapper).map((tick) => tick.element.checked)).toEqual([true, false, false]);
+      await tell(daemon, { config: { ...base, radio_values: { ...base.radio_values, "radio/2/beacon": "true", "radio/3/beacon": "false" } } });
+      expect(ticks(wrapper).map((tick) => tick.element.checked)).toEqual([true, true, false]);
+      expect(configs(send)).toHaveLength(2);
+    });
+
+    it("shows the daemon's refusal of a tick under the row, in its coded words, and the tick as it is in force", async () => {
+      const { wrapper, daemon } = radiosPane([FM(), HF()]);
+      await ticks(wrapper)[1]?.setValue(false);
+      await tell(daemon, {
+        lastError: {
+          cmd: "set_config",
+          key: "radio/2/beacon",
+          code: "radio.unknown",
+          params: { radio: 2 },
+          text: "set_config: radio/2/beacon: there is no radio 2",
+          n: 1,
+        },
+      });
+      expect(sendOn(wrapper)?.querySelector(".field-error")?.textContent).toBe("there is no radio 2");
+      expect(sendOn(wrapper)?.classList.contains("invalid")).toBe(true);
+      expect(ticks(wrapper).map((tick) => tick.element.checked)).toEqual([true, true]);
+    });
+
+    it("takes a refusal away when another tick is pressed: the row's one line is about the latest press", async () => {
+      const { wrapper, daemon } = radiosPane([FM(), HF(), FM3()]);
+      await ticks(wrapper)[1]?.setValue(false);
+      await tell(daemon, {
+        lastError: {
+          cmd: "set_config",
+          key: "radio/2/beacon",
+          code: "radio.unknown",
+          params: { radio: 2 },
+          text: "set_config: radio/2/beacon: there is no radio 2",
+          n: 1,
+        },
+      });
+      expect(sendOn(wrapper)?.querySelector(".field-error")?.textContent).toBe("there is no radio 2");
+      await ticks(wrapper)[2]?.setValue(false);
+      expect(sendOn(wrapper)?.querySelector(".field-error")).toBeNull();
+      expect(sendOn(wrapper)?.classList.contains("invalid")).toBe(false);
+    });
+
+    it("shows the main radio's tick ticked and greyed while no radio that is on is ticked, and a tick of another keeps it ticked (plan rule 3.1)", async () => {
+      const none = { choices: { beacon: false, path: "", digipeat: false } };
+      const hfNone = { choices: { beacon: false, path: null, digipeat: null } };
+      const { wrapper, send, daemon } = radiosPane([FM(), HF(hfNone), FM3(none)], {}, { status: status({ main_radio: 1, beacon_interval_min: 20 }) });
+      expect(ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined])).toEqual([
+        [true, true],
+        [false, false],
+        [false, false],
+      ]);
+      // FM is switched off: the beacon goes out on the main radio, now HF, and its tick says so
+      const base = daemon.config.value;
+      if (base === null) throw new Error("no config");
+      await tell(daemon, {
+        radios: radiosTopic(FM({ enabled: false }), HF(hfNone), FM3(none)),
+        config: { ...base, values: { ...base.values, "fm/enabled": "false" } },
+        status: status({ main_radio: 2, beacon_interval_min: 20 }),
+      });
+      expect(tickNames(wrapper)).toEqual(["HF", "FM 2"]);
+      expect(ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined])).toEqual([
+        [true, true],
+        [false, false],
+      ]);
+      expect(fold(wrapper).map((line) => line.split(":")[0])).toEqual(["HF"]);
+      await ticks(wrapper)[1]?.setValue(true);
+      expect(configs(send)).toEqual([{ cmd: "set_config", values: { "radio/2/beacon": "true", "radio/3/beacon": "true" } }]);
+      expect(ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined])).toEqual([
+        [true, false],
+        [true, false],
+      ]);
+    });
+
+    it("has six ticks that wrap onto more lines, each tick and its name together, a name of 8 characters whole, each with its own id (the width of 375 px is the browser's to show)", () => {
+      const { wrapper } = radiosPane(SIX());
+      expect(tickNames(wrapper)).toEqual(["Shack", "20 m", "Mobile12", "Kitchen", "Dummy", "Direwolf"]);
+      expect(sendOn(wrapper)?.querySelector(".field-control")?.classList.contains("toolbar-checks")).toBe(true);
+      expect(cssRule(".toolbar-checks")).toMatch(/flex-wrap:\s*wrap/);
+      expect(cssRule(".check")).toMatch(/white-space:\s*nowrap/);
+      expect(cssRule(".field-control")).toMatch(/min-width:\s*0/);
+      expect(new Set(ticks(wrapper).map((tick) => tick.attributes("id"))).size).toBe(6);
+      expect(fold(wrapper)).toHaveLength(6);
+    });
+  });
+
+  describe("the state of the beacon", () => {
+    it("says each radio's beacon behind the arrow, by its name, with its own interval: FM 20 while HF keeps 30", () => {
+      const { wrapper } = radiosPane([
+        FM({ beacon: { last_sent: ago(240), next_due: later(16 * 60), interval_min: 20, problem: null } }),
+        HF({ beacon: { last_sent: ago(120), next_due: later(29 * 60), interval_min: 30, problem: null } }),
+      ]);
+      expect(block(wrapper).find(".tncstatus").text()).toBe("Last beacon 2 min ago · next in 16 min (every 20 min)");
+      expect(fold(wrapper)).toEqual(["FM: last beacon 4 min ago · next in 16 min (every 20 min)", "HF: last beacon 2 min ago · next in 29 min (every 30 min)"]);
+    });
+
+    it("lists the radios the beacon goes out on: not one whose Send on is unticked, nor one that is off", () => {
+      const { wrapper } = radiosPane([
+        FM(),
+        HF({ choices: { beacon: false, path: null, digipeat: null } }),
+        FM3({ name: "Mobile12" }),
+        radioRow(4, "kiss", { enabled: false }),
+      ]);
+      expect(fold(wrapper).map((line) => line.split(":")[0])).toEqual(["FM", "Mobile12"]);
+    });
+
+    it("says the status's beacon until the daemon has told the radios, so that nothing jumps when they come", async () => {
+      const told = [
+        FM({ beacon: { last_sent: ago(240), next_due: later(16 * 60), interval_min: 20, problem: null } }),
+        HF({ beacon: { last_sent: null, next_due: null, interval_min: 30, problem: null } }),
+      ];
+      const { wrapper, daemon } = radiosPane(null, {}, { values: told });
+      expect(ticks(wrapper)).toHaveLength(2);
+      expect(block(wrapper).find(".tncstatus").text()).toBe("Last beacon 4 min ago · next in 16 min (every 20 min)");
+      expect(fold(wrapper).filter((line) => /^(FM|HF): /.test(line))).toEqual([]);
+      await tell(daemon, { radios: radiosTopic(...told) });
+      expect(block(wrapper).find(".tncstatus").text()).toBe("Last beacon 4 min ago · next in 16 min (every 20 min)");
+      expect(fold(wrapper)).toEqual(["FM: last beacon 4 min ago · next in 16 min (every 20 min)", "HF: no beacon sent yet · no timed beacon"]);
+    });
+
+    it("says each radio's beacon of a moving station too: FM by SmartBeaconing, HF by its own interval", () => {
+      const { wrapper } = radiosPane(
+        [
+          FM({ beacon: { last_sent: ago(240), next_due: later(60), interval_min: 20, problem: null } }),
+          HF({ beacon: { last_sent: ago(120), next_due: later(29 * 60), interval_min: 30, problem: null } }),
+        ],
+        { "gps/source": "gpsd" },
+        { gps: gpsState() },
+      );
+      expect(fold(wrapper).filter((line) => /^(FM|HF): /.test(line))).toEqual([
+        "FM: last beacon 4 min ago · next in 1 min",
+        "HF: last beacon 2 min ago · next in 29 min (every 30 min)",
+      ]);
+    });
+  });
+
+  describe("Beacon now and Send status now", () => {
+    const waiting = { state: "waiting" as const };
+
+    it("send while one radio the beacon goes on is connected, and Send status now while the main radio is", async () => {
+      const { wrapper, send } = radiosPane([FM(waiting), HF()], { "status/source": "text" });
+      expect(buttons(wrapper).map((button) => button.attributes("disabled") === undefined)).toEqual([true, false]);
+      expect(wrapper.find("#status-now").attributes("title")).toBe("FM: not connected");
+      await wrapper.find("#beacon-now").trigger("click");
+      await wrapper.find("#beacon-now").trigger("click");
+      expect(send).toHaveBeenCalledWith({ cmd: "beacon_now" });
+    });
+
+    it("is off while none of the radios it goes on is connected, with those radios as its title; an unticked radio's link does not count", () => {
+      const { wrapper } = radiosPane([FM(waiting), HF({ state: "connecting", name: "20 m" }), FM3({ choices: { beacon: false, path: "", digipeat: false } })], {
+        "status/source": "text",
+      });
+      const button = wrapper.find("#beacon-now");
+      expect(button.attributes("disabled")).toBeDefined();
+      expect(button.attributes("title")).toBe("FM: not connected\n20 m: not connected");
+    });
+
+    it("goes on the main radio when no radio is ticked, and waits for it", () => {
+      const none = { choices: { beacon: false, path: "", digipeat: false } };
+      const { wrapper } = radiosPane([FM({ ...none, ...waiting }), FM3(none)], {}, { status: status({ main_radio: 1 }) });
+      expect(wrapper.find("#beacon-now").attributes("disabled")).toBeDefined();
+      expect(
+        radiosPane([FM(none), FM3({ ...none, ...waiting })], {}, { status: status({ main_radio: 1 }) })
+          .wrapper.find("#beacon-now")
+          .attributes("disabled"),
+      ).toBeUndefined();
+    });
+
+    it("forgets the first press when the radios it would go on drop, as it does when the link drops", async () => {
+      const { wrapper, send, daemon } = radiosPane([FM(), HF({ choices: { beacon: false, path: null, digipeat: null } })], { "status/source": "text" });
+      await wrapper.find("#beacon-now").trigger("click");
+      expect(wrapper.find("#beacon-now").text()).toBe("Really send?");
+      await tell(daemon, { radios: radiosTopic(FM(waiting), HF({ choices: { beacon: false, path: null, digipeat: null } })) });
+      expect(wrapper.find("#beacon-now").attributes("disabled")).toBeDefined();
+      await tell(daemon, { radios: radiosTopic(FM(), HF({ choices: { beacon: false, path: null, digipeat: null } })) });
+      expect(wrapper.find("#beacon-now").text()).toBe("Beacon now");
+      await wrapper.find("#beacon-now").trigger("click");
+      expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
+    });
+
+    it("with one radio, is off without the link and says so as Send does", () => {
+      const { wrapper } = pane({ "status/source": "text" }, { connected: false });
+      expect(buttons(wrapper).map((button) => button.attributes("title"))).toEqual(["The TNC is not connected", "The TNC is not connected"]);
+      expect(buttons(pane({ "status/source": "text" }).wrapper).map((button) => button.attributes("title"))).toEqual([undefined, undefined]);
+    });
+  });
+
+  describe("the Path rows of Advanced", () => {
+    const pathLabels = (wrapper: Wrapper) =>
+      group(wrapper, "Beacon")
+        ?.findAll(".settings-fold .field > label")
+        .map((l) => l.text())
+        .filter((text) => /path/i.test(text));
+
+    it("is one row, Path, with one radio, and none for the HF radio alone", () => {
+      expect(pathLabels(pane().wrapper)).toEqual(["Path"]);
+      expect(pathLabels(radiosPane([FM({ enabled: false }), HF()], { "fm/enabled": "false" }).wrapper)).toEqual([]);
+    });
+
+    it("is a row for each radio that may carry a path, named while several radios are on: none for HF", () => {
+      const { wrapper } = radiosPane([FM(), HF(), FM3({ choices: { beacon: true, path: "WIDE2-2", digipeat: false } })]);
+      expect(pathLabels(wrapper)).toEqual(["FM: path", "FM 2: path"]);
+      expect(wrapper.find("#set-beacon-path").exists()).toBe(true);
+      expect(wrapper.find<HTMLSelectElement>("#set-radio-3-path").element.value).toBe("custom");
+      expect(wrapper.find<HTMLInputElement>("#set-radio-3-path-typed").element.value).toBe("WIDE2-2");
+      expect(pathLabels(radiosPane([FM(), HF()]).wrapper)).toEqual(["FM: path"]);
+    });
+
+    it("sends each row as its radio's own setting: Direct only at once, a typed path when it is left, checked first as the beacon's path is", async () => {
+      const { wrapper, send, daemon } = radiosPane([FM(), HF(), FM3()], {}, { attach: true });
+      const answer = async (values: Record<string, string>) => {
+        const base = daemon.config.value;
+        if (base === null) throw new Error("no config");
+        const flat = Object.fromEntries(Object.entries(values).filter(([key]) => !key.startsWith("radio/")));
+        await tell(daemon, { config: { ...base, values: { ...base.values, ...flat }, radio_values: { ...base.radio_values, ...values } } });
+      };
+      await wrapper.find("#set-radio-3-path").setValue("direct");
+      await answer({ "radio/3/path": "DIRECT" });
+      expect(wrapper.find<HTMLSelectElement>("#set-radio-3-path").element.value).toBe("direct");
+      await wrapper.find("#set-beacon-path").setValue("direct");
+      await answer({ "beacon/path": "DIRECT", "radio/1/path": "DIRECT" });
+      expect(configs(send)).toEqual([
+        { cmd: "set_config", values: { "radio/3/path": "DIRECT" } },
+        { cmd: "set_config", values: { "beacon/path": "DIRECT" } },
+      ]);
+      await wrapper.find("#set-radio-3-path").setValue("custom");
+      const typed = wrapper.find<HTMLInputElement>("#set-radio-3-path-typed");
+      await typed.setValue("OH2RDK-7,NOT A CALL");
+      await typed.trigger("blur");
+      expect(configs(send)).toHaveLength(2);
+      expect(wrapper.find("#set-radio-3-path").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe(
+        "Calls separated by commas, 8 at the most",
+      );
+      await typed.setValue("OH2RDK-7");
+      await typed.trigger("blur");
+      expect(configs(send)[2]).toEqual({ cmd: "set_config", values: { "radio/3/path": "OH2RDK-7" } });
+      wrapper.unmount();
+    });
+
+    it("greys every row in RX only, as it greys the one", () => {
+      const { wrapper } = radiosPane([FM(), HF(), FM3()], { "station/transmit": "false" });
+      expect(["#set-beacon-path", "#set-radio-3-path"].map((id) => wrapper.find(id).attributes("disabled"))).toEqual(["", ""]);
+    });
   });
 });

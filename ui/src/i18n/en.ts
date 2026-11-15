@@ -21,6 +21,7 @@ import { time } from "@/i18n/en/time";
 import { u4 } from "@/i18n/en/u4";
 import { u5a } from "@/i18n/en/u5a";
 import { u5b } from "@/i18n/en/u5b";
+import { u5c } from "@/i18n/en/u5c";
 import { weather } from "@/i18n/en/weather";
 import type { Message } from "@/i18n/message";
 
@@ -47,4 +48,5 @@ export const en = {
   ...u4,
   ...u5a,
   ...u5b,
+  ...u5c,
 } as const satisfies Record<string, Message>;

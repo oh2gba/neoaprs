@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { beaconBlock } from "@/lib/beaconstatus";
-import { NOW, ago, gpsOff, gpsState, status } from "@/test/fixtures";
+import {
+  beaconBlock,
+  beaconRadios,
+  followRadioValues,
+  notConnectedWhy,
+  pathKey,
+  pathRows,
+  radioValueOf,
+  sendOnTicks,
+  type BeaconRadio,
+} from "@/lib/beaconstatus";
+import { dateTimeText } from "@/lib/format";
+import { pageRadio, type PageRadio } from "@/lib/radios";
+import type { RadioRow } from "@/protocol/protocol";
+import { NOW, ago, configValues, gpsOff, gpsState, radioRow, status } from "@/test/fixtures";
 
 const later = (seconds: number) => new Date(NOW + seconds * 1000).toISOString();
 const timed = (extra = {}) => status({ beacon_interval_min: 60, beacon_last_sent: ago(240), beacon_next_due: later(56 * 60), ...extra });
@@ -149,35 +162,170 @@ describe("beaconBlock of a moving station", () => {
   });
 });
 
-describe("beaconBlock with the HF radio", () => {
-  const both = { "fm/enabled": "true", "hf/enabled": "true" };
-  const two = (extra = {}) =>
-    status({
-      beacon_interval_min: 30,
-      beacon_last_sent: ago(240),
-      beacon_next_due: later(26 * 60),
-      hf_beacon_last_sent: ago(120),
-      hf_beacon_next_due: later(29 * 60),
-      ...extra,
-    });
+describe("beaconBlock with several radios", () => {
+  // (plan 6a: "each radio's line behind the status arrow shows its own interval"; the lines are each radio's own timer, its row of the topic `radios`, by the radio's name)
+  const beacon = (last: string | null, next: string | null, interval = 30): BeaconRadio["beacon"] => ({
+    last_sent: last,
+    next_due: next,
+    interval_min: interval,
+    problem: null,
+  });
+  const two = (extra = {}) => status({ beacon_interval_min: 20, beacon_last_sent: ago(240), beacon_next_due: later(16 * 60), ...extra });
+  const radios = (hf = beacon(ago(120), later(29 * 60))): BeaconRadio[] => [
+    { name: "FM", beacon: beacon(ago(240), later(16 * 60), 20), smart: true },
+    { name: "HF", beacon: hf, smart: false },
+  ];
 
-  it("takes the latest beacon of any radio and the next due of any radio for the row's line, and a line for each radio behind its arrow while both are on", () => {
-    const block = beaconBlock(two(), gpsOff(), both, NOW);
-    expect(block.line).toBe("Last beacon 2 min ago · next in 26 min (every 30 min)");
-    expect(block.radios).toEqual(["FM: last beacon 4 min ago · next in 26 min", "HF: last beacon 2 min ago · next in 29 min"]);
+  it("takes the latest beacon of any radio and the next due of any radio for the row's line, and a line for each radio behind its arrow with its own interval", () => {
+    const block = beaconBlock(two(), gpsOff(), {}, NOW, radios());
+    expect(block.line).toBe("Last beacon 2 min ago · next in 16 min (every 20 min)");
+    expect(block.radios).toEqual(["FM: last beacon 4 min ago · next in 16 min (every 20 min)", "HF: last beacon 2 min ago · next in 29 min (every 30 min)"]);
+    expect(block.hover).toBe(dateTimeText(ago(120)));
   });
 
-  it("says a radio that has sent nothing yet, and one with no timed beacon, in its own line", () => {
-    const block = beaconBlock(two({ hf_beacon_last_sent: null, hf_beacon_next_due: null }), gpsOff(), both, NOW);
-    expect(block.radios).toEqual(["FM: last beacon 4 min ago · next in 26 min", "HF: no beacon sent yet · no timed beacon"]);
-    expect(beaconBlock(two({ beacon_last_sent: null }), gpsOff(), both, NOW).radios[0]).toBe("FM: no beacon sent yet · next in 26 min");
+  it("says a radio that has sent nothing yet, and one with no timed beacon, in its own line, by the name the radio has", () => {
+    expect(beaconBlock(two(), gpsOff(), {}, NOW, radios(beacon(null, null, 0))).radios).toEqual([
+      "FM: last beacon 4 min ago · next in 16 min (every 20 min)",
+      "HF: no beacon sent yet · no timed beacon",
+    ]);
+    expect(beaconBlock(two(), gpsOff(), {}, NOW, radios(beacon(ago(600), null, 30))).radios[1]).toBe("HF: last beacon 10 min ago · no timed beacon");
+    const named = [{ name: "20 m", beacon: beacon(null, later(5 * 60), 30), smart: false }, ...radios()];
+    expect(beaconBlock(two(), gpsOff(), {}, NOW, named).radios[0]).toBe("20 m: no beacon sent yet · next in 5 min (every 30 min)");
+  });
+
+  it("goes by the radios' timers and not by the status's, for any number of radios", () => {
+    const six = ["FM", "HF", "LoRa", "Mobile12", "20 m", "FM 2"].map((name, i) => ({
+      name,
+      beacon: beacon(ago(60 * (i + 3)), later(60 * (i + 10)), 30),
+      smart: i !== 1,
+    }));
+    const block = beaconBlock(two({ beacon_last_sent: null, beacon_next_due: null }), gpsOff(), {}, NOW, six);
+    expect(block.line).toBe("Last beacon 3 min ago · next in 10 min (every 20 min)");
+    expect(block.radios).toHaveLength(6);
+    expect(block.radios[3]).toBe("Mobile12: last beacon 6 min ago · next in 13 min (every 30 min)");
+    expect(
+      beaconBlock(
+        two(),
+        gpsOff(),
+        {},
+        NOW,
+        radios().map((r) => ({ ...r, beacon: beacon(null, null, 0) })),
+      ),
+    ).toMatchObject({
+      pill: { text: "off", tone: "beacon-off" },
+      line: "No beacon sent yet · no timed beacon",
+    });
   });
 
   it("has no lines of radios while one radio is on, and the row as it was: the FM beacon alone, or the HF beacon alone", () => {
     const fm = beaconBlock(timed(), gpsOff(), {}, NOW);
     expect([fm.radios, fm.line]).toEqual([[], "Last beacon 4 min ago · next in 56 min (every 60 min)"]);
-    expect(beaconBlock(two(), gpsOff(), { "fm/enabled": "true", "hf/enabled": "false" }, NOW).radios).toEqual([]);
-    const hf = beaconBlock(two({ beacon_last_sent: null, beacon_next_due: null }), gpsOff(), { "fm/enabled": "false", "hf/enabled": "true" }, NOW);
+    const hf = beaconBlock(
+      status({ beacon_interval_min: 30, hf_beacon_last_sent: ago(120), hf_beacon_next_due: later(29 * 60) }),
+      gpsOff(),
+      { "fm/enabled": "false", "hf/enabled": "true" },
+      NOW,
+    );
     expect([hf.radios, hf.line, hf.pill?.text]).toEqual([[], "Last beacon 2 min ago · next in 29 min (every 30 min)", "on"]);
+  });
+
+  it("has a line for each radio of a moving station too: the radio with SmartBeaconing its next by time, the one without its own interval (plan rule 3.1)", () => {
+    const moving = beaconBlock(two(), gpsState(), GPSD, NOW, radios());
+    expect(moving).toMatchObject({ moving: true, label: "GPS" });
+    expect(moving.smart).not.toBeNull();
+    expect(moving.radios).toEqual(["FM: last beacon 4 min ago · next in 16 min", "HF: last beacon 2 min ago · next in 29 min (every 30 min)"]);
+    expect(beaconBlock(two(), gpsOff(), {}, NOW, radios()).radios[0]).toBe("FM: last beacon 4 min ago · next in 16 min (every 20 min)"); // (a fixed station's FM keeps its interval)
+  });
+
+  it("has no lines of radios while the beacon is Off or in RX only, moving or not", () => {
+    const cases: Record<string, string>[] = [{ "beacon/interval_min": "0" }, { "station/transmit": "false" }];
+    for (const values of cases) {
+      expect(beaconBlock(two(), gpsOff(), values, NOW, radios()).radios).toEqual([]);
+      expect(beaconBlock(two(), gpsState(), { ...GPSD, ...values }, NOW, radios()).radios).toEqual([]);
+    }
+    expect(beaconBlock(two(), gpsOff(), {}, NOW, radios()).radios).toHaveLength(2);
+  });
+});
+
+describe("the radios of the Beacon group", () => {
+  const fm = (id: number, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, "kenwood-tnc2", { number: id, ...extra }));
+  const hf = (id: number, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, "mercury", extra));
+  const off = (radio: PageRadio, beacon = false) => pageRadio({ ...radio.row, choices: { ...radio.row.choices, beacon } });
+
+  it("send the beacon on the one radio that is on whatever its Send on says, else on the radios ticked, and on the main radio when none is", () => {
+    expect(beaconRadios([off(hf(2))], null).map((r) => r.id)).toEqual([2]);
+    expect(beaconRadios([fm(1), hf(2), fm(3)], fm(1)).map((r) => r.id)).toEqual([1, 2, 3]);
+    expect(beaconRadios([fm(1), off(hf(2)), fm(3)], fm(1)).map((r) => r.id)).toEqual([1, 3]);
+    expect(beaconRadios([off(fm(1)), off(hf(2))], hf(2)).map((r) => r.id)).toEqual([2]);
+    expect(beaconRadios([off(fm(1)), off(hf(2))], null)).toEqual([]);
+    expect(beaconRadios([], null)).toEqual([]);
+  });
+
+  it("say which of them is not connected, a line for each, and nothing while one is", () => {
+    const waiting = fm(1, { state: "waiting" });
+    expect(notConnectedWhy([waiting, hf(2, { state: "connecting", name: "20 m" })])).toBe("FM: not connected\n20 m: not connected");
+    expect(notConnectedWhy([waiting, hf(2)])).toBeUndefined();
+    expect(notConnectedWhy([])).toBeUndefined();
+  });
+
+  it("have a tick of Send on for each radio that is on, the last one ticked greyed", () => {
+    const radios = [fm(1), hf(2), fm(3, { name: "Mobile12" })];
+    const on = new Set(["radio/1/beacon", "radio/3/beacon"]);
+    expect(sendOnTicks(radios, (key) => on.has(key), radios[0] ?? null)).toEqual([
+      { id: 1, key: "radio/1/beacon", name: "FM", on: true, last: false, held: false },
+      { id: 2, key: "radio/2/beacon", name: "HF", on: false, last: false, held: false },
+      { id: 3, key: "radio/3/beacon", name: "Mobile12", on: true, last: false, held: false },
+    ]);
+    on.delete("radio/1/beacon");
+    expect(sendOnTicks(radios, (key) => on.has(key), radios[0] ?? null).map((tick) => [tick.on, tick.last, tick.held])).toEqual([
+      [false, false, false],
+      [false, false, false],
+      [true, true, false],
+    ]);
+    expect(sendOnTicks(radios, (_key, radio) => radio.row.choices.beacon, radios[0] ?? null).every((tick) => tick.on && !tick.last)).toBe(true);
+  });
+
+  it("show the main radio's tick ticked and greyed while none is ticked, for the beacon goes out on it (plan rule 3.1: a beacon with every radio unticked cannot happen)", () => {
+    const radios = [hf(2), fm(3, { name: "Mobile12" })];
+    expect(sendOnTicks(radios, () => false, radios[0] ?? null).map((tick) => [tick.id, tick.on, tick.last, tick.held])).toEqual([
+      [2, true, true, true],
+      [3, false, false, false],
+    ]);
+    expect(sendOnTicks(radios, () => false, null).some((tick) => tick.on || tick.last)).toBe(false);
+  });
+
+  it("have a Path row for each radio that is on and may carry a path, named while several are on; one radio's is the one row of before", () => {
+    expect(pathRows([fm(1)])).toBeNull();
+    expect(pathRows([hf(2)])).toEqual([]);
+    expect(pathRows([fm(1), hf(2)])).toEqual([{ key: "beacon/path", radio: 1, name: "FM" }]);
+    expect(pathRows([fm(1), hf(2), fm(3, { number: 2 })])).toEqual([
+      { key: "beacon/path", radio: 1, name: "FM" },
+      { key: "radio/3/path", radio: 3, name: "FM 2" },
+    ]);
+    expect(pathRows([fm(3)])).toEqual([{ key: "radio/3/path", radio: 3, name: null }]);
+    expect(pathRows([pageRadio(radioRow(1, "mercury")), fm(4)])).toEqual([{ key: "radio/4/path", radio: 4, name: "FM 4" }]);
+    expect(pathKey({ id: 1, kind: "fm" })).toBe("beacon/path");
+    expect(pathKey({ id: 1, kind: "hf" })).toBe("radio/1/path");
+  });
+
+  it("read a radio's own setting in the settings' values once they hold it, else in radio_values", () => {
+    const config = configValues({ "radio/3/path": "WIDE2-2" });
+    expect(radioValueOf(config, "radio/3/path")).toBe("WIDE2-2");
+    expect(radioValueOf({ ...config, radio_values: { ...config.radio_values, "radio/4/path": "DIRECT" } }, "radio/4/path")).toBe("DIRECT");
+    expect(radioValueOf(config, "radio/9/path")).toBeUndefined();
+    expect(radioValueOf(null, "radio/3/path")).toBeUndefined();
+  });
+
+  it("follow the daemon in the draft of a radio's setting where it was not changed since, and leave the settings' own keys to them", () => {
+    const draft: Record<string, string> = { "radio/3/beacon": "false", "radio/4/beacon": "true", "beacon/path": "DIRECT" };
+    followRadioValues(
+      draft,
+      { "beacon/path": "" },
+      { "radio/3/beacon": "true", "radio/4/beacon": "false", "beacon/path": "" },
+      { "radio/3/beacon": "false", "radio/4/beacon": "false", "beacon/path": "DIRECT" },
+    );
+    expect(draft).toEqual({ "radio/3/beacon": "true", "radio/4/beacon": "true", "beacon/path": "DIRECT" });
+    followRadioValues(draft, {}, { "radio/5/beacon": "true" }, undefined);
+    expect("radio/5/beacon" in draft).toBe(false);
   });
 });

@@ -5,10 +5,13 @@
 // Cancel, Esc and a press beside the dialog leave the field as it is. `check` is the field's own rule (what is wrong with a path, "" when nothing is): Use is off while it finds something. `station` is the call of the station
 // whose Route this is, for "As its packets come". The dialog is put at the end of the page's body (Teleport), so that it is not inside the field's form or its box: nothing of theirs styles it, Enter in it submits nothing,
 // and the presses and the focus in it do not reach the box that the Route button opens, which would take them for a press outside and close, taking the dialog with it.
+// The digipeaters it offers are worked out from the stations that a radio which may carry a path heard (plan 6b): a station that only radios with no path heard (HF, where nothing repeats) is left out, so that one heard
+// direct far away on HF is not offered as the first hop; a station no radio heard (one only named in the routes of others) and our own stay.
 import { computed, inject, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import PathBuilderDialog from "@/components/PathBuilderDialog.vue";
 import { DAEMON_KEY } from "@/composables/useDaemonContext";
+import { useRadios } from "@/composables/useRadios";
 import { t } from "@/i18n";
 import { callsProblem, hopsOf } from "@/lib/pathbuilder";
 import { homeFirst } from "@/lib/pathreach";
@@ -22,7 +25,13 @@ const props = withDefaults(defineProps<{ value: string; usual: string; check?: (
 const emit = defineEmits<{ use: [path: string] }>();
 
 const page = inject(DAEMON_KEY, null);
-const stations = computed(() => page?.stations.value ?? new Map<string, StationRow>());
+const radios = useRadios();
+/** A station that radios heard counts when one of them may carry a path (a radio the page does not know of yet counts). */
+const counts = (row: StationRow): boolean => {
+  const heard = Object.keys(row.heard ?? {});
+  return heard.length === 0 || heard.some((id) => radios.byId(Number(id))?.carriesPath ?? true);
+};
+const stations = computed(() => new Map([...(page?.stations.value ?? new Map<string, StationRow>())].filter(([, row]) => counts(row))));
 const now = computed(() => page?.now.value ?? Date.now());
 const open = ref(false);
 const trigger = ref<InstanceType<typeof IconButton> | null>(null);

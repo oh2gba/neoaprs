@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import PathBuilder from "@/components/PathBuilder.vue";
 import type { StationRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { ago, station } from "@/test/fixtures";
+import { ago, configValues, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const quiet = (call: string, extra: Partial<StationRow> = {}): StationRow =>
   station(call, { heard_via: [], last_route: "", best_route: "", route_marks: [], suggested_path: null, ...extra });
@@ -226,6 +226,42 @@ describe("the path builder", () => {
     expect(text(count())).toBe("3 hops");
     await click(button("1"));
     expect(result()).toBe("OH2RDK-7");
+  });
+
+  it("offers only the digipeaters a radio that may carry a path heard (plan 6b): one heard direct on HF alone is none, one heard on FM too is", async () => {
+    // (OH2HFD has a digipeater's symbol and was heard direct, 400 km away, by the HF radio only; OH2BTH by both radios)
+    const rows = new Map(STATIONS);
+    rows.set(
+      "OH2HFD",
+      quiet("OH2HFD", { symbol_code: "#", heard_direct: 9, last_direct_at: ago(30), distance_km: 400, heard: { "2": { count: 9, last_at: ago(30) } } }),
+    );
+    rows.set(
+      "OH2BTH",
+      quiet("OH2BTH", {
+        symbol_code: "#",
+        heard_direct: 2,
+        last_direct_at: ago(60),
+        distance_km: 8,
+        heard: { "1": { count: 1, last_at: ago(90) }, "2": { count: 1, last_at: ago(60) } },
+      }),
+    );
+    const both = fakeDaemon({
+      stations: rows,
+      config: configValues({ "hf/enabled": "true" }),
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")),
+    });
+    const wrapper = mount(PathBuilder, { props: { value: "DIRECT", usual: "WIDE1-1,WIDE2-1" }, global: withDaemon(both), attachTo: document.body });
+    await open(wrapper);
+    expect(choices()).toEqual(["OH2RDK-7", "OH2BTH"]);
+    wrapper.unmount();
+    document.body.innerHTML = "";
+    const alone = mount(PathBuilder, {
+      props: { value: "DIRECT", usual: "WIDE1-1,WIDE2-1" },
+      global: withDaemon(fakeDaemon({ stations: rows })),
+      attachTo: document.body,
+    });
+    await open(alone);
+    expect(choices()).toEqual(["OH2RDK-7", "OH2BTH"]);
   });
 
   it("builds a path through a digipeater we hear, then one seen after it in the routes", async () => {
