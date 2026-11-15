@@ -71,8 +71,11 @@ def default_daemon() -> list[str]:
     return [sys.executable, "-m", "neoaprs"]
 
 
-def write_settings(data: Path, rows: dict[str, str], daemon: list[str] | None = None) -> None:
-    """The settings of a station before its daemon starts, written with the daemon's own `db set`."""
+def write_settings(data: Path, rows: dict[str, str], daemon: list[str] | None = None, radios: tuple[tuple[str, bool], ...] = ()) -> None:
+    """The settings of a station before its daemon starts, written with the daemon's own command line: first its radios (type, whether it is on), added with `db radios add` in that order, so that
+    the database numbers them 1, 2 ... (the HF radio that --hf-port attaches is the first Mercury radio: radio 2 after an FM radio), then the rows with `db set` (a radio's own as `radio/<id>/<key>`)."""
+    for type, on in radios:
+        subprocess.run([*(daemon or default_daemon()), "db", "--data", str(data), "radios", "add", type, *([] if on else ["--off"])], check=True, capture_output=True, env=daemon_env())
     for key, value in rows.items():
         subprocess.run([*(daemon or default_daemon()), "db", "--data", str(data), "set", key, value], check=True, capture_output=True, env=daemon_env())
 

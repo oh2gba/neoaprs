@@ -52,7 +52,7 @@ The first beacon goes out 30 seconds after the daemon starts, so that the radio 
 - **A frame the TNC refuses** (it is settling after entering KISS, or the write failed) is tried again 5 seconds later, six refusals in all. Then that interval is skipped and the next is the first interval boundary after now.
 - **Beacon now** and a changed interval count from the kept time. Saving a new interval takes effect at once, and 0 (Off) stops the timer.
 
-The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters of `beacon/path`. Its information field starts with `=` (a station that takes messages), then your position rounded to the hundredth of a minute, your symbol and your comment. With the defaults (a house, the recommended path of a fixed station) it is:
+The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters of the radio's path (`radio/<id>/path`). Its information field starts with `=` (a station that takes messages), then your position rounded to the hundredth of a minute, your symbol and your comment. With the defaults (a house, the recommended path of a fixed station) it is:
 
 ```
 OH2GBA>APZNEO,WIDE2-2:=6010.20N/02456.40E-NeoAPRS
@@ -70,7 +70,9 @@ The **path** (Advanced) is one choice:
 
 Recommended and Direct only apply at once; the custom calls apply on Enter or when the field is left. An empty custom field is the recommended path again. The button beside the choice opens the [path builder](messages.md#the-path-builder), which starts from the path in force; **Use** applies the path built at once (no digipeater is Direct only, any other path Custom).
 
-In the database the setting `beacon/path` is the calls, `DIRECT` for direct only, and empty means the recommended path of the symbol: **an empty path is never "no digipeaters"**, that is always said with the word `DIRECT`. (Older versions took an empty path to mean none; a database that has one is changed once to `DIRECT` by the update, so that nothing starts to digipeat. Older versions also stored `WIDE1-1,WIDE2-1` as the default of every save, so the update changes that stored value to empty, and your path then follows your symbol; any other path you have is kept.)
+In the database each radio's own setting `radio/<id>/path` is the calls, `DIRECT` for direct only, and empty means the recommended path of the symbol (on a LoRa radio `WIDE1-1`): **an empty path is never "no digipeaters"**, that is always said with the word `DIRECT`.
+
+Older versions took an empty path to mean none; a database that has one is changed once to `DIRECT` by the update, so that nothing starts to digipeat. Older versions also stored `WIDE1-1,WIDE2-1` as the default of every save, so the update changes that stored value to empty, and your path then follows your symbol; any other path you have is kept.
 
 The same path is what status reports, objects without a path of their own, bulletins and the answers to queries use, and what a message goes by for its last two attempts (below, in [messages](messages.md#how-the-path-of-a-message-is-chosen)).
 
@@ -284,7 +286,7 @@ A request for local info is not a query to you; if you keep objects in a categor
 
 ## The fill-in digipeater
 
-The digipeater is off unless `digi/enabled` is `true` (Settings tab, group Digipeater, with an (i)). It is a fill-in digipeater for a spot with poor coverage, where nearby stations cannot reach a digipeater of their own. There is nothing else to set.
+The digipeater is off unless the radio's own `radio/<id>/digipeat` is `true` (Settings tab, group Digipeater, with an (i)). It is a fill-in digipeater for a spot with poor coverage, where nearby stations cannot reach a digipeater of their own. There is nothing else to set.
 
 When it is on, NeoAPRS sends a packet it heard on the radio again, once, when the first digipeater of the packet's path that is not yet marked as used is:
 

@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 from neoaprs.kiss import KissDecoder
+from neoaprs.radiotypes import BY_KEY as TYPES
 from tests.conftest import ROOT
 from tests.support.files import FIXTURES, text_if_readable
 from tests.support.proc import NEW_GROUP, stop
@@ -70,6 +71,7 @@ def test_a_replayed_capture_fills_the_database_of_a_daemon_without_a_radio_over_
     data = tmp_path / "data"
     for key, value in (("station/call", "OH2GBA"), ("station/lat", "60.17"), ("station/lon", "24.94")):         # (a station that is set up: with no call and position there is no station of ours in the book)
         assert tool(data, "set", key, value).returncode == 0
+    assert tool(data, "radios", "add", "kiss").returncode == 0                       # (the station's radio, which --port names for this run)
     replay = subprocess.Popen([sys.executable, "-m", "neoaprs", "replay", str(CAPTURE), "--interval", "0.2"], cwd=ROOT, env=env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     daemon = None
     try:
@@ -237,7 +239,7 @@ class FakeDaemonPage:
                         config.setdefault(radio_keys_in if key.startswith("radio/") else "values", {})[key] = value
                 elif command["cmd"] == "radio_add":
                     id = 1 + max((int(k) for k in self.topics["radios"]), default=0)
-                    self.topics["radios"][str(id)] = radio_row(id, "hf", str(command["type"]), id, enabled=False, state="stopped")
+                    self.topics["radios"][str(id)] = radio_row(id, TYPES[str(command["type"])].kind, str(command["type"]), id, enabled=False, state="stopped")
                     self.messages.append({"type": "radio_added", "id": id})
                 elif command["cmd"] == "radio_change":
                     self.topics["radios"][str(command["radio"])].update({k: v for k, v in command.items() if k not in ("cmd", "radio")})
@@ -273,9 +275,36 @@ def test_a_radio_is_given_by_the_radio_commands() -> None:
             asyncio.run(smoke.give_radio(page, "hf", "mercury", {"keying": "vox"}, 1))
 
 
+def test_the_install_probe_reads_and_gives_the_radios_of_a_release_before_the_round_in_its_own_words_and_of_any_other_by_the_topic_radios() -> None:
+    """W3-D14: the seed of the upgrade (scripts/check-installs) is run on the old release, which may be one before the round of the radios (its FM radio the topic `tnc`, its HF radio `hf/enabled` and
+    `hf/profile` of `config`); a daemon whose hello lists `radios` is read and given its radios by them alone."""
+    import asyncio
+    from types import SimpleNamespace
+    probe = load_script("install-probe.py")
+    smoke = probe.smoke
+    before = {"type": "hello", "topics": ["stations", "packets", "tnc", "hf", "config"]}
+    hf_on = {"station/call": "OH2TST", "hf/enabled": "true", "hf/profile": "dummy-hf"}
+    old = SimpleNamespace(hello=before, topics={"tnc": {"state": "connected"}, "config": {"values": hf_on}})
+    assert probe.OldRelease.is_one(before) and not probe.OldRelease.is_one(HELLO)
+    assert probe.fm_state(old) == "connected" and probe.has_settings(old), "the old release's FM radio by its topic, its HF radio by its two settings"
+    assert not probe.has_settings(SimpleNamespace(hello=before, topics={"config": {"values": {**hf_on, "hf/enabled": "false"}}})), "an HF radio that is off is not the station of the seed"
+    rows = {"1": radio_row(1, "fm", "kiss", 1), "2": radio_row(2, "hf", "dummy-hf", 2)}
+    new = SimpleNamespace(hello=HELLO, topics={"radios": rows, "config": {"values": {"station/call": "OH2TST"}}})
+    assert probe.fm_state(new) == "connected" and probe.has_settings(new)
+    assert probe.fm_state(SimpleNamespace(hello=HELLO, topics={"tnc": {"state": "connected"}})) is None, "a daemon of the radios is never read by the old release's words"
+    assert not probe.has_settings(SimpleNamespace(hello=HELLO, topics={"radios": {"1": rows["1"]}, "config": {"values": hf_on}})), "the settings of before say nothing to a daemon of the radios"
+    page = FakeDaemonPage(smoke, before, {"config": {"values": {"station/call": "OH2TST"}}})
+    asyncio.run(probe.give_radios(page, 1))
+    assert page.sent == [{"cmd": "set_config", "values": {"hf/enabled": "true", "hf/profile": "dummy-hf"}}], "the old release is given its HF radio by the settings of its own time, and no radio command"
+    page = FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {}})
+    asyncio.run(probe.give_radios(page, 1))
+    assert [m["cmd"] for m in page.sent if m["cmd"] == "radio_add"] == ["radio_add", "radio_add"] and [m.get("type") for m in page.sent if m["cmd"] == "radio_add"] == ["kiss", "dummy-hf"], \
+        "a daemon of the radios: the FM radio first (a new installation has none), then the HF radio"
+
+
 def test_the_mercury_shot_waits_for_its_modem_on_the_radio_that_hf_port_names() -> None:
-    """settings-hf's daemon is started with --hf-port, which is radio 2's: the Mercury radio given through the page must be radio 2 and its modem `running` before the shot; otherwise its shots are left
-    out with the reason (a Failure), never a picture of a Mercury radio with no modem."""
+    """settings-hf's daemon is started with --hf-port, which is the station's first Mercury radio's: the Mercury radio given through the page must be that one, whatever its id, and its modem `running` before
+    the shot; otherwise its shots are left out with the reason (a Failure), never a picture of a Mercury radio with no modem."""
     import asyncio
     shots = load_script("screenshots.py")
     smoke = shots.smoke                                                                 # (the smoke the script imported: its Failure is the one raised)
@@ -284,9 +313,11 @@ def test_the_mercury_shot_waits_for_its_modem_on_the_radio_that_hf_port_names() 
     asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), "dummy-hf", {}, 1))                # (no modem waited for)
     with pytest.raises(smoke.Failure, match="the Mercury modem of the HF radio running"):
         asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), "mercury", {}, 1))
+    asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1), "2": radio_row(2, "fm", "kiss", 2)}}, modem=running),
+                                     "mercury", {}, 1))          # (radio 3, the first Mercury radio: --hf-port's)
     with pytest.raises(smoke.Failure, match="radio 3, and --hf-port names radio 2"):
-        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1), "2": radio_row(2, "fm", "kiss", 2)}}, modem=running),
-                                         "mercury", {}, 1))
+        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1), "2": radio_row(2, "hf", "mercury", 3, enabled=False),
+                                                                                                         "3": radio_row(3, "hf", "dummy-hf", 2)}}, modem=running), "mercury", {}, 1))      # (radio 3, first by position, made a Mercury: radio 2 is the first Mercury radio)
 
 
 def test_a_run_into_the_site_or_of_everything_refuses_to_draw_the_street_maps_on_the_placeholder(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

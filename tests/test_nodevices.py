@@ -14,7 +14,7 @@ from neoaprs import serialprobe
 from neoaprs.config import DEFAULTS
 from neoaprs.serialprobe import PATTERN_ENV, candidate_ports, search_pattern
 from neoaprs.tnc import Tnc
-from neoaprs.tncdriver import tnc_settings
+from tests.support.radioconfig import fm_line
 from tests.conftest import ROOT
 from tests.support import guards
 from tests.support.ptyline import make_pty, makedev, posix_only
@@ -28,30 +28,30 @@ def test_every_test_starts_with_a_pattern_that_matches_nothing() -> None:
 
 def test_the_variable_wins_over_the_setting_and_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(PATTERN_ENV, "/x/one_* /x/two_*")
-    assert tnc_settings(DEFAULTS).pattern == "/x/one_* /x/two_*"
-    assert tnc_settings(replace(DEFAULTS, serial_pattern="/dev/brainbox_*")).pattern == "/x/one_* /x/two_*"
+    assert fm_line(DEFAULTS).pattern == "/x/one_* /x/two_*"
+    assert fm_line(replace(DEFAULTS, serial_pattern="/dev/brainbox_*")).pattern == "/x/one_* /x/two_*"
     assert Tnc().pattern == "/x/one_* /x/two_*", "a Tnc made with no pattern searches the variable's, not the default"
     assert Tnc(pattern="/y/*").pattern == "/y/*", "a pattern that is given is the caller's choice"
 
 
 def test_a_pattern_given_for_this_run_wins_over_the_variable(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(PATTERN_ENV, "/x/one_*")
-    assert tnc_settings(DEFAULTS, pattern_override="/tmp/probe_*").pattern == "/tmp/probe_*"
+    assert fm_line(DEFAULTS, pattern="/tmp/probe_*").pattern == "/tmp/probe_*"
 
 
 def test_an_empty_variable_leaves_the_setting_and_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
     for value in ("", "   "):
         monkeypatch.setenv(PATTERN_ENV, value)
-        assert tnc_settings(DEFAULTS).pattern == DEFAULTS.serial_pattern == serialprobe.DEFAULT_PATTERN
-        assert tnc_settings(replace(DEFAULTS, serial_pattern="/dev/brainbox_*")).pattern == "/dev/brainbox_*"
+        assert fm_line(DEFAULTS).pattern == DEFAULTS.serial_pattern == serialprobe.DEFAULT_PATTERN
+        assert fm_line(replace(DEFAULTS, serial_pattern="/dev/brainbox_*")).pattern == "/dev/brainbox_*"
         assert Tnc().pattern == serialprobe.DEFAULT_PATTERN
     monkeypatch.delenv(PATTERN_ENV)
-    assert tnc_settings(DEFAULTS).pattern == serialprobe.DEFAULT_PATTERN
+    assert fm_line(DEFAULTS).pattern == serialprobe.DEFAULT_PATTERN
 
 
 def test_a_named_port_is_not_touched_by_the_variable() -> None:
-    assert tnc_settings(DEFAULTS, "/dev/pts/4").port == "/dev/pts/4"
-    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0")).port == "/dev/ttyUSB0"
+    assert fm_line(DEFAULTS, "/dev/pts/4").port == "/dev/pts/4"
+    assert fm_line(replace(DEFAULTS, serial_port="/dev/ttyUSB0")).port == "/dev/ttyUSB0"
 
 
 def test_a_process_a_test_starts_inherits_the_variable_and_searches_no_port(tmp_path: Path) -> None:

@@ -47,7 +47,7 @@ async def stored_config(data: Path) -> Config:
         await db.start()
         store = Store()
         store.use(db, path)
-        return Config.from_data(await store.settings(), radios=await store.radios() or None)
+        return Config.from_data(await store.settings(), radios=await store.radios())
     except (StoreError, SqlError, DbClosed) as e:
         say(f"mapfetch: {path}: {e}")
         return Config()

@@ -9,7 +9,7 @@ import pytest
 
 from neoaprs import ax25, loralist
 from neoaprs.loraboard import RECEIVE_ONLY
-from neoaprs.radiospec import senders
+from neoaprs.radiospec import FM_ID, senders
 from neoaprs.services.beacon import ONLY_RECEIVES
 from neoaprs.services.radioset import ack_radio, answerable
 from neoaprs.source import Source
@@ -52,7 +52,7 @@ async def test_a_radio_that_only_receives_hears_everything_and_sends_nothing_wha
         board.air(QUERY, rssi=-104, snr=-3.25)
         await until(lambda: any(s.call == "OH2ABC-7" and s.heard_on(id).count == 2 for s in e.ctl.stationbook.stations()))
         station = next(s for s in e.ctl.stationbook.stations() if s.call == "OH2ABC-7")
-        assert (station.snr, station.rssi) == (-3.25, -104.0) and station.heard_fm == 0
+        assert (station.snr, station.rssi) == (-3.25, -104.0) and station.heard_on(FM_ID).count == 0
 
         # what the station sends: never on it
         assert [r.id for r in e.ctl.radios.beaconing()] == [1] and not radio.beacon.send_now() and radio.beacon.problem == ONLY_RECEIVES

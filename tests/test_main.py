@@ -23,6 +23,7 @@ from typing import IO
 
 import pytest
 
+from neoaprs.cli import dbcmd
 from neoaprs import PROGRAM, VERSION
 from neoaprs import daemon as entry
 from neoaprs.daemon import _LogFile, _poll_for_signals, _stop_on_signals, setup_logging
@@ -257,6 +258,7 @@ def test_version_and_help_do_nothing_else(tmp_path: Path) -> None:
 def test_the_daemon_on_a_tcp_port_logs_and_keeps_the_capture_and_stops_on_sigterm_in_time(tmp_path: Path) -> None:
     server, path = radio()
     data = tmp_path / "data"
+    assert dbcmd.main(["--data", str(data), "radios", "add", "kiss"]) == 0, "the station's radio, which --port names for this run"
     proc = start(data, "--port", path)
     wait_for(data / "neoaprs.log", "tnc: opened", proc)
     server.settimeout(20)

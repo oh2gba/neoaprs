@@ -11,6 +11,7 @@ from neoaprs.packetcodec import parse_stamp
 from neoaprs.packetlog import station_row
 from neoaprs.packetsql import upsert_station
 from neoaprs.pref import Alert
+from neoaprs.radiospec import FM_ID, RadioHeard
 from neoaprs.station import Station
 from neoaprs.stationsql import (clear_station_path, clear_station_paths, delete_station_radios, delete_station_radios_but, put_station_path, put_station_radios, station_paths, station_radio_rows,
                                 upsert_station_radio)
@@ -74,7 +75,7 @@ def test_a_station_row_kept_without_what_its_radios_heard_leaves_their_rows_as_t
     """`upsert_station(db, row)`, the call of before the radios, keeps the station's counts as it did: only `heard=` puts the rows of `station_radio` (an empty one takes them away)."""
     db = database(tmp_path)
     at = parse_stamp(STAMP)
-    row = station_row(Station("OH2RDG", first_heard=at, last_heard=at, heard_fm=3, last_fm_at=at, last_path=("WIDE1-1",)))
+    row = station_row(Station("OH2RDG", first_heard=at, last_heard=at, heard_by={FM_ID: RadioHeard(3, at, ("WIDE1-1",))}))
     upsert_station(db, row, heard=[("OH2RDG", 1, 3, STAMP, "WIDE1-1"), ("OH2RDG", 2, 1, LATER, "")])
     upsert_station(db, row)
     assert station_radio_rows(db) == [("OH2RDG", 1, 3, STAMP, "WIDE1-1"), ("OH2RDG", 2, 1, LATER, "")], "the old call wipes nothing"

@@ -64,20 +64,19 @@ def test_the_hops_the_page_is_told_leave_out_what_is_no_hop_even_in_an_attempt_t
     assert [[h["call"] for h in row["hops"]] for row in attempt_rows(record, stored)] == [["OH2RCH-2", "OH2RDG"], ["WIDE1-1", "WIDE2-1"], []]
 
 
-# ---- the radio of an attempt: its id, and the old word as a view of it
+# ---- the radio of an attempt: its id
 
-def test_an_attempt_keeps_the_id_of_its_radio_and_the_old_word_is_a_view_of_it() -> None:
+def test_an_attempt_keeps_the_id_of_its_radio() -> None:
     t = utc(2026, 11, 14, 12, 0, 0)
-    assert [f.name for f in fields(Attempt)] == ["number", "sent_at", "path", "seen", "radio_id"] and isinstance(Attempt.radio, property)
+    assert [f.name for f in fields(Attempt)] == ["number", "sent_at", "path", "seen", "radio_id"]
     made = [Attempt(1, t, SENT, radio_id=radio_id) for radio_id in (None, FM_ID, HF_ID, 3)]
-    assert [(a.radio_id, a.radio) for a in made] == [(None, ""), (1, "fm"), (2, "hf"), (3, "")], "a radio after the second has no old word"
+    assert [a.radio_id for a in made] == [None, 1, 2, 3], "any radio by its id"
     assert Attempt(1, t, SENT).radio_id is None, "an attempt kept before there were two radios"
     seen = made[3].with_seen(HopSeen(1, "OH2RCH-2", t, False))
     assert seen.radio_id == 3 and seen.has(1, False), "what was heard of it changes nothing of its radio"
 
 
-def test_the_constructor_and_replace_of_an_attempt_still_take_the_old_word() -> None:
+def test_the_constructor_and_replace_of_an_attempt_take_the_id() -> None:
     t = utc(2026, 11, 14, 12, 0, 0)
-    assert [Attempt(1, t, (), radio=word).radio_id for word in ("fm", "hf", "", "lora")] == [FM_ID, HF_ID, None, None], "the message log's call; a word that is none names no radio, as before"
-    assert Attempt(1, t, SENT, (), radio="hf") == Attempt(1, t, SENT, (), HF_ID) == Attempt(1, t, SENT, radio_id=HF_ID)
-    assert replace(Attempt(1, t, SENT, radio="fm"), radio="hf").radio_id == HF_ID and replace(Attempt(1, t, SENT, radio="fm"), radio_id=3).radio_id == 3
+    assert Attempt(1, t, SENT, (), HF_ID) == Attempt(1, t, SENT, radio_id=HF_ID)
+    assert replace(Attempt(1, t, SENT, radio_id=FM_ID), radio_id=HF_ID).radio_id == HF_ID and replace(Attempt(1, t, SENT, radio_id=FM_ID), radio_id=3).radio_id == 3

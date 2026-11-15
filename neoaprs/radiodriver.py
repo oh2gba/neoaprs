@@ -10,7 +10,7 @@ from .claims import Claim
 from .config import Config
 from .mercurymodem import Mercury
 from .policy import TNC_CHECK_SEC
-from .radiospec import RadioSpec
+from .radiospec import HF_ID, RadioId, RadioSpec
 from .tnc import Tnc
 
 
@@ -19,8 +19,9 @@ class RunOverrides:
     """What the process gives for this run only, never stored."""
     port: str = ""                   # --port: radio 1's (FM_ID), or the radio named by --port ID=...
     pattern: str = ""                # the tests' search globs, instead of serial/pattern
-    hf_port: str = ""                # --hf-port: radio 2's, a Mercury that something else runs
+    hf_port: str = ""                # --hf-port: a Mercury that something else runs, given to the radio `attach_to`
     check_sec: float = TNC_CHECK_SEC
+    attach_to: RadioId | None = HF_ID  # the radio that takes hf_port: the station's first Mercury radio (radiospec.modem_radio, as App.run reads it), None while it has none
 
 
 class RadioDriver(Protocol):

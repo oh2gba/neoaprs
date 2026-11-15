@@ -18,7 +18,6 @@ from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet, ThirdParty
 from neoaprs.radiospec import KIND_WORDS, log_name
 from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Limits, RadioId
-from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
 from neoaprs.route import Deliveries, route_of
 from neoaprs.services import messaging as messaging_module
 from neoaprs.services.keyring import Keyring
@@ -38,18 +37,17 @@ WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 
 
 class LineAir:
-    """A radio as the services see one (services/radioset.py AirRadio) on a stub line (tests/support/stubtnc.py), read by the line's rules as the radios of the round read their type: its id 1 with the FM
-    rules, 2 with the HF ones, or the one given; its kind, limits and what it is allowed by its rules; its name the settings' for its id (or the one given); the operator's choices the settings' radio of its
-    id (radio 1's where there is none); its state, frame cap and frames the line's; and the line's rules, which the registry's radios keep until the old shapes go (today's beacon reads them of the radio an
-    answer goes on)."""
+    """A radio as the services see one (services/radioset.py AirRadio) on a stub line (tests/support/stubtnc.py), read by the line's type as the radios of the round read theirs: its id 1 of the FM
+    kind, 2 of the HF kind, or the one given; its kind, limits (with the line's frame cap) and what it is allowed by its type; its name the settings' for its id (or the one given); the operator's choices the
+    settings' radio of its id (radio 1's where there is none); its state, frame cap and frames the line's; and the line's type, which an old shape gives (today's beacon reads it of the radio an answer goes on)."""
 
     def __init__(self, line: StubTnc, config: Callable[[], Config], id: RadioId | None = None, name: str = "") -> None:
         self.line, self._config, self._name = line, config, name
-        self.id: RadioId = id if id is not None else HF_ID if line.rules.kind == "hf" else FM_ID
+        self.id: RadioId = id if id is not None else HF_ID if line.rtype.kind == "hf" else FM_ID
         self.stats = TncStats()
 
-    rules = property(lambda self: self.line.rules)
-    kind = property(lambda self: "hf" if self.line.rules.kind == "hf" else "fm")
+    rtype = property(lambda self: self.line.rtype)
+    kind = property(lambda self: self.line.rtype.kind)
     state = property(lambda self: self.line.state)
     usable = property(lambda self: self.line.usable)
     max_frame = property(lambda self: self.line.max_frame)
@@ -62,13 +60,11 @@ class LineAir:
 
     @property
     def limits(self) -> Limits:
-        r = self.line.rules
-        return Limits(self.line.max_frame, r.beacon_min_min, r.beacon_jitter_sec, r.retry_jitter_sec)
+        return replace(self.line.rtype.limits, max_frame=self.line.max_frame)
 
     @property
     def allowed(self) -> Allowed:
-        r = self.line.rules
-        return replace(FM_ALLOWED if self.kind == "fm" else HF_ALLOWED, paths=r.paths, digipeat=r.digipeat, smart_beacon=r.smart_beacon)
+        return self.line.rtype.allowed
 
     def why_unusable(self) -> str:
         return self.line.why_unusable()

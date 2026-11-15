@@ -3,15 +3,13 @@
 
 The strings and their pauses are the ones the manufacturers and the projects named below publish. `enter` is a list of steps, each the
 bytes to write and the seconds to wait after them; the wait after the last step is the settle time, in which what the TNC says is thrown away."""
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Literal
 
 from . import kiss
 from .coded import CodedError
-from .radiorules import FM, HF, LORA, RadioRules
 from .radiotype import Transport as Transport      # how a line is reached: a type of radio's (radiotype.py), named here as before
 from .reading import ReadingKind
-from .tnc2line import MAX_TEXT
 
 KISS_EXIT = b"\xc0\xff\xc0"          # the KISS "return" command (FEND, 0xFF, FEND): the TNC leaves KISS mode
 
@@ -30,8 +28,6 @@ class Profile:
     can_probe: bool                            # whether the TNC may be asked if it is there: the keep-alive's check, a carriage return after silence and the silent state; False: nothing is ever sent but KISS frames
     detect_command_mode: bool                  # whether text from the TNC ("cmd:", heard packets as TNC2 lines) means command mode, which `enter` leaves
     note: str                                  # what is uncertain about the profile, for the manual
-    rules: RadioRules = FM                     # what the kind of radio allows and does (radiorules.py): paths and the digipeater, SmartBeaconing, the beacon's floor, the frame it carries whole
-    max_text: int | None = None                # the longest TNC2 text of a frame the radio puts on the air whole, where the air carries text (a LoRa board: 252); None: the air carries AX.25
     readings: tuple[ReadingKind, ...] = ()     # the signal readings the radio gives of each frame it hears (reading.py): the Mercury modem the SNR, a LoRa board the SNR and the RSSI where its firmware says them; none for a KISS TNC
     text_lines: TextLines = ""                 # what lines of text from the line are (loraboard.py), never command mode: "tnc2" a LoRa board's packets in TNC2 text and its log, "console" the CA2RXU iGate's log; "": no such lines
     nudge: bytes = b""                         # written once on an open when the first packet comes as text: a KISS frame that turns a CA2RXU Tracker on classic Bluetooth to KISS, which the other boards ignore
@@ -64,22 +60,6 @@ class Profile:
     def writes_nothing(self) -> bool:
         """Whether nothing at all is ever written to the line: a line that reads text, or a board's log that takes nothing (`receive_only`)."""
         return self.framing == "text" or self.receive_only
-
-    @property
-    def max_frame(self) -> int | None:
-        """The longest AX.25 frame the radio carries whole, in bytes; None: the AX.25 limit alone (a modem with a fixed frame cuts a longer one off, so the daemon refuses or shortens it first)."""
-        return self.rules.max_frame
-
-    def too_long(self, raw: bytes, text: bytes) -> str | None:
-        """Why a frame (its AX.25 bytes, its TNC2 text) is longer than the radio carries whole, as a clause: "131 bytes, the radio carries 123", "256 bytes of text, the radio carries 252", "257 bytes in KISS,
-        the radio takes 256"; None when it fits."""
-        if self.max_frame is not None and len(raw) > self.max_frame:
-            return f"{len(raw)} bytes, the radio carries {self.max_frame}"
-        if self.max_text is not None and len(text) > self.max_text:
-            return f"{len(text)} bytes of text, the radio carries {self.max_text}"
-        if self.rules.max_kiss is not None and (size := len(kiss.encode(raw))) > self.rules.max_kiss:
-            return f"{size} bytes in KISS, the radio takes {self.rules.max_kiss}"
-        return None
 
     @property
     def settle_sec(self) -> float:
@@ -116,7 +96,7 @@ KANTRONICS = Profile("kantronics", "Kantronics KPC-3+", "serial", 9600, ((b"\rIN
 # KISS over TCP (Mercury 1.9.24, docs/TNC.md). Its frame carries 123 bytes of a packet and a longer one is cut off by Mercury without a word, so the daemon refuses or shortens it first. Only stations with the same
 # modem on the same frequency hear each other; the mode is fixed in the program so that every NeoAPRS station is on it.
 MERCURY = Profile("mercury", "Mercury HF modem (sound card, SSB radio)", "modem", None, (), None, False, False,
-                  "Mercury 1.9.24 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.", rules=HF, readings=("snr",))
+                  "Mercury 1.9.24 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.", readings=("snr",))
 
 # The Dummy radio (neoaprs/dummyline.py): no radio, no port, no speed; the daemon makes the traffic itself and swallows what it sends. It is last in the list: it is for trying NeoAPRS out, and a person looking
 # for their radio should find the real ones first.
@@ -126,28 +106,27 @@ DUMMY = Profile("dummy", "Dummy (no radio, made-up traffic)", "dummy", None, (),
 # The Dummy HF radio (neoaprs/dummyhfscene.py): the HF radio's Dummy, with the rules of HF. A handful of distant fixed stations beacon every half hour to an hour, one answers a message; nothing goes on the air
 # and nothing is keyed, and what we send is played through the computer's speakers as Mercury's real audio (mercurymodem.py), so that the HF side can be tried with no radio and no other station on the air.
 DUMMY_HF = Profile("dummy-hf", "Dummy HF radio (no radio, made-up distant stations)", "dummy", None, (), None, False, False,
-                   "Nothing goes on the air and nothing is keyed: the stations are made up, hundreds of kilometres away, and your own frames are heard from the speakers.", rules=HF, readings=("snr",))
+                   "Nothing goes on the air and nothing is keyed: the stations are made up, hundreds of kilometres away, and your own frames are heard from the speakers.", readings=("snr",))
 
-# The Dummy LoRa radio (neoaprs/dummylorascene.py): a LoRa APRS board of made-up stations round the station, with the rules of LoRa. The board speaks TNC2 text, as the boards in use do on the air and on
-# their line, and each packet comes with the signal-to-noise ratio and the strength a board measures; nothing goes on the air and nothing is opened.
+# The Dummy LoRa radio (neoaprs/dummylorascene.py): a LoRa APRS board of made-up stations round the station; its type has the limits of LoRa (radiotypes/dummylora.py). The board speaks TNC2 text, as the
+# boards in use do on the air and on their line, and each packet comes with the signal-to-noise ratio and the strength a board measures; nothing goes on the air and nothing is opened.
 DUMMY_LORA = Profile("dummy-lora", "Dummy LoRa radio (no radio, made-up stations)", "dummy", None, (), None, False, False,
-                     "Nothing goes on the air and nothing is opened: the stations are made up, round the station's position, as a LoRa APRS board would hear them.", rules=LORA, readings=("snr", "rssi"), max_text=MAX_TEXT)
+                     "Nothing goes on the air and nothing is opened: the stations are made up, round the station's position, as a LoRa APRS board would hear them.", readings=("snr", "rssi"))
 
 # A LoRa APRS board (aprs-reference/lora-plan.md): the firmware takes the LoRa packet of text apart and gives the computer KISS (AX.25 frames it made from the text) or the text itself, and says the signal in
 # its own way. The CA2RXU iGate on the network (its TNC server on port 8001, KISS or TNC2 lines; its list of heard packets says the signal), a board on USB or Bluetooth (the CA2RXU Tracker's `_TNC`
 # images, the CA2RXU iGate's TNC on USB, DL9SAU's tracker, esp32_loraprs), and the CA2RXU iGate's log on USB, which says every packet with its signal and takes nothing. The frequency and the modem's
 # settings are the board's own: no firmware takes them from a program safely, so none is sent. Text lines are read and never written (the firmwares end and take them differently); the nudge turns a
-# Tracker on classic Bluetooth to KISS, and a board that keeps sending text receives and sends nothing (loraboard.TEXT_LINES).
-LORA_RECEIVING = replace(LORA, paths=False, smart_beacon=False)     # a LoRa radio that only receives: no path and no beacon of ours on it (LoRa has no digipeater of ours anyway)
+# Tracker on classic Bluetooth to KISS, and a board that keeps sending text receives and sends nothing (loraboard.TEXT_LINES). What the kind may carry and do is its types' (radiotypes/lora.py).
 LORA_NUDGE = kiss.encode(b"\x00", command=5)       # C0 05 00 C0: KISS "full duplex off", which no board acts on; any KISS frame turns the Tracker's answers to KISS
 LORA_TCP = Profile("lora-tcp", "LoRa APRS board on the network (KISS over TCP)", "tcp", None, (), None, False, False,
-                   "The CA2RXU iGate's TNC server on port 8001, in KISS; its list of heard packets on port 80 says each packet's signal.", rules=LORA, max_text=MAX_TEXT,
+                   "The CA2RXU iGate's TNC server on port 8001, in KISS; its list of heard packets on port 80 says each packet's signal.",
                    readings=("snr", "rssi"), text_lines="tnc2", nudge=LORA_NUDGE, drop_internet=True, board_readings=True, search=False)
 LORA_SERIAL = Profile("lora-serial", "LoRa APRS board on USB or Bluetooth (KISS)", "serial", 115200, (), None, False, False,
-                      "A CA2RXU Tracker's TNC image over Bluetooth, the CA2RXU iGate's TNC on USB, DL9SAU's tracker, esp32_loraprs; whether an open restarts a board is not known.", rules=LORA,
-                      max_text=MAX_TEXT, readings=("snr", "rssi"), text_lines="tnc2", nudge=LORA_NUDGE, drop_internet=True, board_readings=True, search=False)
+                      "A CA2RXU Tracker's TNC image over Bluetooth, the CA2RXU iGate's TNC on USB, DL9SAU's tracker, esp32_loraprs; whether an open restarts a board is not known.",
+                      readings=("snr", "rssi"), text_lines="tnc2", nudge=LORA_NUDGE, drop_internet=True, board_readings=True, search=False)
 LORA_CONSOLE = Profile("lora-console", "LoRa APRS iGate's log on USB (receive only)", "serial", 115200, (), None, False, False,
-                       "The CA2RXU iGate with its TNC off on USB writes a line for each packet it hears, with its signal; it takes nothing, so nothing is sent.", rules=LORA_RECEIVING, max_text=MAX_TEXT,
+                       "The CA2RXU iGate with its TNC off on USB writes a line for each packet it hears, with its signal; it takes nothing, so nothing is sent.",
                        readings=("snr", "rssi"), text_lines="console", receive_only=True, search=False)
 
 # A radio or a TNC that gives no KISS and prints what it hears as text: the Yaesu FTM-100, -400 and -500 on their data port with Output PACKET (FTM-400DR/DE manual, "Setting the COM port": 9600 bps by default;
@@ -155,11 +134,11 @@ LORA_CONSOLE = Profile("lora-console", "LoRa APRS iGate's log on USB (receive on
 # typing into a TNC whose prompt was not seen can put the lines on the air (Converse Mode), so the settings that matter are the ones a user types once (docs/RADIOS.md). The TNC-2 and the PK-232 send 7 bits with
 # a parity bit at their factory setting; the reader finds that by itself (tnc2text.py).
 TNC_TEXT = Profile("tnc-text", "RX only: Yaesu FTM, TNC text (no KISS)", "serial", 9600, (), None, False, False,
-                   "Receive only. What real devices print rests on their manuals and on ygate's one Yaesu sample: no capture of one has been read yet.", rules=replace(KISS.rules, paths=False, digipeat=False, smart_beacon=False),
-                   framing="text")      # (the rules of the kind, and nothing of ours on it: no path, no digipeater, no beacon)
+                   "Receive only. What real devices print rests on their manuals and on ygate's one Yaesu sample: no capture of one has been read yet.",
+                   framing="text")      # (nothing of ours on it, no path, no digipeater, no beacon: its type's, radiotypes/tnctext.py)
 
 PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, TNC_TEXT, DUMMY)       # the FM radio's types (tnc/profile); the HF radio's are HF_PROFILES (hf/profile)
-HF_PROFILES: tuple[Profile, ...] = (MERCURY, DUMMY_HF)                                                 # the HF radio's types (neoaprs/radios.py): the Mercury modem, and its Dummy last, as the FM radio's is
+HF_PROFILES: tuple[Profile, ...] = (MERCURY, DUMMY_HF)                                                 # the HF radio's types: the Mercury modem, and its Dummy last, as the FM radio's is
 BY_KEY = {p.key: p for p in PROFILES}
 HF_BY_KEY = {p.key: p for p in HF_PROFILES}
 LORA_PROFILES: tuple[Profile, ...] = (LORA_TCP, LORA_SERIAL, LORA_CONSOLE, DUMMY_LORA)                  # the types of a LoRa radio

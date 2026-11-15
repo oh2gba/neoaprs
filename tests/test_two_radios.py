@@ -2,6 +2,7 @@
 radio alone, OH2C the HF radio alone. A beacon of OH2A goes out on both radios and each neighbour hears it on its own; a station is tagged with the radio it was heard on; a message of OH2A goes to OH2B on FM
 and to OH2C over HF, and each ack comes back on the radio the message came on; a message to a station heard on both radios goes on FM; with the HF radio off nothing of this is there. The tests of what a radio
 does on its own (the frame cap, the hold, the paths) are tests/test_mercury_world.py; the choice is what is tested here: the registry's (`ctl.radios`: the enabled radios, the main radio, the radio of a station; `lines_on`, `line_to`)."""
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -29,7 +30,7 @@ async def two_radios(tmp_path: Path) -> World:
 
 def heard_on(e: Env, call: str) -> tuple[int, int]:
     station = e.ctl.stationbook.get(call)
-    return (0, 0) if station is None else (station.heard_fm, station.heard_hf)
+    return (0, 0) if station is None else (station.heard_on(FM_ID).count, station.heard_on(HF_ID).count)
 
 
 def lines_on(e: Env) -> list[Tnc]:
@@ -115,8 +116,8 @@ async def test_with_the_hf_radio_off_every_choice_falls_to_the_fm_radio_and_the_
         else:
             assert hf is None and [r.id for r in radios.all()] == [FM_ID], "no HF radio at all"
         assert e.hf.state is Source.State.STOPPED and (hf is None or (hf.driver.modem is not None and hf.driver.modem.state == "stopped" and hf.beacon.last_sent is None))
-        assert main.rules == e.tnc.rules and main.max_frame is None and main.usable == e.tnc.usable and (main.kind, main.name) == ("fm", "FM")
-        await e.ctl.save_config(DEFAULTS)         # (the defaults: still one radio)
+        assert main.rtype == e.tnc.rtype and main.max_frame is None and main.usable == e.tnc.usable and (main.kind, main.name) == ("fm", "FM")
+        await e.ctl.save_config(replace(DEFAULTS, radios=e.ctl.config.radios))         # (the defaults of the station's settings: still the radios it has)
         await until(lambda: e.hf.state is Source.State.STOPPED)
     finally:
         await e.stop()

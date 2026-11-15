@@ -33,7 +33,7 @@ async def test_the_scripts_read_the_radios_of_the_daemon_and_give_it_the_hf_radi
         assert smoke.radio_of(page.topics, "fm")["id"] == FM_ID and smoke.radio_of(page.topics, "hf") is None, "radio 1 on, the HF radio off as the defaults have it"
         e.ctl.stationbook.take(replace(heard("!6010.00N/02456.00E>near", "OH2XYZ", at=e.ctl.clock()), radio_id=FM_ID))
         await page.until("the station told", lambda p: "OH2XYZ" in (p.topics.get("stations") or {}), 10)
-        row = {k: v for k, v in page.topics["stations"]["OH2XYZ"].items() if k not in ("heard_fm", "heard_hf")}       # (the old fields, equal to the new until W3, would hide a reader that ignored `heard`)
+        row = page.topics["stations"]["OH2XYZ"]
         assert (smoke.heard_on(page.topics, row, "fm"), smoke.heard_on(page.topics, row, "hf")) == (1, 0), "the row's heard by radio, counted by the kinds of the topic radios"
         assert await smoke.give_radio(page, "hf", "dummy-hf", {"beacon": "false"}, 20) == HF_ID, "radio 2, changed to the Dummy HF radio and switched on"
         await page.until("the HF radio connected", lambda p: smoke.radio_state(p.topics, "hf") == "connected", 20)

@@ -107,11 +107,11 @@ class Net:
         for i, name in enumerate(self.names):
             data = self.folder / name.lower()
             on_fm = i < self.args.fm                      # (the first stations have the FM radio too: the KISS hub is their TNC)
-            settings = {"station/call": name, "station/lat": f"{60.0 + 0.1 * i:.2f}", "station/lon": f"{24.0 + 0.1 * i:.2f}", "hf/enabled": "true", "fm/enabled": "true" if on_fm else "false",
-                        "beacon/interval_min": "0", "station/comment": f"sim station {i + 1}", "messages/alert": "false", **({"tnc/profile": "kiss-tcp"} if on_fm else {})}
+            settings = {"station/call": name, "station/lat": f"{60.0 + 0.1 * i:.2f}", "station/lon": f"{24.0 + 0.1 * i:.2f}", "beacon/interval_min": "0", "station/comment": f"sim station {i + 1}", "messages/alert": "false"}
             if i == 0:
                 settings.update({"igate/enabled": "true", "igate/server": igate_server, "igate/password": "12345"})
-            write_settings(data, settings, self.daemon_command)
+            radios = (("kiss-tcp", True) if on_fm else ("kiss", False), ("mercury", True))      # (radio 1 the FM radio, on the KISS hub that --port gives, or off; radio 2 the HF radio that --hf-port attaches)
+            write_settings(data, settings, self.daemon_command, radios)
             self.daemons[name] = start_daemon(data, self.ports[name], self.daemon_command, fm_port if on_fm else 0)
         for name in self.names:
             bases[name] = wait_for_page(self.daemons[name], self.folder / name.lower(), self.args.timeout)

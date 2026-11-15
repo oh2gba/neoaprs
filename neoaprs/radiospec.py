@@ -93,6 +93,11 @@ def senders(specs: Iterable[RadioSpec]) -> list[RadioSpec]:
     return [s for s in enabled(specs) if transmits(s)]
 
 
+def modem_radio(specs: Iterable[RadioSpec]) -> RadioId | None:
+    """The radio a Mercury that something else runs (--hf-port) is given to: the live radio of the Mercury type with the lowest id; None while the station has none."""
+    return min((s.id for s in live(specs) if s.type == "mercury"), default=None)
+
+
 def number_in_kind(spec: RadioSpec, specs: Iterable[RadioSpec]) -> int:
     """The number of the radio within its kind ("FM", "HF 2"): 1 for the first of its kind by id among the live radios; a removed one is numbered by id among all of its kind, so that it keeps its number."""
     pool = list(specs) if spec.removed_at is not None else live(specs)

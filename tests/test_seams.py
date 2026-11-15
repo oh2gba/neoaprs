@@ -1,11 +1,10 @@
 """The seams of the radio round (work/par/round/breakdown.md, section 1) as views of today's values, so that nothing behaves differently while they are new: the radios of the settings are today's FM radio
-(radio 1) and HF radio (radio 2) made of the flat keys (`radios_from_flat`, every shape of today's settings); the id views of a packet, a station, a message and its attempts and an object say what the old fields
-say; today's rules written with ids (neoaprs/messagerule.py, neoaprs/emailrule.py) choose what `Radios.for_station` and the email gateway's radio choose, over a table of cases, and the beacon rule
+(radio 1) and HF radio (radio 2) made of the flat keys (`radios_from_flat`, every shape of today's settings); today's rules written with ids (neoaprs/messagerule.py, neoaprs/emailrule.py) choose what
+the two radios of before chose for a station and for the email gateway (tests/support/tworadios.py), over a table of cases, and the beacon rule
 (neoaprs/beaconrule.py, plan rule 3.1, tests/test_beaconrule.py) keeps today's two beacons on today's radios with each radio's own floor; the one fit function makes the frame the sender makes today; the shapes wave 1 writes (tests/support/seamshapes.py, which mypy holds to the Protocols) work as the
 services take them; and the constructors that gained keywords keep their old call."""
 import itertools
 from dataclasses import replace
-from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -13,22 +12,16 @@ import pytest
 
 from neoaprs import ax25
 from neoaprs.beaconrule import beacon_interval, beacon_radios
-from neoaprs.chain import Attempt
 from neoaprs.claims import Claims
 from neoaprs.clock import utc
 from neoaprs.config import DEFAULTS, Config, radio_key_of, radio_state_key, radios_from_flat
 from neoaprs.emailrule import email_radio
 from neoaprs.mercurymodem import Mercury
-from neoaprs.message import EMAIL_GATEWAY, MessageRecord, MessagingError
 from neoaprs.messagerule import message_radio
-from neoaprs.ownobject import make_object
-from neoaprs.packet import Packet, Undecoded
 from neoaprs.policy import MESSAGE_RADIO_RECENT_HOURS, TNC_CHECK_SEC
 from neoaprs.radiodriver import RunOverrides
-from neoaprs.radiorules import FM, HF
-from neoaprs.radios import Radios
 from neoaprs.radiospec import FM_ID, HF_ID, RadioError, RadioHeard
-from neoaprs.radiotype import Allowed, Limits
+from neoaprs.radiotype import Allowed, Limits, RadioType
 from neoaprs.radiotypes import type_of
 from neoaprs.services import common, radioset, sender
 from neoaprs.services.common import fit_frame, our_frame
@@ -36,9 +29,9 @@ from neoaprs.services.radioset import NO_RADIO, fit
 from neoaprs.services.sender import SendError, Sender
 from neoaprs.source import Source
 from neoaprs.station import Station
-from neoaprs.stationbook import StationBook
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import DUMMY_HF, KISS_TCP, MERCURY
+from tests.support.tworadios import email_before, station_before
 from tests.support.seamshapes import DriverShape, LineOfTest, LiveShape, ModemDriverShape, ModemOfTest, RegistryShape, as_air, as_driver, as_pick, frozen_air
 
 T0 = utc(2026, 11, 14, 8, 0)
@@ -97,64 +90,22 @@ def test_a_radios_value_is_checked_by_its_field_and_a_refusal_names_its_key() ->
     assert [radio_key_of(k) for k in ("serial/port", "radio/0/port", "radio/01/port", "radio/x/port", "radio/1/", "radio/1/a/b", "radio/1")] == [None] * 7
 
 
-# ---- the id views of today's values
-
-def packet(radio: str, via: str = "rf") -> Packet:
-    return Packet(T0, "in", b"", "OH2GAX", "APRS", (), b"x", Undecoded("test", "x"), via=via, radio=radio)  # type: ignore[arg-type]
-
-
-def test_the_id_of_a_packets_a_messages_and_an_attempts_radio_is_its_slot_word() -> None:
-    assert [packet(r).radio_id for r in ("fm", "hf", "")] == [FM_ID, HF_ID, None]
-    assert packet("", "is").radio_id is None
-    record = MessageRecord(1, T0, "in", "OH2GAX", "OH2GBA", "moi", "1", "received")
-    assert [replace(record, radio=r).radio_id for r in ("fm", "hf", "")] == [FM_ID, HF_ID, None]
-    assert [Attempt(1, T0, (), radio=r).radio_id for r in ("fm", "hf", "")] == [FM_ID, HF_ID, None]
-
-
-def test_the_radios_of_an_object_are_its_choice_as_ids() -> None:
-    made = {radio: make_object(T0, "TEST", "object", 60.2, 24.9, "/", "-", radio=radio) for radio in ("fm", "hf", "both")}
-    assert {radio: obj.radios for radio, obj in made.items()} == {"fm": (FM_ID,), "hf": (HF_ID,), "both": (FM_ID, HF_ID)}
-
-
-@pytest.mark.parametrize(("fm", "hf", "fm_at", "hf_at", "expected"), [
-    (0, 0, None, None, {}),
-    (3, 0, T0, None, {FM_ID: RadioHeard(3, T0, ("OH2RCH",))}),
-    (0, 2, None, T0, {HF_ID: RadioHeard(2, T0, ("OH2RCH",))}),
-    (3, 2, T0, T0 - timedelta(hours=1), {FM_ID: RadioHeard(3, T0, ("OH2RCH",)), HF_ID: RadioHeard(2, T0 - timedelta(hours=1))}),
-    (3, 2, T0 - timedelta(hours=1), T0, {FM_ID: RadioHeard(3, T0 - timedelta(hours=1)), HF_ID: RadioHeard(2, T0, ("OH2RCH",))}),
-    (3, 2, T0, T0, {FM_ID: RadioHeard(3, T0, ("OH2RCH",)), HF_ID: RadioHeard(2, T0)}),
-])
-def test_what_each_radio_heard_of_a_station_is_its_count_and_time_by_slot_and_the_path_goes_with_the_latest(fm: int, hf: int, fm_at: Any, hf_at: Any, expected: dict[int, RadioHeard]) -> None:
-    s = Station("OH2GAX", first_heard=T0, last_heard=T0, heard_fm=fm, heard_hf=hf, last_fm_at=fm_at, last_hf_at=hf_at, last_path=("OH2RCH",))
-    assert s.heard_by == expected
-    assert s.heard_on(FM_ID).count == fm and s.heard_on(HF_ID).count == hf and s.heard_on(3) == RadioHeard(0, None)
-
-
 # ---- today's rules, written with ids
 
-def station(fm: int, hf: int, choice: str) -> Station:
-    return Station("OH2GAX", first_heard=T0, last_heard=T0, heard_fm=fm, heard_hf=hf, last_fm_at=T0 if fm else None, last_hf_at=T0 if hf else None, message_radio=choice)
+def station(fm: int, hf: int) -> Station:
+    return Station("OH2GAX", first_heard=T0, last_heard=T0, heard_by={id: RadioHeard(count, T0) for id, count in ((FM_ID, fm), (HF_ID, hf)) if count})
 
 
-CASES = list(itertools.product((True, False), (True, False), (0, 4), (0, 2), ("", "fm", "hf"), (True, False)))     # FM on, HF on, heard on FM, on HF, the choice, the station in the book
+CASES = list(itertools.product((True, False), (True, False), (0, 4), (0, 2), (None, FM_ID, HF_ID), (True, False)))     # FM on, HF on, heard on FM, on HF, the choice, the station in the book
 
 
 @pytest.mark.parametrize(("fm_on", "hf_on", "fm", "hf", "choice", "known"), CASES)
-def test_the_radio_of_a_message_is_the_one_radios_for_station_chooses_today(fm_on: bool, hf_on: bool, fm: int, hf: int, choice: str, known: bool) -> None:
+def test_the_radio_of_a_message_is_the_one_the_two_radios_chose_before(fm_on: bool, hf_on: bool, fm: int, hf: int, choice: int | None, known: bool) -> None:
     config = replace(DEFAULTS, fm_enabled=fm_on, hf_enabled=hf_on)
-    book = StationBook()
-    if known:
-        book.seed([station(fm, hf, choice)])
-    fm_radio, hf_radio = object(), object()
-    today = Radios(fm_radio, hf_radio, lambda: config, book).for_station("OH2GAX")      # type: ignore[arg-type]  # what is chosen is all that is asked of a radio here
-    s = book.get("OH2GAX")
-    heard = s.heard_by if s is not None else {}
-    chosen = {"fm": FM_ID, "hf": HF_ID}.get(s.message_radio if s is not None else "")
+    heard = station(fm, hf).heard_by if known else {}
+    chosen = choice if known else None
     got = message_radio(chosen, heard, config.radios, config.main_radio, T0)
-    if not fm_on and not hf_on:
-        assert got is None, "no radio enabled: none (today's falls to the stopped FM radio, which sends nothing)"
-    else:
-        assert got == (FM_ID if today is fm_radio else HF_ID)
+    assert got == station_before(fm_on, hf_on, fm if known else 0, hf if known else 0, chosen), "no radio enabled: none (the two of before fell to the stopped FM radio, which sends nothing)"
 
 
 @pytest.mark.parametrize(("interval", "fm_on", "hf_on"), list(itertools.product((0, 20, 25, 30, 60), (True, False), (True, False))))
@@ -170,13 +121,7 @@ def test_the_beacon_interval_is_each_radios_own_and_its_radios_are_todays(interv
 @pytest.mark.parametrize(("fm_on", "hf_on"), list(itertools.product((True, False), (True, False))))
 def test_the_email_radio_is_the_one_todays_gateway_rule_chooses(fm_on: bool, hf_on: bool) -> None:
     config = replace(DEFAULTS, fm_enabled=fm_on, hf_enabled=hf_on)
-    fm_radio, hf_radio = object(), object()
-    radios = Radios(fm_radio, hf_radio, lambda: config, StationBook())                  # type: ignore[arg-type]
-    try:
-        today = FM_ID if common.message_radio(radios, EMAIL_GATEWAY) is fm_radio else HF_ID      # type: ignore[arg-type]
-    except MessagingError:
-        today = None
-    assert email_radio(config.radios, config.main_radio) == today
+    assert email_radio(config.radios, config.main_radio) == email_before(fm_on, hf_on)
 
 
 # ---- the one fit function, against the sender of today
@@ -200,21 +145,21 @@ class Air:
 
 
 class Today:
-    """A Radio of today with the rules of a profile."""
-    def __init__(self, rules: Any) -> None:
-        self.rules, self.max_frame, self.state, self.usable = rules, rules.max_frame, Source.State.CONNECTED, True
+    """A Radio of today of a type."""
+    def __init__(self, rtype: RadioType) -> None:
+        self.rtype, self.max_frame, self.state, self.usable = rtype, rtype.limits.max_frame, Source.State.CONNECTED, True
 
 
 @pytest.mark.parametrize("path", ["", "DIRECT", "OH2RCH-2,WIDE2-1"])
 def test_our_frame_for_a_radio_is_the_one_the_sender_makes_today(path: str) -> None:
     config = replace(DEFAULTS, station_call="OH2GBA", beacon_path=path, hf_enabled=True)
     info = b"!6010.00N/02455.00E-" + b"a comment that is long enough to be cut on HF" * 3
-    for key, radio, rules in (("kiss", FM_ID, FM), ("mercury", HF_ID, HF)):
+    for key, radio in (("kiss", FM_ID), ("mercury", HF_ID)):
         air = Air(config, key, radio)
-        assert fit(air, config, info, None) == Sender(Today(rules), lambda: config).frame(info, None)          # type: ignore[arg-type]
-        assert fit(air, config, info, ("OH2X",)) == Sender(Today(rules), lambda: config).frame(info, ("OH2X",))    # type: ignore[arg-type]
+        assert fit(air, config, info, None) == Sender(Today(type_of(key)), lambda: config).frame(info, None)          # type: ignore[arg-type]
+        assert fit(air, config, info, ("OH2X",)) == Sender(Today(type_of(key)), lambda: config).frame(info, ("OH2X",))    # type: ignore[arg-type]
     hf_frame = fit(Air(config, "mercury", HF_ID), config, info, ("OH2X",))
-    assert hf_frame.path == () and len(ax25.encode(hf_frame)) == HF.max_frame
+    assert hf_frame.path == () and len(ax25.encode(hf_frame)) == type_of("mercury").limits.max_frame
     assert fit(Air(config, "kiss", FM_ID), config, b">x", None) == our_frame(config, config.beacon_path_calls, b">x") == fit_frame(our_frame(config, config.beacon_path_calls, b">x"), None)
     with pytest.raises(SendError):
         fit(Air(config, "kiss", FM_ID), config, b"x" * (ax25.MAX_INFO + 1), None)
@@ -229,7 +174,7 @@ def test_the_shapes_wave_one_writes_are_what_the_services_take_and_the_frame_par
     live = [LiveShape(spec, config.radios, lines[spec.id]) for spec in config.radios]
     pick = as_pick(RegistryShape(live))
     assert [r.id for r in pick.enabled()] == [FM_ID, HF_ID] and pick.main is live[0] and pick.get(HF_ID) is live[1] and pick.get(3) is None
-    assert [(r.name, r.kind, r.max_frame, r.stats is lines[r.id].stats) for r in pick.enabled()] == [("FM", "fm", None, True), ("HF", "hf", HF.max_frame, True)]
+    assert [(r.name, r.kind, r.max_frame, r.stats is lines[r.id].stats) for r in pick.enabled()] == [("FM", "fm", None, True), ("HF", "hf", type_of("mercury").limits.max_frame, True)]
     info = b"!6010.00N/02455.00E-" + b"long comment " * 12
     for spec in config.radios:
         assert fit(as_air(frozen_air(spec)), config, info, None) == fit(as_air(live[spec.id - 1]), config, info, None), "a frozen value and a radio of the registry are the same radio to fit"

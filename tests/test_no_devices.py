@@ -27,7 +27,7 @@ from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.claims import Claims
 from neoaprs.config import Config
 from neoaprs.gpsfeed import GpsFeed
-from neoaprs.mercurydriver import MercuryDriver, hf_settings, hf_words
+from neoaprs.mercurydriver import MercuryDriver
 from neoaprs.mercurymodem import Mercury
 from neoaprs.mercuryspeaker import player_command
 from neoaprs.message import MessageRecord
@@ -43,6 +43,7 @@ from tests.support import realmercury
 from tests.support.alertcmd import TIMEOUT_SEC, writing
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, Env, idle_for, remember_stop, until
+from tests.support.radioconfig import hf_line, hf_said
 from tests.support.fakemercury import program as fake_mercury
 from tests.support.fakeversionpage import version_page
 from tests.support.madepmtiles import planet
@@ -496,18 +497,18 @@ def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_
         driver.configure(spec, config, run)
         return driver.line.port, driver.line.pattern, driver.line.fallback_probe
 
-    assert hf_settings(off).port == "" and pointed(off) == ("", "", False) and said(caplog) == [], "no port, and nothing said while there is no HF radio"
-    assert (hf_settings(on).port, hf_settings(on, modem_port=18100).port) == ("", "") and pointed(on) == ("", "", False)
+    assert hf_line(off).port == "" and pointed(off) == ("", "", False) and said(caplog) == [], "no port, and nothing said while there is no HF radio"
+    assert (hf_line(on).port, hf_line(on, modem_port=18100).port) == ("", "") and pointed(on) == ("", "", False)
     assert said(caplog) == [(logging.INFO, "NEOAPRS_NO_DEVICES is set: the HF radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)")]
-    assert hf_settings(on, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a Mercury given for this run (the benches') is the HF radio's"
+    assert hf_line(on, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a Mercury given for this run (the benches') is the HF radio's"
     assert pointed(on, RunOverrides(hf_port="socket://127.0.0.1:18100")) == ("socket://127.0.0.1:18100", "", False)
-    assert hf_settings(replace(on, hf_profile="dummy-hf")).port == dummyline.DUMMY_PATH
-    assert hf_words(on, "") == "the Mercury modem, which is not started" and hf_words(replace(on, hf_profile="dummy-hf"), "") == "the Dummy HF radio, made-up stations", "the start line claims no modem and no speaker"
-    assert hf_words(on, "socket://127.0.0.1:18100") == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
+    assert hf_line(replace(on, hf_profile="dummy-hf")).port == dummyline.DUMMY_PATH
+    assert hf_said(on, "") == "the Mercury modem, which is not started" and hf_said(replace(on, hf_profile="dummy-hf"), "") == "the Dummy HF radio, made-up stations", "the start line claims no modem and no speaker"
+    assert hf_said(on, "socket://127.0.0.1:18100") == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
     monkeypatch.delenv(nodevices.ENV)
-    assert hf_settings(on).port == "socket://127.0.0.1:8100" and hf_settings(on, modem_port=18100).port == "socket://127.0.0.1:18100", "the same with the switch off"
+    assert hf_line(on).port == "socket://127.0.0.1:8100" and hf_line(on, modem_port=18100).port == "socket://127.0.0.1:18100", "the same with the switch off"
     assert pointed(on) == ("socket://127.0.0.1:8100", "", False)
-    assert hf_words(on, "") == "the Mercury modem, started by NeoAPRS" and hf_words(replace(on, hf_profile="dummy-hf"), "").endswith("and the modem played through the speakers")
+    assert hf_said(on, "") == "the Mercury modem, started by NeoAPRS" and hf_said(replace(on, hf_profile="dummy-hf"), "").endswith("and the modem played through the speakers")
 
 
 # ---- what stays, and the whole daemon
@@ -607,8 +608,9 @@ async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_an
     data = tmp_path / "data"
     data.mkdir()
     store = await store_at(data / "neoaprs.sqlite")
-    await store.put_settings({"station/call": "OH2ZZZ", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2", "serial/port": radio_port, "gps/source": "serial", "gps/device": gps_port,
+    await store.put_settings({"station/call": "OH2ZZZ", "station/lat": "60.17", "station/lon": "24.94", "gps/source": "serial", "gps/device": gps_port,
                               "igate/enabled": "true", "igate/server": f"{ELSEWHERE}:14580", "igate/password": "12345", "status/source": "rig", "status/rigctld": f"{ELSEWHERE}:4532"})
+    assert await store.add_radio("fm", "kenwood-tnc2", "", True, 1, settings={"port": radio_port}) == 1
     assert store.db is not None
     await store.db.close()
     daemon = subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), "--web-port", "0"], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)

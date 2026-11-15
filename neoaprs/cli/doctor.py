@@ -89,23 +89,25 @@ async def read_database(path: Path) -> Database:
         await db.close()
 
 
-def check_database(data: Path) -> tuple[Finding, Config | None, str]:
-    """The database's line, the settings in force in it (None when there is no file or it cannot be read) and why its radios could not be read ("" when they could)."""
+def check_database(data: Path) -> tuple[Finding, Config | None, str, bool]:
+    """The database's line, the settings in force in it (None when there is no file or it cannot be read), why its radios could not be read ("" when they could), and whether the file is older than
+    the radios' rows (its radios are made by the migration at the daemon's next start)."""
     path = data / DB_NAME
     if not path.is_file():
-        return Finding("ok", "no database yet; the daemon makes it when it first starts"), None, ""
+        return Finding("ok", "no database yet; the daemon makes it when it first starts"), None, "", False
     try:
         found = asyncio.run(read_database(path))
     except (StoreError, SqlError, DbClosed, OSError) as e:
-        return Finding("fail", f"{path} cannot be read: {e}", "if it is damaged, restore a copy from the backup folder next to it, or move it away (the settings and the packets are in it)"), None, ""
+        return Finding("fail", f"{path} cannot be read: {e}", "if it is damaged, restore a copy from the backup folder next to it, or move it away (the settings and the packets are in it)"), None, "", False
     version, config, unread = found.version, in_force(found.rows, found.radios), found.radios_problem
+    older = version < RADIO_ROWS_FROM
     if version > SCHEMA_VERSION:
-        return Finding("fail", f"database version {version}: made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION})", f"update NeoAPRS, or {way_back(data, SCHEMA_VERSION)}; the file has not been touched"), config, ""
+        return Finding("fail", f"database version {version}: made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION})", f"update NeoAPRS, or {way_back(data, SCHEMA_VERSION)}; the file has not been touched"), config, "", older
     if version < SCHEMA_VERSION and migrating(data):
-        return Finding("ok", f"database version {version}: the daemon is bringing it up to date to version {SCHEMA_VERSION}"), config, ""
+        return Finding("ok", f"database version {version}: the daemon is bringing it up to date to version {SCHEMA_VERSION}"), config, "", older
     if version < SCHEMA_VERSION:
-        return Finding("warn", f"database version {version}, this NeoAPRS uses {SCHEMA_VERSION}", "start the daemon once: it migrates the file and keeps a copy of the old one in backup/"), config, ""
-    return Finding("ok", f"database {path.name}, version {version} ({path.stat().st_size / 1e6:.1f} MB)"), config, unread
+        return Finding("warn", f"database version {version}, this NeoAPRS uses {SCHEMA_VERSION}", "start the daemon once: it migrates the file and keeps a copy of the old one in backup/"), config, "", older
+    return Finding("ok", f"database {path.name}, version {version} ({path.stat().st_size / 1e6:.1f} MB)"), config, unread, older
 
 
 def check_call(config: Config | None) -> Finding:
@@ -118,13 +120,17 @@ def check_call(config: Config | None) -> Finding:
     return Finding("ok", f"call {call}")
 
 
-def check_radios(config: Config | None, path: Path | None = None, unread: str = "") -> list[Finding]:
-    """A line for each radio, by the name the log gives it: its type and how it is reached, or that it is off; a warning when no radio is on. Nothing without a database (a new installation). For a
-    database whose radios could not be read (`unread`, the file at `path`), that one failure in place of radios it does not have."""
+def check_radios(config: Config | None, path: Path | None = None, unread: str = "", older: bool = False) -> list[Finding]:
+    """A line for each radio, by the name the log gives it: its type and how it is reached, or that it is off; a warning when no radio is on, or when the station has none yet or only removed ones. Nothing without a database
+    (a new installation), nor for a file older than the radios' rows (`older`: the migration makes them). For a database whose radios could not be read (`unread`, the file at `path`), that one failure in
+    place of radios it does not have."""
     if unread:
         return [Finding("fail", f"the radios in {path} cannot be read: {unread}", "restore a copy from the backup folder next to it (neoaprs db restore)")]
-    if config is None:
+    if config is None or older:
         return []
+    if not config.live_radios:
+        none = "this station has no radio yet" if not config.radios else "every radio of this station is removed"
+        return [Finding("warn", f"{none}: nothing is heard and nothing is sent", "add one: the setup guide, the page (Settings tab, Radio), or neoaprs db radios add TYPE")]
     found = []
     for spec in config.live_radios:
         how = ", ".join(f"{label.lower()} {words}" for label, words in reached(spec)) if spec.enabled else "off"
@@ -200,8 +206,8 @@ def check_service(data: Path) -> Finding:
 
 
 def diagnose(data: Path) -> list[Finding]:
-    database, config, unread = check_database(data)
-    findings = [check_python(), check_data_folder(data), database, check_call(config), *check_radios(config, data / DB_NAME, unread), check_ports(), check_group(), *check_grabbers(), check_firefox_flatpak(), check_daemon(data), check_map(data), check_service(data)]
+    database, config, unread, older = check_database(data)
+    findings = [check_python(), check_data_folder(data), database, check_call(config), *check_radios(config, data / DB_NAME, unread, older), check_ports(), check_group(), *check_grabbers(), check_firefox_flatpak(), check_daemon(data), check_map(data), check_service(data)]
     return [f for f in findings if f is not None]
 
 

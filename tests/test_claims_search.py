@@ -13,9 +13,11 @@ import pytest
 
 from neoaprs import mercuryhelper, mercurymodem, serialprobe
 from neoaprs.claims import Claim, Claims
+from neoaprs.config import Config
 from neoaprs.mercury import Keying, SerialPort, SoundCard
 from neoaprs.mercuryhelper import choose_setup, next_modem_ports, pair_ports
 from neoaprs.mercurymodem import Mercury
+from neoaprs.radiospec import HF_ID, RadioId
 from neoaprs.serialholders import port_key
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
@@ -202,6 +204,13 @@ def test_the_table_hands_out_pairs_that_share_no_port_and_a_radios_own_pair_is_i
         next_modem_ports(claims, 5, free, first=20000, tries=4)
 
 
+def as_radio(config: Config, id: RadioId) -> Config:
+    """The settings with radio `id` an HF radio whose own sound card and keying are radio 2's: a modem reads its own radio's (mercurymodem.own_choice), and the modems of these tests are radio 5's too."""
+    hf = config.radio(HF_ID)
+    assert hf is not None
+    return replace(config, radios=(*config.radios, replace(hf, id=id, position=id)))
+
+
 async def test_two_radios_modems_are_started_on_pairs_that_share_no_port_and_hold_them_until_they_stop(tmp_path: Path) -> None:
     claims = Claims()
     two = Mercury(tmp_path, finder=fakemercury.program, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path, 2, claims))
@@ -209,7 +218,7 @@ async def test_two_radios_modems_are_started_on_pairs_that_share_no_port_and_hol
     two.ports = five.ports = lambda: []
     try:
         await two.start(HF)
-        await five.start(replace(HF, mercury_sound_card="plughw:2,0", mercury_keying="vox"))
+        await five.start(as_radio(replace(HF, mercury_sound_card="plughw:2,0", mercury_keying="vox"), 5))
         await until_started(lambda: two.running and five.running)
         assert set(pair_ports(two.broadcast_port)).isdisjoint(pair_ports(five.broadcast_port)), "two pairs that share no port"
         assert {c for c in claims.all() if c.kind == "modem_ports"} == {Claim("modem_ports", str(two.broadcast_port), 2), Claim("modem_ports", str(five.broadcast_port), 5)}
@@ -233,7 +242,7 @@ async def test_a_pair_the_table_holds_for_a_modem_that_is_down_is_not_given_to_a
         two._program._process.kill()
         await until_started(lambda: two.state == "waiting")                    # (down for the back-off: its pair is free on the machine, and still radio 2's)
         await until_started(lambda: mercuryhelper.pair_free(held))
-        await five.start(replace(HF, mercury_sound_card="plughw:2,0", mercury_keying="vox"))
+        await five.start(as_radio(replace(HF, mercury_sound_card="plughw:2,0", mercury_keying="vox"), 5))
         await until_started(lambda: five.running)
         assert set(pair_ports(held)).isdisjoint(pair_ports(five.broadcast_port)) and Claim("modem_ports", str(held), 2) in claims.all()
     finally:
@@ -248,14 +257,14 @@ async def test_a_card_or_a_keying_line_the_settings_name_and_another_radio_holds
     m = Mercury(tmp_path, finder=fakemercury.program, backoff=Backoff([30.0]), control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path, 5, claims))
     m.ports = lambda: []
     claims.hold(Claim("sound_card", "plughw:1,0", 2))
-    await m.start(HF)
+    await m.start(as_radio(HF, 5))
     try:
         assert m.state == "waiting" and m.reason == "not_started" and m.problem == "the sound card plughw:1,0 is held by radio 2" and m.starts == 0 and m.held() == []
     finally:
         await m.stop()
     claims.release(2)
     claims.hold(Claim("serial", port_key("/dev/ttyUSB0"), 1))                      # (the FM radio's port)
-    await m.start(HF)
+    await m.start(as_radio(HF, 5))
     try:
         assert m.state == "waiting" and m.problem == "the keying line /dev/ttyUSB0 is held by radio 1" and m.starts == 0 and m.held() == [], "neither is held when one is refused"
         assert claims.all() == (Claim("serial", port_key("/dev/ttyUSB0"), 1),)

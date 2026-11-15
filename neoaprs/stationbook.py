@@ -24,7 +24,7 @@ from .radiotype import RadioTypeError
 from .route import route_of
 from .signal import Signal
 from .station import Station, add_track_point
-from .stationnotes import expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, old_carries_path, seed_hour, seed_radio, seed_reported, seed_routes
+from .stationnotes import every_radio_carries_path, expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, seed_hour, seed_radio, seed_reported, seed_routes
 ROUTES_SEEN = 1000                  # the latest packets, and as many of those not from the internet, that the routes of the stations are read from at the start
 DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators, data extensions and the device are read from at the start
 
@@ -61,7 +61,7 @@ def route_groups(rows: Iterable[tuple[str, str, bytes, datetime, RadioId | None]
 
 
 class StationBook:
-    def __init__(self, clock: Clock = utcnow, *, carries_path: Callable[[RadioId], bool] = old_carries_path) -> None:
+    def __init__(self, clock: Clock = utcnow, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path) -> None:
         self.clock = clock
         self._carries_path = carries_path                                     # whether a radio may carry a path (its routes are the station's as a whole): the composition root asks the radios' types (`carries_path`)
         self.changed: Signal[[Station]] = Signal("stationbook.changed")       # a station was added or changed (the live object: read it, do not keep it)

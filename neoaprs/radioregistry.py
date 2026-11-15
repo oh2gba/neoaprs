@@ -23,16 +23,15 @@ from .config import Config
 from .mercuryclaims import radio_folder
 from .mercurydriver import MercuryDriver
 from .mercurymodem import Mercury
-from .packet import Packet, radio_word
+from .packet import Packet
 from .radiodriver import RadioDriver, RunOverrides
-from .radiorules import RadioRules, rules_of
-from .radiospec import RadioId, RadioSpec, live, log_name, transmits
+from .radiospec import FM_ID, HF_ID, RadioId, RadioSpec, live, log_name, transmits
 from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError
 from .signal import Signal
 from .source import Source
 from .station import Station
 from .stationbook import StationBook
-from .stationchoices import StationChoices as StationChoices      # (the operator's radio by station; neoaprs/radios.py takes it from here)
+from .stationchoices import StationChoices
 from .tnc import Tnc
 from .tncdriver import TncDriver, listening_ports
 from .tncwatchdog import TncStats
@@ -151,11 +150,6 @@ class LiveRadio(Generic[B]):
         return self.rtype.allowed
 
     @property
-    def rules(self) -> RadioRules:
-        """The limits and what is allowed as the services of before read them (radiorules.rules_of), until RadioRules goes."""
-        return rules_of(self.rtype)
-
-    @property
     def name(self) -> str:
         """What the log calls it (radiospec.log_name): the name typed, else `FM`, `HF 2`."""
         return log_name(self.spec, self._specs())
@@ -184,7 +178,7 @@ class RadioRegistry(StationChoices, Generic[B]):
     def __init__(self, claims: Claims, make_driver: Callable[[RadioSpec], RadioDriver], make_beacon: Callable[[LiveRadio[B]], B], config: Callable[[], Config], book: StationBook,
                  remember: Callable[[str], None] = lambda text: None, flush: Callable[[], Awaitable[None]] | None = None, *, clock: Clock = utcnow,
                  run: Callable[[], RunOverrides] = RunOverrides) -> None:
-        super().__init__(book, remember, flush, by_id=True, known=lambda id: any(spec.id == id for spec in config().live_radios))     # (the operator's radio by station: any radio that is not removed)
+        super().__init__(book, remember, flush, known=lambda id: any(spec.id == id for spec in config().live_radios))     # (the operator's radio by station: any radio that is not removed)
         self.claims = claims                                                      # the station's one table of resources: what each radio and the GPS receiver hold
         self.search_lock = asyncio.Lock()                                         # one radio searches the ports at a time
         self._make_driver, self._make_beacon = make_driver, make_beacon
@@ -272,7 +266,7 @@ class RadioRegistry(StationChoices, Generic[B]):
                 self.why[id] = reason
         for id, spec in wanted.items():
             self._radios[id]._made_as = spec
-            self._radios[id].line.radio_name = "" if radio_word(id) else log_name(spec, config.radios)      # (what its line's own log lines begin with: for radios 1 and 2 today's words, `tnc` and `hf radio`, which the line says by its kind)
+            self._radios[id].line.radio_name = "" if id in (FM_ID, HF_ID) else log_name(spec, config.radios)      # (what its line's own log lines begin with: for radios 1 and 2 today's words, `tnc` and `hf radio`, which the line says by its kind)
         return list(self.why)
 
     def _made(self, spec: RadioSpec) -> LiveRadio[B]:

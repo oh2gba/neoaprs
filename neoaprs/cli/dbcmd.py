@@ -6,30 +6,31 @@ seconds for it.
     neoaprs db set station/call OH2GBA-9 a setting, checked like the daemon checks it against the settings stored; the daemon reads settings at its start (or when the page saves them)
     neoaprs db set update/not_counted true  the update check sends the number 0 in place of this installation's own, so that the project does not count this run; `false` takes it away (read at each check)
     neoaprs db radios                    the radios: each with its number, name, kind, type, whether it is on, and its own settings (radio/<id>/<key>) with their values
-    neoaprs db set radio/1/port /dev/ttyUSB0  one setting of one radio, checked as the daemon checks it; `get` reads one the same way. The flat keys of today's two radios (tnc/profile, serial/port,
-                                         hf/enabled, mercury/* ...) are those of radio 1, the FM radio, and radio 2, the HF radio: a set of one goes to that radio
+    neoaprs db radios add kiss [NAME]    a radio of the type (kiss, kenwood-tnc2, kiss-tcp, mercury ...), on unless --off, after the others; a fresh data folder is made, so that a station can be set up
+                                         before its first start. The database gives it its number; the daemon takes it at its next start
+    neoaprs db set radio/1/port /dev/ttyUSB0  one setting of one radio, checked as the daemon checks it; `get` reads one the same way. A key of before of a radio's setting (serial/port,
+                                         hf/enabled, mercury/* ...) is no setting: the answer names the radio's own key
     neoaprs db stations                  the stations the daemon knows: call, kind, last heard, position, packets
     neoaprs db packets -n 50             the latest packets, oldest first, as TNC2 line -> what the parser made of it
     neoaprs db restore                   the copies in the backup folder: date, version of the schema, size, and whether this NeoAPRS can open it
     neoaprs db restore NAME              puts the copy NAME in the place of the database, with NeoAPRS stopped; the file that was there is kept beside it under a name that says when
 
---data DIR is the data folder (default: the one the daemon uses). `set` and `restore` are the writes; everything else opens the database for reading and changes nothing."""
+--data DIR is the data folder (default: the one the daemon uses). `set`, `radios add` and `restore` are the writes; everything else opens the database for reading and changes nothing."""
 import argparse
 import asyncio
 import logging
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
-from datetime import datetime
+from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from neoaprs.backupfolder import FOLDER_NAME, RestoreRefused, before_copy, can_open, copies, restore, stamp as copy_stamp
 from neoaprs.cli.redaction import shown_value
 from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, LAST_PORT, RADIO_STATE, STATE_BEFORE_31, STATE_KEYS, Config
-from neoaprs.configradios import FLAT_KINDS, radio_key_of, radios_from_rows
+from neoaprs.configradios import FLAT_HOMES, FLAT_KINDS, flat_moved, flat_now, radio_key_of
 from neoaprs.configtypes import boolean
-from neoaprs.radiospec import KIND_WORDS, RadioSpec, log_name
-from neoaprs.radiotype import stored_text
+from neoaprs.radiospec import KIND_WORDS, RadioSpec
+from neoaprs.radiotypes import BY_KEY as TYPES
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
@@ -44,7 +45,8 @@ from neoaprs.versions import NOT_COUNTED
 from neoaprs.store import DB_NAME, Store
 
 from .output import say
-from .radiosettings import FLAT_KEY_OF, flat_home, flat_view, now_on, in_force, own_fields, own_key, radio_tables, stored_own, stored_text_of, value_text
+from .dbradios import Radios, add_radio, show_radios, stamp, stored_radios
+from .radiosettings import SHOWN_KEYS, in_force, own_key, port_problem, shown_settings, stored_text_of, value_text
 
 PROG = "neoaprs db"
 READ_WAIT_MS = 3000
@@ -66,34 +68,16 @@ def parse(argv: list[str]) -> argparse.Namespace:
     setter = command("set", "change a setting")
     setter.add_argument("key")
     setter.add_argument("value")
-    command("radios", "the radios and their own settings")
+    radios = command("radios", "the radios and their own settings, or add one")
+    radios.add_argument("add", nargs="?", choices=["add"], help="add a radio of TYPE")
+    radios.add_argument("type", nargs="?", default="", help="the type of the radio to add (kiss, kenwood-tnc2, kiss-tcp, mercury, dummy, dummy-hf ...)")
+    radios.add_argument("name", nargs="?", default="", help="its name (none: the type's)")
+    radios.add_argument("--off", action="store_true", help="add it switched off")
     command("stations", "the stations the daemon knows")
     command("restore", "list the copies in the backup folder, or put one back").add_argument("name", nargs="?", default="", help="the copy to put back, as the list names it")
     packets = command("packets", "the latest packets")
     packets.add_argument("-n", type=int, default=20, help="how many (default 20)")
     return parser.parse_args(argv)
-
-
-@dataclass(frozen=True)
-class Radios:
-    """The radios of the database: as the daemon reads them (a wrong value left out, told once) and their own settings as they are stored (a text that is no value too)."""
-    specs: tuple[RadioSpec, ...] = ()
-    own: Mapping[tuple[int, str], str] = field(default_factory=dict)
-
-
-async def stored_radios(store: Store) -> Radios:
-    """The radios as they are stored. SqlError, with the way back, when the file's radios cannot be read: such a file is never read or written as one without radios, whose flat rows nothing
-    reads once its radios are rows (Store.radios() gives none for a failed read too)."""
-    assert store.db is not None
-    try:
-        rows, settings = await store.db.read(radio_tables)
-    except SqlError as e:
-        raise SqlError(f"the radios cannot be read: {e}; restore a copy (neoaprs db restore)") from e
-    return Radios(radios_from_rows(rows, settings), stored_own(settings))
-
-
-def stamp(t: datetime) -> str:
-    return t.strftime("%Y-%m-%d %H:%M:%SZ")
 
 
 def daemon_state(key: str) -> bool:
@@ -120,14 +104,24 @@ async def show_settings(store: Any, only: str | None) -> int:
     rows, radios = await store.settings(), await stored_radios(store)
     if only is not None:
         return show_one(rows, radios, only)
-    defaults = DEFAULTS.to_data()
-    shown = flat_view(rows, radios.specs)
-    width = max(len(k) for k in defaults)
-    for key in defaults:
-        print(f"{key:<{width}}  {shown[key]:<18}  {'default' if stored_text_of(key, rows, radios.specs, radios.own) is None else 'stored'}")
-    for key in sorted(set(rows) - set(defaults)):
-        print(f"{key:<{width}}  {shown_value(key, rows[key]):<18}  {kept_note(key)}")
+    config = in_force(rows, radios.specs)
+    shown = shown_settings(config)
+    width = max(len(k) for k in shown)
+    for key in shown:
+        print(f"{key:<{width}}  {shown[key]:<18}  {'default' if stored_text_of(key, rows) is None else 'stored'}")
+    for key in sorted(set(rows) - set(shown)):
+        print(f"{key:<{width}}  {shown_value(key, rows[key]):<18}  {before_note(key, config) or kept_note(key)}")
     return 0
+
+
+def before_note(key: str, config: Config) -> str:
+    """For a row of a key of before of a radio's setting, which nothing reads (a folder set up by a build of the round before its first start, whose radio was never made), where its value goes now:
+    the sentence of `moved`, and while the station has no radio, that one is added first; "" for any other key."""
+    found = moved(key, config)
+    if not found:
+        return ""
+    where = found.split("no such setting: ", 1)[-1]
+    return f"a key of before, not read: {where}" + ("" if config.live_radios else " (add the radio first: neoaprs db radios add TYPE)")
 
 
 def stored_note(key: str, text: str | None, check: Callable[[str], object]) -> str:
@@ -141,21 +135,35 @@ def stored_note(key: str, text: str | None, check: Callable[[str], object]) -> s
     return ""
 
 
-def no_radio_note(key: str, id: int, own: str, specs: tuple[RadioSpec, ...]) -> str:
-    removed = any(s.id == id and s.removed for s in specs)
-    if there := now_on(id, own, specs):
-        return f"{key}: radio {id}{' was removed' if removed else ' is none'}; the default is shown{there}"
-    return f"{key}: this station has no {KIND_WORDS[FLAT_KINDS[id]]} radio{f' (radio {id} was removed)' if removed else ''}; the default is shown"
+def moved(key: str, config: Config = DEFAULTS) -> str:
+    """For a key of before of a radio's setting (`serial/port`, `hf/enabled`), which is no setting of the command line, the sentence that names where it is now with the radios of `config`: the page's
+    (configradios.flat_moved) for a radio's own key, and for its type and Enable, which only the page changes, the radio's by its number (`flat_now`); "" for any other key."""
+    setting = BY_KEY.get(key)
+    found = None if setting is None else flat_moved(setting.attr, config.radios, config.main_radio)
+    if setting is None or found is None:
+        return ""
+    id, field = FLAT_HOMES[setting.attr]
+    if field in ("type", "enabled"):
+        radio = flat_now(setting.attr, config.radios, config.main_radio)
+        whose = f"the {KIND_WORDS[FLAT_KINDS[id]]} radio's" if radio is None else f"radio {radio.id}'s"
+        return f"{key}: no such setting: it is {whose} {'Enable' if field == 'enabled' else 'type'} (Settings tab, Radio) now"
+    return f"{key}: {found}"
+
+
+def no_setting_now(key: str, specs: tuple[RadioSpec, ...], rows: dict[str, str]) -> int:
+    """`get` or `set` of a key of before of a radio's setting: the sentence that names where it is now (`moved`), and the exit code 2."""
+    say(f"{PROG}: {moved(key, in_force(rows, specs))}")
+    return 2
 
 
 def show_one(rows: dict[str, str], radios: Radios, only: str) -> int:
     """`get`: a setting, a radio's own setting (`radio/<id>/<key>`) or a row the daemon keeps; the exit code."""
     specs = radios.specs
-    if only in BY_KEY:
-        print(flat_view(rows, specs)[only])
-        home = flat_home(only, specs)
-        note = no_radio_note(only, home[0], home[1], specs) if home is not None and home[2] is None else stored_note(only, stored_text_of(only, rows, specs, radios.own), lambda t: Config.check(only, t))
-        if note:
+    if moved(only):
+        return no_setting_now(only, specs, rows)
+    if only in SHOWN_KEYS:
+        print(shown_settings(in_force(rows, specs))[only])
+        if note := stored_note(only, stored_text_of(only, rows), lambda t: Config.check(only, t)):
             say(f"{PROG}: {note}")
         return 0
     radio = own_key(only, specs)
@@ -173,29 +181,6 @@ def show_one(rows: dict[str, str], radios: Radios, only: str) -> int:
         return 0
     say(f"{PROG}: {only}: no such setting (try list, or radios for the settings of a radio)")
     return 2
-
-
-def radio_state(spec: RadioSpec) -> str:
-    if spec.removed_at is not None:
-        return f"removed {stamp(spec.removed_at)}"
-    return "on" if spec.enabled else "off"
-
-
-async def show_radios(store: Any) -> int:
-    """`radios`: each radio, the removed ones last, with its own settings in the order its type lists them: the value in force, and whether it is stored or the default."""
-    stored = await stored_radios(store)
-    radios = stored.specs
-    if not radios:
-        say(f"{PROG}: no radio is stored in this database: the radio settings of `list` are in force (tnc/profile, serial/port, fm/enabled, hf/enabled ...)")
-        return 0
-    keys = {spec.id: own_fields(spec) for spec in radios}
-    width = max(len(f"radio/{id}/{key}") for id, own in keys.items() for key in own)
-    for spec in sorted(radios, key=lambda s: (s.removed_at is not None, s.position, s.id)):
-        print(f"radio {spec.id}  {log_name(spec, radios)}  {spec.kind}  {spec.type}  {radio_state(spec)}  (position {spec.position})")
-        for key in keys[spec.id]:
-            name = f"radio/{spec.id}/{key}"
-            print(f"  {name:<{width}}  {shown_value(name, value_text(spec, key)):<18}  {'stored' if (spec.id, key) in stored.own else 'default'}")
-    return 0
 
 
 async def show_stations(log: Any) -> int:
@@ -224,46 +209,26 @@ def checked_row(key: str, value: str) -> str:
 
 async def store_setting(store: Store, key: str, value: str, text: str) -> int:
     """`set`: the value `text` (`value` as the setting keeps it) stored when it goes with the settings stored, by the rules between settings that a save of the page applies; the exit code. With the
-    radios stored, a flat key of radios 1 and 2 is stored with its radio: its type and whether it is on in the radio's row, any other in its own settings; a station without that radio refuses it;
-    and `serial/last_port` is radio 1's own state row (config.LAST_PORT), which is read in its place."""
+    radios stored, `serial/last_port` is radio 1's own state row (config.LAST_PORT), which is read in its place. A key of before of a radio's setting is refused with where it is now."""
     rows, radios = await store.settings(), (await stored_radios(store)).specs
-    home = flat_home(key, radios)
-    if home is not None and home[2] is None:
-        id, own, _ = home
-        there = now_on(id, own, radios)
-        say(f"{PROG}: {key} is a setting of radio {id}, which this station has not{there}" if there else f"{PROG}: {key} is a setting of the {KIND_WORDS[FLAT_KINDS[id]]} radio, and this station has none: add it on the page (Settings tab, Radio), then set it here")
-        return 2
+    if moved(key):
+        return no_setting_now(key, radios, rows)
     try:
         if key != NOT_COUNTED:
             Config.checked(in_force(rows, radios), {key: value})
     except ValueError as e:
         say(f"{PROG}: {e}")
         return 2
-    if home is None:
-        stored = await store.put_setting(LAST_PORT if radios and key == "serial/last_port" else key, text)
-    else:
-        stored = await store_on_radio(store, key, value, home)
-    if not stored:
+    if not await store.put_setting(LAST_PORT if radios and key == "serial/last_port" else key, text):
         say(f"{PROG}: {key} could not be stored")
         return 1
     print(f"{key} = {text}")
     return 0
 
 
-async def store_on_radio(store: Store, key: str, value: str, home: tuple[int, str, RadioSpec | None]) -> bool:
-    """A flat key's value stored where it lives: the radio's type or whether it is on in its row (Store.change_radio), any other as the radio's own setting, in the text its field keeps."""
-    id, own, spec = home
-    assert spec is not None
-    if own == "type":
-        return await store.change_radio(id, type=Config.check(key, value))
-    if own == "enabled":
-        return await store.change_radio(id, enabled=bool(Config.parse(key, value)))
-    return await store.put_radio_settings(id, {own: Config.check_radio(spec, own, stored_text(Config.parse(key, value)))})
-
-
 async def store_radio_setting(store: Store, key: str, value: str) -> int:
-    """`set radio/<id>/<key> VALUE`: one setting of one radio, checked by its field, and for a setting that is a flat key's (radio 1's port, say) by the rules between settings as that key is; the exit code."""
-    rows, radios = await store.settings(), (await stored_radios(store)).specs
+    """`set radio/<id>/<key> VALUE`: one setting of one radio, checked by its field, and its port by the radio's type (a TCP type connects to its KISS server, not to a serial device); the exit code."""
+    radios = (await stored_radios(store)).specs
     id, own = radio_key_of(key) or (0, "")
     spec = next((s for s in radios if s.id == id), None)
     if spec is None or spec.removed:
@@ -271,8 +236,8 @@ async def store_radio_setting(store: Store, key: str, value: str) -> int:
         return 2
     try:
         text = Config.check_radio(spec, own, value)
-        if (flat := FLAT_KEY_OF.get((id, own))) is not None and spec.kind == FLAT_KINDS[id]:
-            Config.checked(in_force(rows, radios), {flat: value})
+        if own == "port" and (problem := port_problem(replace(spec, settings={**spec.settings, own: text}))):
+            raise ValueError(f"{key}: {problem}")
     except ValueError as e:
         say(f"{PROG}: {e}")
         return 2
@@ -310,7 +275,23 @@ def restore_copy(data: Path, name: str) -> int:
 
 def before_opening(args: argparse.Namespace, path: Path) -> int | str:
     """What is checked before the database is opened: for `set`, the value of a setting of the station by its key (the text as it is kept), and that the data folder can be made; for any other
-    command, and for a radio's own setting (checked by its radio's field once the database is read), that the file is there. The text, or the exit code of the refusal."""
+    command, and for a radio's own setting (checked by its radio's field once the database is read), that the file is there; a key of before of a radio's setting is answered with where it is now,
+    by the database's radios where there is a database. The text, or the exit code of the refusal."""
+    if args.command in ("set", "get") and moved(args.key):
+        if path.is_file():
+            return ""
+        say(f"{PROG}: {moved(args.key, replace(DEFAULTS, radios=()))}")
+        return 2
+    if args.command == "radios" and args.add:
+        if not args.type:
+            say(f"{PROG}: radios add: which type? (the types are {', '.join(TYPES)})")
+            return 2
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            say(f"{PROG}: the data folder {path.parent} cannot be made or used: {e.strerror or e}")
+            return 1
+        return ""
     if args.command == "set" and daemon_state(args.key):
         say(f"{PROG}: {args.key}: {kept_note(args.key)}" + ("; db set serial/last_port sets it" if args.key == LAST_PORT else ""))
         return 2
@@ -342,7 +323,7 @@ async def answer(args: argparse.Namespace, store: Store, log: PacketLog, text: s
     if args.command in ("list", "get"):
         return await show_settings(store, args.key if args.command == "get" else None)
     if args.command == "radios":
-        return await show_radios(store)
+        return await (add_radio(store, args.type, args.name, not args.off) if args.add else show_radios(store))
     if args.command == "stations":
         return await show_stations(log)
     return await show_packets(log, args.n)
@@ -353,7 +334,7 @@ async def run(args: argparse.Namespace) -> int:
         data = Path(args.data).expanduser()
         return restore_copy(data, args.name) if args.name else list_copies(data)
     path = Path(args.data).expanduser() / DB_NAME
-    writing = args.command == "set"
+    writing = args.command == "set" or (args.command == "radios" and bool(args.add))
     text = before_opening(args, path)
     if isinstance(text, int):
         return text
@@ -386,7 +367,7 @@ def main(argv: list[str]) -> int:
     logger = logging.getLogger(MIGRATION_LOG)
     said = logging.StreamHandler()                           # `set` may be the first to open a file of an older version: what its migrations did is said here, where nothing else logs
     said.setFormatter(logging.Formatter("%(message)s"))
-    if args.command == "set":
+    if args.command == "set" or (args.command == "radios" and args.add):
         logger.addHandler(said)
     was = logger.level
     logger.setLevel(logging.INFO)

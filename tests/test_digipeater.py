@@ -14,7 +14,7 @@ from neoaprs.config import Config
 from neoaprs.packet import Packet
 from neoaprs.policy import DIGI_DUPLICATE_SEC
 from neoaprs.radiospec import RadioSpec
-from neoaprs.radiotype import FM_ID, HF_ID
+from neoaprs.radiotype import FM_ID, HF_ID, RadioId
 from neoaprs.services.digipeater import BURST_MAX, BURST_WINDOW_SEC, Digipeater
 from neoaprs.source import Source
 from neoaprs.tncmode import packet_of
@@ -65,8 +65,8 @@ class Rig(ServiceRig):
         for radio in [] if self.own_specs else self.radios.radios:
             radio.spec, radio.specs = config.radio(radio.id) or radio.spec, config.radios
 
-    def hear(self, f: ax25.Frame, direction: str = "in", radio: str = "fm") -> Packet:
-        packet = packet_of(direction, ax25.encode(f), f, self.clock(), radio=radio)     # type: ignore[arg-type]
+    def hear(self, f: ax25.Frame, direction: str = "in", radio_id: RadioId = FM_ID) -> Packet:
+        packet = packet_of(direction, ax25.encode(f), f, self.clock(), radio_id=radio_id)     # type: ignore[arg-type]
         self.digi.on_packet(packet)
         return packet
 
@@ -154,7 +154,7 @@ def test_a_packet_that_came_from_the_internet_is_not_repeated() -> None:
 
 def test_a_packet_heard_on_the_hf_radio_is_repeated_nowhere_and_is_not_held_against_the_same_heard_on_fm() -> None:
     rig = Rig()
-    rig.hear(frame("WIDE1-1"), radio="hf")
+    rig.hear(frame("WIDE1-1"), radio_id=HF_ID)
     assert rig.tnc.sent == [] and rig.hf.sent == [] and rig.hf.stats.digipeated == 0      # type: ignore[attr-defined]
     rig.hear(frame("WIDE1-1"))
     assert len(rig.tnc.sent) == 1 and rig.hf.sent == [], "the same on FM is repeated, on FM: what the HF radio hears goes into no table"
@@ -163,7 +163,7 @@ def test_a_packet_heard_on_the_hf_radio_is_repeated_nowhere_and_is_not_held_agai
 def test_what_the_hf_radio_hears_takes_nothing_of_the_fm_radios_burst_or_its_table() -> None:
     rig = Rig()
     for n in range(BURST_MAX + 2):
-        rig.hear(frame(info=f">{n}".encode()), radio="hf")
+        rig.hear(frame(info=f">{n}".encode()), radio_id=HF_ID)
     assert len(rig.digi.seen_on(FM_ID)) == 0 and len(rig.digi.seen_on(HF_ID)) == 0, "the HF radio does not digipeat: what it hears is in no table"
     for n in range(BURST_MAX):
         rig.hear(frame(info=f">{n}".encode()))
@@ -174,7 +174,7 @@ def test_what_the_hf_radio_hears_takes_nothing_of_the_fm_radios_burst_or_its_tab
 def test_a_second_radio_that_may_repeat_repeats_on_itself_while_its_own_digipeater_is_on(second: str) -> None:
     specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1, settings={"digipeat": "true"}), RadioSpec(HF_ID, "fm", "kiss", "", True, 2, settings={"digipeat": second}))
     rig = Rig(specs)
-    rig.hear(frame("WIDE1-1"), radio="hf")                                   # (radio 2, here of an FM type that is allowed a digipeater)
+    rig.hear(frame("WIDE1-1"), radio_id=HF_ID)                                   # (radio 2, here of an FM type that is allowed a digipeater)
     assert rig.tnc.sent == [], "what radio 2 hears is never sent on radio 1 (no row from one radio to another)"
     assert len(rig.hf.sent) == (1 if second == "true" else 0), "radio 2 repeats on itself while its own digipeater is on (rule 3.4)"
     assert rig.hf.stats.digipeated == len(rig.hf.sent) and rig.stats.digipeated == 0, "each radio counts its own"     # type: ignore[attr-defined]
@@ -186,12 +186,12 @@ def test_two_radios_that_repeat_each_keep_their_own_duplicate_table_and_burst() 
     specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1, settings={"digipeat": "true"}), RadioSpec(HF_ID, "fm", "kiss", "", True, 2, settings={"digipeat": "true"}))
     rig = Rig(specs)
     rig.hear(frame("WIDE1-1"))
-    rig.hear(frame("WIDE1-1"), radio="hf")
+    rig.hear(frame("WIDE1-1"), radio_id=HF_ID)
     assert len(rig.tnc.sent) == 1 and len(rig.hf.sent) == 1, "the same frame within 30 s is repeated on each radio that heard it"
     for n in range(BURST_MAX):
         rig.hear(frame(info=b">%d" % n))
     assert len(rig.tnc.sent) == BURST_MAX and rig.stats.digipeat_held == 1, "radio 1's burst is full"
-    rig.hear(frame(info=b">on 2"), radio="hf")
+    rig.hear(frame(info=b">on 2"), radio_id=HF_ID)
     assert len(rig.hf.sent) == 2 and rig.hf.stats.digipeat_held == 0, "radio 1's burst does not hold radio 2's frame"       # type: ignore[attr-defined]
 
 

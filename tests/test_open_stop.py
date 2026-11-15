@@ -57,7 +57,8 @@ def radio() -> Iterator[str]:
 def data(tmp_path: Path, radio: str) -> Iterator[Path]:
     """A data folder whose settings give the daemon the fake radio and a free page port; the daemon, if the test left one running, is stopped."""
     folder = tmp_path / "data"
-    assert command("db", "--data", str(folder), "set", "serial/port", radio).returncode == 0
+    assert command("db", "--data", str(folder), "radios", "add", "kiss").returncode == 0
+    assert command("db", "--data", str(folder), "set", "radio/1/port", radio).returncode == 0
     assert command("db", "--data", str(folder), "set", "web/port", "0").returncode == 0
     yield folder
     if is_running(folder):

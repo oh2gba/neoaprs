@@ -50,14 +50,6 @@ def test_a_new_database_has_no_radio_and_a_radio_added_gets_the_next_id_which_is
     assert insert_radio(db, "fm", "kiss-tcp", "Shack", True, 2) == 3
 
 
-def test_a_radio_can_be_given_the_id_of_todays_fm_or_hf_radio_once(tmp_path: Path) -> None:
-    db = database(tmp_path)
-    assert insert_radio(db, "hf", "mercury", "", True, 2, id=2) == 2 and insert_radio(db, "fm", "kiss", "", True, 1, id=1) == 1, "the HF radio first, on a database with no row for either"
-    with pytest.raises(sqlite3.IntegrityError):
-        insert_radio(db, "fm", "kiss", "", True, 1, id=1)
-    assert insert_radio(db, "fm", "kiss", "", True, 3) == 3 and [row[0] for row in radio_rows(db)] == [1, 2, 3]
-
-
 def test_a_radios_columns_are_changed_one_or_several_and_its_kind_and_its_removal_are_not_a_change(tmp_path: Path) -> None:
     db = database(tmp_path)
     insert_radio(db, "fm", "kiss", "", True, 1)
@@ -190,7 +182,6 @@ async def test_the_store_adds_changes_reads_and_removes_radios_on_the_database_t
     assert await store.remove_radio(2) and not await store.remove_radio(2) and not await store.remove_radio(7)
     assert [(s.id, s.removed_at) for s in await store.radios()] == [(1, None), (2, T0)], "removed at the store's clock, and still among the radios"
     assert await store.add_radio("hf", "mercury", "40 m", True, 2) == 3, "the name of the removed radio is free, its id is not"
-    assert await store.add_radio("fm", "kiss", "", True, 4, id=9) == 9
     assert not await store.put_radio_settings(2, {"keying": "vox"}) and not await store.change_radio(2, enabled=False) and not await store.put_radio_settings(7, {"port": "/dev/x"}), \
         "a removed radio and one that never was are told as no"
     assert await sql(store, "SELECT radio_id, key, rev FROM radio_setting ORDER BY radio_id, key") == [(1, "port", 2), (2, "keying", 1), (2, "tx_gain_db", 1)]
@@ -201,11 +192,11 @@ async def test_a_radio_the_table_refuses_is_not_stored_and_the_store_says_no_wit
     store = await store_of(tmp_path)
     assert await store.add_radio("fm", "kiss", "Shack", True, 1) == 1
     assert await store.add_radio("fm", "kiss", "SHACK", True, 2) is None, "a name another live radio has"
-    assert await store.add_radio("am", "kiss", "", True, 2) is None and await store.add_radio("fm", "kiss", "", True, 2, id=1) is None
+    assert await store.add_radio("am", "kiss", "", True, 2) is None
     assert await store.add_radio("fm", "kiss", "", True, 2, settings={"a/b": "x"}) is None and [s.id for s in await store.radios()] == [1], "a radio whose settings are refused is not added at all"
     assert not await store.change_radio(1, name="much too long") and not await store.put_radio_settings(1, {"port": "/dev/ttyUSB0", "a/b": "x"})
     assert await store.radios() == (RadioSpec(1, "fm", "kiss", "Shack", True, 1),), "nothing half stored"
-    assert sum("could not be" in r.getMessage() for r in caplog.records if r.levelno == logging.ERROR) == 6
+    assert sum("could not be" in r.getMessage() for r in caplog.records if r.levelno == logging.ERROR) == 5
     with pytest.raises(ValueError, match="cannot be set"):
         await store.change_radio(1, kind="hf")
 
@@ -218,3 +209,14 @@ async def test_a_store_that_is_not_open_has_no_radios_and_keeps_none(tmp_path: P
     assert opened.db is not None and await opened.add_radio("fm", "kiss", "", True, 1) == 1
     await opened.db.close()
     assert await opened.radios() == () and await opened.add_radio("fm", "kiss", "", True, 2) is None and not await opened.remove_radio(1), "a closed database is no error either"
+
+
+@pytest.mark.expects_errors
+async def test_a_read_of_the_radios_that_failed_is_told_apart_from_a_database_that_has_none(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    store = await store_of(tmp_path)
+    assert await store.read_radios() == (), "an open database with no radio: a new installation"
+    assert store.db is not None
+    await store.db.write(lambda db: db.execute("DROP TABLE radio_setting"))
+    assert await store.read_radios() is None and await store.radios() == (), "a read that failed is None, never taken for a database without radios"
+    assert "the radios could not be read" in caplog.text
+    assert await Store(FixedClock()).read_radios() is None, "nor is a database that is not open"

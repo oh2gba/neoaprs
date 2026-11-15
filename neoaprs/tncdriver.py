@@ -1,8 +1,8 @@
 """The driver of a radio whose line is a TNC (neoaprs/radiodriver.py; plan §2, "Type"): a TNC on a serial line, KISS over TCP, the Dummy radio. How the radio's settings and the station's become its Tnc's
-(`line_settings`, and `tnc_settings` for radio 1 of today's flat settings), its words for the log (`radio_words`), and the port its search found, which the composition root remembers (`TncDriver.found_port`).
+(`line_settings`), its words for the log (`radio_words`), and the port its search found, which the composition root remembers (`TncDriver.found_port`).
 
 The radio's own settings are read from its spec (the port, the speed, the TCP server); what stays the station's from the station's settings: the globs of the search and the ports it never opens
-(serial/pattern, serial/skip), and until the radios are stored (package D1a) the port the search found last time, which is radio 1's (serial/last_port). The port given for this run (`RunOverrides.port`) is
+(serial/pattern, serial/skip), and the port the search found last time, which is radio 1's (serial/last_port). The port given for this run (`RunOverrides.port`) is
 radio 1's."""
 import asyncio
 import logging
@@ -69,13 +69,6 @@ def listening_ports(station: Config, but: RadioId | None = None) -> tuple[str, .
     written nothing (one that is open is held and left out anyway; these are left out before it is). Of the radios' settings only one that searches with no port of its own carries them; every line reads
     them again when its search starts (RadioRegistry._listens_for: the fallback search of a radio whose own port cannot be opened), so that a change of them restarts no radio that has its port."""
     return tuple(port for s in enabled(station.radios) if s.id != but and not transmits(s) and (port := _own(s, "port")))
-
-
-def tnc_settings(config: Config, port_override: str = "", pattern_override: str = "") -> TncSettings:
-    """What the FM radio of today's flat settings is started with: `line_settings` of radio 1."""
-    spec = config.radio(FM_ID)
-    assert spec is not None, "the flat settings have radio 1"
-    return line_settings(spec, config, RunOverrides(port=port_override, pattern=pattern_override))
 
 
 def radio_words(settings: TncSettings) -> str:

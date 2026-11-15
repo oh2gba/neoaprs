@@ -1,6 +1,6 @@
-"""A fresh installation's first radio of one of the new types, as the setup guide makes it over the page's socket: a LoRa APRS board on the network, added with no address yet, and a text monitor (`tnc-text`)
-alone once the radio the first start wrote is removed. Neither tells the page an error while the operator has not asked for anything; the board's row is "not connected" until its address is typed, and then it
-is a radio as any other; the monitor alone makes the station receive only, every sending command is refused as RX only, and not one byte goes to its line."""
+"""A new installation's first radio of one of the new types, as the setup guide makes it over the page's socket: a new installation has no radio, and the first one added, radio 1, is a LoRa APRS board on the
+network with no address yet, or a text monitor (`tnc-text`). Neither tells the page an error while the operator has not asked for anything; the board's row is "not connected" until its address is typed, and
+then it is a radio as any other; the monitor alone makes the station receive only, every sending command is refused as RX only, and not one byte goes to its line."""
 import asyncio
 from pathlib import Path
 from typing import Any
@@ -19,20 +19,14 @@ ME = "OH2GBA"
 
 
 async def fresh(tmp_path: Path) -> tuple[Env, WsClient]:
-    """A first start (no settings row, no radio in the database) with the guide's call and place set, and the page's socket open."""
-    e = Env(tmp_path, radio=False, web=True, operator=False)
+    """A first start of a new installation (no settings row, no radio in the database, and none written by the start) with the guide's call and place set, and the page's socket open."""
+    e = Env(tmp_path, radio=False, web=True, operator=False, first_radio=False)
     await e.start(connected=False)
     page = await e.ws()
     await page.until(lambda: "radios" in page.topics and "config" in page.topics)
     await page.send({"cmd": "set_config", "values": {"station/call": ME, "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"}})
     await page.until(lambda: page.topics["config"]["values"]["station/call"] == ME)
     return e, page
-
-
-async def removed_first(page: WsClient) -> None:
-    """The radio the first start wrote (radio 1) is removed, as the guide's Remove does once the station has a second radio."""
-    await page.send({"cmd": "radio_remove", "radio": 1})
-    await page.until(lambda: page.topics["radios"]["1"]["removed"])
 
 
 def errors(page: WsClient) -> list[dict[str, Any]]:
@@ -46,9 +40,9 @@ async def test_a_lora_board_on_the_network_added_first_with_no_address_is_not_co
     monkeypatch.setattr(loralist, "PORT", server.port)
     e, page = await fresh(tmp_path)
     try:
-        assert [(row["id"], row["kind"]) for row in page.topics["radios"].values()] == [(1, "fm")], "what a first start has today: radio 1, written by the start"
+        assert page.topics["radios"] == {} and e.ctl.config.radios == (), "a new installation has no radio, and its first start writes none"
         id = await added(page, "lora-tcp")
-        await removed_first(page)
+        assert id == 1, "the first radio added is radio 1"
         radio = e.ctl.radios.get(id)
         assert radio is not None
         await page.until(lambda: page.topics["radios"][str(id)]["state"] != "connecting")
@@ -77,9 +71,10 @@ async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every
     try:
         await page.send({"cmd": "set_config", "values": {"station/status": "QRV 145.500", "status/source": "text"}})
         await page.until(lambda: page.topics["config"]["values"]["station/status"] == "QRV 145.500")
+        assert page.topics["radios"] == {}, "a new installation has no radio"
         id = await added(page, "tnc-text")
         await page.send({"cmd": "set_config", "values": {f"radio/{id}/port": line.url}})
-        await removed_first(page)
+        assert id == 1 and [row["id"] for row in page.topics["radios"].values()] == [1], "the monitor is the station's one radio"
         radio = e.ctl.radios.get(id)
         assert radio is not None
         await until_started(lambda: radio.state is Source.State.CONNECTED)

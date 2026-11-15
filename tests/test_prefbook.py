@@ -80,6 +80,15 @@ async def test_a_station_has_the_beacon_path_until_it_is_given_one_of_its_own(ri
     await rig.book.clear_path("OH2RDG")                                       # (no path to clear: no error)
 
 
+async def test_radio_1_of_any_kind_goes_by_the_path_its_kind_recommends_while_it_has_none_of_its_own(rig: Rig) -> None:
+    """A new installation's radio 1 may be of any kind: a LoRa board added first goes by LoRa's WIDE1-1 as a LoRa radio of any other id does, an FM radio 1 by the station's symbol's, as always."""
+    rig.config = replace(rig.config, radios=(RadioSpec(FM_ID, "lora", "lora-tcp", "", True, 1), RadioSpec(3, "lora", "lora-tcp", "", True, 2)))
+    assert rig.config.path_calls(FM_ID) == rig.config.path_calls(3) == ("WIDE1-1",) and rig.book.path_for("OH2RDG") == rig.book.path_for("OH2RDG", radio_id=3) == ("WIDE1-1",)
+    rig.config = replace(rig.config, radios=(RadioSpec(FM_ID, "fm", "kiss", "", True, 1),))
+    symbol = tuple(rig.config.recommended_path.split(","))
+    assert symbol != ("WIDE1-1",) and rig.config.path_calls(FM_ID) == rig.config.beacon_path_calls == rig.book.path_for("OH2RDG") == symbol, "an FM radio 1: the station's symbol's"
+
+
 async def test_an_empty_path_takes_the_stations_own_away_and_direct_is_said_with_the_word(rig: Rig) -> None:
     await rig.book.set_path("OH2RDG", "WIDE2-2")
     assert await rig.book.set_path("OH2RDG", "  ") == () and rig.book.all() == {} and rig.told[-1] == ("OH2RDG", None), "empty is automatic again, not no digipeaters"

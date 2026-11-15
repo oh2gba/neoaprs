@@ -9,29 +9,34 @@
     tnc.asked                               # how many times it was asked to send, taken or not
     tnc.raw                                 # the bytes it took with a frame (send_frame's `raw`: the digipeater's), as they were given
 
-    radios = StubRadios(hf_stations=("OH2C",))      # two stubs as one set (neoaprs/radios.py as the services see it): `fm` and `hf`, the FM one the default while it is in `enabled`; a message to a station
-                                                    # named in `hf_stations` goes on HF, to any other on FM; a packet is answered on the radio it came on (`Packet.radio`)
+    radios = StubRadios(hf_stations=("OH2C",))      # two stubs as one set (the old set of two, as the services still take one): `fm` and `hf`, the FM one the default while it is in `enabled`; a message to a
+                                                    # station named in `hf_stations` goes on HF, to any other on FM; a packet is answered on the radio it came on (`Packet.radio_id`)
 
-A StubTnc is also a radio as the services see one from the radio round on (neoaprs/services/radioset.AirRadio): its id (1 with the FM rules, 2 with the HF ones, or the one given), its kind, name, limits and
-what it is allowed read from its rules, its counters, and the operator's choices on it (`choices`). `StubRegistry` is two of them as the choice of a radio the services take then (`RadioPick`), the same
+A StubTnc is a radio of a type (`rtype`: the Mercury modem's when it has a frame cap, else the KISS TNC's, or the one given) and also a radio as the services see one from the radio round on
+(neoaprs/services/radioset.AirRadio): its id (1 of the FM kind, 2 of the HF kind, or the one given), its kind, name, limits (its type's, with its own frame cap) and what it is allowed (its type's), its counters,
+and the operator's choices on it (`choices`). `HF_WITH_PATHS` is a type of the HF kind that may carry a path, for the tests of a radio with a frame cap and digipeaters. `StubRegistry` is two of them as the choice of a radio the services take then (`RadioPick`), the same
 choices as StubRadios:
 
     pick = StubRegistry(hf_stations=("OH2C",))      # pick.fm (radio 1) and pick.hf (radio 2), both on while their ids are in `on`; `main` the FM one while it is on, else the HF one, else None
 """
+from dataclasses import replace
 from typing import Any
 
 from neoaprs import ax25
 from neoaprs.packet import Packet
-from neoaprs.radiorules import FM, HF, RadioRules
 from neoaprs.radiospec import FM_ID, HF_ID, KIND_WORDS, RadioId
-from neoaprs.radiotype import Allowed, Kind, Limits
+from neoaprs.radiotype import Allowed, Kind, Limits, RadioType
+from neoaprs.radiotypes import type_of
 from neoaprs.services.radioset import AirRadio, RadioPick
 from neoaprs.source import Source, unusable_because
 from neoaprs.tncwatchdog import TncStats
 
 
+HF_WITH_PATHS = replace(type_of("mercury"), allowed=replace(type_of("mercury").allowed, paths=True))
+
+
 class StubTnc:
-    def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None, rules: RadioRules | None = None, *, id: RadioId | None = None) -> None:
+    def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None, rtype: RadioType | None = None, *, id: RadioId | None = None) -> None:
         self.state = state
         self.sent: list[ax25.Frame] = []
         self.raw: list[bytes] = []                  # the bytes given with a frame (the digipeater's), as they were given
@@ -39,14 +44,14 @@ class StubTnc:
         self.held = ""                              # why the radio, though connected, takes no frame now ("" when it does): the HF modem transmitting or hearing a busy channel
         self.asked = 0
         self.max_frame = max_frame                  # the longest frame the radio carries (the Mercury HF modem's 123), None for the AX.25 limit alone
-        self.rules = rules if rules is not None else HF if max_frame is not None else FM         # the rules of the kind of radio: the HF radio's when it has a frame cap, else the FM radio's; a test may give others (a frame cap with paths)
-        self.id: RadioId = id if id is not None else HF_ID if self.rules.kind == "hf" else FM_ID      # the radio it stands for: 1 with the FM rules, 2 with the HF ones, unless one is given
+        self.rtype = rtype if rtype is not None else type_of("mercury") if max_frame is not None else type_of("kiss")      # its type: the HF radio's when it has a frame cap, else the FM radio's; a test may give another (a frame cap with paths)
+        self.id: RadioId = id if id is not None else HF_ID if self.rtype.kind == "hf" else FM_ID      # the radio it stands for: 1 of the FM kind, 2 of the HF kind, unless one is given
         self.stats = TncStats()
         self.choices: dict[str, Any] = {"beacon": True, "path": "", "digipeat": False}              # the operator's choices on the radio (`choice`)
 
     @property
     def kind(self) -> Kind:
-        return "hf" if self.rules.kind == "hf" else "fm"
+        return self.rtype.kind
 
     @property
     def name(self) -> str:
@@ -54,12 +59,11 @@ class StubTnc:
 
     @property
     def limits(self) -> Limits:
-        return Limits(self.max_frame, self.rules.beacon_min_min, self.rules.beacon_jitter_sec, self.rules.retry_jitter_sec)
+        return replace(self.rtype.limits, max_frame=self.max_frame)
 
     @property
     def allowed(self) -> Allowed:
-        local = self.kind == "fm"               # (internet gateways hear it, and it is a channel shared with stations that know nothing of us)
-        return Allowed(self.rules.paths, self.rules.digipeat, self.rules.smart_beacon, gateway_heard=local, shared_channel=local)
+        return self.rtype.allowed
 
     def choice(self, key: str) -> Any:
         return self.choices[key]
@@ -112,12 +116,13 @@ class StubRadios:
         return hf if hf is not None and self.of("fm") is not None and call in self.hf_stations else self.default
 
     def for_packet(self, packet: Packet) -> StubTnc:
-        return self.of(packet.radio) or self.default
+        came = {FM_ID: "fm", HF_ID: "hf"}.get(packet.radio_id or 0)
+        return (self.of(came) if came is not None else None) or self.default
 
     state = property(lambda self: self.default.state)
     usable = property(lambda self: self.default.usable)
     max_frame = property(lambda self: self.default.max_frame)
-    rules = property(lambda self: self.default.rules)
+    rtype = property(lambda self: self.default.rtype)
 
     def why_unusable(self) -> str:
         return self.default.why_unusable()

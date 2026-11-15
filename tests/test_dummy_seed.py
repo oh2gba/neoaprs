@@ -189,7 +189,6 @@ async def test_two_dummy_radios_show_different_stations_each_stamped_with_its_ra
     first, third = ({p.source for p in heard[radio_id]} for radio_id in (1, 3))
     assert first == FIRST_WORLD and third == {call_of(call, 3) for call in FIRST_WORLD} and not first & third, "two Dummy radios: two worlds"
     assert all(p.radio_id == radio_id and p.via == "dummy" for radio_id in (1, 3) for p in heard[radio_id]), "every packet says the radio it came on"
-    assert {p.radio for p in heard[1]} == {"fm"} and {p.radio for p in heard[3]} == {""}, "the old word knows radio 1; a third radio has none"
     stations = {s.call: s for s in book.stations()}
     assert len(stations) == 2 * (len(FIRST_WORLD) + 2), "ten stations and two objects of each"
     for call, station in stations.items():

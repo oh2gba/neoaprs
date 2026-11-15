@@ -1,8 +1,8 @@
 """Where the daemon's radios (neoaprs/radioedits.py, the controller, the page's config view) meet the command line and the support bundle (neoaprs/cli/dbcmd.py, doctor.py, support*.py). Each side
-has its own tests; here one data folder goes through both. A new installation's first start writes radio 1, which `neoaprs db`, `neoaprs doctor` and the bundle then show; a `db set` on a stopped
-daemon's file is what the next start runs with, and a save of the page is what `db get` reads; the HF radio ticked on the page is a second radio for the command line and the bundle, and a database
-made of that bundle (tests/support/bundledb.py) and migrated has the same radios and the stations' choices of them; a removed radio's flat keys say the same defaults on the page, on the command
-line and in the bundle."""
+has its own tests; here one data folder goes through both. A new installation has no radio until one is added, which `neoaprs db`, `neoaprs doctor` and the bundle say, and then show the one added;
+a radio added and set with the command line on a stopped daemon's file is what the next start runs with, and a save of the page is what `db get` reads; the HF radio added on the page is a second
+radio for the command line and the bundle, and a database made of that bundle (tests/support/bundledb.py) and migrated has the same radios and the stations' choices of them; a removed radio is no
+setting of the station's on the page, on the command line or in the bundle."""
 import asyncio
 import json
 import sqlite3
@@ -14,7 +14,7 @@ import pytest
 from neoaprs.cli import dbcmd, doctor, hostcheck, servicecmd
 from neoaprs.cli.supportmake import make_bundle
 from neoaprs.clock import utc
-from neoaprs.config import BY_KEY, DEFAULTS, KEYS, MESSAGE_RADIOS
+from neoaprs.config import BY_KEY, KEYS, MESSAGE_RADIOS
 from neoaprs.configradios import FLAT_HOMES, radios_from_rows
 from neoaprs.radiospec import FM_ID, HF_ID, RadioSpec
 from neoaprs.radiosql import radio_rows, radio_settings
@@ -30,8 +30,7 @@ from tests.support.supportdata import zip_members
 from tests.support.wsclient import WsClient
 
 NOW = utc(2026, 11, 14, 12, 0, 0)
-FLAT_KEYS = [key for key in KEYS if BY_KEY[key].attr in FLAT_HOMES]               # today's flat keys of radios 1 and 2
-HF_KEYS = [key for key in FLAT_KEYS if FLAT_HOMES[BY_KEY[key].attr][0] == HF_ID]
+FLAT_KEYS = [key for key in KEYS if BY_KEY[key].attr in FLAT_HOMES]               # the keys of before of radios 1 and 2, which are no settings of the command line or the bundle
 DUMMY_HF = {"hf/enabled": "true", "hf/profile": "dummy-hf", "mercury/keying": "vox", "mercury/tx_gain_db": "-4"}      # (the Dummy HF radio: no Mercury program, no sound card)
 
 
@@ -116,42 +115,49 @@ async def page_of(e: Env) -> WsClient:
     return page
 
 
-async def test_a_new_installations_first_start_writes_radio_1_which_the_command_line_the_doctor_and_the_bundle_show(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+async def test_a_new_installation_has_no_radio_until_one_is_added_and_the_command_line_the_doctor_and_the_bundle_say_so(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data = tmp_path / "data"
-    e = Env(data, operator=False)                                     # (no settings row and no radio: what an installation's first start finds)
-    await e.start()
+    e = Env(data, operator=False, first_radio=False)                  # (no settings row and no radio: what an installation's first start finds)
+    await e.start(connected=False)
     await e.stop()
     code, out, err = await db(capsys, data, "radios")
-    assert code == 0 and err == "" and [line.split() for line in out.splitlines() if line.startswith("radio ")] == [["radio", "1", "FM", "fm", "kiss", "on", "(position", "1)"]]
+    assert code == 0 and out == "" and "this station has no radio yet" in err, "the start wrote none"
     code, out, _ = await db(capsys, data, "list")
-    shown = {line.split()[0]: line.split()[-1] for line in out.splitlines()}
-    assert code == 0 and (shown["tnc/profile"], shown["fm/enabled"], shown["hf/enabled"]) == ("stored", "stored", "default"), "radio 1's row is stored; no HF radio was written"
-    assert await doctor_radios(capsys, data) == ["ok    radio FM (kiss): port (found by searching), speed 9600 baud"], "radio 1 alone, not the HF radio of the flat keys' defaults"
+    assert code == 0 and not set(FLAT_KEYS) & set(listed(out)), "no key of before of a radio among the settings"
+    assert await doctor_radios(capsys, data) == [], "the doctor names no radio"
     _, members = await bundle(tmp_path / "out", data)
+    assert bundle_radios(members) == [] and summary_titles(members) == []
+    code, out, _ = await db(capsys, data, "radios", "add", "kiss")
+    assert code == 0 and out.split() == ["radio", "1", "FM", "fm", "kiss", "on", "(position", "1)"]
+    code, out, err = await db(capsys, data, "radios")
+    assert code == 0 and err == "" and [line.split() for line in out.splitlines() if line.startswith("radio ")] == [["radio", "1", "FM", "fm", "kiss", "on", "(position", "1)"]]
+    assert await doctor_radios(capsys, data) == ["ok    radio FM (kiss): port (found by searching), speed 9600 baud"], "radio 1 alone"
+    _, members = await bundle(tmp_path / "out2", data)
     assert bundle_radios(members) == [(FM_ID, "fm", "kiss", "FM", True, False)] and summary_titles(members) == ["Radio 1: FM"]
     assert "radios_problem" not in json.loads(members["settings.json"]) or not json.loads(members["settings.json"])["radios_problem"]
 
 
 async def test_db_set_on_a_stopped_daemons_file_is_what_the_next_start_runs_with_and_a_save_of_the_page_is_what_db_get_reads(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data = tmp_path / "data"
-    assert (await db(capsys, data, "set", "serial/baud", "4800"))[0] == 0, "before any start: a new installation's file, which has no radio yet"
+    assert (await db(capsys, data, "radios", "add", "kenwood-tnc2"))[0] == 0 and (await db(capsys, data, "set", "radio/1/baud", "4800"))[0] == 0, "before any start: a new installation's file"
     first = Env(data)
     await first.start()
     fm = first.ctl.config.radio(FM_ID)
     assert fm is not None and fm.settings.get("baud") == "4800" and first.tnc.baud == 4800, "the first start's radio 1 has the speed set before it"
     await first.stop()
-    assert "serial/baud" not in tables(data / DB_NAME)[2], "the row became radio 1's own"
-    assert (await db(capsys, data, "set", "serial/baud", "1200"))[0] == 0 and (await db(capsys, data, "set", "radio/1/path", "WIDE2-1"))[0] == 0
+    assert (await db(capsys, data, "set", "radio/1/baud", "1200"))[0] == 0 and (await db(capsys, data, "set", "radio/1/path", "WIDE2-1"))[0] == 0
     again = Env(data, web=True)
     await again.start()
-    assert (again.ctl.config.serial_baud, again.tnc.baud, again.ctl.config.beacon_path) == (1200, 1200, "WIDE2-1"), "a flat key and a radio's own key, set with the daemon stopped"
+    fm = again.ctl.config.radio(FM_ID)
+    assert fm is not None and (fm.value("baud"), again.tnc.baud, fm.value("path")) == (1200, 1200, "WIDE2-1"), "a radio's own keys, set with the daemon stopped"
     page = await page_of(again)
     assert (page.topics["config"]["radio_values"]["radio/1/baud"], page.topics["config"]["radio_values"]["radio/1/path"]) == ("1200", "WIDE2-1")
     await page.send({"cmd": "set_config", "values": {"radio/1/baud": "9600", "radio/1/digipeat": "true"}})
     await page.until(lambda: page.topics["config"]["radio_values"]["radio/1/baud"] == "9600")
     await again.stop()
-    assert [await got(capsys, data, key) for key in ("serial/baud", "radio/1/baud", "digi/enabled", "radio/1/digipeat", "beacon/path")] == ["9600", "9600", "true", "true", "WIDE2-1"]
+    assert [await got(capsys, data, key) for key in ("radio/1/baud", "radio/1/digipeat", "radio/1/path")] == ["9600", "true", "WIDE2-1"]
     assert not {"serial/baud", "digi/enabled", "beacon/path"} & tables(data / DB_NAME)[2].keys(), "the page's save went to radio 1's own rows"
+    assert (await db(capsys, data, "get", "serial/baud"))[:2] == (2, ""), "the key of before is no setting"
 
 
 async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command_line_and_the_bundle_and_a_database_made_of_the_bundle(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -187,7 +193,7 @@ async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command
     assert json.loads(rows[MESSAGE_RADIOS]) == json.loads(rows_before[MESSAGE_RADIOS]) == {"OH2GAX-2": HF_ID, "OH2RDG": FM_ID}, "the stations' choices of them, by id"
 
 
-async def test_a_removed_radio_says_the_same_defaults_on_the_page_on_the_command_line_and_in_the_bundle(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+async def test_a_removed_radio_is_no_setting_of_the_station_on_the_page_on_the_command_line_or_in_the_bundle(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data = tmp_path / "data"
     e = Env(data, web=True, settings={**DUMMY_HF, "mercury/sound_card": "plughw:1,0"})
     e.mercury._finder = lambda: None
@@ -199,10 +205,9 @@ async def test_a_removed_radio_says_the_same_defaults_on_the_page_on_the_command
     code, out, _ = await db(capsys, data, "list")
     on_line = listed(out)
     _, members = await bundle(tmp_path / "out", data)
-    in_bundle = json.loads(members["settings.json"])["values"]
-    defaults = DEFAULTS.to_data()
-    assert code == 0 and {key: on_line[key] for key in HF_KEYS} == {key: defaults[key] for key in HF_KEYS}, "not the removed radio's type, keying and sound card"
+    in_bundle = json.loads(members["settings.json"])
+    assert code == 0 and not set(FLAT_KEYS) & set(on_line) and not set(FLAT_KEYS) & (set(in_bundle["values"]) | set(in_bundle["other_rows"])), "no key of before, the removed radio's keying and sound card least"
     assert not [key for key in on_page["radio_values"] if key.startswith("radio/2/")] and not set(FLAT_KEYS) & set(on_page["values"]), "the page is told no setting of the removed radio"
-    assert {key: on_line[key] for key in FLAT_KEYS} == {key: in_bundle[key] for key in FLAT_KEYS}, "db list and the bundle agree"
-    assert [await got(capsys, data, key) for key in ("mercury/keying", "hf/profile")] == ["", "mercury"]
+    code, out, err = await db(capsys, data, "get", "mercury/keying")
+    assert (code, out) == (2, "") and "mercury/keying: no such setting: it is radio/<id>/keying now" in err, "the station has no HF radio to name"
     assert [(r[0], r[-1]) for r in bundle_radios(members)] == [(FM_ID, False), (HF_ID, True)] and summary_titles(members) == ["Radio 1: FM"], "the removed radio told as removed, no section"

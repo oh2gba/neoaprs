@@ -73,7 +73,7 @@ def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_scree
     for label in ("System:", "Python:", "Data folder:", "Made:", "Daemon:", "Call:", "Position:", "Beacon:", "Type:", "On:", "Port:", "Speed:", "State:", "GPS state:", "Listens:", "File:"):
         assert label in summary, label
     assert "OH2GBA" in summary and "Fixed" in summary and "on, every 60 min" in summary and "kenwood-tnc2" in summary
-    assert "Radio 1: FM" in summary and "Radio 2: HF" in summary, "a file with no radio stored has today's two of the flat keys, each by the name the log gives it"
+    assert "Radio 1: FM" in summary and "Radio 2" not in summary, "the radios the station has, by the name the log gives each: one that never set up HF has radio 1 alone"
     assert "2026-10-26 12:00:00Z (UTC)" in summary and "local " in summary
     assert "not running" in summary, "nothing holds the data folder"
     assert f"schema version {SCHEMA_VERSION}" in summary
@@ -120,7 +120,7 @@ def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_n
     assert "'Line (Webcam)': records, the system default; {0.0.1.00000000}.{dddd}" in hf
     assert "the daemon did not run this radio" in section(summary, "Radio 1: FM"), "a radio of the settings that the daemon's state lacks says so"
     (tmp_path / "off").mkdir()
-    off = made(tmp_path / "off", fake_folder(tmp_path / "off"))[1]["summary.txt"]
+    off = made(tmp_path / "off", fake_folder(tmp_path / "off", settings={**SETTINGS, "hf/enabled": "false", "hf/profile": "mercury"}))[1]["summary.txt"]
     assert re.search(r"On:\s+no", section(off, "Radio 2: HF")) and "State" not in section(off, "Radio 2: HF"), "an HF radio that is off is there, off"
 
 
@@ -180,10 +180,9 @@ def test_a_bundle_of_stored_radios_has_a_section_for_each_by_its_name_with_its_o
     settings = json.loads(members["settings.json"])
     assert [(r["id"], r["log_name"], r["enabled"], r["removed_at"] is not None) for r in settings["radios"]] == [(1, "FM", True, False), (2, "HF", False, False), (third, "Base", True, False), (gone, "Old", True, True)]
     assert settings["radios"][0]["values"]["port"] == "/dev/ttyUSB0" and settings["radios"][0]["stored"]["port"] == "/dev/ttyUSB0" and "baud" not in settings["radios"][0]["stored"]
-    assert settings["values"]["serial/port"] == "/dev/ttyUSB0" and settings["values"]["mercury/keying"] == "vox", "the flat keys are the view of radios 1 and 2"
-    unstored = set(settings["defaults_are_used_for"])
-    assert {"tnc/profile", "fm/enabled", "serial/port", "hf/enabled", "hf/profile", "mercury/keying"}.isdisjoint(unstored), "a flat key its radio stores is stored"
-    assert {"serial/baud", "tcp/host", "mercury/sound_card", "digi/enabled"} <= unstored, "and one its radio does not store is a default"
+    assert settings["radios"][1]["values"]["keying"] == "vox" and settings["radios"][1]["stored"] == {"keying": "vox"}
+    told = set(settings["values"]) | set(settings["defaults_are_used_for"]) | set(settings["stored_text_differs"]) | set(settings["other_rows"])
+    assert not {"tnc/profile", "fm/enabled", "serial/port", "serial/baud", "hf/enabled", "hf/profile", "mercury/keying"} & told, "no key of before: a radio's own settings are its radio's"
 
 
 def test_a_database_made_of_a_bundle_of_stored_radios_gets_the_same_radios_from_the_migrations(tmp_path: Path) -> None:
@@ -240,15 +239,14 @@ def test_radios_that_cannot_be_read_are_one_section_that_says_so_and_no_made_up_
     assert "FAIL  the radios in " in members["doctor.txt"] and "cannot be read: no such table: radio_setting" in members["doctor.txt"]
 
 
-def test_the_flat_keys_of_a_removed_radio_are_its_defaults_in_the_settings(tmp_path: Path) -> None:
+def test_a_removed_radios_own_rows_are_told_with_it(tmp_path: Path) -> None:
     from tests.support.supportdata import SETTINGS
     data = fake_folder(tmp_path, settings={**SETTINGS, "hf/enabled": "true", "mercury/keying": "rts:/dev/ttyUSB1", "mercury/sound_card": "plughw:1,0"}, radios=True)
     db = sqlite3.connect(data / DB_NAME, isolation_level=None)
     remove_radio(db, 2, "2026-10-26T11:00:00.000000Z")
     db.close()
     settings = json.loads(made(tmp_path, data)[1]["settings.json"])
-    assert (settings["values"]["mercury/keying"], settings["values"]["mercury/sound_card"], settings["values"]["hf/enabled"]) == ("", "", "false"), "not the removed radio's values"
-    assert {"mercury/keying", "mercury/sound_card", "hf/enabled"} <= set(settings["defaults_are_used_for"]) and "mercury/keying" not in settings["stored_text_differs"]
+    assert settings["radios"][1]["removed_at"] is not None and not {"mercury/keying", "mercury/sound_card", "hf/enabled"} & set(settings["values"]), "not as a setting of the station's"
     assert settings["radios"][1]["stored"] == {"keying": "rts:/dev/ttyUSB1", "sound_card": "plughw:1,0"}, "the removed radio's own rows are told with it"
 
 
@@ -284,7 +282,7 @@ def test_the_database_report_has_the_version_the_migrations_the_rows_and_the_che
     text = made(tmp_path)[1]["database.txt"]
     assert f"Schema version: {SCHEMA_VERSION} (this NeoAPRS expects {SCHEMA_VERSION})" in text
     assert text.count("source hash matches") == SCHEMA_VERSION
-    assert re.search(r"^\s+packet\s+6$", text, re.M) and re.search(r"^\s+settings\s+9$", text, re.M)
+    assert re.search(r"^\s+packet\s+6$", text, re.M) and re.search(r"^\s+settings\s+8$", text, re.M), "(the nine rows of version 30, the type of the TNC among them, are eight once it is radio 1's)"
     assert "quick_check" in text and "\n  ok\n" in text
     assert "write-ahead log" in text and "journal mode wal" in text
 
@@ -316,8 +314,8 @@ def test_the_settings_are_all_there_and_the_key_is_only_said_to_be_set(tmp_path:
     settings = json.loads(made(tmp_path)[1]["settings.json"])
     assert settings["values"]["web/key"] == f"(set, {len(KEY)} characters)"
     assert settings["values"]["station/call"] == "OH2GBA" and settings["values"]["beacon/interval_min"] == "60"
-    assert "tnc/profile" in settings["values"] and "web/key" not in settings["defaults_are_used_for"]
-    assert settings["other_rows"]["ui/theme"] == "dark" and "beacon/last_sent_at" in settings["other_rows"]
+    assert settings["radios"][0]["type"] == "kenwood-tnc2" and "tnc/profile" not in settings["values"] and "web/key" not in settings["defaults_are_used_for"]
+    assert settings["other_rows"]["ui/theme"] == "dark" and "radio/1/beacon_last_sent_at" in settings["other_rows"]
     assert "station/comment" in settings["defaults_are_used_for"]
 
 
@@ -331,7 +329,7 @@ def test_a_setting_that_has_a_secret_word_in_its_name_is_redacted_and_an_empty_o
 def test_the_word_key_in_the_name_of_a_setting_is_a_secret_only_as_a_word_of_its_own(tmp_path: Path) -> None:
     data = fake_folder(tmp_path, settings={"mercury/keying": "rts:/dev/ttyUSB0", "web/key": "k7m2-x9pq-4hrt", "igate/password": "31415"})
     settings = json.loads(made(tmp_path, data)[1]["settings.json"])
-    assert settings["values"]["mercury/keying"] == "rts:/dev/ttyUSB0", "how the radio is keyed is no secret"
+    assert settings["radios"][1]["values"]["keying"] == "rts:/dev/ttyUSB0", "how the radio is keyed is no secret"
     assert settings["values"]["web/key"] == "(set, 14 characters)" and settings["values"]["igate/password"] == "(set, 5 characters)"
 
 

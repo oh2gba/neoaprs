@@ -87,9 +87,9 @@ class OwnObjects(Repeater[str]):
 
     # ---- the operator
     def set(self, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None, speed_kmh: float | None = None,
-            path: str | None = None, qru_group: str = "", on_request: bool = False, radio: str | None = None, *, radios: Iterable[RadioId] | None = None) -> OwnObject:
-        """Makes the object or item, or changes the one of the name: it is sent at once. It goes out on the radios `radios` (their ids), else those the old word `radio` names (`fm`, `hf`, `both`, as the
-        page says it until wave 4); with neither, a new object on the main radio and a changed one on its own. Raises OwnError, with the reason, when the call is not set, the values make no object
+            path: str | None = None, qru_group: str = "", on_request: bool = False, *, radios: Iterable[RadioId] | None = None) -> OwnObject:
+        """Makes the object or item, or changes the one of the name: it is sent at once. It goes out on the radios `radios` (their ids); without them a new object on the main radio and a changed
+        one on its own. Raises OwnError, with the reason, when the call is not set, the values make no object
         (neoaprs/ownobject.py), the name is our own call or a station's, or there are already MAX_OBJECTS."""
         if refusal := transmit_refusal(self._config(), OwnError):
             raise refusal
@@ -101,9 +101,9 @@ class OwnObjects(Repeater[str]):
         before = self._objects.get(name)
         if before is None and len(self._objects) >= MAX_OBJECTS:
             raise OwnError(f"{MAX_OBJECTS} objects and items are being sent: kill one first")
-        if radios is None and radio is None:
+        if radios is None:
             radios = before.radios if before is not None else (self._main(),)
-        obj = make_object(self.clock(), name, kind, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, path, before, qru_group, on_request, "fm" if radio is None else radio, radios=radios)
+        obj = make_object(self.clock(), name, kind, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, path, before, qru_group, on_request, radios=radios)
         if before is not None and before.alive and before.same_content(obj):
             return before
         self._store(obj)
@@ -148,8 +148,8 @@ class OwnObjects(Repeater[str]):
         return list(self._objects)
 
     def path_of(self, obj: OwnObject) -> tuple[str, ...]:
-        """The digipeaters the object goes by: its own, else those of the beacon."""
-        return self._config().beacon_path_calls if obj.path_calls is None else obj.path_calls
+        """The digipeaters the object goes by: its own, else those of the beacon on radio 1 (its own path, `radio/1/path`)."""
+        return self._config().path_calls(FM_ID) if obj.path_calls is None else obj.path_calls
 
     def _due(self, key: str) -> datetime | None:
         obj = self._objects.get(key)

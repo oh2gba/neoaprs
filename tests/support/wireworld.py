@@ -15,11 +15,11 @@ from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Message, Packet, ThirdParty, Undecoded
 from neoaprs.pref import Pref
 from neoaprs.qrutext import Asked, Server
-from neoaprs.radiospec import RadioSpec
+from neoaprs.radiospec import HF_ID, RadioSpec
 from neoaprs.serialprobe import claim_value
 from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.source import Source
-from neoaprs.stationbook import StationBook
+from neoaprs.stationbook import StationBook, carries_path
 from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import DUMMY_HF
@@ -71,13 +71,13 @@ def packets() -> list[Packet]:
         heard(")I91 3N!4903.50N\\07201.75Wm{55}", "N0SGN"),
         internet("N0ISX-9>APRS,TCPIP*,qAC,T2FINLAND:=6012.34N/02456.78E-from the internet"),
         made_up("=6015.00N/02500.00E-made up", "QDUMMY-1"),
-        replace(heard("!6027.11N/02216.00E-Turku over HF", "Q3TKU"), radio="hf", snr=-2.5),
+        replace(heard("!6027.11N/02216.00E-Turku over HF", "Q3TKU"), radio_id=HF_ID, snr=-2.5),
     ]
 
 
 def book() -> StationBook:
     """The station book of the packets: ours, stations of every kind, a track, the definitions of a telemetry station, an object of ours, a station with no position."""
-    book = StationBook(clock=FixedClock(T0))
+    book = StationBook(clock=FixedClock(T0), carries_path=lambda radio: carries_path(RADIOS, radio))        # (told the radios' types, as the composition root tells it the station's: the HF radio's frames carry no path)
     book.set_me(ME, 60.2, 24.9, "/", "-", "Home")
     for packet in packets():
         book.take(packet)
@@ -110,8 +110,8 @@ def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
         (MessageRecord(7, T0, "in", "OH2XYZ", ME, "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4", "8", "received", 0, None, None, 4, "direct", "shut"), ()),
         (MessageRecord(8, T0, "in", "OH2XYZ", ME, "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U", "9", "received", 0, None, None, 4, "direct", "key"), ()),
         (MessageRecord(9, T0, "out", ME, "OH2XYZ", "Too long for HF", "16", "failed", 0, None, None, 4, "", failure="too_long_for_radio"), ()),
-        (MessageRecord(10, T0, "in", "Q3TKU", ME, "Over HF", "3", "received", 0, None, None, 4, "direct", radio="hf", snr=-2.5), ()),
-        (MessageRecord(11, T0, "out", ME, "Q3TKU", "Back over HF", "17", "acked", 1, T0, T0 + timedelta(seconds=12), 4, "", snr=6.1), (Attempt(1, T0, (), (), radio="hf"),)),
+        (MessageRecord(10, T0, "in", "Q3TKU", ME, "Over HF", "3", "received", 0, None, None, 4, "direct", radio_id=HF_ID, snr=-2.5), ()),
+        (MessageRecord(11, T0, "out", ME, "Q3TKU", "Back over HF", "17", "acked", 1, T0, T0 + timedelta(seconds=12), 4, "", snr=6.1), (Attempt(1, T0, (), (), radio_id=HF_ID),)),
     ]
 
 

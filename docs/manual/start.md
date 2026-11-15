@@ -82,12 +82,13 @@ The forms carry no sentences under the fields: a label, a placeholder with the d
 
 ```bash
 neoaprs replay                                                  # the sample capture of the package; prints socket://127.0.0.1:PORT
-neoaprs run --data data --port socket://127.0.0.1:PORT          # in another terminal
+neoaprs db --data data radios add kiss                          # once, in another terminal: a new data folder has no radio yet
+neoaprs run --data data --port socket://127.0.0.1:PORT          # then, in that terminal
 neoaprs db --data data stations                                 # and in a third
 neoaprs db --data data packets
 ```
 
-With no file it plays the sample capture inside the package, three minutes of a TH-D7. `neoaprs capture` records a capture from your radio. Nothing is sent while nobody is connected, and the frames go on from where they were when the daemon connects again. `--port` is for this run only; the setting `serial/port` is not changed.
+With no file it plays the sample capture inside the package, three minutes of a TH-D7. `neoaprs capture` records a capture from your radio. Nothing is sent while nobody is connected, and the frames go on from where they were when the daemon connects again. `--port` is radio 1's for this run only; its own port is not changed.
 
 The type **Dummy** needs no capture and no second program: the daemon makes the traffic itself, around your position, and nothing goes on the air ([radio.md](radio.md#the-dummy-radio)).
 

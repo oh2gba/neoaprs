@@ -7,6 +7,7 @@ import pytest
 
 from neoaprs import ax25, kiss
 from neoaprs.mercurydriver import MercuryDriver
+from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.source import Backoff
 from neoaprs.tncdriver import TncDriver
 from tests.support import fakemercury
@@ -45,8 +46,8 @@ async def test_the_fm_radios_kiss_over_tcp_address_is_not_taken_for_a_mercury_so
         await until(lambda: e.ctl.stationbook.get("OH2XYZ-7") is not None)
         await idle_for(0.3)                                                 # (the time a second copy, from the HF Tnc, would have had to arrive)
         station = e.ctl.stationbook.get("OH2XYZ-7")
-        assert station is not None and (station.heard_fm, station.heard_hf) == (1, 0), "heard once, on FM"
-        assert [(p.source, p.radio) for p in await e.packets()] == [("OH2XYZ-7", "fm")]
+        assert station is not None and (station.heard_on(FM_ID).count, station.heard_on(HF_ID).count) == (1, 0), "heard once, on FM"
+        assert [(p.source, p.radio_id) for p in await e.packets()] == [("OH2XYZ-7", FM_ID)]
     finally:
         await e.stop()
         await direwolf.aclose()

@@ -13,15 +13,17 @@ test builds its world with it; `stop_all` is called when a test is over and also
     Env(tmp_path, radio="pty")           # the radio on a pseudo-terminal behind the path e.link (POSIX only; for the tests that are about a device file); e.master is its master descriptor
     Env(tmp_path, radio=air.station())   # a radio made elsewhere: a station of the fake Mercury's air (tests/support/fakemercury.py, with the profile `mercury` in the settings)
     Env(tmp_path, operator=False)        # a fresh install: no call and no position (the default); every other Env has the operator's station in its settings, as an install that was set up has
+    Env(tmp_path, first_radio=False)     # a new installation before its first radio is added: the database has no radio (every other Env's has radio 1, and radio 2 where its settings name the HF radio)
     Env(tmp_path, web=True)              # the page's server too, on a free port (`e.port`): `page = await e.ws()` is a tab (tests/support/wsclient.py), `await e.fetch("/path")` an HTTP request
 
 The radios are the daemon's own (the registry, `e.ctl.radios`: neoaprs/radioregistry.py), and the names of an Env are radios 1 and 2 of it: `e.tnc` is radio 1's line (the FM radio; the Env makes it and hands
 it to the Controller), `e.hf` radio 2's (the HF radio, stopped unless the settings tick `hf/enabled`; the Env makes it too), `e.mercury` radio 2's modem, `e.beacon` and `e.beacon_2` the two radios' beacons,
 `e.radio` and `e.hf_radio` the fakes at their far ends, `e.active` the line of the one that is on. No modem of an Env reads the computer's serial ports (`Mercury.ports`).
 
-The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in an Env (`check_sec` 0, the Controller's `check_sec` follows the Tnc's), so that the line is usable as soon as it is open; a test about it passes `check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 profile (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing. The rows are written as a data folder has them before the daemon's first start: its database has no radio yet, so the start
-writes radio 1 from them, and radio 2 when they name the HF radio (`hf/*`, `mercury/*`) or the Env is given its Mercury (`hf`), each flat row becoming the radio's own (neoaprs/radioedits.py, the stand-in).
-An Env whose settings never name the HF radio has no radio 2: `e.hf` is then a line that stays stopped."""
+The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in an Env (`check_sec` 0, the Controller's `check_sec` follows the Tnc's), so that the line is usable as soon as it is open; a test about it passes `check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 type (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing.
+The settings of an Env say its radios in the words the tests have always written them in (`RADIO_ROWS`: `tnc/profile`, `serial/port`, `hf/enabled`, `mercury/keying` ...): before the daemon's first start on a database
+that has no radio, the Env adds radio 1, the FM radio, from them, and radio 2, the HF radio, when they name it (`hf/*`, `mercury/*`) or the Env is given its Mercury (`hf`), each with those rows as its own
+settings, as the operator adds a station's radios; the station's rows are written as they are. An Env whose settings never name the HF radio has no radio 2: `e.hf` is then a line that stays stopped."""
 import asyncio
 import shutil
 import tempfile
@@ -33,13 +35,16 @@ from typing import Any
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest, HTTPResponse
 
 from neoaprs.clock import Clock
-from neoaprs.config import DEFAULTS, Config
+from neoaprs.config import LAST_PORT, Config
+from neoaprs.configtypes import boolean
 from neoaprs.controller import Controller
 from neoaprs.db import Db
 from neoaprs.kiss import KissDecoder
 from neoaprs.mercurymodem import Mercury
 from neoaprs.radioregistry import LiveRadio
 from neoaprs.radiospec import FM_ID, HF_ID, RadioId
+from neoaprs.radiotype import Kind
+from neoaprs.radiotypes import BY_KEY as TYPES, DEFAULT_TYPE
 from neoaprs.services.beacon import Beacon
 from neoaprs.packet import Packet
 from neoaprs.source import Backoff, Source
@@ -51,6 +56,7 @@ from tests.support.files import fixture_bytes
 from tests.support.fakemercury import FakeMercury
 from tests.support.fakeradio import FakeRadio
 from tests.support.ptyline import close_pty, feed as feed_pty, heard as heard_pty, make_pty
+from tests.support.radioconfig import TWO_RADIOS, with_radio
 from tests.support.wsclient import WsClient, connect
 from neoaprs.web.server import WebServer
 
@@ -60,7 +66,34 @@ _stops: list[Callable[[], Awaitable[None]]] = []          # the stop of every pa
 
 CAPTURE = "kiss/thd7-2026-10-21.bin"
 OPERATOR = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2", "beacon/path": "WIDE1-1,WIDE2-1"}       # the station of the tests, with the TNC the tests are about: with no call set nothing is transmitted (config.can_transmit)
-ON_AIR: Config = replace(DEFAULTS, station_call="OH2GBA", station_lat=60.17, station_lon=24.94, tnc_profile="kenwood-tnc2", beacon_path="WIDE1-1,WIDE2-1")      # the same as a Config, for the tests that hold one: the defaults are a station with no call and a TNC that is sent nothing
+RADIO_ROWS: dict[str, tuple[RadioId, str]] = {           # the rows an Env's settings say its radios in, and where each goes: the radio's type or tickbox, or its own setting (the HF radio's path as its own too, as migration 31 kept it)
+    "tnc/profile": (FM_ID, "type"), "fm/enabled": (FM_ID, "enabled"), "serial/port": (FM_ID, "port"), "serial/baud": (FM_ID, "baud"), "tcp/host": (FM_ID, "tcp_host"), "tcp/port": (FM_ID, "tcp_port"),
+    "beacon/path": (FM_ID, "path"), "digi/enabled": (FM_ID, "digipeat"),
+    "hf/profile": (HF_ID, "type"), "hf/enabled": (HF_ID, "enabled"), "mercury/sound_card": (HF_ID, "sound_card"), "mercury/keying": (HF_ID, "keying"), "mercury/tx_gain_db": (HF_ID, "tx_gain_db"),
+}
+RADIO_KINDS: dict[RadioId, Kind] = {FM_ID: "fm", HF_ID: "hf"}
+RADIO_ON: dict[RadioId, bool] = {FM_ID: True, HF_ID: False}             # a radio whose tickbox the settings do not say: the FM radio on, the HF radio off
+GONE = ("tnc/", "hf/", "mercury/", "tcp/")                                # the rows of before that are no station's setting (migration 31 deletes them): never written as the station's
+
+
+def first_radios(rows: dict[str, str], hf: bool) -> list[tuple[Kind, str, bool, dict[str, str]]]:
+    """The radios an Env's settings say (kind, type, whether it is on, its own settings as text): radio 1 always, and radio 2 when `hf` (the Env has its Mercury) or a row names it. A type that is no type of
+    the radio's kind is the kind's default, and a tickbox that is no word the radio's default, as the settings read them."""
+    made: list[tuple[Kind, str, bool, dict[str, str]]] = []
+    for id in (FM_ID, *((HF_ID,) if hf or any(key.startswith(("hf/", "mercury/")) for key in rows) else ())):
+        kind, homes = RADIO_KINDS[id], {key: home for key, (radio, home) in RADIO_ROWS.items() if radio == id or (key == "beacon/path" and id == HF_ID)}
+        found = {home: rows[key] for key, home in homes.items() if key in rows}
+        type = found.pop("type", "")
+        rtype = TYPES.get(type.strip())
+        try:
+            on = boolean(found.pop("enabled")) if "enabled" in found else RADIO_ON[id]
+        except ValueError:
+            on = RADIO_ON[id]
+        made.append((kind, rtype.key if rtype is not None and rtype.kind == kind else DEFAULT_TYPE[kind], on, found))
+    return made
+
+
+ON_AIR: Config = replace(with_radio(TWO_RADIOS, FM_ID, "kenwood-tnc2", path="WIDE1-1,WIDE2-1"), station_call="OH2GBA", station_lat=60.17, station_lon=24.94)      # the same as a Config, for the tests that hold one (with radio 2, the HF radio, off): the defaults are a station with no call and no radio
 
 
 def _quiet(radio: LiveRadio[Any]) -> None:
@@ -165,10 +198,12 @@ async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool =
 
 
 class Env:
-    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str | FakeRadio = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, hf: FakeMercury | None = None, auto_map: bool = False, **tnc_options: Any) -> None:
+    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str | FakeRadio = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, hf: FakeMercury | None = None, auto_map: bool = False,
+                 first_radio: bool = True, **tnc_options: Any) -> None:
         self.dir = tmp_path
         self.settings = {**OPERATOR, **(settings or {})}          # the rows of the operator's data folder at the first start: a test about the keep-alive turns it on with `check_sec`
         self.operator = operator
+        self.first_radio = first_radio                            # the Env adds its radios before the first start (False: a new installation before its first radio)
         self.loop = _running_loop()
         _live.append(self)
         self.now: Clock = clock or FixedClock()
@@ -203,6 +238,7 @@ class Env:
         self.ctl = Controller(tmp_path, clock=self.now, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map, hf_port=self.hf_link,
                               lines={FM_ID: self.tnc, HF_ID: self.hf})
         self.ctl.radios.wire = _quieted(self.ctl.radios.wire)         # (a modem's choice of a keying line never reads the operator's serial ports in a test)
+        self.ctl.radios.sync(TWO_RADIOS)        # (radios 1 and 2 of the defaults are there before the start, the HF one off, with their lines, modem and beacons, for a test to set up: the start keeps the ones the database has, and the Env lets go of the others)
         for made in self.ctl.radios.all():
             _quiet(made)
 
@@ -301,18 +337,30 @@ class Env:
             await self.radio.start()
         if self.hf_radio is not None:
             await self.hf_radio.start()
-        if self.operator:
-            self.ctl.data_dir.mkdir(parents=True, exist_ok=True)
-            await self.ctl.open_database()
-            if await self.ctl.store.setting("station/call") is None:      # (a data folder that was set up before keeps its own call)
-                await self.ctl.store.put_settings(self.settings)
+        self.ctl.data_dir.mkdir(parents=True, exist_ok=True)
+        await self.ctl.open_database()
+        if self.operator and await self.ctl.store.setting("station/call") is None:      # (a data folder that was set up before keeps its own call)
+            rows = {LAST_PORT if key == "serial/last_port" else key: value for key, value in self.settings.items() if key not in RADIO_ROWS and not key.startswith(GONE)}
+            await self.ctl.store.put_settings(rows)
+        if self.first_radio and await self.ctl.store.read_radios() == ():
+            await self.add_first_radios()
         await self.ctl.start()
-        await until(lambda: self.active.state is not Source.State.STOPPED)      # (the Tnc is started in a task)
+        for id in (FM_ID, HF_ID):
+            if self.ctl.radios.get(id) is None:
+                await self.ctl.radios.restart(id)           # (one made ready before the start that the database has not is let go for good, as the registry lets go of a radio the settings no longer have)
+        if self.ctl.config.enabled_radios:
+            await until(lambda: self.active.state is not Source.State.STOPPED)      # (the Tnc is started in a task)
         if connected and (self.link or self.hf_link):
             await self.until_connected()
 
     async def stop(self) -> None:
         await self.ctl.stop()
+
+    async def add_first_radios(self) -> None:
+        """The radios of the Env's settings (`first_radios`; a fresh install's have no rows), added to a database that has none, before the daemon's first start: radio 1, and radio 2 where they name it."""
+        for position, (kind, type, on, own) in enumerate(first_radios(self.settings if self.operator else {}, bool(self.hf_link)), 1):
+            added = await self.ctl.store.add_radio(kind, type, "", on, position, settings=own)
+            assert added == position, f"the database gave the {kind} radio the id {added}, not {position}"
 
     async def until_usable(self) -> None:
         """The Tnc is connected and settled: past the wait after KISS ON, so that what the daemon sends from here on is not thrown away."""

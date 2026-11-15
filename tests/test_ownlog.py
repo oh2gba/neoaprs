@@ -53,10 +53,10 @@ def test_an_object_gives_its_row_and_the_row_gives_the_object_back(shape: bool) 
     assert object_of(object_row(full)) == full
     plain = obj("AID", kind="item")
     assert object_of(object_row(plain)) == plain and object_row(plain)[7:10] == (None, None, None) and object_row(plain)[14] is None
-    assert object_row(plain)[15:] == ("", 0, fm) and not object_of(object_row(plain)).on_request and object_of(object_row(plain)).radio == "fm"
+    assert object_row(plain)[15:] == ("", 0, fm) and not object_of(object_row(plain)).on_request and object_of(object_row(plain)).radios == (1,)
     assert len(object_row(plain)) == len(object_columns()) and object_columns()[-1] == ("radios" if shape else "radio")
     for word, ids in (("fm", "1"), ("hf", "2"), ("both", "1,2")):
-        chosen = obj(radio=word)
+        chosen = obj(radios=tuple(int(i) for i in ids.split(",")))
         assert object_row(chosen)[-1] == (ids if shape else word) and object_of(object_row(chosen)) == chosen and object_of(object_row(chosen)).radios == tuple(int(i) for i in ids.split(","))
         assert object_of((*object_row(chosen)[:-1], ids)) == chosen, "the row of the ids gives the object"
         with pytest.raises(ValueError, match="radios"):
@@ -116,10 +116,10 @@ async def test_a_log_with_no_database_says_no_instead_of_raising() -> None:
 @NEW
 async def test_an_object_keeps_the_ids_of_its_radios_and_comes_back_with_them(tmp_path: Path) -> None:
     log, store = await opened_with_store(tmp_path)
-    assert log.save_object(obj("ONFM")) and log.save_object(obj("ONHF", radio="hf")) and log.save_object(obj("ONBOTH", radio="both"))
-    assert sorted((o.name, o.radio, o.radios) for o in await log.objects()) == [("ONBOTH", "both", (1, 2)), ("ONFM", "fm", (1,)), ("ONHF", "hf", (2,))]
+    assert log.save_object(obj("ONFM")) and log.save_object(obj("ONHF", radios=(2,))) and log.save_object(obj("ONBOTH", radios=(1, 2)))
+    assert sorted((o.name, o.radios) for o in await log.objects()) == [("ONBOTH", (1, 2)), ("ONFM", (1,)), ("ONHF", (2,))]
     assert await sql(store, "SELECT name, radios FROM own_object ORDER BY name") == [("ONBOTH", "1,2"), ("ONFM", "1"), ("ONHF", "2")]
-    assert log.save_object(obj("ONBOTH", radio="hf")), "a change of its radios replaces them"
+    assert log.save_object(obj("ONBOTH", radios=(2,))), "a change of its radios replaces them"
     assert await sql(store, "SELECT radios FROM own_object WHERE name = 'ONBOTH'") == [("2",)] and "radio" not in [c[1] for c in await sql(store, "PRAGMA table_info(own_object)")]
 
 

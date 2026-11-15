@@ -16,7 +16,7 @@ from neoaprs.config import Config
 from neoaprs.interlock import Interlock
 from neoaprs.message import MessageRecord, retry_pause
 from neoaprs.radiospec import RadioSpec
-from neoaprs.radiotype import FM_ID, HF_ID
+from neoaprs.radiotype import FM_ID, HF_ID, RadioId
 from neoaprs.radiotypes.common import HF_LIMITS
 from neoaprs.ownlog import OwnLog
 from neoaprs.packet import Message, Other, Packet
@@ -176,7 +176,7 @@ async def test_an_object_on_both_radios_goes_on_the_radio_that_takes_it_and_a_he
     clock = objects.clock
     fm, hf = radios[FM_ID], radios[HF_ID]
     hf.held = "the channel is busy"
-    objects.set("BOTHWAYS", "object", 60.2, 24.9, "/", ">", "on both", radio="both")
+    objects.set("BOTHWAYS", "object", 60.2, 24.9, "/", ">", "on both", radios=(FM_ID, HF_ID))
     objects.tick()
     assert [f.info[:10] for f in fm.sent] == [b";BOTHWAYS "] and hf.sent == [], "FM took it at once, HF is held"
     assert objects._taken["BOTHWAYS"] == {FM_ID}, "the round is kept by the radio's id"
@@ -198,7 +198,7 @@ async def test_an_object_on_hf_alone_goes_while_the_fm_radio_is_away(tmp_path: P
     radios = Lines(BOTH)
     radios[FM_ID].state = Source.State.SILENT
     objects = await objects_on(tmp_path, radios, BOTH)
-    objects.set("FARAWAY", "object", 61.5, 23.8, "/", "-", "over HF", radio="hf")
+    objects.set("FARAWAY", "object", 61.5, 23.8, "/", "-", "over HF", radios=(HF_ID,))
     assert objects.tick() and len(radios[HF_ID].sent) == 1 and radios[FM_ID].sent == []
 
 
@@ -206,13 +206,13 @@ async def test_with_one_radio_enabled_an_object_goes_on_it_whatever_it_was_given
     only_hf = replace(BOTH, fm_enabled=False)
     radios = Lines(only_hf)
     objects = await objects_on(tmp_path, radios, only_hf)
-    objects.set("FMSAID", "object", 61.5, 23.9, "/", ">", "said fm", radio="fm")
+    objects.set("FMSAID", "object", 61.5, 23.9, "/", ">", "said fm", radios=(FM_ID,))
     assert objects.tick() and [f.info[:8] for f in radios[HF_ID].sent] == [b";FMSAID "] and radios[FM_ID].sent == [], "the main radio, the HF one, takes it"
-    assert objects.get("FMSAID").radio == "fm", "the choice is kept for the day the FM radio is on"       # type: ignore[union-attr]
+    assert objects.get("FMSAID").radios == (FM_ID,), "the choice is kept for the day the FM radio is on"       # type: ignore[union-attr]
     none = replace(only_hf, hf_enabled=False)                               # (no radio at all: what the settings refuse, and a fresh installation of the round)
     (tmp_path / "none").mkdir()
     idle = await objects_on(tmp_path / "none", Lines(none), none)
-    idle.set("NOWHERE", "object", 61.5, 23.9, "/", ">", "", radio="both")
+    idle.set("NOWHERE", "object", 61.5, 23.9, "/", ">", "", radios=(FM_ID, HF_ID))
     assert not idle.tick() and idle._sender.problem == "there is no radio" and idle.next_at("NOWHERE") is not None
 
 
@@ -221,7 +221,7 @@ async def test_two_radios_of_one_kind_are_two_radios_and_each_takes_its_own_copy
     radios = Lines(BOTH, specs)
     objects = await objects_on(tmp_path, radios, BOTH)
     radios[HF_ID].held = "the channel is busy"
-    objects.set("TWICE", "object", 60.2, 24.9, "/", ">", "", radio="both")
+    objects.set("TWICE", "object", 60.2, 24.9, "/", ">", "", radios=(FM_ID, HF_ID))
     objects.tick()
     assert len(radios[FM_ID].sent) == 1 and radios[HF_ID].sent == [] and objects.get("TWICE").sent == 0, "the second radio of the kind still owes its copy"     # type: ignore[union-attr]
     radios[HF_ID].held = ""
@@ -255,10 +255,10 @@ class Rig(ServiceRig):
                          heard=Log({}))
         remember_stop(self.q.stop)
 
-    def ask(self, text: str, radio: str) -> None:
+    def ask(self, text: str, radio: RadioId) -> None:
         self.q.on_packet(Packet(self.clock(), "in", b"", "OH2RDG", "APZNEO", ("OH2RCH-2*",), b"", Message("OH2GBA", text, None), None, "rf", radio))
 
-    def ask_around(self, text: str, radio: str) -> None:
+    def ask_around(self, text: str, radio: RadioId) -> None:
         """The general query in the information field of a packet, as it is asked."""
         self.q.on_packet(Packet(self.clock(), "in", b"", "OH2RDG", "APZNEO", ("OH2RCH-2*",), b"", Other("query", text), None, "rf", radio))
 
@@ -266,24 +266,24 @@ class Rig(ServiceRig):
 @pytest.mark.parametrize("old", [False, True], ids=["by id", "the old set"])
 def test_a_query_asked_over_hf_is_answered_with_frames_built_for_hf_and_the_same_on_fm_with_the_path(old: bool) -> None:
     rig = Rig(old)
-    rig.ask("?APRSP", "hf")
-    rig.ask("?APRSS", "hf")
+    rig.ask("?APRSP", HF_ID)
+    rig.ask("?APRSS", HF_ID)
     assert len(rig.radios.hf.sent) == 2 and rig.radios.fm.sent == []
     for frame in rig.radios.hf.sent:
         assert frame.path == () and len(ax25.encode(frame)) <= 60, frame.tnc2()
     assert rig.radios.hf.sent[0].info.startswith(b"=6010.20N/02456.40E-a comment") and rig.radios.hf.sent[1].info.startswith(b">") and b"QRV" in rig.radios.hf.sent[1].info
     rig.clock.advance(31)                                                   # (the same station asking the same within 30 s is answered once)
-    rig.ask("?APRSP", "fm")
+    rig.ask("?APRSP", FM_ID)
     assert rig.radios.fm.sent[-1].path_text == "WIDE1-1,WIDE2-1" and rig.radios.fm.sent[-1].info == b"=6010.20N/02456.40E-" + BOTH.station_comment.encode()
 
 
 @pytest.mark.parametrize("old", [False, True], ids=["by id", "the old set"])
 async def test_the_general_query_and_the_heard_query_asked_over_hf_are_answered_on_hf_alone_with_no_path(old: bool) -> None:
     rig = Rig(old)
-    rig.ask_around("?APRS?", "hf")
+    rig.ask_around("?APRS?", HF_ID)
     await until(lambda: len(rig.radios.hf.sent) == 2)
     assert [f.info[:1] for f in rig.radios.hf.sent] == [b"=", b">"] and all(f.path == () and len(ax25.encode(f)) <= 60 for f in rig.radios.hf.sent), "our position and status, built for HF"
-    rig.ask("?APRSH OH2X", "hf")
+    rig.ask("?APRSH OH2X", HF_ID)
     await until(lambda: len(rig.radios.hf.sent) == 3)
     heard = rig.radios.hf.sent[2]
     assert heard.path == () and heard.info.startswith(b":OH2RDG   :OH2X NOT HEARD"), heard.tnc2()
@@ -303,8 +303,8 @@ async def test_an_object_on_hf_alone_repeats_by_the_net_cycle_of_a_direct_frame_
     config = replace(BOTH, beacon_path="WIDE2-2")
     objects = await objects_on(tmp_path, Lines(config), config)
     clock = objects.clock
-    objects.set("FARAWAY", "object", 61.5, 23.8, "/", "-", "over HF", radio="hf")
-    objects.set("BOTHWAYS", "object", 60.2, 24.9, "/", "-", "on both", radio="both")
+    objects.set("FARAWAY", "object", 61.5, 23.8, "/", "-", "over HF", radios=(HF_ID,))
+    objects.set("BOTHWAYS", "object", 60.2, 24.9, "/", "-", "on both", radios=(FM_ID, HF_ID))
     for name in ("FARAWAY", "BOTHWAYS"):
         found = objects.get(name)
         assert found is not None

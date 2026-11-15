@@ -76,8 +76,8 @@ async def test_every_packet_the_tnc_makes_heard_or_sent_carries_the_id_of_its_ra
         assert any("on the air" in line for line in tnc.lines) and any("  ->  " in line for line in tnc.lines), "the lines of its log are what they were"
 
 
-async def test_a_tnc_no_driver_has_set_stamps_radio_1_and_the_hf_one_radio_2_as_the_old_words_said(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_tnc_no_driver_has_set_stamps_radio_1_and_the_hf_one_radio_2(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
-    for profile, radio_id, word in ((DUMMY, 1, "fm"), (DUMMY_HF, 2, "hf")):
+    for profile, radio_id in ((DUMMY, 1), (DUMMY_HF, 2)):
         tnc, made = await played(profile, None)
-        assert tnc.radio_id == radio_id and made and all((p.radio_id, p.radio) == (radio_id, word) for p in made)
+        assert tnc.radio_id == radio_id and made and all(p.radio_id == radio_id for p in made)

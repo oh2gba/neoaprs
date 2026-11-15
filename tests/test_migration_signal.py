@@ -58,9 +58,9 @@ def test_every_row_is_kept_and_none_has_a_reading(tmp_path: Path) -> None:
     assert db.execute("SELECT snr, rssi FROM message ORDER BY id").fetchall() == [(None, None)] * len(MESSAGES)
     assert [(r.id, r.snr, r.rssi) for r in sorted((message_of(row) for row in held_messages(db, 10)), key=lambda r: r.id)] == [(1, None, None), (2, None, None)]
     packet = packet_of(PacketRow(*db.execute(f"SELECT {PACKET_LIST} FROM packet").fetchone()))
-    assert (packet.source, packet.radio, packet.snr, packet.rssi) == ("Q3TKU", "hf", None, None)
+    assert (packet.source, packet.radio_id, packet.snr, packet.rssi) == ("Q3TKU", 2, None, None)
     station = station_of(all_stations(db)[0], heard={radio: heard for _, radio, heard in map(heard_of, heard_by_radio(db))})
-    assert (station.call, station.heard_hf, station.snr, station.rssi, station.signal_at) == ("Q3TKU", 1, None, None, None)
+    assert (station.call, station.heard_on(2).count, station.snr, station.rssi, station.signal_at) == ("Q3TKU", 1, None, None, None)
     db.close()
 
 

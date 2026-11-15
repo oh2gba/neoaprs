@@ -13,6 +13,7 @@ from neoaprs import ax25, dummyline
 from neoaprs.aprsparse import parse
 from neoaprs.packet import Packet
 from neoaprs.packetlog import PacketLog
+from neoaprs.radiospec import HF_ID
 from neoaprs.source import Source
 from neoaprs.station import Station
 from neoaprs.store import DB_NAME
@@ -29,7 +30,7 @@ def heard(source: str, at: datetime, snr: float | None, rssi: float | None = Non
     """A packet as the radio gave it, its frame and what it decodes to (the log reads the packets back from their frames), with the readings the radio measured."""
     info = text.encode("latin-1")
     frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path), info=info)
-    return Packet(at, "in", ax25.encode(frame), source, "APRS", tuple(str(a) for a in frame.path), info, parse(info, source, "APRS", at), radio="hf", snr=snr, rssi=rssi)
+    return Packet(at, "in", ax25.encode(frame), source, "APRS", tuple(str(a) for a in frame.path), info, parse(info, source, "APRS", at), radio_id=HF_ID, snr=snr, rssi=rssi)
 
 
 async def test_a_packets_readings_are_kept_and_come_back_and_one_without_has_none(tmp_path: Path) -> None:
@@ -103,7 +104,7 @@ async def test_the_daemon_on_the_dummy_hf_radio_tells_the_snr_of_the_packets_the
             break
     mine = e.ctl.messaging.get(record.id)
     assert mine is not None and mine.state == "acked" and mine.snr is not None, "our message has the SNR of the ack that came back"
-    assert answered and answered[0].snr is not None and answered[0].radio == "hf", "the answer has the SNR of the packet that carried it"
+    assert answered and answered[0].snr is not None and answered[0].radio_id == HF_ID, "the answer has the SNR of the packet that carried it"
     await e.settled()
     await page.until(lambda: any(row["snr"] is not None for row in page.topics["packets"].values()) and page.topics["messages"].get(str(record.id), {}).get("snr") == mine.snr)
     assert page.topics["stations"]["Q3TKU"]["snr"] is not None and list(e.hf.profile.readings) == ["snr"] and list(e.tnc.profile.readings) == []

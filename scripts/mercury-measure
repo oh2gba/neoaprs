@@ -44,7 +44,7 @@ from neoaprs.mercuryscope import bands_db, parse_spectrum  # noqa: E402
 from neoaprs.mercuryui import MercuryUi  # noqa: E402
 from neoaprs.mercuryhelper import find  # noqa: E402
 from neoaprs.message import FIRST_WAIT_SEC  # noqa: E402
-from neoaprs.radiorules import HF_BEACON_JITTER_SEC  # noqa: E402
+from neoaprs.radiotype import HF_BEACON_JITTER_SEC  # noqa: E402
 from tests.support.busyeval import Recording, periods_of, replay, score  # noqa: E402
 from tests.support.busyscenes import BusyChannel, Scene  # noqa: E402
 from tests.support.hfchannel import PRESETS, REFERENCE_RMS, Attack, Channel  # noqa: E402
@@ -562,7 +562,7 @@ async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]
     try:
         for name, call in (("A", "OH2A"), ("B", "OH2B")):
             data = folder / name.lower()
-            write_settings(data, {"station/call": call, "station/lat": "60.17", "station/lon": "24.94", "hf/enabled": "true", "fm/enabled": "false", "beacon/interval_min": "0", "messages/alert": "false"})
+            write_settings(data, {"station/call": call, "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "0", "messages/alert": "false"}, radios=(("kiss", False), ("mercury", True)))      # (radio 2 the HF radio that --hf-port attaches)
             daemons[name] = start_daemon(data, ports[name])
         bases = {name: wait_for_page(d, folder / name.lower(), args.timeout) for name, d in daemons.items()}
         for name, page in pages.items():
@@ -621,7 +621,7 @@ async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]
 
 def measure_beacons(args: argparse.Namespace) -> dict[str, Any]:
     """Fixed stations on one interval of `interval_min` minutes, each started at a random moment of the first interval (the start of a daemon is a random phase already) and adding a random pause of up to J seconds
-    after every interval (the pause of radiorules.HF_BEACON_JITTER_SEC): over `hours` of simulated time, how many beacons were lost to an overlap (two frames on the air within FRAME_SEC of each other are both lost,
+    after every interval (the pause of radiotype.HF_BEACON_JITTER_SEC): over `hours` of simulated time, how many beacons were lost to an overlap (two frames on the air within FRAME_SEC of each other are both lost,
     as Mercury's broadcast plane has no carrier sense), for each J. Also the case the pause is for: every station started in the same minute (a net that switched on together, or clocks that agree)."""
     rng = random.Random(args.seed)  # noqa: S311  (the chances of a simulation, the same again for the same seed: nothing is kept secret with it)
     sizes = [int(v) for v in args.stations.split(",")]

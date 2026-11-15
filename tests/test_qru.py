@@ -9,6 +9,7 @@ import pytest
 from neoaprs.aprsmessage import MAX_TEXT, parse_message
 from neoaprs.ownobject import OwnObject, make_object
 from neoaprs.packet import Message, Packet, Position, ThirdParty, Via
+from neoaprs.radiospec import HF_ID
 from neoaprs.stationbook import StationBook
 from neoaprs.source import Source
 from neoaprs.services.qru import ANSWER_FRAMES_MAX, FIRST_WAIT_SEC, RANGE_KM, Qru, Request, info_texts, request_of
@@ -133,7 +134,7 @@ async def test_the_answer_goes_on_the_radio_the_request_came_on_by_the_path_that
     rig = Rig(hf_enabled=True)
     hf = with_hf(rig, rig.radios)
     rig.add("PUMP", "FUEL")
-    packet = Packet(rig.clock(), "in", b"", "OH2FAR", "APRS", (), b"", Message("QRU", "INFO", None), None, "rf", "hf")
+    packet = Packet(rig.clock(), "in", b"", "OH2FAR", "APRS", (), b"", Message("QRU", "INFO", None), None, "rf", HF_ID)
     assert rig.qru.heard(packet, Message("QRU", "INFO", None))
     await until(lambda: len(hf.sent) == 1)
     assert [f.path for f in hf.sent] == [()] and rig.tnc.sent == [], "over HF with no path, nothing on FM"

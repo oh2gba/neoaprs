@@ -10,7 +10,7 @@ from dataclasses import replace
 from neoaprs.claims import Claims
 from neoaprs.cli.redaction import shown_value
 from neoaprs.config import BY_KEY, Config, SettingError, radio_key_of
-from neoaprs.configradios import FLAT_HOMES, FLAT_KINDS
+from neoaprs.configradios import flat_moved
 from neoaprs.radiospec import RadioError, RadioId, RadioSpec, log_name
 from neoaprs.radiotype import ResourceKind
 from neoaprs.radiotypes import kind_field
@@ -59,18 +59,10 @@ def radio_of_key(key: str | None) -> RadioId | None:
 
 
 def flat_refusal(key: str, config: Config) -> SettingError | None:
-    """`setting.unknown` for a key that names a radio's setting without the radio (`serial/port`, `hf/enabled`), in one sentence that names where it is now: a radio's own key, `radio/<id>/<key>`, with the id of
-    the main radio of that kind where the station has one (else of its first radio of the kind, else `<id>`), and for its Enable and type the command `radio_change`; None for any other key."""
+    """`setting.unknown` for a key that names a radio's setting without the radio, in the one sentence of configradios.flat_moved, which names where it is now; None for any other key."""
     setting = BY_KEY.get(key)
-    if setting is None or setting.attr not in FLAT_HOMES:
-        return None
-    id, field = FLAT_HOMES[setting.attr]
-    if field in ("type", "enabled"):
-        return SettingError(key, "setting.unknown", {}, f"{key}: no such setting: it is radio_change's {field} now")
-    kind = FLAT_KINDS[id]
-    ofkind = [spec for spec in config.live_radios if spec.kind == kind]
-    main = next((spec for spec in ofkind if spec.id == config.main_radio), ofkind[0] if ofkind else None)
-    return SettingError(key, "setting.unknown", {}, f"{key}: no such setting: it is radio/{'<id>' if main is None else main.id}/{field} now")
+    moved = None if setting is None else flat_moved(setting.attr, config.radios, config.main_radio)
+    return None if moved is None else SettingError(key, moved.code, moved.params, f"{key}: {moved}")
 
 
 def refuse_flat(keys: Iterable[str], config: Config) -> None:

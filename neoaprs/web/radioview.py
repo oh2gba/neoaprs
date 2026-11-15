@@ -51,10 +51,21 @@ def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | 
     line = None if radio is None or spec.removed else radio.line
     lines = [] if line is None else [{"at": iso(at), "text": text} for at, text in line.recent_lines(LINES_MAX)]
     return RadioRow.row(
-        spec, enabled=spec.enabled and not spec.removed, number=number_in_kind(spec, specs), removed=spec.removed, dummy=rtype.dummy, state="stopped" if line is None else line.state.value,
+        spec, enabled=spec.enabled and not spec.removed, number=number_in_kind(spec, specs), removed=spec.removed, dummy=rtype.dummy, state=radio_state(line),
         problem=radio_problem(spec, specs, line, claims), stats=TncStats.row(LineStats() if line is None else line.stats), lines=lines, limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
         allowed=plain(rtype.allowed), can=plain(rtype.can), choices=_choices(spec), beacon=_beacon(spec, None if radio is None or spec.removed else radio.beacon),
         modem=None if line is None else modem_state(line), holds=[{"resource": c.kind, "value": c.value} for c in claims.all() if c.holder == spec.id])
+
+
+def radio_state(line: Tnc | None) -> str:
+    """The state of a radio's row: its line's; `connecting` while a TNC is being put into KISS mode and sends nothing yet (the entry sent, no KISS frame since, and the line not yet usable: its settling
+    time, a command mode not yet answered), as any radio that is starting says; `stopped` for one the registry does not run. A line that is usable is `connected`, its first KISS frame or not: the page sends
+    on it as the daemon does (a Kenwood or Kantronics TNC is silent in KISS mode until it hears a packet)."""
+    if line is None:
+        return Source.State.STOPPED.value
+    if line.state is Source.State.CONNECTED and line.entering_kiss and not line.usable:
+        return Source.State.CONNECTING.value
+    return line.state.value
 
 
 def _choices(spec: RadioSpec) -> dict[str, Any]:

@@ -8,7 +8,8 @@ have all of it. Run with the Python that has neoaprs installed (/opt/neoaprs/bin
                                                                       in its hello, and a clean stop (exit code 0, `NeoAPRS ended`, a database that passes its integrity check)
 
 Only what the page's WebSocket has told since the first release of the two radios is used: the topics `stations`, `messages` and `config`, the commands `set_config` and `send_message`, and the `hello` of a connection;
-and for the radios (scripts/smoke.py, `give_radio` and `radio_of`) the topic `radios` and the radio commands.
+and for the radios (scripts/smoke.py, `give_radio` and `radio_of`) the topic `radios` and the radio commands. The seed is run on the old release the upgrade starts from, which may be one before the round of the
+radios: that release's words for its two radios are OLD_RELEASE's, the one place they are read and written, and only while a daemon's hello lists no topic `radios`.
 Nothing is sent to a radio (the Dummy radio makes its traffic up, and the daemon is started with NEOAPRS_NO_DEVICES) and nothing leaves the loopback. Exit code 0: all is well; 1: the first thing that was not."""
 import argparse
 import asyncio
@@ -41,6 +42,27 @@ smoke = load_smoke()
 SETTINGS = {"station/call": "OH2TST"}                               # the station's own settings; its radios are told apart below
 HF_TYPE = "dummy-hf"                                                # a station with both radios: the FM radio is the fake TNC given by --port, the HF radio the Dummy HF radio
 MESSAGE_TO, MESSAGE_TEXT = "OH2XYZ", "kept over the upgrade"
+FM_TYPE = "kiss"                                                    # the FM radio a station of the round of the radios is given first (a new installation has none): radio 1, which --port names
+
+
+class OldRelease:
+    """A release before the round of the radios, which the seed of the upgrade may be run on (the last release, or --update-from a commit before the round): its FM radio is on from the start (the topic
+    `tnc` tells its state), and its HF radio is two settings of `config` (`hf/enabled`, `hf/profile`), given with `set_config`. The one place the scripts keep that release's words (with update-e2e's)."""
+    TOPIC = "tnc"
+    HF_SETTINGS = {"hf/enabled": "true", "hf/profile": HF_TYPE}
+
+    @staticmethod
+    def is_one(hello: dict[str, Any]) -> bool:
+        """Whether the daemon of this hello is such a release: it lists no topic `radios`."""
+        return smoke.RADIOS not in (hello.get("topics") or [])
+
+    @staticmethod
+    def fm_state(topics: dict[str, Any]) -> str | None:
+        return (topics.get(OldRelease.TOPIC) or {}).get("state")
+
+    @staticmethod
+    def has_hf(config: dict[str, str]) -> bool:
+        return all(config.get(key) == value for key, value in OldRelease.HF_SETTINGS.items())
 
 
 class Seen:
@@ -62,7 +84,7 @@ async def follow(base: str, ready: Callable[[Seen], bool], seconds: float, work:
         except smoke.Failure:
             seen = Seen(page)
             raise smoke.Failure(f"within {seconds:g} s the page was not told what was waited for (settings {has_settings(seen)}, message {has_message(seen)}, {len(stations_of(seen))} stations, "
-                                f"the FM radio {smoke.radio_state(seen.topics, 'fm')!r}, errors {seen.errors})") from None
+                                f"the FM radio {fm_state(seen)!r}, errors {seen.errors})") from None
         return Seen(page)
     finally:
         page.close()
@@ -89,11 +111,18 @@ def has_message(seen: Seen) -> bool:
 
 
 def has_settings(seen: Seen) -> bool:
-    """The station's settings and its HF radio: the radio's type and its tick in the topic `radios`."""
+    """The station's settings and its HF radio: the radio's type and its tick in the topic `radios` (an old release's, OldRelease.has_hf)."""
     config = (seen.topics.get("config") or {}).get("values") or {}
     if not all(config.get(key) == value for key, value in SETTINGS.items()):
         return False
+    if OldRelease.is_one(seen.hello):
+        return OldRelease.has_hf(config)
     return any(radio.get("type") == HF_TYPE and radio.get("enabled") for radio in smoke.live_radios(seen.topics, "hf"))
+
+
+def fm_state(seen: Seen) -> str | None:
+    """`connected`, `waiting`, ... of the FM radio (the fake TNC of --port): in the topic `radios` (an old release's, OldRelease.fm_state)."""
+    return OldRelease.fm_state(seen.topics) if OldRelease.is_one(seen.hello) else smoke.radio_state(seen.topics, "fm")
 
 
 def stations_of(seen: Seen) -> list[str]:
@@ -101,7 +130,7 @@ def stations_of(seen: Seen) -> list[str]:
 
 
 def seed_ready(seen: Seen) -> bool:
-    return has_settings(seen) and has_message(seen) and bool(stations_of(seen)) and smoke.radio_state(seen.topics, "fm") == "connected"
+    return has_settings(seen) and has_message(seen) and bool(stations_of(seen)) and fm_state(seen) == "connected"
 
 
 def run_with_daemon(args: argparse.Namespace, work: Any) -> None:
@@ -126,11 +155,21 @@ def run_with_daemon(args: argparse.Namespace, work: Any) -> None:
         tnc.close()
 
 
+async def give_radios(page: "smoke.PageSocket", seconds: float) -> None:
+    """Both radios on: on a release before the round of the radios its HF radio by its two settings (OldRelease: its FM radio is on from the start), on any other the FM radio first (a new installation
+    has none: radio 1, which --port names) and the HF radio, by the radio commands."""
+    if OldRelease.is_one(page.hello):
+        await page.set_config(OldRelease.HF_SETTINGS, seconds)
+        return
+    await smoke.give_radio(page, "fm", FM_TYPE, {}, seconds)
+    await smoke.give_radio(page, "hf", HF_TYPE, {}, seconds)
+
+
 def seed(args: argparse.Namespace) -> None:
     async def commands(page: "smoke.PageSocket") -> None:
         await page.until("the settings told", lambda p: "config" in p.topics, args.timeout)
         await page.set_config(SETTINGS, args.timeout)
-        await smoke.give_radio(page, "hf", HF_TYPE, {}, args.timeout)
+        await give_radios(page, args.timeout)
         await page.send({"cmd": "send_message", "to": MESSAGE_TO, "text": MESSAGE_TEXT})
 
     def work(base: str) -> None:

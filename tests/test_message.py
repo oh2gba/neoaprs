@@ -86,19 +86,12 @@ def test_the_other_station_of_a_conversation_is_the_sender_of_a_message_that_cam
     assert sending().peer == "OH2RDG"
 
 
-def test_a_message_that_came_in_keeps_the_id_of_its_radio_and_the_old_word_is_a_view_of_it() -> None:
-    assert "radio_id" in {f.name for f in fields(MessageRecord)} and "radio" not in {f.name for f in fields(MessageRecord)} and isinstance(MessageRecord.radio, property)
+def test_a_message_that_came_in_keeps_the_id_of_its_radio() -> None:
+    assert "radio_id" in {f.name for f in fields(MessageRecord)}
     came = [MessageRecord(1, T0, "in", "OH2RDG", "OH2GBA", "x", None, "received", radio_id=radio_id) for radio_id in (None, FM_ID, HF_ID, 3)]
-    assert [(m.radio_id, m.radio) for m in came] == [(None, ""), (1, "fm"), (2, "hf"), (3, "")], "a radio after the second has no old word"
-    assert sending().radio_id is None and sending().radio == "", "one of ours: its attempts say"
-
-
-def test_the_constructor_and_replace_of_a_message_still_take_the_old_word() -> None:
-    """The message log and the inbox build a message with the word (`radio="hf"`): the same message as one built with the id."""
-    old = [MessageRecord(1, T0, "in", "OH2RDG", "OH2GBA", "x", None, "received", radio=word) for word in ("", "fm", "hf", "lora")]
-    assert [m.radio_id for m in old] == [None, FM_ID, HF_ID, None], "a word that is none names no radio, as before"
-    assert old[2] == MessageRecord(1, T0, "in", "OH2RDG", "OH2GBA", "x", None, "received", radio_id=HF_ID)
-    assert replace(old[1], radio="hf").radio_id == HF_ID and replace(old[1], radio_id=3).radio_id == 3 and replace(old[2], state="overheard").radio_id == HF_ID
+    assert [m.radio_id for m in came] == [None, 1, 2, 3], "any radio by its id"
+    assert sending().radio_id is None, "one of ours: its attempts say"
+    assert replace(came[1], radio_id=HF_ID).radio_id == HF_ID and replace(came[1], radio_id=3).radio_id == 3 and replace(came[2], state="overheard").radio_id == HF_ID
 
 
 def test_the_ids_we_give_are_every_two_character_id_once_in_the_order_01_to_99_a0_to_zz_0a_to_9z_and_00() -> None:

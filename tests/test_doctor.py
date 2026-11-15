@@ -58,7 +58,10 @@ def lines_of(text: str, status: str) -> list[str]:
     return [line for line in text.splitlines() if line.startswith(status)]
 
 
-def set_up(data: Path, **settings: str) -> None:
+def set_up(data: Path, *radios: str, **settings: str) -> None:
+    """The data folder of a station set up on the command line: these radios added (`db radios add`), then these settings set."""
+    for radio_type in radios:
+        assert dbcmd.main(["--data", str(data), "radios", "add", radio_type]) == 0
     for key, value in settings.items():
         assert dbcmd.main(["--data", str(data), "set", key.replace("_", "/", 1), value]) == 0
 
@@ -83,7 +86,7 @@ def test_a_fresh_computer_has_warnings_with_their_fixes_and_no_failure(tmp_path:
 
 def test_a_data_folder_with_a_database_a_call_and_a_map_is_all_ok(tmp_path: Path, capsys: pytest.CaptureFixture[str], this_computer: Service) -> None:
     data = tmp_path / "data"
-    set_up(data, station_call="OH2GBA")
+    set_up(data, "kiss", station_call="OH2GBA")
     (data / "basemap.pmtiles").write_bytes(b"x" * 3_000_000)
     (data / "basemap-world.pmtiles").write_bytes(b"x" * 1_000_000)
     this_computer.answer = (True, "the user unit /x/neoaprs.service")
@@ -422,11 +425,24 @@ def test_a_station_with_no_radio_on_is_a_warning_with_the_way_to_tick_one(tmp_pa
     assert "warn  no radio is on: nothing is heard and nothing is sent" in out and "fix: tick a radio on the page (Settings tab, Radio)" in out
 
 
-def test_a_database_without_radios_names_the_radios_of_its_flat_keys_and_an_older_file_is_read_without_its_radios(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_database_without_radios_is_told_it_has_none_yet_and_an_older_file_is_read_without_its_radios(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data = tmp_path / "data"
-    set_up(data, station_call="OH2GBA", serial_port="COM3")          # (a new installation's file: no radio stored, the flat keys are in force)
+    set_up(data, station_call="OH2GBA")                              # (a new installation's file: no radio yet)
     code, out = run(data, capsys)
-    assert code == 0 and "radio FM (kiss): port COM3, speed 9600 baud" in out and "radio HF (mercury): off" in out
+    assert code == 0 and "warn  this station has no radio yet: nothing is heard and nothing is sent" in out and "fix: add one: the setup guide, the page (Settings tab, Radio), or neoaprs db radios add TYPE" in out
+    assert "radio FM" not in out and "no radio is on" not in out
+    set_up(data, "kiss")
+    set_up(data, **{"radio/1/port": "COM3"})
+    code, out = run(data, capsys)
+    assert code == 0 and "radio FM (kiss): port COM3, speed 9600 baud" in out and "no radio yet" not in out
+    conn = sqlite3.connect(data / "neoaprs.sqlite", isolation_level=None)
+    conn.execute("UPDATE radio SET removed_at = '2026-11-14T10:00:00.000000Z', enabled = 0")
+    conn.close()
+    code, out = run(data, capsys)
+    assert code == 0 and "warn  every radio of this station is removed: nothing is heard and nothing is sent" in out and "no radio yet" not in out, "its radios are removed, not never added"
+    conn = sqlite3.connect(data / "neoaprs.sqlite", isolation_level=None)
+    conn.execute("UPDATE radio SET removed_at = NULL, enabled = 1")
+    conn.close()
     older = radios_of(tmp_path / "older", station_call="OH2GBA", tnc_profile="kantronics")
     conn = sqlite3.connect(older / "neoaprs.sqlite")
     conn.execute(f"PRAGMA user_version = {doctor.RADIO_ROWS_FROM - 1}")
@@ -435,7 +451,7 @@ def test_a_database_without_radios_names_the_radios_of_its_flat_keys_and_an_olde
     conn.close()
     code, out = run(older, capsys)
     err = capsys.readouterr().err
-    assert code == 0 and "migrates the file" in out and "radio FM (kiss): " in out and err == "", "the radios of a file older than their rows are not asked for: nothing is said of tables it lacks"
+    assert code == 0 and "migrates the file" in out and "radio FM" not in out and "no radio yet" not in out and err == "", "the radios of a file older than their rows are not asked for: the migration makes them, and nothing is said of tables it lacks"
 
 
 def test_the_version_from_which_the_radios_are_rows_is_the_one_of_migration_31() -> None:

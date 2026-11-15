@@ -4,7 +4,7 @@ How to connect each radio and TNC is in [`docs/RADIOS.md`](../RADIOS.md). This p
 
 ## The port
 
-The radio's port is the setting `serial/port`. In the Settings tab, in the Radio group (behind the arrow of its status line), it is one choice, **Port**.
+The radio's port is its own setting `radio/<id>/port` (`neoaprs db set radio/1/port ...` for radio 1). In the Settings tab, in the Radio group (behind the arrow of its status line), it is one choice, **Port**.
 
 | port | what it is |
 |---|---|
@@ -28,11 +28,11 @@ With no port given, on Linux NeoAPRS listens to all the ports that match the set
 
 - A TNC in KISS mode sends nothing until it hears a packet, so on a quiet band the search takes a long time.
 - With a TNC type that can be asked (Kenwood, Kantronics), a carriage return is sent to every port after 10 seconds of silence. A TNC in command mode answers it and is then switched to KISS. With any other type, the default included, the ports are only listened to and nothing is written to them.
-- A port another program holds is skipped. So is a development board, known by its USB ids: ESP32, Arduino, Raspberry Pi Pico and similar boards and debug probes, whose console resets the chip when the port is opened. The log says which ports were left out and why. A port named in `serial/port` or `--port` is never left out.
+- A port another program holds is skipped. So is a development board, known by its USB ids: ESP32, Arduino, Raspberry Pi Pico and similar boards and debug probes, whose console resets the chip when the port is opened. The log says which ports were left out and why. A port named in a radio's own port or in `--port` is never left out.
 - The port it found is remembered (in radio 1's row `radio/1/last_port`) and tried first next time. A port that cannot be opened is followed by the search, and a line that drops is opened again after 5, 10, 20, 30 seconds.
 - `serial/skip` lists ports the search never opens (a rotator's adapter, say, or the GPS receiver of a moving station: the search does not know which port is the GPS's, so name the radio's port or list the GPS's), separated by commas. A pattern of your own, such as `/dev/brainbox_*` for Brainboxes adapters, is set with `neoaprs db set serial/pattern "..."`; a change restarts the search. Neither is on the page.
 
-On Windows and macOS NeoAPRS listens to no port it was not told of, because it could write into a GPS or into a rig interface that keys a transmitter. The radio is the port in `serial/port` or the one remembered, or the one **Find my radio** finds when you press it. A COM port that another program has open is reported as in use by another program.
+On Windows and macOS NeoAPRS listens to no port it was not told of, because it could write into a GPS or into a rig interface that keys a transmitter. The radio is the port in its own setting or the one remembered, or the one **Find my radio** finds when you press it. A COM port that another program has open is reported as in use by another program.
 
 ## Find my radio
 
@@ -140,11 +140,11 @@ A LoRa APRS board (an ESP32 board with a LoRa chip, running the CA2RXU iGate or 
 
 ## The TNC type
 
-The setting `tnc/profile` says what kind of TNC the radio is. It decides what, if anything, is written to the TNC to put it in KISS, whether the TNC is asked if it is there, and how it is reached. A fresh install is `kiss`, which is sent nothing but KISS frames. A device that needs nothing is sent nothing.
+The radio's type says what kind of TNC it is. It decides what, if anything, is written to the TNC to put it in KISS, whether the TNC is asked if it is there, and how it is reached. You choose it when you add the radio: in the setup guide, in the Settings tab (Radio), or with `neoaprs db radios add TYPE`. A new installation has no radio until you add one. A device that needs nothing is sent nothing.
 
 | type | for | to enter KISS (the wait after each step) | to leave | asked if it is there |
 |---|---|---|---|---|
-| `kiss` (default) | Mobilinkd TNC3 and TNC4 (USB or Bluetooth serial), NinoTNC (set the speed to 57600), TNC-Pi, TNC-X, the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio (`[F]` then `[LIST]` on the D75), any TNC that is in KISS when it is switched on | nothing | nothing | no |
+| `kiss` | Mobilinkd TNC3 and TNC4 (USB or Bluetooth serial), NinoTNC (set the speed to 57600), TNC-Pi, TNC-X, the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio (`[F]` then `[LIST]` on the D75), any TNC that is in KISS when it is switched on | nothing | nothing | no |
 | `kiss-tcp` | Direwolf (8001), UZ7HO SoundModem and QtSoundModem (8100): a program that serves KISS over TCP | nothing | nothing | no |
 | `kenwood-tnc2` | Kenwood TH-D7, TM-D700, TS-2000; TAPR TNC-2 and the MFJ-1270B/1274/1278 and PacComm clones | `\rKISS ON\rRESTART\r` (3 s) | `C0 FF C0` | yes |
 | `kenwood-d710` | Kenwood TM-D710A/E/G/GA/GE, TH-D72A/E | `TC 1` (1 s), `TN 2,0` (3 s), `HBAUD 1200` (1 s), `KISS ON` (1 s), `RESTART` (1 s), each ended by a carriage return | `C0 FF C0` | yes, and the check enters again with the whole sequence |

@@ -215,15 +215,15 @@ async def test_the_logs_read_the_rows_the_step_left_and_write_the_ids_beside_the
     clock = FixedClock()
     store = await store_at(tmp_path / DB_NAME, clock)
     log, kept = PacketLog(store.db, clock), MessageLog(store.db, clock)
-    assert [(p.source, p.radio, p.radio_id) for p in reversed(await log.recent())] == [(source, {1: "fm", 2: "hf", None: ""}[radio], radio) for (_, source, *_), radio in zip(PACKETS, RADIOS)]
-    assert [(m.id, m.direction, m.radio, m.radio_id) for m in reversed(await kept.held(10))] == [(1, "out", "", None), (2, "in", "fm", 1), (3, "in", "hf", 2), (4, "in", "fm", 1), (5, "in", "", None), (6, "out", "", None)]
-    assert [(a.number, a.radio, a.radio_id) for a in (await kept.chains())[1]] == [(1, "fm", 1), (2, "hf", 2), (3, "", None)]
+    assert [(p.source, p.radio_id) for p in reversed(await log.recent())] == [(source, radio) for (_, source, *_), radio in zip(PACKETS, RADIOS)]
+    assert [(m.id, m.direction, m.radio_id) for m in reversed(await kept.held(10))] == [(1, "out", None), (2, "in", 1), (3, "in", 2), (4, "in", 1), (5, "in", None), (6, "out", None)]
+    assert [(a.number, a.radio_id) for a in (await kept.chains())[1]] == [(1, 1), (2, 2), (3, None)]
     at = parse_stamp(LATER)
-    assert log.append(Packet(at, "in", FRAME, "OH2RDG", "APRS", (), b">hi", Status("hi"), radio="hf"))
-    came = await kept.insert(MessageRecord(0, at, "in", "Q3TKU", "OH2GBA", "again", "9", "received", radio="hf"))
+    assert log.append(Packet(at, "in", FRAME, "OH2RDG", "APRS", (), b">hi", Status("hi"), radio_id=2))
+    came = await kept.insert(MessageRecord(0, at, "in", "Q3TKU", "OH2GBA", "again", "9", "received", radio_id=2))
     ours = await kept.insert(MessageRecord(0, at, "out", "OH2GBA", "Q3TKU", "answer", "03", "sending"))
-    assert came is not None and ours is not None and kept.add_attempt(ours.id, Attempt(1, at, (), radio="hf")) and kept.add_attempt(ours.id, Attempt(2, at, ("WIDE1-1",), radio="fm")) and kept.add_attempt(ours.id, Attempt(3, at, ()))
-    assert (await log.recent(1))[0].radio == "hf" and [(m.id, m.radio) for m in (await kept.held(2))] == [(ours.id, ""), (came.id, "hf")]
+    assert came is not None and ours is not None and kept.add_attempt(ours.id, Attempt(1, at, (), radio_id=2)) and kept.add_attempt(ours.id, Attempt(2, at, ("WIDE1-1",), radio_id=1)) and kept.add_attempt(ours.id, Attempt(3, at, ()))
+    assert (await log.recent(1))[0].radio_id == 2 and [(m.id, m.radio_id) for m in (await kept.held(2))] == [(ours.id, None), (came.id, 2)]
     assert [(a.number, a.radio_id) for a in (await kept.chains())[ours.id]] == [(1, 2), (2, 1), (3, None)]
     assert await sql(store, "SELECT radio FROM packet ORDER BY id DESC LIMIT 1") == [(2,)] and await sql(store, "SELECT id, radio FROM message WHERE id >= ? ORDER BY id", came.id) == [(came.id, 2), (ours.id, None)]
     assert await sql(store, "SELECT attempt, radio FROM message_attempt WHERE message_id = ? ORDER BY attempt", ours.id) == [(1, 2), (2, 1), (3, None)]

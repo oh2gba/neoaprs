@@ -88,7 +88,7 @@ def sending_radio(ctx: Ctx, name: str, id: RadioId | None) -> RadioId | None:
 
 
 def _stored(name: str, done: bool) -> None:
-    """`setting.not_stored` when the change was not stored (the reason is in the log: the database, or the stand-in settings of a database that could not be read)."""
+    """`setting.not_stored` when the change was not stored (the reason is in the log: the database, or a start that could not read the radios)."""
     if not done:
         raise UserError(f"{name}: the radio could not be stored; nothing changed", "setting.not_stored")
 

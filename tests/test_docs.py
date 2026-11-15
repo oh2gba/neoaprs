@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs.config import BY_KEY
+from neoaprs.configradios import FLAT_HOMES
 from tests.support import archdoc, settingsdoc
 from tests.support.ptyline import posix_only
 
@@ -249,6 +251,17 @@ def test_the_manual_names_no_version_number() -> None:
     assert not found, f"write <version> instead of a number: {found}"
 
 
+KEYS_OF_BEFORE = sorted({key for key, setting in BY_KEY.items() if setting.attr in FLAT_HOMES} | {"tnc/enter_kiss"})   # a radio's keys of the versions before the radios were stored
+
+
+def test_the_manual_names_a_radios_setting_by_its_own_key_and_a_key_of_before_only_where_it_says_it_is_none_any_more() -> None:
+    """`neoaprs db set` refuses a key of before of a radio's setting (`tnc/profile`, `serial/port`, `beacon/path`, `digi/enabled` ...): the manual names the radio's own key (`radio/<id>/path`) or its
+    type, and a key of before only in the paragraph that says they are no settings any more."""
+    found = [f"{name}: `{key}` in {p[:70]}..." for name, text in operator_docs().items() for p in paragraphs(text) + [line for line in text.splitlines() if line.startswith("|")]
+             for key in KEYS_OF_BEFORE if f"`{key}`" in p and "are no settings any more" not in p]
+    assert not found, "name the radio's own key, radio/<id>/<key>, or its type:\n" + "\n".join(found)
+
+
 ALLOWED_NAMES = {"neoaprs.service"}       # (the unit's file name is something an operator may see)
 CODE_NAMES = re.compile(r"\buse[A-Z]\w*|\b\w+\.(?:vue|ts|py|js)\b|`(?:neoaprs|ui|tests|scripts)/[^`]*`|\b[a-z]+[A-Z]\w*\(")
 
@@ -295,9 +308,9 @@ def test_the_table_of_settings_is_made_from_the_settings_of_the_program() -> Non
 
 
 def test_every_setting_has_its_words_and_no_words_are_left_for_a_setting_that_is_gone() -> None:
-    assert settingsdoc.undescribed() == [], "tests/support/settingsdoc.py: DESCRIPTIONS and neoaprs.config.SETTINGS differ"
+    assert settingsdoc.undescribed() == [], "tests/support/settingsdoc.py: DESCRIPTIONS and the settings (neoaprs/cli/radiosettings.py SHOWN_KEYS) differ"
     rows = settingsdoc.blocks_of(SETTINGS_DOC.read_text(encoding="utf-8"))["settings"].count("\n| `")
-    assert rows == len(settingsdoc.cfg.SETTINGS)
+    assert rows == len(settingsdoc.SHOWN_KEYS), "a row for every setting the command line shows (a radio's own are the radios' table)"
 
 
 def test_the_settings_the_table_says_only_the_command_line_changes_are_the_ones_the_page_does_not_show() -> None:

@@ -81,7 +81,7 @@ def test_the_six_hours_are_counted_from_now_to_the_minute() -> None:
 
 
 def test_today_two_radios_choose_as_before_while_the_station_was_heard_lately() -> None:
-    """The station of FM and HF, heard within the time: what neoaprs/radios.py chose (FM unless heard on HF alone; the operator's choice; a station never heard on FM, the main radio)."""
+    """The station of FM and HF, heard within the time: what the two radios of before chose (FM unless heard on HF alone; the operator's choice; a station never heard on FM, the main radio)."""
     for fm in (None, 0.5):
         for hf in (None, 0.2):
             seen = heard(**{name: hours for name, hours in (("fm", fm), ("hf", hf)) if hours is not None})

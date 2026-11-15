@@ -2,9 +2,9 @@
 started before the line, because it chooses the ports the line then connects to (a port given for this run is a Mercury something else runs; for the Dummy HF radio the program plays the frames and the line
 opens nothing); a modem that cannot be started is said in the log and the line is started all the same: it keeps trying its port. The two are stopped together.
 
-How the radio's settings become its line's is `modem_settings` (and `hf_settings` for radio 2 of today's flat settings), its words for the log `modem_words` (`hf_words`). A change of the sound card, the keying,
+How the radio's settings become its line's is `modem_settings`, its words for the log `modem_words`. A change of the sound card, the keying,
 the type or the modem's port restarts the radio, and a change of the transmit gain only while nothing can set it live (`Mercury.live_gain`); the sound card and the keying the running modem chose for itself are
-no change when the settings come to name exactly those (`MercuryDriver.made_explicit`). The port given for this run (`RunOverrides.hf_port`) is radio 2's."""
+no change when the settings come to name exactly those (`MercuryDriver.made_explicit`). The port given for this run (`RunOverrides.hf_port`) is the station's first Mercury radio's (`RunOverrides.attach_to`)."""
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -18,7 +18,7 @@ from .dummyline import DUMMY_PATH
 from .mercury import BROADCAST_PORT
 from .mercurymodem import HOST, Mercury
 from .radiodriver import RunOverrides
-from .radiospec import HF_ID, RadioSpec
+from .radiospec import RadioSpec
 from .tnc import Tnc
 from .tncprofile import HF_BY_KEY, MERCURY, Profile, tcp_url
 
@@ -35,8 +35,8 @@ class ModemSettings(NamedTuple):
 
 
 def _attached(spec: RadioSpec, run: RunOverrides) -> str:
-    """The Mercury that something else runs, given for this run: radio 2's."""
-    return run.hf_port if spec.id == HF_ID else ""
+    """The Mercury that something else runs, given for this run: the station's first Mercury radio's (`RunOverrides.attach_to`)."""
+    return run.hf_port if spec.id == run.attach_to else ""
 
 
 def modem_settings(spec: RadioSpec, run: RunOverrides, modem_port: int = BROADCAST_PORT) -> ModemSettings:
@@ -52,17 +52,6 @@ def modem_settings(spec: RadioSpec, run: RunOverrides, modem_port: int = BROADCA
     return ModemSettings(attached or ("" if no_line else tcp_url(HOST, modem_port)), profile, (spec.value("sound_card"), spec.value("keying")))
 
 
-def _hf(config: Config) -> RadioSpec:
-    spec = config.radio(HF_ID)
-    assert spec is not None, "the flat settings have radio 2"
-    return spec
-
-
-def hf_settings(config: Config, port_override: str = "", modem_port: int = BROADCAST_PORT) -> ModemSettings:
-    """What the HF radio of today's flat settings is started with: `modem_settings` of radio 2."""
-    return modem_settings(_hf(config), RunOverrides(hf_port=port_override), modem_port)
-
-
 def modem_words(spec: RadioSpec, run: RunOverrides) -> str:
     """The radio that is started, for the log: the Mercury modem (the daemon's own, which under the no-devices switch is not started, or one something else runs at the address given for this run) or the
     Dummy HF radio."""
@@ -71,11 +60,6 @@ def modem_words(spec: RadioSpec, run: RunOverrides) -> str:
     if attached := _attached(spec, run):
         return f"the Mercury modem, one something else runs at {attached}"
     return "the Mercury modem, which is not started" if nodevices.on() else "the Mercury modem, started by NeoAPRS"
-
-
-def hf_words(config: Config, port_override: str) -> str:
-    """The HF radio of today's flat settings, for the log: `modem_words` of radio 2."""
-    return modem_words(_hf(config), RunOverrides(hf_port=port_override))
 
 
 class MercuryDriver:
@@ -126,11 +110,11 @@ class MercuryDriver:
         return modem_words(spec, run)
 
     def _modem_config(self) -> Config:
-        """The station's settings with this radio's own as the modem reads them (its sound card, its keying, its gain)."""
-        station, own = self._station, (self._spec.value("sound_card"), self._spec.value("keying"), self._spec.value("tx_gain_db"))
-        if own == (station.mercury_sound_card, station.mercury_keying, station.mercury_tx_gain_db):
-            return station                             # (radio 2 of today's flat settings: they are the station's own)
-        return replace(station, mercury_sound_card=own[0], mercury_keying=own[1], mercury_tx_gain_db=own[2])
+        """The station's settings with this radio as `configure` gave it, whose own the modem reads (its sound card, its keying, its gain: mercurymodem.own_choice)."""
+        station = self._station
+        if station.radio(self._spec.id) == self._spec:
+            return station
+        return replace(station, radios=tuple(sorted((*(s for s in station.radios if s.id != self._spec.id), self._spec), key=lambda s: s.id)))
 
     async def start(self) -> None:
         try:

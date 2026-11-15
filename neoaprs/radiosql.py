@@ -5,11 +5,10 @@ A row of `radio_rows` is a tuple in the order of RADIO_COLUMNS, one of `radio_se
 begins or commits a transaction: a write of more than one statement (`put_radio_settings`, `remove_radio`) is whole in the transaction of whoever runs it (`Db.write`, or `transaction()` of dbfile.py)."""
 import json
 import sqlite3
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 from .config import MESSAGE_RADIOS as CHOICES          # the state row of the stations' radios, by call, as JSON ({"OH2GAX-2": 2})
 from .dberror import Row, rows
-from .migrationsteps31 import _move31                  # (the stand-in moves the flat rows as migration 31 moved them: the frozen step's own function)
 from .storesql import write_setting
 
 RADIO_COLUMNS = ("id", "kind", "type", "name", "enabled", "position", "removed_at")
@@ -26,25 +25,11 @@ def radio_settings(db: sqlite3.Connection) -> list[Row]:
     return rows(db.execute("SELECT radio_id, key, value FROM radio_setting ORDER BY radio_id, key"))
 
 
-def insert_radio(db: sqlite3.Connection, kind: str, type: str, name: str, enabled: bool, position: int, *, id: int | None = None) -> int:
-    """A new radio; its id, which no radio had before it and none has after it (AUTOINCREMENT). `id`: the id it is to have, for the two radios of today's flat keys (1 the FM radio, 2 the HF radio)
-    on a database that has no row for them; a row with that id refuses it (sqlite3.IntegrityError)."""
-    cursor = db.execute("INSERT INTO radio (id, kind, type, name, enabled, position) VALUES (?, ?, ?, ?, ?, ?)", (id, kind, type, name, int(enabled), position))
+def insert_radio(db: sqlite3.Connection, kind: str, type: str, name: str, enabled: bool, position: int) -> int:
+    """A new radio; its id, which no radio had before it and none has after it (AUTOINCREMENT)."""
+    cursor = db.execute("INSERT INTO radio (kind, type, name, enabled, position) VALUES (?, ?, ?, ?, ?)", (kind, type, name, int(enabled), position))
     assert cursor.lastrowid is not None
     return cursor.lastrowid
-
-
-def seed_radios(db: sqlite3.Connection, radios: Sequence[tuple[int, str, str, bool, int]]) -> bool:
-    """The stand-in of a database without radios (until the setup guide adds the first: package W3 deletes it): `radios` (id, kind, type, enabled, position), the first of them radio 1, are written only
-    when the table `radio` is empty, which the first insert decides by itself; then the settings rows of the radios become theirs, the rows of the daemon's state take their radio's name and the stations'
-    choices name the radio by its id, as migration 31 did (migrationsteps31._move31; radio 2's rows move when radio 2 is among them). False, and nothing written, when there is a radio already."""
-    (id, kind, type, enabled, position), *others = radios
-    if not db.execute("INSERT INTO radio (id, kind, type, name, enabled, position) SELECT ?, ?, ?, '', ?, ? WHERE NOT EXISTS (SELECT 1 FROM radio)", (id, kind, type, int(enabled), position)).rowcount:
-        return False
-    for id, kind, type, enabled, position in others:
-        insert_radio(db, kind, type, "", enabled, position, id=id)
-    _move31(db, any(id == 2 for id, *_ in others))
-    return True
 
 
 def update_radio(db: sqlite3.Connection, id: int, /, **columns: object) -> int:

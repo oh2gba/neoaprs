@@ -1,10 +1,9 @@
 """What every type of radio shares: the fields of the operator's choices on a radio (whether the beacon goes out on it, the path of our frames, the digipeater), each kept by a type only where it is allowed
-(`fields_of`), and the values of the kinds (`FM_LIMITS`, `HF_LIMITS`, `LORA_LIMITS`, `FM_ALLOWED`, `HF_ALLOWED`, `LORA_ALLOWED`), whose numbers and reasons are neoaprs/radiorules.py's."""
+(`fields_of`), and the values of the kinds (`FM_LIMITS`, `HF_LIMITS`, `LORA_LIMITS`, `FM_ALLOWED`, `HF_ALLOWED`, `LORA_ALLOWED`), whose numbers and reasons are neoaprs/radiotype.py's."""
 from neoaprs.configtypes import boolean
 from neoaprs.configvalues import digipeater_path
-from neoaprs.radiorules import (FM_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_BEACON_MIN_MIN, HF_MAX_FRAME, HF_RETRY_JITTER_SEC, LORA_BEACON_JITTER_SEC, LORA_BEACON_MIN_MIN, LORA_MAX_FRAME,
-                               LORA_MAX_KISS, LORA_RETRY_JITTER_SEC)
-from neoaprs.radiotype import Allowed, Field, Limits
+from neoaprs.radiotype import (FM_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_BEACON_MIN_MIN, HF_MAX_FRAME, HF_RETRY_JITTER_SEC, LORA_BEACON_JITTER_SEC, LORA_BEACON_MIN_MIN, LORA_MAX_FRAME,
+                               LORA_MAX_KISS, LORA_RETRY_JITTER_SEC, Allowed, Field, Limits)
 from neoaprs.tnc2line import MAX_TEXT
 
 BEACON = Field("beacon", "bool", boolean, "true", text="radio.field.beacon")               # the beacon goes out on this radio (Send on)

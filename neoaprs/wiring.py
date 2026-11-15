@@ -102,7 +102,7 @@ def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
         modem.frequencies = parts.suggested_frequencies
         modem.ports_changed.connect(lambda: parts.repoint(id))                           # (a modem started again on other ports, the old pair taken meanwhile: the radio's line follows it)
         modem.changed.connect(lambda: parts.radio_changed.emit(id))
-        parts.config_changed.connect(lambda config: modem.set_tx_gain(radio.spec.value("tx_gain_db")))       # (the transmit gain is set live in the modem, and the tune tone follows it)
+        parts.config_changed.connect(lambda config: modem.set_tx_gain(radio.spec.value("tx_gain_db")) if parts.radios.get(id) is radio else None)       # (the transmit gain is set live in the modem, and the tune tone follows it; a radio the registry let go of sets nothing, whatever radio has its id now)
     if first_time(beacon):
         beacon.sent.connect(parts.igate.beacon_sent)                                     # (a moving station's beacon is also put on APRS-IS)
 
@@ -160,9 +160,8 @@ def place_me(parts: Services) -> None:
         parts.stationbook.clear_me()                                 # (no own station until there is a call and a position)
 
 
-async def seed_station_book(parts: Services, *, unread: bool = False) -> None:
-    """The station book made from the packets, the messages and the weather log kept in the database, at the start. `unread`: the radios could not be read (the stand-in), so a station's choice of a
-    radio not in force is kept in the row as it is."""
+async def seed_station_book(parts: Services) -> None:
+    """The station book made from the packets, the messages and the weather log kept in the database, at the start."""
     book, packetlog = parts.stationbook, parts.packetlog
     book.seed(await packetlog.stations())
     book.seed_deliveries(await packetlog.deliveries())
@@ -174,7 +173,7 @@ async def seed_station_book(parts: Services, *, unread: bool = False) -> None:
     book.seed_routes(reversed(await packetlog.window(ROUTES_SEEN)))      # (the newest first, as the window gives them: the routes are read oldest first)
     book.seed_messaging(await packetlog.messaging_evidence(LOG_KEEP_DAYS))
     book.seed_recent(await packetlog.since(parts.clock() - timedelta(hours=1)))
-    parts.radios.restore(await parts.store.setting(MESSAGE_RADIOS), keep_unknown=unread)     # (the operator's radio by station, on the stations just seeded)
+    parts.radios.restore(await parts.store.setting(MESSAGE_RADIOS))     # (the operator's radio by station, on the stations just seeded)
 
 
 async def _seed_weather(parts: Services) -> None:

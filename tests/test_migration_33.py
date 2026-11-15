@@ -323,9 +323,9 @@ async def test_the_logs_read_what_the_step_left_and_write_beside_it(tmp_path: Pa
     assert await messages.prefs() == {"EMAIL-2": (None, True, None), "OH2ALERT": (None, False, Alert(True, 25, True)), "OH2ALL": ("WIDE2-1", True, Alert(True, None, False)), "OH2BOTH": ("OH2RCH-2", True, None),
                                       "OH2DIRECT": ("", False, None), "OH2PATH": ("WIDE1-1,WIDE2-1", False, None)}, "what was said of each station, as it was said (the row that holds only an old count says nothing)"
     assert await messages.paths() == {"OH2ALL": {1: "WIDE2-1"}, "OH2BOTH": {1: "OH2RCH-2"}, "OH2DIRECT": {1: ""}, "OH2PATH": {1: "WIDE1-1,WIDE2-1"}}
-    assert sorted((o.name, o.radio, o.radios, o.qru_group) for o in await own.objects()) == [("ONBOTH", "both", (1, 2), "RP70"), ("ONFM", "fm", (1,), "RP70"), ("ONHF", "hf", (2,), "RP70")]
+    assert sorted((o.name, o.radios, o.qru_group) for o in await own.objects()) == [("ONBOTH", (1, 2), "RP70"), ("ONFM", (1,), "RP70"), ("ONHF", (2,), "RP70")]
     station = found["OH2FM"]
-    station.heard_hf, station.last_hf_at, station.last_path = 1, parse_stamp(LATEST), ()
+    station.heard_by[2] = RadioHeard(1, parse_stamp(LATEST), ())
     packets.save_station(station)
     assert {s.call: s for s in await packets.stations()}["OH2FM"] == station
     assert await sql(store, "SELECT radio_id, heard, last_path FROM station_radio WHERE call = 'OH2FM' ORDER BY radio_id") == [(1, 4, "WIDE1-1*"), (2, 1, "")], "each radio keeps its own path"

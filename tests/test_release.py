@@ -404,3 +404,43 @@ def test_the_update_test_reads_the_fm_radio_and_its_port_on_the_old_wire_and_on_
     assert e2e.get_port(Install({"serial/port"}, {"serial/port": "x"}), Path("d")) == "x", "a version before the round, whose `get` of radio/1/port is refused"
     with pytest.raises(e2e.Failure, match="serial/port: .*no such setting; radio/1/port: .*no such setting"):
         e2e.set_port(Install(set(), {}, database=True), Path("d"), "socket://127.0.0.1:1")
+
+
+def test_the_update_test_sets_the_fm_radios_port_on_the_fresh_folder_of_a_version_that_starts_with_no_radio() -> None:
+    """From the second cut of W3 on, a fresh folder has no radio and the command line refuses serial/port and radio/1/port there: update-e2e then adds radio 1 by `db radios add kiss` and sets its own
+    port, with the old version's command line; a version whose command line cannot add one is a Failure that names every answer."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("update_e2e", ROOT / "scripts" / "update-e2e.py")
+    assert spec and spec.loader
+    e2e = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(e2e)
+
+    class NoRadioYet:
+        """The command line of such a version as `neoaprs db` answers (tests/test_new_installation.py and tests/test_dbcmd.py hold the real one): a key of before is refused with the radio's own key
+        named, a radio's own key while there is no such radio too, and `radios add TYPE` makes radio 1 on a fresh folder."""
+        def __init__(self, can_add: bool = True) -> None:
+            self.can_add, self.radios, self.stored, self.asked = can_add, 0, {}, []
+
+        def run(self, *args: str, timeout: float = 120) -> subprocess.CompletedProcess[str]:
+            self.asked.append(args[3:])
+            if args[3:6] == ("radios", "add", "kiss") and self.can_add:
+                self.radios += 1
+                return subprocess.CompletedProcess(list(args), 0, f"radio {self.radios}  FM  fm  kiss  on  (position {self.radios})", "")
+            if args[3] == "radios":
+                return subprocess.CompletedProcess(list(args), 2, "", "neoaprs db: argument cmd: invalid choice: 'radios'")
+            verb, key = args[3], args[4]
+            if key == "serial/port":
+                return subprocess.CompletedProcess(list(args), 2, "", "neoaprs db: serial/port: no such setting: it is radio/<id>/port now")
+            if key == "radio/1/port" and not self.radios:
+                return subprocess.CompletedProcess(list(args), 2, "", "neoaprs db: there is no radio 1 (try radios)")
+            if verb == "set":
+                self.stored[key] = args[5]
+            return subprocess.CompletedProcess(list(args), 0, f"{key} = {args[5]}" if verb == "set" else self.stored.get(key, ""), "")
+
+    url = "socket://127.0.0.1:1"
+    fresh = NoRadioYet()
+    assert e2e.set_port(fresh, Path("d"), url) == "radio/1/port"
+    assert fresh.asked == [("set", "serial/port", url), ("set", "radio/1/port", url), ("radios", "add", "kiss"), ("set", "radio/1/port", url)] and fresh.radios == 1
+    assert e2e.get_port(fresh, Path("d")) == url
+    with pytest.raises(e2e.Failure, match="serial/port: .*no such setting.*; radio/1/port: .*no radio 1.*; radios add kiss: .*invalid choice"):
+        e2e.set_port(NoRadioYet(can_add=False), Path("d"), url)

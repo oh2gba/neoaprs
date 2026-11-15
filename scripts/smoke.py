@@ -166,12 +166,16 @@ def check_the_world_map(base: str) -> None:
     say(f"the world map is served (to zoom {head[101]})")
 
 
+FIRST_RADIO = "kiss"                     # the radio a new installation is given first, as the setup guide gives it: radio 1, the one --port names, the fake TNC
+
+
 async def watch_the_socket(base: str, seconds: float) -> tuple[str, int]:
-    """Opens /ws as the page does and waits until the FM radio (the fake TNC of --port) is `connected` and a packet is there; returns the state and the number of packets. The radio is read in the topic
-    `radios`, which the hello must name."""
+    """Opens /ws as the page does, gives the new installation its first radio (FIRST_RADIO, by the radio commands, as the setup guide does: a new installation has none), and waits until it is `connected`
+    to the fake TNC of --port and a packet is there; returns the state and the number of packets. The radio is read in the topic `radios`, which the hello must name."""
     page = await PageSocket.open(base)
     try:
         wire = page.wire                                                                # (a hello that names no topic `radios` is a Failure here, before the wait)
+        await give_radio(page, "fm", FIRST_RADIO, {}, seconds)
         await page.until(f"the FM radio connected and a packet (the topic {wire})", lambda p: radio_state(p.topics, "fm") == "connected" and bool(p.topics.get("packets")), seconds)
         return "connected", len(page.topics["packets"])
     finally:

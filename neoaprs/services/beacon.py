@@ -5,7 +5,7 @@ A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the positi
 timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is only On or Off there: any value but 0 is On, and it is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
 `start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
 The interval in force on the radio is neoaprs/beaconrule.py's (`beacon_interval`: the one setting `beacon/interval_min` of the station, raised to this radio's own floor, 30 minutes on an HF radio, said once
-in the log for each radio it raises); a radio whose limits have a random pause adds one after each interval, and one that has no SmartBeaconing leaves a moving station fixed (HF: neoaprs/radiorules.py says why).
+in the log for each radio it raises); a radio whose limits have a random pause adds one after each interval, and one that has no SmartBeaconing leaves a moving station fixed (HF: neoaprs/radiotype.py says why).
 The beacon goes out only on the radios of `beaconrule.beacon_radios` (each radio's own "beacon" tick, Send on; with one radio on, that one): on another its interval in force is 0, so its timer sends nothing,
 and `send_now` (Beacon now) refuses. The beacon is off while the interval is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
 The last send is kept in the radio's own row (`memory_key_of`: `radio/<id>/beacon_last_sent_at`, where migration 31 put the rows of radios 1 and 2).
@@ -203,7 +203,7 @@ class Beacon:
         return c.mobile and self._radio.allowed.smart_beacon
 
     def _pause(self) -> timedelta:
-        """The random pause after an interval, where the radio has one (HF, radiorules.py says why); none elsewhere."""
+        """The random pause after an interval, where the radio has one (HF, radiotype.py says why); none elsewhere."""
         most = self._radio.limits.beacon_jitter_sec
         return timedelta(seconds=self.jitter(most)) if most > 0 else timedelta()
 

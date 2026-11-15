@@ -2,17 +2,16 @@
 and no modem setting), their limits (250 bytes of AX.25 and 252 of text, the beacon's floor of 30 minutes, HF's pauses), what they are allowed (paths and SmartBeaconing, no digipeating), what their box can
 (a terminal, no Find), WIDE1-1 when the radio's own path is empty, a comment cut so that the text fits a LoRa packet, the profiles that say the same; and a daemon with a `lora-tcp` radio added from the page on
 the fake CA2RXU iGate: a packet heard comes in on it as kind LoRa with the signal of the iGate's list, and our beacon goes out on it, which the board keys as a LoRa packet of text on WIDE1-1."""
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from neoaprs import TOCALL, ax25, kiss, loralist
-from neoaprs.radiorules import LORA, rules_of
-from neoaprs.radiotype import Allowed, Can, Limits
+from neoaprs.radiotype import FM_ID, Allowed, Can, Limits
 from neoaprs.radiotypes import DEFAULT_TYPE, recommended_path, type_of, types_of
 from neoaprs.services.radioset import fit_frame
 from neoaprs.source import Source
+from neoaprs.tnc import Tnc
 from neoaprs.tnc2line import MAX_TEXT, text_of
 from neoaprs.tncprofile import EVERY_BY_KEY, LORA_CONSOLE, LORA_NUDGE, LORA_SERIAL, LORA_TCP
 from tests.support.env import Env, until, until_started
@@ -57,9 +56,8 @@ def test_the_limits_and_what_a_board_is_allowed_and_can() -> None:
 def test_each_profile_says_what_its_type_says_and_reads_a_board() -> None:
     for profile in (LORA_TCP, LORA_SERIAL, LORA_CONSOLE):
         t = type_of(profile.key)
-        assert EVERY_BY_KEY[profile.key] is profile and profile.rules == rules_of(t) and profile.max_text == MAX_TEXT == t.limits.max_text
-        assert profile.rules == (replace(LORA, paths=False, smart_beacon=False) if profile.receive_only else LORA)
-        assert profile.receive_only == profile.writes_nothing == (not t.can.transmit) and profile.rules.max_kiss == t.limits.max_kiss == 256 and profile.readings == ("snr", "rssi") and profile.board
+        assert EVERY_BY_KEY[profile.key] is profile and t.profile == profile.key and Tnc("", profile=profile).rtype is t and t.limits.max_text == MAX_TEXT, "a line of the profile reads its type's limits"
+        assert profile.receive_only == profile.writes_nothing == (not t.can.transmit) and t.limits.max_kiss == 256 and profile.readings == ("snr", "rssi") and profile.board
         assert not profile.search and not profile.can_probe and not profile.detect_command_mode and profile.enter == () and profile.exit_kiss is None
     assert (LORA_TCP.baud, LORA_SERIAL.baud, LORA_CONSOLE.baud) == (None, 115200, 115200)
     assert LORA_TCP.nudge == LORA_SERIAL.nudge == LORA_NUDGE == b"\xc0\x05\x00\xc0" and LORA_CONSOLE.nudge == b""
@@ -105,7 +103,7 @@ async def test_a_lora_tcp_radio_on_the_igate_hears_as_kind_lora_with_the_lists_s
         board.air(b"OH2ABC-7>APLRT1,WIDE1-1:!6010.00N/02456.00E>tracker", rssi=-97, snr=6.25)
         await until(lambda: any(s.call == "OH2ABC-7" for s in e.ctl.stationbook.stations()))
         station = next(s for s in e.ctl.stationbook.stations() if s.call == "OH2ABC-7")
-        assert station.heard_on(id).count == 1 and station.heard_fm == 0 and (station.snr, station.rssi) == (6.25, -97.0)
+        assert station.heard_on(id).count == 1 and station.heard_on(FM_ID).count == 0 and (station.snr, station.rssi) == (6.25, -97.0)
         packet = next(p for p in await e.packets() if p.source == "OH2ABC-7")
         assert (packet.radio_id, packet.via, packet.snr, packet.rssi) == (id, "rf", 6.25, -97.0)
         assert radio.beacon.send_now(), radio.beacon.problem

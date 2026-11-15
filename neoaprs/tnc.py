@@ -33,8 +33,8 @@ from .dummyworlds import dummy_line, dummy_words
 from .interlock import Interlock
 from .mercury import frame_words, station_message
 from .packet import Packet
-from .radiorules import RadioRules
-from .radiotype import FM_ID, HF_ID, RadioId
+from .radiotype import FM_ID, HF_ID, RadioId, RadioType
+from .radiotypes import type_of
 from .reading import NO_READING, Reading
 from .policy import TNC_CHECK_SEC
 from .serialholders import held_by
@@ -94,7 +94,7 @@ def _describe(tnc: "Tnc") -> str:
         return f"{modem.describe()}, {tnc.stats.packets} packets"                 # (never the socket the modem is reached on: the page shows this line, the log has the ports)
     if tnc._port is None:
         return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
-    mode = "KISS" if tnc._reader.kiss_seen else "text" if tnc.profile.framing == "text" else ("entering KISS" if tnc._reader.entered else "listening")
+    mode = "KISS" if tnc._reader.kiss_seen else "text" if tnc.profile.framing == "text" else ("entering KISS" if tnc.entering_kiss else "listening")
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
 
 
@@ -125,7 +125,7 @@ class Tnc(TimedSource):
         self.where: Callable[[], tuple[float, float] | None] = lambda: None   # the station's position (latitude, longitude), for the Dummy radio's traffic to be made round it (set by app.py)
         self.interlock: Interlock | None = None                          # the transmit interlock (neoaprs/interlock.py, set by app.py): while it refuses, no frame is sent; none when not given
         self.modem: Modem | None = None                                  # the modem program behind the line of a `modem` profile (the Mercury HF modem, set by app.py): its hold, its words and its problem count while the profile is a modem's
-        self.radio_id: RadioId = HF_ID if profile.rules.kind == "hf" else FM_ID   # the radio it is the line of (radiotype.py), which its driver sets; until then today's by its kind: the FM radio 1, the HF radio 2
+        self.radio_id: RadioId = HF_ID if self.rtype.kind == "hf" else FM_ID     # the radio it is the line of (radiotype.py), which its driver sets; until then today's by its kind: the FM radio 1, the HF radio 2
         self.radio_name = ""                                             # the radio's name for the log (radiospec.log_name), which its driver sets: the log's `label`, by the kind until then
         self.fallback_probe, self._probe_next = fallback_probe, False    # a port that was named and cannot be opened: the next attempt listens to the ports that match the pattern instead
         self.backoff = backoff or Backoff()
@@ -245,17 +245,16 @@ class Tnc(TimedSource):
     @property
     def label(self) -> str:
         """What the log calls this radio: its name (`radio_name`, "FM", "HF 2", the operator's), and until its driver gives one `tnc` for the FM radio, `hf radio` for the HF one (each is a Tnc, and a line of the log must say which it is about)."""
-        return self.radio_name or ("hf radio" if self.rules.kind == "hf" else "tnc")
+        return self.radio_name or ("hf radio" if self.rtype.kind == "hf" else "tnc")
 
     @property
-    def rules(self) -> RadioRules:
-        """What the kind of radio allows and does (radiorules.py), the profile's."""
-        return self.profile.rules
+    def rtype(self) -> RadioType:
+        return type_of(self.profile.key)                                 # the type of radio its line is (neoaprs/radiotypes/, the one its profile's key names): its kind, its limits, what it is allowed
 
     @property
     def max_frame(self) -> int | None:
-        """The longest AX.25 frame the radio carries whole, in bytes; None when only the AX.25 limit holds. A frame over it is refused (`send_frame` says so in the terminal), never cut off."""
-        return self.profile.max_frame
+        """The longest AX.25 frame the radio carries whole, in bytes (its type's limit); None when only the AX.25 limit holds. A frame over it is refused (`send_frame` says so in the terminal), never cut off."""
+        return self.rtype.limits.max_frame
 
     def _on_lost(self, port: TncPort, reason: str) -> None:
         if port is not self._port:
@@ -276,7 +275,7 @@ class Tnc(TimedSource):
             self._reader.read(port, chunk)
 
     def _handle(self, kiss_frame: kiss.KissFrame) -> None:
-        if self.rules.kind == "hf" and station_message(kiss_frame.command, kiss_frame.payload):
+        if self.rtype.kind == "hf" and station_message(kiss_frame.command, kiss_frame.payload):
             self._reading()                                          # (what the modem said of this frame's signal is taken with it, and does not wait for the next frame)
             self._saw(f"another program's station message, not APRS: passed over ({len(kiss_frame.payload)} bytes)")      # (a HERMES beacon on the same frequency: neither a packet nor a fault of the line)
             return
@@ -289,7 +288,7 @@ class Tnc(TimedSource):
     def _take(self, packet: Packet, frame: ax25.Frame) -> None:
         self.stats.packets, self.stats.last_packet = self.stats.packets + 1, packet.heard_at
         self._saw(_printable(f"{frame.tnc2()}  ->  {packet.summary}"))
-        if self.rules.kind == "hf":
+        if self.rtype.kind == "hf":
             log.info("%s", frame_words("in", len(packet.raw), packet.source, packet.snr))
         self.packet.emit(packet)
 
@@ -319,6 +318,7 @@ class Tnc(TimedSource):
 
     describe, why_unusable = _describe, _why_unusable
     _looking, _entered = property(lambda self: self._reader.looking), property(lambda self: self._reader.entered)      # (what a test looks at)
+    entering_kiss = property(lambda self: self._port is not None and self._reader.entered and not self._reader.kiss_seen)      # the TNC is being put into KISS mode on this open: the entry sent, no KISS frame since
     is_dummy = property(lambda self: self.profile.transport == "dummy")      # the Dummy profile: it makes up traffic to try the program with, and every packet it hears or sends is marked `dummy` (packet.DUMMY), which never goes to the internet (packet.GATEABLE)
 
     def look_begin(self) -> bool:
@@ -379,10 +379,10 @@ class Tnc(TimedSource):
         port = self._port
         if not self.usable or port is None:
             self._note(f"not sent: {self.why_unusable()}")
-            if self.rules.kind == "hf":
+            if self.rtype.kind == "hf":
                 log.info("%s: a frame from %s (%d bytes) was not sent: %s", self.label, frame.source, len(raw), self.why_unusable())
             return False
-        if why := self.profile.too_long(raw, text_of(frame)):
+        if why := self.rtype.limits.too_long(raw, text_of(frame)):
             self._note(_printable(f"not sent: {why}: {frame.tnc2()}"))        # (the modem would cut it off, a LoRa board drop it, and neither says so; the parts that build frames shorten or refuse first, this is the last guard)
             log.warning("%s: a frame was not sent: %s", self.label, why)
             return False
@@ -390,7 +390,7 @@ class Tnc(TimedSource):
             return False
         packet = packet_of("out", raw, frame, self.now(), self.is_dummy, radio_id=self.radio_id)
         self._note(_printable(f"sent {frame.tnc2()}"))
-        if self.rules.kind == "hf":
+        if self.rtype.kind == "hf":
             log.info("%s", frame_words("out", len(raw), packet.source, None))
         self.packet.emit(packet)
         return True

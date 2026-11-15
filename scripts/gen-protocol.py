@@ -35,7 +35,6 @@ from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.cipher import MAX_LOCKED  # noqa: E402
 from neoaprs import mercury, mercuryscope  # noqa: E402
 from neoaprs.web import scopefeed  # noqa: E402
-from neoaprs.radiorules import FM, HF  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
@@ -45,8 +44,8 @@ from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
 from neoaprs.radiospec import MAX_NAME  # noqa: E402
-from neoaprs.radiotype import KINDS, RadioType  # noqa: E402
-from neoaprs.radiotypes import types_of  # noqa: E402
+from neoaprs.radiotype import HF_BEACON_MIN_MIN, KINDS, RadioType  # noqa: E402
+from neoaprs.radiotypes import DEFAULT_TYPE, type_of, types_of  # noqa: E402
 from neoaprs.versions import MAX_FREQUENCIES  # noqa: E402
 from neoaprs.services import generalask  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
@@ -261,7 +260,7 @@ def limits() -> dict[str, Any]:
         "range": ranges,
         "comment": {"max": MAX_COMMENT, "maxWithPhg": MAX_COMMENT_PHG},
         "status": {"max": MAX_STATUS},
-        "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN, "hfBeaconMinMin": HF.beacon_min_min},
+        "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN, "hfBeaconMinMin": HF_BEACON_MIN_MIN},
         "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY, "lockedMax": MAX_LOCKED},
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
         "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "rfOnly": RF_ONLY, "textMax": _path_text_max(), "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},
@@ -713,7 +712,7 @@ def _beacon_vector(changes: dict[str, str]) -> dict[str, Any]:
     values = {**BEACON_BASE, **changes}
     try:
         config = Config.checked(DEFAULTS, values)
-        text: str | None = Beacon(SimpleNamespace(max_frame=None, rules=FM), lambda: config).frame().tnc2()                 # type: ignore[arg-type]  (the frame needs no radio, only its rules, the FM radio's)
+        text: str | None = Beacon(SimpleNamespace(max_frame=None, rtype=type_of(DEFAULT_TYPE["fm"])), lambda: config).frame().tnc2()       # type: ignore[arg-type]  (the frame needs no radio, only its type, an FM radio's)
     except (ValueError, BeaconError):
         text = None
     return {"values": values, "text": text}

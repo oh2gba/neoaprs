@@ -127,12 +127,14 @@ def at_version_thirty(tmp_path: Path, rows: dict[str, str]) -> Path:
     return tmp_path
 
 
-def test_a_file_from_before_the_radios_were_rows_is_read_from_its_flat_keys_as_before(tmp_path: Path) -> None:
+def test_a_file_from_before_the_radios_were_rows_tells_its_rows_of_the_radios_as_they_are_stored(tmp_path: Path) -> None:
+    """The keys of before are no settings of this NeoAPRS: the rows are told as the file keeps them, for the migration to make the radios of (tests/support/bundledb.py)."""
     data = at_version_thirty(tmp_path, FLAT)
     stored = supportgather.read_stored(data)
     assert stored.rows == FLAT and stored.radios is None
     told = json.loads(supportgather.settings_json(stored.rows, stored.radios))
-    assert "radios" not in told and told["values"]["tnc/profile"] == "kantronics" and told["values"]["hf/enabled"] == "true" and "tnc/profile" not in told["defaults_are_used_for"]
+    assert "radios" not in told and told["other_rows"] == {key: value for key, value in FLAT.items() if key != "station/call"} and told["values"]["station/call"] == "OH2GBA"
+    assert not {"tnc/profile", "hf/enabled"} & (set(told["values"]) | set(told["defaults_are_used_for"])), "no key of before among the settings"
     assert told == json.loads(supportgather.settings_json(FLAT)), "the same as the settings alone say"
 
 
@@ -145,11 +147,11 @@ def test_a_radio_setting_that_is_wrong_is_told_as_stored_while_its_default_is_in
     stored = supportgather.read_stored(data)
     assert stored.radios is not None and stored.radios.problem == ""
     told = json.loads(supportgather.settings_json(stored.rows, stored.radios))
-    assert told["values"]["serial/baud"] == "" and told["stored_text_differs"] == {"serial/baud": "fast"}, "the value in force is the default, the text stored is told"
     fm = told["radios"][0]
-    assert (fm["id"], fm["log_name"], fm["type"], fm["values"]["baud"], fm["stored"]["baud"]) == (1, "FM", "kantronics", "", "fast")
-    assert told["radios"][1]["stored"] == {"keying": "vox"} and told["values"]["mercury/keying"] == "vox"
-    assert supportgather.config_of(stored.rows, stored.radios).tnc_profile == "kantronics"
+    assert (fm["id"], fm["log_name"], fm["type"], fm["values"]["baud"], fm["stored"]["baud"]) == (1, "FM", "kantronics", "", "fast"), "the value in force is the default, the text stored is told"
+    assert told["radios"][1]["stored"] == {"keying": "vox"} and told["radios"][1]["values"]["keying"] == "vox" and told["stored_text_differs"] == {}
+    spec = supportgather.config_of(stored.rows, stored.radios).radio(1)
+    assert spec is not None and spec.type == "kantronics"
 
 
 def test_radios_that_cannot_be_read_are_told_and_the_settings_still_are(tmp_path: Path) -> None:

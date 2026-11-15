@@ -26,10 +26,10 @@ from neoaprs.mercury import DELIVERY_SEC
 from neoaprs.mercuryspeaker import BLOCK_BYTES, SILENCE, SpeakerAudio, player_command
 from neoaprs.packet import Position
 from neoaprs.mercurydriver import MercuryDriver
-from neoaprs.radiorules import HF_BEACON_JITTER_SEC
 from neoaprs.radioregistry import driver_key
-from neoaprs.radios import hf_is_mercury
 from neoaprs.radiospec import FM_ID, HF_ID
+from neoaprs.radiotype import HF_BEACON_JITTER_SEC
+from neoaprs.radiotypes import type_of
 from neoaprs.source import Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncmode import read_frame
@@ -55,7 +55,7 @@ def play(scene: HfScene, seconds: int, step: int = 5) -> list[tuple[int, ax25.Fr
 
 def test_the_profile_is_the_hf_radios_second_type_with_the_rules_of_hf_and_no_line() -> None:
     assert HF_PROFILES == (MERCURY, DUMMY_HF) and hf_profile_of("dummy-hf") is DUMMY_HF and hf_profile_of(" mercury ") is MERCURY
-    assert DUMMY_HF.transport == "dummy" and DUMMY_HF.rules.kind == "hf" and DUMMY_HF.max_frame == 123 and not DUMMY_HF.can_probe and DUMMY_HF.baud is None
+    assert DUMMY_HF.transport == "dummy" and type_of(DUMMY_HF.key).kind == "hf" and type_of(DUMMY_HF.key).limits.max_frame == 123 and not DUMMY_HF.can_probe and DUMMY_HF.baud is None
     with pytest.raises(Exception, match="not a type of the HF radio") as refused:
         hf_profile_of("dummy")
     assert getattr(refused.value, "code", "") == "setting.not_hf_profile"
@@ -68,10 +68,10 @@ def test_the_stations_are_fixed_hundreds_of_kilometres_away_on_the_q_prefix_and_
     assert calls == {s.call for s in STATIONS} and all(c.startswith("Q") and 4 <= len(c) <= 6 for c in calls)
     for _, frame in frames:
         [kiss_frame] = kiss.KissDecoder().feed(kiss.encode(ax25.encode(frame)))
-        read = read_frame(kiss_frame, START, True, "hf")
+        read = read_frame(kiss_frame, START, True, radio_id=HF_ID)
         assert not isinstance(read, str), read
         packet = read[0]
-        assert packet.via == "dummy" and packet.radio == "hf" and frame.path == () and isinstance(packet.decoded, Position)
+        assert packet.via == "dummy" and packet.radio_id == HF_ID and frame.path == () and isinstance(packet.decoded, Position)
         assert 140 < distance_km(*HELSINKI, packet.decoded.lat, packet.decoded.lon) < 1200
         assert packet.decoded.course_deg is None and packet.decoded.speed_kmh is None and packet.decoded.messaging, "a fixed station that takes messages"
 
@@ -134,9 +134,9 @@ async def test_the_tnc_with_the_dummy_hf_profile_hears_the_stations_on_the_radio
     spoken = Spoken()
     tnc.modem = spoken                                                           # type: ignore[assignment]
     heard: list[tuple[str, str, str, str]] = []
-    tnc.packet.connect(lambda p: heard.append((p.direction, p.source, p.via, p.radio)))
+    tnc.packet.connect(lambda p: heard.append((p.direction, p.source, p.via, p.radio_id)))
     await tnc.start()
-    assert tnc.state is Source.State.CONNECTED and tnc.usable and tnc.is_dummy and tnc.rules.kind == "hf" and tnc.max_frame == 123
+    assert tnc.state is Source.State.CONNECTED and tnc.usable and tnc.is_dummy and tnc.rtype.kind == "hf" and tnc.max_frame == 123
     await until_started(lambda: tnc.confirmed)
     assert tnc.send_frame(from_us(b":Q3TKU    :Hello{5"))
     for _ in range(40):
@@ -144,7 +144,7 @@ async def test_the_tnc_with_the_dummy_hf_profile_hears_the_stations_on_the_radio
         await asyncio.sleep(0.02)
     await tnc.stop()
     assert len(spoken.frames) == 1 and spoken.frames[0].startswith(b"\xc0"), "what we sent went to the speaker as KISS bytes"
-    assert {s for d, s, _, _ in heard if d == "in"} >= {"Q3TKU", "Q5OUL"} and all(v == "dummy" and r == "hf" for _, _, v, r in heard)
+    assert {s for d, s, _, _ in heard if d == "in"} >= {"Q3TKU", "Q5OUL"} and all(v == "dummy" and r == HF_ID for _, _, v, r in heard)
     assert any(d == "in" and s == "Q3TKU" for d, s, _, _ in heard) and tnc.stats.rejected == 0
     assert tried == [] and "dummy HF radio" in tnc.describe() and "nothing goes on the air" in tnc.describe()
 
@@ -157,7 +157,7 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     e.mercury._finder = fakemercury.program                                 # (the program that stands in for Mercury: it keeps what its KISS port is given)
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
-    assert e.hf.is_dummy and e.hf.rules.kind == "hf" and not hf_is_mercury(e.ctl.config)
+    assert e.hf.is_dummy and e.hf.rtype.kind == "hf" and e.hf.rtype.transport == "dummy" and not e.hf.rtype.can.tune, "the Dummy HF radio: no Mercury of its own to tune"
     radio = e.ctl.radios.get(HF_ID)
     assert radio is not None and radio.rtype.dummy and radio.rtype.driver == "mercury" and driver_key(radio.spec) == radio.driver_key == "mercury" and isinstance(radio.driver, MercuryDriver), "the modem's driver runs it: the program is its speaker"
     assert radio.line is e.hf and radio.driver.modem is e.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.main is radio and (radio.name, radio.max_frame) == ("HF", 123)
@@ -177,7 +177,7 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
         if len(heard) >= 4 and (not speaking or e.mercury.speaker_line.played >= 1):
             break
     stations = [s for s in e.ctl.stationbook.stations() if s.call.startswith("Q")]
-    assert len(stations) >= 4 and all(s.heard_hf > 0 and s.heard_fm == 0 for s in stations)
+    assert len(stations) >= 4 and all(s.heard_on(HF_ID).count > 0 and s.heard_on(FM_ID).count == 0 for s in stations)
     if speaking:
         assert e.mercury.speaker_line.played >= 1, "the beacon went to the speaker"
         await until_started(lambda: (e.mercury.home / fakemercury.BROADCAST_FILE).exists() and (e.mercury.home / fakemercury.BROADCAST_FILE).stat().st_size > 0)
@@ -200,7 +200,7 @@ async def test_in_the_hf_world_a_dummy_station_hears_the_made_up_stations_and_no
     for _ in range(30):
         d.now.advance(5)                                                         # type: ignore[attr-defined]
         await asyncio.sleep(0.02)
-    assert any(s.call.startswith("Q") and s.heard_hf > 0 for s in d.ctl.stationbook.stations())
+    assert any(s.call.startswith("Q") and s.heard_on(HF_ID).count > 0 for s in d.ctl.stationbook.stations())
     assert w.air.delivered == [] and not any(s.call == "OH2D" for s in a.ctl.stationbook.stations()) and not any(s.call == "OH2D" for s in b.ctl.stationbook.stations())
     await d.stop()
 

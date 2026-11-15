@@ -7,10 +7,12 @@ A radio's own settings (`radio/<id>/<key>`) are read from the types' field lists
 and 2 that is its view (configradios.FLAT_HOMES), or it is listed in `NOT_YET_ON_THE_PAGE` with why that blocks nothing."""
 import re
 
-from neoaprs.cli.radiosettings import FLAT_KEY_OF
 from neoaprs.config import SETTINGS
+from neoaprs.configradios import FLAT_HOMES
 from neoaprs.radiotypes import TYPES
 from tests.conftest import ROOT
+
+KEY_OF_BEFORE = {FLAT_HOMES[s.attr]: s.key for s in SETTINGS if s.attr in FLAT_HOMES}      # (radio, its column or own key) -> the key of before that is its view in Config (configradios.FLAT_HOMES)
 
 SETTINGS_TS = ROOT / "ui" / "src" / "lib" / "settings.ts"
 
@@ -84,7 +86,7 @@ def field_keys() -> set[str]:
 
 def on_the_page(key: str) -> bool:
     """Whether a radio's field is on the page: the flat key that is its view, for some radio, is a setting the page shows."""
-    return any(own == key and flat not in page_leaves_out() and flat not in NOT_ON_THE_PAGE for (_, own), flat in FLAT_KEY_OF.items())
+    return any(own == key and flat not in page_leaves_out() and flat not in NOT_ON_THE_PAGE for (_, own), flat in KEY_OF_BEFORE.items())
 
 
 def test_every_field_of_every_type_is_on_the_page_or_listed_here_with_its_reason() -> None:

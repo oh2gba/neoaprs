@@ -6,6 +6,7 @@
 - **New:** packets heard by a LoRa APRS board show their signal strength and signal-to-noise ratio where the board says them.
 - **New:** radios on Bluetooth LE work from the downloads.
 - **New:** `neoaprs db radios` lists the radios, `neoaprs db set radio/1/port ...` sets one of their settings, and `neoaprs doctor` names each radio.
+- **New:** a new installation starts with no radio; `neoaprs db radios add TYPE` adds one from the command line.
 - **New:** the page speaks Nederlands.
 - **New:** Yaesu FTM radios and TNCs not in KISS can be listened to: an RX only radio type shows and gates what they hear.
 - **New:** a right-click on the monitor card sets how fast its waterfall scrolls.

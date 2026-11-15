@@ -1,12 +1,12 @@
 """What the services that send share: `ConfigSource` (how they read the settings), `transmit_refusal` and `our_call` (why nothing may be sent, and the call we may send under), and the two shapes of the
 radios. The new one is services/radioset.py's: `RadioPick` (the radios by id, the enabled ones, the main one, the station's, the one a packet came on) and `AirRadio`, and its `fit` makes every frame of the
-sender, our objects and bulletins and the digipeater. `as_pick` gives an old shape as the new one (`OldRadios`: the set of neoaprs/radios.py with the choice by station, by packet and by kind, or one plain
+sender, our objects and bulletins and the digipeater. `as_pick` gives an old shape as the new one (`OldRadios`: an old set of two radios with the choice by station, by packet and by kind, or one plain
 `Radio`, each radio an `OldAir`): app.py gives every service the registry, and the old shapes come only from the tests (tests/support/rig.py, the cases of the old set). The old shapes and their choice of
-a message's radio (`Radio`, `RadioSet`, `radio_to`, `message_radio`: tests/test_seams.py holds the email rule of neoaprs/emailrule.py to it) stay until those tests go; `our_frame` and `fit_frame` (the frame
+a message's radio (`Radio`, `RadioSet`, `radio_to`, `message_radio`) stay while the tests give old shapes (no service calls `radio_to` or `message_radio`: the refusal of the latter is one of the texts of
+`message.email_fm_off` in the page's list of refusals, which this cut does not change); `our_frame` and `fit_frame` (the frame
 shortened to what a radio with a fixed frame carries: the Mercury HF modem's 123 bytes) are services/radioset.py's, given here under their old names. The rule every service follows: a frame is built for,
 gated by and sent on *its* radio, the one the station is reached on or the one the request came on, never "the radio" of a station that has two."""
 from collections.abc import Callable, Sequence
-from dataclasses import replace
 from typing import Any, Protocol, TypeGuard, cast, runtime_checkable
 
 from neoaprs import ax25
@@ -14,11 +14,9 @@ from neoaprs.coded import CodedError
 from neoaprs.config import Config, can_transmit
 from neoaprs.message import EMAIL_GATEWAY, MessagingError
 from neoaprs.packet import Packet
-from neoaprs.radiorules import RadioRules
 from neoaprs.radiospec import log_name
-from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, radio_id_of
+from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, RadioType
 from neoaprs.radiotypes import kind_field
-from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick
 from neoaprs.services.radioset import FRAME_ERRORS as FRAME_ERRORS, fit_frame as fit_frame, fixed_prefix as fixed_prefix, our_frame as our_frame     # (the parts of the one fit function, under their old names)
 from neoaprs.source import Source
@@ -29,7 +27,7 @@ Paths = Callable[[str, int | None, RadioId], tuple[str, ...]]       # the digipe
 
 
 class Radio(Protocol):
-    """What the services need of the Tnc."""
+    """What the services need of the Tnc: its type (its kind, its limits, what it is allowed) and its line."""
     @property
     def state(self) -> Source.State: ...
     @property
@@ -37,14 +35,14 @@ class Radio(Protocol):
     @property
     def max_frame(self) -> int | None: ...
     @property
-    def rules(self) -> RadioRules: ...
+    def rtype(self) -> RadioType: ...
     def why_unusable(self) -> str: ...
     def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool: ...
 
 
 @runtime_checkable
 class RadioSet(Radio, Protocol):
-    """The radios of the station as a service that answers stations sees them (neoaprs/radios.py): itself the default radio (FM while it is on, else HF), and the choice of the radio a station is reached on, or
+    """The radios of the station as a service that answers stations saw them before the registry (a test's set of two, tests/support/stubtnc.py): itself the default radio (FM while it is on, else HF), and the choice of the radio a station is reached on, or
     the one a packet came on. A service that never chooses takes a plain Radio."""
     def for_station(self, call: str) -> Radio: ...
     def for_packet(self, packet: Packet) -> Radio: ...
@@ -72,9 +70,8 @@ def message_radio(radio: Radio, to: str) -> Radio:
 # ---- the old shapes as the new one, for the tests that still give one
 
 class OldAir:
-    """An old Radio (a Tnc, the old set as its default radio, a test's stub) as an AirRadio: its id and kind by its rules' kind (fm 1, hf 2), its limits and what it is allowed from its rules, its own choices
-    from the station's radio of that id (the FM radio's where its kind has no such field: the one beacon/path and digi/enabled of today were the station's), its counters its line's. It keeps `rules`, as the
-    registry's radios do until the old shapes go."""
+    """An old Radio (a Tnc, the old set as its default radio, a test's stub) as an AirRadio: its id by its type's kind (fm 1, hf 2), its kind, its limits and what it is allowed its type's, its own choices
+    from the station's radio of that id (the FM radio's where its kind has no such field: the one beacon/path and digi/enabled of today were the station's), its counters its line's."""
 
     def __init__(self, radio: Radio, config: ConfigSource) -> None:
         self.radio, self._config = radio, config
@@ -82,16 +79,16 @@ class OldAir:
         self._stats = found if isinstance(found, TncStats) else TncStats()
 
     @property
-    def rules(self) -> RadioRules:
-        return self.radio.rules
+    def rtype(self) -> RadioType:
+        return self.radio.rtype
 
     @property
     def id(self) -> RadioId:
-        return radio_id_of(self.radio.rules.kind) or FM_ID
+        return HF_ID if self.kind == "hf" else FM_ID
 
     @property
     def kind(self) -> Kind:
-        return cast(Kind, self.radio.rules.kind)
+        return self.radio.rtype.kind
 
     @property
     def name(self) -> str:
@@ -101,13 +98,11 @@ class OldAir:
 
     @property
     def limits(self) -> Limits:
-        r = self.radio.rules
-        return Limits(r.max_frame, r.beacon_min_min, r.beacon_jitter_sec, r.retry_jitter_sec)
+        return self.radio.rtype.limits
 
     @property
     def allowed(self) -> Allowed:
-        r = self.radio.rules
-        return replace(FM_ALLOWED if r.kind == "fm" else HF_ALLOWED, paths=r.paths, digipeat=r.digipeat, smart_beacon=r.smart_beacon)
+        return self.radio.rtype.allowed
 
     @property
     def stats(self) -> TncStats:
@@ -140,7 +135,7 @@ class OldAir:
 
 
 class OldRadios:
-    """The old shapes as a RadioPick: the set of neoaprs/radios.py (its enabled radios, the one of a kind while it is enabled, its default radio as the main one: FM while it is on, else HF, else the FM one
+    """The old shapes as a RadioPick: an old set of two (its enabled radios, the one of a kind while it is enabled, its default radio as the main one: FM while it is on, else HF, else the FM one
     stopped, as today), or one plain Radio (a test's stub) that is every choice. Each radio is one OldAir for as long as this lives."""
 
     def __init__(self, radios: Radio, config: ConfigSource) -> None:

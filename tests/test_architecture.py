@@ -26,12 +26,12 @@ from neoaprs.radiotype import KINDS
 from tests.support.codemap import Import, Tree, connect_sites, find_cycle, forbidden_names, import_graph, load_tree, module_name, sql_sites, sql_strings
 
 LAYERS: dict[str, list[str]] = {
-    "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "units", "recent", "callsign", "geo", "pmtilesformat", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmiceout", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsisline", "aprsextension", "aprsfreq", "aprsstorm", "aprslocator", "aprstelemetry", "aprsnmea", "gpsfix", "smartbeacon", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "reach", "chain", "mapstate", "radiosearch", "serialboards", "versions", "skeds", "updateasset", "releasenotes", "device", "devicedata", "hourcount", "dummyroutes", "dummyframes", "dummyscene", "dummyhfscene", "dummyqru", "igaterules", "cipher", "mercury", "mercurycards", "mercuryscope", "channelbusy", "radiorules", "reading", "bundled", "radiotype", "tnc2line", "tnc2text", "dummylorascene", "lorasignal"],
+    "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "units", "recent", "callsign", "geo", "pmtilesformat", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmiceout", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsisline", "aprsextension", "aprsfreq", "aprsstorm", "aprslocator", "aprstelemetry", "aprsnmea", "gpsfix", "smartbeacon", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "reach", "chain", "mapstate", "radiosearch", "serialboards", "versions", "skeds", "updateasset", "releasenotes", "device", "devicedata", "hourcount", "dummyroutes", "dummyframes", "dummyscene", "dummyhfscene", "dummyqru", "igaterules", "cipher", "mercury", "mercurycards", "mercuryscope", "channelbusy", "reading", "bundled", "radiotype", "tnc2line", "tnc2text", "dummylorascene", "lorasignal"],
     "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "configvalues", "interlock", "station", "stationnotes", "stationbook", "aloha", "ownobject", "ownbulletin", "qrutext", "configradios", "radiospec", "messagerule", "beaconrule", "emailrule", "claims", "stationchoices"],
     "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncport", "callbackport", "dummyline", "dummyworlds", "tncsearch", "tncwatchdog", "tncentry", "tncfollow", "tnclines", "tncreader", "tnctextreader", "childenv", "rigctld", "gpsfeed", "aprsis", "pmtilesarchive", "pmtilesplan", "pmtilesrange", "pmtilescut", "worldmap", "updatefetch", "updatedownload", "selfreplace", "mercuryhelper", "mercurycontrol", "mercurymodem", "mercuryclaims", "mercurychannel", "mercuryscoping", "mercuryui", "websocketclient", "mercuryspeaker", "mercurytune", "httpstrust", "nodevices", "radiodriver", "tncdriver", "mercurydriver", "loraboard", "loralist"],
     "persistence": ["store", "migrations", "migrationlog", "migrationsteps1to11", "migrationsteps12to21", "migrationsteps22on", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog", "supportsql", "stationsql", "radiosql", "migrationsteps31", "migrationsteps32"],
     "services": [],
-    "app": ["controller", "app", "wiring", "radios", "radioregistry", "radioedits"],
+    "app": ["controller", "app", "wiring", "radioregistry", "radioedits"],
     "delivery": ["__main__", "daemon"],
 }
 # The modules of the radio round that are placed before they are written (work/par/round/breakdown.md, section 2.1: a later package adds no layer line); a name leaves this set when its module exists.
@@ -143,50 +143,45 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
 SHELL_LINES = {"neoaprs/services/alerts.py": 1}         # the places a shell is given a line to run, with how many: the alert command and nothing else, ever
 
 # A radio is named by its id and asks its type what it may do (plan §2): `fm` and `hf` are words of a kind, and they name one only in the descriptions of the types (TYPE_MODULES). Anywhere else the word
-# as a string ("hf"), the ids of the two radios of before (FM_ID, HF_ID) or a name with fm or hf as one of its parts (`hf_port`, `heard_fm`, `HF_PROFILES`) is a radio or a kind named where the radio
+# as a string ("hf"), the ids of the two radios of before (FM_ID, HF_ID) or a name with fm or hf as one of its parts (`hf_port`, `fm_enabled`, `HF_PROFILES`) is a radio or a kind named where the radio
 # should have been asked: a third kind would have to be written into that place. So is the word "lora" as a string, and radio 1 or 2 named by its number. RADIO_WORDS is every file where that is so
 # today, with how many (exact, so it only shrinks), who takes them out, and why: "W3" takes out what the steps of the round kept for the page and the code of before (the files of W3's entry: its aliases,
-# views, old fields, topics, RadioRules, radios.py and the stand-in); "open" is the same kind of thing in a file W3's entry does not name (radio 1 as the default where nothing names a radio, the run's
+# views, old fields, topics, the rules of a kind beside its type, the set of two radios and the stand-in); "open" is the same kind of thing in a file W3's entry does not name (radio 1 as the default where nothing names a radio, the run's
 # overrides of radios 1 and 2), whose owner the coordinator gives (W3, or the pass over the whole code); "kept" is what stays for good (the frozen migration steps read the words the database of before stored).
 TYPE_MODULES = ("neoaprs/radiotype.py", "neoaprs/radiotypes/")
 NOT_A_RADIO = {"hf_dial", "HF_DIAL", "DUMMY_HF"}         # the dial of the HF tests the version page names (services/updatecheck.py), a band's; the Dummy HF type's profile, a type's own name
 RADIO_WORDS: dict[str, tuple[int, str, str]] = {
     "neoaprs/app.py": (4, "W3", "radio 1 and 2's lines and Mercury made by the process before the settings are read (`hf`, `hf_port`, FM_ID, HF_ID)"),
-    "neoaprs/config.py": (6, "W3", "the flat key hf/profile, the state row hf/beacon_last_sent_at and radio 1's serial/last_port by FM_ID"),
+    "neoaprs/config.py": (7, "W3", "the flat key hf/profile, the state row hf/beacon_last_sent_at, radio 1's serial/last_port and beacon_path_calls (radio 1's own path, which the frozen tests read) by FM_ID"),
     "neoaprs/configradios.py": (40, "W3", "the flat keys' view of radios 1 and 2 (FLAT_HOMES, FLAT_KINDS, FLAT_ON, the default radios)"),
     "neoaprs/configvalues.py": (3, "W3", "the parser of the flat key hf/profile"),
     "neoaprs/controller.py": (10, "W3", "the names of radio 1 and 2's task and beacon, _hf_settings, hf_port"),
     "neoaprs/daemon.py": (1, "open", "--hf-port, the Mercury of radio 2 that something else runs"),
     "neoaprs/dummyhfscene.py": (2, "kept", "the Dummy HF type's own world, with the random pause of its kind's beacons"),
-    "neoaprs/mercurydriver.py": (14, "open", "radio 2's run override (hf_port), the flat hf_settings and hf_words of radio 2, the profiles by kind (HF_BY_KEY)"),
-    "neoaprs/mercurymodem.py": (4, "open", "radio 2 as the default holder of the modem's claims and of the folder of the one HF radio of before"),
+    "neoaprs/mercurydriver.py": (4, "open", "the run override hf_port and the profiles by kind (HF_BY_KEY)"),
+    "neoaprs/mercurymodem.py": (6, "open", "radio 2 as the default holder of the modem's claims and of the folder of the one HF radio of before, and radio 1's own port left out of the keying lines (FM_ID)"),
     "neoaprs/messagelog.py": (3, "open", "radio 1 as the default radio of a station's path (FM_ID)"),
     "neoaprs/messagesql.py": (2, "open", "radio 1 as the default radio of a station's entry read and kept (radio_id=1)"),
     "neoaprs/migrationsteps31.py": (35, "kept", "the frozen step 31 reads the flat keys and the words of before (fm, hf) and makes radios 1 and 2 of them"),
     "neoaprs/migrationsteps32.py": (3, "kept", "the frozen step 32 maps the stored words of before to the radios' ids"),
-    "neoaprs/ownobject.py": (19, "W3", "an object's old word for its radios (fm, hf, both) and radio 1 as its default set"),
-    "neoaprs/packet.py": (8, "W3", "the old view Packet.radio (fm, hf)"),
-    "neoaprs/radiodriver.py": (1, "open", "RunOverrides.hf_port, radio 2's"),
-    "neoaprs/radioedits.py": (22, "open", "the seed of radios 1 and 2 from the flat keys, and radio 2 kept for an HF radio added where there is none"),
-    "neoaprs/radiorules.py": (15, "W3", "RadioRules and its FM, HF and LoRa values; the numbers stay when it goes (they are the types', with their reasons)"),
-    "neoaprs/radios.py": (42, "W3", "the module of before (two Tnc's by kind), kept for the tests"),
+    "neoaprs/ownobject.py": (3, "W3", "radio 1 as an object's default set (FM_ID)"),
+    "neoaprs/radiodriver.py": (3, "open", "RunOverrides.hf_port, and radio 2 as the radio it is given to in a RunOverrides made by hand (HF_ID)"),
+    "neoaprs/radioedits.py": (3, "open", "the run's ports (--port radio 1's, --hf-port), which the start's log tells of"),
+    "neoaprs/radioregistry.py": (4, "W3", "the log's words of radios 1 and 2's lines, `tnc` and `hf radio` (id in (FM_ID, HF_ID))"),
     "neoaprs/radiospec.py": (5, "open", "the re-exports of FM_ID and HF_ID, and the kinds' English words by kind (KIND_WORDS, whose place is beside KINDS)"),
-    "neoaprs/radiosql.py": (1, "W3", "the stand-in of a database without radios moves radio 2's rows when radio 2 is among those it writes (id == 2)"),
     "neoaprs/services/answers.py": (4, "open", "radios 1 and 2 named by their kind in an answer (radio.id in (FM_ID, HF_ID))"),
-    "neoaprs/services/beaconframe.py": (16, "W3", "the line of before (OldLine: a Tnc's kind as its radio's), radio 1's path for a radio of a kind with none"),
-    "neoaprs/services/common.py": (18, "W3", "Radio and RadioSet of before (of('fm'), FM_ALLOWED or HF_ALLOWED by kind, radio 1's path)"),
+    "neoaprs/services/beaconframe.py": (11, "W3", "the line of before (OldLine: a Tnc's kind as its radio's), radio 1's path for a radio of a kind with none"),
+    "neoaprs/services/common.py": (15, "W3", "Radio and RadioSet of before (of('fm'), FM_ALLOWED or HF_ALLOWED by kind, radio 1's path)"),
     "neoaprs/services/digipeater.py": (2, "open", "a packet with no radio counted as radio 1's"),
     "neoaprs/services/ownobjects.py": (3, "open", "a new object's old word fm and radio 1 as its default"),
-    "neoaprs/services/prefbook.py": (12, "open", "radio 1's path kept in the station's entry of before (FM_ID as the default radio)"),
+    "neoaprs/services/prefbook.py": (13, "open", "radio 1's path kept in the station's entry of before (FM_ID as the default radio, and radio 1's own path for a radio with none)"),
     "neoaprs/services/radiofinder.py": (2, "open", "radio 1 when the page names no radio"),
-    "neoaprs/station.py": (18, "W3", "the views heard_fm, heard_hf, last_fm_at, last_hf_at"),
     "neoaprs/stationbook.py": (2, "open", "radio 1 as the radio of a packet with none"),
-    "neoaprs/stationchoices.py": (4, "W3", "today's two radios as the choices there are (TWO_RADIOS)"),
-    "neoaprs/stationnotes.py": (4, "open", "radio 2 kept out of the route (HF_ID) and a packet with no radio as radio 1's"),
+    "neoaprs/stationnotes.py": (2, "open", "a packet with no radio as radio 1's"),
     "neoaprs/tnc.py": (10, "W3", "a Tnc's kind decides Mercury's station messages, the log's words and its label, and its radio before its driver names one (rules.kind == 'hf', FM_ID, HF_ID)"),
-    "neoaprs/tncdriver.py": (4, "open", "radio 1's port of the run and serial/last_port (FM_ID)"),
+    "neoaprs/tncdriver.py": (3, "open", "radio 1's port of the run and serial/last_port (FM_ID)"),
     "neoaprs/tncmode.py": (3, "open", "radio 1 as the default radio of a frame read"),
-    "neoaprs/tncprofile.py": (13, "W3", "the profiles by kind (HF_PROFILES, HF_BY_KEY, hf_profile_of, HF_DEFAULT) and the RadioRules of each (FM, HF)"),
+    "neoaprs/tncprofile.py": (8, "W3", "the profiles by kind (HF_PROFILES, HF_BY_KEY, hf_profile_of, HF_DEFAULT)"),
     "neoaprs/tncsearch.py": (2, "open", "radio 1 as the default holder of a search"),
     "neoaprs/web/handlers.py": (4, "W3", "radio 1 where the page names none: Find my radio's and a station's path (FM_ID, imported and used three times)"),
     "neoaprs/web/tncwire.py": (3, "W3", "RadioRow.kind spells the three kinds out (fm, hf, lora) where radiotype.Kind would do"),
@@ -724,9 +719,9 @@ def test_a_flush_and_a_before_write_are_found_wherever_they_hide() -> None:
 
 def test_a_radio_named_by_fm_or_hf_is_found_in_a_string_an_id_and_a_name_and_not_in_prose_a_type_module_another_word_or_the_band(monkeypatch: pytest.MonkeyPatch) -> None:
     tree = {"neoaprs/a.py": '"""Sent on the hf radio: prose."""\nfrom .radiotype import FM_ID\nif radio.kind == "hf" and radio.id == FM_ID:\n    ctl.hf_port.close()\n',
-            "neoaprs/b.py": "def start_hf(fm, *, heard_fm=0):\n    return HfScene, offhand, half, f'{kind} hf', 'HF', HF\n",
+            "neoaprs/b.py": "def start_hf(fm, *, fm_count=0):\n    return HfScene, offhand, half, f'{kind} hf', 'HF', HF\n",
             "neoaprs/c.py": "x = updatecheck.hf_dial or HF_DIAL\n", "neoaprs/radiotypes/dummy.py": "TYPE = ('hf', HF_LIMITS)\n", "neoaprs/radiotype.py": "Kind = Literal['fm', 'hf']\n"}
-    assert radio_words(tree) == {"neoaprs/a.py": 4, "neoaprs/b.py": 4}      # a: the alias and the use of FM_ID, "hf", hf_port; b: start_hf, fm, heard_fm, HF (HfScene, half and the texts are no word of a kind)
+    assert radio_words(tree) == {"neoaprs/a.py": 4, "neoaprs/b.py": 4}      # a: the alias and the use of FM_ID, "hf", hf_port; b: start_hf, fm, fm_count, HF (HfScene, half and the texts are no word of a kind)
     monkeypatch.setattr(sys.modules[__name__], "RADIO_WORDS", {"neoaprs/a.py": (4, "W3", "a made-up file that is listed as it is"), "neoaprs/b.py": (5, "W3", "a made-up file that named one more before"),
                                                                "neoaprs/gone.py": (2, "W3", "a made-up file that names none any more")})
     assert radio_words_not_as_listed(radio_words(tree)) == {"neoaprs/b.py": "names a radio by fm or hf 4 times; RADIO_WORDS says 5", "neoaprs/gone.py": "names a radio by fm or hf 0 times; RADIO_WORDS says 2"}

@@ -1,12 +1,11 @@
-"""The types of radio (neoaprs/radiotype.py, the registry neoaprs/radiotypes/): each type is a TNC profile and the rules of its kind field by field (radiorules.rules_of gives the RadioRules back), the
+"""The types of radio (neoaprs/radiotype.py, the registry neoaprs/radiotypes/): each type is a TNC profile, of the kind of the list it is in, with the limits and the rules of its kind field by field, the
 fields are today's flat settings with their defaults, ranges and parsers, the page's order of each kind is today's, a radio of a kind may store the fields of all its types, and an unknown type is refused."""
 from dataclasses import replace
 
 import pytest
 
 from neoaprs.config import DEFAULTS, RANGES, Config
-from neoaprs.radiorules import FM, HF, LORA, rules_of
-from neoaprs.radiotype import FM_ID, HF_ID, KINDS, LOCAL_KINDS, Can, RadioTypeError, radio_id_of, stored_text
+from neoaprs.radiotype import FM_ID, HF_ID, KINDS, LOCAL_KINDS, Can, Limits, RadioTypeError, radio_id_of, stored_text
 from neoaprs.radiotypes import BY_KEY, COMMON_FIELDS, DEFAULT_TYPE, TYPES, kind_field, kind_fields, type_of, types_of
 from neoaprs.tncprofile import DEFAULT, DUMMY_HF, EVERY_BY_KEY, HF_DEFAULT, HF_PROFILES, LORA_PROFILES, PROFILES
 
@@ -20,11 +19,12 @@ def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field()
     assert set(BY_KEY) == set(profiles) and len(TYPES) == len(profiles), "one type for each entry of the lists of profiles"
     for t in TYPES:
         p = profiles[t.key]
-        assert (t.kind, t.name, t.transport, t.profile, t.text) == (p.rules.kind, p.name, p.transport, p.key, f"radio.type.{p.key}"), t.key
-        kind = {"fm": FM, "hf": HF, "lora": LORA}[t.kind]
-        assert rules_of(t) == p.rules == (kind if t.can.transmit else replace(kind, paths=False, digipeat=False, smart_beacon=False)), f"{t.key}: a radio that sends nothing is allowed nothing that sends"
-        assert (t.limits.max_frame, t.limits.beacon_min_min, t.limits.beacon_jitter_sec, t.limits.retry_jitter_sec) == (p.rules.max_frame, p.rules.beacon_min_min, p.rules.beacon_jitter_sec, p.rules.retry_jitter_sec)
-        assert (t.allowed.paths, t.allowed.digipeat, t.allowed.smart_beacon) == (p.rules.paths, p.rules.digipeat, p.rules.smart_beacon)
+        kind = "hf" if p in HF_PROFILES else "lora" if p in LORA_PROFILES else "fm"
+        assert (t.kind, t.name, t.transport, t.profile, t.text) == (kind, p.name, p.transport, p.key, f"radio.type.{p.key}"), t.key
+        assert type_of(p.key) is t, f"{p.key}: a profile's key is its type's (a Tnc's rtype)"
+        assert t.limits == {"hf": Limits(123, 30, 300, 20), "lora": Limits(250, 30, 300, 20, 252, max_kiss=256), "fm": Limits(None, 20, 0, 0)}[kind], t.key
+        sends = {"hf": (False, False, False), "lora": (True, False, True), "fm": (True, True, True)}[kind]
+        assert (t.allowed.paths, t.allowed.digipeat, t.allowed.smart_beacon) == (sends if t.can.transmit else (False, False, False)), f"{t.key}: a radio that sends nothing is allowed nothing that sends"
         assert (t.allowed.gateway_heard, t.allowed.shared_channel) == ((t.kind != "hf", t.kind == "fm") if t.can.transmit else (False, False)), "internet gateways hear FM and LoRa; the ALOHA circle is FM's 1200 baud alone; neither for a radio that sends nothing"
         assert t.driver == ("mercury" if p.transport == "modem" or p is DUMMY_HF else "tnc") and t.dummy == (p.transport == "dummy")
 

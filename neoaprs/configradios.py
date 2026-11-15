@@ -15,7 +15,7 @@ from .coded import CodedError
 from .packetcodec import parse_stamp
 from .radiospec import FM_ID, HF_ID, RadioError, RadioId, RadioSpec, enabled, live, main_radio, senders
 from .radiotype import KINDS, Kind, stored_text
-from .radiotypes import DEFAULT_TYPE, kind_field, kind_fields
+from .radiotypes import DEFAULT_TYPE, kind_field, kind_fields, recommended_path as kind_path
 
 log = logging.getLogger("neoaprs.config")
 
@@ -179,6 +179,39 @@ def with_flat(radios: Iterable[RadioSpec], values: Mapping[str, Any]) -> tuple[R
             spec = replace(spec, settings={**spec.settings, key: stored_text(value)})
         found[id] = spec
     return tuple(found[id] for id in sorted(found))
+
+
+def path_text(radios: Iterable[RadioSpec], radio: RadioId) -> str:
+    """The radio's own path as the setting says it (`radio/<id>/path`: DIRECT none), empty the path its kind recommends (LoRa WIDE1-1); "" for a radio that is not there, is removed or whose kind has no
+    path of its own, and for an empty one of a kind that recommends none (the station's symbol's then). A stored text that is no path (one put into a Config unchecked: a stored one is checked when it is
+    read) is taken as it is."""
+    spec = next((s for s in radios if s.id == radio and not s.removed), None)
+    found = None if spec is None else kind_field(spec.kind, "path")
+    if spec is None or found is None:
+        return ""
+    text = spec.settings.get("path", found.default)
+    try:
+        return str(found.parse(text)) or kind_path(spec.kind)
+    except ValueError:
+        return text
+
+
+def flat_moved(attr: str, radios: Iterable[RadioSpec], main: RadioId | None) -> CodedError | None:
+    """For a flat attribute, the refusal of its key (`serial/port`, `hf/enabled`) in one sentence that names where it is now: a radio's own key, `radio/<id>/<key>`, with the id of the main radio of that kind where
+    the station has one (else of its first radio of the kind, else `<id>`), and for its Enable and type the command `radio_change`; None for any other attribute. The page's `set_config` says it, and `neoaprs db` for a radio's own key (its type and Enable it names by the radio's number, dbcmd.moved)."""
+    if attr not in FLAT_HOMES:
+        return None
+    field = FLAT_HOMES[attr][1]
+    if field in ("type", "enabled"):
+        return CodedError(f"no such setting: it is radio_change's {field} now", "setting.unknown")
+    found = flat_now(attr, radios, main)
+    return CodedError(f"no such setting: it is radio/{'<id>' if found is None else found.id}/{field} now", "setting.unknown")
+
+
+def flat_now(attr: str, radios: Iterable[RadioSpec], main: RadioId | None) -> RadioSpec | None:
+    """The radio a flat attribute's value is on now (`flat_moved`): the main radio where it is of the attribute's kind, else the station's first radio of that kind; None when it has none."""
+    ofkind = [spec for spec in live(radios) if spec.kind == FLAT_KINDS[FLAT_HOMES[attr][0]]]
+    return next((spec for spec in ofkind if spec.id == main), ofkind[0] if ofkind else None)
 
 
 def _view(attr: str) -> property:

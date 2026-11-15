@@ -1,6 +1,6 @@
 """`neoaprs db` (neoaprs/cli/dbcmd.py) run in the test's own process on a data folder of the test: the table of `list` with the rows that are not settings, the ways the database can be unusable (not a database, of
-an older or a newer version, one the daemon is bringing up to date), a write that is refused, and Ctrl-C; and the radios as rows (migration 31): `radios`, a radio's own setting `radio/<id>/<key>`, and a flat key of radios 1 and 2 stored
-with its radio, refused for a radio the station does not have. The commands as processes, through the main command, are in tests/test_cli.py."""
+an older or a newer version, one the daemon is bringing up to date), a write that is refused, and Ctrl-C; and the radios as rows (migration 31): `radios`, `radios add`, a radio's own setting `radio/<id>/<key>`, and a key of
+before of a radio's setting (`serial/port`, `hf/enabled`), which is refused with its new key. The commands as processes, through the main command, are in tests/test_cli.py."""
 import asyncio
 import sqlite3
 from typing import Any
@@ -51,6 +51,23 @@ def test_list_tells_for_each_setting_whether_it_is_stored_and_names_the_rows_tha
     assert any(line.startswith(BEACON_SENT) and line.endswith("kept by the daemon (when it last sent, how the map stands), not a setting") for line in lines)
     assert any(line.startswith(INSTALL_ID) and line.endswith("kept by the daemon (the number of this installation), not a setting") for line in lines)
     assert any(line.startswith("old/setting") and line.endswith("stored, not a setting of this NeoAPRS") for line in lines)
+
+
+def test_list_says_where_the_value_of_a_row_of_a_key_of_before_goes_now_and_that_the_radio_is_added_first(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    connection = sqlite3.connect(data / DB_NAME)             # (a folder of a build of the round before its first start: the rows of before, and no radio)
+    connection.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [("serial/port", "/dev/ttyUSB7"), ("hf/enabled", "true")])
+    connection.commit()
+    connection.close()
+    capsys.readouterr()
+    assert db("list", data=data) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert any(line.startswith("serial/port") and "/dev/ttyUSB7" in line and line.endswith("a key of before, not read: it is radio/<id>/port now (add the radio first: neoaprs db radios add TYPE)")
+               for line in lines), lines
+    assert any(line.startswith("hf/enabled") and line.endswith("a key of before, not read: it is the HF radio's Enable (Settings tab, Radio) now (add the radio first: neoaprs db radios add TYPE)") for line in lines)
+    assert db("radios", "add", "kiss", data=data) == 0
+    capsys.readouterr()
+    assert db("list", data=data) == 0
+    assert any(line.startswith("serial/port") and line.endswith("a key of before, not read: it is radio/1/port now") for line in capsys.readouterr().out.splitlines()), "with the radio there, its own key"
 
 
 def test_a_file_that_is_not_a_database_is_told_with_its_path_and_exit_1(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -111,14 +128,11 @@ def test_a_value_the_database_will_not_take_is_told_and_exit_1(data: Path, monke
 
 
 def test_set_applies_the_rules_between_settings_against_the_stored_ones_as_a_save_of_the_page_does(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert db("set", "serial/port", "/dev/ttyUSB0", data=data) == 0
     capsys.readouterr()
-    assert db("set", "tnc/profile", "kiss-tcp", data=data) == 2, "a TCP profile and a serial port do not go together"
-    assert "serial/port" in capsys.readouterr().err
-    assert db("get", "tnc/profile", data=data) == 0 and capsys.readouterr().out.strip() != "kiss-tcp", "and nothing was stored"
     assert db("set", "status/source", "rig", data=data) == 2, "the radio as the source of the status needs status/rigctld"
     assert "status/rigctld" in capsys.readouterr().err
-    assert db("set", "serial/port", "", data=data) == 0 and db("set", "tnc/profile", "kiss-tcp", data=data) == 0, "once the port is clear the profile is taken"
+    assert db("get", "status/source", data=data) == 0 and capsys.readouterr().out.strip() != "rig", "and nothing was stored"
+    assert db("set", "status/rigctld", "127.0.0.1:4532", data=data) == 0 and db("set", "status/source", "rig", data=data) == 0, "once the rigctld is set the source is taken"
 
 
 def test_a_database_error_while_reading_is_told_not_raised(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
@@ -152,7 +166,7 @@ def test_the_data_folder_may_be_given_after_the_command_and_a_folder_that_cannot
     assert "cannot be made or used" in err and "Traceback" not in err
 
 
-# ---- the radios as rows of the database (migration 31): `radios`, `radio/<id>/<key>`, and the flat keys of radios 1 and 2 stored with their radio
+# ---- the radios as rows of the database (migration 31): `radios`, `radios add`, `radio/<id>/<key>`, and the keys of before of a radio's setting, refused
 
 def with_radios(folder: Path, **flat: str) -> Path:
     """A data folder whose database had these flat settings at version 30 and was migrated: its radios are rows, made of them as an installation's update makes them."""
@@ -193,68 +207,54 @@ def test_radios_lists_each_radio_by_its_name_with_its_own_settings_and_whether_e
     assert [key for key in own if key.startswith("radio/1/")][:2] == ["radio/1/port", "radio/1/baud"], "in the order the type lists them"
 
 
-def test_radios_on_a_database_without_radios_says_that_the_settings_of_list_are_in_force(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_radios_on_a_database_without_radios_says_the_station_has_none_yet_and_how_to_add_one(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
     capsys.readouterr()
     assert db("radios", data=data) == 0
     out = capsys.readouterr()
-    assert out.out == "" and "no radio is stored in this database: the radio settings of `list` are in force" in out.err
+    assert out.out == "" and "this station has no radio yet: add one (radios add TYPE, or on the page)" in out.err
 
 
-def test_a_flat_key_of_a_radio_is_stored_with_its_radio_and_read_back_from_it(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert db("set", "serial/port", "COM9", data=stored) == 0
-    assert db("set", "tnc/profile", "kiss", data=stored) == 0
-    assert db("set", "hf/enabled", "false", data=stored) == 0
-    assert db("set", "mercury/tx_gain_db", "-3", data=stored) == 0
-    assert rows_of(stored, "SELECT radio_id, key, value, rev FROM radio_setting WHERE key IN ('port', 'tx_gain_db') ORDER BY radio_id") == [(1, "port", "COM9", 2), (2, "tx_gain_db", "-3", 1)]
-    assert rows_of(stored, "SELECT id, type, enabled FROM radio ORDER BY id") == [(1, "kiss", 1), (2, "mercury", 0)]
-    assert rows_of(stored, "SELECT key FROM settings WHERE key IN ('serial/port', 'tnc/profile', 'hf/enabled', 'mercury/tx_gain_db')") == [], "no row the daemon would never read"
+def test_radios_add_makes_a_fresh_folder_and_adds_each_radio_after_the_others_with_the_next_number(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    folder = tmp_path / "fresh"
+    assert db("radios", "add", "kiss", "--off", data=folder) == 0, "a station set up before its first start"
+    assert db("radios", "add", "mercury", "20 m", data=folder) == 0
+    assert capsys.readouterr().out.splitlines() == ["radio 1  FM  fm  kiss  off  (position 1)", "radio 2  20 m  hf  mercury  on  (position 2)"]
+    assert rows_of(folder, "SELECT id, kind, type, name, enabled, position FROM radio ORDER BY id") == [(1, "fm", "kiss", "", 0, 1), (2, "hf", "mercury", "20 m", 1, 2)]
+    assert db("set", "radio/1/port", "/dev/ttyUSB0", data=folder) == 0 and db("set", "radio/2/keying", "vox", data=folder) == 0, "and their own settings are set by their numbers"
+    connection = sqlite3.connect(folder / DB_NAME, isolation_level=None)
+    remove_radio(connection, 2, "2026-11-14T10:00:00.000000Z")
+    connection.close()
+    assert db("radios", "add", "dummy-hf", data=folder) == 0 and capsys.readouterr().out.splitlines()[-1] == "radio 3  HF  hf  dummy-hf  on  (position 2)", "a removed radio's number is not given again"
+
+
+def test_radios_add_refuses_a_type_that_is_none_and_a_name_another_radio_has_and_adds_nothing(stored: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     capsys.readouterr()
-    assert db("get", "serial/port", data=stored) == 0 and db("get", "tnc/profile", data=stored) == 0 and db("get", "radio/1/port", data=stored) == 0
-    assert capsys.readouterr().out.splitlines() == ["COM9", "kiss", "COM9"]
-    assert db("get", "serial/baud", data=stored) == 0 and "is not stored; this is the default" in capsys.readouterr().err
+    assert db("radios", "add", "tin-can", data=stored) == 2 and "'tin-can' is not a type of radio (the types are " in capsys.readouterr().err
+    assert db("radios", "add", "kiss-tcp", "Base", data=stored) == 0
+    capsys.readouterr()
+    assert db("radios", "add", "kiss", "BASE", data=stored) == 2 and "is radio 3's already" in capsys.readouterr().err
+    assert db("radios", "add", "kiss", "a name too long", data=stored) == 2 and "at most 8" in capsys.readouterr().err
+    assert db("radios", "add", data=stored) == 2 and "which type?" in capsys.readouterr().err
+    assert rows_of(stored, "SELECT id FROM radio ORDER BY id") == [(1,), (2,), (3,)], "nothing added but the radio that could be"
+    assert db("radios", "add", data=tmp_path / "none") == 2 and not (tmp_path / "none" / DB_NAME).exists(), "no database is made for a refused add"
+
+
+def test_a_key_of_before_of_a_radios_setting_is_refused_with_its_new_key_and_nothing_is_stored(stored: Path, data: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Finding 9 of W3: someone who types a key of before is told the radio's own key in the page's sentence (configradios.flat_moved), or the radio's Enable and type by its number where the page changes them, and gets exit 2."""
+    before = rows_of(stored, "SELECT key, value, rev FROM settings ORDER BY key"), rows_of(stored, "SELECT radio_id, key, value, rev FROM radio_setting ORDER BY radio_id, key"), rows_of(stored, "SELECT * FROM radio ORDER BY id")
+    capsys.readouterr()
+    for command, said in ((("set", "serial/port", "COM9"), "serial/port: no such setting: it is radio/1/port now"), (("set", "mercury/tx_gain_db", "-3"), "mercury/tx_gain_db: no such setting: it is radio/2/tx_gain_db now"),
+                          (("set", "tnc/profile", "kiss"), "tnc/profile: no such setting: it is radio 1's type (Settings tab, Radio) now"), (("set", "hf/enabled", "false"), "hf/enabled: no such setting: it is radio 2's Enable (Settings tab, Radio) now"),
+                          (("get", "serial/baud"), "serial/baud: no such setting: it is radio/1/baud now")):
+        assert db(*command, data=stored) == 2, command
+        out = capsys.readouterr()
+        assert (out.out, out.err.strip()) == ("", f"neoaprs db: {said}"), command
+    assert (rows_of(stored, "SELECT key, value, rev FROM settings ORDER BY key"), rows_of(stored, "SELECT radio_id, key, value, rev FROM radio_setting ORDER BY radio_id, key"), rows_of(stored, "SELECT * FROM radio ORDER BY id")) == before, "nothing stored"
+    assert db("set", "serial/port", "/dev/ttyUSB0", data=data) == 2 and "serial/port: no such setting: it is radio/<id>/port now" in capsys.readouterr().err, "a station with no radio: no number to name"
+    assert rows_of(data, "SELECT count(*) FROM settings WHERE key = 'serial/port'") == [(0,)]
+    assert db("set", "mercury/keying", "vox", data=tmp_path / "none") == 2 and "it is radio/<id>/keying now" in capsys.readouterr().err and not (tmp_path / "none" / DB_NAME).exists(), "and no database is made for it"
     assert db("list", data=stored) == 0
-    listed = {line.split()[0]: line.split()[-1] for line in capsys.readouterr().out.splitlines()}
-    assert (listed["serial/port"], listed["tnc/profile"], listed["hf/enabled"], listed["serial/baud"], listed["tcp/host"]) == ("stored", "stored", "stored", "default", "default")
-
-
-def test_the_rules_between_settings_hold_for_a_flat_key_stored_with_its_radio(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert db("set", "tnc/profile", "kiss-tcp", data=stored) == 2 and "serial/port" in capsys.readouterr().err, "a TCP type and a serial port do not go together"
-    assert db("set", "hf/enabled", "false", data=stored) == 0
-    assert db("set", "fm/enabled", "false", data=stored) == 2 and "at least one radio" in capsys.readouterr().err
-    assert rows_of(stored, "SELECT id, type, enabled FROM radio ORDER BY id") == [(1, "kenwood-tnc2", 1), (2, "mercury", 0)], "and nothing was stored"
-
-
-def test_the_fm_radio_may_go_off_while_a_third_radio_is_on_and_the_last_radio_on_is_refused_by_the_key_that_was_set(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
-    third = insert_radio(connection, "fm", "kiss-tcp", "Base", True, 3)
-    connection.close()
-    assert db("set", "hf/enabled", "false", data=stored) == 0
-    capsys.readouterr()
-    assert db("set", "fm/enabled", "false", data=stored) == 0, "radio 3 stays on: the FM radio may go"
-    assert rows_of(stored, "SELECT id, enabled FROM radio ORDER BY id") == [(1, 0), (2, 0), (third, 1)]
-    connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
-    connection.execute("UPDATE radio SET enabled = 0 WHERE id = ?", (third,))
-    connection.close()
-    assert db("set", "fm/enabled", "false", data=stored) == 2
-    err = capsys.readouterr().err
-    assert "fm/enabled: at least one radio stays on" in err, "the words begin with what was set"
-
-
-def test_a_flat_key_of_a_radio_the_station_does_not_have_is_refused_with_the_way_to_add_it(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    folder = with_radios(tmp_path / "fm", station_call="OH2GBA")
-    assert rows_of(folder, "SELECT id, kind FROM radio") == [(1, "fm")], "HF was never set up: no radio 2"
-    capsys.readouterr()
-    for key, value in (("hf/enabled", "true"), ("mercury/keying", "vox"), ("hf/profile", "dummy-hf")):
-        assert db("set", key, value, data=folder) == 2
-        err = capsys.readouterr().err
-        assert f"{key} is a setting of the HF radio, and this station has none" in err and "add it on the page (Settings tab, Radio)" in err
-    assert rows_of(folder, "SELECT count(*) FROM radio_setting WHERE radio_id = 2") == [(0,)] and rows_of(folder, "SELECT count(*) FROM settings WHERE key GLOB 'hf/*' OR key GLOB 'mercury/*'") == [(0,)]
-
-
-def test_a_flat_key_on_a_database_without_radios_is_its_row_of_the_settings_as_before(data: Path) -> None:
-    assert rows_of(data, "SELECT count(*) FROM radio") == [(0,)], "a new installation: no radio stored"
-    assert db("set", "serial/port", "/dev/ttyUSB0", data=data) == 0 and db("set", "hf/enabled", "true", data=data) == 0
-    assert rows_of(data, "SELECT key, value FROM settings WHERE key IN ('serial/port', 'hf/enabled') ORDER BY key") == [("hf/enabled", "true"), ("serial/port", "/dev/ttyUSB0")]
+    assert not {line.split()[0] for line in capsys.readouterr().out.splitlines()} & {"serial/port", "tnc/profile", "hf/enabled", "mercury/keying", "beacon/path"}, "list shows no key of before"
 
 
 def test_a_radios_own_setting_is_checked_by_its_field_and_stored_with_its_revision(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -270,16 +270,18 @@ def test_a_radios_own_setting_is_checked_by_its_field_and_stored_with_its_revisi
     assert rows_of(stored, "SELECT key, value FROM radio_setting WHERE radio_id = 1 AND key = 'baud'") == [("baud", "4801")], "a refused value changes nothing"
 
 
-def test_a_radios_own_setting_that_is_a_flat_keys_follows_the_rules_between_settings_and_one_of_a_removed_radio_is_refused(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert db("set", "tnc/profile", "kiss-tcp", data=stored) == 2
-    assert db("set", "radio/1/port", "", data=stored) == 0 and db("set", "tnc/profile", "kiss-tcp", data=stored) == 0
-    capsys.readouterr()
-    assert db("set", "radio/1/port", "/dev/ttyUSB0", data=stored) == 2 and "connects over TCP" in capsys.readouterr().err, "radio 1's port is serial/port: the rule of the type and the port holds"
+def test_the_port_of_a_tcp_radio_is_no_serial_device_and_a_setting_of_a_removed_radio_is_refused(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
     connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
-    third = insert_radio(connection, "fm", "kiss-tcp", "", True, 3)
-    remove_radio(connection, third, "2026-11-14T10:00:00.000000Z")
+    tcp = insert_radio(connection, "fm", "kiss-tcp", "Base", True, 3)
     connection.close()
-    assert db("set", f"radio/{third}/tcp_host", "10.0.0.9", data=stored) == 2 and "it was removed" in capsys.readouterr().err
+    capsys.readouterr()
+    assert db("set", f"radio/{tcp}/port", "/dev/ttyUSB0", data=stored) == 2 and "connects over TCP" in capsys.readouterr().err, "the rule of the type and the port holds"
+    assert db("set", f"radio/{tcp}/port", "tcp://10.0.0.5:8100", data=stored) == 0 and db("set", "radio/1/port", "/dev/ttyUSB1", data=stored) == 0, "an address over TCP, and a serial type's serial port"
+    connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
+    remove_radio(connection, tcp, "2026-11-14T10:00:00.000000Z")
+    connection.close()
+    capsys.readouterr()
+    assert db("set", f"radio/{tcp}/tcp_host", "10.0.0.9", data=stored) == 2 and "it was removed" in capsys.readouterr().err
     assert db("set", "radio/1/port", "x", data=tmp_folder_without_database(stored)) == 1 and "so no radio" in capsys.readouterr().err
     assert not (tmp_folder_without_database(stored) / DB_NAME).exists(), "no database is made for a setting of a radio it cannot have"
 
@@ -292,8 +294,8 @@ def test_a_radios_setting_the_database_will_not_take_is_told_and_exit_1(stored: 
     async def refuse(self: object, radio: int, values: object) -> bool:
         return False
     monkeypatch.setattr(dbcmd.Store, "put_radio_settings", refuse)
-    assert db("set", "radio/1/baud", "4800", data=stored) == 1 and db("set", "serial/baud", "4800", data=stored) == 1
-    assert capsys.readouterr().err.count("could not be stored") == 2
+    assert db("set", "radio/1/baud", "4800", data=stored) == 1
+    assert capsys.readouterr().err.count("could not be stored") == 1
 
 
 def test_get_reads_a_radios_own_setting_and_a_row_of_its_state(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -325,24 +327,8 @@ def test_a_database_whose_radios_cannot_be_read_is_told_with_the_way_back_and_no
     assert db("stations", data=stored) == 0, "what does not read the radios still answers"
 
 
-def test_the_flat_keys_of_a_removed_radio_show_the_defaults_and_say_the_station_has_no_such_radio(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
-    remove_radio(connection, 2, "2026-11-14T10:00:00.000000Z")
-    connection.close()
-    capsys.readouterr()
-    assert db("get", "mercury/keying", data=stored) == 0
-    out = capsys.readouterr()
-    assert out.out == "\n" and "mercury/keying: this station has no HF radio (radio 2 was removed); the default is shown" in out.err, "not the removed radio's keying, vox, called the default"
-    assert db("list", data=stored) == 0
-    listed = {line.split()[0]: line.split()[1:] for line in capsys.readouterr().out.splitlines()}
-    assert listed["mercury/keying"] == ["default"] and listed["hf/enabled"] == ["false", "default"]
-    fm = with_radios(stored.parent / "fm", station_call="OH2GBA")
-    capsys.readouterr()
-    assert db("get", "mercury/keying", data=fm) == 0 and "this station has no HF radio; the default is shown" in capsys.readouterr().err, "and a station that never had one is told so too"
-
-
 def test_a_flat_key_of_a_removed_radio_names_the_radio_of_its_kind_the_station_has_now(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Radio 1 removed and an FM radio 3 on: `serial/port` is radio 3's `radio/3/port` now, which the refusal and the note say; never that the station has no FM radio."""
+    """Radio 1 removed and an FM radio 3 on: `serial/port` is radio 3's `radio/3/port` now, which the refusal of `set` and of `get` says; never radio 1's, nor that the station has no FM radio."""
     connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
     third = insert_radio(connection, "fm", "kiss", "Base", True, 3)
     remove_radio(connection, 1, "2026-11-14T10:00:00.000000Z")
@@ -350,11 +336,11 @@ def test_a_flat_key_of_a_removed_radio_names_the_radio_of_its_kind_the_station_h
     capsys.readouterr()
     assert db("set", "serial/port", "/dev/ttyUSB2", data=stored) == 2
     err = capsys.readouterr().err
-    assert f"serial/port is a setting of radio 1, which this station has not; this station's FM radio is radio {third} (Base): it is radio/{third}/port now" in err and "has none" not in err, err
-    assert db("set", "fm/enabled", "false", data=stored) == 2 and f"it is radio {third}'s Enable (Settings tab, Radio) now" in capsys.readouterr().err
-    assert db("get", "serial/port", data=stored) == 0
+    assert f"serial/port: no such setting: it is radio/{third}/port now" in err and "radio/1/" not in err and "has none" not in err, err
+    assert db("set", "fm/enabled", "false", data=stored) == 2 and f"fm/enabled: no such setting: it is radio {third}'s Enable (Settings tab, Radio) now" in capsys.readouterr().err
+    assert db("get", "serial/port", data=stored) == 2
     err = capsys.readouterr().err
-    assert f"serial/port: radio 1 was removed; the default is shown; this station's FM radio is radio {third} (Base): it is radio/{third}/port now" in err and "has no FM radio" not in err, err
+    assert f"serial/port: no such setting: it is radio/{third}/port now" in err and "has no FM radio" not in err, err
     assert rows_of(stored, f"SELECT count(*) FROM radio_setting WHERE radio_id = {third}") == [(0,)], "nothing was stored"
 
 
@@ -363,11 +349,9 @@ def test_a_radios_own_setting_stored_as_a_text_that_is_no_value_is_said_stored_w
     connection.execute("INSERT INTO radio_setting (radio_id, key, value) VALUES (1, 'baud', 'fast')")
     connection.close()
     capsys.readouterr()
-    for key in ("serial/baud", "radio/1/baud"):
-        assert db("get", key, data=stored) == 0
-        out = capsys.readouterr()
-        assert out.out == "\n" and f"{key} is stored as 'fast', which is not a value: the default is in force" in out.err and "is not stored" not in out.err, key
-    assert db("list", data=stored) == 0 and [line.split()[1:] for line in capsys.readouterr().out.splitlines() if line.startswith("serial/baud ")] == [["stored"]]
+    assert db("get", "radio/1/baud", data=stored) == 0
+    out = capsys.readouterr()
+    assert out.out == "\n" and "radio/1/baud is stored as 'fast', which is not a value: the default is in force" in out.err and "is not stored" not in out.err
     assert db("radios", data=stored) == 0 and [line.split()[1:] for line in capsys.readouterr().out.splitlines() if line.startswith("  radio/1/baud ")] == [["stored"]], "as the bundle says it"
 
 

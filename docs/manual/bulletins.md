@@ -49,7 +49,7 @@ A small (i) beside the kind says what they are. A bulletin is for everyone and n
 
 ### The packet
 
-A bulletin is a message without an id (chapter 14 of the specification), sent by `beacon/path`: `:BLN3     :Snow expected in Tampa RSN`, an announcement `:BLNQ     :Mt St Helen digi will be QRT this weekend`, a group bulletin `:BLN4WX   :Stand by your snowplows`. The addressee is padded to nine characters.
+A bulletin is a message without an id (chapter 14 of the specification), sent by the path of the radio it goes on (`radio/<id>/path`): `:BLN3     :Snow expected in Tampa RSN`, an announcement `:BLNQ     :Mt St Helen digi will be QRT this weekend`, a group bulletin `:BLN4WX   :Stand by your snowplows`. The addressee is padded to nine characters.
 
 Nobody acknowledges a bulletin, so it is sent more than once:
 

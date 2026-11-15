@@ -1,7 +1,7 @@
 """The radio registry (neoaprs/radioregistry.py): the radios of the settings at run time, any number of them. With radios of a test (tests/support/fakedriver.py: drivers that open nothing and write down what
 they are asked): a radio is made for every one the settings have and dropped with it, a save restarts the radio whose driver's key or tickbox changed and no other, the one lifecycle (stop, take the settings,
 start while enabled) touches one radio alone, a third radio is started and stopped on its own, each beacon runs while its radio is on, and the choices (the main radio, the radio of a station, of a packet, of
-an email, the operator's own by station) are the rule modules' (radiospec, messagerule, emailrule) and, for two radios, what neoaprs/radios.py chose before. With the daemon: radios 1 and 2 are the registry's,
+an email, the operator's own by station) are the rule modules' (radiospec, messagerule, emailrule) and, for two radios, what the two radios of before chose (tests/support/tworadios.py). With the daemon: radios 1 and 2 are the registry's,
 under the names the page and the tests reach them by; Find my radio lets go of both and takes them again, as before, and the hold of one radio alone is ready for the day the page names it."""
 import asyncio
 import itertools
@@ -18,10 +18,8 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercurydriver import MercuryDriver
 from neoaprs.radiodriver import RunOverrides
 from neoaprs.radioregistry import LiveRadio, RadioRegistry, driver_key, make_driver
-from neoaprs.radiorules import FM, HF
-from neoaprs.radios import Radios
 from neoaprs.radiosearch import Found
-from neoaprs.radiospec import FM_ID, HF_ID, RadioId, RadioSpec, main_radio
+from neoaprs.radiospec import FM_ID, HF_ID, RadioHeard, RadioId, RadioSpec, main_radio
 from neoaprs.radiotype import RadioTypeError
 from neoaprs.radiotypes import type_of
 from neoaprs.services.radiofinder import RadioFinder
@@ -35,6 +33,7 @@ from tests.support.env import ON_AIR, Env, until
 from tests.support.fakedriver import FakeDriver, Rig, as_air, as_driver, as_pick, registry_of, spec, with_radios
 from tests.support.faketnc import FakeTncServer
 from tests.support.stubtnc import StubRadios, StubRegistry, StubTnc, as_air as stub_air, as_pick as stub_pick
+from tests.support.tworadios import enabled_before, main_before, packet_before, station_before
 
 T0 = FixedClock()()
 THREE = [spec(1, port="/dev/ttyUSB0"), spec(2, "hf", enabled=False), spec(3, port="/dev/ttyUSB3")]
@@ -45,8 +44,8 @@ def three(**changes: object) -> list[RadioSpec]:
     return [*THREE[:2], replace(THREE[2], **changes)]      # type: ignore[arg-type]
 
 
-def station(call: str, fm: int, hf: int, choice: str = "") -> Station:
-    return Station(call, first_heard=T0, last_heard=T0, heard_fm=fm, heard_hf=hf, last_fm_at=T0 if fm else None, last_hf_at=T0 if hf else None, message_radio=choice)
+def station(call: str, fm: int, hf: int) -> Station:
+    return Station(call, first_heard=T0, last_heard=T0, heard_by={id: RadioHeard(count, T0) for id, count in ((FM_ID, fm), (HF_ID, hf)) if count})
 
 
 # ---- the radios there are
@@ -69,9 +68,9 @@ def test_a_radio_is_made_for_every_radio_of_the_settings_that_is_not_removed_wit
 def test_the_radios_are_in_the_order_of_their_positions_and_a_radio_reads_the_settings_in_force() -> None:
     rig = registry_of(with_radios(ON_AIR, THREE))
     third = rig.registry.get(3)
-    assert third is not None and (third.name, third.limits, third.allowed, third.rules, third.max_frame) == ("FM 2", type_of("kiss").limits, type_of("kiss").allowed, FM, None)
+    assert third is not None and (third.name, third.kind, third.rtype, third.limits, third.allowed, third.max_frame) == ("FM 2", "fm", type_of("kiss"), type_of("kiss").limits, type_of("kiss").allowed, None)
     hf = rig.registry.get(2)
-    assert hf is not None and (hf.rules, hf.max_frame, hf.limits.beacon_min_min, hf.allowed.paths) == (HF, 123, 30, False)
+    assert hf is not None and (hf.kind, hf.rtype, hf.max_frame, hf.limits.beacon_min_min, hf.allowed.paths) == ("hf", type_of("mercury"), 123, 30, False)
     assert rig.put(with_radios(ON_AIR, [replace(THREE[0], position=9), THREE[1], replace(THREE[2], name="Shack", settings={"port": "/dev/ttyUSB3", "path": "WIDE2-2", "digipeat": "true"})])) == []
     assert [r.id for r in rig.registry.all()] == [2, 3, 1] and rig.registry.main is third, "the first enabled by position"
     assert (third.name, third.line.radio_name, third.choice("path"), third.choice("digipeat"), third.choice("beacon")) == ("Shack", "Shack", "WIDE2-2", True, True), "a name, a place and a choice restart nothing and are in force at once"
@@ -230,31 +229,32 @@ def test_the_driver_of_a_type_is_its_own_and_the_modems_for_the_dummy_hf_radio(t
 
 # ---- the choice of a radio
 
-CASES = list(itertools.product((True, False), (True, False), (0, 4), (0, 2), ("", "fm", "hf"), (True, False)))     # FM on, HF on, heard on FM, on HF, the choice, the station in the book
+CASES = list(itertools.product((True, False), (True, False), (0, 4), (0, 2), (None, FM_ID, HF_ID), (True, False)))     # FM on, HF on, heard on FM, on HF, the choice, the station in the book
 
 
 @pytest.mark.parametrize(("fm_on", "hf_on", "fm", "hf", "choice", "known"), CASES)
-def test_the_main_radio_and_the_radio_of_a_station_a_packet_and_an_email_are_the_rules_and_what_the_two_radios_chose_before(fm_on: bool, hf_on: bool, fm: int, hf: int, choice: str, known: bool) -> None:
+def test_the_main_radio_and_the_radio_of_a_station_a_packet_and_an_email_are_the_rules_and_what_the_two_radios_chose_before(fm_on: bool, hf_on: bool, fm: int, hf: int, choice: RadioId | None, known: bool) -> None:
     config = replace(DEFAULTS, fm_enabled=fm_on, hf_enabled=hf_on)
     rig = registry_of(config)
     if known:
-        rig.book.seed([station("OH2GAX", fm, hf, choice)])
-    registry, lines = rig.registry, {id: rig.drivers[id].line for id in (FM_ID, HF_ID)}
-    before = Radios(lines[FM_ID], lines[HF_ID], lambda: config, rig.book)                 # the two radios as neoaprs/radios.py chose between them, on the same lines
+        rig.book.seed([station("OH2GAX", fm, hf)])
+        assert rig.registry.choose("OH2GAX", choice)
+    registry = rig.registry
     found = rig.book.get("OH2GAX")
-    heard, chosen = (found.heard_by, {"fm": FM_ID, "hf": HF_ID}.get(found.message_radio)) if found is not None else ({}, None)
+    heard, chosen = (found.heard_by, choice) if found is not None else ({}, None)
     assert registry.choice("OH2GAX") == chosen
     assert registry.main is registry.get(main_radio(config.radios, None)) if fm_on or hf_on else registry.main is None            # type: ignore[arg-type]
     assert registry.for_station("OH2GAX") is (registry.get(by_rule) if (by_rule := messagerule.message_radio(chosen, heard, config.radios, config.main_radio, T0)) is not None else None)
     assert registry.email() is (registry.get(mail) if (mail := emailrule.email_radio(config.radios, config.main_radio)) is not None else None)
-    on_fm, on_hf = replace(from_internet("OH2GAX", b">on FM", T0), via="rf", radio="fm"), replace(from_internet("OH2GAX", b">on HF", T0), via="rf", radio="hf")
+    on_fm, on_hf = replace(from_internet("OH2GAX", b">on FM", T0), via="rf", radio_id=FM_ID), replace(from_internet("OH2GAX", b">on HF", T0), via="rf", radio_id=HF_ID)
     if not fm_on and not hf_on:
         assert registry.main is None and registry.for_station("OH2GAX") is None and registry.for_packet(on_fm) is None and registry.enabled() == [], "no radio: none (the two radios of before fell to the stopped FM line)"
         return
     to_station, answer_fm, answer_hf = registry.for_station("OH2GAX"), registry.for_packet(on_fm), registry.for_packet(on_hf)
     assert registry.main is not None and to_station is not None and answer_fm is not None and answer_hf is not None
-    assert (registry.main.line, to_station.line, answer_fm.line, answer_hf.line) == (before.default, before.for_station("OH2GAX"), before.for_packet(on_fm), before.for_packet(on_hf))
-    assert [r.line for r in registry.enabled()] == before.on
+    assert (registry.main.id, to_station.id, answer_fm.id, answer_hf.id) == (main_before(fm_on, hf_on), station_before(fm_on, hf_on, fm if known else 0, hf if known else 0, chosen),
+                                                                          packet_before(fm_on, hf_on, FM_ID), packet_before(fm_on, hf_on, HF_ID))
+    assert [r.id for r in registry.enabled()] == enabled_before(fm_on, hf_on)
     assert (answer_fm.id, answer_hf.id) == (FM_ID if fm_on else HF_ID, HF_ID if hf_on else FM_ID), "the radio the packet came on while it is on, else the main radio"
 
 
@@ -266,36 +266,34 @@ def test_a_packet_from_the_internet_is_answered_on_no_radio() -> None:
 
 def test_with_three_radios_the_main_one_is_the_first_enabled_and_a_station_goes_by_the_choice_or_by_what_fm_and_hf_heard() -> None:
     rig = registry_of(with_radios(ON_AIR, [spec(1, position=3), spec(2, "hf", position=2), spec(3, position=1)]))
-    rig.book.seed([station("OH2NEAR", 3, 0), station("OH2FAR", 0, 2), station("OH2PICK", 3, 0, "hf")])
+    rig.book.seed([station("OH2NEAR", 3, 0), station("OH2FAR", 0, 2), station("OH2PICK", 3, 0)])
     registry = rig.registry
+    assert registry.choose("OH2PICK", HF_ID)
     ids = lambda radio: None if radio is None else radio.id                                # noqa: E731
     assert [r.id for r in registry.enabled()] == [3, 2, 1] and ids(registry.main) == 3 and ids(registry.email()) == 3, "email on the main radio, which gateways hear (rule 3.5)"
     assert (ids(registry.for_station("OH2NEAR")), ids(registry.for_station("OH2FAR")), ids(registry.for_station("OH2PICK")), ids(registry.for_station("OH2NEVER"))) == (1, 2, 2, 3), "a call never heard goes on the main radio (rule 3.2)"
     rig.put(with_radios(ON_AIR, [spec(1, position=3, enabled=False), spec(2, "hf", position=2), spec(3, position=1)]))
     assert (ids(registry.for_station("OH2NEAR")), ids(registry.for_station("OH2PICK")), ids(registry.email())) == (3, 2, 3), "radio 1 off: the main radio, the choice while it is on, email on the main radio"
-    assert ids(registry.for_packet(replace(from_internet("OH2NEAR", b">on FM", T0), via="rf", radio="fm"))) == 3, "a packet that came on a radio now off is answered on the main one"
+    assert ids(registry.for_packet(replace(from_internet("OH2NEAR", b">on FM", T0), via="rf", radio_id=FM_ID))) == 3, "a packet that came on a radio now off is answered on the main one"
 
 
 # ---- the operator's radio by station
 
-def test_the_operators_radio_for_a_station_is_kept_as_before_by_id_or_by_todays_word_and_goes_with_the_station() -> None:
+def test_the_operators_radio_for_a_station_is_kept_by_id_a_row_of_before_is_read_and_the_choice_goes_with_the_station() -> None:
     rig = registry_of(replace(DEFAULTS, hf_enabled=True))
     rig.book.seed([station("OH2A", 3, 0), station("OH2B", 3, 2), station("OH2C", 0, 2)])
     registry, told = rig.registry, []
-    rig.book.changed.connect(lambda changed: told.append((changed.call, changed.message_radio)))
-    before = Radios(object(), object(), lambda: rig.config, rig.book)                     # type: ignore[arg-type]  # (for the text of the row as it was written before)
-    assert registry.choose("OH2A", HF_ID) and registry.choose("OH2B", "fm") and registry.choose("OH2C", "hf") and registry.choose("OH2C", "")
-    assert told == [("OH2A", "hf"), ("OH2B", "fm"), ("OH2C", "hf"), ("OH2C", "")], "the page is told with the station, in today's words"
+    rig.book.changed.connect(lambda changed: told.append((changed.call, registry.choice(changed.call))))
+    assert registry.choose("OH2A", HF_ID) and registry.choose("OH2B", FM_ID) and registry.choose("OH2C", HF_ID) and registry.choose("OH2C", None)
+    assert told == [("OH2A", HF_ID), ("OH2B", FM_ID), ("OH2C", HF_ID), ("OH2C", None)], "the page is told with the station, with the choice in force"
     assert (registry.choice("OH2A"), registry.choice("OH2B"), registry.choice("OH2C"), registry.choice("OH2Z")) == (HF_ID, FM_ID, None, None)
     assert registry.for_station("OH2A").id == HF_ID and registry.for_station("OH2B").id == FM_ID and registry.for_station("OH2C").id == HF_ID        # type: ignore[union-attr]
     assert rig.kept[-1] == registry.choices_text() == json.dumps({"OH2A": HF_ID, "OH2B": FM_ID}) and len(rig.kept) == 4, "the row by the radios' ids (since migration 31), at every choice"
-    before.restore(rig.kept[-1])
-    assert (before.choice("OH2A"), before.choice("OH2B")) == (HF_ID, FM_ID) and before.choices_text() == json.dumps({"OH2A": "hf", "OH2B": "fm"}), "the two radios of before read the row by id, and keep theirs in today's words"
     again = registry_of(replace(DEFAULTS, hf_enabled=True))
     again.book.seed([station("OH2A", 3, 0), station("OH2B", 3, 2)])
-    again.registry.restore(before.choices_text())
+    again.registry.restore(json.dumps({"OH2A": "hf", "OH2B": "fm"}))
     assert again.registry.choices_text() == rig.kept[-1], "a row of before, in today's words, is read as the ids of radios 1 and 2"
-    assert not registry.choose("OH2A", "lora") and not registry.choose("OH2A", 3) and len(rig.kept) == 4, "no such word; no such radio in the settings"
+    assert not registry.choose("OH2A", 3) and len(rig.kept) == 4, "no such radio in the settings"
     assert registry.choose("OH2A", None) and registry.choice("OH2A") is None and rig.kept[-1] == json.dumps({"OH2B": FM_ID})
     registry.forget("OH2A")
     assert len(rig.kept) == 5, "a station with no choice takes none along"
@@ -359,7 +357,7 @@ async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_t
     assert ctl.messaging._given is ctl.queries._given is ctl.qru._given is ctl.qruask._given is ctl.generalask._given is ctl.rigstatus._radios is ctl.radios, "messaging, the answers, asking and the status report take the registry itself"
     assert ctl.rigstatus.frames is ctl.beacon_frames is fm.beacon.frames is hf.beacon.frames and (fm.beacon.radio, hf.beacon.radio) == (fm, hf), "one maker of our frames for the status report and every radio's beacon, each beacon its own radio's"
     assert not hasattr(ctl, "radio_set"), "no service takes the two radios as one any more"
-    assert ctl.run == RunOverrides("", str(e.ports / "probe_*"), "", 0.0)
+    assert ctl.run == RunOverrides("", str(e.ports / "probe_*"), "", 0.0, None), "(and before the settings are read no Mercury radio of theirs takes --hf-port)"
     ctl.pattern_override = ""
     assert ctl.run.pattern == "", "what the process gave for the run is read each time"
     ctl.pattern_override = str(e.ports / "probe_*")
@@ -427,15 +425,15 @@ async def test_a_finder_given_the_hold_of_one_radio_lets_go_of_that_radio_alone_
 
 
 async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_stopped_alone(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """The page cannot add a third radio yet; settings that hold one go through a save all the same, and the daemon's own driver, line, beacon and wiring take it. The radios are a field of the settings: a save
-    of another setting keeps the third radio, and its removal stops it alone."""
+    """A third radio added (the database gives it its id) and given its port: the daemon's own driver, line, beacon and wiring take it. The radios are a field of the settings: a save of another setting keeps
+    it, and its removal stops it alone."""
     caplog.set_level(logging.INFO, "neoaprs.controller")
-    e = Env(tmp_path)
+    e = Env(tmp_path, settings={"hf/profile": "mercury"})                     # (radios 1 and 2, the HF one off: the radio added is the third)
     await e.start()
     other = await e.new_radio()                                                  # a KISS server on the loopback: the third radio's
     fm_line = e.tnc._generation
-    third_spec = spec(3, type="kiss-tcp", port=other.url)
-    assert await e.ctl.save_config(with_radios(e.ctl.config, [*e.ctl.config.radios, third_spec]))
+    id = await e.ctl.add_radio("kiss-tcp", enabled=False)
+    assert id == 3 and await e.ctl.save_radio_settings(id, {"port": other.url}) and await e.ctl.change_radio(id, enabled=True)
     third = e.ctl.radios.get(3)
     assert third is not None and isinstance(third.driver, TncDriver) and third.line not in (e.tnc, e.hf) and (third.name, third.line.radio_id, third.line.interlock) == ("FM 2", 3, e.tnc.interlock)
     await until(lambda: third.state is Source.State.CONNECTED and third.beacon.running)
@@ -460,7 +458,7 @@ def test_the_stub_registry_of_the_services_tests_chooses_as_the_stub_radios_do_a
     before.enabled = {kind for kind, on in (("fm", fm_on), ("hf", hf_on)) if on}
     pick.on = {id for id, on in ((FM_ID, fm_on), (HF_ID, hf_on)) if on}
     same = {id(before.fm): pick.fm, id(before.hf): pick.hf}                                # the stub of the one set and its like in the other
-    on_fm, on_hf = replace(from_internet("OH2C", b">on FM", T0), via="rf", radio="fm"), replace(from_internet("OH2C", b">on HF", T0), via="rf", radio="hf")
+    on_fm, on_hf = replace(from_internet("OH2C", b">on FM", T0), via="rf", radio_id=FM_ID), replace(from_internet("OH2C", b">on HF", T0), via="rf", radio_id=HF_ID)
     assert stub_pick(pick).enabled() == [same[id(radio)] for radio in before.on] and pick.email() is (pick.fm if fm_on else None)
     if not fm_on and not hf_on:
         assert pick.main is None and pick.for_station("OH2C") is None and pick.for_packet(on_hf) is None, "no radio: none"

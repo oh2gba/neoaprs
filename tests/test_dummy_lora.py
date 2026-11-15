@@ -18,8 +18,7 @@ from neoaprs.dummylorascene import ACK_AFTER_SEC, HELLO, IGATE, RSSI_RANGE_DBM, 
 from neoaprs.dummylorascene import calls as lora_calls
 from neoaprs.dummyworlds import DummyLoraPort, made_up_calls
 from neoaprs.dummyframes import air
-from neoaprs.radiorules import LORA, rules_of
-from neoaprs.radiotype import Allowed, Can, Limits
+from neoaprs.radiotype import FM_ID, Allowed, Can, Limits
 from neoaprs.radiotypes import DEFAULT_TYPE, kind_fields, recommended_path, type_of, types_of
 from neoaprs.services.radioset import fit_frame
 from neoaprs.source import Source
@@ -122,7 +121,7 @@ def test_the_dummy_lora_type_is_of_the_kind_lora_with_the_limits_and_the_choices
     assert t.can == Can(False, False, False, False, False, False, False)
     assert [f.key for f in t.fields] == [f.key for f in kind_fields("lora") if f.key in ("beacon", "path", "digipeat")] == ["beacon", "path"], "no digipeater to turn on"
     assert t.recommended_path == recommended_path("lora") == "WIDE1-1" and recommended_path("fm") == recommended_path("hf") == "", "FM and HF go by the station's symbol"
-    assert rules_of(t) == LORA == DUMMY_LORA.rules and PROFILES[t.profile] is DUMMY_LORA and DUMMY_LORA.readings == ("snr", "rssi") and (DUMMY_LORA.max_frame, DUMMY_LORA.max_text) == (250, MAX_TEXT)
+    assert PROFILES[t.profile] is DUMMY_LORA and Tnc("", profile=DUMMY_LORA).rtype is t and DUMMY_LORA.readings == ("snr", "rssi") and (t.limits.max_frame, t.limits.max_text) == (250, MAX_TEXT)
 
 
 # ---- the world
@@ -262,7 +261,7 @@ async def test_a_dummy_lora_radio_added_from_the_page_runs_hears_its_stations_be
         if world <= {s.call for s in e.ctl.stationbook.stations() if s.heard_on(id).count > 0}:
             break
     heard = [s for s in e.ctl.stationbook.stations() if s.call.startswith("Q")]
-    assert heard and all(s.heard_on(id).count > 0 and s.heard_fm == 0 for s in heard), "heard on the LoRa radio, never on the FM one"
+    assert heard and all(s.heard_on(id).count > 0 and s.heard_on(FM_ID).count == 0 for s in heard), "heard on the LoRa radio, never on the FM one"
     home = next(s for s in heard if s.call.endswith("KOT"))
     assert home.lat is not None and home.snr is not None and home.rssi is not None, "a station heard direct on the LoRa radio has its position and its signal"
     packets = [p for p in await e.packets() if p.direction == "in" and p.source.startswith("Q")]

@@ -10,7 +10,7 @@ import platform
 import sys
 from pathlib import Path
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol
 
 from . import VERSION, ax25, stopfile
@@ -29,7 +29,7 @@ from .packetlog import PacketLog
 from .policy import TNC_CHECK_SEC
 from .radiodriver import RadioDriver, RunOverrides
 from .radioregistry import LiveRadio, RadioRegistry, make_driver
-from .radiospec import RadioId, RadioSpec
+from .radiospec import RadioId, RadioSpec, modem_radio
 from .route import Deliveries
 from .serialprobe import search_pattern
 from .services.alerts import Alerts
@@ -97,13 +97,14 @@ class PositionFrames:
 
 class Services:
     check_sec: float = TNC_CHECK_SEC         # the keep-alive's quiet period in seconds (the controller is given the run's: the tests make it shorter, or 0 for none)
+    radios_unread = False                    # the radios could not be read at the start (Controller._load_settings): none is added, nor the stations' choices of them stored, until the next start
 
     def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False, encryption: bool = False,
                  hf_port: str = "", lines: Mapping[RadioId, Tnc] | None = None) -> None:
         self.data_dir = data_dir
         self.encryption = encryption                                    # the daemon was started with --encryption: encrypted messages may be sent (services/keyring.py)
         self.clock = clock
-        self.config: Config = DEFAULTS                                  # the settings; the controller reads them from the database at its start
+        self.config: Config = replace(DEFAULTS, radios=())              # the settings, with no radio (a new installation has none); the controller reads them from the database at its start
         self.config_lock = asyncio.Lock()                               # held while the settings are stored and put in force (Controller.save_config, change_config): a change is made of the settings as they are then
         self.port_override = port                                       # a serial port for this run only (--port): the FM radio's, used instead of serial/port, never stored
         self.hf_port_override = hf_port                                 # the HF radio's for this run only (--hf-port): a Mercury that something else runs (the benches), instead of the one the daemon starts
@@ -117,7 +118,8 @@ class Services:
         self.radio_packet: Signal[[Packet]] = Signal("radio.packet")    # every packet of every radio, in and out, stamped with its radio: what the parts take (neoaprs/wiring.py connects each radio's line to it)
         self.radio_changed: Signal[[RadioId]] = Signal("radio.changed")       # a radio's state, lines, counters or modem changed: its id
         kept = Remembered(self.store)                                    # (the operator's radio by station, in a state row: neoaprs/radioregistry.py)
-        self.radios: RadioRegistry[Beacon] = RadioRegistry(claims, lambda spec: self._make_driver(spec, interlock), self._make_beacon, lambda: self.config, self.stationbook, lambda text: kept.put({MESSAGE_RADIOS: text}), kept.flush,
+        self.radios: RadioRegistry[Beacon] = RadioRegistry(claims, lambda spec: self._make_driver(spec, interlock), self._make_beacon, lambda: self.config, self.stationbook,
+                                                           lambda text: None if self.radios_unread else kept.put({MESSAGE_RADIOS: text}), kept.flush,
                                                            clock=clock, run=lambda: self.run)       # the radios of the settings, any number: each with its driver, its line and its beacon, one lifecycle for all, and the choice between them (the main radio, by station, by packet)
         self._make_radio_parts(clock)
         self._make_logs(clock)
@@ -138,7 +140,7 @@ class Services:
     @property
     def run(self) -> RunOverrides:
         """What the process gave for this run only (neoaprs/radiodriver.py), as it is now: a test may change one between two starts of a radio."""
-        return RunOverrides(self.port_override, self.pattern_override, self.hf_port_override, self.check_sec)
+        return RunOverrides(self.port_override, self.pattern_override, self.hf_port_override, self.check_sec, modem_radio(self.config.radios))
 
     def _make_driver(self, spec: RadioSpec, interlock: Interlock) -> RadioDriver:
         """The driver of a radio's type, with the line a test handed in for the radio, else its own."""
@@ -169,7 +171,7 @@ class Services:
         self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
         self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
         self.beacon_frames = BeaconFrames(lambda: self.config, self.gps, clock)      # the one maker of our frames: the position, the status report and the position field for any radio (services/beaconframe.py); each radio's beacon, the status report, the queries and the iGate take theirs from it
-        self.radios.sync(self.config)                                   # (the radios of the defaults: the controller syncs again once the settings are read)
+        self.radios.sync(self.config)                                   # (no radio until the settings are read: the controller syncs again then, and a radio the database gives an id later is made new)
         self.rigstatus = RigStatus(self.radios, lambda: self.config, self.beacon_frames, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min, on the main radio; started by the controller after the beacon
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
 

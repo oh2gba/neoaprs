@@ -7,7 +7,7 @@ from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_
 from .bulletin import board_slot
 from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS
 from .packet import DUMMY, IS, RF_GATED, ItemReport, Message, ObjectReport, Other, Packet, Position
-from .radiotype import FM_ID, HF_ID, RadioId
+from .radiotype import FM_ID, RadioId
 from .reach import mark_of, pushed, reach_of
 from .route import route_of
 from .station import RadioPlace, Station, add_track_point
@@ -16,13 +16,13 @@ DEFINITIONS_MAX = 500               # stations whose telemetry definitions are k
 IGATE = "IGATE"                     # the token of a capabilities packet (`<IGATE,MSG_CNT=2,LOC_CNT=10`) with which a station says it is an iGate
 
 
-def old_carries_path(radio: RadioId) -> bool:
-    """Whether the radio's routes are the station's as a whole, where nobody has said which radios may carry a path: every radio but radio 2, the HF radio of before the round (what the station book
-    takes until the composition root gives it the radios' types: stationbook.carries_path)."""
-    return radio != HF_ID
+def every_radio_carries_path(radio: RadioId) -> bool:
+    """Whether the radio's routes are the station's as a whole, where nobody has said which radios may carry a path: every radio may, as stationbook.carries_path says of a radio the settings do not
+    have (the composition root gives the station book the radios' types)."""
+    return True
 
 
-def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_path: Callable[[RadioId], bool] = old_carries_path) -> None:
+def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path) -> None:
     """A packet of the station was received: it is counted, with the time, for the channel it came by (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy` and the time of the latest of each) and in `packets`, and the station
     was last heard now. One heard on a radio (a Dummy radio's too) is counted for that radio by its id, with the time and the path it came by (`heard_by`; one made without a radio, a test's, is radio 1's), and, with `route`, for its route
     on that radio (`Station.routes`, any radio's), and for the station's routes as a whole where the radio may carry a path (`carries_path`: an HF radio's frames are all direct, and they are not the way an

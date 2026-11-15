@@ -14,6 +14,7 @@ from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.dummyscene import Scene
 from neoaprs.mercury import ControlEvent
 from neoaprs.packet import Packet
+from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.reading import NO_READING, PAIR_SEC, Following, Pending, Reading
 from neoaprs.station import Station
 from neoaprs.stationbook import StationBook
@@ -105,7 +106,7 @@ async def test_a_reading_that_waited_longer_than_the_pair_time_is_not_the_frames
 
 @stops_rigs
 async def test_a_kiss_tnc_gives_no_reading_even_with_a_modem_beside_it(rig: Rigs, tmp_path: Path) -> None:
-    r = await rig(profile=replace(MERCURY, key="mercury-no-readings", readings=()))
+    r = await rig(profile=replace(MERCURY, readings=()))
     m = modem(tmp_path, program=False)
     r.tnc.modem = m
     heard: list[Packet] = []
@@ -155,7 +156,7 @@ async def test_the_dummy_hf_radio_hears_its_stations_with_an_snr_and_the_dummy_r
         await tnc.stop()
     assert len(heard) >= 3
     if profile is DUMMY_HF:
-        assert all(p.snr is not None and p.rssi is None and p.radio == "hf" for p in heard)
+        assert all(p.snr is not None and p.rssi is None and p.radio_id == HF_ID for p in heard)
     else:
         assert all(p.snr is None and p.rssi is None for p in heard)
 
@@ -163,13 +164,13 @@ async def test_the_dummy_hf_radio_hears_its_stations_with_an_snr_and_the_dummy_r
 def test_a_station_keeps_the_reading_of_the_latest_packet_heard_direct_from_it() -> None:
     def heard(snr: float | None, path: tuple[str, ...] = (), minutes: int = 0) -> Packet:
         at = T0.replace(minute=minutes)
-        return Packet(at, "in", b"", "Q3TKU", "APRS", path, b">x", parse(b">x", "Q3TKU", "APRS", at), radio="hf", snr=snr)
+        return Packet(at, "in", b"", "Q3TKU", "APRS", path, b">x", parse(b">x", "Q3TKU", "APRS", at), radio_id=HF_ID, snr=snr)
     station = Station("Q3TKU", first_heard=T0, last_heard=T0)
     note_heard(station, heard(-2.5, minutes=1))
     assert (station.snr, station.rssi, station.signal_at) == (-2.5, None, T0.replace(minute=1))
     note_heard(station, heard(None, minutes=2))
     assert (station.snr, station.signal_at) == (-2.5, T0.replace(minute=1)), "a packet without a reading leaves the last one, with its own time"
-    note_heard(station, replace(heard(9.0, ("OH2RCH-2*",), minutes=3), radio="fm"))
+    note_heard(station, replace(heard(9.0, ("OH2RCH-2*",), minutes=3), radio_id=FM_ID))
     assert station.snr == -2.5, "a digipeater's copy is the digipeater's signal"
     note_heard(station, replace(heard(4.0, minutes=4), rssi=-101.0))
     assert (station.snr, station.rssi, station.signal_at) == (4.0, -101.0, T0.replace(minute=4))
@@ -177,7 +178,7 @@ def test_a_station_keeps_the_reading_of_the_latest_packet_heard_direct_from_it()
 
 def test_an_object_or_item_keeps_no_reading_its_reporter_s_signal_is_the_reporter_s() -> None:
     for info, name in ((b";NET      *141200z6027.11N/02216.00E-Club net", "NET"), (b")FIELD!6027.11N/02216.00E-", "FIELD")):
-        packet = Packet(T0, "in", b"", "Q3TKU", "APRS", (), info, parse(info, "Q3TKU", "APRS", T0), radio="hf", snr=6.1)
+        packet = Packet(T0, "in", b"", "Q3TKU", "APRS", (), info, parse(info, "Q3TKU", "APRS", T0), radio_id=HF_ID, snr=6.1)
         book = StationBook(lambda: T0)
         book.take(packet)
         stations = {s.call: s for s in book.stations()}

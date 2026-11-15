@@ -46,7 +46,6 @@ from neoaprs.controller import Controller                         # noqa: E402
 from neoaprs import mercury as mercuryrules                        # noqa: E402
 from neoaprs.mercuryhelper import find as find_mercury             # noqa: E402
 from neoaprs.mercuryspeaker import SpeakerAudio                    # noqa: E402
-from neoaprs.radiospec import HF_ID                               # noqa: E402
 
 DESKTOP = {"width": 1440, "height": 900}
 PHONE = {"width": 390, "height": 844}
@@ -55,9 +54,9 @@ LIMIT_KB = 480                                                    # a PNG is mad
 README_SHOTS = ("map", "weather", "messages", "beacon", "objects", "bulletins", "setup")
 SETTINGS = {
     "station/call": "OH2GBA", "station/lat": f"{demoscene.HOME[0]}", "station/lon": f"{demoscene.HOME[1]}", "station/symbol_table": "/", "station/symbol_code": "-",
-    "station/comment": "NeoAPRS in Espoo", "beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "messages/alert": "false", "tnc/profile": "kiss-tcp",
-    "tcp/host": demoscene.HOST,
+    "station/comment": "NeoAPRS in Espoo", "beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "messages/alert": "false", "radio/1/tcp_host": demoscene.HOST,
 }
+RADIO_TYPE = "kiss-tcp"                                              # the operator's radio, radio 1: the demo's own KISS TNC over TCP
 AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "145.500MHz QRV", "messages/alert": "true", "web/network": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
 GPSD_PORT = 2947                                                    # (gpsd's usual port: what the fake gpsd of the beacon-gps shot listens on when it is free)
 SHOWN_KEY = "k7m2-x9pq-4hrt"                                       # what the Settings shot shows as the access key, and the addresses: the daemon's own key is made at random for the run and never shown
@@ -125,6 +124,11 @@ def neoaprs_db_set(data: Path, key: str, value: str) -> None:
     subprocess.run([sys.executable, "-m", "neoaprs", "db", "--data", str(data), "set", key, value], check=True, capture_output=True, cwd=ROOT)
 
 
+def neoaprs_db_add_radio(data: Path, radio_type: str) -> None:
+    """A radio of the type added to the data folder, before its daemon's first start: the database numbers it."""
+    subprocess.run([sys.executable, "-m", "neoaprs", "db", "--data", str(data), "radios", "add", radio_type], check=True, capture_output=True, cwd=ROOT)
+
+
 async def give_hf_radio(url: str, radio_type: str, values: dict[str, str]) -> None:
     """The HF radio of a daemon that is up, given through its page as the operator gives it (smoke.give_radio: `radio_add` or `radio_change` and its own keys). `neoaprs db set` of an HF key is refused on a folder whose daemon ran without an HF radio, which every copy of the day's folder is."""
     page = await smoke.PageSocket.open(url)
@@ -135,13 +139,14 @@ async def give_hf_radio(url: str, radio_type: str, values: dict[str, str]) -> No
 
 
 async def hf_radio_given(page: smoke.PageSocket, radio_type: str, values: dict[str, str], seconds: float) -> None:
-    """give_hf_radio on an open socket. A Mercury radio is the one --hf-port names (radio 2), and its modem, the Mercury on pipes, must be `running` before its shot is taken: a radio of another id, or a
-    modem that does not come up, is a Failure, which leaves its shots out with the reason, never a picture of a Mercury radio with no modem."""
+    """give_hf_radio on an open socket. A Mercury radio is the one --hf-port names (the station's first Mercury radio: the lowest id of one not removed), and its modem, the Mercury on pipes, must be `running`
+    before its shot is taken: another Mercury radio before it, or a modem that does not come up, is a Failure, which leaves its shots out with the reason, never a picture of a Mercury radio with no modem."""
     id = await smoke.give_radio(page, "hf", radio_type, values, seconds)
     if radio_type != "mercury":
         return
-    if id != HF_ID:
-        raise smoke.Failure(f"the Mercury radio given is radio {id}, and --hf-port names radio {HF_ID}")
+    first = min((int(key) for key, row in (page.topics.get(smoke.RADIOS) or {}).items() if row.get("type") == "mercury" and not row.get("removed")), default=id)
+    if first != id:
+        raise smoke.Failure(f"the Mercury radio given is radio {id}, and --hf-port names radio {first}")
     await page.until("the Mercury modem of the HF radio running", lambda p: smoke.modem_state(p.topics, "hf", id) == "running", seconds)
 
 
@@ -196,7 +201,8 @@ async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) 
     await ctl.open_database()
     assert ctl.db is not None
     await ctl.db.close()
-    for key, value in {**SETTINGS, "tcp/port": str(radio.port)}.items():
+    neoaprs_db_add_radio(data, RADIO_TYPE)
+    for key, value in {**SETTINGS, "radio/1/tcp_port": str(radio.port)}.items():
         neoaprs_db_set(data, key, value)
     if basemap is not None:
         put_map(basemap, data / "basemap.pmtiles")

@@ -15,11 +15,10 @@ interlock is not asked, only that the call is one.
 A frame too long for a radio with a fixed frame (the Mercury HF modem's 123 bytes) has its comment cut to fit, said once in the log for each radio and each cut; the report itself is never cut.
 
 Until every caller gives the registry's radios (neoaprs/radioregistry.py), a radio may still come in the old shape of services/common.Radio (a Tnc, the old set of two, a test's stub): `air_of` reads it as an
-`AirRadio` (`OldLine`: its kind by its rules, fm radio 1 and hf radio 2; its limits and what it is allowed from its rules; its choices those of the station's radio of that id). W3 deletes the old shape."""
+`AirRadio` (`OldLine`: its kind by its type, fm radio 1 and hf radio 2; its limits and what it is allowed its type's; its choices those of the station's radio of that id)."""
 import logging
 import math
 import re
-from dataclasses import replace
 from typing import Any, TypeIs, cast
 
 from neoaprs import ax25
@@ -33,7 +32,6 @@ from neoaprs.gpsfix import Fix
 from neoaprs.radiospec import FM_ID, HF_ID, RadioId, RadioSpec, log_name
 from neoaprs.radiotype import Allowed, Kind, Limits
 from neoaprs.radiotypes import kind_field
-from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.mobilebeacon import Positions, mobile_info
 from neoaprs.services.radioset import FRAME_ERRORS, AirRadio, fit_frame, fixed_prefix, our_frame, path_on
@@ -73,7 +71,7 @@ def phg_text(power_w: int, height_m: float, gain_db: int, direction: str) -> str
 
 
 class OldLine:
-    """A radio of the old shape (services/common.Radio) read as an AirRadio: radio 1 when its rules are the FM kind's, radio 2 when they are the HF kind's; its limits and what it is allowed are its rules,
+    """A radio of the old shape (services/common.Radio) read as an AirRadio: radio 1 when its type is of the FM kind, radio 2 when it is of the HF kind; its limits and what it is allowed are its type's,
     read afresh on every call (a line's profile changes with the settings); its frame cap is the line's; its choices are those of the station's radio of that id, radio 1's where that kind has no such one."""
 
     def __init__(self, line: Radio, config: ConfigSource) -> None:
@@ -83,7 +81,7 @@ class OldLine:
 
     @property
     def kind(self) -> Kind:
-        return "hf" if self.line.rules.kind == "hf" else "fm"
+        return "hf" if self.line.rtype.kind == "hf" else "fm"
 
     @property
     def id(self) -> RadioId:
@@ -101,13 +99,11 @@ class OldLine:
 
     @property
     def limits(self) -> Limits:
-        r = self.line.rules
-        return Limits(r.max_frame, r.beacon_min_min, r.beacon_jitter_sec, r.retry_jitter_sec)
+        return self.line.rtype.limits
 
     @property
     def allowed(self) -> Allowed:
-        r = self.line.rules
-        return replace(HF_ALLOWED if r.kind == "hf" else FM_ALLOWED, paths=r.paths, digipeat=r.digipeat, smart_beacon=r.smart_beacon)
+        return self.line.rtype.allowed
 
     @property
     def stats(self) -> TncStats:
@@ -146,8 +142,9 @@ def is_air(radio: AirRadio | Radio) -> TypeIs[AirRadio]:
 
 def air_of(radio: AirRadio | Radio, config: ConfigSource, *, old: bool = False) -> AirRadio:
     """The radio as an AirRadio: itself, or an old one read as one (`OldLine`). In a call of the old shape (`old`: a beacon made without the maker, a status report given a beacon or a line) every radio
-    that has rules is read as the old one, as the beacon read it before, by the station's beacon/path: a test's stub is both shapes, and its own choices are not the station's."""
-    if is_air(radio) and not (old and hasattr(radio, "rules")):
+    that has a type of its own (`rtype`: a line, a test's stub) is read as the old one, as the beacon read it before, by the station's beacon/path: a test's stub is both shapes, and its own choices are not
+    the station's."""
+    if is_air(radio) and not (old and hasattr(radio, "rtype")):
         return radio
     return OldLine(cast(Radio, radio), config)
 

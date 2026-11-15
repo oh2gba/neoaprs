@@ -2,7 +2,7 @@
 from collections.abc import Iterable
 from dataclasses import KW_ONLY, dataclass, field, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .aprsextension import Extensions
 from .aprsfreq import Frequency
@@ -13,7 +13,7 @@ from .aprsweather import Weather
 from .geo import distance_km
 from .hourcount import HourCount
 from .packet import IS, Via
-from .radiospec import FM_ID, HF_ID, NOT_HEARD, RadioHeard, RadioId
+from .radiospec import NOT_HEARD, RadioHeard, RadioId
 from .reach import Reach, RouteMark
 from .route import Deliveries, Route
 
@@ -101,7 +101,6 @@ class Station:
     hour_is: HourCount = field(default_factory=HourCount, repr=False, compare=False)    # ... those of them that came from the internet
     radio: RadioPlace | None = field(default=None, repr=False, compare=False)    # where the packets that were not from the internet put it, once it has been heard from the internet too (not kept in the cache: read again from the packets at the start)
     sent_message: bool = False                  # it has sent a message or an ack to a station (overheard or not): it does messages (not kept in the cache: it is read again from the packet log at the start)
-    message_radio: str = ""                     # the radio the operator chose for messages to it while both are on (`fm`, `hf`), "" for the daemon's choice (radios.py); kept in the state row MESSAGE_RADIOS, not in the cache
     position_messaging: bool | None = None      # its latest position says whether it takes messages (`=` and `@`, or Mic-E but the type code `'`); None until a position is heard (not kept in the cache either)
     track: Track = field(default_factory=list)  # (time, lat, lon), the latest TRACK_MAX positions, oldest first
     is_me: bool = False
@@ -112,6 +111,9 @@ class Station:
     routes: dict[RadioId, Deliveries] = field(default_factory=dict)  # how its packets reached us on each radio, by the radio's id (rule 3.3: what each radio heard of it, the route too), every radio's whatever it may carry; not kept in the cache, read again from the packets at the start
     internet_reach: Reach | None = None         # how its latest internet packet got there: heard by an iGate, or sent from an app (neoaprs/reach.py; not kept in the cache: it is read again from the latest packets at the start)
     route_marks: tuple[RouteMark, ...] = ()     # the route of its latest packet and the one before it that came another way, any channel, newest first, for the map (not kept in the cache either)
+
+    def __post_init__(self) -> None:
+        self.heard_by = {radio: heard for radio, heard in self.heard_by.items() if heard.count > 0}      # (its own dict, `dataclasses.replace` too; a radio with a count of 0 heard nothing: no entry)
 
     def heard_on(self, radio: RadioId) -> RadioHeard:
         """What the radio heard of it; nothing (a count of 0) for a radio that never heard it."""
@@ -162,33 +164,20 @@ class Station:
         else:
             self.heard_by[radio] = after
 
-    # ---- the old names, until W3: the counts and times of radio 1 (`fm`) and radio 2 (`hf`), and the one path of the latest packet, as views of `heard_by` that are read, set and taken by the constructor
-    if TYPE_CHECKING:                           # (what a type checker is told of them; in the running program they are the properties below, no fields)
-        heard_fm: int = 0
-        heard_hf: int = 0
-        last_fm_at: datetime | None = None
-        last_hf_at: datetime | None = None
-        last_path: tuple[str, ...] = ()
-    else:
-        heard_fm = property(lambda self: self.heard_on(FM_ID).count, lambda self, count: self._heard_as(FM_ID, count=count))
-        heard_hf = property(lambda self: self.heard_on(HF_ID).count, lambda self, count: self._heard_as(HF_ID, count=count))
-        last_fm_at = property(lambda self: self.heard_on(FM_ID).last_at, lambda self, at: self._heard_as(FM_ID, last_at=at))
-        last_hf_at = property(lambda self: self.heard_on(HF_ID).last_at, lambda self, at: self._heard_as(HF_ID, last_at=at))
+    @property
+    def last_path(self) -> tuple[str, ...]:
+        """The digipeaters of the latest packet heard on a radio (an `is` packet came by no route): those of the packet the radio that heard it last heard last (`last_radio`, by the time); of a
+        station no radio heard, `own_path`."""
+        radio = self.last_radio
+        return self.own_path if radio is None else self.heard_by[radio].last_path
 
-        @property
-        def last_path(self) -> tuple[str, ...]:
-            """The digipeaters of the latest packet heard on a radio (an `is` packet came by no route): those of the packet the radio that heard it last heard last (`last_radio`, by the time); of a
-            station no radio heard, `own_path`."""
-            radio = self.last_radio
-            return self.own_path if radio is None else self.heard_by[radio].last_path
-
-        @last_path.setter
-        def last_path(self, path: tuple[str, ...]) -> None:
-            radio = self.last_radio
-            if radio is None:
-                self.own_path = path
-            else:
-                self._heard_as(radio, last_path=path)
+    @last_path.setter
+    def last_path(self, path: tuple[str, ...]) -> None:
+        radio = self.last_radio
+        if radio is None:
+            self.own_path = path
+        else:
+            self._heard_as(radio, last_path=path)
 
     @property
     def has_position(self) -> bool:
@@ -246,18 +235,3 @@ class Station:
                            symbol_table="", symbol_code="", last_comment="", extensions=None, storm=None, sign=None)
         return view
 
-
-OLD_NAMES = ("heard_fm", "heard_hf", "last_fm_at", "last_hf_at", "last_path")       # in the order they are set: the counts and the times, then the path, which goes with the radio that heard last
-_made = Station.__init__
-
-
-def _init(self: Station, *args: Any, **values: Any) -> None:
-    """The constructor still takes the old names beside `heard_by` (`dataclasses.replace` too, which goes through it): each is set through its view, over a `heard_by` that is the new station's own dict."""
-    old = [(name, values.pop(name)) for name in OLD_NAMES if name in values]
-    values["heard_by"] = {radio: heard for radio, heard in (values.get("heard_by") or {}).items() if heard.count > 0}     # (a radio with a count of 0 heard nothing: no entry)
-    _made(self, *args, **values)
-    for name, value in old:
-        setattr(self, name, value)
-
-
-Station.__init__ = _init                        # type: ignore[method-assign]

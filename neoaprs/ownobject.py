@@ -15,17 +15,16 @@ An object may belong to a QRU group (services/qru.py): a station that asks the a
 (`?APRSO`, or its group), and so has no kill to send."""
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal, get_args
+from typing import Literal, get_args
 
 from neoaprs.aprsposition import north_as_360, uncompressed_position
 from neoaprs.config import MAX_COMMENT, MAX_COMMENT_PHG, SYMBOL_TABLES
 from neoaprs.coded import CodedError
 from neoaprs.configtypes import over_the_air_refusal
 from neoaprs.message import path_choice
-from neoaprs.packet import old_keywords
-from neoaprs.radiotype import FM_ID, HF_ID, RadioId
+from neoaprs.radiotype import FM_ID, RadioId
 from neoaprs.route import DIRECT_ONLY
 from neoaprs.units import KNOT_KMH
 
@@ -48,17 +47,6 @@ class OwnError(CodedError):
     """What cannot be an object of ours or be sent as one; the text says why."""
 
 
-OBJECT_RADIOS = ("fm", "hf", "both")         # the old words for the radios of an object: radio 1, radio 2, the two
-_RADIOS_OF: dict[str, tuple[RadioId, ...]] = {"fm": (FM_ID,), "hf": (HF_ID,), "both": (FM_ID, HF_ID)}
-
-
-def radios_of_word(word: str) -> tuple[RadioId, ...]:
-    """The ids an old word names (`fm` 1, `hf` 2, `both` 1 and 2); OwnError for a word that is none of them."""
-    if word not in _RADIOS_OF:
-        raise OwnError(f"{word!r} is not a radio: fm, hf or both")
-    return _RADIOS_OF[word]
-
-
 def radio_set(radios: Iterable[RadioId]) -> tuple[RadioId, ...]:
     """The radios of an object as they are kept: each id once, ascending; OwnError for none at all and for what is no id (a whole number from 1)."""
     found = set(radios)
@@ -67,11 +55,9 @@ def radio_set(radios: Iterable[RadioId]) -> tuple[RadioId, ...]:
     return tuple(sorted(found))
 
 
-@old_keywords(radio="radios")
 @dataclass(frozen=True, slots=True)
 class OwnObject:
-    """The radios it goes out on are kept as their ids (`radios`). The old word `radio` (`fm`, `hf`, `both`) is a view of them and is still taken by the constructor, by name and in its old place (the eighteenth
-    value), until W3."""
+    """An object or an item of ours. The radios it goes out on are named by their ids (`radios`)."""
     name: str
     kind: Kind
     lat: float
@@ -89,21 +75,10 @@ class OwnObject:
     last_sent_at: datetime | None = None
     qru_group: str = ""                          # the group of QRU (services/qru.py) it is offered in to a station that asks; empty: none
     on_request: bool = False                     # True: never sent on the schedule, only to a station that asks for it
-    if TYPE_CHECKING:                            # (what a type checker is told: the old word `radio` in its old place, the ids by their name; in the running program `radio` is the view below, no field)
-        radio: str = "fm"
-        radios: tuple[RadioId, ...] = field(default=(FM_ID,), kw_only=True)
-    else:
-        radios: tuple[RadioId, ...] = (FM_ID,)   # the ids of the radios it goes out on, ascending, one at least; with one radio on it goes on that one, whatever is kept
+    radios: tuple[RadioId, ...] = (FM_ID,)       # the ids of the radios it goes out on, ascending, one at least; with one radio on it goes on that one, whatever is kept
 
     def __post_init__(self) -> None:
-        given: object = self.radios
-        object.__setattr__(self, "radios", radios_of_word(given) if isinstance(given, str) else radio_set(self.radios))      # (a word is the old call, by name or in its old place)
-
-    if not TYPE_CHECKING:
-        @property
-        def radio(self) -> str:
-            """The old word for the radios (`radios` as `fm`, `hf` or `both`): `both` for a set with radios 1 and 2 in it, `hf` for one with radio 2 and not radio 1, `fm` for any other."""
-            return "both" if FM_ID in self.radios and HF_ID in self.radios else "hf" if HF_ID in self.radios else "fm"
+        object.__setattr__(self, "radios", radio_set(self.radios))
 
     @property
     def path_calls(self) -> tuple[str, ...] | None:
@@ -158,10 +133,10 @@ def _path(path: str | None) -> str | None:
 
 
 def make_object(now: datetime, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None,
-                speed_kmh: float | None = None, path: str | None = None, before: OwnObject | None = None, qru_group: str = "", on_request: bool = False, radio: str = "fm", *,
-                radios: Iterable[RadioId] | None = None) -> OwnObject:
+                speed_kmh: float | None = None, path: str | None = None, before: OwnObject | None = None, qru_group: str = "", on_request: bool = False, *,
+                radios: Iterable[RadioId] = (FM_ID,)) -> OwnObject:
     """The object of these values, or OwnError that says what is wrong. With `before` (the object of that name we have) the times and the count of what was sent are kept, so that the rules of the
-    schedule see the change: a changed object starts its decay again. `radios` are the ids of the radios it goes out on; without them the old word `radio` says (`fm`, `hf`, `both`), as the page says it until W3."""
+    schedule see the change: a changed object starts its decay again. `radios` are the ids of the radios it goes out on."""
     if kind not in KINDS:
         raise OwnError(f"{kind!r} is not an object or an item", "object.kind", value=kind)
     _name(name, kind)
@@ -175,7 +150,7 @@ def make_object(now: datetime, name: str, kind: str, lat: float, lon: float, sym
         raise OwnError(f"the comment is {len(comment)} characters, at most {limit} fit{' behind the course and speed' if limit == COMMENT_MAX_MOTION else ''}", "object.comment_length",
                        length=len(comment), max=limit, motion=int(limit == COMMENT_MAX_MOTION))
     made = OwnObject(name, "object" if kind == "object" else "item", lat, lon, symbol_table, symbol_code, now if before is None else before.created_at, now, comment, course_deg, speed_kmh, _path(path),
-                     qru_group=_qru_group(qru_group), on_request=on_request, radios=radios_of_word(radio) if radios is None else radio_set(radios))
+                     qru_group=_qru_group(qru_group), on_request=on_request, radios=radio_set(radios))
     return made if before is None else replace(made, sent=0, last_sent_at=before.last_sent_at)
 
 

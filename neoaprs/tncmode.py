@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Literal
 
 from . import aprsthirdparty, ax25, kiss
-from .packet import Packet, channel_of, id_of_word
+from .packet import Packet, channel_of
 from .radiotype import FM_ID, RadioId
 from .reading import NO_READING, Reading
 
@@ -104,27 +104,26 @@ def _text_line(line: bytes) -> bool:
     return "cmd:" in text or _TNC2_LINE.match(text) is not None
 
 
-def packet_of(direction: Literal["in", "out"], raw: bytes, frame: ax25.Frame, now: datetime, dummy: bool = False, radio: str | None = None, reading: Reading = NO_READING, *,
+def packet_of(direction: Literal["in", "out"], raw: bytes, frame: ax25.Frame, now: datetime, dummy: bool = False, reading: Reading = NO_READING, *,
               radio_id: RadioId | None = FM_ID) -> Packet:
     """The packet for an AX.25 frame that came in or went out at `now`: `rf`, or `rf-gated` when the frame is a third-party one (an iGate put what it took from the internet on the air), `dummy` for a frame of the Dummy radio;
-    `radio_id` is the radio it came on (radio 1 unless the Tnc says otherwise), `reading` the signal the radio measured of the frame. `radio` is the old word for the radio (`fm`, `hf`), which a caller of before
-    still gives and which then says the radio, until W3."""
+    `radio_id` is the radio it came on (radio 1 unless the Tnc says otherwise), `reading` the signal the radio measured of the frame."""
     source, destination = str(frame.source), str(frame.destination)
     decoded, third_party = aprsthirdparty.parse_packet(frame.info, source, destination, now)
     return Packet(heard_at=now, direction=direction, raw=raw, source=source, destination=destination, path=tuple(str(a) for a in frame.path), info=frame.info, decoded=decoded, third_party=third_party,
-                  via=channel_of(third_party, dummy=dummy), radio_id=radio_id if radio is None else id_of_word(radio), snr=reading.snr, rssi=reading.rssi)
+                  via=channel_of(third_party, dummy=dummy), radio_id=radio_id, snr=reading.snr, rssi=reading.rssi)
 
 
-def read_frame(kiss_frame: kiss.KissFrame, now: datetime, dummy: bool = False, radio: str | None = None, reading: Reading = NO_READING, *,
+def read_frame(kiss_frame: kiss.KissFrame, now: datetime, dummy: bool = False, reading: Reading = NO_READING, *,
                radio_id: RadioId | None = FM_ID) -> tuple[Packet, ax25.Frame] | str:
-    """The packet in a KISS frame and its AX.25 frame, stamped with the radio it came on (`radio_id`; `radio` as `packet_of` takes it), or the reason it is none (a KISS command, not a UI frame, not AX.25 at all)."""
+    """The packet in a KISS frame and its AX.25 frame, stamped with the radio it came on (`radio_id`), or the reason it is none (a KISS command, not a UI frame, not AX.25 at all)."""
     try:
         if kiss_frame.command != 0:
             return f"KISS command {kiss_frame.command} on port {kiss_frame.port}, ignored"
         frame = ax25.decode(kiss_frame.payload)
         if not frame.is_ui:
             return f"not a UI frame (control 0x{frame.control:02X}, PID 0x{frame.pid:02X})"
-        return packet_of("in", kiss_frame.payload, frame, now, dummy, radio, reading, radio_id=radio_id), frame
+        return packet_of("in", kiss_frame.payload, frame, now, dummy, reading, radio_id=radio_id), frame
     except ax25.Ax25Error as e:
         return f"not an AX.25 frame: {e}"
     except Exception:

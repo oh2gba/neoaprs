@@ -56,7 +56,7 @@ def test_every_message_is_kept_and_none_has_a_failure(tmp_path: Path) -> None:
     assert db.execute("SELECT failure FROM message ORDER BY id").fetchall() == [(None,)] * len(MESSAGES)
     records = sorted((message_of(row) for row in held_messages(db, 10)), key=lambda r: r.id)
     assert [(r.id, r.state, r.failure) for r in records] == [(1, "acked", None), (2, "received", None), (3, "failed", None), (4, "failed", None)], "an old failed message failed for want of an answer"
-    assert [(r.id, r.radio, r.radio_id) for r in records] == [(1, "", None), (2, "fm", 1), (3, "", None), (4, "", None)], "the one that came in came on the FM radio, as it did"
+    assert [(r.id, r.radio_id) for r in records] == [(1, None), (2, 1), (3, None), (4, None)], "the one that came in came on the FM radio, as it did"
     db.close()
 
 

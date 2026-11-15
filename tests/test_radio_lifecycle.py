@@ -26,7 +26,7 @@ async def test_a_radio_is_added_off_given_its_port_switched_on_and_then_heard_an
     other = await e.new_radio()                                          # a KISS server on the loopback: the new radio's
     line = e.tnc._generation
     id = await e.ctl.add_radio("kiss-tcp", "Shack", enabled=False)
-    assert id == 3 and e.ctl.radios.get(id) is not None and e.ctl.radios.get(id).state is Source.State.STOPPED       # type: ignore[union-attr]
+    assert id == 2 and e.ctl.radios.get(id) is not None and e.ctl.radios.get(id).state is Source.State.STOPPED       # type: ignore[union-attr]
     assert await e.ctl.save_radio_settings(id, {"port": other.url})
     assert await e.ctl.change_radio(id, enabled=True)
     added = e.ctl.radios.get(id)
@@ -49,13 +49,13 @@ async def test_a_radio_is_renamed_given_a_type_of_its_kind_and_moved_and_what_it
     assert id is not None
     assert await e.ctl.change_radio(id, name="  Mobile ") and e.ctl.config.radio(id).name == "Mobile"        # type: ignore[union-attr]
     assert await e.ctl.change_radio(id, type="kiss") and e.ctl.config.radio(id).type == "kiss"               # type: ignore[union-attr]
-    assert id == 3 and await e.ctl.change_radio(id, position=1) and [r.id for r in e.ctl.radios.all()] == [FM_ID, id], "the same place: by position, then by id"
+    assert id == 2 and await e.ctl.change_radio(id, position=1) and [r.id for r in e.ctl.radios.all()] == [FM_ID, id], "the same place: by position, then by id"
     assert await e.ctl.change_radio(FM_ID, position=5) and [r.id for r in e.ctl.radios.all()] == [id, FM_ID], "moved"
-    with pytest.raises(RadioError, match="radio 3's already"):
+    with pytest.raises(RadioError, match="radio 2's already"):
         await e.ctl.change_radio(FM_ID, name="MOBILE")
     assert await e.ctl.change_radio(id, name="MOBILE") and await e.ctl.change_radio(id, name="Mobile"), "its own name in other letters"
-    for columns, words in (({"name": "a name too long"}, "at most 8"), ({"name": "Mö"}, "printable ASCII"), ({"type": "mercury"}, "radio/3/type"), ({"position": 0}, "radio/3/position"),
-                           ({"enabled": "yes"}, "radio/3/enabled"), ({"kind": "hf"}, "cannot be changed")):
+    for columns, words in (({"name": "a name too long"}, "at most 8"), ({"name": "Mö"}, "printable ASCII"), ({"type": "mercury"}, "radio/2/type"), ({"position": 0}, "radio/2/position"),
+                           ({"enabled": "yes"}, "radio/2/enabled"), ({"kind": "hf"}, "cannot be changed")):
         with pytest.raises(RadioError, match=words):
             await e.ctl.change_radio(id, **columns)
     with pytest.raises(RadioTypeError):
@@ -120,7 +120,7 @@ async def test_a_radios_own_settings_are_checked_stored_and_restart_that_radio_a
     await until(lambda: added.state is Source.State.CONNECTED and added.line.path == second.url)
     assert e.tnc._generation == line and e.tnc.state is Source.State.CONNECTED, "the other radio is not restarted"
     assert await e.ctl.save_radio_settings(id, {"beacon": "false"}) and added.choice("beacon") is False and added.line.path == second.url
-    for values, key in (({"baud": "fast"}, "radio/3/baud"), ({"sound_card": "plughw:1,0"}, "radio/3/sound_card")):
+    for values, key in (({"baud": "fast"}, "radio/2/baud"), ({"sound_card": "plughw:1,0"}, "radio/2/sound_card")):
         with pytest.raises(RadioError, match=key):
             await e.ctl.save_radio_settings(id, values)
     [stored] = [s for s in await e.ctl.store.radios() if s.id == id]
@@ -139,7 +139,7 @@ async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_
     await e.ctl.radios.flush()
     await e.ctl.prefbook.set_path("OH2GAX-2", "WIDE2-1", radio_id=HF_ID)
     await e.ctl.prefbook.set_path("OH2GAX-2", "WIDE1-1", radio_id=FM_ID)
-    e.ctl.ownobjects.set("SKED", "object", 60.2, 24.9, "/", "E", radio="both")
+    e.ctl.ownobjects.set("SKED", "object", 60.2, 24.9, "/", "E", radios=(FM_ID, HF_ID))
     assert e.beacon_2.send_now()
 
     async def hf_sent_kept() -> bool:
@@ -149,7 +149,7 @@ async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_
     assert await e.ctl.remove_radio(HF_ID)
     assert e.ctl.ownobjects.get("SKED").radios == (FM_ID,), "and out of the object in memory"       # type: ignore[union-attr]
     assert e.ctl.radios.get(HF_ID) is None and e.ctl.config.radio(HF_ID).removed and not e.ctl.config.hf_enabled      # type: ignore[union-attr]
-    assert (e.ctl.radios.choice("OH2GAX-2"), e.ctl.radios.choice("OH2GBA")) == (None, FM_ID) and e.ctl.stationbook.get("OH2GAX-2").message_radio == ""     # type: ignore[union-attr]
+    assert (e.ctl.radios.choice("OH2GAX-2"), e.ctl.radios.choice("OH2GBA")) == (None, FM_ID)
     assert e.ctl.prefbook.path_on("OH2GAX-2", HF_ID) is None and e.ctl.prefbook.path_on("OH2GAX-2", FM_ID) == ("WIDE1-1",)
     await until(lambda: hf is not None and hf.state is Source.State.STOPPED and not beacon_2.running)
     assert all(claim.holder != HF_ID for claim in e.ctl.radios.claims.all()), "what it held is let go"

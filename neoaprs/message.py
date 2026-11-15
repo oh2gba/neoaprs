@@ -5,16 +5,15 @@ the APRS message id, the 1 to 5 characters after the "{" that the acknowledgemen
 import random
 import re
 import string
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Literal, get_args
+from typing import Literal, get_args
 
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT, MessageError
 from neoaprs.ax25 import MAX_PATH
 from neoaprs.coded import CodedError
 from neoaprs.callsign import format_call, normal_name, parse_call
-from neoaprs.packet import old_keywords, radio_word
-from neoaprs.radiotype import RadioId, radio_id_of
+from neoaprs.radiotype import RadioId
 from neoaprs.route import DIRECT_ONLY, rf_only_path
 
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
@@ -57,7 +56,6 @@ class MessagingError(CodedError):
     """The message cannot be sent, or the command cannot be done; the text says why."""
 
 
-@old_keywords(radio="radio_id")
 @dataclass(frozen=True, slots=True)
 class MessageRecord:
     id: int
@@ -75,25 +73,10 @@ class MessageRecord:
     route: str = ""                                       # how the packet reached us, "direct" or "via OH2RCH-2" (neoaprs/route.py), for a message that was heard; empty for one of ours
     seal: Seal = ""                                       # what the message is besides text: "" plain; "key" an announcement of the sender's public key (neoaprs/cipher.py); "key_other" one that differs from the key kept and was not taken; "open" encrypted and read; "shut" encrypted and not readable here
     wire: str | None = None                               # the text as it goes on the air for an encrypted message of ours (the ciphertext; `text` is what was written); None for every other
-    if TYPE_CHECKING:                                     # (what a type checker is told: the old word `radio` in its old place, the id by its name; as Packet.radio, until W3)
-        radio: str = ""
-        radio_id: RadioId | None = field(default=None, kw_only=True)
-    else:
-        radio_id: RadioId | None = None                   # the id of the radio a message that came in came on; None for one of ours, whose attempts say, and for one kept before there were two
+    radio_id: RadioId | None = None                       # the id of the radio a message that came in came on; None for one of ours, whose attempts say, and for one kept before there were two
     failure: Failure | None = None                        # why a failed message of ours failed (`FAILURES`); None while it has not failed and for one that failed for want of an answer
     snr: float | None = None                              # the signal of the packet that carried it (neoaprs/reading.py), SNR in dB and RSSI in dBm: a message that came in, its own packet's; one of ours, the ack's or
     rssi: float | None = None                             # the reject's that settled it; None until then, and when that packet's radio gave none
-
-    def __post_init__(self) -> None:
-        given: object = self.radio_id
-        if isinstance(given, str):                        # (the old word, by name or in its old place: one that names no radio is none, as it was)
-            object.__setattr__(self, "radio_id", radio_id_of(given))
-
-    if not TYPE_CHECKING:
-        @property
-        def radio(self) -> str:
-            """The old word for the radio a message that came in came on (`radio_id` as the word of its slot: 1 `fm`, 2 `hf`); "" for none and for any other radio."""
-            return radio_word(self.radio_id)
 
     @property
     def peer(self) -> str:

@@ -15,7 +15,8 @@ from neoaprs import ax25, mercury
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.configlegacy import with_legacy
 from neoaprs.message import MessagingError
-from neoaprs.radiorules import FM, HF
+from neoaprs.radiotypes import type_of
+from neoaprs.radiotypes.common import FM_ALLOWED, FM_LIMITS, HF_ALLOWED, HF_LIMITS
 from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.services.beacon import Beacon, BeaconError
 from neoaprs.services.beaconframe import BeaconFrames
@@ -26,7 +27,7 @@ from neoaprs.web.messagewire import MessageRow
 from neoaprs.web.views import message_row
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR
-from tests.support.stubtnc import StubTnc
+from tests.support.stubtnc import HF_WITH_PATHS, StubTnc
 from tests.test_beaconframe import capped_with_paths, radio_of
 from tests.test_messaging import Rig, started_rig
 
@@ -38,8 +39,8 @@ HF_CONFIG: Config = replace(ON_AIR, hf_enabled=True, fm_enabled=False, beacon_pa
 def test_the_one_mode_is_datac3_and_its_frame_carries_123_bytes_of_a_packet_in_under_four_seconds() -> None:
     assert (mercury.MODE, mercury.MODE_INDEX, mercury.FRAME_BYTES, mercury.HEADER_BYTES, mercury.MAX_PAYLOAD) == ("DATAC3", 1, 126, 3, 123)
     assert 3.5 < mercury.FRAME_SEC < 4.5 and mercury.DELIVERY_SEC >= 3.78, "the slowest delivery scripts/mercury-measure frame saw"
-    assert MERCURY.max_frame == 123 and MERCURY.transport == "modem" and MERCURY.enter == () and not MERCURY.can_probe
-    assert MERCURY not in PROFILES and all(p.rules.kind == "fm" for p in PROFILES) and MERCURY.rules.kind == "hf", "the Mercury profile is the HF radio's, never a type of the FM radio (neoaprs/radios.py)"
+    assert type_of(MERCURY.key).limits.max_frame == 123 and MERCURY.transport == "modem" and MERCURY.enter == () and not MERCURY.can_probe
+    assert MERCURY not in PROFILES and all(type_of(p.key).kind == "fm" for p in PROFILES) and type_of(MERCURY.key).kind == "hf", "the Mercury profile is the HF radio's, never a type of the FM radio"
     with pytest.raises(ValueError):
         profile_of("mercury")
 
@@ -107,7 +108,7 @@ def test_the_beacon_cuts_its_comment_to_the_radios_frame_and_says_so_once(caplog
     frames.position(radio)
     assert len([r for r in caplog.records if "its comment is cut" in r.message]) == 1, "said once for the same cut"
     assert len(ax25.encode(frames.position(radio_of(long, FM_ID)))) > 123, "a radio with no limit sends it whole"
-    assert Beacon(StubTnc(max_frame=123, rules=replace(HF, paths=True)), lambda: long, FixedClock()).frame() == frame, "a line of the old shape with the same cap and rules: the same cut"
+    assert Beacon(StubTnc(max_frame=123, rtype=HF_WITH_PATHS), lambda: long, FixedClock()).frame() == frame, "a line of the old shape with the same cap and rules: the same cut"
 
 
 def test_the_sender_cuts_an_objects_comment_and_refuses_what_cannot_be_cut() -> None:
@@ -120,7 +121,7 @@ def test_the_sender_cuts_an_objects_comment_and_refuses_what_cannot_be_cut() -> 
 
 
 async def test_a_message_that_the_radio_would_cut_is_refused_with_the_reason_and_a_message_that_fits_goes(tmp_path: Path) -> None:
-    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123, rules=replace(HF, paths=True)), hf_enabled=True, fm_enabled=False, beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")        # (a radio with a frame cap that carries paths: over HF itself no path goes, and the longest message, 67 characters to a 9-character addressee with a reply-ack, is 100 bytes)
+    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123, rtype=HF_WITH_PATHS), hf_enabled=True, fm_enabled=False, beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")        # (a radio with a frame cap that carries paths: over HF itself no path goes, and the longest message, 67 characters to a 9-character addressee with a reply-ack, is 100 bytes)
     sent = await rig.m.send("OH2RDG", "Hello Pekka")
     assert sent.state == "sending" and rig.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1::OH2RDG   :Hello Pekka{01}"]
     with pytest.raises(MessagingError) as refused:
@@ -432,8 +433,8 @@ def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the
     unpaused.last_sent, unpaused._started = clock(), clock()
     unpaused._plan(20)
     assert unpaused.next_due == clock() + timedelta(minutes=20), "the FM radio has no pause"
-    assert HF.beacon_min_min == 30 and HF.beacon_jitter_sec == 300 and not HF.smart_beacon and not HF.paths and not HF.digipeat
-    assert FM.paths and FM.digipeat and FM.smart_beacon and FM.beacon_jitter_sec == 0 and FM.max_frame is None
+    assert HF_LIMITS.beacon_min_min == 30 and HF_LIMITS.beacon_jitter_sec == 300 and not HF_ALLOWED.smart_beacon and not HF_ALLOWED.paths and not HF_ALLOWED.digipeat
+    assert FM_ALLOWED.paths and FM_ALLOWED.digipeat and FM_ALLOWED.smart_beacon and FM_LIMITS.beacon_jitter_sec == 0 and FM_LIMITS.max_frame is None
 
 
 def test_the_one_beacon_interval_is_raised_to_30_minutes_on_the_hf_radio_alone_and_the_fm_radio_keeps_what_was_set() -> None:
@@ -461,10 +462,10 @@ def test_the_random_pause_keeps_stations_with_the_same_interval_apart_on_the_sim
     assert together == rounds, "with no pause all five key together at the hour"
     overlapping = 0
     for _ in range(rounds):
-        starts = [rng.uniform(0, HF.beacon_jitter_sec) for _ in range(5)]
+        starts = [rng.uniform(0, HF_LIMITS.beacon_jitter_sec) for _ in range(5)]
         overlapping += any(abs(a - b) < frame_sec for a, b in combinations(starts, 2))
     assert 0.15 < overlapping / rounds < 0.35, overlapping / rounds
-    pairs = sum(1 for _ in range(rounds) if abs(rng.uniform(0, HF.beacon_jitter_sec) - rng.uniform(0, HF.beacon_jitter_sec)) < frame_sec)
+    pairs = sum(1 for _ in range(rounds) if abs(rng.uniform(0, HF_LIMITS.beacon_jitter_sec) - rng.uniform(0, HF_LIMITS.beacon_jitter_sec)) < frame_sec)
     assert pairs / rounds < 0.05, "two stations on one interval overlap in a few rounds of a hundred"
 
 

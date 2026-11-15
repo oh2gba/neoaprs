@@ -14,7 +14,7 @@ from .callsign import call_problem
 from .coded import CodedError, Param
 from .configlegacy import with_legacy, with_network
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
-from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings, and today's flat keys as a view of radios 1 and 2)
+from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, path_text, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings, and today's flat keys as a view of radios 1 and 2)
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
@@ -102,7 +102,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),        # empty: the speed of the profile
     Setting("tcp_host", "tcp/host", host_name),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
     Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
-    Setting("hf_enabled", "hf/enabled", boolean),                           # true: the HF radio (the Mercury modem the daemon starts, with mercury/*) is there beside the FM one, or alone (neoaprs/radios.py)
+    Setting("hf_enabled", "hf/enabled", boolean),                           # true: the HF radio (the Mercury modem the daemon starts, with mercury/*) is there beside the FM one, or alone
     Setting("hf_profile", "hf/profile", hf_profile),                        # what the HF radio is: the Mercury modem (mercury), or the Dummy HF radio (dummy-hf) that makes up distant stations and keys nothing
     Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the daemon's own choice (mercury.choose_sound_card), else the system's default device
     Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port); empty: the daemon's own choice (mercury.choose_keying)
@@ -288,12 +288,15 @@ class Config(FlatFields, RadioViews):
         """igate/server as host and port, None while it is empty."""
         return _host_port(self.igate_server)
 
+    def path_calls(self, radio: RadioId) -> tuple[str, ...]:
+        """The calls of the radio's own path (configradios.path_text): empty the path its kind recommends (LoRa WIDE1-1), else the recommended path of the station's symbol; none at all for DIRECT."""
+        path = path_text(self.radios, radio)
+        return () if path == DIRECT_ONLY else tuple(call for call in (path or self.recommended_path).split(",") if call)
+
     @property
     def beacon_path_calls(self) -> tuple[str, ...]:
-        """beacon/path as the list of calls it names: the recommended path of the station's symbol when it is empty, none at all for DIRECT."""
-        if self.beacon_path == DIRECT_ONLY:
-            return ()
-        return tuple(call for call in (self.beacon_path or self.recommended_path).split(",") if call)
+        """beacon/path as the list of calls it names (radio 1's own path: path_calls)."""
+        return self.path_calls(FM_ID)
 
     @property
     def recommended_path(self) -> str:

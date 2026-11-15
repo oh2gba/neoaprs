@@ -1,8 +1,9 @@
 """A data folder for the tests of the support bundle: a migrated database with settings (an access key among them) and a few packets, and logs of the sizes a test asks for.
 
-    data = fake_folder(tmp_path)                    # tmp_path/data with neoaprs.sqlite, neoaprs.log and neoaprs-app.log; no radio stored (a new installation's file: the flat keys are in force)
+    data = fake_folder(tmp_path)                    # tmp_path/data with neoaprs.sqlite, neoaprs.log and neoaprs-app.log: the settings stored at version 30 and migrated, the radios rows made of the keys of
+                                                    # before as an installation's update makes them (radio 1, and radio 2 where they name the HF radio)
     fake_folder(tmp_path, app_log=False)            # no app log
-    fake_folder(tmp_path, radios=True)              # the settings stored at version 30 and migrated: the radios are rows, made of the flat keys as an installation's update makes them
+    fake_folder(tmp_path, radios=False)             # a new installation's file: the station's settings, and no radio yet
     zip_members(path)                               # {name: text} of a bundle
 """
 import zipfile
@@ -10,6 +11,7 @@ from pathlib import Path
 
 from neoaprs import aprsparse, ax25
 from neoaprs.clock import utc
+from neoaprs.config import STATION_KEYS
 from neoaprs.kiss import KissDecoder
 from neoaprs.packet import Packet, Undecoded
 from neoaprs.packetcodec import packet_row
@@ -39,7 +41,7 @@ def packets(count: int) -> list[Packet]:
     return out[:count]
 
 
-def fake_folder(tmp_path: Path, packet_count: int = 5, undecoded: int = 2, settings: dict[str, str] | None = None, app_log: bool = True, log_lines: int = 40, radios: bool = False) -> Path:
+def fake_folder(tmp_path: Path, packet_count: int = 5, undecoded: int = 2, settings: dict[str, str] | None = None, app_log: bool = True, log_lines: int = 40, radios: bool = True) -> Path:
     data = tmp_path / "data"
     data.mkdir(exist_ok=True)
     rows = SETTINGS if settings is None else settings
@@ -50,7 +52,7 @@ def fake_folder(tmp_path: Path, packet_count: int = 5, undecoded: int = 2, setti
     s = opened(data / DB_NAME)
     try:
         if not radios:
-            write_settings(s.db, rows)
+            write_settings(s.db, {key: value for key, value in rows.items() if key in STATION_KEYS})
         for packet in packets(packet_count):
             insert_packet(s.db, packet_row(packet))
         base = packets(1)[0]

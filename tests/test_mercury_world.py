@@ -9,7 +9,7 @@ from pathlib import Path
 
 from neoaprs import ax25
 from neoaprs.message import FINAL_WAIT_SEC, FIRST_WAIT_SEC, retry_pause
-from neoaprs.radiorules import HF
+from neoaprs.radiotypes.common import HF_LIMITS as HF
 from tests.support.env import Env, idle_for, until
 from tests.support.fakeaprsis import FakeAprsIs
 from tests.support.mercuryworld import World

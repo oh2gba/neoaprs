@@ -1,4 +1,4 @@
-"""The radio a message to a station goes out on while both radios are on (neoaprs/radios.py: `for_station`, `choose`, the state row MESSAGE_RADIOS), the pause before a retry on HF (message.retry_pause:
+"""The radio a message to a station goes out on while both radios are on (the registry's `for_station`, `choose`, the state row MESSAGE_RADIOS), the pause before a retry on HF (message.retry_pause:
 two stations that collided must not retry at the same moment again), and a station whose position takes no messages can still be written to (`may_not_message`). John and OH2GAX, 4 Nov 2026.
 
 Messaging takes that radio from the station's radios as the registry gives them (services/radioset.py RadioPick, here tests/test_messaging.py `StubPick` with radio 1 and radio 2 on stub lines): the first
@@ -16,22 +16,22 @@ from typing import Any
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.config import DEFAULTS, MESSAGE_RADIOS
+from neoaprs.config import DEFAULTS
 from neoaprs.message import EMAIL_GATEWAY, FIRST_WAIT_SEC, MessageRecord, MessagingError, due_at, retry_pause
 from neoaprs.messagelog import MessageLog
-from neoaprs.radiorules import FM
 from neoaprs.radiospec import RadioHeard
 from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.radiotypes.common import FM_LIMITS, HF_LIMITS
 from neoaprs.packet import Message, Packet
-from neoaprs.radios import Radios
+from neoaprs.radioregistry import RadioRegistry
+from neoaprs.radiotypes import type_of
 from neoaprs.services.answers import Answers, as_pick
 from neoaprs.services.messaging import Messaging
 from neoaprs.station import Station
 from neoaprs.stationbook import StationBook
 from tests.support.air import on_air
 from tests.support.env import remember_stop
-from tests.support.fakedriver import Rig as AirRig
+from tests.support.fakedriver import FakeBeacon, Rig as AirRig, registry_of
 from tests.support.stubtnc import StubRadios
 from tests.support.storedb import log_at
 from tests.support.stubtnc import StubTnc
@@ -42,54 +42,45 @@ T0 = utc(2026, 11, 4, 7, 30)
 BOTH = replace(DEFAULTS, fm_enabled=True, hf_enabled=True)
 
 
-class Kept:
-    """A Memory: the rows written."""
-    def __init__(self) -> None:
-        self.rows: dict[str, str] = {}
-
-    async def setting(self, key: str) -> str | None:
-        return self.rows.get(key)
-
-    async def put_settings(self, data: dict[str, str]) -> bool:
-        self.rows.update(data)
-        return True
-
-
 def station(call: str, fm: int = 0, hf: int = 0, **values: Any) -> Station:
-    return Station(call, first_heard=T0, last_heard=T0, heard_fm=fm, heard_hf=hf, **values)
+    return Station(call, first_heard=T0, last_heard=T0, heard_by={id: RadioHeard(count, None) for id, count in ((FM_ID, fm), (HF_ID, hf)) if count}, **values)
 
 
-def radios(memory: Kept | None = None, config: Any = BOTH) -> tuple[Radios, StationBook, object, object]:
-    book, fm, hf = StationBook(), object(), object()
-    book.seed([station("OH2GAX-2", fm=40, hf=21), station("OH2FAR", hf=3), station("OH2NEAR", fm=5)])
-    remember = (lambda text: memory.rows.update({MESSAGE_RADIOS: text})) if memory is not None else (lambda text: None)
-    return Radios(fm, hf, lambda: config, book, remember), book, fm, hf          # type: ignore[arg-type]  # what is chosen is all that is asked of a radio here
+def radios(config: Any = BOTH) -> tuple[RadioRegistry[FakeBeacon], StationBook, list[str]]:
+    """The registry of the two radios, its book with three stations, and the rows it was asked to keep (the state row MESSAGE_RADIOS)."""
+    rig = registry_of(config)
+    rig.book.seed([station("OH2GAX-2", fm=40, hf=21), station("OH2FAR", hf=3), station("OH2NEAR", fm=5)])
+    return rig.registry, rig.book, rig.kept
+
+
+def id_for(registry: RadioRegistry[FakeBeacon], call: str) -> int | None:
+    radio = registry.for_station(call)
+    return None if radio is None else radio.id
 
 
 async def test_a_station_heard_on_both_radios_goes_on_fm_until_the_operator_chooses_hf_and_the_choice_is_kept() -> None:
-    kept = Kept()
-    r, book, fm, hf = radios(kept)
+    r, book, kept = radios()
     changed: list[str] = []
-    book.changed.connect(lambda s: changed.append(f"{s.call}:{s.message_radio}"))
-    assert r.for_station("OH2GAX-2") is fm and r.for_station("OH2FAR") is hf and r.for_station("OH2NEAR") is fm, "the daemon's choice: FM unless heard on HF alone"
-    assert r.choose("OH2GAX-2", "hf") and r.for_station("OH2GAX-2") is hf and changed == ["OH2GAX-2:hf"], "the page hears of it with the station"
-    assert r.choose("OH2NEAR", "hf") and r.choose("OH2FAR", "fm") and r.for_station("OH2FAR") is fm
+    book.changed.connect(lambda s: changed.append(f"{s.call}:{r.choice(s.call)}"))
+    assert (id_for(r, "OH2GAX-2"), id_for(r, "OH2FAR"), id_for(r, "OH2NEAR")) == (FM_ID, HF_ID, FM_ID), "the daemon's choice: FM unless heard on HF alone"
+    assert r.choose("OH2GAX-2", HF_ID) and id_for(r, "OH2GAX-2") == HF_ID and changed == [f"OH2GAX-2:{HF_ID}"], "the page hears of it with the station"
+    assert r.choose("OH2NEAR", HF_ID) and r.choose("OH2FAR", FM_ID) and id_for(r, "OH2FAR") == FM_ID
     await r.flush()
-    assert json.loads(kept.rows[MESSAGE_RADIOS]) == {"OH2FAR": "fm", "OH2GAX-2": "hf", "OH2NEAR": "hf"}
-    assert r.choose("OH2NEAR", "") and r.for_station("OH2NEAR") is fm, "an empty choice gives it back to the daemon"
-    assert not r.choose("OH2GAX-2", "lora") and r.choice("OH2GAX-2") == HF_ID, "an unknown radio is no choice"
-    assert r.choose("OH2NOBODY", "hf") and r.choice("OH2NOBODY") == HF_ID and book.get("OH2NOBODY") is None, "a call the book does not hold keeps its choice by call (plan rule 3.2)"
+    assert json.loads(kept[-1]) == {"OH2FAR": FM_ID, "OH2GAX-2": HF_ID, "OH2NEAR": HF_ID}
+    assert r.choose("OH2NEAR", None) and id_for(r, "OH2NEAR") == FM_ID, "no choice gives it back to the daemon"
+    assert not r.choose("OH2GAX-2", 3) and r.choice("OH2GAX-2") == HF_ID, "a radio the settings do not have is no choice"
+    assert r.choose("OH2NOBODY", HF_ID) and r.choice("OH2NOBODY") == HF_ID and book.get("OH2NOBODY") is None, "a call the book does not hold keeps its choice by call (plan rule 3.2)"
 
-    again, book2, fm2, hf2 = radios()
-    again.restore(kept.rows[MESSAGE_RADIOS])
-    assert again.for_station("OH2GAX-2") is hf2 and again.for_station("OH2FAR") is fm2, "after a restart"
+    again, _, _ = radios()
+    again.restore(kept[-1])
+    assert (id_for(again, "OH2GAX-2"), id_for(again, "OH2FAR")) == (HF_ID, FM_ID), "after a restart"
     again.restore("not json") or again.restore('{"OH2GAX-2": "lora"}')
-    assert book2.get("OH2GAX-2").message_radio == "hf"                     # type: ignore[union-attr]
+    assert again.choice("OH2GAX-2") == HF_ID
 
 
 def test_with_one_radio_on_the_choice_is_not_asked() -> None:
-    r, _, fm, _ = radios(config=replace(DEFAULTS, fm_enabled=True, hf_enabled=False))
-    assert r.choose("OH2GAX-2", "hf") and r.for_station("OH2GAX-2") is fm, "the choice waits for both radios to be on"
+    r, _, _ = radios(config=replace(DEFAULTS, fm_enabled=True, hf_enabled=False))
+    assert r.choose("OH2GAX-2", HF_ID) and id_for(r, "OH2GAX-2") == FM_ID, "the choice waits for both radios to be on"
 
 
 def message(attempts: int, to: str = "OH2GAX-2", number: int = 556) -> MessageRecord:
@@ -132,19 +123,18 @@ async def test_the_page_chooses_the_radio_of_a_station_and_its_row_says_it(tmp_p
 
 
 def test_a_station_the_book_lets_go_takes_its_radio_along_and_a_restart_does_not_bring_it_back() -> None:
-    kept = Kept()
-    r, book, fm, _ = radios(kept)
+    r, book, kept = radios()
     book.removed.connect(r.forget)                                       # (as wiring.py connects them)
     book.cleared.connect(r.forget_all)
-    assert r.choose("OH2GAX-2", "hf") and r.choose("OH2FAR", "fm")
+    assert r.choose("OH2GAX-2", HF_ID) and r.choose("OH2FAR", FM_ID)
     assert book.forget("OH2GAX-2"), "the operator forgets the station (Forget on its card)"
     book.seed([station("OH2GAX-2", fm=1)])                                 # heard again: no choice, messaged on FM
-    assert r.for_station("OH2GAX-2") is fm and json.loads(kept.rows[MESSAGE_RADIOS]) == {"OH2FAR": "fm"}
-    again, book2, _, _ = radios()                                        # the daemon restarted
-    again.restore(kept.rows[MESSAGE_RADIOS])
-    assert book2.get("OH2GAX-2").message_radio == "" and book2.get("OH2FAR").message_radio == "fm"      # type: ignore[union-attr]
+    assert id_for(r, "OH2GAX-2") == FM_ID and json.loads(kept[-1]) == {"OH2FAR": FM_ID}
+    again, _, _ = radios()                                               # the daemon restarted
+    again.restore(kept[-1])
+    assert (again.choice("OH2GAX-2"), again.choice("OH2FAR")) == (None, FM_ID)
     book.forget_all()
-    assert json.loads(kept.rows[MESSAGE_RADIOS]) == {}, "Forget all forgets the choices too"
+    assert json.loads(kept[-1]) == {}, "Forget all forgets the choices too"
 
 
 # ---- messaging on the radios by id (services/radioset.py RadioPick)
@@ -175,14 +165,14 @@ async def test_each_attempt_goes_on_the_radio_the_station_is_reached_on_now_and_
     rig.radios.chosen["OH2FAR"] = FM_ID                                    # (the operator chooses the FM radio for the station: the next attempt goes on the station's radio of now)
     await rig.pass_time(55)
     assert radio_ids(rig, far.id) == [HF_ID, FM_ID] and radio_ids(rig, near.id) == [FM_ID, FM_ID] and len(hf.sent) == 1
-    assert [attempt.radio for attempt in rig.m.delivery.attempts_of(far.id)] == ["hf", "fm"], "kept as the word of the radio's slot until the attempts keep the id"
+    assert [attempt.radio_id for attempt in rig.m.delivery.attempts_of(far.id)] == [HF_ID, FM_ID], "each attempt keeps the id of the radio it went on"
 
 
 async def test_an_ack_goes_back_on_the_radio_the_message_came_on_and_waits_for_it_by_its_id(tmp_path: Path) -> None:
     rig = await on_two(tmp_path)
     hf = rig.radios.lines[HF_ID]
     hf.held = "the channel is busy"
-    rig.m.on_packet(replace(rig.heard("OH2NEAR", "OH2GBA", "over hf", "7"), radio="hf"))             # (a station near on FM, but this message came over HF)
+    rig.m.on_packet(replace(rig.heard("OH2NEAR", "OH2GBA", "over hf", "7"), radio_id=HF_ID))             # (a station near on FM, but this message came over HF)
     await rig.settled()
     assert [(ack.to, ack.radio) for ack in rig.m.acks.waiting] == [("OH2NEAR", HF_ID)] and rig.tnc.sent == [], "it waits for the HF radio, not sent on FM"
     hf.held = ""
@@ -223,7 +213,7 @@ async def test_with_no_radio_at_all_a_message_that_comes_gets_no_ack_and_an_answ
 def test_what_the_services_are_given_until_the_registry_is_read_as_a_radio_pick_with_the_same_choices() -> None:
     old = StubRadios(hf_stations=("OH2C",))                               # (the old set of two of before the round, which a test may still give)
     pick = as_pick(old, lambda: BOTH)
-    hf_packet = Packet(T0, "in", b"", "OH2C", "APRS", (), b"", Message("OH2GBA", "over hf", None), None, "rf", "hf")
+    hf_packet = Packet(T0, "in", b"", "OH2C", "APRS", (), b"", Message("OH2GBA", "over hf", None), None, "rf", HF_ID)
     assert [(r.id, r.kind, r.name) for r in pick.enabled()] == [(FM_ID, "fm", "FM"), (HF_ID, "hf", "HF")]
     assert [r.radio for r in (pick.main, pick.for_station("OH2C"), pick.for_station("OH2B"), pick.for_packet(hf_packet), pick.email(), pick.get(HF_ID))] == [old, old.hf, old.fm, old.hf, old.fm, old.hf]  # type: ignore[union-attr, attr-defined]
     assert pick.get(HF_ID).limits == HF_LIMITS and not pick.get(HF_ID).allowed.paths and pick.get(FM_ID).allowed.paths and pick.get(3) is None      # type: ignore[union-attr]
@@ -371,7 +361,7 @@ async def test_the_path_of_a_frame_is_asked_for_the_radio_it_goes_out_on(tmp_pat
     rig.m._paths = lambda call, attempt, radio: asked.append((call, attempt, radio)) or given(call, attempt, radio)
     await rig.m.send("OH2FAR", "over hf")
     await rig.m.send("OH2NEAR", "on fm")
-    rig.m.on_packet(replace(rig.heard("OH2NEAR", "OH2GBA", "over hf", "7"), radio="hf"))
+    rig.m.on_packet(replace(rig.heard("OH2NEAR", "OH2GBA", "over hf", "7"), radio_id=HF_ID))
     await rig.settled()
     assert asked == [("OH2FAR", None, HF_ID), ("OH2FAR", 1, HF_ID), ("OH2NEAR", None, FM_ID), ("OH2NEAR", 1, FM_ID), ("OH2NEAR", None, HF_ID)], "the check of the text, the first attempt, the ack"
 
@@ -509,7 +499,7 @@ async def test_a_message_the_stations_own_radio_cannot_carry_fails_when_that_rad
     """R2's rule for a message its new radio cannot carry: when the station's own radio is on again and its frame is too short for the message, the message fails as too long for the radio, with no
     attempt used and nothing more on the air (the FM radio here with a frame of 60 bytes; the registry's station book as the double's `station_of`)."""
     log, _, clock = await log_at(tmp_path, MessageLog)
-    rig = Rig(log, clock, StubTnc(max_frame=60, rules=FM), hf_enabled=True)
+    rig = Rig(log, clock, StubTnc(max_frame=60, rtype=type_of("kiss")), hf_enabled=True)
     hf = with_hf(rig, rig.radios)
     book = StationBook(clock)
     book.seed([Station("OH2NR", first_heard=clock(), last_heard=clock(), heard_by={FM_ID: RadioHeard(5, clock())})])

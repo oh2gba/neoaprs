@@ -139,13 +139,12 @@ def test_a_changed_object_that_becomes_on_request_is_a_different_object() -> Non
     assert not made(qru_group="FOOD").same_content(made(qru_group="FOOD", on_request=True)) and not made().same_content(made(qru_group="FOOD"))
 
 
-# ---- the radios of an object: their ids, and the old word as a view of them
+# ---- the radios of an object: their ids
 
-def test_an_object_keeps_the_ids_of_its_radios_and_the_old_word_is_a_view_of_them() -> None:
-    assert "radios" in {f.name for f in fields(OwnObject)} and "radio" not in {f.name for f in fields(OwnObject)} and isinstance(OwnObject.radio, property)
-    assert (made().radios, made().radio) == ((FM_ID,), "fm"), "a new object goes on radio 1, as it went on FM"
-    words = {radios: made(radios=radios).radio for radios in ((1,), (2,), (1, 2), (3,), (1, 3), (2, 3), (1, 2, 3))}
-    assert words == {(1,): "fm", (2,): "hf", (1, 2): "both", (3,): "fm", (1, 3): "fm", (2, 3): "hf", (1, 2, 3): "both"}, "the old word says radios 1 and 2 and nothing of any other"
+def test_an_object_keeps_the_ids_of_its_radios() -> None:
+    assert "radios" in {f.name for f in fields(OwnObject)}
+    assert made().radios == (FM_ID,), "a new object goes on radio 1 unless its radios are given"
+    assert {radios: made(radios=radios).radios for radios in ((1,), (2,), (1, 2), (3,), (1, 3), (2, 3), (1, 2, 3))} == {r: r for r in ((1,), (2,), (1, 2), (3,), (1, 3), (2, 3), (1, 2, 3))}, "any radio by its id"
 
 
 def test_the_radios_are_kept_each_once_and_ascending() -> None:
@@ -154,20 +153,15 @@ def test_the_radios_are_kept_each_once_and_ascending() -> None:
     assert made(radios=(2, 1)).same_content(made(radios=(1, 2))) and not made(radios=(1,)).same_content(made(radios=(1, 3))), "the radios are part of what the object is"
 
 
-def test_an_object_still_takes_the_old_word_by_name_and_in_its_old_place() -> None:
-    assert [made(radio=word).radios for word in ("fm", "hf", "both")] == [(FM_ID,), (HF_ID,), (FM_ID, HF_ID)], "the page's word, until the wire has the ids"
-    by_name = OwnObject("LEADER", "object", LAT, LON, "/", ">", NOW, NOW, radio="both")
-    in_place = OwnObject("LEADER", "object", LAT, LON, "/", ">", NOW, NOW, "", None, None, None, True, 0, None, "", False, "both")      # (as neoaprs/ownlog.py reads a row)
-    assert by_name == in_place == OwnObject("LEADER", "object", LAT, LON, "/", ">", NOW, NOW, radios=(FM_ID, HF_ID)) and by_name.radio == "both"
-    assert replace(by_name, radio="hf").radios == (HF_ID,) and replace(by_name, radios=(3,)).radios == (3,) and replace(by_name, sent=4).radios == (FM_ID, HF_ID)
-    assert made(radio="hf", radios=(3,)).radios == (3,), "the ids, where they are given, say the radios"
+def test_an_object_takes_its_radios_by_name_and_in_their_place() -> None:
+    by_name = OwnObject("LEADER", "object", LAT, LON, "/", ">", NOW, NOW, radios=(HF_ID, FM_ID))
+    in_place = OwnObject("LEADER", "object", LAT, LON, "/", ">", NOW, NOW, "", None, None, None, True, 0, None, "", False, (FM_ID, HF_ID))      # (as neoaprs/ownlog.py reads a row)
+    assert by_name == in_place and by_name.radios == (FM_ID, HF_ID)
+    assert replace(by_name, radios=(HF_ID,)).radios == (HF_ID,) and replace(by_name, radios=(3,)).radios == (3,) and replace(by_name, sent=4).radios == (FM_ID, HF_ID)
 
 
 def test_radios_that_are_none_are_refused() -> None:
-    for word in ("", "FM", "lora", "1"):
-        with pytest.raises(OwnError, match="is not a radio: fm, hf or both"):
-            made(radio=word)
-    for bad in ((), (0,), (1, -2), ("1",), (1, "a"), (1.0,), (True,)):
+    for bad in ((), (0,), (1, -2), ("1",), (1, "a"), (1.0,), (True,), "fm", "hf", "both", "1"):
         with pytest.raises(OwnError, match="are not the radios of an object"):
             made(radios=bad)
         with pytest.raises(OwnError, match="are not the radios of an object"):

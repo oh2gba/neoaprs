@@ -6,8 +6,9 @@ from dataclasses import fields, replace
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, LAST_PORT, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, RANGES, SETTINGS, STATION_KEYS, Config, radios_from_flat
-from neoaprs.cli.radiosettings import flat_view
+from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, LAST_PORT, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, RADIO_STATION_KEYS, RANGES, SETTINGS, STATION_KEYS, Config, radios_from_flat
+from neoaprs.cli.radiosettings import SHOWN_KEYS, in_force, shown_settings
+from neoaprs.web.views import CONFIG_KEYS
 from neoaprs.configradios import DEFAULT_RADIOS, FLAT_HOMES, flat_value, with_flat
 from neoaprs.radiospec import FM_ID, HF_ID, RadioError, RadioSpec
 from neoaprs.smartbeacon import TRAVEL, PRESETS, SmartSettings
@@ -430,7 +431,7 @@ def test_the_mobile_settings_come_after_the_others_in_the_order_the_page_lists_t
 def test_the_beacon_interval_of_the_status_is_the_shortest_in_force_on_a_radio_and_hf_alone_is_raised_to_its_floor() -> None:
     """One setting for the station, raised on each radio to its own floor (plan rule 3.1): the HF rules' 30 minutes on the HF radio, the FM radio's floor being the setting's own minimum, so FM keeps what was
     set beside an HF radio; Off stays Off. `beacon_interval` is the shortest of them, how often our position goes out on some radio."""
-    from neoaprs.radiorules import FM, HF
+    from neoaprs.radiotypes.common import FM_LIMITS as FM, HF_LIMITS as HF
     both = replace(DEFAULTS, beacon_interval_min=20, hf_enabled=True)
     assert both.beacon_interval() == 20 and HF.beacon_min_min == 30 and FM.beacon_min_min == MIN_BEACON_INTERVAL_MIN, "FM at 20 is no longer slowed to 30 by the HF radio"
     assert replace(both, fm_enabled=False).beacon_interval() == HF.beacon_min_min == 30, "the HF radio alone: raised to its floor"
@@ -519,7 +520,8 @@ def test_the_flat_keys_of_a_removed_radio_2_say_the_kinds_defaults_on_the_page_a
     config = Config.from_data({"station/call": "OH2GBA"}, radios=(DEFAULT_RADIOS[0], hf))
     hf_keys = [key for key in KEYS if BY_KEY[key].attr in FLAT_HOMES and FLAT_HOMES[BY_KEY[key].attr][0] == HF_ID]
     assert {key: config.to_data()[key] for key in hf_keys} == {key: DEFAULTS.to_data()[key] for key in hf_keys}, "the config topic: not the removed radio's sound card, keying and type"
-    assert flat_view({"station/call": "OH2GBA"}, config.radios) == config.to_data(), "neoaprs db list and get show what the page shows"
+    assert shown_settings(in_force({"station/call": "OH2GBA"}, config.radios)) == {key: config.to_data()[key] for key in SHOWN_KEYS}, "neoaprs db list and get show the settings in force"
+    assert set(SHOWN_KEYS) == set(CONFIG_KEYS) | set(RADIO_STATION_KEYS) and not set(SHOWN_KEYS) & set(hf_keys), "what the page's config shows of the station, and no key of before of a radio"
     assert replace(config, mercury_keying="").radios == config.radios, "the default the view says changes nothing"
     changed = replace(config, mercury_keying="rts:/dev/ttyUSB1").radios[1]
     assert changed.removed and changed.settings["keying"] == "rts:/dev/ttyUSB1", "a change of it stays on the removed row, which the store refuses to change"

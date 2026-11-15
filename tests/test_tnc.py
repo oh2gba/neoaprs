@@ -11,12 +11,15 @@ from types import SimpleNamespace
 import pytest
 
 from neoaprs import ax25, kiss, serialprobe
+from neoaprs.claims import Claims
 from neoaprs.packet import Message, Other, Packet, Position, ThirdParty
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, KISS_EXIT, Tnc
 from neoaprs.tncmode import Mode, ModeDetector, looks_valid
+from neoaprs.radiospec import RadioSpec
 from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.tncprofile import KENWOOD_TNC2, KISS_TCP, MERCURY
+from neoaprs.web.radioview import radio_row
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, until
 from tests.support.fakeradio import REFUSED, FakeRadio
@@ -160,6 +163,26 @@ async def test_a_tnc_in_command_mode_is_switched_to_kiss_once(rig: Rigs) -> None
     assert await r.radio.said(1, 0.3) == b"", "KISS ON is sent once per open"
     assert r.tnc.state is Source.State.CONNECTED
     assert any("entering KISS mode" in line for line in r.tnc.lines)
+
+
+@stops_rigs
+async def test_the_row_of_a_tnc_being_put_into_kiss_says_it_is_connecting_until_the_line_is_usable(rig: Rigs) -> None:
+    """While the entry is sent and the line sends nothing yet, the radio's row says what any radio that is starting says (`connecting`, the page's Connecting…), with no problem: not Not connected. Once
+    settled the line is usable though no KISS frame has come (a TNC in KISS mode is silent until it hears a packet): the row says `connected`, so the page sends as the daemon does."""
+    r = await rig()
+    spec = RadioSpec(FM_ID, "fm", "kenwood-tnc2", "", True, 1)
+    at_work = SimpleNamespace(line=r.tnc, beacon=SimpleNamespace(last_sent=None, next_due=None, interval_min=0, problem=""))
+    status = lambda: (lambda row: (row["state"], row["problem"]))(radio_row(spec, [spec], at_work, Claims()))       # noqa: E731
+    assert not r.tnc.entering_kiss and status() == ("connected", None), "an open line that has said nothing yet"
+    r.radio.feed(MONITOR_LINE)
+    assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
+    assert r.tnc.entering_kiss and r.tnc.state is Source.State.CONNECTED and not r.tnc.usable and status() == ("connecting", None), "being put into KISS mode, nothing sent yet"
+    await idle_for(SETTLE + 0.1)
+    assert r.tnc.entering_kiss and r.tnc.usable and status() == ("connected", None), "settled: usable, though no KISS frame yet"
+    assert r.tnc.send_frame(ui_frame("OH2GBA")), "and the line sends"
+    r.radio.feed(kiss_of(ui_frame("OH2BBB")))
+    await until(lambda: "OH2BBB" in [p.source for p in r.packets])            # (the frame sent is our own packet too)
+    assert not r.tnc.entering_kiss and status() == ("connected", None), "in KISS mode: its first frame came"
 
 
 @stops_rigs

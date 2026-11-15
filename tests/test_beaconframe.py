@@ -11,9 +11,8 @@ import pytest
 
 from neoaprs import ax25
 from neoaprs.config import BEACON_SENT, HF_BEACON_SENT, Config
-from neoaprs.radiorules import HF
 from neoaprs.radiospec import FM_ID, HF_ID, RadioId, RadioSpec
-from neoaprs.radiotypes.common import FM_ALLOWED, FM_LIMITS
+from neoaprs.radiotypes.common import FM_ALLOWED, FM_LIMITS, HF_LIMITS
 from neoaprs.services.beacon import Beacon, memory_key_of
 from neoaprs.services.beaconframe import BeaconError, BeaconFrames, NoFix, OldLine, air_of
 from neoaprs.services.radioset import AirRadio, fit
@@ -23,7 +22,7 @@ from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR
 from tests.support.gps import FakeFixes, fix_at
 from tests.support.seamshapes import FrozenAir, LiveShape, RegistryShape, frozen_air
-from tests.support.stubtnc import StubTnc
+from tests.support.stubtnc import HF_WITH_PATHS, StubTnc
 
 BOTH = replace(ON_AIR, hf_enabled=True, station_comment="NeoAPRS")
 POSITION = b"=6010.20N/02456.40E-NeoAPRS"
@@ -143,7 +142,7 @@ def test_a_moving_stations_frame_is_the_fix_on_every_radio_and_nothing_without_o
 # ---- the old shape
 
 def test_a_radio_of_the_old_shape_is_read_as_the_registrys_radio_of_its_kind() -> None:
-    fm, hf, capped = (air_of(line, lambda: BOTH, old=True) for line in (StubTnc(), StubTnc(max_frame=123), StubTnc(max_frame=123, rules=replace(HF, paths=True))))
+    fm, hf, capped = (air_of(line, lambda: BOTH, old=True) for line in (StubTnc(), StubTnc(max_frame=123), StubTnc(max_frame=123, rtype=HF_WITH_PATHS)))
     assert isinstance(fm, OldLine) and (fm.id, fm.kind, fm.name, fm.max_frame, fm.allowed, fm.limits) == (FM_ID, "fm", "FM", None, BOTH.radios[0].rtype.allowed, BOTH.radios[0].rtype.limits)
     assert (hf.id, hf.kind, hf.name, hf.max_frame, hf.allowed.paths, hf.limits.beacon_jitter_sec) == (HF_ID, "hf", "HF", 123, False, 300)
     assert capped.allowed.paths and capped.choice("path") == "WIDE1-1,WIDE2-1", "an HF radio that carries paths has radio 1's, for its kind has none"
@@ -226,7 +225,7 @@ def test_the_interval_of_a_radios_beacon_is_the_beacon_rule_s_for_that_radio() -
     off = with_radios(replace(BOTH, beacon_interval_min=0), *BOTH.radios, third())
     assert Beacon(radio_of(fm_only, 3), lambda: fm_only, clock).interval_min == 20
     assert Beacon(radio_of(with_hf, 3), lambda: with_hf, clock).interval_min == Beacon(radio_of(with_hf, FM_ID), lambda: with_hf, clock).interval_min == 20, "an FM radio is not slowed by an HF radio that is on (plan rule 3.1)"
-    assert Beacon(radio_of(with_hf, HF_ID), lambda: with_hf, clock).interval_min == HF.beacon_min_min == 30, "the HF radio is raised to its own floor"
+    assert Beacon(radio_of(with_hf, HF_ID), lambda: with_hf, clock).interval_min == HF_LIMITS.beacon_min_min == 30, "the HF radio is raised to its own floor"
     assert Beacon(radio_of(off, 3), lambda: off, clock).interval_min == 0, "Off stays Off"
     gone, without = radio_of(with_hf, 3), replace(BOTH, beacon_interval_min=20)
     assert Beacon(gone, lambda: without, clock).interval_min == 0, "a radio the settings do not have sends no timed beacon"

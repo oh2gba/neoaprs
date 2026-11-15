@@ -28,7 +28,7 @@ from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Pos
 from neoaprs.packetcodec import decode_decoded, encode_decoded, packet_of, packet_row, parse_stamp, stamp, tnc2
 from neoaprs.packetlog import PacketLog, heard_of, heard_rows, station_of, station_row
 from neoaprs.packetsql import packets_since, station_columns
-from neoaprs.radiospec import HF_ID, RadioHeard
+from neoaprs.radiospec import FM_ID, HF_ID, RadioHeard
 from neoaprs.station import Station
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
@@ -189,8 +189,8 @@ async def test_a_station_is_kept_replaced_and_deleted_and_comes_back_without_its
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     a = Station("OH2AAA-3", first_heard=T0, last_heard=T0 + timedelta(minutes=5), kind="station", symbol_table="/", symbol_code=">", lat=60.1, lon=24.9, altitude_m=44.0, course_deg=12,
-                speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=3, heard_rf=3, last_rf_at=T0 + timedelta(minutes=5), heard_fm=3, last_fm_at=T0 + timedelta(minutes=5),
-                last_path=("WIDE1-1*", "OH2RCH-2"), track=[(T0, 60.1, 24.9)], is_me=True)
+                speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=3, heard_rf=3, last_rf_at=T0 + timedelta(minutes=5),
+                heard_by={FM_ID: RadioHeard(3, T0 + timedelta(minutes=5), ("WIDE1-1*", "OH2RCH-2"))}, track=[(T0, 60.1, 24.9)], is_me=True)
     b = Station("FIRE", first_heard=T0, last_heard=T0 + timedelta(minutes=9), kind="object", reported_by="OH2AAA-3", packets=1)
     log.save_station(a)
     log.save_station(b)
@@ -200,8 +200,8 @@ async def test_a_station_is_kept_replaced_and_deleted_and_comes_back_without_its
     assert [s.call for s in stations] == ["FIRE", "OH2AAA-3"], "the latest heard first"
     back = stations[1]
     assert back == Station("OH2AAA-3", first_heard=T0, last_heard=T0 + timedelta(minutes=5), symbol_table="/", symbol_code=">", lat=60.1, lon=24.9, altitude_m=44.0, course_deg=12,
-                           speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=4, heard_rf=3, last_rf_at=T0 + timedelta(minutes=5), heard_fm=3,
-                           last_fm_at=T0 + timedelta(minutes=5), last_path=("WIDE1-1*", "OH2RCH-2"))
+                           speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=4, heard_rf=3, last_rf_at=T0 + timedelta(minutes=5),
+                           heard_by={FM_ID: RadioHeard(3, T0 + timedelta(minutes=5), ("WIDE1-1*", "OH2RCH-2"))})
     assert stations[0].kind == "object" and stations[0].reported_by == "OH2AAA-3" and stations[0].lat is None and stations[0].last_path == ()
     assert log.delete_station("FIRE") and [s.call for s in await log.stations()] == ["OH2AAA-3"]
 
@@ -337,7 +337,7 @@ async def test_the_deliveries_keep_what_the_hf_radio_heard_as_its_own(tmp_path: 
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
-    log.append(replace(heard("OH2AAA", (), T0 + timedelta(seconds=1)), radio="hf"))
+    log.append(replace(heard("OH2AAA", (), T0 + timedelta(seconds=1)), radio_id=HF_ID))
     assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None, None), ("OH2AAA", (), "", 1, T0 + timedelta(seconds=1), None, HF_ID)]
 
 
@@ -443,17 +443,20 @@ def by_radio(station: Station) -> dict[int, RadioHeard]:
 
 def test_a_station_gives_its_row_and_what_each_radio_heard_and_they_give_the_station_back(shape: bool) -> None:
     later = T0 + timedelta(minutes=7)
-    for station in (Station("OH2FM", first_heard=T0, last_heard=later, packets=3, heard_rf=3, last_rf_at=later, heard_fm=3, last_fm_at=later, last_path=("OH2RCH-2*", "WIDE2-1")),
-                    Station("OH2HF", first_heard=T0, last_heard=later, packets=2, heard_rf=2, last_rf_at=later, heard_hf=2, last_hf_at=later),
-                    Station("OH2BOTH", first_heard=T0, last_heard=later, packets=5, heard_rf=5, last_rf_at=later, heard_fm=3, last_fm_at=T0, heard_hf=2, last_hf_at=later, last_path=("WIDE1-1",)),
-                    Station("OH2TIE", first_heard=T0, last_heard=T0, packets=2, heard_rf=2, last_rf_at=T0, heard_fm=1, last_fm_at=T0, heard_hf=1, last_hf_at=T0, last_path=("WIDE1-1",)),
+    for station in (Station("OH2FM", first_heard=T0, last_heard=later, packets=3, heard_rf=3, last_rf_at=later, heard_by={FM_ID: RadioHeard(3, later, ("OH2RCH-2*", "WIDE2-1"))}),
+                    Station("OH2HF", first_heard=T0, last_heard=later, packets=2, heard_rf=2, last_rf_at=later, heard_by={HF_ID: RadioHeard(2, later)}),
+                    Station("OH2BOTH", first_heard=T0, last_heard=later, packets=5, heard_rf=5, last_rf_at=later, heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later, ("WIDE1-1",))}),
+                    Station("OH2TIE", first_heard=T0, last_heard=T0, packets=2, heard_rf=2, last_rf_at=T0, heard_by={FM_ID: RadioHeard(1, T0, ("WIDE1-1",)), HF_ID: RadioHeard(1, T0)}),
                     Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0)):
         row = station_row(station)
         assert len(row) == len(station_columns()) == (28 if shape else 33)
         assert (station_of(row, heard=by_radio(station)) if shape else station_of(row)) == station, station.call
-    assert heard_rows(Station("OH2BOTH", first_heard=T0, last_heard=later, heard_fm=3, last_fm_at=T0, heard_hf=2, last_hf_at=later, last_path=("WIDE1-1",))) == [
-        ("OH2BOTH", 1, 3, stamp(T0), ""), ("OH2BOTH", 2, 2, stamp(later), "WIDE1-1")], "the path is the one of the radio that heard the station last"
-    assert [r[4] for r in heard_rows(Station("OH2TIE", first_heard=T0, last_heard=T0, heard_fm=1, last_fm_at=T0, heard_hf=1, last_hf_at=T0, last_path=("WIDE1-1",)))] == ["WIDE1-1", ""], "the FM radio's when both heard it at the same time"
+    both = Station("OH2BOTH", first_heard=T0, last_heard=later, heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later)})
+    both.last_path = ("WIDE1-1",)
+    assert heard_rows(both) == [("OH2BOTH", 1, 3, stamp(T0), ""), ("OH2BOTH", 2, 2, stamp(later), "WIDE1-1")], "the path is the one of the radio that heard the station last"
+    tie = Station("OH2TIE", first_heard=T0, last_heard=T0, heard_by={FM_ID: RadioHeard(1, T0), HF_ID: RadioHeard(1, T0)})
+    tie.last_path = ("WIDE1-1",)
+    assert [r[4] for r in heard_rows(tie)] == ["WIDE1-1", ""], "the radio 1's when both heard it at the same time"
     assert heard_rows(Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4)) == [], "a radio that heard nothing has no row"
     told = Station("OH2ONE", first_heard=T0, last_heard=T0, heard_by={3: RadioHeard(1, T0, ())})
     told.heard_by[4] = RadioHeard(0, None, ())
@@ -465,13 +468,13 @@ def test_a_station_is_made_from_what_each_radio_heard_and_a_third_radio_is_taken
     row = station_row(Station("OH2AAA", first_heard=T0, last_heard=T0))
     later = T0 + timedelta(minutes=1)
     both = station_of(row, heard={1: RadioHeard(3, T0, ("WIDE1-1",)), 2: RadioHeard(2, later, ("OH2HFD",))})
-    assert (both.heard_fm, both.last_fm_at, both.heard_hf, both.last_hf_at, both.last_path) == (3, T0, 2, later, ("OH2HFD",)), "the path of the radio that heard it last"
+    assert (both.heard_on(FM_ID).count, both.heard_on(FM_ID).last_at, both.heard_on(HF_ID).count, both.heard_on(HF_ID).last_at, both.last_path) == (3, T0, 2, later, ("OH2HFD",)), "the path of the radio that heard it last"
     assert station_of(row, heard={1: RadioHeard(3, later, ("WIDE1-1",)), 2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("WIDE1-1",)
     assert station_of(row, heard={2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("OH2HFD",) and station_of(row, heard={1: RadioHeard(1, None, ("WIDE1-1",))}).last_path == ("WIDE1-1",), "the one radio that heard it"
     assert station_of(row).heard_by == {} and station_of(row, heard={}).last_path == ()
     third = {1: RadioHeard(3, T0), 3: RadioHeard(1, later, ("WIDE2-1",))}
     made = station_of(row, heard=third)
-    assert made.heard_by == third and (made.heard_fm, made.heard_hf, made.last_path) == (3, 0, ("WIDE2-1",)), "radio 3 by its id, and the path of the radio that heard it last"
+    assert made.heard_by == third and (made.heard_on(FM_ID).count, made.heard_on(HF_ID).count, made.last_path) == (3, 0, ("WIDE2-1",)), "radio 3 by its id, and the path of the radio that heard it last"
     assert by_radio(made) == third, "and its rows give it back"
 
 
@@ -481,11 +484,11 @@ def test_a_station_is_made_from_what_each_radio_heard_and_a_third_radio_is_taken
 async def test_a_packet_names_its_radio_by_the_id_and_one_from_the_internet_names_none(tmp_path: Path) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
-    packets = [replace(heard("OH2FM", ("OH2RCH-2*",), T0), radio="fm"), replace(heard("OH2HF", (), T0 + timedelta(seconds=1)), radio="hf"), from_the_internet(source="OH2NET", at=T0 + timedelta(seconds=2)),
+    packets = [replace(heard("OH2FM", ("OH2RCH-2*",), T0), radio_id=FM_ID), replace(heard("OH2HF", (), T0 + timedelta(seconds=1)), radio_id=HF_ID), from_the_internet(source="OH2NET", at=T0 + timedelta(seconds=2)),
                heard("OH2NO", (), T0 + timedelta(seconds=3))]
     for packet in packets:
         assert log.append(packet)
-    assert [(p.source, p.radio, p.radio_id) for p in reversed(await log.recent())] == [("OH2FM", "fm", 1), ("OH2HF", "hf", 2), ("OH2NET", "", None), ("OH2NO", "", None)]
+    assert [(p.source, p.radio_id) for p in reversed(await log.recent())] == [("OH2FM", 1), ("OH2HF", 2), ("OH2NET", None), ("OH2NO", None)]
     assert list(reversed(await log.recent())) == packets
     assert await sql(store, "SELECT source, radio, typeof(radio) FROM packet ORDER BY id") == [("OH2FM", 1, "integer"), ("OH2HF", 2, "integer"), ("OH2NET", None, "null"), ("OH2NO", None, "null")]
     assert packet_row(packets[1]).radio == 2 and packet_row(packets[2]).radio is None and packet_of(packet_row(packets[1])) == packets[1]
@@ -497,11 +500,11 @@ async def test_a_packet_names_its_radio_by_the_id_and_one_from_the_internet_name
 async def test_a_packet_of_a_third_radio_is_read_and_written_as_it_is_and_a_row_that_names_no_radio_is_refused(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (3, "lora", "dummy-lora", 1, 2))))
     log = PacketLog(store.db, FixedClock())
-    log.append(replace(heard("OH2FM", ()), radio="fm"))
+    log.append(replace(heard("OH2FM", ()), radio_id=FM_ID))
     log.append(replace(heard("OH2LRA", (), T0 + timedelta(seconds=1)), radio_id=3))
     await log.count()
     caplog.set_level(logging.WARNING, "neoaprs.packetlog")
-    assert [(p.source, p.radio_id, p.radio) for p in reversed(await log.recent())] == [("OH2FM", 1, "fm"), ("OH2LRA", 3, "")], "radio 3 by its id; the old word has none for it"
+    assert [(p.source, p.radio_id) for p in reversed(await log.recent())] == [("OH2FM", 1), ("OH2LRA", 3)], "radio 3 by its id"
     assert await sql(store, "SELECT source, radio FROM packet ORDER BY id") == [("OH2FM", 1), ("OH2LRA", 3)]
     await sql(store, "UPDATE packet SET radio = 3 WHERE source = 'OH2FM'")
     assert [p.radio_id for p in await log.recent()] == [3, 3] and not [r for r in caplog.records if r.name == "neoaprs.packetlog"]
@@ -516,13 +519,14 @@ async def test_what_each_radio_heard_of_a_station_is_a_row_of_its_own_and_the_ro
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     later = T0 + timedelta(minutes=7)
-    station = Station("OH2AAA", first_heard=T0, last_heard=later, packets=5, heard_rf=5, last_rf_at=later, heard_fm=3, last_fm_at=T0, heard_hf=2, last_hf_at=later, last_path=("OH2RCH-2*",))
+    station = Station("OH2AAA", first_heard=T0, last_heard=later, packets=5, heard_rf=5, last_rf_at=later, heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later, ("OH2RCH-2*",))})
     log.save_station(station)
     log.save_station(Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0))
     assert sorted(await log.stations(), key=lambda s: s.call) == [station, Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0)]
     assert await sql(store, "SELECT call, radio_id, heard, last_at, last_path FROM station_radio ORDER BY call, radio_id") == [("OH2AAA", 1, 3, stamp(T0), ""), ("OH2AAA", 2, 2, stamp(later), "OH2RCH-2*")]
-    assert "heard_fm" not in station_columns() and "last_path" not in station_columns() and not [c for c in await sql(store, "PRAGMA table_info(station)") if c[1] in ("heard_fm", "heard_hf", "last_fm_at", "last_hf_at", "last_path")]
-    station.heard_fm, station.last_fm_at, station.heard_hf, station.last_hf_at, station.last_path = 4, later + timedelta(minutes=1), 0, None, ("WIDE1-1",)
+    assert {c[1] for c in await sql(store, "PRAGMA table_info(station)")} == set(station_columns()), "the station's row is what the code writes: what each radio heard is the table's of its own"
+    assert not {"last_path", "heard_" "fm", "heard_" "hf", "last_" "fm_at", "last_" "hf_at"} & set(station_columns()), "the path and the counts of a radio are station_radio's"
+    station.heard_by = {FM_ID: RadioHeard(4, later + timedelta(minutes=1), ("WIDE1-1",))}
     log.save_station(station)
     assert [s for s in await log.stations() if s.call == "OH2AAA"] == [station]
     assert await sql(store, "SELECT call, radio_id, heard, last_at, last_path FROM station_radio") == [("OH2AAA", 1, 4, stamp(later + timedelta(minutes=1)), "WIDE1-1")], "the HF radio's row is gone with its count"
@@ -535,7 +539,7 @@ async def test_a_station_that_is_deleted_or_forgotten_takes_what_the_radios_hear
     log = PacketLog(store.db, FixedClock())
     assert await sql(store, "PRAGMA foreign_keys") == [(0,)]
     for call in ("OH2GBA", "OH2AAA", "OH2BBB"):
-        log.save_station(Station(call, first_heard=T0, last_heard=T0, packets=2, heard_rf=2, last_rf_at=T0, heard_fm=1, last_fm_at=T0, heard_hf=1, last_hf_at=T0))
+        log.save_station(Station(call, first_heard=T0, last_heard=T0, packets=2, heard_rf=2, last_rf_at=T0, heard_by={FM_ID: RadioHeard(1, T0), HF_ID: RadioHeard(1, T0)}))
     assert len(await log.stations()) == 3 and await sql(store, "SELECT COUNT(*) FROM station_radio") == [(6,)]
     assert log.delete_station("OH2AAA")
     assert sorted(s.call for s in await log.stations()) == ["OH2BBB", "OH2GBA"]
@@ -549,7 +553,7 @@ async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_st
     store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "lora", "dummy-lora", 1, 3))))
     log = PacketLog(store.db, FixedClock())
     for call in ("OH2AAA", "OH2BBB"):
-        log.save_station(Station(call, first_heard=T0, last_heard=T0, packets=1, heard_rf=1, last_rf_at=T0, heard_fm=1, last_fm_at=T0))
+        log.save_station(Station(call, first_heard=T0, last_heard=T0, packets=1, heard_rf=1, last_rf_at=T0, heard_by={FM_ID: RadioHeard(1, T0)}))
     await log.stations()
     await sql(store, "INSERT INTO station_radio (call, radio_id, heard, last_at) VALUES ('OH2AAA', 2, 4, 'yesterday'), ('OH2BBB', 3, 1, ?)", stamp(T0))
     caplog.set_level(logging.WARNING, "neoaprs.packetlog")
@@ -567,7 +571,7 @@ async def test_the_deliveries_keep_every_radio_by_its_id_and_a_packet_of_no_radi
     store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "hf", "dummy-hf", 0, 3), (4, "lora", "dummy-lora", 1, 4))))
     log = PacketLog(store.db, FixedClock())
     for n, source in enumerate(("OH2A", "OH2B", "OH2C", "OH2D", "OH2E", "OH2F")):
-        log.append(replace(heard(source, ("OH2RCH-2*",), T0 + timedelta(seconds=n)), radio="fm"))
+        log.append(replace(heard(source, ("OH2RCH-2*",), T0 + timedelta(seconds=n)), radio_id=FM_ID))
     await log.count()
     for source, radio in (("OH2B", 2), ("OH2C", 3), ("OH2D", 4), ("OH2E", None), ("OH2F", 9)):
         await sql(store, "UPDATE packet SET radio = ? WHERE source = ?", radio, source)

@@ -11,11 +11,13 @@ import pytest
 import serial.urlhandler  # type: ignore[import-untyped]
 from hypothesis import given, strategies as st
 
-from neoaprs.cli.radiosettings import FLAT_KEY_OF
 from neoaprs.config import BY_KEY, KEYS, SETTINGS, Config
+from neoaprs.configradios import FLAT_HOMES
 from neoaprs.configvalues import PORT_SCHEMES
 from neoaprs.radiotype import Field
 from neoaprs.radiotypes import TYPES
+
+KEY_OF_BEFORE = {FLAT_HOMES[s.attr]: s.key for s in SETTINGS if s.attr in FLAT_HOMES}      # (radio, its column or own key) -> the key of before that is its view in Config (configradios.FLAT_HOMES)
 
 HANDLERS = tuple(name.removeprefix("protocol_") for _, name, _ in pkgutil.iter_modules(serial.urlhandler.__path__))     # every scheme this pyserial reads
 SCHEMES = HANDLERS + PORT_SCHEMES + ("file", "http", "https", "ftp", "javascript", "data")
@@ -160,7 +162,7 @@ def test_every_free_text_field_of_every_type_is_classified() -> None:
 
 
 def test_a_field_that_is_a_flat_keys_view_is_classified_as_that_key() -> None:
-    for (radio, key), flat in FLAT_KEY_OF.items():
+    for (radio, key), flat in KEY_OF_BEFORE.items():
         if key in ("type", "enabled"):
             continue
         assert (key in OWN_REACH) == (flat in REACH), f"radio/{radio}/{key} and {flat}"

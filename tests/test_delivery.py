@@ -84,7 +84,6 @@ async def test_an_attempt_records_the_id_of_whatever_radio_it_went_on_and_the_lo
     for number, radio in ((2, HF_ID), (3, 3), (4, None)):
         delivery.sent(replace(record, attempts=number), ("OH2RCH-2",), chain.clock(), radio)
     assert [a.radio_id for a in delivery.attempts_of(1)] == [FM_ID, HF_ID, 3, None], "the attempt holds the id itself, of a third radio too"
-    assert [a.radio for a in delivery.attempts_of(1)] == ["fm", "hf", "", ""], "the old word, which the page is told until the wire has the id: radio 3 has none"
     assert [row[1:2] + row[3:] for row in await chain.rows("message_attempt")] == [(1, "OH2RCH-2,OH2RDG", 1), (2, "OH2RCH-2", 2), (3, "OH2RCH-2", 3), (4, "OH2RCH-2", None)]
     again = await chain.restarted()
     assert [a.radio_id for a in again.rig.m.delivery.attempts_of(1)] == [FM_ID, HF_ID, 3, None], "the column is the id: a third radio's attempt comes back as it went"

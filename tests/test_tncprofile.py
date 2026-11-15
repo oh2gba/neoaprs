@@ -9,10 +9,12 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25, kiss
+from neoaprs.radiotypes import BY_KEY as TYPES_BY_KEY, type_of
 from neoaprs.source import Backoff, Source
+from neoaprs.config import LAST_PORT
 from neoaprs.tnc import ENTER_KISS, Tnc
-from neoaprs.tncprofile import BY_KEY, DEFAULT, DUMMY, KANTRONICS, KENWOOD_D710, KENWOOD_TNC2, KISS, KISS_EXIT, KISS_TCP, MERCURY, PROFILES, TNC_TEXT, Profile, names_tcp, profile_of, tcp_url
-from tests.support.env import Env, idle_for, until
+from neoaprs.tncprofile import BY_KEY, DEFAULT, DUMMY, EVERY_BY_KEY, KANTRONICS, KENWOOD_D710, KENWOOD_TNC2, KISS, KISS_EXIT, KISS_TCP, MERCURY, PROFILES, TNC_TEXT, Profile, names_tcp, profile_of, tcp_url
+from tests.support.env import RADIO_ROWS, Env, first_radios, idle_for, until
 from tests.support.fakeradio import FakeRadio
 from tests.support.ptyline import Ptys, heard, posix_only
 from tests.test_silent import QUICK
@@ -33,8 +35,21 @@ def test_the_table_has_the_profiles_the_page_offers_in_its_order_and_the_default
     assert DEFAULT is KISS and DEFAULT.enter == () and not DEFAULT.can_probe and not DEFAULT.detect_command_mode
     assert [p.transport for p in PROFILES] == ["serial", "serial", "serial", "serial", "tcp", "serial", "dummy"]
     assert KISS_TCP.baud is None and DUMMY.baud is None and MERCURY.baud is None and all(p.baud == 9600 for p in PROFILES if p.transport == "serial")
-    assert all(p.max_frame is None for p in PROFILES), "no FM type cuts a packet"
-    assert MERCURY not in PROFILES and MERCURY.transport == "modem" and MERCURY.max_frame == 123 and MERCURY.rules.kind == "hf", "the Mercury profile is the HF radio's one profile (neoaprs/radios.py), not a type of the FM radio"
+    assert all(type_of(p.key).limits.max_frame is None for p in PROFILES), "no FM type cuts a packet"
+    assert MERCURY not in PROFILES and MERCURY.transport == "modem" and type_of(MERCURY.key).limits.max_frame == 123 and type_of(MERCURY.key).kind == "hf", "the Mercury profile is the HF radio's one profile, not a type of the FM radio"
+
+
+def test_every_profile_is_named_by_its_types_key_so_a_line_of_it_knows_its_kind_and_its_limits() -> None:
+    assert set(EVERY_BY_KEY) == set(TYPES_BY_KEY), "one type for each profile, by the same key"
+    for p in EVERY_BY_KEY.values():
+        t = type_of(p.key)                       # (Tnc.rtype: a profile whose key named no type would raise at the line's first read of its kind or its frame cap)
+        tnc = Tnc("", profile=p)
+        assert tnc.rtype is t and t.profile == p.key and tnc.max_frame == t.limits.max_frame and tnc.label == ("hf radio" if t.kind == "hf" else "tnc"), p.key
+        assert tnc.rtype.limits.too_long(b"x" * 100, b"x" * 100) is None, f"{p.key}: a frame of 100 bytes fits every radio"
+    lora = type_of("lora-tcp").limits
+    assert (lora.too_long(b"x" * 251, b""), lora.too_long(b"x" * 200, b"x" * 253), lora.too_long(b"\xc0" * 130, b"")) == (
+        "251 bytes, the radio carries 250", "253 bytes of text, the radio carries 252", "263 bytes in KISS, the radio takes 256"), "a LoRa radio keeps its type's limits"
+    assert type_of("mercury").limits.too_long(b"x" * 124, b"") == "124 bytes, the radio carries 123" and type_of("kiss").limits.too_long(b"x" * 400, b"x" * 400) is None
 
 
 def test_the_kenwood_tnc2_profile_is_what_the_tnc_always_did() -> None:
@@ -218,10 +233,12 @@ async def test_the_search_for_a_kiss_tnc_listens_and_writes_nothing_where_a_tnc2
 # ---- the settings
 
 async def seeded(tmp_path: Path, rows: dict[str, str], radio: FakeRadio) -> Env:
-    """The daemon on a data folder that has these settings, with no port given for the run."""
+    """The daemon on a data folder that has these settings (radio 1's in the words of the Env: tests/support/env.py RADIO_ROWS), with no port given for the run."""
     e = Env(tmp_path, radio=False, operator=False)
     await e.ctl.open_database()
-    await e.ctl.store.put_settings(rows)
+    await e.ctl.store.put_settings({LAST_PORT if key == "serial/last_port" else key: value for key, value in rows.items() if key not in RADIO_ROWS})
+    for position, (kind, type, on, own) in enumerate(first_radios(rows, False), 1):
+        assert await e.ctl.store.add_radio(kind, type, "", on, position, settings=own) == position
     await e.start(connected=False)
     return e
 
@@ -239,21 +256,6 @@ async def test_kiss_over_tcp_connects_to_the_host_and_port_of_the_settings(tmp_p
         await until(lambda: e.tnc.stats.packets == 1)
         assert await radio.said(1, 0.5) == b"", "nothing is said to a TCP KISS server but KISS frames"
         assert e.ctl.config.serial_last_port == "/dev/ttyUSB9", "the port that is not used is not replaced"
-    finally:
-        await e.stop()
-        await radio.aclose()
-
-
-async def test_a_database_from_before_the_profiles_that_entered_kiss_is_a_tnc2(tmp_path: Path) -> None:
-    radio = FakeRadio()
-    await radio.start()
-    e = await seeded(tmp_path, {"tnc/enter_kiss": "true", "serial/port": radio.url}, radio)
-    try:
-        await until(lambda: e.tnc.state is Source.State.CONNECTED)
-        await radio.connected()
-        assert e.tnc.profile is KENWOOD_TNC2 and e.ctl.config.tnc_profile == "kenwood-tnc2"
-        radio.feed(MONITOR_LINE)
-        assert await radio.said(len(ENTER_KISS)) == ENTER_KISS
     finally:
         await e.stop()
         await radio.aclose()

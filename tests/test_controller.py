@@ -106,7 +106,7 @@ async def test_the_start_reads_the_settings_and_puts_us_in_the_station_book(tmp_
     first = Env(tmp_path, radio=False, operator=False)
     await first.start(connected=False)
     assert first.ctl.config.to_data() == DEFAULTS.to_data() and first.ctl.config.main_choice is None, "every setting is its default, today's flat keys of the radios too"
-    assert [(s.id, s.kind, s.type, s.enabled, s.settings) for s in first.ctl.config.radios] == [(1, "fm", "kiss", True, {})], "the database had no radio: today's FM radio was written, with the defaults"
+    assert [(s.id, s.kind, s.type, s.enabled, s.settings) for s in first.ctl.config.radios] == [(1, "fm", "kiss", True, {})], "radio 1, which the Env added to the new installation, with the defaults of its type"
     await first.ctl.store.put_settings({"station/call": "oh2gba-7", "station/lat": "61.5", "station/lon": "25.5", "map/radius_km": "bad", "web/port": "8080", "web/allowed_hosts": "pi", "log/keep_days": "400", "update/check": "false"})
     await first.stop()
     second = Env(tmp_path, radio=False, operator=False)
@@ -226,6 +226,7 @@ async def test_the_radio_is_started_after_the_parts_that_take_its_packets_so_tha
     ctl = Controller(tmp_path, clock, lines={FM_ID: Eager(clock, ack)}, check_sec=0)
     await ctl.open_database()
     await ctl.store.put_setting("station/call", "OH2GBA")
+    assert await ctl.store.add_radio("fm", "kiss", "", True, 1) == FM_ID              # (radio 1, the line handed in)
     kept = await ctl.messagelog.insert(MessageRecord(0, clock(), "out", "OH2GBA", "OH2RDG", "Hello", "01", "sending", 1, clock()))
     assert kept is not None
     try:

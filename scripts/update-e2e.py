@@ -248,18 +248,26 @@ def connected(page: Page) -> bool:
 
 
 PORT_KEYS = ("serial/port", "radio/1/port")          # the FM radio's port as the settings name it: the flat key of every version before the round of the radios (kept there as radio 1's), its own key after it
+FIRST_RADIO = ("radios", "add", "kiss")              # radio 1 made on a fresh folder, which has no radio from the round of the radios on: the FM type a version before it had by default
 
 
 def set_port(install: "Install", data: Path, url: str) -> str:
-    """The old version's `db set` of the FM radio's port, by the first of PORT_KEYS that it takes; the key it took. Both refused is a Failure with both answers. The data folder is fresh (no database
-    yet), where a version of the round of the radios has no radio 1 and refuses radio/1/port ("there is no database ... so no radio"): the second key is only for a version whose command line can make radio 1
-    on a fresh folder, or for a folder its daemon has started on once (W3's list, with serial/port, the one old name the scripts keep, for the old release)."""
+    """The old version's `db set` of the FM radio's port, by the first of PORT_KEYS that it takes; the key it took. The data folder is fresh (no database yet), where a version of the round of the radios
+    has no radio 1 and refuses both keys: then radio 1 is added by its command line (`db radios add kiss`, FIRST_RADIO) and its own port set. All of it refused is a Failure with every answer (W3's list,
+    with serial/port, the one old name the scripts keep, for the old release)."""
     answers = []
     for key in PORT_KEYS:
         done = install.run("db", "--data", str(data), "set", key, url)
         if done.returncode == 0:
             return key
         answers.append(f"{key}: {done.stdout.strip()} {done.stderr.strip()}")
+    added = install.run("db", "--data", str(data), *FIRST_RADIO)
+    answers.append(f"{' '.join(FIRST_RADIO)}: {added.stdout.strip()} {added.stderr.strip()}")
+    if added.returncode == 0:
+        done = install.run("db", "--data", str(data), "set", PORT_KEYS[1], url)
+        if done.returncode == 0:
+            return PORT_KEYS[1]
+        answers.append(f"then {PORT_KEYS[1]}: {done.stdout.strip()} {done.stderr.strip()}")
     raise Failure(f"db set of the FM radio's port refused: {'; '.join(answers)}")
 
 

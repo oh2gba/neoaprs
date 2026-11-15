@@ -1,7 +1,7 @@
 """The world of the Dummy HF radio: made-up traffic of the kind an HF channel carries, for trying the HF side of NeoAPRS without a radio and without another station on the air. An `HfScene` is pure, as the Dummy
 radio's `Scene` is (dummyscene.py): asked what is on the air by `due(now)` it gives the frames that have come due, told what we sent by `react` it queues what the world answers; dummyline.py plays either on the Tnc's line.
 
-What an HF channel sounds like, in the rules of radiorules.py: a handful of fixed stations hundreds of kilometres away (the stations an HF net hears are the distant ones, never the neighbours), each at its own
+What an HF channel sounds like, in the rules of an HF radio (radiotype.py): a handful of fixed stations hundreds of kilometres away (the stations an HF net hears are the distant ones, never the neighbours), each at its own
 place in Finland and in Europe, each with a timed beacon every half hour to an hour plus the random pause every HF beacon adds, every frame direct (no digipeater repeats anything on HF), and every station
 takes messages; the nearest answers one, with an ack a frame's time each way later and a reply after it, so that messaging over HF can be tried with its real pace. The first beacons come within the first two
 minutes of the start, one every few tens of seconds, so that the map fills while the operator watches; after that the channel is as quiet as a real one. Nothing of ours is repeated back: there is no digipeater.
@@ -20,7 +20,7 @@ from neoaprs.aprsmessage import MessageError, parse_message
 
 from .dummyframes import ack, air, fixed, message
 from .mercury import DELIVERY_SEC
-from .radiorules import HF_BEACON_JITTER_SEC
+from .radiotype import HF_BEACON_JITTER_SEC
 from .reading import Reading
 
 DIRECT = ""                                    # the path of every frame on HF
@@ -99,7 +99,7 @@ class HfScene:
     def _beacon(self, actor: Actor, now: datetime) -> None:
         s = actor.station
         self._put(now, air(s.call, fixed(s.lat, s.lon, s.symbol, s.comment, True), DIRECT))
-        actor.next_at = now + timedelta(seconds=s.every_sec + self._rng.uniform(0, HF_BEACON_JITTER_SEC))        # (the interval, then the random pause every HF beacon adds, radiorules.py)
+        actor.next_at = now + timedelta(seconds=s.every_sec + self._rng.uniform(0, HF_BEACON_JITTER_SEC))        # (the interval, then the random pause every HF beacon adds, radiotype.py)
 
     def _put(self, at: datetime, frame: ax25.Frame) -> None:
         self._count += 1

@@ -273,12 +273,11 @@ def test_seed_fills_the_book_without_a_word_and_gives_each_position_a_track() ->
 
 # ---- how the packets reached us (neoaprs/route.py)
 
-@pytest.mark.parametrize("typed", [False, True], ids=["the radios of before", "the radios' types"])
-def test_a_packet_heard_over_hf_is_hfs_route_and_no_route_for_a_message_by_fm(typed: bool) -> None:
+def test_a_packet_heard_over_hf_is_hfs_route_and_no_route_for_a_message_by_fm() -> None:
     """Rule 3.3: the HF radio keeps how the station's packets reached it (every frame there direct), and the station's routes as a whole, which an FM message's path and the page read, are those of the radios
-    that may carry a path: the HF radio's type allows none (and before the book is told the types, radio 2 is the HF radio)."""
+    that may carry a path: the HF radio's type allows none."""
     specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1), RadioSpec(HF_ID, "hf", "mercury", "", True, 2))
-    book = StationBook(carries_path=lambda radio: carries_path(specs, radio)) if typed else StationBook()
+    book = StationBook(carries_path=lambda radio: carries_path(specs, radio))
     book.take(packet(Status("x"), path=("OH2RCH-2*",)))
     book.take(replace(packet(Status("x"), path=()), radio_id=HF_ID))
     station = book.get("OH2AAA")
@@ -286,15 +285,13 @@ def test_a_packet_heard_over_hf_is_hfs_route_and_no_route_for_a_message_by_fm(ty
     assert (station.routes[HF_ID].direct, station.routes[HF_ID].by_route, station.routes[FM_ID].heard_via()) == (1, {}, [("OH2RCH-2", 1)]), "each radio's own routes"
     assert station.last_direct_at is None and station.best_route == Route(("OH2RCH-2",), "OH2RCH-2", False), "heard direct only over HF: not direct for the station's routes"
     assert station.heard_by == {FM_ID: RadioHeard(1, T0, ("OH2RCH-2*",)), HF_ID: RadioHeard(1, T0, ())}, "a packet made without a radio is radio 1's; each radio keeps the path it heard the station by"
-    assert (station.heard_fm, station.heard_hf, station.last_fm_at, station.last_hf_at) == (1, 1, T0, T0), "the old names say the same"
 
 
-def test_a_packet_given_the_old_word_of_its_radio_is_counted_as_one_given_the_id() -> None:
-    old, new = StationBook(), StationBook()
-    for word, radio_id in (("fm", FM_ID), ("hf", HF_ID), ("", None)):
-        old.take(replace(packet(Status("x"), path=()), radio=word))
-        new.take(replace(packet(Status("x"), path=()), radio_id=radio_id))
-    assert old.get("OH2AAA") == new.get("OH2AAA") and old.get("OH2AAA").heard_by == {FM_ID: RadioHeard(2, T0, ()), HF_ID: RadioHeard(1, T0, ())}      # type: ignore[union-attr]
+def test_a_packet_that_names_no_radio_is_counted_as_radio_1s() -> None:
+    book = StationBook()
+    for radio_id in (FM_ID, HF_ID, None):
+        book.take(replace(packet(Status("x"), path=()), radio_id=radio_id))
+    assert book.get("OH2AAA").heard_by == {FM_ID: RadioHeard(2, T0, ()), HF_ID: RadioHeard(1, T0, ())}      # type: ignore[union-attr]
 
 
 def test_every_packet_of_a_station_counts_the_route_it_came_by() -> None:

@@ -14,7 +14,7 @@ from typing import Any
 
 from neoaprs import ax25
 from neoaprs.clock import iso
-from neoaprs.config import DEFAULTS, Config
+from neoaprs.config import Config
 from neoaprs.configradios import radios_from_rows
 from neoaprs.dberror import Row, SqlError
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, history, schema_version, source_hash
@@ -27,7 +27,7 @@ from neoaprs.supportsql import file_facts, latest_packets, latest_undecoded, ope
 
 from . import doctor
 from .logfile import LOG_NAME, START_LINE
-from .radiosettings import RADIO_ROWS_FROM, flat_view, in_force, own_fields, stored_own, stored_text_of, value_text
+from .radiosettings import RADIO_ROWS_FROM, SHOWN_KEYS, in_force, own_fields, shown_settings, stored_own, stored_text_of, value_text
 from .redaction import hides, shown_value
 from .supportbundle import rotated_logs, tail_text
 from .supportsummary import DbFacts, megabytes, stamp
@@ -77,7 +77,7 @@ class Stored:
 
 
 def config_of(rows: dict[str, str], radios: StoredRadios | None = None) -> Config:
-    """The settings in force as the daemon reads them: from the stored radios when there are any, else from the flat keys among the rows."""
+    """The settings in force as the daemon reads them, with the stored radios."""
     with quiet():
         return in_force(rows, radios.specs if radios is not None else ())
 
@@ -86,16 +86,15 @@ def config_of(rows: dict[str, str], radios: StoredRadios | None = None) -> Confi
 
 def settings_json(rows: dict[str, str], radios: StoredRadios | None = None) -> str:
     """Every setting with the value in force and which of them are stored, a secret (neoaprs/cli/redaction.py) only as `(set, N characters)`; the stored rows that are no setting of this NeoAPRS apart (the
-    beacon's memory of when it last sent, say); and where the radios are rows of their own, every radio with its own settings, in force and as stored. A flat key of radios 1 and 2 is stored or not as
-    its radio has it, so that a database made of the bundle as version 30 kept it (tests/support/bundledb.py) holds the rows the radios were made of."""
+    beacon's memory of when it last sent, say); and where the radios are rows of their own, every radio with its own settings, in force and as stored."""
     specs = radios.specs if radios is not None else ()
     own = radios.own_rows() if radios is not None else {}
     with quiet():
-        effective = flat_view(rows, specs)
-    stored = {key: text for key in effective if (text := stored_text_of(key, rows, specs, own)) is not None}
+        effective = shown_settings(in_force(rows, specs))
+    stored = {key: text for key in effective if (text := stored_text_of(key, rows)) is not None}
     out: dict[str, Any] = {
         "values": {key: shown_value(key, value) for key, value in effective.items()},
-        "defaults_are_used_for": [key for key in DEFAULTS.to_data() if key not in stored],
+        "defaults_are_used_for": [key for key in SHOWN_KEYS if key not in stored],
         "stored_text_differs": {key: shown_value(key, text) for key, text in stored.items() if text != effective[key]},
         "other_rows": {key: shown_value(key, value) for key, value in rows.items() if key not in effective},
     }

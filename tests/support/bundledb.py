@@ -17,8 +17,9 @@ from neoaprs.cli.redaction import FREE_TEXT_SECRETS
 from neoaprs.clock import Clock, utcnow
 from neoaprs.configtypes import is_secret
 from neoaprs.packetcodec import stamp
-from tests.support.migrated31 import at_thirty
+from tests.support.migrated31 import OWN_31, STATE_31, at_thirty
 
+STATE_BACK = {new: old for old, new in STATE_31.items()}      # a radio's own state row of today, and the row of version 30 it was (radio/1/last_port: serial/last_port ...)
 HIDDEN = re.compile(r"\(set, \d+ characters\)")          # how a bundle shows a value it does not show (neoaprs/cli/redaction.py)
 PACKETS_MADE = 20                                       # at most this many packets are made for a radio that heard some
 PACKET = ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, via, radio) "
@@ -42,8 +43,28 @@ def stored_rows(settings: Mapping[str, Any]) -> tuple[dict[str, str], list[str]]
     told = {**{key: differs.get(key, value) for key, value in settings.get("values", {}).items() if key not in unstored}, **settings.get("other_rows", {})}
     if "radios" in settings and "messages/radio_by_station" in told:          # (a bundle of a database whose radios are rows: the choices are by id, which migration 31 reads by word)
         told["messages/radio_by_station"] = json.dumps({call: {1: "fm", 2: "hf"}.get(radio, radio) for call, radio in json.loads(told["messages/radio_by_station"]).items()}, sort_keys=True)
+    if "radios" in settings:                                                  # (and radios 1 and 2 are rows of their own: the rows of version 30 they are made of again, as migration 31 reads them)
+        told = {**told, **rows_of_radios(settings["radios"])}
+    for new, old in STATE_BACK.items():
+        if new in told:
+            told[old] = told.pop(new)
     hidden = sorted(key for key, text in told.items() if HIDDEN.fullmatch(str(text)))
     return {key: "" if text == "(empty)" and (is_secret(key) or key in FREE_TEXT_SECRETS) else str(text) for key, text in told.items() if key not in hidden}, hidden
+
+
+def rows_of_radios(radios: list[Mapping[str, Any]]) -> dict[str, str]:
+    """The settings rows of version 30 of radios 1 and 2 of a bundle that has the radios as rows (`radios` of settings.json): each one's type and tickbox under the keys of before, and its own settings
+    that were stored under the key each was stored by (migrated31.OWN_31, the HF radio's path left out: version 30 had one path, radio 1's). A removed radio, and a radio of another id, has none."""
+    rows: dict[str, str] = {}
+    for radio in radios:
+        id = radio.get("id")
+        if radio.get("removed_at") is not None or id not in (1, 2):
+            continue
+        profile, tickbox = ("tnc/profile", "fm/enabled") if id == 1 else ("hf/profile", "hf/enabled")
+        rows[profile], rows[tickbox] = str(radio["type"]), "true" if radio["enabled"] else "false"
+        stored: Mapping[str, str] = radio.get("stored", {})
+        rows.update({flat: str(stored[own]) for flat, (of, own) in OWN_31.items() if of == id and own in stored})
+    return rows
 
 
 def heard(state: Mapping[str, Any] | None) -> dict[str, int]:
