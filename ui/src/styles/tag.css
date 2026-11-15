@@ -46,6 +46,17 @@
   background: var(--hf-soft-bg);
   color: var(--hf-soft-fg);
 }
+/* the LoRa radio: sage */
+.tag-lora {
+  background: var(--lora-soft-bg);
+  color: var(--lora-soft-fg);
+}
+/* a radio that is removed: what came by it keeps its name, dimmed (the quiet words on no plate, a thin edge), whatever its kind */
+.tag-removed {
+  border-color: var(--border);
+  background: none;
+  color: var(--muted);
+}
 /* what is made up (the Dummy radio): neutral, with a dashed border, as the stations of the internet have a dotted outline on the map */
 .tag-dummy {
   border-style: dashed;

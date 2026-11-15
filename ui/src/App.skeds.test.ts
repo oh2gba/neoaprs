@@ -2,10 +2,18 @@ import "@/test/mockmap";
 import { describe, expect, it } from "vitest";
 import { flushPromises, type VueWrapper } from "@vue/test-utils";
 import type { FakeSocket } from "@/test/fakesocket";
-import { NOW, sked, skedsState } from "@/test/fixtures";
-import { open, tabButton, useAppHarness } from "@/test/app";
+import { NOW, configValues, sked, skedsState } from "@/test/fixtures";
+import { open as openPage, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
+
+/** The page of a station with the HF radio on: the HF tests tab is there only then (John's decision, "THE SKEDS ARE HF TESTS"). */
+async function open() {
+  const page = await openPage();
+  page.socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ "hf/enabled": "true" }) });
+  await flushPromises();
+  return page;
+}
 
 const at = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString().slice(0, 19) + "Z";
 const cmds = (socket: FakeSocket, cmd: string) => socket.sent.filter((c) => (c as { cmd?: string }).cmd === cmd);

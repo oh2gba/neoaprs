@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The statistics card over the map, opened from the map's menu (components/MapMenu.vue, Statistics): a graph of the packets heard by the hour over the last day (the daemon is asked for `packet_history` when the card
-// opens and every minute after; components/TrendChart.vue draws the bars), then what the page has heard, counted up (lib/stats.ts) in sections of a few lines each, the stations, how far we reach, the packets and the
-// radio since the daemon started. It is at the bottom right of the map, clear of the station cards at the left, and moves as the station book, the packets and the status do. Its cross closes it, and so does Esc with the
+// opens and every minute after; components/TrendChart.vue draws the bars), then what the page has heard, counted up (lib/stats.ts) in sections of a few lines each, the stations, how far we reach, the packets (counted
+// by radio) and the radios since the daemon started. It is at the bottom right of the map, clear of the station cards at the left, and moves as the station book, the packets and the status do. Its cross closes it, and so does Esc with the
 // station cards; whether it is open is remembered by this browser (composables/useAppShell.ts), so it comes back with the page. On a tablet and a desktop (`movable`) it can be dragged by its head anywhere over the map, or moved with Alt
 // and the arrow keys, and where it was left is remembered too (composables/useFreeDrag.ts). On a phone it is a card at the bottom of the screen like the station's.
 import { computed, onMounted, ref, watch } from "vue";
@@ -10,7 +10,7 @@ import TrendChart from "@/components/TrendChart.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useFreeDrag } from "@/composables/useFreeDrag";
 import { t } from "@/i18n";
-import { fmOn, hfOn } from "@/lib/radiosides";
+import { useRadios } from "@/composables/useRadios";
 import { HISTORY_HOURS, historyPoints, mapStats } from "@/lib/stats";
 import type { PacketRow } from "@/protocol/protocol";
 
@@ -20,14 +20,13 @@ const page = useDaemonContext();
 const root = ref<HTMLElement | null>(null);
 const drag = useFreeDrag(root, "statsplace", () => props.movable);
 
-const values = computed(() => page.config.value?.values ?? {});
+const radios = useRadios();
 const sections = computed(() =>
   mapStats({
     stations: page.stations.value,
     packets: props.packets,
     status: page.status.value,
-    tnc: fmOn(values.value) ? page.tnc.value : null,
-    hf: hfOn(values.value) ? page.hf.value : null,
+    radios: radios.all.value,
     igate: page.igate.value,
     map: page.map.value,
     aging: page.aging.value,

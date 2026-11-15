@@ -117,9 +117,15 @@ function compare(a: string | number | null, b: string | number | null, dir: 1 | 
   return dir * (Number(a) - Number(b));
 }
 
+export type Direct = Pick<StationRow, "last_direct_at"> & Partial<Pick<StationRow, "last_direct_any_at">>;
+
+/** When a packet of the station was last heard direct on any radio, HF too (plan 6b: the check mark, the map's ring and the "direct only" filter count any radio); against a daemon that does not say, on the radios that
+ * may carry a path. */
+export const directAt = (row: Direct): string | null => row.last_direct_any_at ?? row.last_direct_at;
+
 interface ListOptions {
   filter: string;
-  /** keep only the stations that were heard direct at some time (`last_direct_at` is set) */
+  /** keep only the stations that were heard direct on any radio at some time (`directAt`) */
   directOnly?: boolean;
   /** keep only the stations that were heard on the radio (an iGate's too): leave out those known from the internet alone */
   rfOnly?: boolean;
@@ -151,7 +157,7 @@ export function listStations(rows: Iterable<StationRow>, options: ListOptions): 
   const needle = options.filter.trim().toLowerCase();
   const gone = options.hideTimedOut === true && options.timedOut ? options.timedOut : () => false;
   const kept = [...rows].filter(
-    (r) => r.is_me || ((options.directOnly !== true || r.last_direct_at !== null) && (options.rfOnly !== true || onAir(r)) && !gone(r) && matches(r, needle)),
+    (r) => r.is_me || ((options.directOnly !== true || directAt(r) !== null) && (options.rfOnly !== true || onAir(r)) && !gone(r) && matches(r, needle)),
   );
   const { key, dir } = options.sort;
   const out = options.timedOut ?? (() => false); // a station past its timeout sorts after the live ones, whatever the column

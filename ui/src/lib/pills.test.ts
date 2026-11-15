@@ -3,7 +3,9 @@ import { t } from "@/i18n";
 import { headerPills, type HeaderPill, type Link } from "@/lib/pills";
 import { inApp } from "@/lib/shell";
 import type { MapState } from "@/protocol/protocol";
-import { ago, gpsState, hfState, igateState, mapState, NOW, tncState } from "@/test/fixtures";
+import { pageRadios } from "@/lib/radios";
+import type { RadioRow } from "@/protocol/protocol";
+import { ago, gpsState, hfState, igateState, mapState, NOW, radioRow, radiosTopic, tncState } from "@/test/fixtures";
 
 const link = (extra: Partial<Link> = {}): Link => ({ connection: "open", tnc: tncState(), hf: null, now: NOW, inApp: false, ...extra });
 const marks = (extra: Partial<Link> = {}, values: Record<string, string> = {}): HeaderPill[] => headerPills(values, null, null, null, link(extra));
@@ -77,6 +79,14 @@ describe("the Radio mark", () => {
     expect(t(radio({})!.title)).toBe("Radio connected. Settings → Radio");
   });
 
+  // (no internals on the page: while the line is being opened the daemon's line of what it does names the port; the title says the state in the page's words, the log has the rest)
+  it("says searching in its title while the line is being opened, never the port or the device the daemon tries", () => {
+    for (const describe of ["listening on /dev/brainbox_1 for the radio", "/dev/brainbox_3 at 9600, entering KISS, 0 packets"]) {
+      const mark = radio({ state: "connecting", problem: "", describe })!;
+      expect(t(mark.title, mark.titleValues)).toBe("Searching for the radio. Settings → Radio");
+    }
+  });
+
   it("is the Dummy's own tone while its line is open, and it is still the radio mark", () => {
     const dummy = radio({ dummy: true });
     expect([dummy?.tone, dummy && t(dummy.text)]).toEqual(["dummy", "Radio"]);
@@ -98,7 +108,7 @@ describe("the Radio mark", () => {
 describe("the radio marks with the HF radio", () => {
   const BOTH = { "fm/enabled": "true", "hf/enabled": "true" };
   const HF_ONLY = { "fm/enabled": "false", "hf/enabled": "true" };
-  const radios = (extra: Partial<Link>, values: Record<string, string>) => marks(extra, values).filter((p) => ["radio", "fm", "hf"].includes(p.id));
+  const radios = (extra: Partial<Link>, values: Record<string, string>) => marks(extra, values).filter((p) => p.id.startsWith("radio"));
   const said = (p: HeaderPill) => t(p.text, p.textValues);
 
   it("is the one Radio mark, as it always was, while only the FM radio is on, whatever the hf topic holds", () => {
@@ -115,43 +125,44 @@ describe("the radio marks with the HF radio", () => {
     expect(radios({ hf: hfState() }, HF_ONLY).map((p) => [said(p), String(p.tone)])).toEqual([["Radio", "ok"]]);
   });
 
-  it("is two marks, FM radio and HF radio, while both are on, each in the tone of its own radio and leading to its own box", () => {
+  // (plan section 6, decision 1: the short name is the label everywhere; "FM radio" and "HF radio" were the two-radio texts, now the radio's name)
+  it("is two marks, one for each radio by its short name, while both are on, each in the tone of its own radio and leading to its own box", () => {
     const two = radios({ hf: hfState() }, BOTH);
     expect(two.map((p) => [p.id, said(p), String(p.tone), p.target, p.focus])).toEqual([
-      ["fm", "FM radio", "ok", "settings", "set-tnc-profile"],
-      ["hf", "HF radio", "ok", "settings", "set-hf-profile"],
+      ["radio-1", "FM", "ok", "settings", "set-tnc-profile"],
+      ["radio-2", "HF", "ok", "settings", "set-hf-profile"],
     ]);
-    expect(two.map((p) => t(p.title, p.titleValues))).toEqual(["FM radio connected. Settings → Radio", "HF radio connected. Settings → Radio"]);
+    expect(two.map((p) => t(p.title, p.titleValues))).toEqual(["FM: connected. Settings → Radio", "HF: connected. Settings → Radio"]); // (plan section 6 "Texts": a name stands before a colon)
     const fmDown = radios({ tnc: tncState({ state: "waiting", problem: "no radio found" }), hf: hfState() }, BOTH);
     expect(fmDown.map((p) => [said(p), String(p.tone)])).toEqual([
-      ["FM radio: not connected", "warn"],
-      ["HF radio", "ok"],
+      ["FM: not connected", "warn"],
+      ["HF", "ok"],
     ]);
     const hfDown = radios({ hf: hfState({ state: "silent", silent_since: ago(7 * 60) }) }, BOTH);
     expect(hfDown.map((p) => [said(p), String(p.tone)])).toEqual([
-      ["FM radio", "ok"],
-      ["HF radio: silent", "warn"],
+      ["FM", "ok"],
+      ["HF: silent", "warn"],
     ]);
   });
 
   it("says in words what each radio is doing, with its name in place of Radio", () => {
-    const mark = (id: "fm" | "hf", extra: Partial<Link>) => radios(extra, BOTH).find((p) => p.id === id)!;
-    expect(said(mark("fm", { tnc: tncState({ state: "connecting", problem: "", describe: "listening on /dev/brainbox_1 for the radio" }) }))).toBe(
-      "FM radio: searching…",
+    const mark = (id: "radio-1" | "radio-2", extra: Partial<Link>) => radios(extra, BOTH).find((p) => p.id === id)!;
+    expect(said(mark("radio-1", { tnc: tncState({ state: "connecting", problem: "", describe: "listening on /dev/brainbox_1 for the radio" }) }))).toBe(
+      "FM: searching…",
     );
-    expect(said(mark("fm", { tnc: tncState({ state: "connecting", problem: "", describe: "/dev/brainbox_3 at 9600, entering KISS, 0 packets" }) }))).toBe(
-      "FM radio: entering KISS…",
+    expect(said(mark("radio-1", { tnc: tncState({ state: "connecting", problem: "", describe: "/dev/brainbox_3 at 9600, entering KISS, 0 packets" }) }))).toBe(
+      "FM: entering KISS…",
     );
-    const down = mark("hf", { hf: hfState({ state: "waiting", problem: "the Mercury program is not installed" }) });
-    expect([said(down), t(down.title, down.titleValues)]).toEqual(["HF radio: not connected", "the Mercury program is not installed. Settings → Radio"]);
-    expect(said(mark("hf", { hf: hfState({ state: "silent", silent_since: ago(300) }) }))).toBe("HF radio: silent");
-    const waiting = mark("hf", { hf: null });
+    const down = mark("radio-2", { hf: hfState({ state: "waiting", problem: "the Mercury program is not installed" }) });
+    expect([said(down), t(down.title, down.titleValues)]).toEqual(["HF: not connected", "the Mercury program is not installed. Settings → Radio"]);
+    expect(said(mark("radio-2", { hf: hfState({ state: "silent", silent_since: ago(300) }) }))).toBe("HF: silent");
+    const waiting = mark("radio-2", { hf: null });
     expect([said(waiting), String(waiting.tone), t(waiting.title, waiting.titleValues)]).toEqual([
-      "HF radio: waiting…",
+      "HF: waiting…",
       "warn",
       "No word from the TNC yet. Settings → Radio",
     ]);
-    for (const connection of ["connecting", "closed"] as const) expect(said(mark("hf", { hf: hfState(), connection }))).toBe("HF radio: waiting…");
+    for (const connection of ["connecting", "closed"] as const) expect(said(mark("radio-2", { hf: hfState(), connection }))).toBe("HF: waiting…");
   });
 
   it("keeps the order of the marks, the two radios where the one was", () => {
@@ -162,7 +173,95 @@ describe("the radio marks with the HF radio", () => {
       { version: "9.9.9", message: "", url: "" },
       link({ hf: hfState() }),
     );
-    expect(all.map((p) => p.id)).toEqual(["update", "daemon", "fm", "hf", "rx", "gps", "internet"]);
+    expect(all.map((p) => p.id)).toEqual(["update", "daemon", "radio-1", "radio-2", "rx", "gps", "internet"]);
+  });
+});
+
+describe("the radio marks with any number of radios", () => {
+  const radiosOf = (...rows: RadioRow[]) => pageRadios(radiosTopic(...rows), null);
+  const SIX = [
+    radioRow(1, "kenwood-tnc2"),
+    radioRow(2, "mercury"),
+    radioRow(3, "kiss", { name: "Shack", number: 2 }),
+    radioRow(4, "mercury", { name: "20 m", number: 2 }),
+    radioRow(5, "kantronics", { number: 3 }),
+    radioRow(6, "dummy", { number: 4 }),
+  ];
+  const ofRadios = (rows: RadioRow[], extra: Partial<Link> = {}) =>
+    marks({ hf: hfState(), radios: radiosOf(...rows), ...extra }).filter((p) => p.id.startsWith("radio"));
+  const said = (p: HeaderPill) => t(p.text, p.textValues);
+  const down = (id: number, problem: RadioRow["problem"] = { code: "radio.not_connected", params: {} }): Partial<RadioRow> => ({ state: "waiting", problem });
+
+  it("is one mark Radios from three radios on, ok while every one is connected, its title each radio with its state, leading to the first box", () => {
+    const [mark, ...more] = ofRadios(SIX);
+    expect(more).toEqual([]);
+    expect([mark?.id, mark && said(mark), String(mark?.tone), mark?.target, mark?.focus]).toEqual(["radios", "Radios", "ok", "settings", "set-tnc-profile"]);
+    expect(mark && t(mark.title, mark.titleValues)).toBe(
+      "FM: connected; HF: connected; Shack: connected; 20 m: connected; FM 3: connected; FM 4: connected. Settings → Radio",
+    );
+  });
+
+  it("names the one radio in trouble in its words and leads to its box", () => {
+    const rows = SIX.map((row) => (row.id === 4 ? { ...row, ...down(4) } : row));
+    const [mark] = ofRadios(rows);
+    expect([mark && said(mark), String(mark?.tone), mark?.focus]).toEqual(["20 m: not connected", "warn", "set-radio-4-enabled"]);
+    expect(mark && t(mark.title, mark.titleValues)).toContain("; 20 m: not connected;"); // (the words of the mark itself)
+    const silent = SIX.map((row) =>
+      row.id === 3 ? { ...row, state: "silent" as const, problem: { code: "radio.silent" as const, params: { since: ago(300) } } } : row,
+    );
+    expect(ofRadios(silent).map(said)).toEqual(["Shack: silent"]);
+    const searching = SIX.map((row) =>
+      row.id === 5 ? { ...row, state: "connecting" as const, problem: { code: "radio.searching" as const, params: {} } } : row,
+    );
+    expect(ofRadios(searching).map(said)).toEqual(["FM 3: searching…"]);
+    const [seeking] = ofRadios(searching);
+    expect(seeking && t(seeking.title, seeking.titleValues)).toContain("; FM 3: searching…;");
+  });
+
+  it("says how many are in trouble when several are, and leads to the first of them", () => {
+    const rows = SIX.map((row) => (row.id === 3 || row.id === 6 ? { ...row, ...down(row.id) } : row));
+    const [mark] = ofRadios(rows);
+    expect([mark && said(mark), String(mark?.tone), mark?.focus]).toEqual(["Radios: 2 not connected", "warn", "set-radio-3-enabled"]);
+  });
+
+  it("is waiting while the page's socket is not open", () => {
+    for (const connection of ["connecting", "closed"] as const) {
+      const [mark] = ofRadios(SIX, { connection });
+      expect([mark && said(mark), String(mark?.tone)]).toEqual(["Radios: waiting…", "warn"]);
+    }
+  });
+
+  it("is dashed only when every radio on is a Dummy", () => {
+    const dummies = [radioRow(1, "dummy"), radioRow(2, "dummy-hf"), radioRow(3, "dummy", { number: 2 })];
+    expect(ofRadios(dummies).map((p) => [said(p), String(p.tone)])).toEqual([["Radios", "dummy"]]);
+    expect(ofRadios([...dummies, radioRow(4, "kiss", { number: 3 })]).map((p) => String(p.tone))).toEqual(["ok"]);
+  });
+
+  it("counts only the radios that are on: two on are two marks, one on is the Radio mark of today, whatever is removed or off", () => {
+    const off = (row: RadioRow): RadioRow => ({ ...row, enabled: false, state: "stopped" });
+    const two = [SIX[0], SIX[1], off(SIX[2]), { ...off(SIX[3]), removed: true }];
+    expect(ofRadios(two).map((p) => [p.id, said(p)])).toEqual([
+      ["radio-1", "FM"],
+      ["radio-2", "HF"],
+    ]);
+    const named = [SIX[2], SIX[3]];
+    expect(ofRadios(named).map((p) => [p.id, said(p), p.focus])).toEqual([
+      ["radio-3", "Shack", "set-radio-3-enabled"],
+      ["radio-4", "20 m", "set-radio-4-enabled"],
+    ]);
+    const one = [off(SIX[0]), SIX[2]];
+    expect(ofRadios(one).map((p) => [p.id, said(p), String(p.tone), p.focus])).toEqual([["radio", "Radio", "ok", "set-radio-3-enabled"]]);
+    const oneDown = [off(SIX[0]), { ...SIX[2], ...down(3, { code: "modem.not_installed", params: {} }) }];
+    const [mark] = ofRadios(oneDown);
+    expect([mark && said(mark), mark && t(mark.title, mark.titleValues)]).toEqual([
+      "Radio: not connected",
+      "This installation carries no Mercury. Settings → Radio",
+    ]);
+  });
+
+  it("keeps its place among the marks: where the Radio mark is", () => {
+    const all = headerPills({ "station/transmit": "false" }, null, igateState(), null, link({ hf: hfState(), radios: radiosOf(...SIX) }));
+    expect(all.map((p) => p.id)).toEqual(["daemon", "radios", "rx", "internet"]);
   });
 });
 

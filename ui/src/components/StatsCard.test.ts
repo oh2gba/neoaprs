@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { shallowRef } from "vue";
 import StatsCard from "@/components/StatsCard.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { NOW, packet, station, status, table, tncState } from "@/test/fixtures";
+import { NOW, configValues, packet, radioRow, radiosTopic, station, status, table, tncState } from "@/test/fixtures";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -34,6 +34,23 @@ describe("StatsCard", () => {
     expect(rows["Latest 1 by kind"]).toBe("1 positions");
     await wrapper.find(".card-close").trigger("click");
     expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("counts the packets by radio and adds up the counters of the radios that are on, as the topic of the radios tells them", () => {
+    const stats = (frames: number) => ({ ...tncState().stats, frames_in: frames });
+    const radios = radiosTopic(
+      radioRow(1, "kenwood-tnc2", { stats: stats(100) }),
+      radioRow(2, "mercury", { stats: stats(20) }),
+      radioRow(3, "kiss", { name: "Shack", number: 2, stats: stats(3) }),
+    );
+    const daemon = fakeDaemon({ stations: stations(), radios, config: configValues({ "hf/enabled": "true" }) });
+    const packets = new Map(
+      [packet(1, { radio: "fm" }), packet(2, { radio: "hf" }), packet(3, { radio: "", radio_id: 3 })].map((row) => [String(row.id), row] as const),
+    );
+    const wrapper = mount(StatsCard, { props: { packets }, global: withDaemon(daemon) });
+    const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
+    expect(rows["By channel"]).toBe("1 FM · 1 HF · 1 Shack");
+    expect(rows["Frames from the TNC"]).toMatch(/^123\b/);
   });
 
   it("moves as the stations do", async () => {

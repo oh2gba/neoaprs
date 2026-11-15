@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TAB_IDS, type TabId } from "@/lib/layout";
+import { TAB_IDS, offeredTabs, type TabId } from "@/lib/layout";
 import { splitTabs, type TabSizes } from "@/lib/tabsplit";
 
 // The widths of the tabs, made up: 580 px in all, the More button 50 px and 24 px more with a count on it.
@@ -74,5 +74,24 @@ describe("which tabs stay in the row", () => {
         expect([...answer.shown, ...answer.hidden].sort()).toEqual([...TAB_IDS].sort());
       }
     }
+  });
+});
+
+describe("which of the tabs offered stay in the row", () => {
+  const nine = offeredTabs(false);
+
+  it("splits the tabs offered only, in their order, the way it splits all ten", () => {
+    for (let room = 0; room <= 640; room += 7) {
+      const answer = splitTabs(sizes, room, "messages", {}, nine);
+      expect([...answer.shown, ...answer.hidden]).toEqual(nine);
+      expect(answer.shown).not.toContain("skeds");
+    }
+  });
+
+  it("keeps all of them in a row that has room for them and not for ten", () => {
+    const all = TAB_IDS.reduce((sum, id) => sum + sizes.tabs[id], 0);
+    const room = all - sizes.tabs.skeds;
+    expect(splitTabs(sizes, room, "messages", {}, nine)).toEqual({ shown: nine, hidden: [] });
+    expect(splitTabs(sizes, room, "messages", {}).hidden.length).toBeGreaterThan(0);
   });
 });

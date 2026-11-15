@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import SidePanel from "@/components/SidePanel.vue";
 import { TAB_IDS, type SizeClass, type TabId } from "@/lib/layout";
+import { t } from "@/i18n";
 import { cssRule } from "@/test/css";
+import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
+import { configValues, radioRow, radiosTopic } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 // Fake measurements: the width of what the probe holds (the tabs, the More button and the More button with a count; jsdom lays nothing out) and, by stubWidth, the width of the bar. The tabs add up to 580 px, the More button is 50 px and 74 with a count;
@@ -41,12 +44,14 @@ afterEach(() => {
 
 type Wrapper = Awaited<ReturnType<typeof make>>;
 const slots = { messages: "<p>messages pane</p>", stations: "<p>stations pane</p>" };
+/** The panel of a station with the HF radio on, which has all ten tabs (without one, "the HF tests tab" below). */
 async function make(room: number, extra: Record<string, unknown> = {}, size: SizeClass = "tablet") {
   width = stubWidth(room);
   const wrapper = mount(SidePanel, {
     props: { tab: "messages" as TabId, collapsed: false, width: 500, size, view: "panel", ...extra },
     slots,
     attachTo: document.body,
+    global: withDaemon(fakeDaemon({ config: configValues({ "hf/enabled": "true" }) })),
   });
   await nextTick();
   return wrapper;
@@ -315,5 +320,85 @@ describe("on a phone", () => {
 
   it("keeps the bar's padding the same on the right as on the left, there being no fold button", () => {
     expect(cssRule(".size-phone .tabbar")).toMatch(/padding-right:\s*6px/);
+  });
+});
+
+describe("the HF tests tab, only while a radio of the kind HF is on", () => {
+  async function within(daemon: FakeDaemon, room: number, extra: Record<string, unknown> = {}) {
+    width = stubWidth(room);
+    const wrapper = mount(SidePanel, {
+      props: { tab: "messages" as TabId, collapsed: false, width: 500, size: "tablet" as SizeClass, view: "panel", ...extra },
+      slots,
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
+    await nextTick();
+    return wrapper;
+  }
+  const fmAlone = () => fakeDaemon();
+  const withHf = () => fakeDaemon({ config: configValues({ "hf/enabled": "true" }) });
+  const NINE = TAB_IDS.filter((id) => id !== "skeds");
+
+  it("is not there for a station without an HF radio: one tab less, in the row and under More", async () => {
+    const wide = await within(fmAlone(), 1000);
+    expect(row(wide)).toEqual(NINE);
+    const narrow = await within(fmAlone(), 300);
+    await opened(narrow);
+    expect([...row(narrow), ...listed(narrow).map((name) => TAB_IDS.find((id) => t(`tab.${id}`) === name))]).toEqual(NINE);
+  });
+
+  it("is there while the HF radio is on, and while a third radio of the kind HF is on with the HF radio of before off", async () => {
+    expect(row(await within(withHf(), 1000))).toEqual([...TAB_IDS]);
+    const third = fakeDaemon({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }), radioRow(4, "dummy-hf", { number: 2 })),
+    });
+    expect(row(await within(third, 1000))).toEqual([...TAB_IDS]);
+  });
+
+  it("is offered by the settings until the daemon has told its radios, so that the row of a station without HF does not lose a tab when they come", async () => {
+    const early = fakeDaemon({ radios: null, config: null });
+    const wrapper = await within(early, 1000);
+    expect(row(wrapper)).toEqual(NINE);
+    await tell(early, { config: configValues() });
+    await tell(early, { radios: radiosTopic(radioRow(1, "kenwood-tnc2")) });
+    expect(row(wrapper)).toEqual(NINE);
+    expect(row(await within(fakeDaemon({ radios: null, config: configValues({ "hf/enabled": "true" }) }), 1000))).toEqual([...TAB_IDS]);
+    expect(row(await within(fakeDaemon({ radios: null }), 1000))).toEqual(NINE); // (a daemon of the wire of before, the HF radio off)
+  });
+
+  it("keeps a remembered HF tests tab in its place until the daemon has told its radios, and gives way then if no HF radio is on", async () => {
+    const early = fakeDaemon({ radios: null, config: null });
+    const wrapper = await within(early, 1000, { tab: "skeds" });
+    expect([row(wrapper), wrapper.emitted("update:tab")]).toEqual([[...TAB_IDS], undefined]);
+    await tell(early, { radios: radiosTopic(radioRow(1, "kenwood-tnc2")), config: configValues() });
+    expect(wrapper.emitted("update:tab")).toEqual([["messages"]]);
+    const hf = fakeDaemon({ radios: null, config: null });
+    const kept = await within(hf, 1000, { tab: "skeds" });
+    await tell(hf, { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")), config: configValues({ "hf/enabled": "true" }) });
+    expect([row(kept), kept.emitted("update:tab")]).toEqual([[...TAB_IDS], undefined]);
+  });
+
+  it("is measured out of the split as before: nine tabs that fit need no More button where ten did", async () => {
+    // (the ten add up to 580 px, the nine to 530: in 540 px the ten need More, the nine fit, Settings stays in the row)
+    expect(button(await within(withHf(), 541)).exists()).toBe(true);
+    const nine = await within(fmAlone(), 541);
+    expect(button(nine).exists()).toBe(false);
+    expect(row(nine)).toEqual(NINE);
+  });
+
+  it("gives way to the first tab when it was the tab remembered, and when the HF radio is switched off while it is open", async () => {
+    const remembered = await within(fmAlone(), 1000, { tab: "skeds" });
+    expect(remembered.emitted("update:tab")).toEqual([["messages"]]);
+    const daemon = withHf();
+    const open = await within(daemon, 1000, { tab: "skeds" });
+    expect(open.emitted("update:tab")).toBeUndefined();
+    await tell(daemon, { config: configValues({ "hf/enabled": "false" }) });
+    expect(open.emitted("update:tab")).toEqual([["messages"]]);
+    expect(row(open)).not.toContain("skeds");
+  });
+
+  it("counts on the More button only the badges of the tabs offered", async () => {
+    const wrapper = await within(fmAlone(), 300, { badges: { skeds: 123, messages: 2 } });
+    expect(wrapper.find("[data-more-count] .badge").text()).toBe("8");
   });
 });

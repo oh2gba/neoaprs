@@ -27,8 +27,7 @@ describe("App: the Bulletins tab", () => {
         "Nearby",
         "Email",
         "Bulletins",
-        "HF tests",
-        "Objects",
+        "Objects", // (no radio of the kind HF on: no HF tests tab, John's decision "THE SKEDS ARE HF TESTS")
         "My station",
         "Packets",
         "Settings",

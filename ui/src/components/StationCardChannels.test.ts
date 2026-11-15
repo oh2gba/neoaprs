@@ -1,7 +1,9 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import StationCard from "@/components/StationCard.vue";
-import { NOW, ago, station } from "@/test/fixtures";
+import type { RadioRow } from "@/protocol/protocol";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { NOW, ago, configValues, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const fieldsOf = (wrapper: ReturnType<typeof mount>) =>
   Object.fromEntries(wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]));
@@ -128,5 +130,41 @@ describe("the card of a station, by channel", () => {
     const wrapper = card(both);
     expect(fieldsOf(wrapper)).not.toHaveProperty("Messages");
     expect(wrapper.find("button.card-message").exists()).toBe(true);
+  });
+});
+
+describe("the card of a station, with several radios", () => {
+  const withRadios = (row: ReturnType<typeof station>, ...radios: RadioRow[]) =>
+    mount(StationCard, {
+      props: { row, now: NOW },
+      global: withDaemon(fakeDaemon({ radios: radiosTopic(...radios), config: configValues({ "hf/enabled": "true" }) })),
+    });
+
+  it("lists every radio that heard it with its time, by the order of the boxes, the typed names with a colon", () => {
+    const row = station("OH2SIX", {
+      heard_rf: 9,
+      heard_is: 1,
+      last_is_at: ago(20),
+      heard: {
+        "1": { count: 2, last_at: ago(600) },
+        "3": { count: 3, last_at: ago(60) },
+        "4": { count: 1, last_at: ago(30) },
+        "6": { count: 3, last_at: ago(3600) },
+      },
+    });
+    const six = [
+      radioRow(1, "kenwood-tnc2"),
+      radioRow(2, "mercury"),
+      radioRow(3, "kiss", { name: "Shack", number: 2 }),
+      radioRow(4, "dummy-hf", { name: "20 m", number: 2 }),
+      radioRow(5, "kantronics", { number: 3 }),
+      radioRow(6, "dummy", { number: 4 }),
+    ];
+    expect(fieldsOf(withRadios(row, ...six))["Last heard"]).toBe("FM: 10 min ago · Shack: 1 min ago · 20 m: 30 s ago · FM 4: 1 h ago · Internet: 20 s ago");
+  });
+
+  it("says FM and HF for the owner's two radios", () => {
+    const both = station("OH2FMHF", { heard_rf: 5, heard_fm: 3, heard_hf: 2, last_fm_at: ago(180), last_hf_at: ago(60), last_heard: ago(60) });
+    expect(fieldsOf(withRadios(both, radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")))["Last heard"]).toBe("FM 3 min ago · HF 1 min ago");
   });
 });

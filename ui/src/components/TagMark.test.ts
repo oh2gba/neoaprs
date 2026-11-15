@@ -22,6 +22,17 @@ describe("TagMark", () => {
     expect(cssRule(".tag-hf")).toMatch(/color:\s*var\(--hf-soft-fg\)/);
   });
 
+  it("has a tone of its own for a LoRa radio, sage, and for a removed radio, dimmed: the quiet words on no plate with a thin edge, of the one size", () => {
+    expect(mount(TagMark, { props: { tone: "lora" }, slots: { default: "LoRa" } }).classes()).toEqual(["tag", "tag-lora"]);
+    expect(mount(TagMark, { props: { tone: "removed" }, slots: { default: "Shack" } }).classes()).toEqual(["tag", "tag-removed"]);
+    expect(cssRule(".tag-lora")).toMatch(/background:\s*var\(--lora-soft-bg\)/);
+    expect(cssRule(".tag-lora")).toMatch(/color:\s*var\(--lora-soft-fg\)/);
+    expect(cssRule(".tag-removed")).toMatch(/color:\s*var\(--muted\)/);
+    expect(cssRule(".tag-removed")).toMatch(/background:\s*none/);
+    expect(cssRule(".tag-removed")).toMatch(/border-color:\s*var\(--border\)/);
+    for (const rule of [cssRule(".tag-lora"), cssRule(".tag-removed")]) expect(rule).not.toMatch(/height|padding|font-size|border-width/);
+  });
+
   it("has its size in one rule, the blue count's: 18 px high, 11 px, 6 px at each side, round", () => {
     const rule = cssRule(".tag");
     expect(rule).toMatch(/height:\s*18px/);

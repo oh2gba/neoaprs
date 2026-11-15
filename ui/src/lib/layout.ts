@@ -6,6 +6,11 @@ import { t } from "@/i18n";
 export const TAB_IDS = ["messages", "stations", "nearby", "email", "bulletins", "skeds", "objects", "beacon", "packets", "settings"] as const; // by importance: what a person comes for first, the raw packets and the settings last
 export type TabId = (typeof TAB_IDS)[number];
 
+/** The tabs a station is offered, in the order of TAB_IDS: HF tests (`skeds`) only while a radio of the kind HF is on (they are for a station that tries APRS on HF), every other always. */
+export function offeredTabs(hfOn: boolean): TabId[] {
+  return TAB_IDS.filter((id) => hfOn || id !== "skeds");
+}
+
 /** The name of a tab, in the language of the page. */
 export function tabTitle(id: TabId): string {
   return t(`tab.${id}`);
@@ -39,6 +44,12 @@ export const MESSAGES_WIDE = 600;
  * the packet column of the table is squeezed until its line breaks letter by letter.
  */
 export const PACKETS_TABLE = 520;
+
+/**
+ * With several radios on, "Heard on" of the Stations table (the table itself, not the window) shows the tags of the two radios that heard a station last while the table is at least this wide, and of the one under it, each
+ * time with "+n" for the rest: on a phone (375 to 430 px) the symbol, the call, the distance, the arrow, the time and Message leave the tags about the room of one name of eight letters and "+n", and the row stays in the width.
+ */
+export const STATIONS_TWO_RADIOS = 440;
 
 /** The widest the panel may be on a page this wide:80 % of it, leaving the map 360 px; never less than the least. */
 export function panelMax(pageWidth: number): number {

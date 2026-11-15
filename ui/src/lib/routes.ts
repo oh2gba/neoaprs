@@ -2,7 +2,7 @@
 import { t } from "@/i18n";
 import { ageSeconds } from "@/lib/format";
 import { routeHops } from "@/lib/routeline";
-import { hasPosition } from "@/lib/stations";
+import { directAt, hasPosition, type Direct } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 type Counts = Pick<StationRow, "heard_direct" | "heard_via" | "heard_rf_gated" | "heard_is">;
@@ -45,14 +45,15 @@ export function bestText(row: Suggestion): string {
   return t(unknown ? "route.best.unknown_send_by" : "route.best.send_by", { route, path: row.suggested_path });
 }
 
-/** Whether a packet of the station was heard direct within the last hour. */
-export function heardDirectRecently(row: Pick<StationRow, "last_direct_at">, nowMs: number): boolean {
-  return row.last_direct_at !== null && ageSeconds(row.last_direct_at, nowMs) <= DIRECT_RECENT_SEC;
+/** Whether a packet of the station was heard direct, on any radio, within the last hour. */
+export function heardDirectRecently(row: Direct, nowMs: number): boolean {
+  const at = directAt(row);
+  return at !== null && ageSeconds(at, nowMs) <= DIRECT_RECENT_SEC;
 }
 
-/** Whether a station (not our own, not an object) was heard direct at some time: its call has the check mark. */
-export function heardDirect(row: Pick<StationRow, "kind" | "is_me" | "last_direct_at">): boolean {
-  return row.kind === "station" && !row.is_me && row.last_direct_at !== null;
+/** Whether a station (not our own, not an object) was heard direct on any radio at some time: its call has the check mark. */
+export function heardDirect(row: Pick<StationRow, "kind" | "is_me"> & Direct): boolean {
+  return row.kind === "station" && !row.is_me && directAt(row) !== null;
 }
 
 /** The way of the latest packet written for a person: "direct", "via OH2RCH-2", "via a repeater → OH2RCH-2" (a repeater that put no call in the packet), "via OH7JHF-1 (internet)"; before a route is known, the way most of its packets came by; null when none is known (a station known from the internet alone has no route). */

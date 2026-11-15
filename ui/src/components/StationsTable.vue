@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The stations heard, as a short table that fits the panel: the symbol, the call (a check mark after it for a station heard direct, and under it in small quiet letters how it was heard: RF, iGate, Internet, or two
-// joined; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the
+// The stations heard, as a short table that fits the panel: the symbol, the call (a check mark after it for a station heard direct on any radio), how it was heard (a tag each: RF, iGate, Internet; with several
+// radios the two radios that heard it last by their names, one in a table as narrow as a phone's, and "+n" for the rest, whose title says them with their times; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the
 // hover title). A column is sorted by a click on its head (again to reverse), the group box over it (StationsFilters: a filter box and the toggles "direct only", "heard on RF only" and "hide timed out", and "On map for")
 // narrows it, our own station is always on top, the selected row is marked and a click on a row selects the station (the map flies to it; with Ctrl it adds a card). The click (or Enter, or Up, Down, Home and End, which
 // select the next row: useRowKeys) also shows the station in the station panel fixed at the bottom of the tab, as the box of every tab is (StationPanel: its actions, its traffic as the lines of the Packets tab, the route
@@ -25,7 +25,8 @@ import StationsFilters from "@/components/StationsFilters.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { useRadiosNamed } from "@/composables/useRadiosOn";
+import { useElementWidth } from "@/composables/useElementWidth";
+import { useRadios } from "@/composables/useRadios";
 import { useRowKeys } from "@/composables/useRowKeys";
 import { useRowMenu } from "@/composables/useRowMenu";
 import { useStationPanel } from "@/composables/useStationPanel";
@@ -34,10 +35,11 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
-import { channelTags, internetOnly } from "@/lib/channels";
+import { heardTags, internetOnly } from "@/lib/channels";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { receivedFrom } from "@/lib/qru";
+import { STATIONS_TWO_RADIOS } from "@/lib/layout";
 import { heardDirect } from "@/lib/routes";
 import { canForget, canMessage, firstDirection, listStations, stationRowId, rowSymbolName, type QueryKind, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
@@ -50,7 +52,11 @@ const props = withDefaults(
   { others: () => [] },
 );
 const { stations, now, aging, call: ownCall, send, qru, prefs } = useDaemonContext();
-const named = useRadiosNamed();
+const radios = useRadios();
+const root = ref<HTMLElement | null>(null);
+const width = useElementWidth(root);
+/** How many radios "Heard on" shows by their tags with several radios on: two, and one where the table is narrower than STATIONS_TWO_RADIOS (lib/layout.ts; 0 until it is measured: two). One radio on is the page of today. */
+const radioRoom = computed(() => (radios.several.value && width.value > 0 && width.value < STATIONS_TWO_RADIOS ? 1 : undefined));
 /** The objects that came in answer to a request for local info, with the server that sent each (the Local info tag). */
 const localInfo = computed(() => receivedFrom(qru.value?.servers ?? []));
 const emit = defineEmits<{
@@ -151,7 +157,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
 </script>
 
 <template>
-  <div class="tablepane">
+  <div ref="root" class="tablepane">
     <TabHelp :label="t('station.table.about_label')" picture="channels">
       <span class="info-line">{{ t("station.table.about1") }}</span>
       <span class="info-line">{{ t("station.table.about2") }}</span>
@@ -193,7 +199,9 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
               ><AlertBell :alert="prefs.alerts.value.get(row.call)" /><DirectMark v-if="heardDirect(row)" />
             </td>
             <td class="heard">
-              <TagMark v-for="tag in channelTags(row, named)" :key="tag.channel" :tone="tag.tone" class="via" :title="tag.title">{{ tag.label }}</TagMark>
+              <TagMark v-for="tag in heardTags(row, radios.all.value, now, radioRoom)" :key="tag.key" :tone="tag.tone" class="via" :title="tag.title">{{
+                tag.label
+              }}</TagMark>
               <TagMark
                 v-if="localInfo.has(row.call)"
                 tone="neutral"

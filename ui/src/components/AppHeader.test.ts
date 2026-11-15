@@ -4,7 +4,8 @@ import AppHeader from "@/components/AppHeader.vue";
 import { t } from "@/i18n";
 import { headerPills } from "@/lib/pills";
 import { cssRule, mediaRule } from "@/test/css";
-import { gpsState, igateState } from "@/test/fixtures";
+import { pageRadios } from "@/lib/radios";
+import { NOW, gpsState, hfState, igateState, radioRow, radiosTopic, tncState } from "@/test/fixtures";
 
 const header = (props: Partial<InstanceType<typeof AppHeader>["$props"]> = {}) => mount(AppHeader, { props: { call: "OH2GBA", unread: 0, ...props } });
 
@@ -146,5 +147,48 @@ describe("AppHeader", () => {
 
   it("is as high with a badge and a button as without them", () => {
     expect(cssRule(".appheader")).toMatch(/min-height:\s*34px/);
+  });
+});
+
+describe("the header with any number of radios", () => {
+  const SIX = [
+    radioRow(1, "kenwood-tnc2"),
+    radioRow(2, "mercury"),
+    radioRow(3, "kiss", { name: "Shack", number: 2 }),
+    radioRow(4, "mercury", { name: "20 m", number: 2, state: "waiting", problem: { code: "radio.not_connected", params: {} } }),
+    radioRow(5, "kantronics", { name: "Portable", number: 3 }),
+    radioRow(6, "dummy", { name: "Bench", number: 4 }),
+  ];
+  const marksOf = (rows = SIX) =>
+    headerPills({}, null, null, null, {
+      connection: "open",
+      tnc: tncState(),
+      hf: hfState(),
+      now: NOW,
+      inApp: true,
+      radios: pageRadios(radiosTopic(...rows), null),
+    });
+
+  it("has one mark for six radios, which names the one in trouble and opens its box, its title each radio in the words of its own mark", async () => {
+    const wrapper = header({ pills: marksOf() });
+    const radios = wrapper.findAll(".headpill").filter((mark) => mark.classes().some((c) => c.startsWith("pill-radio")));
+    expect(radios.map((mark) => [mark.text(), mark.classes()])).toEqual([["20 m: not connected", ["tag", "tag-warn", "headpill", "pill-radios"]]]);
+    expect(radios[0]?.attributes("title")).toBe(
+      "FM: connected; HF: connected; Shack: connected; 20 m: not connected; Portable: connected; Bench: connected. Settings → Radio",
+    );
+    await radios[0]?.trigger("click");
+    expect(wrapper.emitted("open")).toEqual([["settings", "set-radio-4-enabled"]]);
+  });
+
+  it("has two marks by name for two radios, and the one Radio mark of today for one", () => {
+    const two = header({ pills: marksOf(SIX.slice(0, 2)) });
+    expect(two.findAll(".headpill").map((mark) => mark.text())).toEqual(["FM", "HF"]);
+    const named = header({ pills: marksOf([SIX[2], SIX[4]]) });
+    expect(named.findAll(".headpill").map((mark) => [mark.text(), mark.attributes("title")])).toEqual([
+      ["Shack", "Shack: connected. Settings → Radio"],
+      ["Portable", "Portable: connected. Settings → Radio"],
+    ]); // (plan section 6 "Texts": a typed name stands before a colon, never inside a sentence)
+    const one = header({ pills: marksOf([SIX[0]]) });
+    expect(one.findAll(".headpill").map((mark) => mark.text())).toEqual(["Radio"]);
   });
 });

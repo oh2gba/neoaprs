@@ -18,6 +18,7 @@ import { stats } from "@/i18n/en/stats";
 import { stations } from "@/i18n/en/stations";
 import { symbols } from "@/i18n/en/symbols";
 import { time } from "@/i18n/en/time";
+import { u4 } from "@/i18n/en/u4";
 import { weather } from "@/i18n/en/weather";
 import type { Message } from "@/i18n/message";
 
@@ -41,4 +42,5 @@ export const en = {
   ...beacon,
   ...setup,
   ...help,
+  ...u4,
 } as const satisfies Record<string, Message>;

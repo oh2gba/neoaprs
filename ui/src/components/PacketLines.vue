@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The packets as lines, newest first as they are given, the one look of the Packets tab (PacketsLog) and of a station's traffic in its panel (StationTraffic): the time, whether it was heard ("in") or sent by us ("out"), the
-// channel it came by (RF, iGate, Internet: lib/channels.ts; ours go by RF), the packet as a TNC2 line, the route it came by ("via OH2RCH-2", "direct", "via OH7JHF-1 (internet)" for a packet an iGate put on the air; empty for
+// channel it came by (RF, iGate, Internet; with several radios the radio's name, an iGate's saying in its title which radio heard it: lib/channels.ts `packetTag`; ours by the radio they went on), the packet as a TNC2 line, the route it came by ("via OH2RCH-2", "direct", "via OH7JHF-1 (internet)" for a packet an iGate put on the air; empty for
 // one we sent) and what the daemon made of it, after which the slot `note` may add a word of the line's own (the state of a query in a station's traffic). A route breaks between its words, never inside a callsign. A click on
 // a packet (or Enter) opens it under its line in plain facts (components/PacketDetail.vue), with what the parser decoded of it, as JSON, under "Raw"; again closes it. With `stacked` (the parent measures its width against
 // PACKETS_TABLE, lib/layout.ts) each packet is one block (the time, the direction and the channel, the packet line, then the route and the summary in small text) and the header row is for a screen reader only. A right-click
@@ -12,8 +12,8 @@ import PacketDetail from "@/components/PacketDetail.vue";
 import RouteText from "@/components/RouteText.vue";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { t } from "@/i18n";
-import { packetLabel, packetTitle, packetTone } from "@/lib/channels";
-import { useRadiosNamed } from "@/composables/useRadiosOn";
+import { packetTag } from "@/lib/channels";
+import { useRadios } from "@/composables/useRadios";
 import { clockText } from "@/lib/format";
 import { routeWords } from "@/lib/routes";
 import type { PacketRow } from "@/protocol/protocol";
@@ -21,7 +21,8 @@ import type { PacketRow } from "@/protocol/protocol";
 const props = withDefaults(defineProps<{ rows: readonly PacketRow[]; stacked: boolean; empty: string; keyOf?: (row: PacketRow) => string }>(), {
   keyOf: (row: PacketRow) => String(row.id),
 });
-const named = useRadiosNamed();
+const radios = useRadios();
+const tagOf = (row: PacketRow) => packetTag(row, radios.all.value);
 defineSlots<{ note?: (props: { row: PacketRow }) => unknown }>();
 
 const open = ref<string | null>(null);
@@ -66,8 +67,8 @@ function toggle(key: string): void {
         >
           <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
           <td class="dir" :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
-          <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via, row.radio, named)">
-            <TagMark :tone="packetTone(row.via, row.radio)">{{ packetLabel(row.via, row.radio, named) }}</TagMark>
+          <td class="via" :class="{ internet: row.via === 'is' }" :title="tagOf(row).title">
+            <TagMark :tone="tagOf(row).tone">{{ tagOf(row).label }}</TagMark>
           </td>
           <td class="mono wrap line">{{ row.tnc2 }}</td>
           <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>

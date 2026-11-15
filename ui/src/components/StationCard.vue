@@ -12,7 +12,7 @@ import AlertBell from "@/components/AlertBell.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import BearingArrow from "@/components/BearingArrow.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
-import { useRadiosNamed } from "@/composables/useRadiosOn";
+import { useRadios } from "@/composables/useRadios";
 import IconButton from "@/components/IconButton.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import DirectMark from "@/components/DirectMark.vue";
@@ -28,7 +28,7 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut, type Aging } from "@/lib/aging";
 import { qrzUrl } from "@/lib/calls";
-import { heardByChannel, internetOnly } from "@/lib/channels";
+import { heardTimes, internetOnly } from "@/lib/channels";
 import { extensionRows, frequencyText } from "@/lib/details";
 import { heardDirect, internetText, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
@@ -38,7 +38,7 @@ import { SIGNAL_HOURS, readingText } from "@/lib/signal";
 import { isMoving, tripStart } from "@/lib/speed";
 import type { AlertWhen, PacketHistoryMessage, SignalSeriesMessage, SpeedSeriesMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
-const named = useRadiosNamed();
+const radios = useRadios();
 const props = withDefaults(
   defineProps<{
     row: StationRow;
@@ -108,8 +108,8 @@ const moving = computed(() => {
   if (speed === null || speed <= 0) return null;
   return course === null ? speedText(speed) : t("station.speed_course", { speed: speedText(speed), course: bearingText(course) });
 });
-/** When it was last heard by each channel: "RF 3 min ago · Internet 40 s ago"; the plain age for a row nothing was counted for. */
-const heardOn = computed(() => heardByChannel(props.row, props.now, named.value) || agoWords(props.row.last_heard, props.now));
+/** When it was last heard, by every radio and channel: "RF 3 min ago · Internet 40 s ago", with radios named "FM: 3 min ago · 20 m: 1 h ago"; the plain age for a row nothing was counted for. */
+const heardOn = computed(() => heardTimes(props.row, radios.all.value, props.now) || agoWords(props.row.last_heard, props.now));
 /** The signal of the latest packet heard direct from the station that a radio measured, with when it was ("SNR −3 dB, 5 min ago"); null for a station with no reading, and for an object, an item and ours (the reading of their packets is their sender's): nothing is said. */
 const signal = computed(() => {
   if (!heardStation.value) return null;

@@ -56,7 +56,7 @@ describe("the page in the pseudo-locale", () => {
       socket.say({ type: "state", topic: "config", rev: 5, value: configValues({ "station/call": "" }) });
       socket.say(status({ update: { version: "9.9.9", message: "", url: "https://example.org/" } }));
       await flushPromises();
-      expect(wrapper.findAll("[role='tab']").length).toBe(TAB_IDS.length);
+      expect(wrapper.findAll("[role='tab']").length).toBe(tab === "skeds" ? TAB_IDS.length : TAB_IDS.length - 1); // (no HF radio, no HF tests tab; a remembered one keeps its place until the daemon tells its radios)
       expect(wrapper.findAll("[role='tab']").every((b) => b.text().startsWith("[!!"))).toBe(true);
       expect(wrapper.find(".appheader button.nocall").text()).toMatch(/^\[!! /);
       for (const mark of ["daemon", "radio"]) {

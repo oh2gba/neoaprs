@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import PacketsLog from "@/components/PacketsLog.vue";
 import { PACKETS_TABLE } from "@/lib/layout";
 import { cssRule } from "@/test/css";
-import { packet } from "@/test/fixtures";
+import type { RadioRow } from "@/protocol/protocol";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { configValues, packet, radioRow, radiosTopic } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const packets = new Map([
@@ -248,5 +250,71 @@ describe("PacketsLog on a narrow tab", () => {
     expect(cells).toMatch(/overflow-wrap:\s*anywhere/);
     expect(cells).toMatch(/word-break:\s*normal/);
     expect(cssRule(".grid.packets.stacked tr.detail td")).toMatch(/display:\s*block/);
+  });
+});
+
+describe("PacketsLog with several radios", () => {
+  const SIX: RadioRow[] = [
+    radioRow(1, "kenwood-tnc2"),
+    radioRow(2, "mercury"),
+    radioRow(3, "kiss", { name: "Shack", number: 2 }),
+    radioRow(4, "dummy-hf", { name: "20 m", number: 2 }),
+    radioRow(5, "kantronics", { name: "Portable", number: 3, removed: true, enabled: false, state: "stopped" }),
+    radioRow(6, "dummy", { name: "Bench", number: 4 }),
+  ];
+  const packets = new Map([
+    ["1", packet(1, { radio: "fm" })],
+    ["2", packet(2, { radio: "hf" })],
+    ["3", packet(3, { radio: "", radio_id: 3 })],
+    ["4", packet(4, { radio: "", radio_id: 4, via: "dummy" })],
+    ["5", packet(5, { radio: "", radio_id: 5 })],
+    ["6", packet(6, { radio: "", radio_id: 3, via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1" })],
+    ["7", packet(7, { radio: "", radio_id: null, via: "is", route: "" })],
+  ]);
+  const log = (rows = SIX, hf = "true") =>
+    mount(PacketsLog, { props: { packets }, global: withDaemon(fakeDaemon({ radios: radiosTopic(...rows), config: configValues({ "hf/enabled": hf }) })) });
+
+  it("names in Via the radio each packet came on, in the tone of its kind, dimmed for a removed one; the iGate's says in its title which radio heard it", () => {
+    const wrapper = log();
+    const cells = wrapper.findAll("td.via");
+    expect(cells.map((cell) => [cell.text(), cell.find(".tag").classes()[1]])).toEqual([
+      ["Internet", "tag-info"],
+      ["iGate", "tag-neutral"],
+      ["Portable", "tag-removed"],
+      ["20 m", "tag-dummy"],
+      ["Shack", "tag-neutral"],
+      ["HF", "tag-hf"],
+      ["FM", "tag-neutral"],
+    ]);
+    expect(cells.map((cell) => cell.attributes("title"))).toEqual([
+      "Received over the internet (APRS-IS), not on the radio",
+      "Heard on the radio from an iGate, which took it from the internet; Heard on radio Shack",
+      "Heard on radio Portable",
+      "Heard on radio 20 m",
+      "Heard on radio Shack",
+      "Heard on radio HF",
+      "Heard on radio FM",
+    ]);
+  });
+
+  it("filters by a radio's name", async () => {
+    const wrapper = log();
+    await wrapper.find("input[type='search']").setValue("shack");
+    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Shack"]); // (by the word Via shows: the iGate's packet says the radio in its title only)
+  });
+
+  it("says in the detail which radio a packet came by", async () => {
+    const wrapper = log();
+    await wrapper.findAll("tr.packet-row")[2]?.trigger("click");
+    const came = wrapper
+      .findAll(".packet-detail dt")
+      .find((dt) => dt.text() === "Came by")
+      ?.element.nextElementSibling?.textContent?.trim();
+    expect(came).toBe("Portable - heard on radio Portable");
+  });
+
+  it("keeps the words of today for a station with one radio", () => {
+    const wrapper = log([SIX[0], { ...SIX[1], enabled: false, state: "stopped" }], "false");
+    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "RF", "Dummy", "RF", "HF", "RF"]); // (radios 3 to 6 are not of this station: their packets keep their channel)
   });
 });

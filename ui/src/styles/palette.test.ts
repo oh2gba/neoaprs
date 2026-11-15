@@ -199,6 +199,29 @@ describe("the palette", () => {
     expect(luminance(dark["--hf-soft-bg"] ?? "")).toBeGreaterThan(luminance(dark["--panel"] ?? "")); // (a light plate on the dark one)
   });
 
+  it("gives the LoRa radio's tag and a removed radio's tag a tone of their own, each read at AA in both themes: LoRa a plate of its own, a removed radio the quiet word on no plate", () => {
+    const rule = (selector: string) =>
+      RULES.filter((r) => r.name === "styles/tag.css" && r.selector === selector)
+        .map((r) => r.body)
+        .join(";");
+    expect(rule(".tag-lora")).toMatch(/background:\s*var\(--lora-soft-bg\)/);
+    expect(rule(".tag-lora")).toMatch(/(?<![\w-])color:\s*var\(--lora-soft-fg\)/);
+    expect(rule(".tag-removed")).toMatch(/(?<![\w-])color:\s*var\(--muted\)/);
+    expect(rule(".tag-removed")).toMatch(/background:\s*none/);
+    const low: string[] = [];
+    for (const [name, theme] of THEMES) {
+      const lora = contrast(theme["--lora-soft-fg"] ?? "#000000", theme["--lora-soft-bg"] ?? "#000000");
+      if (!(lora >= 4.5)) low.push(`${name}: --lora-soft-fg on --lora-soft-bg ${lora.toFixed(2)}`);
+      for (const ground of GROUNDS) {
+        const removed = contrast(theme["--muted"] ?? "#000000", theme[ground] ?? "#000000");
+        if (!(removed >= 4.5)) low.push(`${name}: --muted (a removed radio's tag) on ${ground} ${removed.toFixed(2)}`);
+      }
+      // (dimmed: a removed radio's word is quieter than the text, and apart from the FM radio's neutral plate it has none)
+      expect(contrast(theme["--muted"] ?? "", theme["--panel"] ?? "")).toBeLessThan(contrast(theme["--text"] ?? "", theme["--panel"] ?? ""));
+    }
+    expect(low).toEqual([]);
+  });
+
   it("defines every variable the page's style sheets and components use", () => {
     const defined = new Set([...Object.keys(light), ...Object.keys(dark), "--panel-width"]);
     const used = new Set<string>();

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { hoverRows } from "@/lib/hovercard";
-import { NOW, ago, station, weather } from "@/test/fixtures";
+import { pageRadios } from "@/lib/radios";
+import type { RadioRow, StationRow } from "@/protocol/protocol";
+import { NOW, ago, radioRow, radiosTopic, station, weather } from "@/test/fixtures";
 
 describe("hoverRows", () => {
   it("has when it was heard, how far and which way, and the route", () => {
@@ -36,5 +38,37 @@ describe("hoverRows", () => {
     const none = hoverRows(station("X", { distance_km: null, bearing_deg: null, last_route: "" }), NOW);
     expect(none.map((r) => r.label)).toEqual(["Heard"]);
     expect(hoverRows(station("OH2GBA", { is_me: true, last_route: "direct" }), NOW).some((r) => r.label === "Route")).toBe(false);
+  });
+});
+
+describe("hoverRows with several radios", () => {
+  const radiosOf = (...rows: RadioRow[]) => ({ all: { value: pageRadios(radiosTopic(...rows), null) } });
+  const SIX = radiosOf(
+    radioRow(1, "kenwood-tnc2"),
+    radioRow(2, "mercury"),
+    radioRow(3, "kiss", { name: "Shack", number: 2 }),
+    radioRow(4, "dummy-hf", { name: "20 m", number: 2 }),
+    radioRow(5, "kantronics", { number: 3 }),
+    radioRow(6, "dummy", { number: 4 }),
+  );
+  const heardOn = (row: StationRow, radios: Parameters<typeof hoverRows>[2]) => hoverRows(row, NOW, radios).find((r) => r.label === "Heard on")?.text;
+
+  it("lists every radio that heard the station with its time, then the internet", () => {
+    const row = station("OH2SIX", {
+      heard_rf: 4,
+      heard_is: 1,
+      last_is_at: ago(20),
+      heard: { "1": { count: 1, last_at: ago(600) }, "4": { count: 3, last_at: ago(30) } },
+    });
+    expect(heardOn(row, SIX)).toBe("FM: 10 min ago · 20 m: 30 s ago · Internet: 20 s ago");
+  });
+
+  it("says FM and HF with their times for the two radios of the owner, and the words of today for the one radio", () => {
+    const both = station("OH2FMHF", { heard_rf: 5, heard_fm: 3, heard_hf: 2, last_fm_at: ago(180), last_hf_at: ago(60) });
+    const two = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
+    expect(heardOn(both, two)).toBe("FM 3 min ago · HF 1 min ago");
+    expect(heardOn(both, { value: true })).toBe("FM 3 min ago · HF 1 min ago"); // (a caller that says only that the radios are named: the two radios of before)
+    expect(heardOn(both, false)).toBe("RF · HF");
+    expect(heardOn(station("OH2RF"), two)).toBe("FM 1 min ago");
   });
 });

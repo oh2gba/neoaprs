@@ -2,6 +2,11 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import SidePanel from "@/components/SidePanel.vue";
 import { cssRule } from "@/test/css";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { configValues } from "@/test/fixtures";
+
+/** A station with the HF radio on, which has all ten tabs (without one it has no HF tests: SidePanelMore.test.ts). */
+const global = () => withDaemon(fakeDaemon({ config: configValues({ "hf/enabled": "true" }) }));
 
 const slots = {
   stations: "<p>stations pane</p>",
@@ -21,7 +26,7 @@ afterEach(() => {
 
 describe("SidePanel", () => {
   it("keeps the tab bar to one row that never scrolls, and no tab changes its width when it is picked", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
     expect(wrapper.find("[role='tablist']").classes()).toContain("tabs");
     expect(cssRule(".tabs")).toMatch(/flex-wrap:\s*nowrap/);
     expect(cssRule(".tabs")).toMatch(/overflow:\s*hidden/);
@@ -31,7 +36,7 @@ describe("SidePanel", () => {
   });
 
   it("has the ten tabs, the chosen one selected, and shows its pane only", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "packets", collapsed: false, width: 400 }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "packets", collapsed: false, width: 400 }, slots, global: global() });
     expect(wrapper.findAll("[role='tab']").map((t) => t.text())).toEqual([
       "Messages",
       "Stations",
@@ -50,18 +55,22 @@ describe("SidePanel", () => {
   });
 
   it("keeps every pane mounted", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
     expect(wrapper.text()).toContain("settings pane");
   });
 
   it("says which tab was picked", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
     await wrapper.findAll("[role='tab']")[9]?.trigger("click");
     expect(wrapper.emitted("update:tab")).toEqual([["settings"]]);
   });
 
   it("shows the count of a tab that has one in a badge, and none for zero or for a tab without", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { messages: 3, packets: 0 } }, slots });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400, badges: { messages: 3, packets: 0 } },
+      slots,
+      global: global(),
+    });
     const tabs = wrapper.findAll("[role='tab']");
     expect(tabs.map((t) => t.find(".badge").exists())).toEqual([true, false, false, false, false, false, false, false, false, false]);
     expect(tabs[0]?.find(".badge").text()).toBe("3");
@@ -70,19 +79,19 @@ describe("SidePanel", () => {
   });
 
   it("counts the messages of the Email tab as messages not seen", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { email: 1 } }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { email: 1 } }, slots, global: global() });
     const badge = wrapper.findAll("[role='tab']")[3]?.find(".badge");
     expect([badge?.text(), badge?.attributes("title")]).toEqual(["1", "1 message not seen yet"]);
   });
 
   it("words the badge of the Bulletins tab as the bulletins that are new", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { bulletins: 2 } }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { bulletins: 2 } }, slots, global: global() });
     const badge = wrapper.findAll("[role='tab']")[4]?.find(".badge");
     expect([badge?.text(), badge?.attributes("title")]).toEqual(["2", "2 new bulletins"]);
   });
 
   it("folds away and back", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
     await wrapper.find(".panel-fold").trigger("click");
     expect(wrapper.emitted("update:collapsed")).toEqual([[true]]);
     await wrapper.setProps({ collapsed: true });
@@ -93,7 +102,7 @@ describe("SidePanel", () => {
   });
 
   it("has the width it is given, and changes it with the arrow keys", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
     expect(wrapper.find(".panel").attributes("style")).toContain("--panel-width: 400px");
     await wrapper.find("[role='separator']").trigger("keydown", { key: "ArrowLeft" });
     expect(wrapper.emitted("update:width")?.[0]?.[0]).toBeGreaterThan(400);
@@ -102,7 +111,11 @@ describe("SidePanel", () => {
   });
 
   it("shows the messages not seen on the handle while it is folded (those of the Messages and the Email tab, not the new bulletins), and nothing when they are zero", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: true, width: 400, badges: { messages: 3, email: 1, bulletins: 5 } }, slots });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: true, width: 400, badges: { messages: 3, email: 1, bulletins: 5 } },
+      slots,
+      global: global(),
+    });
     expect(wrapper.find(".fold-badge").text()).toBe("4");
     expect(wrapper.find(".fold-badge").attributes("title")).toBe("4 messages not seen yet");
     expect(wrapper.find(".panel-fold").text()).toContain("4 messages not seen yet");
@@ -116,7 +129,7 @@ describe("SidePanel", () => {
 
   it("shows a remembered width clamped to what the window allows, and the whole width again when the window is wide", async () => {
     window.innerWidth = 1000;
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 900 }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 900 }, slots, global: global() });
     expect(wrapper.find(".panel").attributes("style")).toContain("--panel-width: 640px");
     window.innerWidth = 700;
     window.dispatchEvent(new Event("resize"));
@@ -131,7 +144,7 @@ describe("SidePanel", () => {
 
   it("does not ask for more than 80 % of the window, nor for less than 360 px of map, with the arrow keys", async () => {
     window.innerWidth = 1000;
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 630 }, slots });
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 630 }, slots, global: global() });
     await wrapper.find("[role='separator']").trigger("keydown", { key: "ArrowLeft" });
     expect(wrapper.emitted("update:width")?.[0]).toEqual([640]);
     window.innerWidth = 3000;

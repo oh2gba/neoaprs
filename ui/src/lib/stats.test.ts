@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { historyPoints, mapStats, type StatSection } from "@/lib/stats";
-import { NOW, ago, igateState, mapState, packet, station, status, table, tncState, weatherStation } from "@/test/fixtures";
+import { pageRadios } from "@/lib/radios";
+import type { RadioRow } from "@/protocol/protocol";
+import { NOW, ago, igateState, mapState, packet, radioRow, radiosTopic, station, status, table, tncState, weatherStation } from "@/test/fixtures";
 
 const AGING = { defaultMin: 180 };
 
@@ -188,6 +190,70 @@ describe("the statistics of the map", () => {
     expect(found.some((l) => l.startsWith("stats.direct_share"))).toBe(false);
   });
 
+  it("counts the HF radio's packets as HF, not under RF (plan section 9: they were counted under RF), also for the HF radio alone", () => {
+    const heard = new Map(
+      [packet(1, { radio: "fm", heard_at: ago(60) }), packet(2, { radio: "hf", heard_at: ago(30) }), packet(3, { radio: "hf", heard_at: ago(0) })].map(
+        (row) => [String(row.id), row] as const,
+      ),
+    );
+    const byChannel = (extra: object) =>
+      lines(mapStats(input({ packets: heard, ...extra })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+    expect(byChannel({})).toBe("stats.by_channel=1 RF · 2 HF");
+    expect(byChannel({ tnc: null, hf: tncState() })).toBe("stats.by_channel=1 FM · 2 HF");
+  });
+});
+
+describe("the statistics of the map with several radios", () => {
+  const radiosOf = (...rows: RadioRow[]) => pageRadios(radiosTopic(...rows), null);
+  const counted = (frames: number, bad: number, digi: number): RadioRow["stats"] => ({
+    ...tncState().stats,
+    frames_in: frames,
+    rejected: bad,
+    bytes_in: 1024,
+    bytes_out: 1024,
+    digipeated: digi,
+  });
+  const SIX = radiosOf(
+    radioRow(1, "kenwood-tnc2", { stats: counted(100, 0, 2) }),
+    radioRow(2, "mercury", { stats: counted(20, 3, 0) }),
+    radioRow(3, "kiss", { name: "Shack", number: 2, stats: counted(5, 0, 1) }),
+    radioRow(4, "dummy-hf", { name: "20 m", number: 2, stats: counted(1, 0, 0) }),
+    radioRow(5, "kantronics", { name: "Portable", number: 3, stats: counted(1000, 0, 0), enabled: false, state: "stopped" }),
+    radioRow(6, "dummy", { name: "Bench", number: 4, stats: counted(4, 1, 0) }),
+  );
+  const heard = new Map(
+    [
+      packet(1, { radio: "fm" }),
+      packet(2, { radio: "hf" }),
+      packet(3, { radio: "", radio_id: 3 }),
+      packet(4, { radio: "", radio_id: 3 }),
+      packet(5, { radio: "", radio_id: 4, via: "dummy" }),
+      packet(6, { radio: "", radio_id: 5 }),
+      packet(7, { radio: "", radio_id: null, via: "is", route: "" }),
+    ].map((row) => [String(row.id), row] as const),
+  );
+
+  it("counts the latest packets by radio, by the radios' names, and the internet apart", () => {
+    const found = lines(mapStats(input({ packets: heard, radios: SIX })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+    expect(found).toBe("stats.by_channel=1 FM · 1 HF · 2 Shack · 1 20 m · 1 Portable · 1 Internet");
+  });
+
+  it("adds up the counters of the radios that are on, and not of one that is off", () => {
+    expect(lines(mapStats(input({ radios: SIX })), "stats.section.radio").slice(1, 4)).toEqual([
+      "stats.frames=130, 4 unreadable",
+      "stats.bytes=5.0 kB · 5.0 kB",
+      "stats.digipeated=3",
+    ]);
+  });
+
+  it("counts as RF the one radio of a station with one radio, as it always did", () => {
+    const one = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
+    const found = lines(mapStats(input({ packets: packets(), radios: one })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+    expect(found).toBe("stats.by_channel=4 RF · 1 Internet");
+  });
+});
+
+describe("the graph of the statistics", () => {
   it("makes the bars of the packets by the hour: a point in the middle of each hour from the start, the axis over the whole hours", () => {
     const bars = historyPoints({ type: "packet_history", hours: 3, call: null, start: "2026-10-21T10:00:00Z", counts: [41, 0, 12] });
     const start = Date.parse("2026-10-21T10:00:00Z");

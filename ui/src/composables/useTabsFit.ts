@@ -1,6 +1,7 @@
 // Which tabs of the panel are in the row and which are under the More button: measured, not decided by a breakpoint, since the panel beside the map can be narrow on a wide screen and a phone can be wide when held sideways.
 // `box` is the tab bar, `probe` a copy of the tabs and of the More button drawn out of the way (ui/src/styles/panel.css, `.tabs-probe`: as wide as it wants, not seen, in the one size and look of the real ones) whose children say, by
-// `data-tab="id"`, `data-more` and `data-more-count`, how wide each of them is, `taken` the width of what else is in the row (the Map button of a phone), `open` the tab on show and `counts` the badges. The split itself is lib/tabsplit.ts.
+// `data-tab="id"`, `data-more` and `data-more-count`, how wide each of them is, `taken` the width of what else is in the row (the Map button of a phone), `open` the tab on show, `counts` the badges and `offered` the tabs
+// the station has (lib/layout.ts `offeredTabs`; all of them unless said). The split itself is lib/tabsplit.ts.
 // Measured again whenever the bar or the probe changes size; `measure()` is for when what the probe holds changes (a badge with more digits).
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { TAB_IDS, type TabId } from "@/lib/layout";
@@ -25,6 +26,7 @@ export function useTabsFit(
   taken: () => number,
   open: () => TabId,
   counts: () => Partial<Record<TabId, number>>,
+  offered: () => readonly TabId[] = () => TAB_IDS,
 ) {
   const sizes = ref<TabSizes | null>(null);
   const room = ref(0);
@@ -42,7 +44,9 @@ export function useTabsFit(
     room.value = free;
   }
 
-  const split = computed<TabSplit>(() => (sizes.value === null ? { shown: [...TAB_IDS], hidden: [] } : splitTabs(sizes.value, room.value, open(), counts())));
+  const split = computed<TabSplit>(() =>
+    sizes.value === null ? { shown: [...offered()], hidden: [] } : splitTabs(sizes.value, room.value, open(), counts(), offered()),
+  );
 
   watch(
     [box, probe],

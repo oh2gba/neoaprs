@@ -5,13 +5,13 @@ import { t } from "@/i18n";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import RouteText from "@/components/RouteText.vue";
 import { decodedJson } from "@/lib/packets";
-import { useRadiosNamed } from "@/composables/useRadiosOn";
+import { useRadios } from "@/composables/useRadios";
 import { packetFacts } from "@/lib/packetview";
 import type { PacketRow } from "@/protocol/protocol";
 
 const props = defineProps<{ row: PacketRow }>();
-const named = useRadiosNamed();
-const facts = computed(() => packetFacts(props.row, named.value));
+const radios = useRadios();
+const facts = computed(() => packetFacts(props.row, radios.all.value));
 </script>
 
 <template>

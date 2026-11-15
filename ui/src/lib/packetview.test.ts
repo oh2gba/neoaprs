@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { kindWords, packetFacts } from "@/lib/packetview";
-import { packet } from "@/test/fixtures";
+import { pageRadios } from "@/lib/radios";
+import { packet, radioRow, radiosTopic } from "@/test/fixtures";
 import type { PacketRow } from "@/protocol/protocol";
 
 const withDecoded = (extra: Partial<PacketRow>, decoded: unknown): PacketRow => ({ ...packet(1, extra), decoded: decoded as PacketRow["decoded"] });
@@ -51,6 +52,21 @@ describe("packetFacts", () => {
     expect(net["Came by"]).toBe("Internet - Received over the internet (APRS-IS), not on the radio");
     expect(net["Path"]).toBe("TCPIP*,qAC,T2FINLAND");
     expect(net).not.toHaveProperty("Reached us");
+  });
+
+  it("says which radio a packet came by: the HF radio in the words of today, and with several radios on the radio's name", () => {
+    const hf = withDecoded({ radio: "hf" }, { type: "position", ...position });
+    const hfAlone = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")), null);
+    expect(Object.fromEntries(packetFacts(hf, hfAlone).map((f) => [f.label, f.text]))["Came by"]).toBe("HF - heard on the HF radio");
+    expect(facts(hf)["Came by"]).toBe("HF - heard on radio HF"); // (the HF radio off: what came by it carries its name, plan section 6)
+    const six = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { name: "Shack", number: 2 })), null);
+    const came = (row: PacketRow) => Object.fromEntries(packetFacts(row, six).map((f) => [f.label, f.text]))["Came by"];
+    expect(came(withDecoded({ radio: "", radio_id: 3 }, { type: "position", ...position }))).toBe("Shack - heard on radio Shack");
+    expect(came(hf)).toBe("HF - heard on radio HF");
+    expect(came(withDecoded({ radio: "", radio_id: 3, via: "rf-gated", gate: "OH7JHF-1" }, { type: "position", ...position }))).toBe(
+      "iGate - Heard on the radio from an iGate, which took it from the internet; Heard on radio Shack",
+    );
+    expect(Object.fromEntries(packetFacts(hf, true).map((f) => [f.label, f.text]))["Came by"]).toBe("HF - heard on radio HF"); // (a caller that says only that the radios are named)
   });
 
   it("does not say it for a packet we sent: that is the path we sent it by", () => {

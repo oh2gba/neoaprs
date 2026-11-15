@@ -1,17 +1,18 @@
 // The statistics card (components/StatsCard.vue): what the page knows, counted up in a few lines a person would ask for. All of it is made from what the page has already, the station book, the latest packets, the
-// status and the radio's counters; nothing is asked of the daemon. Four sections: the stations (how many, how heard, what they run), how far we reach (the farthest heard direct and on the radio, the digipeaters most
+// status and the radios' counters; nothing is asked of the daemon. Four sections: the stations (how many, how heard, what they run), how far we reach (the farthest heard direct and on the radio, the digipeaters most
 // used, the ALOHA circle), the packets (the database, the last hour, the busiest station, and the latest 200 by kind and by channel), and the radio since the daemon started. A line with nothing to say is left out, and so is an empty section.
 // The graph of the packets by the hour is the daemon's answer to `packet_history` (`historyPoints` makes the bars of it).
 // Plain functions of what the page has; the words are the `stats.*` messages.
 import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { timedOut, type Aging } from "@/lib/aging";
-import { internetOnly, onAir, packetLabel } from "@/lib/channels";
+import { internetOnly, onAir, packetTag, radiosOfBefore } from "@/lib/channels";
 import { HOUR_MS, ageText, bytesText, distanceText } from "@/lib/format";
 import { digipeaters, gateRows, repeatedCounts } from "@/lib/nearby";
 import { hasPosition } from "@/lib/stations";
 import { isWeatherStation } from "@/lib/weather";
 import type { Point } from "@/lib/chart";
+import { enabledRadios, type PageRadio } from "@/lib/radios";
 import type { IgateState, MapState, PacketHistoryMessage, PacketRow, StationRow, StatusMessage, TncState, TncStats } from "@/protocol/protocol";
 
 interface StatLine {
@@ -30,10 +31,12 @@ export interface StatsInput {
   stations: ReadonlyMap<string, StationRow>;
   packets: ReadonlyMap<string, PacketRow>;
   status: StatusMessage | null;
-  /** the FM radio's state; null while the FM radio is off */
-  tnc: TncState | null;
-  /** the HF radio's state; null while the HF radio is off */
-  hf: TncState | null;
+  /** the FM radio's state; null while the FM radio is off (read only without `radios`) */
+  tnc?: TncState | null;
+  /** the HF radio's state; null while the HF radio is off (read only without `radios`) */
+  hf?: TncState | null;
+  /** every radio, in the order of their boxes (composables/useRadios.ts `all`): the packets are counted by radio, and the counters of those that are on added up; without them, the two radios of before by `tnc` and `hf` */
+  radios?: readonly PageRadio[];
   igate: IgateState | null;
   /** the map's state: the ALOHA circle's radius is in it */
   map: MapState | null;
@@ -101,20 +104,22 @@ function reachLines(rows: readonly StationRow[], map: MapState | null): StatLine
   ];
 }
 
-/** The latest packets as the page has them (the daemon keeps 200): the ones heard, not those we sent. */
-function latestLines(packets: ReadonlyMap<string, PacketRow>): StatLine[] {
+/** The latest packets as the page has them (the daemon keeps 200): the ones heard, not those we sent. "By channel" counts them by the word of their tag: by radio (its name where the radios are named, HF for the HF radio),
+ * iGate and Internet. */
+function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly PageRadio[]): StatLine[] {
   const rows = [...packets.values()].filter((row) => row.direction === "in");
   if (rows.length === 0) return [];
   const kinds = new Map<string, number>();
   const channels = new Map<string, number>();
   for (const row of rows) {
     kinds.set(row.kind, (kinds.get(row.kind) ?? 0) + 1);
-    channels.set(row.via, (channels.get(row.via) ?? 0) + 1);
+    const label = packetTag(row, radios).label;
+    channels.set(label, (channels.get(label) ?? 0) + 1);
   }
   const byKind = KINDS.filter((kind) => kinds.has(kind))
     .map((kind) => t("stats.kind_count", { n: whole(kinds.get(kind) ?? 0), kind: t(`stats.kind.${kind}`) }))
     .join(" · ");
-  const byChannel = [...channels.entries()].map(([via, n]) => t("stats.kind_count", { n: whole(n), kind: packetLabel(via as PacketRow["via"]) })).join(" · ");
+  const byChannel = [...channels.entries()].map(([label, n]) => t("stats.kind_count", { n: whole(n), kind: label })).join(" · ");
   const onRadio = rows.filter((row) => row.via === "rf" || row.via === "dummy");
   const direct = onRadio.filter((row) => row.route === "direct").length;
   const times = rows.map((row) => Date.parse(row.heard_at)).filter((ms) => !Number.isNaN(ms));
@@ -141,15 +146,14 @@ function packetLines(rows: readonly StationRow[], status: StatusMessage | null):
 /** What the radios that are on counted since the daemon started, added up. */
 type Totals = Pick<TncStats, "frames_in" | "rejected" | "bytes_in" | "bytes_out" | "digipeated">;
 
-function radioTotals(radios: readonly (TncState | null)[]): Totals | null {
-  const counted = radios.flatMap((radio) => (radio === null ? [] : [radio.stats]));
+function radioTotals(counted: readonly TncStats[]): Totals | null {
   if (counted.length === 0) return null;
   const sum = (field: keyof Totals): number => counted.reduce((n, one) => n + one[field], 0);
   return { frames_in: sum("frames_in"), rejected: sum("rejected"), bytes_in: sum("bytes_in"), bytes_out: sum("bytes_out"), digipeated: sum("digipeated") };
 }
 
-function radioLines(status: StatusMessage | null, radios: readonly (TncState | null)[], igate: IgateState | null, now: number): StatLine[] {
-  const stats = radioTotals(radios);
+function radioLines(status: StatusMessage | null, counted: readonly TncStats[], igate: IgateState | null, now: number): StatLine[] {
+  const stats = radioTotals(counted);
   return [
     ...line("stats.running", status === null ? null : ageText(status.started_at, now)),
     ...line(
@@ -165,11 +169,16 @@ function radioLines(status: StatusMessage | null, radios: readonly (TncState | n
 /** The sections of the card, each with its lines; a section with no line is left out. */
 export function mapStats(input: StatsInput): StatSection[] {
   const rows = [...input.stations.values()];
+  const radios = input.radios ?? radiosOfBefore(input.hf != null);
+  const counted =
+    input.radios === undefined
+      ? [input.tnc ?? null, input.hf ?? null].flatMap((radio) => (radio === null ? [] : [radio.stats]))
+      : enabledRadios(input.radios).map((radio) => radio.row.stats);
   const sections: StatSection[] = [
     { title: "stats.section.stations", lines: stationLines(rows, input.aging, input.now) },
     { title: "stats.section.reach", lines: reachLines(rows, input.map) },
-    { title: "stats.section.packets", lines: [...packetLines(rows, input.status), ...latestLines(input.packets)] },
-    { title: "stats.section.radio", lines: radioLines(input.status, [input.tnc, input.hf], input.igate, input.now) },
+    { title: "stats.section.packets", lines: [...packetLines(rows, input.status), ...latestLines(input.packets, radios)] },
+    { title: "stats.section.radio", lines: radioLines(input.status, counted, input.igate, input.now) },
   ];
   return sections.filter((section) => section.lines.length > 0);
 }

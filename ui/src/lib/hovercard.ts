@@ -2,10 +2,11 @@
 // temperature of a weather station, how the packets reach us) and goes when the pointer leaves. One element serves every marker. A touch screen has no pointer to rest on a marker, so only a mouse
 // shows it, and a tap opens the full card as ever.
 import { t } from "@/i18n";
-import { channelLabel, channelsOf, channelTitle, internetOnly } from "@/lib/channels";
+import { heardWords, radiosOfBefore } from "@/lib/channels";
 import { agoWords, bearingText, distanceText } from "@/lib/format";
 import { routeWords } from "@/lib/routes";
 import { symbolLabel } from "@/lib/stations";
+import type { PageRadio } from "@/lib/radios";
 import { tempText } from "@/lib/weather";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -19,11 +20,18 @@ export interface HoverRow {
   text: string;
 }
 
-/** The rows the card has for a station: only those that have something to say. */
-export function hoverRows(row: StationRow, nowMs: number, named = false): HoverRow[] {
+/** The radios the card names (composables/useRadios.ts `Radios`: every radio in the order of the boxes), or, from a caller that says only whether the radios are named, the two radios of before. */
+export type HoverRadios = Readonly<{ all: Readonly<{ value: readonly PageRadio[] }> }> | Readonly<{ value: boolean }>;
+
+const radiosOf = (radios: HoverRadios | boolean): readonly PageRadio[] =>
+  typeof radios === "boolean" ? radiosOfBefore(radios) : "all" in radios ? radios.all.value : radiosOfBefore(radios.value);
+
+/** The rows the card has for a station: only those that have something to say. "Heard on" says every radio that heard it with its time where radios are named, iGate and Internet; nothing for a station heard on the one
+ * radio alone. */
+export function hoverRows(row: StationRow, nowMs: number, radios: HoverRadios | boolean = false): HoverRow[] {
   const rows: HoverRow[] = [{ label: t("station.hover.heard"), text: agoWords(row.last_heard, nowMs) }];
-  if (channelsOf(row).some((channel) => channel !== "rf"))
-    rows.push({ label: t("station.hover.via"), text: internetOnly(row) ? channelTitle(row, named) : channelLabel(row, named) }); // (a station heard on the radio alone needs no word for it)
+  const heard = heardWords(row, radiosOf(radios), nowMs);
+  if (heard !== null) rows.push({ label: t("station.hover.via"), text: heard });
   if (row.last_status !== "") rows.push({ label: t("station.field.status"), text: row.last_status });
   if (row.last_comment !== "") rows.push({ label: t("station.field.comment"), text: row.last_comment });
   if (row.distance_km !== null) {
@@ -56,7 +64,7 @@ export class HoverCard {
     private readonly container: HTMLElement,
     private readonly lookup: (call: string) => StationRow | undefined,
     private readonly now: () => number,
-    private readonly named: Readonly<{ value: boolean }> = { value: false }, // (whether the radios are named: the page's `radiosNamed`)
+    private readonly radios: HoverRadios = { value: false }, // (the page's radios: `useRadios()`; or whether the radios are named, the page's `radiosNamed`)
   ) {
     this.card.setAttribute("role", "tooltip");
     this.card.hidden = true;
@@ -93,7 +101,7 @@ export class HoverCard {
     }
     const head = element("div", "hc-head");
     head.append(element("b", "hc-call", row.call), element("span", "hc-symbol", symbolLabel(row)));
-    const rows = hoverRows(row, this.now(), this.named.value).map(({ label, text }) => {
+    const rows = hoverRows(row, this.now(), this.radios).map(({ label, text }) => {
       const line = element("div", "hc-row");
       line.append(element("span", "hc-key", label), element("span", "hc-val", text));
       return line;
