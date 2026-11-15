@@ -177,8 +177,8 @@ again=""
 apt-get install -y -qq $again /work/dist-deb/neoaprs_${VERSION}_amd64.deb
 [ "$(neoaprs --version)" = "NeoAPRS $VERSION" ]
 dpkg-deb -e /work/dist-deb/neoaprs_${VERSION}_amd64.deb /tmp/upgrade/control
-(cd / && md5sum --quiet -c /tmp/upgrade/control/md5sums)
-echo "every file of this build is the one installed"
+(cd / && grep -v '  usr/share/doc/' /tmp/upgrade/control/md5sums | md5sum --quiet -c -)          # (but the documents: the Docker images' dpkg leaves /usr/share/doc out, the copyright file aside)
+echo "every file of this build is the one installed (its documents aside: the image keeps none)"
 /opt/neoaprs/bin/python3 -I /work/probe/scripts/install-probe.py verify --command /usr/bin/neoaprs --data /tmp/upgrade/data --in /tmp/upgrade/seen.json --version "$VERSION"
 /opt/neoaprs/bin/python3 -I - /tmp/upgrade/data/neoaprs.sqlite "$before" "$NEW_SCHEMA" <<'PY'
 """ + DATABASE_CHECK + """PY

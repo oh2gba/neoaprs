@@ -85,7 +85,7 @@ def test_the_probe_names_what_the_scripts_it_starts_have(installs: ModuleType) -
 def test_the_upgrade_proves_this_build_by_its_files_and_its_database_not_by_its_version_number(installs: ModuleType, tmp_path: Path) -> None:
     """The build before the round and this one have the same version number: apt would leave the old files where they are, and a check of the version would pass on the old program."""
     upgrade = installs.UPGRADE
-    assert "md5sum --quiet -c /tmp/upgrade/control/md5sums" in upgrade and installs.DATABASE_CHECK in upgrade and '"$before" "$NEW_SCHEMA"' in upgrade
+    assert "grep -v '  usr/share/doc/' /tmp/upgrade/control/md5sums | md5sum --quiet -c -" in upgrade and installs.DATABASE_CHECK in upgrade and '"$before" "$NEW_SCHEMA"' in upgrade
     assert installs.tree_schema() == SCHEMA_VERSION, "NEW_SCHEMA, read from the text of this tree's migrations, is the version its daemon brings a file to"
     assert upgrade.index("install-probe.py seed") < upgrade.index("before=") < upgrade.index("/work/dist-deb/neoaprs_${VERSION}_amd64.deb") < upgrade.index("md5sum") < upgrade.index("install-probe.py verify") < upgrade.index("<<'PY'")
     lines = [line for line in upgrade.splitlines() if line.startswith(("again=", '[ "$OLD_VERSION" != "$VERSION" ]'))]
