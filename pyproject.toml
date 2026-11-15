@@ -170,6 +170,7 @@ extend-include = [
     "scripts/runner-facts",
     "scripts/security-check",
     "scripts/security-tools",
+    "scripts/shipped-size",
     "scripts/site-check",
     "packaging/windows/neoaprs.spec",
 ]

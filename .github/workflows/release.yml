@@ -145,6 +145,22 @@ jobs:
       - name: PyInstaller, run where there is no neoaprs/ folder, so that the installed wheel is what is frozen
         working-directory: packaging/windows
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
+      # What the folder carries, by folder and largest file, and each program's Python archive by package (scripts/shipped-size): every cut in size is a measured number
+      - name: What the app folder carries and the programs' Python archives
+        run: |
+          build-venv/Scripts/python.exe scripts/shipped-size --depth 2 --title "dist/NeoAPRS, as PyInstaller made it" dist/NeoAPRS
+          build-venv/Scripts/python.exe scripts/shipped-size --pyi-archive dist/NeoAPRS/neoaprs.exe dist/NeoAPRS/neoaprsw.exe dist/NeoAPRS/neoaprs-app.exe
+          echo "::group::Every module of the Python archive of neoaprs-app.exe (the three programs are made of one analysis), to compare with another build's"
+          GITHUB_STEP_SUMMARY= build-venv/Scripts/python.exe scripts/shipped-size --pyi-archive --modules dist/NeoAPRS/neoaprs-app.exe
+          echo "::endgroup::"
+      # The guard against a folder that is too lean: every file of packaging/windows/must-ship.txt (taken from a real build) must be there. The list this build would make is printed, in the log and on the
+      # run's page, for the commit that adds a new package's DLLs; a line leaves the list only in the commit that removes its file, with the clean install on the Windows 11 N machine as its proof
+      - name: Every file the app needs is in the folder (packaging/windows/must-ship.txt)
+        run: |
+          build-venv/Scripts/python.exe packaging/windows/must_ship.py --write "$RUNNER_TEMP/must-ship-of-this-build.txt" dist/NeoAPRS
+          cat "$RUNNER_TEMP/must-ship-of-this-build.txt"
+          { echo '### The must-ship list of this build'; echo '```'; cat "$RUNNER_TEMP/must-ship-of-this-build.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          build-venv/Scripts/python.exe packaging/windows/must_ship.py packaging/windows/must-ship.txt dist/NeoAPRS
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: mercury-windows
@@ -179,6 +195,10 @@ jobs:
           & $iscc.FullName /Qp "/DAppVersion=${{ steps.version.outputs.version }}" packaging\windows\neoaprs.iss
           if ($LASTEXITCODE -ne 0) { throw "iscc failed: $LASTEXITCODE" }
           Get-ChildItem dist-installer | Format-Table Name, Length
+      - name: The installer's size, and the folder with Mercury in it
+        run: |
+          build-venv/Scripts/python.exe scripts/shipped-size --depth 2 --title "dist/NeoAPRS, as the installer packs it" dist/NeoAPRS
+          build-venv/Scripts/python.exe scripts/shipped-size dist-installer/NeoAPRS-Setup-*.exe
       - name: Install silently, as a user without administrator rights
         shell: pwsh
         run: |
@@ -195,6 +215,8 @@ jobs:
           if (-not $run -or $run -notlike '*neoaprs-app.exe*--tray*') { throw "the Run key is not set to the app in the tray: $run" }
           "Run key: $run"
           if ((Get-Item "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\NeoAPRS.lnk").Length -eq 0) { throw "empty Start menu entry" }
+      - name: What the installed app takes on disk
+        run: build-venv/Scripts/python.exe scripts/shipped-size --depth 2 --title "the installed app" "$LOCALAPPDATA/Programs/NeoAPRS"
       - name: Smoke test of the installed app
         run: build-venv/Scripts/python.exe scripts/smoke.py --command "$LOCALAPPDATA\\Programs\\NeoAPRS\\neoaprs.exe"
       - name: The installed Mercury starts and listens on this computer only

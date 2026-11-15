@@ -186,6 +186,23 @@ def test_the_release_has_the_installer_the_appimage_the_macos_app_and_the_packag
     assert '[ "$(ls | wc -l)" = 13 ]' in assemble, "the eight files (the wheel and install.sh among them) and the five fixed names, before SHA256SUMS"
 
 
+def test_the_windows_job_measures_what_it_ships_and_guards_what_it_must_ship() -> None:
+    """The size printout and the must-ship guard (scripts/shipped-size, packaging/windows/must_ship.py, tests/test_shipped.py): right after PyInstaller, before Mercury and the installer, so that a folder that
+    lacks a needed file is never packed; the list this build would make, and every module of the Python archive, printed for the next build to be compared with."""
+    job = workflow_jobs()["release.yml:windows"]
+    frozen = job.index("neoaprs.spec")
+    printout = job.index("scripts/shipped-size --depth 2 --title \"dist/NeoAPRS, as PyInstaller made it\"")
+    archives = job.index("scripts/shipped-size --pyi-archive")
+    modules = job.index("scripts/shipped-size --pyi-archive --modules dist/NeoAPRS/neoaprs-app.exe")
+    guard = job.index("packaging/windows/must_ship.py packaging/windows/must-ship.txt dist/NeoAPRS")
+    assert frozen < printout < archives < modules < guard < job.index("bundle_mercury.py") < job.index("Inno Setup")
+    assert all(f"dist/NeoAPRS/{name}.exe" in job[archives:modules] for name in ("neoaprs", "neoaprsw", "neoaprs-app"))
+    assert "GITHUB_STEP_SUMMARY= build-venv/Scripts/python.exe scripts/shipped-size --pyi-archive --modules dist/NeoAPRS/neoaprs-app.exe" in job, "the modules go to the log alone"
+    made = job.index('must_ship.py --write "$RUNNER_TEMP/must-ship-of-this-build.txt" dist/NeoAPRS')
+    assert made < job.index('cat "$RUNNER_TEMP/must-ship-of-this-build.txt"') < guard and '>> "$GITHUB_STEP_SUMMARY"' in job[made:guard], "the list this build would make is printed, in the log and on the run's page"
+    assert "scripts/shipped-size dist-installer/NeoAPRS-Setup-*.exe" in job and 'scripts/shipped-size --depth 2 --title "the installed app"' in job
+
+
 def test_no_workflow_step_name_breaks_the_yaml() -> None:
     """An unquoted value with ": " in it is a mapping in YAML, and GitHub then reads the whole workflow as having no triggers (a tag would start nothing):
     the names of jobs and steps that say something with a colon are quoted."""
