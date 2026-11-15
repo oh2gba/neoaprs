@@ -114,22 +114,34 @@ def one_device(a: ResourceKind, b: ResourceKind) -> bool:
     return a == b or (a in PORT_KINDS and b in PORT_KINDS)
 
 
+def removed_name(id: RadioId, specs: Sequence[RadioSpec]) -> str | None:
+    """The log's name of the radio of the id while the settings keep it as removed; None for a radio that is not removed, or none."""
+    spec = next((s for s in specs if s.id == id), None)
+    return None if spec is None or not spec.removed else log_name(spec, specs)
+
+
+def holder_id(holder: RadioId | None, specs: Sequence[RadioSpec]) -> RadioId:
+    """Who holds a device, as the ports' `held_by` says it: the radio's id, 0 for the GPS receiver (or a holder that is no radio of the settings)."""
+    return holder if holder is not None and any(s.id == holder for s in specs) else 0
+
+
 def holder_name(holder: RadioId | None, specs: Sequence[RadioSpec]) -> str:
     """The name of who holds a device, as the refusals and the problems say it: the radio's log name, `GPS` for the receiver (or a holder that is no radio of the settings)."""
     named = next((s for s in specs if s.id == holder), None)
     return "GPS" if named is None else log_name(named, specs)
 
 
-def held_elsewhere(spec: RadioSpec, specs: Sequence[RadioSpec], claims: Claims) -> tuple[str, str, str] | None:
-    """The first device the radio's settings name that another radio or the GPS receiver holds: its field's key, the kind of device and the holder's name (`GPS` for the receiver); None when none is."""
+def held_elsewhere(spec: RadioSpec, specs: Sequence[RadioSpec], claims: Claims) -> tuple[str, str, str, RadioId] | None:
+    """The first device the radio's settings name that another radio or the GPS receiver holds: its field's key, the kind of device, the holder's name (`GPS` for the receiver) and its id (0 for the receiver);
+    None when none is."""
     for key, kind, value in devices(spec):
         holder = next((c for c in claims.all() if c.holder != spec.id and c.value == value and one_device(c.kind, kind)), None)
         if holder is not None:
-            return key, kind, holder_name(holder.holder, specs)
+            return key, kind, holder_name(holder.holder, specs), holder_id(holder.holder, specs)
     return None
 
 
 def _held_elsewhere(spec: RadioSpec, specs: Sequence[RadioSpec], rtype: RadioType, claims: Claims) -> dict[str, Any] | None:
-    """`radio.resource_held` for the first device the radio's settings name that another holds, with the holder's name; None when none is."""
+    """`radio.resource_held` for the first device the radio's settings name that another holds, with the holder's name and id; None when none is."""
     held = held_elsewhere(spec, specs, claims)
-    return None if held is None else _problem("radio.resource_held", resource=held[1], holder=held[2])
+    return None if held is None else _problem("radio.resource_held", resource=held[1], holder=held[2], held_by=held[3])

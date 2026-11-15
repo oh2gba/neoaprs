@@ -3,9 +3,11 @@ and the message that answers an add. The radios themselves are the topic `radios
 Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`.
 
 A radio is named by its id (`radio`, an integer from 1: the `id` of its row). A refusal is an `error` with a code: `radio.unknown` (no radio of that id, or one that is removed), `radio.last_enabled` (the last radio that is on
-cannot be switched off or removed), `radio.name_taken`, `radio.name_form`, `radio.type_kind` (a type of another kind), `radio.unknown_type`, `radio.off` (the radio a control sends on is switched off, with its `name`),
+cannot be switched off or removed), `radio.name_taken`, `radio.name_label` (a name typed in the form a radio with no name of its own is called by, "FM", "HF 2"), `radio.name_form`, `radio.type_kind` (a type of another kind), `radio.unknown_type`, `radio.off` (the radio a control sends on is switched off, with its `name`),
 `radio.not_connected` (it is on and does not take frames now, with its `name`), `radio.no_modem` (a modem's command on a radio that has none running, with its `name`), `radio.no_line` (Find my radio for a radio
-with no serial line, with its `name`), `radio.none` (there is no radio at all), `setting.not_stored` (the change was not stored: the reason is in the log)."""
+with no serial line, with its `name`), `radio.no_scope` (the scope of a radio whose type has none, with its `name`), `radio.none` (there is no radio at all), `setting.not_stored` (the change was not stored: the reason is in the log).
+A refusal that names a radio by its `name` (the daemon's English: the name typed, else its kind's word and number, "FM", "HF 2") carries its id too (`radio`), and `radio.resource_held` the holder's id beside its `holder`
+(`held_by`: the radio's, 0 for the GPS receiver, as the ports' `held_by`), by which a page puts its own words for that radio. A removed radio is `radio.unknown` with its `name` and `removed` 1 too."""
 from typing import Annotated, Literal
 
 from pydantic import Field
@@ -21,7 +23,7 @@ RadioRef = Annotated[int, Field(ge=1, description="the radio's id, the `id` of i
 class RadioAdd(_Command):
     """Adds a radio of the type (`type`, a `key` of `RADIO_TYPES`): after the others, enabled, with the defaults of its kind, the name typed (empty or left out: none), and started at once. Answered with `radio_added` (its
     id) to the page that asked, at once, and then the `set` of its row in `radios` (the topic is told at most four times a second: the row may come a few messages later, so a page that opens the new radio waits
-    for it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `setting.not_stored`."""
+    for it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `radio.name_label`, `setting.not_stored`."""
     cmd: Literal["radio_add"]
     type: str = Field(min_length=1, max_length=TYPE_ROOM)
     name: str = Field(default="", max_length=RADIO_NAME_ROOM, description="the name typed; left out or empty: none")
@@ -43,7 +45,7 @@ class RadioRemove(_Command):
 class RadioChange(_Command):
     """Changes what is given of the radio and nothing else: its `name` (empty: none), its `type` (one of its own kind), its Enable (`enabled`) or its place in the list (`position`, from 1; the others keep theirs, a tie goes by
     id). Stored, then in force; the radio is restarted when its type or its Enable changed what runs. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on is not switched off),
-    `radio.name_form`, `radio.name_taken`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`."""
+    `radio.name_form`, `radio.name_taken`, `radio.name_label`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`."""
     cmd: Literal["radio_change"]
     radio: RadioRef
     name: str | None = Field(default=None, max_length=RADIO_NAME_ROOM, description="the new name; left out: unchanged")
@@ -68,11 +70,14 @@ class RadioKeyTest(_Command):
 
 
 class RadioScope(_Command):
-    """The scope of the radio's modem, as `hf_scope`: with `on`, this page is sent the rows of its waterfall as binary frames (*Binary frames*), with `on` false, or when the page closes, no more. Nothing is refused, and
-    nothing happens for a radio whose modem has no scope; in this version the binary frames are those of radio 2's modem (the HF radio of before), which a frame does not name, so another radio's scope sends nothing."""
+    """The scope of the radio's modem, as `hf_scope`: with `on`, this page is sent the rows of its waterfall as binary frames (*Binary frames*), first the rows kept and then the rows as they come, with `on` false, or when
+    the page closes, no more. Radio 2's (the HF radio of before) come in the frames of `hf_scope`, which name no radio, unless `named` asks for frames that name it; every other radio's come in frames that name it (kind
+    3, *Binary frames*), always. Several radios can be looked at at once. Nothing comes while the radio's modem is not running or has no interface (its row's `modem.scope`). Refused, with `on`, for a radio that is none
+    (`radio.unknown`) and for one whose type has no scope (`radio.no_scope`, with its `name`: `can.scope` of its row is false); `on` false is never refused."""
     cmd: Literal["radio_scope"]
     radio: RadioRef
     on: bool = Field(description="true starts the rows for this page, false stops them")
+    named: bool = Field(default=False, description="radio 2's rows in frames that name the radio, as every other radio's are; left out or false: radio 2's in the frames of `hf_scope`. Stop with the same `named` as the start")
 
 
 class StationRadio(_Command):

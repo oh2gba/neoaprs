@@ -78,14 +78,16 @@ async def test_every_refusal_of_the_radio_commands_has_its_code(tmp_path: Path) 
         ({"cmd": "radio_add", "type": "dummy", "name": "SHACK"}, "radio.name_taken", {"name": "SHACK", "radio": id}),
         ({"cmd": "radio_add", "type": "dummy", "name": "much too long"}, "radio.name_form", {"max": 8, "name": "much too long"}),
         ({"cmd": "radio_change", "radio": id, "name": "Mö"}, "radio.name_form", {"max": 8, "name": "Mö"}),
-        ({"cmd": "radio_change", "radio": id, "type": "mercury"}, "radio.type_kind", {"type": "mercury", "kind": "FM", "name": "Shack"}),
+        ({"cmd": "radio_change", "radio": id, "type": "mercury"}, "radio.type_kind", {"type": "mercury", "kind": "FM", "name": "Shack", "radio": id}),
         ({"cmd": "radio_change", "radio": 9, "name": "Gone"}, "radio.unknown", {"radio": 9}),
         ({"cmd": "radio_remove", "radio": 9}, "radio.unknown", {"radio": 9}),
         ({"cmd": "radio_tune", "radio": 9, "on": True}, "radio.unknown", {"radio": 9}),
-        ({"cmd": "radio_tune", "radio": id, "on": True}, "radio.no_modem", {"name": "Shack"}),
-        ({"cmd": "radio_key_test", "radio": id}, "radio.no_modem", {"name": "Shack"}),
+        ({"cmd": "radio_tune", "radio": id, "on": True}, "radio.no_modem", {"name": "Shack", "radio": id}),
+        ({"cmd": "radio_key_test", "radio": id}, "radio.no_modem", {"name": "Shack", "radio": id}),
         ({"cmd": "list_ports", "radio": 9}, "radio.unknown", {"radio": 9}),
-        ({"cmd": "find_radio", "radio": id}, "radio.no_line", {"name": "Shack"}),
+        ({"cmd": "find_radio", "radio": id}, "radio.no_line", {"name": "Shack", "radio": id}),
+        ({"cmd": "radio_scope", "radio": id, "on": True}, "radio.no_scope", {"name": "Shack", "radio": id}),
+        ({"cmd": "radio_scope", "radio": 9, "on": True}, "radio.unknown", {"radio": 9}),
         ({"cmd": "station_radio", "call": "OH2XYZ", "radio": 9}, "radio.unknown", {"radio": 9}),
         ({"cmd": "set_station_path", "call": "OH2XYZ", "path": "WIDE1-1", "radio": 9}, "radio.unknown", {"radio": 9}),
         ({"cmd": "object_set", "name": "MARK", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "", "course_deg": None, "speed_kmh": None, "path": None, "qru_group": "",
@@ -101,7 +103,7 @@ async def test_every_refusal_of_the_radio_commands_has_its_code(tmp_path: Path) 
     await page.until(lambda: not page.topics["radios"]["1"]["enabled"])
     for command in ({"cmd": "radio_change", "radio": id, "enabled": False}, {"cmd": "radio_remove", "radio": id}):
         error = await refused(page, command)
-        assert (error["code"], error["params"]) == ("radio.last_enabled", {"name": "Shack"}), "the last radio that is on stays on"
+        assert (error["code"], error["params"]) == ("radio.last_enabled", {"name": "Shack", "radio": id}), "the last radio that is on stays on"
     await e.stop()
 
 
@@ -140,7 +142,7 @@ async def test_a_device_another_radio_holds_is_refused_with_the_holders_name_and
     id = await added(page, "kiss", "Mobile")
     e.ctl.radios.claims.hold(Claim("serial", claim_value("COM7") or "", FM_ID))             # (held as the table holds a device: by the name its search resolved)
     error = await refused(page, {"cmd": "set_config", "values": {f"radio/{id}/port": "COM7"}})
-    assert (error["key"], error["code"], error["params"]) == (f"radio/{id}/port", "radio.resource_held", {"resource": "serial", "holder": "FM"})
+    assert (error["key"], error["code"], error["params"]) == (f"radio/{id}/port", "radio.resource_held", {"resource": "serial", "holder": "FM", "held_by": FM_ID})
     monkeypatch.setattr(web_handlers, "available_ports", lambda: [PortInfo("COM7", "USB Serial Port (COM7)", "USB VID:PID=0403:6001", 0x0403, 0x6001), PortInfo("COM8", "Bluetooth", "BTHENUM", None, None)])
     monkeypatch.setattr(web_handlers, "paired_bluetooth_ports", lambda: [])
     await page.send({"cmd": "list_ports", "radio": id})
@@ -198,7 +200,7 @@ async def test_ask_and_local_info_go_on_the_radio_named_and_a_radio_that_is_off_
     await page.until(lambda: not page.topics["radios"][str(id)]["enabled"])
     for command in ({"cmd": "general_query", "kind": "wx", "path": None, "rf_only": True, "radio": id}, {"cmd": "qru_ask", "text": "INFO 50", "radio": id}):
         error = await refused(page, command)
-        assert (error["code"], error["params"]) == ("radio.off", {"name": "Shack"}), "a radio switched off is said to be off, not to be unplugged"
+        assert (error["code"], error["params"]) == ("radio.off", {"name": "Shack", "radio": id}), "a radio switched off is said to be off, not to be unplugged"
     assert (await refused(page, {"cmd": "qru_ask", "text": "INFO", "radio": 9}))["code"] == "radio.unknown"
     await e.stop()
 
@@ -319,7 +321,8 @@ async def test_a_key_of_the_form_of_before_on_a_removed_radio_is_refused_with_it
     await page.until(lambda: page.topics["radios"]["2"]["removed"])
     for values in ({"hf/enabled": "true"}, {"mercury/tx_gain_db": "3"}, {"hf/profile": "dummy-hf"}):
         error = await refused(page, {"cmd": "set_config", "values": {**values, "station/comment": "not stored"}})
-        assert (error["code"], error["key"], error["params"]) == ("radio.unknown", next(iter(values)), {"radio": 2}), values
+        assert (error["code"], error["key"], error["params"]) == ("radio.unknown", next(iter(values)), {"radio": 2, "name": "HF", "removed": 1}), values
+        assert error["text"] == f"set_config: {next(iter(values))}: the HF radio is removed", "a removed radio is said to be removed, not to be none"
     shown = page.topics["config"]["values"]
     await page.send({"cmd": "set_config", "values": {**shown, "station/comment": "the whole form"}})
     await page.until(lambda: page.topics["config"]["values"]["station/comment"] == "the whole form")
@@ -328,7 +331,7 @@ async def test_a_key_of_the_form_of_before_on_a_removed_radio_is_refused_with_it
     await page.until(lambda: page.topics["radios"]["1"]["removed"])
     for values in ({"fm/enabled": "true"}, {"beacon/path": "WIDE1-1"}, {"digi/enabled": "true"}, {"serial/port": "/dev/ttyUSB1"}, {"tnc/profile": "kenwood-tnc2"}):
         error = await refused(page, {"cmd": "set_config", "values": values})
-        assert (error["code"], error["key"], error["params"]) == ("radio.unknown", next(iter(values)), {"radio": FM_ID}), values
+        assert (error["code"], error["key"], error["params"]) == ("radio.unknown", next(iter(values)), {"radio": FM_ID, "name": "FM", "removed": 1}), values
     shown = page.topics["config"]["values"]
     await page.send({"cmd": "set_config", "values": {**shown, "station/comment": "again"}})
     await page.until(lambda: page.topics["config"]["values"]["station/comment"] == "again")
@@ -387,7 +390,7 @@ def test_a_device_named_by_another_radio_that_is_on_is_refused_and_two_radios_ma
     before = Config(radios=(kiss(1, "/dev/ttyUSB0"), kiss(5, "/dev/ttyUSB3"), kiss(6, "")))
     with pytest.raises(SettingError) as held:
         refuse_held(before, replace(before, radios=(kiss(1, "/dev/ttyUSB0"), kiss(5, "/dev/ttyUSB3"), kiss(6, "/dev/ttyUSB3"))), claims)
-    assert (held.value.key, held.value.code, held.value.params) == ("radio/6/port", "radio.resource_held", {"resource": "serial", "holder": "FM 2"}), "set to it, though not holding it yet"
+    assert (held.value.key, held.value.code, held.value.params) == ("radio/6/port", "radio.resource_held", {"resource": "serial", "holder": "FM 2", "held_by": 5}), "set to it, though not holding it yet"
     refuse_held(before, replace(before, radios=(kiss(1, "/dev/ttyUSB0"), kiss(5, "/dev/ttyUSB3", on=False), kiss(6, "/dev/ttyUSB3"))), claims)
     claims.hold(Claim("serial", claimed_value("serial", "/dev/ttyUSB0"), 1))
     claims.hold(Claim("serial", claimed_value("serial", "/dev/ttyUSB3"), 5))
@@ -395,7 +398,7 @@ def test_a_device_named_by_another_radio_that_is_on_is_refused_and_two_radios_ma
     claims.hold(Claim("gps", claimed_value("gps", "/dev/ttyACM0"), None))
     with pytest.raises(SettingError) as gps:
         refuse_held(before, replace(before, radios=(kiss(1, "/dev/ttyACM0"), kiss(5, "/dev/ttyUSB3"), kiss(6, ""))), claims, {"serial/port": "/dev/ttyACM0"})
-    assert (gps.value.key, gps.value.params) == ("serial/port", {"resource": "serial", "holder": "GPS"}), "the key of the form of before that set it, and the receiver named"
+    assert (gps.value.key, gps.value.params) == ("serial/port", {"resource": "serial", "holder": "GPS", "held_by": 0}), "the key of the form of before that set it, and the receiver named"
     refuse_held(before, replace(before, radios=(*before.radios[:2], replace(kiss(6, ""), name="Six"))), claims)      # (a device not named again is not looked at)
 
 
@@ -447,7 +450,7 @@ async def test_a_modems_command_on_a_radio_whose_modem_is_not_running_is_refused
     await page.until(lambda: page.topics["radios"]["2"]["name"] == "Attic")
     for command in ({"cmd": "radio_tune", "radio": HF_ID, "on": True}, {"cmd": "radio_key_test", "radio": HF_ID}):
         error = await refused(page, command)
-        assert (error["code"], error["params"], error["text"]) == ("radio.no_modem", {"name": "Attic"}, f"{command['cmd']}: the Attic radio has no modem running"), command
+        assert (error["code"], error["params"], error["text"]) == ("radio.no_modem", {"name": "Attic", "radio": HF_ID}, f"{command['cmd']}: the Attic radio has no modem running"), command
     assert (await refused(page, {"cmd": "hf_tune", "on": True}))["code"] == "hf.not_running", "the command of before answers as it did"
     await e.stop()
 
@@ -482,4 +485,4 @@ def test_a_radio_that_is_not_connected_says_why_by_a_code(monkeypatch: pytest.Mo
     monkeypatch.setattr(radioview, "modem_state", lambda tnc: {"state": "waiting", "reason": "not_installed"})
     assert radio_problem(radio, (radio,), line(Source.State.WAITING), claims) == {"code": "modem.not_installed", "params": {}}
     claims.hold(Claim("gps", radioview.claimed_value("gps", "/dev/ttyUSB0"), None))
-    assert radio_problem(radio, (radio,), line(Source.State.WAITING), claims) == {"code": "radio.resource_held", "params": {"resource": "serial", "holder": "GPS"}}, "the device first"
+    assert radio_problem(radio, (radio,), line(Source.State.WAITING), claims) == {"code": "radio.resource_held", "params": {"resource": "serial", "holder": "GPS", "held_by": 0}}, "the device first"

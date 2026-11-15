@@ -1,17 +1,19 @@
 """The handlers of the commands that are answered from the daemon's logs with a message of their own (neoaprs/web/dispatch.py): the weather of a station, the packets heard by the hour, the speeds of a
-station, the readings of a station's signal, the latest packets of a station and the positions of the replay of the map. Importing this module registers them; neoaprs/web/handlers.py imports it, so importing that one registers every handler.
+station, the readings of a station's signal, the latest packets of a station and the positions of the replay of the map; and a station's track as its row has it. Importing this module registers them; neoaprs/web/handlers.py imports it, so importing that one registers every handler.
 """
 from datetime import timedelta
 
 from neoaprs.clock import iso
 from neoaprs.geo import Thinning
 
-from .dispatch import Ctx, command
+from .dispatch import Ctx, UserError, command
 from .historywire import PacketHistory, SignalSeries, SpeedSeries
 from .packetwire import TRAFFIC_KEPT, StationTraffic
 from .replaywire import PositionHistory
+from .stationwire import StationTrack
 from .views import packet_row, replay_thinning, replay_tracks, weather_points
 from .weatherwire import WeatherSeries
+from .wirebase import plain
 
 
 @command(WeatherSeries)
@@ -65,3 +67,13 @@ async def position_history(ctx: Ctx, cmd: PositionHistory) -> None:
     found = await ctx.ctl.packetlog.position_history(start, config.station_call, lambda: Thinning(metres, seconds), internet=config.igate_enabled)
     begins = start if found.begins is None else max(start, found.begins)
     ctx.conn.send({"type": "position_history", "hours": cmd.hours, "start": iso(begins), "end": iso(end), "stations": replay_tracks(found.tracks)})
+
+
+@command(StationTrack)
+async def station_track(ctx: Ctx, cmd: StationTrack) -> None:
+    """The station's track as its row of the topic `stations` has it now: with the internet hidden (`igate/enabled` off), the radio's side of a station heard both ways, and none for one known only from there."""
+    station = ctx.ctl.stationbook.get(cmd.call)
+    shown = None if station is None else station if ctx.ctl.config.igate_enabled else station.radio_view()
+    if shown is None:
+        raise UserError(f"{cmd.cmd}: there is no station {cmd.call!r}", "station.unknown", params={"call": cmd.call})
+    ctx.conn.send({"type": "station_track", "call": cmd.call, "points": plain(shown.track)})

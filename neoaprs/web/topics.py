@@ -38,6 +38,7 @@ from neoaprs.bulletin import BulletinRecord
 from neoaprs.config import Config
 from neoaprs.callsign import normal_name
 from neoaprs.controller import Controller
+from neoaprs.mercurymodem import Mercury
 from neoaprs.message import MessageRecord, MessagingError
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
@@ -51,7 +52,7 @@ from neoaprs.station import Station
 from .hub import StateHub, Topic
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
-from .scopefeed import ScopeFeed
+from .scopefeed import RadioScopes, ScopeFeed
 from .skedview import skeds_state
 from .updatewire import UpdateState
 from .radioview import radio_row
@@ -81,6 +82,7 @@ class Topics:
         self._tell = tell                           # a message to every page that is open, which no topic keeps (an alert set on a station fired)
         self.window = PacketWindow()
         self.scope = ScopeFeed(ctl.mercury)               # the pages that have the HF scope open: the rows are sent to them, not to every page
+        self.scopes = RadioScopes(self.scope, self._wire_scope)              # the scopes asked for by radio (`radio_scope`): radio 2's in today's frames, every other radio's in frames that name it
         self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
         self._config = ctl.config                   # the settings the stations were last told with
         self.window.internet = ctl.config.igate_enabled
@@ -225,6 +227,17 @@ class Topics:
         self.connected = False
         for signal, handler in self._followed():
             signal.disconnect(handler)
+        self.scopes.disconnect()
+
+    @staticmethod
+    def _wire_scope(feed: ScopeFeed, modem: Mercury, on: bool) -> None:
+        """A radio's scope feed follows its modem's rows, or no more (`RadioScopes` makes one when a page first asks for that radio)."""
+        if on:
+            modem.scope_row.connect(feed.row)
+            modem.scope_cleared.connect(feed.cleared)
+        else:
+            modem.scope_row.disconnect(feed.row)
+            modem.scope_cleared.disconnect(feed.cleared)
 
     def _station_changed(self, station: Station) -> None:
         self.hub.changed("stations", station.call)

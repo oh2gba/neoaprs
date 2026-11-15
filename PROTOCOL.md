@@ -112,6 +112,16 @@ clock, then each row, oldest first, 313 bytes each (a full one is about 375 KB):
 
 A page that does not know this kind lets it go, as it does any other, and has the rows from then on.
 
+**Frames that name their radio.** The scope of a radio asked for by radio (`radio_scope`) comes in frames of a third kind, which say whose rows they carry: every radio's but radio 2's always, and radio 2's (the HF radio
+of before) when the page asks with `named`; without it radio 2's come in the two kinds above, which name no radio. A page may look at several radios at once, each with its own rows kept and its own hand-over as above.
+Such a frame is the kind and the radio's id, then a frame of one of the two kinds above, whole (a row, or the rows kept, with its own kind byte):
+
+| offset | size | field | meaning |
+|---:|---:|---|---|
+| 0 | 1 | kind | `3`: a frame of a radio's scope |
+| 1 | 4 | radio | the radio's id, the `id` of its row in the topic `radios`, a little-endian unsigned 32-bit number |
+| 5 | the rest | frame | a row (kind `1`) or the rows kept (kind `2`), byte for byte as above |
+
 ## Validation
 
 Every frame the page sends is checked against the `Command` union before anything is done. The models are strict: a number is a number (not `"5"`), a flag is `true` or `false` (not `1`), a
@@ -141,7 +151,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-65 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+66 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -261,8 +271,9 @@ or when the page closes, the page is sent no more. Nothing happens, and no error
 Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
 left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the
 TNC, `station/*` move our own station on the map. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio
-alone where its driver says so; a radio that is none or removed is refused with `radio.unknown`, a key its kind has not with `radio.no_setting` (its `name`), `station/main_radio` changed to name no radio with
-`radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`), each with the key. A key of the form of before whose radio (1 or 2) is
+alone where its driver says so; a radio that is none or removed is refused with `radio.unknown` (a removed one with its `name` and `removed` 1), a key its kind has not with `radio.no_setting` (its `name` and id,
+`radio`), `station/main_radio` changed to name no radio with `radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`, and the holder's
+id `held_by`, 0 for the GPS receiver), and the last radio that is on switched off with `radio.last_enabled` (the radio's id, `radio`), each with the key. A key of the form of before whose radio (1 or 2) is
 removed is refused with `radio.unknown` when it would change what it shows (sent back as shown, it is let through). A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`.
 
 | field | type | | description |
@@ -672,7 +683,7 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 
 Adds a radio of the type (`type`, a `key` of `RADIO_TYPES`): after the others, enabled, with the defaults of its kind, the name typed (empty or left out: none), and started at once. Answered with `radio_added` (its
 id) to the page that asked, at once, and then the `set` of its row in `radios` (the topic is told at most four times a second: the row may come a few messages later, so a page that opens the new radio waits
-for it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `setting.not_stored`.
+for it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `radio.name_label`, `setting.not_stored`.
 
 | field | type | | description |
 |---|---|---|---|
@@ -692,7 +703,7 @@ its name. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabl
 
 Changes what is given of the radio and nothing else: its `name` (empty: none), its `type` (one of its own kind), its Enable (`enabled`) or its place in the list (`position`, from 1; the others keep theirs, a tie goes by
 id). Stored, then in force; the radio is restarted when its type or its Enable changed what runs. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on is not switched off),
-`radio.name_form`, `radio.name_taken`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`.
+`radio.name_form`, `radio.name_taken`, `radio.name_label`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`.
 
 | field | type | | description |
 |---|---|---|---|
@@ -723,13 +734,16 @@ The keying test on the radio's modem, as `hf_key_test`: keys it for a second wit
 
 ### `radio_scope`
 
-The scope of the radio's modem, as `hf_scope`: with `on`, this page is sent the rows of its waterfall as binary frames (*Binary frames*), with `on` false, or when the page closes, no more. Nothing is refused, and
-nothing happens for a radio whose modem has no scope; in this version the binary frames are those of radio 2's modem (the HF radio of before), which a frame does not name, so another radio's scope sends nothing.
+The scope of the radio's modem, as `hf_scope`: with `on`, this page is sent the rows of its waterfall as binary frames (*Binary frames*), first the rows kept and then the rows as they come, with `on` false, or when
+the page closes, no more. Radio 2's (the HF radio of before) come in the frames of `hf_scope`, which name no radio, unless `named` asks for frames that name it; every other radio's come in frames that name it (kind
+3, *Binary frames*), always. Several radios can be looked at at once. Nothing comes while the radio's modem is not running or has no interface (its row's `modem.scope`). Refused, with `on`, for a radio that is none
+(`radio.unknown`) and for one whose type has no scope (`radio.no_scope`, with its `name`: `can.scope` of its row is false); `on` false is never refused.
 
 | field | type | | description |
 |---|---|---|---|
 | `radio` | integer |  | the radio's id, the `id` of its row in the topic `radios` (>= 1) |
 | `on` | boolean |  | true starts the rows for this page, false stops them |
+| `named` | boolean | optional | radio 2's rows in frames that name the radio, as every other radio's are; left out or false: radio 2's in the frames of `hf_scope`. Stop with the same `named` as the start (default `false`) |
 
 ### `station_radio`
 
@@ -750,9 +764,19 @@ The page shows the station's suggested frequencies (the box of a radio whose typ
 update check is off (`NEOAPRS_UPDATE_CHECK=0`). The suggested dials are the project's, not a radio's: one list for the station. Nothing is answered; the topic `skeds` and each Mercury radio's `modem` have the list
 when it changes. `hf_frequencies` is the same command under its name of before.
 
+### `station_track`
+
+Asks for a station's track: the positions its row's `track` has, for a page that draws the trail or works out the speed of one station without reading the whole row. Answered with a `station_track` message to the
+page that asked, or an `error` `station.unknown` for a call the topic `stations` has no row of (with the internet hidden, a station known only from there). The track is as the row has it when the command is answered:
+a page that shows it asks again when the row changes.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station, as the topic `stations` keys it (max 64 chars, min 1 chars) |
+
 ## Server to client
 
-19 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+20 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -983,6 +1007,15 @@ The answer to `radio_add`, to the page that asked: the id the new radio was give
 | field | type | | description |
 |---|---|---|---|
 | `id` | integer |  | (>= 1) |
+
+### `station_track`
+
+The track of one station, the answer to `station_track`: what its row's `track` has now.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station asked about: a page with several cards open tells the answers apart by it |
+| `points` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed; empty for a station that has sent no position (max 50 items) |
 
 ## Topics
 
@@ -1887,7 +1920,7 @@ Why a radio, or its beacon, does not do what it is set to, as a code the page pu
 
 | field | type | | description |
 |---|---|---|---|
-| `code` | "radio.not_connected" \| "radio.searching" \| "radio.silent" \| "radio.resource_held" \| "modem.not_installed" \| "modem.stopped" \| "modem.network" \| "modem.no_port" \| "modem.not_started" \| "modem.sound_card" \| "transmit.off" \| "beacon.not_sent" |  | `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log) |
+| `code` | "radio.not_connected" \| "radio.searching" \| "radio.silent" \| "radio.resource_held" \| "modem.not_installed" \| "modem.stopped" \| "modem.network" \| "modem.no_port" \| "modem.not_started" \| "modem.sound_card" \| "transmit.off" \| "beacon.not_sent" |  | `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log) |
 | `params` | { [key: string]: string \| integer } |  | the values of the sentence, by name; empty for a code that has none |
 
 ### RadioRow

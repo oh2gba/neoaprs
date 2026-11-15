@@ -127,7 +127,7 @@ async def find_radio(ctx: Ctx, cmd: FindRadio) -> None:
     finder = ctx.ctl.radiofinder
     radio = FM_ID if cmd.radio is None else cmd.radio
     if cmd.radio is not None and not (named := named_radio(ctx, cmd.cmd, cmd.radio)).rtype.can.find:
-        raise UserError(f"{cmd.cmd}: the {named.name} radio has no serial line to look for", "radio.no_line", params={"name": named.name})
+        raise UserError(f"{cmd.cmd}: the {named.name} radio has no serial line to look for", "radio.no_line", params={"name": named.name, "radio": named.id})
     base = {"radio": cmd.radio, "radio_type": "", "profile": "", "number": 0, "total": 0}
 
     def trying(step: Trying) -> None:

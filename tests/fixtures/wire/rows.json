@@ -2187,6 +2187,7 @@
    "problem": {
     "code": "radio.resource_held",
     "params": {
+     "held_by": 1,
      "holder": "Mobile",
      "resource": "serial"
     }

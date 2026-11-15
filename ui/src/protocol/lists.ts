@@ -43,6 +43,7 @@ export const MESSAGE_TYPES = [
   "speed_series",
   "state",
   "station_alert",
+  "station_track",
   "station_traffic",
   "status",
   "update_result",

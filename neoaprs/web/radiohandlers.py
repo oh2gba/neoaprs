@@ -1,49 +1,69 @@
 """The handlers of the commands that name a radio (neoaprs/web/radiowire.py): add, remove and change a radio, Tune, the keying test and the scope of its modem, the radio of a station's messages, and the station's
 suggested frequencies. Registered with the dispatcher as the handlers of neoaprs/web/handlers.py are, by being imported there; `named_radio` and `sending_radio` are the refusals every command that names a radio
-gives (`radio.unknown`, `radio.not_connected`, `radio.none`), for the handlers of the other areas too.
+gives (`radio.unknown`, `radio.off`, `radio.not_connected`, `radio.none`), for the handlers of the other areas too. A refusal that names a radio by the daemon's English name carries its id too (`radio`), by which a page
+says that radio in its own words.
 
 A handler asks the controller (`add_radio`, `change_radio`, `remove_radio`), which stores the change before it is put in force; what the pages are told of it comes from the signals (neoaprs/web/topics.py). A refusal
 of the radios' rules is a coded `RadioError` (neoaprs/radiospec.py), passed on with its code; a change the database would not take is `setting.not_stored`, with the reason in the log."""
 import logging
-from collections.abc import Awaitable, Callable, Iterator
+import re
+from collections.abc import Awaitable, Callable, Iterator, Sequence
 from contextlib import contextmanager
 from typing import Any
 
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.coded import CodedError
 from neoaprs.radioregistry import LiveRadio
-from neoaprs.radiospec import RadioError, RadioId
+from neoaprs.radiospec import KIND_WORDS, RadioError, RadioId, RadioSpec, live, log_name
 from neoaprs.radiotype import RadioTypeError
 
 from .dispatch import Ctx, UserError, command
 from .hfhandlers import may_transmit
 from .radiowire import RadioAdd, RadioChange, RadioKeyTest, RadioRemove, RadioScope, RadioTune, StationRadio
+from .radioview import removed_name
 from .tncwire import Frequencies
 from .views import on_their_way
 
 log = logging.getLogger("neoaprs.web")
 
+LABEL = re.compile("(?:" + "|".join(re.escape(word.casefold()) for word in KIND_WORDS.values()) + ")(?: [0-9]+)?")      # what a radio with no name of its own is called, case folded ("fm", "hf 2")
+
 
 @contextmanager
-def radio_refused(name: str) -> Iterator[None]:
-    """A refusal of the radios' rules (RadioError, RadioTypeError) as the page's error, after the name of the command, with its code and values."""
+def radio_refused(name: str, id: RadioId | None = None, specs: Sequence[RadioSpec] = ()) -> Iterator[None]:
+    """A refusal of the radios' rules (RadioError, RadioTypeError) as the page's error, after the name of the command, with its code and values; one about the radio `id` names it by its id too, and a removed
+    radio (`specs`, the settings' radios) is said to be removed."""
     try:
         yield
     except RadioError as e:
         if e.code == "radio.name_taken":                    # (the page names a radio by its name: the command line's sentence names the other radio by the id it lists)
             raise UserError(f"{name}: the name {e.params['name']!r} is another radio's already: give this one another", "radio.name_taken", None, e.params) from None
+        if id is None:
+            raise UserError(f"{name}: {e}", e.code, None, e.params) from None
         if e.code == "radio.type_kind":                     # (the command line's sentence names the key and the type's key it typed)
-            raise UserError(f"{name}: the {e.params['name']} radio takes only a type of its own kind ({e.params['kind']})", "radio.type_kind", None, e.params) from None
+            raise UserError(f"{name}: the {e.params['name']} radio takes only a type of its own kind ({e.params['kind']})", "radio.type_kind", None, {**e.params, "radio": id}) from None
+        if e.code == "radio.last_enabled":
+            raise UserError(name + ": " + str(e), "radio.last_enabled", None, {**e.params, "radio": id}) from None
+        if e.code == "radio.unknown" and removed_name(id, specs) is not None:
+            raise no_radio(name, id, specs) from None
         raise UserError(f"{name}: {e}", e.code, None, e.params) from None
     except RadioTypeError as e:
         raise UserError(f"{name}: {e}", e.code, None, e.params) from None
+
+
+def no_radio(name: str, id: RadioId, specs: Sequence[RadioSpec]) -> UserError:
+    """`radio.unknown` for the id: a radio the settings keep as removed is said to be removed, with its `name` and `removed` 1; any other is "there is no radio N"."""
+    removed = removed_name(id, specs)
+    if removed is not None:
+        return UserError(f"{name}: the {removed} radio is removed", "radio.unknown", params={"radio": id, "name": removed, "removed": 1})
+    return UserError(f"{name}: there is no radio {id}", "radio.unknown", params={"radio": id})
 
 
 def named_radio(ctx: Ctx, name: str, id: RadioId) -> LiveRadio[Any]:
     """The radio of the id that is not removed; `radio.unknown` when there is none."""
     radio = ctx.ctl.radios.get(id)
     if radio is None:
-        raise UserError(f"{name}: there is no radio {id}", "radio.unknown", params={"radio": id})
+        raise no_radio(name, id, ctx.ctl.config.radios)
     return radio
 
 
@@ -56,9 +76,9 @@ def sending_radio(ctx: Ctx, name: str, id: RadioId | None) -> RadioId | None:
         return None
     radio = named_radio(ctx, name, id)
     if not radio.spec.enabled:
-        raise UserError(f"{name}: the {radio.name} radio is off: turn it on first", "radio.off", params={"name": radio.name})
+        raise UserError(f"{name}: the {radio.name} radio is off: turn it on first", "radio.off", params={"name": radio.name, "radio": id})
     if not radio.usable:
-        raise UserError(f"{name}: the {radio.name} radio is not connected", "radio.not_connected", params={"name": radio.name})
+        raise UserError(f"{name}: the {radio.name} radio is not connected", "radio.not_connected", params={"name": radio.name, "radio": id})
     return id
 
 
@@ -68,9 +88,23 @@ def _stored(name: str, done: bool) -> None:
         raise UserError(f"{name}: the radio could not be stored; nothing changed", "setting.not_stored")
 
 
+def refuse_label(name: str, typed: str | None, specs: Sequence[RadioSpec], own: RadioId | None) -> None:
+    """A name typed in the form of what a radio with no name of its own is called (a kind's word, alone or with a number: "FM", "hf 2", "LoRa 3") is refused: such a name is, or becomes when a radio is added, has its
+    name cleared or the radios are numbered again after a remove, another radio's too. `radio.name_taken` with the radio that is called so now, else `radio.name_label`. The radio's own name of before, sent again, is
+    taken (a name stored before this rule)."""
+    wanted = (typed or "").strip()
+    if not LABEL.fullmatch(wanted.casefold()) or any(s.id == own and s.name.casefold() == wanted.casefold() for s in specs):
+        return
+    other = next((s for s in live(specs) if s.id != own and not s.name and log_name(s, specs).casefold() == wanted.casefold()), None)
+    if other is not None:
+        raise UserError(f"{name}: the name {wanted!r} is another radio's already: give this one another", "radio.name_taken", params={"name": wanted, "radio": other.id})
+    raise UserError(f"{name}: the name {wanted!r} is how a radio without a name of its own is called: give this one another", "radio.name_label", params={"name": wanted})
+
+
 @command(RadioAdd)
 async def radio_add(ctx: Ctx, cmd: RadioAdd) -> None:
     """The radio is added; the page that asked is told its id at once, and its row comes with the next patch of `radios` (a topic told at most four times a second): a page waits for the row."""
+    refuse_label(cmd.cmd, cmd.name, ctx.ctl.config.radios, None)
     with radio_refused(cmd.cmd):
         id = await ctx.ctl.add_radio(cmd.type, cmd.name)
     if id is None:
@@ -80,7 +114,7 @@ async def radio_add(ctx: Ctx, cmd: RadioAdd) -> None:
 
 @command(RadioRemove)
 async def radio_remove(ctx: Ctx, cmd: RadioRemove) -> None:
-    with radio_refused(cmd.cmd):
+    with radio_refused(cmd.cmd, cmd.radio, ctx.ctl.config.radios):
         _stored(cmd.cmd, await ctx.ctl.remove_radio(cmd.radio))
 
 
@@ -88,12 +122,13 @@ async def radio_remove(ctx: Ctx, cmd: RadioRemove) -> None:
 async def radio_change(ctx: Ctx, cmd: RadioChange) -> None:
     """What the command gives of the radio, and nothing else; a command that gives nothing changes nothing."""
     columns = {column: value for column in ("name", "type", "enabled", "position") if (value := getattr(cmd, column)) is not None}
-    with radio_refused(cmd.cmd):
+    refuse_label(cmd.cmd, cmd.name, ctx.ctl.config.radios, cmd.radio)
+    with radio_refused(cmd.cmd, cmd.radio, ctx.ctl.config.radios):
         _stored(cmd.cmd, await ctx.ctl.change_radio(cmd.radio, **columns))
 
 
 def _no_modem(name: str, radio: LiveRadio[Any]) -> UserError:
-    return UserError(f"{name}: the {radio.name} radio has no modem running", "radio.no_modem", params={"name": radio.name})
+    return UserError(f"{name}: the {radio.name} radio has no modem running", "radio.no_modem", params={"name": radio.name, "radio": radio.id})
 
 
 def _modem(ctx: Ctx, name: str, id: RadioId) -> tuple[LiveRadio[Any], Any]:
@@ -134,10 +169,18 @@ async def radio_key_test(ctx: Ctx, cmd: RadioKeyTest) -> None:
 
 @command(RadioScope)
 async def radio_scope(ctx: Ctx, cmd: RadioScope) -> None:
-    """This page wants the rows of the radio's waterfall, or no more of them: those of the modem the page's scope feed follows (radio 2's); nothing for another radio, and nothing is refused."""
-    radio = ctx.ctl.radios.get(cmd.radio)
-    if ctx.scope is not None and radio is not None and ctx.scope.follows(radio.driver.modem):
-        ctx.scope.ask(ctx.conn, cmd.on)
+    """This page wants the rows of the radio's waterfall, or no more of them: radio 2's in today's frames (the feed `hf_scope` shares) unless it asks for frames that name the radio, any other radio's in frames that
+    name it. A radio that is none, or whose type has no scope, is refused when it is asked for, never when it is stopped."""
+    if ctx.scopes is None:
+        return
+    if not cmd.on:
+        ctx.scopes.stop(ctx.conn, cmd.radio, cmd.named)
+        return
+    radio = named_radio(ctx, cmd.cmd, cmd.radio)
+    modem = radio.driver.modem
+    if modem is None or not radio.rtype.can.scope:
+        raise UserError(f"{cmd.cmd}: the {radio.name} radio has no scope", "radio.no_scope", params={"name": radio.name, "radio": radio.id})
+    ctx.scopes.feed(radio.id, modem, cmd.named).ask(ctx.conn, True)
 
 
 @command(StationRadio)
@@ -150,7 +193,7 @@ async def station_radio(ctx: Ctx, cmd: StationRadio) -> None:
     if cmd.radio is not None:
         named_radio(ctx, cmd.cmd, cmd.radio)
     if not ctx.ctl.radios.choose(call, cmd.radio) and cmd.radio is not None:            # (a radio the store cannot choose: none is always taken)
-        raise UserError(f"{cmd.cmd}: there is no radio {cmd.radio}", "radio.unknown", params={"radio": cmd.radio})
+        raise no_radio(cmd.cmd, cmd.radio, ctx.ctl.config.radios)
     station = ctx.ctl.stationbook.get(call)
     for key in on_their_way(ctx.ctl.messaging.records(), call if station is None else station.call):
         ctx.hub.changed("messages", key)            # (a message on its way takes the radio chosen from its next attempt: its `radio_now`)

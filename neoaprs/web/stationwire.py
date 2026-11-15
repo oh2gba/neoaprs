@@ -1,9 +1,11 @@
-"""The stations on the wire: the topic `stations` (a table of rows by call) and the command to forget one. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""The stations on the wire: the topic `stations` (a table of rows by call), the command to forget one and the one that asks for a station's track. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
 from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Call, ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Command, _Model
+from neoaprs.station import TRACK_MAX
+
+from .wirebase import Call, ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Command, _Message, _Model
 
 
 class WeatherValues(_Model):
@@ -152,7 +154,7 @@ class StationRow(_Model):
                                               "else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own "
                                               "(`radio_now` of its row). The page shows Route, the path and the radio's state of this radio")
     paths: dict[str, str] = Field(description="the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too)")
-    track: list[tuple[Iso, float, float]] = Field(max_length=50, description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed")
+    track: list[tuple[Iso, float, float]] = Field(max_length=TRACK_MAX, description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed")
 
 
 class ForgetStation(_Command):
@@ -165,3 +167,19 @@ class ForgetAllStations(_Command):
     """A fresh start for what was heard: removes every station and every packet heard (and the weather of the stations), in the daemon and in its database. The station we are, the objects and bulletins we send, the messages, the
     settings and the maps stay, and so do the packets we sent. Answered by the stations' topic told whole, or by an `error`."""
     cmd: Literal["forget_all_stations"]
+
+
+class StationTrack(_Command):
+    """Asks for a station's track: the positions its row's `track` has, for a page that draws the trail or works out the speed of one station without reading the whole row. Answered with a `station_track` message to the
+    page that asked, or an `error` `station.unknown` for a call the topic `stations` has no row of (with the internet hidden, a station known only from there). The track is as the row has it when the command is answered:
+    a page that shows it asks again when the row changes."""
+    cmd: Literal["station_track"]
+    call: Call = Field(description="the station, as the topic `stations` keys it")
+
+
+class StationTrackMsg(_Message):
+    """The track of one station, the answer to `station_track`: what its row's `track` has now."""
+    type: Literal["station_track"]
+    call: str = Field(description="the station asked about: a page with several cards open tells the answers apart by it")
+    points: list[tuple[Iso, float, float]] = Field(max_length=TRACK_MAX, description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed; "
+                                                                                       "empty for a station that has sent no position")

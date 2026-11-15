@@ -173,6 +173,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
                      {"type": "radio_search", "state": "found", "port": "bt://AA:BB:CC:DD:EE:FF", "baud": None, "profile": "kiss", "number": 0, "total": 0, "radio": None, "radio_type": "kiss"},
                      {"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0, "radio": 1, "radio_type": ""}],
     "radio_added": [{"type": "radio_added", "id": 3}],
+    "station_track": [{"type": "station_track", "call": "OH2XYZ-9", "points": [["2026-10-21T11:50:00Z", 60.17, 24.94], [NOW, 60.18, 24.95]]}, {"type": "station_track", "call": "OH2RDG", "points": []}],
     "alert_result": [{"type": "alert_result", "ok": True, "text": "ran"}, {"type": "alert_result", "ok": False, "text": "exit code 3: no display"}],
     "station_alert": [{"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "text": "OH2XYZ is on the air", "at": NOW, "km": None},
                       {"type": "station_alert", "call": "OH2XYZ", "kind": "within", "text": "OH2XYZ is 8.2 km from you", "at": NOW, "km": 8.2}],
@@ -241,6 +242,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "radio_add": {"cmd": "radio_add", "type": "kiss", "name": "Mobile"}, "radio_remove": {"cmd": "radio_remove", "radio": 3},
     "radio_change": {"cmd": "radio_change", "radio": 3, "name": "Home", "type": "kenwood-d710", "enabled": False, "position": 2},
     "radio_tune": {"cmd": "radio_tune", "radio": 2, "on": True}, "radio_key_test": {"cmd": "radio_key_test", "radio": 2}, "radio_scope": {"cmd": "radio_scope", "radio": 2, "on": False},
+    "station_track": {"cmd": "station_track", "call": "OH2XYZ-9"},
     "station_radio": {"cmd": "station_radio", "call": "OH2GAX-2", "radio": 3}, "frequencies": {"cmd": "frequencies"},
     "page_error": {"cmd": "page_error", "message": "x is undefined", "stack": "at render (Map.vue:10:5)", "source": "vue", "at": "2026-10-21T12:00:00Z", "build": "index-abc123.js"},
 }

@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SetMessageRadioCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | StationRadioCommand | FrequenciesCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SetMessageRadioCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -1138,7 +1138,7 @@ export interface QueryStationCommand {
   text?: string | null;
 }
 
-/** Adds a radio of the type (`type`, a `key` of `RADIO_TYPES`): after the others, enabled, with the defaults of its kind, the name typed (empty or left out: none), and started at once. Answered with `radio_added` (its id) to the page that asked, at once, and then the `set` of its row in `radios` (the topic is told at most four times a second: the row may come a few messages later, so a page that opens the new radio waits for it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `setting.not_stored`. */
+/** Adds a radio of the type (`type`, a `key` of `RADIO_TYPES`): after the others, enabled, with the defaults of its kind, the name typed (empty or left out: none), and started at once. Answered with `radio_added` (its id) to the page that asked, at once, and then the `set` of its row in `radios` (the topic is told at most four times a second: the row may come a few messages later, so a page that opens the new radio waits for it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `radio.name_label`, `setting.not_stored`. */
 export interface RadioAddCommand {
   cmd: "radio_add";
   type: string;
@@ -1196,7 +1196,7 @@ export interface RadioCan {
   frequencies: boolean;
 }
 
-/** Changes what is given of the radio and nothing else: its `name` (empty: none), its `type` (one of its own kind), its Enable (`enabled`) or its place in the list (`position`, from 1; the others keep theirs, a tie goes by id). Stored, then in force; the radio is restarted when its type or its Enable changed what runs. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on is not switched off), `radio.name_form`, `radio.name_taken`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`. */
+/** Changes what is given of the radio and nothing else: its `name` (empty: none), its `type` (one of its own kind), its Enable (`enabled`) or its place in the list (`position`, from 1; the others keep theirs, a tie goes by id). Stored, then in force; the radio is restarted when its type or its Enable changed what runs. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on is not switched off), `radio.name_form`, `radio.name_taken`, `radio.name_label`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`. */
 export interface RadioChangeCommand {
   cmd: "radio_change";
   /** the new type; left out: unchanged */
@@ -1246,7 +1246,7 @@ export interface RadioLimits {
 
 /** Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told). */
 export interface RadioProblem {
-  /** `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log) */
+  /** `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log) */
   code: "radio.not_connected" | "radio.searching" | "radio.silent" | "radio.resource_held" | "modem.not_installed" | "modem.stopped" | "modem.network" | "modem.no_port" | "modem.not_started" | "modem.sound_card" | "transmit.off" | "beacon.not_sent";
   /** the values of the sentence, by name; empty for a code that has none */
   params: { [key: string]: string | number };
@@ -1311,13 +1311,15 @@ export interface RadioRulesState {
   beacon_min_min: number;
 }
 
-/** The scope of the radio's modem, as `hf_scope`: with `on`, this page is sent the rows of its waterfall as binary frames (*Binary frames*), with `on` false, or when the page closes, no more. Nothing is refused, and nothing happens for a radio whose modem has no scope; in this version the binary frames are those of radio 2's modem (the HF radio of before), which a frame does not name, so another radio's scope sends nothing. */
+/** The scope of the radio's modem, as `hf_scope`: with `on`, this page is sent the rows of its waterfall as binary frames (*Binary frames*), first the rows kept and then the rows as they come, with `on` false, or when the page closes, no more. Radio 2's (the HF radio of before) come in the frames of `hf_scope`, which name no radio, unless `named` asks for frames that name it; every other radio's come in frames that name it (kind 3, *Binary frames*), always. Several radios can be looked at at once. Nothing comes while the radio's modem is not running or has no interface (its row's `modem.scope`). Refused, with `on`, for a radio that is none (`radio.unknown`) and for one whose type has no scope (`radio.no_scope`, with its `name`: `can.scope` of its row is false); `on` false is never refused. */
 export interface RadioScopeCommand {
   cmd: "radio_scope";
   /** the radio's id, the `id` of its row in the topic `radios` */
   radio: number;
   /** true starts the rows for this page, false stops them */
   on: boolean;
+  /** radio 2's rows in frames that name the radio, as every other radio's are; left out or false: radio 2's in the frames of `hf_scope`. Stop with the same `named` as the start */
+  named?: boolean;
 }
 
 /** How `find_radio` goes, to the page that asked. */
@@ -1418,7 +1420,7 @@ export interface SendMessageCommand {
   locked?: boolean;
 }
 
-/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio alone where its driver says so; a radio that is none or removed is refused with `radio.unknown`, a key its kind has not with `radio.no_setting` (its `name`), `station/main_radio` changed to name no radio with `radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`), each with the key. A key of the form of before whose radio (1 or 2) is removed is refused with `radio.unknown` when it would change what it shows (sent back as shown, it is let through). A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`. */
+/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio alone where its driver says so; a radio that is none or removed is refused with `radio.unknown` (a removed one with its `name` and `removed` 1), a key its kind has not with `radio.no_setting` (its `name` and id, `radio`), `station/main_radio` changed to name no radio with `radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`, and the holder's id `held_by`, 0 for the GPS receiver), and the last radio that is on switched off with `radio.last_enabled` (the radio's id, `radio`), each with the key. A key of the form of before whose radio (1 or 2) is removed is refused with `radio.unknown` when it would change what it shows (sent back as shown, it is let through). A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`. */
 export interface SetConfigCommand {
   cmd: "set_config";
   /** key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`) */
@@ -1768,6 +1770,22 @@ export interface StationRow {
   paths: { [key: string]: string };
   /** the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed */
   track: [string, number, number][];
+}
+
+/** Asks for a station's track: the positions its row's `track` has, for a page that draws the trail or works out the speed of one station without reading the whole row. Answered with a `station_track` message to the page that asked, or an `error` `station.unknown` for a call the topic `stations` has no row of (with the internet hidden, a station known only from there). The track is as the row has it when the command is answered: a page that shows it asks again when the row changes. */
+export interface StationTrackCommand {
+  cmd: "station_track";
+  /** the station, as the topic `stations` keys it */
+  call: string;
+}
+
+/** The track of one station, the answer to `station_track`: what its row's `track` has now. */
+export interface StationTrackMessage {
+  type: "station_track";
+  /** the station asked about: a page with several cards open tells the answers apart by it */
+  call: string;
+  /** the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed; empty for a station that has sent no position */
+  points: [string, number, number][];
 }
 
 /** Asks for the latest packets of one station, for the station panel of the Stations tab: those it sent (its own source, or inside a third-party packet an iGate put on the air) and the messages we sent to it (a message, an ack, a directed query). Read from the packet log, so that they reach back past the 200 of the topic `packets`; the page adds the packets that come after. While `igate/enabled` is off no packet that came from APRS-IS is read, as the topic shows none. Answered with a `station_traffic` message to the page that asked. */

@@ -20,6 +20,7 @@ const VARIANTS: Record<string, Record<string, string[]>> = {
   "object.name_length": { kind: ["object", "item"] },
   "object.comment_length": { motion: ["0", "1"] },
   "message.not_ascii": { chars: ["", "é"] },
+  "radio.unknown": { removed: ["", "1"] },
 };
 
 const message = (code: string): Message | undefined => (en as Record<string, Message>)[`error.${code}`];

@@ -34,6 +34,7 @@ from errorcodes import error_codes  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.cipher import MAX_LOCKED  # noqa: E402
 from neoaprs import mercury, mercuryscope  # noqa: E402
+from neoaprs.web import scopefeed  # noqa: E402
 from neoaprs.radiorules import FM, HF  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
@@ -359,6 +360,16 @@ clock, then each row, oldest first, {m.HISTORY_ROW.size + m.ROW_BINS} bytes each
 | {m.HISTORY_HEADER.size + 6} + n * {m.HISTORY_ROW.size + m.ROW_BINS} | {m.ROW_BINS} | bins | of row `n`, as in a row |
 
 A page that does not know this kind lets it go, as it does any other, and has the rows from then on.
+
+**Frames that name their radio.** The scope of a radio asked for by radio (`radio_scope`) comes in frames of a third kind, which say whose rows they carry: every radio's but radio 2's always, and radio 2's (the HF radio
+of before) when the page asks with `named`; without it radio 2's come in the two kinds above, which name no radio. A page may look at several radios at once, each with its own rows kept and its own hand-over as above.
+Such a frame is the kind and the radio's id, then a frame of one of the two kinds above, whole (a row, or the rows kept, with its own kind byte):
+
+| offset | size | field | meaning |
+|---:|---:|---|---|
+| 0 | 1 | kind | `{scopefeed.RADIO_KIND}`: a frame of a radio's scope |
+| 1 | 4 | radio | the radio's id, the `id` of its row in the topic `radios`, a little-endian unsigned 32-bit number |
+| {scopefeed.RADIO_HEADER.size} | the rest | frame | a row (kind `{m.ROW_KIND}`) or the rows kept (kind `{m.HISTORY_KIND}`), byte for byte as above |
 
 """
 
