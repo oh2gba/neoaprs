@@ -18,7 +18,7 @@ While the Tnc is not connected, or the radio is silent, or transmitting is switc
 was away) and the log says so once; a new message, and a retry, is refused at once while it is switched off (code `transmit.off`) and an ack for a message we receive is not sent (nothing is queued).
 
 The radio of a message is its station's (services/messageradio.py: the operator's choice, else the radio that heard the station lately, neoaprs/messagerule.py), asked at its first attempt and kept until the
-message ends, unless the operator chooses another radio for the station or that radio is switched off: then the next attempt is fitted to the radio of now, and one it cannot carry fails with the reason.
+message ends, unless the operator chooses another radio for the station or that radio is switched off, or it only stood in for the station's own radio and that is on again: then the next attempt is fitted to the radio of now, and one it cannot carry fails with the reason.
 
 Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or the exact copy of a reply-ack number: `ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`), and
 lets an ack, a rej or the reply-ack of a message to us settle the message of ours that it quotes.
@@ -55,7 +55,7 @@ from neoaprs.services.answers import as_pick, radio_word
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox, shared_with
-from neoaprs.services.messageradio import MessageRadios, info, named
+from neoaprs.services.messageradio import MessageRadios, info, last_run, named
 from neoaprs.services.keyring import Keyring
 from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.services.radioset import AirRadio, RadioPick, path_on
@@ -109,7 +109,7 @@ class Messaging:
         self.retries = Retries(self, radios, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)         # when each message being sent needs attention, and the ticker (services/retries.py), which sends the acks that waited first
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
-        self.message_radios = MessageRadios(radios, config, lambda number: next((a.radio_id for a in reversed(self.delivery.attempts_of(number))), None))     # the radio each message keeps from its first attempt, after a restart its last one's (services/messageradio.py)
+        self.message_radios = MessageRadios(radios, config, lambda number: last_run(self.delivery.attempts_of(number)))     # the radio each message keeps from its first attempt, after a restart its last one's (services/messageradio.py)
         self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
         self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, keyring)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU, `qru_answer` whether a message to us is a QRU server's answer (not kept)
 
@@ -339,7 +339,7 @@ class Messaging:
         if not sent:
             return record                                            # (the TNC is restarting into KISS mode, or the write failed: it is tried again at the next tick)
         at = self.pace.stamp()
-        self.message_radios.sent(record, radio)
+        self.message_radios.sent(record, radio, at)
         record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
         self.delivery.sent(record, tuple(str(a) for a in frame.path), at, radio.id)
         if record.msg_id is None:

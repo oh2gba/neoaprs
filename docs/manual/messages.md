@@ -201,7 +201,9 @@ A path of 8 digipeaters has no room for it. A message to the station is then ref
 
 ## A station heard on the HF radio
 
-With the HF radio off nothing here changes. With it on ([radio.md](radio.md#the-mercury-hf-modem)), each conversation has one radio, chosen when the message goes: the radio that heard the station in the last six hours, the FM radio when both did; else the radio that heard it last. A station heard on both radios lately is messaged over FM, and its header is as above. A station never heard goes on the radio that is on, FM before HF. A message keeps its radio for all its retries, unless you choose another radio for the station or switch its radio off.
+With the HF radio off nothing here changes. With it on ([radio.md](radio.md#the-mercury-hf-modem)), each conversation has one radio, chosen when the message goes: the radio that heard the station in the last six hours, the FM radio when both did; else the radio that heard it last. A station heard on both radios lately is messaged over FM, and its header is as above. A station never heard goes on the radio that is on, FM before HF.
+
+A message keeps its radio for all its retries, unless you choose another radio for the station or switch its radio off, or it went on the other radio only because the station's own was off: then its next attempt goes on the station's own once that is on again.
 
 - **The header** of a conversation with a station heard on the HF radio alone, one you chose the HF radio for, or any while the FM radio is off, has the small tag **HF** where Route would be. Its hover text says "Messages to this station go over the HF radio: direct, no path". When [encrypted messages](#encrypted-messages) are on, the Key menu and the padlock are there as for any station.
 - **No path.** Every frame on HF is direct, so a station's own path and **RF only** are not used for it, and are kept for the day it is messaged over FM. The station panel of the Stations tab has no Route for such a station either.

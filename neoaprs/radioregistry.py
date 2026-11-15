@@ -30,6 +30,7 @@ from .radiospec import RadioId, RadioSpec, live, log_name
 from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError
 from .signal import Signal
 from .source import Source
+from .station import Station
 from .stationbook import StationBook
 from .stationchoices import StationChoices as StationChoices      # (the operator's radio by station; neoaprs/radios.py takes it from here)
 from .tnc import Tnc
@@ -221,9 +222,13 @@ class RadioRegistry(StationChoices, Generic[B]):
 
     def for_station(self, call: str) -> LiveRadio[B] | None:
         """The radio a message of ours to the station goes out on (messagerule.message_radio, on what each radio heard of it and the operator's choice for it). A message asks it at its first attempt and keeps
-        that radio until it ends, unless the operator's choice for the station in force changes or that radio is switched off (services/messageradio.py)."""
+        that radio until it ends, unless the operator's choice for the station in force changes, that radio is switched off, or it only stood in for the station's own (services/messageradio.py)."""
         config, station = self._config(), self._book.get(call)
         return self._of(messagerule.message_radio(self.choice(call), station.heard_by if station is not None else {}, config.radios, config.main_radio, self._clock()))
+
+    def station_of(self, call: str) -> Station | None:
+        """The station as the book has it: what each radio heard of it, by which a message tells a radio that only stood in for the station's own (services/messageradio.py)."""
+        return self._book.get(call)
 
     def for_packet(self, packet: Packet) -> LiveRadio[B] | None:
         """The radio to answer a packet on: the one it came on, while it is enabled; else the main radio. A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking is a fault."""

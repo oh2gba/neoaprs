@@ -19,18 +19,23 @@ from neoaprs.clock import utc
 from neoaprs.config import DEFAULTS, MESSAGE_RADIOS
 from neoaprs.message import EMAIL_GATEWAY, FIRST_WAIT_SEC, MessageRecord, MessagingError, due_at, retry_pause
 from neoaprs.messagelog import MessageLog
+from neoaprs.radiorules import FM
+from neoaprs.radiospec import RadioHeard
 from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.radiotypes.common import FM_LIMITS, HF_LIMITS
 from neoaprs.packet import Message, Packet
 from neoaprs.radios import Radios
 from neoaprs.services.answers import Answers, as_pick
+from neoaprs.services.messaging import Messaging
 from neoaprs.station import Station
 from neoaprs.stationbook import StationBook
 from tests.support.air import on_air
+from tests.support.env import remember_stop
+from tests.support.fakedriver import Rig as AirRig
 from tests.support.stubtnc import StubRadios
 from tests.support.storedb import log_at
 from tests.support.stubtnc import StubTnc
-from tests.test_messaging import LineAir, Rig, with_hf
+from tests.test_messaging import TICK, LineAir, Rig, with_hf
 from tests.test_web import with_page
 
 T0 = utc(2026, 11, 4, 7, 30)
@@ -368,3 +373,181 @@ async def test_the_path_of_a_frame_is_asked_for_the_radio_it_goes_out_on(tmp_pat
     rig.m.on_packet(replace(rig.heard("OH2NEAR", "OH2GBA", "over hf", "7"), radio="hf"))
     await rig.settled()
     assert asked == [("OH2FAR", None, HF_ID), ("OH2FAR", 1, HF_ID), ("OH2NEAR", None, FM_ID), ("OH2NEAR", 1, FM_ID), ("OH2NEAR", None, HF_ID)], "the check of the text, the first attempt, the ack"
+
+
+# ---- a radio that only stood in for the station's own is left when that is on again (R2b)
+
+async def over_the_registry(tmp_path: Path, **heard: dict[int, int]) -> tuple[Rig, AirRig]:
+    """Messaging over the registry itself (neoaprs/radioregistry.py, on fake drivers: tests/support/fakedriver.py) with its station book and the real rule: FM radio 1 and HF radio 2, both on; each
+    station of `heard` heard by the radios named, as {radio id: packets}, now."""
+    log, _, clock = await log_at(tmp_path, MessageLog)
+    rig = Rig(log, clock, hf_enabled=True)
+    air = AirRig(rig.config, clock)
+    air.registry.sync(air.config)
+    for driver in air.drivers.values():
+        await driver.start()
+    seen(air, **heard)
+    rig.m = on_registry(rig, air)
+    await rig.start()
+    return rig, air
+
+
+def on_registry(rig: Rig, air: AirRig) -> Messaging:
+    m = Messaging(air.registry, lambda: air.config, rig.log, rig.prefs.path_for, rig.clock, tick_sec=TICK)
+    remember_stop(m.stop)
+    return m
+
+
+def seen(air: AirRig, **heard: dict[int, int]) -> None:
+    """The stations heard now, each by the radios named ({radio id: packets})."""
+    now = air.clock()
+    air.book.seed([Station(call, first_heard=now, last_heard=now, heard_by={id: RadioHeard(count, now) for id, count in by.items()}) for call, by in heard.items()])
+
+
+def switch(air: AirRig, **on: bool) -> None:
+    """A save that switches the FM radio (`fm`) or the HF radio (`hf`) on or off."""
+    air.put(replace(air.config, **{f"{kind}_enabled": value for kind, value in on.items()}))
+
+
+async def all_attempts(rig: Rig, number: int) -> list[int | None]:
+    """The clock moved on in steps until the message has had its four attempts: the radio of each."""
+    for _ in range(60):
+        if len(radio_ids(rig, number)) == 4:
+            break
+        await rig.pass_time(15)
+    return radio_ids(rig, number)
+
+
+async def registry_restarted(rig: Rig, air: AirRig) -> Rig:
+    """The daemon stopped and started again on the same database, the registry and the station book as they were (what the book is seeded with at a start)."""
+    await rig.settled()
+    await rig.m.stop()
+    again = Rig(rig.log, rig.clock, rig.tnc, hf_enabled=True)
+    again.m = on_registry(again, air)
+    await again.start()
+    return again
+
+
+async def test_a_message_that_went_over_hf_while_fm_was_off_goes_on_fm_when_it_is_on_again_and_stays(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """The integration's story with the real daemon (I3 A1): OH2NR heard on FM alone, the FM radio off when the message is written, so its first attempt goes over HF, the only radio on; HF never heard
+    the station. When FM is on again the retries go on FM, not three times over a shared HF channel to a station HF cannot reach."""
+    caplog.set_level(logging.INFO)
+    rig, air = await over_the_registry(tmp_path, OH2NR={FM_ID: 5})
+    switch(air, fm=False)
+    record = await rig.m.send("OH2NR", "while fm is off")
+    assert radio_ids(rig, record.id) == [HF_ID]
+    switch(air, fm=True)
+    assert await all_attempts(rig, record.id) == [HF_ID, FM_ID, FM_ID, FM_ID]
+    assert [r.getMessage() for r in caplog.records if "goes on the radio the station is reached on now" in r.getMessage()] == [
+        f"message {record.id} to OH2NR goes on the radio the station is reached on now: a radio that heard the station is on now"], "said once"
+
+
+async def test_the_radio_that_stood_in_is_left_after_a_restart_too(tmp_path: Path) -> None:
+    """The same with the daemon restarted between the first attempt and FM coming on again: nothing new is stored; the attempts and what each radio heard tell that HF only stood in."""
+    rig, air = await over_the_registry(tmp_path, OH2NR={FM_ID: 5})
+    switch(air, fm=False)
+    record = await rig.m.send("OH2NR", "while fm is off")
+    again = await registry_restarted(rig, air)
+    await again.pass_time(15)
+    switch(air, fm=True)
+    assert await all_attempts(again, record.id) == [HF_ID, FM_ID, FM_ID, FM_ID]
+
+
+async def test_a_message_over_hf_to_a_station_hf_heard_too_keeps_hf_when_fm_is_on_again(tmp_path: Path) -> None:
+    """HF heard the station as well: it was the rule's choice while FM was off, and the message keeps it (as before R2b), across a restart too."""
+    rig, air = await over_the_registry(tmp_path, OH2BOTH={FM_ID: 5, HF_ID: 1})
+    switch(air, fm=False)
+    record = await rig.m.send("OH2BOTH", "while fm is off")
+    switch(air, fm=True)
+    await rig.pass_time(55)
+    again = await registry_restarted(rig, air)
+    assert await all_attempts(again, record.id) == [HF_ID, HF_ID, HF_ID, HF_ID]
+
+
+async def test_a_message_the_operator_routed_over_hf_keeps_hf_though_hf_never_heard_the_station(tmp_path: Path) -> None:
+    """Route HF for a station FM alone heard: the operator's choice is no stand-in, FM off or on."""
+    rig, air = await over_the_registry(tmp_path, OH2NR={FM_ID: 5})
+    assert air.registry.choose("OH2NR", HF_ID)
+    switch(air, fm=False)
+    record = await rig.m.send("OH2NR", "routed over hf")
+    switch(air, fm=True)
+    await rig.pass_time(55)
+    again = await registry_restarted(rig, air)
+    assert await all_attempts(again, record.id) == [HF_ID, HF_ID, HF_ID, HF_ID]
+
+
+@pytest.mark.parametrize("restart", [False, True], ids=["running", "restarted"])
+async def test_a_message_to_a_station_never_heard_keeps_the_main_radio_when_another_is_switched_on_and_hears_it(tmp_path: Path, restart: bool) -> None:
+    """A station no radio had heard goes on the main radio, which is the rule's choice and kept: the FM radio switched on (the main radio now) and hearing the station after the first attempt does not
+    move it, and after a restart the station's first packet, later than the attempt, tells the same."""
+    rig, air = await over_the_registry(tmp_path)
+    switch(air, fm=False)
+    record = await rig.m.send("OH2NEW", "never heard")
+    switch(air, fm=True)
+    await rig.pass_time(5)
+    seen(air, OH2NEW={FM_ID: 2})
+    assert air.registry.for_station("OH2NEW").id == FM_ID, "the rule would say FM now"
+    m = await registry_restarted(rig, air) if restart else rig
+    assert await all_attempts(m, record.id) == [HF_ID, HF_ID, HF_ID, HF_ID]
+
+
+async def test_the_radio_that_stood_in_is_left_when_fm_comes_on_in_the_tick_a_retry_is_due(tmp_path: Path) -> None:
+    rig, air = await over_the_registry(tmp_path, OH2NR={FM_ID: 5})
+    switch(air, fm=False)
+    record = await rig.m.send("OH2NR", "while fm is off")
+    await rig.pass_time(20)
+    held = rig.m.retries._due[record.id]
+    rig.clock.advance((held - rig.clock()).total_seconds())                # (the second attempt due now, and FM switched on before the ticker looks)
+    switch(air, fm=True)
+    await rig.pass_time(0)
+    assert radio_ids(rig, record.id) == [HF_ID, FM_ID]
+    assert len(air.drivers[FM_ID].line.sent) == 1 and len(air.drivers[HF_ID].line.sent) == 1
+
+
+async def test_a_message_the_stations_own_radio_cannot_carry_fails_when_that_radio_is_on_again(tmp_path: Path) -> None:
+    """R2's rule for a message its new radio cannot carry: when the station's own radio is on again and its frame is too short for the message, the message fails as too long for the radio, with no
+    attempt used and nothing more on the air (the FM radio here with a frame of 60 bytes; the registry's station book as the double's `station_of`)."""
+    log, _, clock = await log_at(tmp_path, MessageLog)
+    rig = Rig(log, clock, StubTnc(max_frame=60, rules=FM), hf_enabled=True)
+    hf = with_hf(rig, rig.radios)
+    book = StationBook(clock)
+    book.seed([Station("OH2NR", first_heard=clock(), last_heard=clock(), heard_by={FM_ID: RadioHeard(5, clock())})])
+    rig.radios.station_of = book.get                                       # type: ignore[attr-defined]  # (what the registry's station_of reads: its book)
+    await rig.start()
+    rig.radios.on.discard(FM_ID)
+    record = await rig.m.send("OH2NR", "a message of fifty characters that FM cannot carry")
+    rig.radios.on.add(FM_ID)
+    await rig.pass_time(55)
+    failed = rig.state(record.id)
+    assert (failed.state, failed.failure, failed.attempts, radio_ids(rig, record.id)) == ("failed", "too_long_for_radio", 1, [HF_ID])
+    assert len(hf.sent) == 1 and rig.tnc.sent == []
+
+
+@pytest.mark.parametrize("restart", [False, True], ids=["running", "restarted"])
+async def test_a_message_moved_off_the_stations_own_radio_goes_back_to_it_when_it_is_on_again(tmp_path: Path, restart: bool) -> None:
+    """The stand-in is the same when the station's own radio is switched off while the message is on its way: OH2NR heard on FM alone, its first attempt on FM, FM switched off (the second over HF,
+    which never heard it), FM on again: the rest on FM, with or without a restart before FM comes back. (The rig's double has no station book, so test_a_message_whose_radio_is_switched_off_... keeps FM there.)"""
+    rig, air = await over_the_registry(tmp_path, OH2NR={FM_ID: 5})
+    record = await rig.m.send("OH2NR", "fm then off")
+    switch(air, fm=False)
+    for _ in range(10):
+        if len(radio_ids(rig, record.id)) == 2:
+            break
+        await rig.pass_time(15)
+    assert radio_ids(rig, record.id) == [FM_ID, HF_ID]
+    m = await registry_restarted(rig, air) if restart else rig
+    switch(air, fm=True)
+    assert await all_attempts(m, record.id) == [FM_ID, HF_ID, FM_ID, FM_ID]
+
+
+async def test_a_message_moved_off_its_radio_to_one_that_heard_the_station_too_stays_there_when_it_is_on_again(tmp_path: Path) -> None:
+    """R2's rule where the other radio is the station's as well: OH2BOTH heard on both, its first attempt on FM, FM off (the second over HF, which heard it), FM on again: it keeps HF."""
+    rig, air = await over_the_registry(tmp_path, OH2BOTH={FM_ID: 5, HF_ID: 1})
+    record = await rig.m.send("OH2BOTH", "fm then off")
+    switch(air, fm=False)
+    for _ in range(10):
+        if len(radio_ids(rig, record.id)) == 2:
+            break
+        await rig.pass_time(15)
+    switch(air, fm=True)
+    assert await all_attempts(rig, record.id) == [FM_ID, HF_ID, HF_ID, HF_ID]
