@@ -143,3 +143,89 @@ def test_a_build_without_mercury_must_say_so(tmp_path: Path) -> None:
 def test_the_smoke_test_runs_the_bundled_mercury_unless_told_that_there_is_none() -> None:
     smoke = (ROOT / "scripts" / "smoke-appimage").read_text(encoding="utf-8")
     assert "--no-mercury) with_mercury=0" in smoke and "usr/tools/mercury" in smoke
+
+
+# ---- what the build takes out (packaging/appimage/prune.py) on a made-up tree
+
+def needs(*names: str) -> bytes:
+    """A made-up ELF file that names the libraries it loads, as the real ones do in their dynamic section."""
+    return b"\x7fELF" + b"\0".join(name.encode() for name in names) + b"\0"
+
+
+def linux_tree(usr: Path, qt: bool = True) -> Path:
+    lib = usr / "lib" / "python3.13"
+    files: dict[str, bytes] = {
+        "bin/python3.13": needs("libc.so.6"), "bin/python3.13-config": b"#!/bin/sh\n", "lib/libpython3.13.so": needs("libc.so.6"), "lib/libpython3.13.so.1.0": needs("libc.so.6"),
+        "lib/python3.13/os.py": b"", "lib/python3.13/dbm/__init__.py": b"", "lib/python3.13/lib-dynload/_dbm.cpython-313-x86_64-linux-gnu.so": needs("libc.so.6"),
+        "lib/python3.13/lib-dynload/_ssl.cpython-313-x86_64-linux-gnu.so": needs("libc.so.6"), "lib/python3.13/lib-dynload/_tkinter.cpython-313-x86_64-linux-gnu.so": needs("libtcl9.0.so"),
+        "lib/python3.13/site-packages/tornado/web.py": b"", "lib/python3.13/site-packages/tornado/speedups.pyi": b"",
+        "lib/python3.13/site-packages/cryptography/hazmat/bindings/_rust/__init__.pyi": b"", "lib/python3.13/site-packages/cryptography/hazmat/bindings/_rust.abi3.so": needs("libc.so.6"),
+        "lib/python3.13/site-packages/pydantic_core/core_schema.py": b"", "lib/python3.13/site-packages/pydantic_core/_pydantic_core.pyi": b"",
+    }
+    if qt:
+        qt_dir = "lib/python3.13/site-packages/PySide6/Qt/"
+        files |= {
+            "lib/python3.13/site-packages/PySide6/__init__.py": b"", "lib/python3.13/site-packages/PySide6/QtCore.abi3.so": needs("libQt6Core.so.6", "libpyside6.abi3.so.6.12"),
+            "lib/python3.13/site-packages/PySide6/QtCore.pyi": b"", "lib/python3.13/site-packages/PySide6/QtGui.abi3.so": needs("libQt6Gui.so.6"), "lib/python3.13/site-packages/PySide6/QtGui.pyi": b"",
+            "lib/python3.13/site-packages/PySide6/QtSql.abi3.so": needs("libQt6Sql.so.6"), "lib/python3.13/site-packages/PySide6/QtSql.pyi": b"",
+            "lib/python3.13/site-packages/PySide6/libpyside6.abi3.so.6.12": needs("libQt6Core.so.6"),
+            "lib/python3.13/site-packages/shiboken6/Shiboken.abi3.so": needs("libshiboken6.abi3.so.6.12"), "lib/python3.13/site-packages/shiboken6/libshiboken6.abi3.so.6.12": needs("libc.so.6"),
+            "lib/python3.13/site-packages/shiboken6/Shiboken.pyi": b"",
+            qt_dir + "lib/libQt6Core.so.6": needs("libc.so.6"), qt_dir + "lib/libQt6Gui.so.6": needs("libQt6Core.so.6"), qt_dir + "lib/libQt6Sql.so.6": needs("libQt6Core.so.6"),
+            qt_dir + "lib/libQt6XcbQpa.so.6": needs("libQt6Gui.so.6"), qt_dir + "lib/libQt6EglFSDeviceIntegration.so.6": needs("libQt6Gui.so.6"), qt_dir + "lib/libQt6EglFsKmsSupport.so.6": needs("libQt6EglFSDeviceIntegration.so.6"),
+            qt_dir + "plugins/platforms/libqxcb.so": needs("libQt6XcbQpa.so.6"), qt_dir + "plugins/platforms/libqeglfs.so": needs("libQt6EglFSDeviceIntegration.so.6"),
+            qt_dir + "plugins/egldeviceintegrations/libqeglfs-kms-integration.so": needs("libQt6EglFsKmsSupport.so.6", "libQt6EglFSDeviceIntegration.so.6"),
+            qt_dir + "plugins/xcbglintegrations/libqxcb-glx-integration.so": needs("libQt6XcbQpa.so.6"),
+            qt_dir + "libexec/QtWebEngineProcess": needs("libQt6Core.so.6"), qt_dir + "libexec/rcc": needs("libQt6Core.so.6"), qt_dir + "resources/qtwebengine_devtools_resources.pak": b"x",
+            qt_dir + "resources/qtwebengine_resources.pak": b"x", qt_dir + "translations/qtwebengine_locales/en-US.pak": b"x", qt_dir + "translations/qtwebengine_locales/de.pak": b"x",
+            qt_dir + "translations/qtbase_de.qm": b"x",
+        }
+    for name, data in files.items():
+        (usr / name).parent.mkdir(parents=True, exist_ok=True)
+        (usr / name).write_bytes(data)
+    (usr / "lib" / "tcl9.0").mkdir()
+    assert (lib / "os.py").is_file()
+    return usr
+
+
+def prune(*args: str) -> None:
+    done = subprocess.run([sys.executable, "-I", str(ROOT / "packaging" / "appimage" / "prune.py"), *args], capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr
+
+
+def test_the_appimage_has_no_libpython_no_type_stubs_no_dbm_and_no_eglfs_and_keeps_what_runs(tmp_path: Path) -> None:
+    usr = linux_tree(tmp_path / "usr")
+    prune(str(usr))
+    assert not list((usr / "lib").glob("libpython3*")), "the interpreter has Python linked in; no module names the library"
+    assert (usr / "bin" / "python3.13").is_file() and not (usr / "bin" / "python3.13-config").exists()
+    lib = usr / "lib" / "python3.13"
+    assert not list(lib.rglob("*.pyi")), "no type stubs: only an editor reads them"
+    assert not list((lib / "lib-dynload").glob("_dbm*")) and not list((lib / "lib-dynload").glob("_tkinter*"))
+    assert (lib / "lib-dynload" / "_ssl.cpython-313-x86_64-linux-gnu.so").is_file() and (lib / "dbm" / "__init__.py").is_file() and (lib / "os.py").is_file()
+    assert (lib / "site-packages" / "cryptography" / "hazmat" / "bindings" / "_rust.abi3.so").is_file() and (lib / "site-packages" / "tornado" / "web.py").is_file()
+    pyside = lib / "site-packages" / "PySide6"
+    assert {p.name for p in pyside.glob("*.abi3.so")} == {"QtCore.abi3.so", "QtGui.abi3.so"} and (pyside / "libpyside6.abi3.so.6.12").is_file() and (pyside / "__init__.py").is_file()
+    qt = pyside / "Qt"
+    assert {p.name for p in (qt / "lib").iterdir()} == {"libQt6Core.so.6", "libQt6Gui.so.6", "libQt6XcbQpa.so.6"}, "what the kept files name, in turn: not the eglfs libraries, which only eglfs named"
+    assert {f"{p.parent.name}/{p.name}" for p in (qt / "plugins").rglob("*.so")} == {"platforms/libqxcb.so", "xcbglintegrations/libqxcb-glx-integration.so"}
+    assert not (qt / "plugins" / "egldeviceintegrations").exists()
+    assert [p.name for p in (qt / "libexec").iterdir()] == ["QtWebEngineProcess"] and [p.name for p in (qt / "translations" / "qtwebengine_locales").iterdir()] == ["en-US.pak"]
+    assert (lib / "site-packages" / "shiboken6" / "libshiboken6.abi3.so.6.12").is_file() and not (lib / "site-packages" / "shiboken6" / "Shiboken.pyi").exists()
+
+
+def test_the_deb_has_no_libpython_no_type_stubs_and_no_dbm(tmp_path: Path) -> None:
+    prefix = linux_tree(tmp_path / "opt" / "neoaprs", qt=False)
+    prune("--python-only", str(prefix))
+    lib = prefix / "lib" / "python3.13"
+    assert not list((prefix / "lib").glob("libpython3*")) and not list(lib.rglob("*.pyi")) and not list((lib / "lib-dynload").glob("_dbm*"))
+    assert (prefix / "bin" / "python3.13").is_file() and (lib / "lib-dynload" / "_ssl.cpython-313-x86_64-linux-gnu.so").is_file()
+    assert (lib / "site-packages" / "pydantic_core" / "core_schema.py").is_file()
+
+
+def test_the_build_packs_with_zstd_level_19_in_blocks_of_128_kib_and_prints_what_it_carries() -> None:
+    script = (ROOT / "scripts" / "build-appimage").read_text(encoding="utf-8")
+    pack = script[script.index("pack() {"):script.index("\n}\n", script.index("pack() {"))]
+    assert "--comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 19" in pack, "level 19: mksquashfs takes the later option"
+    assert "-b" not in pack.replace("--mksquashfs-opt", ""), "the blocks stay appimagetool's 128 KiB: larger ones make every start slower"
+    assert 'scripts/shipped-size" --depth 5 --title' in script and script.index("shipped-size") < script.index('pack "$app" "$target"') < script.rindex('shipped-size" "$target"')
+    assert "libpython" not in script.split("prune.py", 1)[1].split("\n", 1)[0], "prune.py itself takes libpython out"

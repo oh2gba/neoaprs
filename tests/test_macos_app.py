@@ -345,7 +345,7 @@ def test_the_build_lays_the_bundle_out_as_the_launcher_and_the_one_rule_expect()
     smoke = SMOKE.read_text(encoding="utf-8")
     assert "\\|" not in smoke and "grep -E -qv" in smoke, "BSD grep has no \\| in a basic expression"
     assert "Info.plist.in" in script and "@VERSION@" in script and "@BUILD@" in script and "make_icns.py" in script and "*.lproj" in script
-    assert 'ln -s /Applications "$stage/Applications"' in script and "-format UDZO" in script
+    assert 'ln -s /Applications "$stage/Applications"' in script and "-format ULMO" in script
 
 
 def test_the_info_plist_names_the_launcher_the_icon_the_identifier_and_the_microphone_in_every_language() -> None:
@@ -384,3 +384,102 @@ def test_build_mercury_names_a_macs_tarball_by_apples_words_and_links_the_system
     assert module.MACOS_MIN == "14.0" and module.MACOS_NEEDED_OK == ("/System/Library/Frameworks/", "/usr/lib/libSystem.")
     source = (ROOT / "scripts" / "build-mercury").read_text(encoding="utf-8")
     assert 'env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_MIN' in source and "otool" in source and "macOS 26" in source, "why Rhizomatica's own universal build is not taken"
+
+
+# ---- the universal files cut to arm64 (packaging/macos/thin.py), the second interpreter, the disk image
+
+FAT = b"\xca\xfe\xba\xbe"
+
+
+class FakeLipo:
+    """lipo as thin.py asks it: `-archs FILE` says what the file holds (from the made-up table), `FILE -thin arm64 -output OUT` writes the arm64 part, a file it does not take is refused."""
+
+    def __init__(self, table: dict[str, list[str]]) -> None:
+        self.table = table
+        self.calls: list[list[str]] = []
+
+    def __call__(self, argv: list[str]) -> subprocess.CompletedProcess[str]:
+        self.calls.append(argv)
+        if argv[1] == "-archs":
+            found = self.table.get(Path(argv[2]).name)
+            return subprocess.CompletedProcess(argv, 0 if found else 1, " ".join(found or []) + "\n", "" if found else "lipo: not a Mach-O file\n")
+        source, out = Path(argv[1]), Path(argv[5])
+        assert argv[2:5] == ["-thin", "arm64", "-output"]
+        out.write_bytes(b"\xcf\xfa\xed\xfe" + source.read_bytes()[4:][: len(source.read_bytes()) // 2])
+        self.table[source.name] = ["arm64"]
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+
+def fat_app(tmp_path: Path) -> Path:
+    app = tmp_path / "NeoAPRS.app"
+    qt = app / "Contents" / "Resources" / "lib" / "python3.13" / "site-packages" / "PySide6" / "Qt"
+    files = {
+        qt / "lib" / "QtWebEngineCore.framework" / "Versions" / "A" / "QtWebEngineCore": FAT + b"\0" * 2000, qt / "lib" / "QtCore.framework" / "Versions" / "A" / "QtCore": FAT + b"\0" * 400,
+        qt / "plugins" / "platforms" / "libqcocoa.dylib": FAT + b"\0" * 100, app / "Contents" / "MacOS" / "NeoAPRS": b"\xcf\xfa\xed\xfe" + b"\0" * 50,
+        app / "Contents" / "Resources" / "bin" / "python3.13": b"\xcf\xfa\xed\xfe" + b"\0" * 50, app / "Contents" / "Resources" / "lib" / "python3.13" / "site-packages" / "x" / "Hello.class": FAT + b"\0" * 10,
+    }
+    for path, data in files.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    (qt / "plugins" / "platforms" / "libqcocoa.dylib").chmod(0o755)
+    (qt / "lib" / "QtCore.framework" / "QtCore").symlink_to(Path("Versions") / "A" / "QtCore")
+    return app
+
+
+def test_every_universal_file_is_cut_to_arm64_in_its_place_and_nothing_else_is_touched(tmp_path: Path) -> None:
+    thin = load(PACKAGING / "thin.py", "thin")
+    app = fat_app(tmp_path)
+    lipo = FakeLipo({"QtWebEngineCore": ["x86_64", "arm64"], "QtCore": ["x86_64", "arm64"], "libqcocoa.dylib": ["arm64", "x86_64"]})
+    assert sorted(p.name for p in thin.fat_files(app)) == ["Hello.class", "QtCore", "QtWebEngineCore", "libqcocoa.dylib"], "by the universal header; not a link, not a thin file"
+    assert sorted(line.split(":")[0].rsplit("/", 1)[-1] for line in thin.still_fat(app, lipo)) == ["QtCore", "QtWebEngineCore", "libqcocoa.dylib"]
+    count, saved = thin.thin_all(app, lipo)
+    assert count == 3 and saved > 0
+    qt = app / "Contents" / "Resources" / "lib" / "python3.13" / "site-packages" / "PySide6" / "Qt"
+    assert (qt / "lib" / "QtWebEngineCore.framework" / "Versions" / "A" / "QtWebEngineCore").read_bytes()[:4] == b"\xcf\xfa\xed\xfe"
+    assert (qt / "lib" / "QtCore.framework" / "QtCore").is_symlink(), "the link stays a link to the thinned file"
+    assert (qt / "plugins" / "platforms" / "libqcocoa.dylib").stat().st_mode & 0o777 == 0o755, "the mode is kept"
+    assert (app / "Contents" / "Resources" / "lib" / "python3.13" / "site-packages" / "x" / "Hello.class").read_bytes()[:4] == FAT, "a file lipo does not take is left as it is"
+    assert not list(app.rglob("*.thin")) and thin.still_fat(app, lipo) == []
+    assert thin.main(["--check", str(app)], lipo) == 0
+
+
+def test_a_universal_file_without_arm64_fails_the_build_and_one_left_fat_fails_the_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    thin = load(PACKAGING / "thin.py", "thin")
+    app = fat_app(tmp_path)
+    lipo = FakeLipo({"QtWebEngineCore": ["x86_64", "arm64"], "QtCore": ["x86_64"], "libqcocoa.dylib": ["arm64"]})
+    assert thin.main([str(app)], lipo) == 1 and "holds x86_64 and no arm64" in capsys.readouterr().err
+    lipo = FakeLipo({"QtWebEngineCore": ["x86_64", "arm64"], "QtCore": ["arm64"], "libqcocoa.dylib": ["arm64"]})
+    assert thin.main(["--check", str(app)], lipo) == 1 and "QtWebEngineCore: x86_64 arm64" in capsys.readouterr().err
+    assert thin.main([str(app)], lipo) == 0 and "1 file(s) cut to arm64" in capsys.readouterr().out
+
+
+def test_the_build_thins_after_the_pruning_and_before_the_bytecode_and_the_signing_and_checks_it() -> None:
+    script = BUILD.read_text(encoding="utf-8")
+    assert script.index('prune.py" --macos "$res"') < script.index('thin.py" "$app"') < script.index('thin.py" --check "$app"') < script.index("compileall") < script.index("codesign --force --sign -")
+    assert script.count("lipo -archs") == 2, "what the web engine's framework holds, before and after"
+    assert "lipo otool" in script, "the tools are asked for before anything is built"
+
+
+def test_the_interpreter_is_made_a_program_on_libpython_only_when_it_has_python_linked_in() -> None:
+    script = BUILD.read_text(encoding="utf-8")
+    assert 'links="$(otool -L "$python")"' in script and "if ! grep -q 'libpython3\\.13\\.dylib' <<<\"$links\"; then" in script, "otool's output is read whole (a grep -q in a pipe would fail it under pipefail)"
+    assert script.index('packaging/macos/launcher.c"') < script.index('packaging/macos/python.c"') < script.index('prune.py" --macos "$res"'), "built while the headers are there"
+    assert "-lpython3.13 -Wl,-rpath,@executable_path/../lib" in script
+    source = (PACKAGING / "python.c").read_text(encoding="utf-8")
+    assert "#include <Python.h>" in source and "return Py_BytesMain(argc, argv);" in source
+
+
+def test_the_disk_image_is_lzma_and_what_is_shipped_is_measured() -> None:
+    script = BUILD.read_text(encoding="utf-8")
+    assert "-format ULMO" in script and "UDZO" not in script and "zlib-level" not in script, "lzma: macOS 10.15 and newer, and the app needs 14"
+    assert script.index('shipped-size" --depth 6 --title') < script.index("hdiutil create") < script.index('shipped-size" "$target"')
+
+
+def test_the_macos_pruning_takes_the_type_stubs_and_keeps_dbm(tmp_path: Path) -> None:
+    res = mac_tree(tmp_path)
+    lib = res / "lib" / "python3.13"
+    (lib / "lib-dynload" / "_dbm.cpython-313-darwin.so").write_bytes(b"x")
+    done = subprocess.run([sys.executable, "-I", str(ROOT / "packaging" / "appimage" / "prune.py"), "--macos", str(res)], capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr
+    assert not list(lib.rglob("*.pyi")), "the stubs of the kept modules go too"
+    assert (lib / "lib-dynload" / "_dbm.cpython-313-darwin.so").is_file(), "on macOS _dbm is the system's NDBM, small: it stays"

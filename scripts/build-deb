@@ -90,8 +90,9 @@ mkdir -p "$pkg" "$out"
 tar -xzf "$python_tar" -C "$work"
 mkdir -p "$(dirname "$app")"
 mv "$work/python" "$app"
-# (the interpreter has libpython built in; the shared copy of it is only for programs that embed Python)
-rm -f "$app"/bin/python3-config "$app"/bin/python3.13-config "$app"/lib/libpython3*
+# (the dbm module of the archive, which prune.py takes out on Linux, said before it goes: python-build-standalone's documents do not say whether the aarch64 build has it)
+dbm="$(find "$app/lib/python3.13/lib-dynload" -maxdepth 1 -name '_dbm*' -printf '%f, %s bytes; ')"
+echo "build-deb: the archive's dbm module: ${dbm:-none}"
 
 # The locked dependencies without the extra `app`, then the wheel on top, as wheels for the target platform (the Python of the machine only runs uv)
 (cd "$ROOT" && uv export -q --frozen --no-dev --no-emit-project -o "$work/requirements.txt")
@@ -115,7 +116,8 @@ if [ -n "$mercury" ]; then
     [ -x "$app/tools/mercury/mercury" ] && [ ! -e "$app/tools/mercury/dev" ]
 fi
 
-# Size: what NeoAPRS does not run is taken out (tests, Tk, documentation, pip), then the bytecode of everything is made now, because /opt is read-only for the users and a module without it is compiled at every start
+# Size: what NeoAPRS does not run is taken out (tests, Tk, documentation, pip, the shared libpython the interpreter does not use, the type stubs, dbm), then the bytecode of everything is made now, because /opt is
+# read-only for the users and a module without it is compiled at every start
 "$host_python" -I "$ROOT/packaging/appimage/prune.py" --python-only "$app"
 "$host_python" -I -m compileall -q -j 1 --invalidation-mode checked-hash -s "$pkg" "$app/lib/python3.13" >/dev/null
 
@@ -146,5 +148,8 @@ chmod 644 "$pkg/DEBIAN/control" "$pkg/DEBIAN/md5sums"
 
 target="$out/neoaprs_${version}_$arch.deb"
 rm -f "$target"
-dpkg-deb --root-owner-group -Zxz --build "$pkg" "$target" >/dev/null
+"$host_python" -I "$ROOT/scripts/shipped-size" --depth 6 --title "the tree of neoaprs_${version}_$arch.deb" "$pkg"
+# xz at its highest level: the file is unpacked once, by dpkg, and xz -9 needs about 65 MiB for it, which a Pi Zero 2 W has
+dpkg-deb --root-owner-group -Zxz -z9 --build "$pkg" "$target" >/dev/null
+"$host_python" -I "$ROOT/scripts/shipped-size" "$target"
 echo "build-deb: $target ($(du -h "$target" | cut -f1); $(( size / 1024 )) MB installed; Mercury: $(if [ -n "$mercury" ]; then basename "$mercury"; else echo none; fi))"

@@ -64,14 +64,15 @@ fetch() {
     echo "$file"
 }
 
-# pack APPDIR TARGET: the image of the folder with the pinned runtime in front of it
+# pack APPDIR TARGET: the image of the folder with the pinned runtime in front of it. zstd at level 19 (mksquashfs's default is 15; its option comes after appimagetool's own, and the later one wins): the file
+# is smaller and unpacks as fast, only the build takes longer. The blocks stay appimagetool's 128 KiB: larger ones pack smaller and make every start slower, each read through FUSE unpacking a whole block.
 pack() {
     local appimagetool runtime
     appimagetool="$(fetch "$TOOL_URL" "$TOOL_SHA256")"
     runtime="$(fetch "$RUNTIME_URL" "$RUNTIME_SHA256")"
     chmod +x "$appimagetool"
     rm -f "$2"
-    ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool" --no-appstream --runtime-file "$runtime" --comp zstd "$1" "$2"
+    ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool" --no-appstream --runtime-file "$runtime" --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 19 "$1" "$2"
     chmod +x "$2"
 }
 
@@ -129,7 +130,7 @@ if [ -n "$mercury" ]; then
     [ -x "$app/usr/tools/mercury/mercury" ] && [ ! -e "$app/usr/tools/mercury/dev" ]
 fi
 
-# Size: what the image does not run is taken out
+# Size: what the image does not run is taken out (prune.py says what)
 "$python" -I "$ROOT/packaging/appimage/prune.py" "$app/usr"
 
 install -m 755 "$ROOT/packaging/appimage/AppRun" "$app/AppRun"
@@ -152,5 +153,7 @@ ln -s neoaprs.png "$app/.DirIcon"
 "$python" -I -m compileall -q --invalidation-mode unchecked-hash "$app/usr/lib/python3.13" >/dev/null
 
 target="$out/NeoAPRS-$version-x86_64.AppImage"
+"$python" -I "$ROOT/scripts/shipped-size" --depth 5 --title "the tree of NeoAPRS-$version-x86_64.AppImage" "$app"
 pack "$app" "$target"
+"$python" -I "$ROOT/scripts/shipped-size" "$target"
 echo "build-appimage: $target ($(du -h "$target" | cut -f1); the image holds $(du -sh "$app" | cut -f1); Mercury: $(if [ -n "$mercury" ]; then basename "$mercury"; else echo none; fi))"

@@ -4,6 +4,9 @@ web engine and the few modules the desktop app imports (neoaprs/desktop/qtshell.
 (scripts/build-deb has the same Python in /opt/neoaprs and no Qt:  prune.py --python-only PREFIX; scripts/build-macos-app has it as Contents/Resources of the app, with Qt as frameworks and .dylib
 plugins:  prune.py --macos RESOURCES)
 
+Of CPython also: the shared libpython on Linux (the interpreter there is linked statically and no module names the library; the macOS launcher embeds Python through it, so it stays there), the type stubs (.pyi)
+of the packages, which only an editor reads, and on Linux the dbm module (`_dbm`, which carries a copy of Berkeley DB and which nothing of NeoAPRS imports).
+
 The Qt libraries that stay are the ones that something kept names (the files are searched for the names of libraries, so that a library loaded by name stays too), and nothing else; scripts/smoke-appimage
 and scripts/smoke-macos-app start the app, which is the proof that nothing was taken that it needs."""
 import re
@@ -16,8 +19,8 @@ PLUGINS = {
     "platforms": {"libqxcb.so", "libqoffscreen.so", "libqwayland.so"},
     "platformthemes": None, "platforminputcontexts": {"libcomposeplatforminputcontextplugin.so", "libibusplatforminputcontextplugin.so"},
     "imageformats": {"libqgif.so", "libqico.so", "libqjpeg.so", "libqsvg.so", "libqwebp.so"}, "iconengines": None, "tls": None, "networkinformation": None,
-    "xcbglintegrations": None, "egldeviceintegrations": None, "wayland-decoration-client": None, "wayland-graphics-integration-client": None, "wayland-shell-integration": None,
-}                                                       # a folder of plugins: the files that stay (None: all of them)
+    "xcbglintegrations": None, "wayland-decoration-client": None, "wayland-graphics-integration-client": None, "wayland-shell-integration": None,
+}                                                       # a folder of plugins: the files that stay (None: all of them). Not egldeviceintegrations: only the eglfs platform, which goes, loads them
 MAC_PLUGINS = {
     "platforms": {"libqcocoa.dylib", "libqoffscreen.dylib"}, "styles": None,
     "imageformats": {"libqgif.dylib", "libqicns.dylib", "libqico.dylib", "libqjpeg.dylib", "libqsvg.dylib", "libqwebp.dylib"}, "iconengines": None, "tls": None, "networkinformation": None,
@@ -35,16 +38,22 @@ def remove(path: Path) -> None:
         path.unlink()
 
 
-def prune_python(usr: Path) -> None:
+def prune_python(usr: Path, macos: bool = False) -> None:
     lib = usr / "lib" / "python3.13"
     for name in STDLIB_DROP:
         remove(lib / name)
     for path in list(lib.glob("lib-dynload/_tkinter*")) + list(lib.glob("config-3.13-*")):
         remove(path)
-    for pattern in ("lib/tcl*", "lib/tk*", "lib/itcl*", "lib/thread*", "lib/libtcl*", "lib/pkgconfig", "include", "share", "bin/python*-config", "lib/python3.13/site-packages/pip-*"):
+    patterns = ["lib/tcl*", "lib/tk*", "lib/itcl*", "lib/thread*", "lib/libtcl*", "lib/pkgconfig", "include", "share", "bin/python*-config", "lib/python3.13/site-packages/pip-*"]
+    if not macos:
+        patterns += ["lib/libpython3*", "lib/python3.13/lib-dynload/_dbm*"]
+    for pattern in patterns:
         for path in usr.glob(pattern):
             remove(path)
-    for path in list(lib.rglob("__pycache__")) + [p for p in (lib / "site-packages").rglob("*") if p.is_dir() and p.name in ("test", "tests")]:
+    site = lib / "site-packages"
+    for path in list(lib.rglob("__pycache__")) + [p for p in site.rglob("*") if p.is_dir() and p.name in ("test", "tests")]:
+        remove(path)
+    for path in list(site.rglob("*.pyi")):
         remove(path)
 
 
@@ -54,7 +63,7 @@ def prune_modules(site: Path, plugins: dict[str, set[str] | None]) -> Path:
     qt = pyside / "Qt"
     for path in pyside.iterdir():
         match path.name.split(".")[0]:
-            case name if path.suffix in (".so", ".pyi") and name in PYTHON_MODULES:
+            case name if path.suffix == ".so" and name in PYTHON_MODULES:
                 continue
             case "Qt" | "QtAsyncio" | "__init__" | "_config" | "_git_pyside_version" | "support" | "libpyside6":
                 continue
@@ -172,7 +181,7 @@ def main() -> int:
         return 0 if len(sys.argv) == 2 else 2
     mode = sys.argv[1] if len(sys.argv) > 2 else ""
     usr = Path(sys.argv[-1]).resolve()
-    prune_python(usr)
+    prune_python(usr, macos=mode == "--macos")
     if mode == "--macos":
         prune_qt_mac(usr / "lib" / "python3.13" / "site-packages")
     elif mode != "--python-only":

@@ -6,6 +6,9 @@
   scripts/check-windows -- ARGS...            ARGS go to pytest (`-- tests/test_replay.py -x`), which then is the one step that runs unless --only says more
   scripts/check-windows --snapshot NAME       puts the machine back to its snapshot NAME before it starts (only a machine that is powered off), for a clean Windows at every run
   scripts/check-windows --tty                 runs the pytest step in a session with a console (below) without trying a plain one first
+  scripts/check-windows --install SETUP --snapshot NAME
+                                              the install proof of a Windows trim instead: the machine put back to its clean snapshot, the installer (NeoAPRS-Setup-VERSION.exe) run silently, then the app's
+                                              pieces and the uninstall, each a step (below)
 
 Where the machine is comes from the environment, and nothing is guessed (CONVENTIONS.md has the table):
   NEOAPRS_WINVM              the VirtualBox name of the machine; unset means that the Windows check is not set up here, and the script says so and ends with 2
@@ -37,6 +40,14 @@ sshd starts the command with a hidden console, which should be enough. If the pr
 its escape sequences. Tried on the machine (13 November 2026): the probe passes in the plain session; the power button alone did not shut a Windows down that nobody was looking at, which is
 why the shutdown is asked from inside first. Not tried: whether `ssh -tt` with its input held open ends cleanly at the command's end; --tty skips the plain try.
 
+The install proof (--install) is the scripted part of the clean install that every Windows trim of what is shipped must pass (docs/development.md, "On a real Windows"). Its steps: install (silent:
+/VERYSILENT /SUPPRESSMSGBOXES /NORESTART; the files, the Start menu, the installed size), defender (real-time protection must be on; the scan of the folder, MpCmdRun, only where the account is an
+administrator, never through a UAC prompt), daemon (Stop NeoAPRS with nothing running, `neoaprsw.exe run` on the default data folder, the page and the world map it ships, its name in Task Manager,
+Stop NeoAPRS again), commands (`neoaprs.exe --version`, `doctor`, `support`), app (`neoaprs-app.exe --tray` starts its daemon, its name in Task Manager, `neoaprs.exe stop` ends both), map (a map cut,
+a dry run), smoke (scripts/smoke.py against the installed neoaprs.exe), mercury (packaging/windows/smoke_mercury.py on the installed mercury.exe) and uninstall (with the app running: the program
+folder gone, nothing left in it, the start at sign-in and the processes gone, the data folder kept). The steps before smoke run on a machine with nothing but Windows and the app; uv and its Python come
+only then. Nothing follows a failed install. What only a person can see (the wizard, the tray at each display scaling, the pages of the app, Update now from the previous release) is in docs/development.md.
+
 Exit code: 0 all steps passed, 1 a step failed, 2 not set up (a variable, a file, a program on the PATH, a tree that cannot be packed, a machine that is in no state to be used, a second run, the
 machine not answering, uv or the tree not put on it). Needs Linux, ssh, scp, VBoxManage and git."""
 import argparse
@@ -52,6 +63,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -615,16 +627,21 @@ def remove_old_runs(settings: Settings, paths: Paths) -> None:
 
 def run_step(settings: Settings, paths: Paths, step: Step, log_dir: Path, tty: bool = False) -> StepResult:
     """One step on the machine, its whole output in a log here. A step that is not done in its time is ended, with what it left on the machine, and fails with code 124."""
-    log = log_dir / f"{step.name}.log"
-    say(f"running {step.name}")
+    return run_script(settings, paths, step.name, step_script(paths, step), step.timeout_sec, log_dir, tty)
+
+
+def run_script(settings: Settings, paths: Paths, name: str, script: str, timeout_sec: float, log_dir: Path, tty: bool = False) -> StepResult:
+    """A step's script on the machine: what run_step does, for any script."""
+    log = log_dir / f"{name}.log"
+    say(f"running {name}")
     started = time.monotonic()
     code, note = 0, ""
     with log.open("wb") as out:
-        proc = subprocess.Popen(ssh_script(settings, step_script(paths, step), tty), stdin=subprocess.PIPE if tty else subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
+        proc = subprocess.Popen(ssh_script(settings, script, tty), stdin=subprocess.PIPE if tty else subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
         try:
-            code = proc.wait(timeout=step.timeout_sec)
+            code = proc.wait(timeout=timeout_sec)
         except subprocess.TimeoutExpired:
-            code, note = 124, f"(stopped: the step did not end in {int(step.timeout_sec)} s)"
+            code, note = 124, f"(stopped: the step did not end in {int(timeout_sec)} s)"
             proc.kill()
             proc.wait()
             ssh_run(settings, stop_script(paths.run), timeout_sec=60.0)
@@ -639,7 +656,7 @@ def run_step(settings: Settings, paths: Paths, step: Step, log_dir: Path, tty: b
     text = clean_output(log.read_bytes().decode("utf-8", errors="replace"))
     log.write_text(text + (note and "\n" + note) + "\n", encoding="utf-8")
     tail = [*text.rstrip("\n").splitlines()[-TAIL_LINES:], *([note] if note else [])]
-    return StepResult(step.name, code, time.monotonic() - started, log, tuple(tail))
+    return StepResult(name, code, time.monotonic() - started, log, tuple(tail))
 
 
 def console_works(settings: Settings, paths: Paths, tty: bool) -> bool:
@@ -693,6 +710,271 @@ def execute(settings: Settings, names: Sequence[str], pytest_args: Sequence[str]
     return exit_code(results)
 
 
+# ---- the install proof (--install) ----
+
+# The scripted part of the Windows proof (docs/development.md, "The clean install"): the installer run silently on a machine put back to its clean snapshot, then the pieces of the app that pull modules and
+# DLLs nothing else does, each a step with its result line, the uninstall last. The steps before `smoke` run on a machine that has nothing but Windows and the installed app: uv and its Python come only for
+# the two smoke scripts, which need a Python, and they go into folders of their own, never on the PATH of the app.
+INSTALLER_NAME = re.compile(r"NeoAPRS-Setup-(\d+\.\d+\.\d+(?:-[0-9A-Za-z]+)?)\.exe")
+INSTALL_STEP_NAMES = ("install", "defender", "daemon", "commands", "app", "map", "smoke", "mercury", "uninstall")
+NEEDS_PYTHON = ("smoke", "mercury")
+# What each program says it is (its FileDescription, which Task Manager shows): packaging/windows/neoaprs.spec; tests/test_check_windows.py holds the two to it.
+DESCRIPTIONS = {"neoaprsw": "NeoAPRS, the APRS client that runs in the background", "neoaprs-app": "NeoAPRS, the window and the tray icon"}
+# The files the smoke steps run, at their places in the tree: scripts/smoke.py with the capture its fake TNC plays, and the check of Mercury's ports.
+KIT = ("scripts/smoke.py", "tests/fixtures/kiss/thd7-2026-10-21.bin", "packaging/windows/smoke_mercury.py")
+APP_FOLDER = "$app = Join-Path $env:LOCALAPPDATA 'Programs\\NeoAPRS'"
+DATA_FOLDER = "$data = Join-Path $env:LOCALAPPDATA 'NeoAPRS'"
+# A PowerShell function: the page's address from a log once the daemon has written it (`web page at http://...`), or nothing when the process ended or the time is over.
+WAIT_PAGE = """function Wait-Page([string]$log, $process, [int]$seconds) {
+  foreach ($i in 1..$seconds) {
+    $m = if (Test-Path -LiteralPath $log) { Select-String -LiteralPath $log -Pattern 'web page at (http://\\S+/)' | Select-Object -Last 1 }
+    if ($m) { return $m.Matches[0].Groups[1].Value }
+    if ($process.HasExited) { return $null }
+    Start-Sleep 1
+  }
+  return $null
+}"""
+
+
+class InstallPaths(NamedTuple):
+    """Where the install proof keeps things on the machine, all in the folder of the run."""
+    setup: str
+    install_log: str
+    uninstall_log: str
+    kit: str
+    kit_tar: str
+    data_app: str
+    data_map: str
+    support: str
+
+
+def install_paths(paths: Paths, installer_name: str) -> InstallPaths:
+    run = paths.run
+    return InstallPaths(f"{run}\\{installer_name}", f"{run}\\install.log", f"{run}\\uninstall.log", f"{run}\\kit", f"{run}-kit.tar", f"{run}\\data-app", f"{run}\\data-map", f"{run}\\support")
+
+
+def installer_version(installer: Path) -> str:
+    """The version the installer's name says (NeoAPRS-Setup-0.20.0.exe), or NotSetUp with the sentence."""
+    found = INSTALLER_NAME.fullmatch(installer.name)
+    if not installer.is_file() or found is None:
+        raise NotSetUp(f"--install takes the installer the release workflow makes, NeoAPRS-Setup-VERSION.exe, and {installer} is not one")
+    return found.group(1)
+
+
+def tornado_pin(pyproject: str) -> str:
+    """The Tornado the project pins: scripts/smoke.py's WebSocket client is run with it."""
+    found = re.search(r'"tornado==([^"]+)"', pyproject)
+    if found is None:
+        raise NotSetUp("pyproject.toml pins no tornado, which scripts/smoke.py runs with")
+    return found.group(1)
+
+
+def pack_kit(root: Path, out: Path) -> None:
+    """The tar of the files the smoke steps run, under the names they have in the tree."""
+    with tarfile.open(out, "w") as tar:
+        for name in KIT:
+            tar.add(root / name, arcname=name, recursive=False)
+
+
+def install_script(name: str, *lines: str) -> str:
+    """A step of the install proof: the line that names it, no variable of a developer's (the app runs as an operator's would), the app's folder in $app."""
+    return "\n".join([f"# step: {name}", "$ErrorActionPreference = 'Continue'", "$ProgressPreference = 'SilentlyContinue'", APP_FOLDER, *lines, "exit 0"])
+
+
+def fail_unless(condition: str, why: str, *before: str) -> str:
+    """The PowerShell line that ends the step with 1 and says why when the condition does not hold (what `before` names is run first: a log's end)."""
+    return f"if (-not ({condition})) {{ {'; '.join([*before, ps_quote(why)])}; exit 1 }}"
+
+
+def install_steps(paths: Paths, installer_name: str, version: str, tornado: str) -> list[tuple[str, str, float]]:
+    """The steps of the proof in order, each its name, its script and its time."""
+    ip = install_paths(paths, installer_name)
+    native_ok = "$LASTEXITCODE -eq 0"
+    files = ("neoaprs.exe", "neoaprsw.exe", "neoaprs-app.exe", "bin\\mercury\\mercury.exe", "_internal\\neoaprs\\maps\\basemap-world.pmtiles", "_internal\\neoaprs\\desktop\\icon.ico", "LICENSE.txt", "unins000.exe")
+    entries = ("NeoAPRS", "Stop NeoAPRS", "NeoAPRS support logs")
+    menu = "Join-Path $env:APPDATA 'Microsoft\\Windows\\Start Menu\\Programs\\NeoAPRS'"
+    install = install_script(
+        "install",
+        f"$setup = {ps_quote(ip.setup)}",
+        f"$p = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', {ps_quote('/LOG=' + ip.install_log)} -PassThru",
+        "$p.WaitForExit()",
+        fail_unless("$p.ExitCode -eq 0", "setup did not end with 0", f"Get-Content -LiteralPath {ps_quote(ip.install_log)} -Tail 40", '"setup ended with $($p.ExitCode)"'),
+        *(fail_unless(f"Test-Path -LiteralPath (Join-Path $app {ps_quote(f)})", f"{f} is not in the program folder") for f in files),
+        f"$menu = {menu}",
+        *(fail_unless(f"Test-Path -LiteralPath (Join-Path $menu {ps_quote(e + '.lnk')})", f"the Start menu has no entry {e}") for e in entries),
+        "$size = (Get-ChildItem -LiteralPath $app -Recurse -File | Measure-Object -Property Length -Sum).Sum",
+        "$count = @(Get-ChildItem -LiteralPath $app -Recurse -File).Count",
+        "'installed: {0:N1} MB in {1} files ({2} bytes)' -f ($size / 1000000), $count, $size",
+    )
+    defender = install_script(
+        "defender",
+        "$status = Get-MpComputerStatus -ErrorAction SilentlyContinue",
+        fail_unless("$status", "Defender's state could not be read: the proof needs its real-time protection on"),
+        "\"Defender: real-time protection $($status.RealTimeProtectionEnabled), signatures of $($status.AntivirusSignatureLastUpdated)\"",
+        fail_unless("$status.RealTimeProtectionEnabled", "Defender's real-time protection is off: the proof needs it on"),
+        "$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)",
+        "if (-not $admin) { 'the scan of the folder needs an administrator, and this account is none: not run (the first start under real-time protection, next, is the proof)'; exit 0 }",
+        "$scanner = Join-Path $env:ProgramFiles 'Windows Defender\\MpCmdRun.exe'",
+        "& $scanner -Scan -ScanType 3 -File $app 2>&1 | ForEach-Object { \"$_\" }",
+        fail_unless(native_ok, "Defender's scan of the program folder found something or could not run", '"MpCmdRun ended with $LASTEXITCODE"'),
+    )
+    stop_entry = "$stop = Start-Process -FilePath (Join-Path $app 'neoaprsw.exe') -ArgumentList 'stop' -PassThru; $stop.WaitForExit()"
+    daemon = install_script(
+        "daemon", DATA_FOLDER, WAIT_PAGE, "$log = Join-Path $data 'neoaprs.log'",
+        stop_entry,
+        fail_unless("$stop.ExitCode -eq 0", "the Start menu's Stop NeoAPRS (neoaprsw.exe stop) failed with nothing running"),
+        "$clock = [Diagnostics.Stopwatch]::StartNew()",
+        "$p = Start-Process -FilePath (Join-Path $app 'neoaprsw.exe') -ArgumentList 'run' -PassThru",
+        "$url = Wait-Page $log $p 180",
+        fail_unless("$url", "neoaprsw.exe run served no page", "Get-Content -LiteralPath $log -Tail 30 -ErrorAction SilentlyContinue"),
+        "$code = (Invoke-WebRequest $url -UseBasicParsing).StatusCode",
+        "\"the page $url answered $code, $([int]$clock.Elapsed.TotalSeconds) s after the first start of the daemon\"",
+        fail_unless("$code -eq 200", "the page does not answer"),
+        "$request = [Net.HttpWebRequest]::Create($url + 'basemap-world.pmtiles'); $request.AddRange(0, 126)",
+        "$answer = $request.GetResponse(); $head = New-Object byte[] 7; $null = $answer.GetResponseStream().Read($head, 0, 7); $status = [int]$answer.StatusCode; $answer.Close()",
+        fail_unless("$status -eq 206 -and [Text.Encoding]::ASCII.GetString($head) -eq 'PMTiles'", "the world map that ships with the app is not served"),
+        "'the world map is served'",
+        "$description = (Get-Process -Id $p.Id).Description",
+        "\"Task Manager: neoaprsw.exe, $description\"",
+        fail_unless(f"$description -eq {ps_quote(DESCRIPTIONS['neoaprsw'])}", "neoaprsw.exe does not say what it is"),
+        stop_entry,
+        fail_unless("$p.WaitForExit(60000)", "the daemon did not end after Stop NeoAPRS"),
+        fail_unless("(Get-Content -LiteralPath $log -Tail 1) -like '*NeoAPRS ended'", "the daemon did not end cleanly", "Get-Content -LiteralPath $log -Tail 10"),
+    )
+    support_out = ps_quote(ip.support)
+    commands = install_script(
+        "commands",
+        "$exe = Join-Path $app 'neoaprs.exe'",
+        "$said = (& $exe --version 2>&1 | ForEach-Object { \"$_\" } | Out-String).Trim()",
+        "\"neoaprs.exe --version: $said\"",
+        fail_unless(f"$said -eq {ps_quote('NeoAPRS ' + version)}", f"neoaprs.exe is not NeoAPRS {version}"),
+        "$doctor = & $exe doctor 2>&1 | ForEach-Object { \"$_\" } | Out-String",
+        "$doctor",
+        fail_unless("$doctor -notmatch 'Traceback' -and $doctor -match 'serial port'", "neoaprs.exe doctor did not run to its end (it lists the serial ports)"),
+        f"& $exe support --out {support_out} 2>&1 | ForEach-Object {{ \"$_\" }}",
+        fail_unless(native_ok, "neoaprs.exe support failed"),
+        f"$zips = @(Get-ChildItem -LiteralPath {support_out} -Filter 'neoaprs-support-*.zip')",
+        fail_unless("$zips.Count -eq 1", "the support logs made no file"),
+        "Add-Type -AssemblyName System.IO.Compression.FileSystem",
+        "$zip = [IO.Compression.ZipFile]::OpenRead($zips[0].FullName); try { $names = @($zip.Entries | ForEach-Object { $_.FullName }) } finally { $zip.Dispose() }",
+        *(fail_unless(f"$names -contains {ps_quote(n)}", f"{n} is not in the support file") for n in ("README.txt", "summary.txt", "settings.json", "doctor.txt", "database.txt", "packets.txt", "logs/neoaprs.log")),
+        "\"support file: $($zips[0].Name), $($names.Count) files\"",
+    )
+    app = install_script(
+        "app", WAIT_PAGE,
+        f"$data = {ps_quote(ip.data_app)}", "New-Item -ItemType Directory -Force -Path $data | Out-Null", "$log = Join-Path $data 'neoaprs.log'",
+        "$clock = [Diagnostics.Stopwatch]::StartNew()",
+        "$p = Start-Process -FilePath (Join-Path $app 'neoaprs-app.exe') -ArgumentList '--tray', '--data', $data -PassThru",
+        "$url = Wait-Page $log $p 180",
+        fail_unless("$url", "the app did not start its daemon", "Get-Content -LiteralPath (Join-Path $data 'neoaprs-app.log'), $log -Tail 30 -ErrorAction SilentlyContinue"),
+        "$code = (Invoke-WebRequest $url -UseBasicParsing).StatusCode",
+        "\"the app's daemon: the page $url answered $code, $([int]$clock.Elapsed.TotalSeconds) s after the app's first start\"",
+        fail_unless("$code -eq 200", "the page does not answer"),
+        "Start-Sleep 5",                                    # (the tray icon is shown by pystray's own thread, whose failure is only a line of the app's log)
+        fail_unless("-not $p.HasExited", "the app ended by itself", "Get-Content -LiteralPath (Join-Path $data 'neoaprs-app.log') -Tail 30"),
+        "$applog = Join-Path $data 'neoaprs-app.log'",
+        fail_unless("(Test-Path -LiteralPath $applog) -and -not (Select-String -LiteralPath $applog -Pattern 'uncaught exception|Traceback' -Quiet)", "the app logged an uncaught exception (its tray icon or its window failed)",
+                    "Get-Content -LiteralPath $applog -Tail 40 -ErrorAction SilentlyContinue"),
+        "$description = (Get-Process -Id $p.Id).Description",
+        "\"Task Manager: neoaprs-app.exe, $description\"",
+        fail_unless(f"$description -eq {ps_quote(DESCRIPTIONS['neoaprs-app'])}", "neoaprs-app.exe does not say what it is"),
+        "& (Join-Path $app 'neoaprs.exe') stop --data $data 2>&1 | ForEach-Object { \"$_\" }",
+        fail_unless(native_ok, "neoaprs.exe stop failed"),
+        fail_unless("$p.WaitForExit(30000)", "the app did not end with its daemon", "Get-Content -LiteralPath (Join-Path $data 'neoaprs-app.log') -Tail 30"),
+    )
+    map_cut = install_script(
+        "map",
+        f"& (Join-Path $app 'neoaprs.exe') map --data {ps_quote(ip.data_map)} --lat 60.17 --lon 24.94 --radius 10 --maxzoom 8 --dry-run 2>&1 | ForEach-Object {{ \"$_\" }}",
+        fail_unless(native_ok, "the map cut (a dry run) failed"),
+    )
+    python_env = [f"$env:Path = {ps_quote(paths.uv_dir + ';')} + $env:Path", *(f"$env:{name} = {ps_quote(value)}" for name, value in STEP_ENVIRONMENT.items() if name != "NEOAPRS_NO_DEVICES"),
+                  f"Set-Location -LiteralPath {ps_quote(ip.kit)}"]
+    smoke = install_script(
+        "smoke", *python_env,
+        f"& uv run --no-project --with {ps_quote('tornado==' + tornado)} scripts\\smoke.py --command (Join-Path $app 'neoaprs.exe') 2>&1 | ForEach-Object {{ \"$_\" }}",
+        fail_unless(native_ok, "scripts/smoke.py failed against the installed neoaprs.exe"),
+    )
+    mercury = install_script(
+        "mercury", *python_env,
+        "& uv run --no-project packaging\\windows\\smoke_mercury.py (Join-Path $app 'bin\\mercury\\mercury.exe') 2>&1 | ForEach-Object { \"$_\" }",
+        fail_unless(native_ok, "the installed Mercury does not listen on this computer alone"),
+    )
+    uninstall = install_script(
+        "uninstall", DATA_FOLDER, "$log = Join-Path $data 'neoaprs.log'",
+        "$before = @(Select-String -LiteralPath $log -Pattern 'NeoAPRS is running' -ErrorAction SilentlyContinue).Count",
+        "$running = Start-Process -FilePath (Join-Path $app 'neoaprs-app.exe') -ArgumentList '--tray' -PassThru",
+        "foreach ($i in 1..120) { if (@(Select-String -LiteralPath $log -Pattern 'NeoAPRS is running' -ErrorAction SilentlyContinue).Count -gt $before) { break }; Start-Sleep 1 }",
+        fail_unless("-not $running.HasExited", "the app did not stay up before the uninstall"),
+        f"$u = Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', {ps_quote('/LOG=' + ip.uninstall_log)} -PassThru",
+        "$u.WaitForExit()",
+        "foreach ($i in 1..120) { if (-not (Test-Path -LiteralPath (Join-Path $app 'neoaprs.exe'))) { break }; Start-Sleep 1 }",
+        fail_unless("-not (Test-Path -LiteralPath (Join-Path $app 'neoaprs.exe'))", "neoaprs.exe is still in the program folder", f"Get-Content -LiteralPath {ps_quote(ip.uninstall_log)} -Tail 40"),
+        "foreach ($i in 1..30) { if (-not (Test-Path -LiteralPath $app)) { break }; Start-Sleep 1 }",
+        "$left = if (Test-Path -LiteralPath $app) { @(Get-ChildItem -LiteralPath $app -Recurse -Force | ForEach-Object { $_.FullName }) } else { @() }",
+        fail_unless("$left.Count -eq 0", "the uninstall left files in the program folder", "$left"),
+        fail_unless("-not (Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -ErrorAction SilentlyContinue).NeoAPRS", "the start at sign-in is still set"),
+        fail_unless("-not (Get-Process -Name neoaprs, neoaprsw, neoaprs-app -ErrorAction SilentlyContinue)", "a NeoAPRS process is still running"),
+        fail_unless("Test-Path -LiteralPath (Join-Path $data 'neoaprs.sqlite')", "the data folder was touched"),
+        fail_unless(f"-not (Test-Path -LiteralPath (Join-Path ({menu}) 'NeoAPRS.lnk'))", "the Start menu entry is still there"),
+        "'uninstalled: the program folder is gone, the data folder is still there'",
+    )
+    times = {"install": 600.0, "defender": 1800.0, "smoke": 900.0, "uninstall": 600.0}
+    scripts = dict(zip(INSTALL_STEP_NAMES, (install, defender, daemon, commands, app, map_cut, smoke, mercury, uninstall)))
+    return [(name, scripts[name], times.get(name, 300.0)) for name in INSTALL_STEP_NAMES]
+
+
+def kit_script(paths: Paths, ip: InstallPaths) -> str:
+    tar = "$env:SystemRoot + '\\System32\\tar.exe'"
+    return "\n".join(["$ErrorActionPreference = 'Stop'", f"New-Item -ItemType Directory -Force -Path {ps_quote(ip.kit)} | Out-Null",
+                      f"& ({tar}) -xf {ps_quote(ip.kit_tar)} -C {ps_quote(ip.kit)}", "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }", f"Remove-Item -LiteralPath {ps_quote(ip.kit_tar)}", "exit 0"])
+
+
+def put_python_kit(settings: Settings, paths: Paths, ip: InstallPaths, kit: Path, cache: Path) -> None:
+    """uv and the kit on the machine, for the two steps that run Python: only now, so that every step before them ran where nothing but Windows and the app was."""
+    put_uv_there(settings, paths, cache)
+    copy_to(settings, kit, ip.kit_tar)
+    remote_must(settings, kit_script(paths, ip), "the smoke scripts could not be unpacked on the machine")
+
+
+def execute_install(settings: Settings, installer: Path, version: str, tornado: str, kit: Path, cache: Path) -> int:
+    """The install proof, from a machine that answers to the last result line. Nothing follows a failed install; every other step runs to its end, the uninstall last."""
+    paths = windows_paths(settings.user, run_name(time.time()))
+    ip = install_paths(paths, installer.name)
+    log_dir = Path(tempfile.mkdtemp(prefix="neoaprs-check-windows-install-"))
+    say(f"the logs are in {log_dir}")
+    make_root(settings, paths)
+    remote_must(settings, f"$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path {ps_quote(paths.run)} | Out-Null; exit 0", "the folder of the run could not be made")
+    say(f"copying {installer.name} to {paths.run}")
+    copy_to(settings, installer, ip.setup)
+    results: list[StepResult] = []
+    total = time.monotonic()
+    python_ready: bool | None = None
+    try:
+        for name, script, timeout_sec in install_steps(paths, installer.name, version, tornado):
+            if results and results[0].code != 0:
+                break
+            if name in NEEDS_PYTHON:
+                if python_ready is None:
+                    try:
+                        put_python_kit(settings, paths, ip, kit, cache)
+                        python_ready = True
+                    except Refused as error:
+                        python_ready = False
+                        log = log_dir / "python.log"
+                        log.write_text(f"{error}\n", encoding="utf-8")
+                        results.append(StepResult("python", 1, 0.0, log, (str(error),)))
+                        print("\n".join(report_lines(results[-1])), flush=True)
+                if not python_ready:
+                    continue
+            result = run_script(settings, paths, name, script, timeout_sec, log_dir)
+            results.append(result)
+            print("\n".join(report_lines(result)), flush=True)
+    finally:
+        remove_old_runs(settings, paths)
+    print(summary(results, time.monotonic() - total), flush=True)
+    return exit_code(results)
+
+
 # ---- the command ----
 
 def interrupted(number: int, frame: FrameType | None) -> None:
@@ -701,12 +983,18 @@ def interrupted(number: int, frame: FrameType | None) -> None:
 
 def parse(argv: Sequence[str], split: Callable[[Sequence[str]], tuple[list[str], list[str]]]) -> tuple[argparse.Namespace, list[str]]:
     own, pytest_args = split(argv)
-    parser = argparse.ArgumentParser(prog="check-windows", usage="scripts/check-windows [--only NAME]... [--snapshot NAME] [--tty] [-- PYTEST-ARGS...]", description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(prog="check-windows", usage="scripts/check-windows [--only NAME]... [--snapshot NAME] [--tty] [-- PYTEST-ARGS...]\n       scripts/check-windows --install INSTALLER --snapshot NAME",
+                                     description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--only", action="append", default=[], choices=[step.name for step in steps(windows_paths("x", "x"))], metavar="NAME", help="run only this step (repeatable): sync lock ruff pytest smoke")
     parser.add_argument("--snapshot", default="", metavar="NAME", help="put the machine back to this snapshot before it is started (only while it is powered off)")
     parser.add_argument("--tty", action="store_true", help="run the pytest step through ssh -tt without trying a plain session first")
+    parser.add_argument("--install", default="", metavar="INSTALLER", help="the install proof of this NeoAPRS-Setup-VERSION.exe, on the machine put back to --snapshot, instead of the CI's steps")
     args = parser.parse_args(own)
+    if args.install:
+        if args.only or pytest_args or args.tty:
+            parser.error("--install runs the install proof alone: no --only, --tty or arguments for pytest with it")
+        if not args.snapshot:
+            parser.error("--install starts from a clean machine: give --snapshot NAME, the snapshot of the clean Windows")
     if pytest_args and args.only and "pytest" not in args.only:
         parser.error("arguments after -- are for pytest, and --only does not name it")
     if pytest_args and not args.only:
@@ -725,17 +1013,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         problems = missing_files(settings)
         if problems:
             raise NotSetUp("; ".join(problems))
+        installer = Path(args.install)
+        version = installer_version(installer) if args.install else ""
+        tornado = tornado_pin((ROOT / "pyproject.toml").read_text(encoding="utf-8")) if args.install else ""
     except NotSetUp as error:
         say(str(error))
         return NOT_SET_UP
     cache = build_cache(os.environ)
-    # The tree is packed whole into a file before the machine is asked for anything: what is wrong with the tree is said while nothing runs yet.
+    # The tree (or, for the install proof, the smoke scripts) is packed into a file before the machine is asked for anything: what is wrong with it is said while nothing runs yet.
     with tempfile.TemporaryDirectory(prefix="neoaprs-check-windows-tar-") as scratch:
         tar = Path(scratch) / "tree.tar"
         try:
-            with tar.open("wb") as out:
-                packer.pack(ROOT, out)
-        except packer.NotPacked as error:
+            if args.install:
+                pack_kit(ROOT, tar)
+            else:
+                with tar.open("wb") as out:
+                    packer.pack(ROOT, out)
+        except (packer.NotPacked, OSError) as error:
             say(f"nothing was run: {error}")
             return NOT_SET_UP
         for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
@@ -750,6 +1044,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 wait_for_ssh(settings, SSH_PATIENCE_SEC if plan.start else 60.0)
                 if plan.start:
                     wait_until_settled(settings)
+                if args.install:
+                    return execute_install(settings, installer, version, tornado, tar, cache)
                 return execute(settings, chosen_steps(args.only), pytest_args, tar, cache, args.tty)
         except (Refused, Busy) as error:
             say(str(error))

@@ -1,5 +1,5 @@
 """The shell of Windows: pywebview for the window (it is the system's WebView2, the Edge engine that Windows 11 and every current Windows 10 have; nothing of a browser is shipped) and pystray for the tray icon, which
-draws it from a Pillow image. pywebview must own the main thread, so the tray runs in a thread of its own (`run_detached`). Closing the window hides it (the `closing` event is cancelled and the window hidden);
+is given icon.ico as it is (IcoFile: pystray on Windows only asks its image to write itself as an ICO, so no imaging library is shipped). pywebview must own the main thread, so the tray runs in a thread of its own (`run_detached`). Closing the window hides it (the `closing` event is cancelled and the window hidden);
 Quit destroys it. Its size, its place and whether it is maximized are Windows' own window placement, read and given back through user32 (winplace.py). When the window cannot be had (WebView2 is
 missing, pywebview fails to start) the app goes on as a tray icon and the page is in the browser, and the log says so; with no web engine at all the tray runs on the main thread.
 The window and the tray icon are made at once, the window with the loading page (loading.py) and the tray with Open alone; the thread that pywebview starts once its loop runs waits for the session, then
@@ -51,7 +51,22 @@ class LinkApi:
 
 
 def icon_path() -> Path:
-    return Path(str(resources.files("neoaprs.desktop").joinpath("icon.png")))
+    return Path(str(resources.files("neoaprs.desktop").joinpath("icon.ico")))
+
+
+class IcoFile:
+    """The tray icon's image as pystray takes it on Windows: its backend writes the image to a file as an ICO (`image.save(file, format="ICO")`) and has Windows load that file, which picks the frame of
+    the display's scaling; so the image is the bytes of icon.ico, its frames 16 to 256 px, written as they are. tests/test_desktop_winshell.py reads pystray's own code for that call. The file is read here,
+    on the thread that makes the icon: pystray asks for it later, in its own thread, where a missing file would leave the app without its tray and with only a line in the log."""
+
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = icon_path() if path is None else path
+        self.data = self.path.read_bytes()
+
+    def save(self, fp: Any, format: str | None = None) -> None:
+        if format is not None and format.upper() != "ICO":
+            raise ValueError(f"the tray icon is an ICO file and cannot be written as {format}")
+        fp.write(self.data)
 
 
 class WinFrame:
@@ -131,8 +146,7 @@ def _shows(state: bool) -> Callable[[Any], bool]:
 
 def make_icon(frame: WinFrame) -> Any:
     pystray = importlib.import_module("pystray")
-    image = importlib.import_module("PIL.Image")
-    icon = pystray.Icon("NeoAPRS", image.open(icon_path()), "NeoAPRS", tray_menu(pystray, frame))
+    icon = pystray.Icon("NeoAPRS", IcoFile(), "NeoAPRS", tray_menu(pystray, frame))
     frame.icon = icon
     return icon
 

@@ -148,3 +148,10 @@ def test_the_copyright_file_names_mercury_by_its_pinned_source_and_the_alsa_libr
     alsa = next(p for p in text.split("\n\n") if p.startswith("Files: opt/neoaprs/tools/mercury/lib/*"))
     assert "License: LGPL-2.1\n" in alsa and "/usr/share/common-licenses/LGPL-2.1" in alsa
     assert text.index("Files: opt/neoaprs/tools/mercury/*") < text.index("Files: opt/neoaprs/tools/mercury/lib/*") < text.index("\nLicense: GPL-3.0-or-later\n This program"), "the last paragraph that matches a file wins, and the licence texts come at the end"
+
+
+def test_the_package_is_packed_with_xz_at_its_highest_level_and_its_tree_and_file_are_measured() -> None:
+    assert 'dpkg-deb --root-owner-group -Zxz -z9 --build "$pkg" "$target"' in SCRIPT, "xz -9: a few percent of the download, and 65 MiB to unpack, which a Pi Zero 2 W has"
+    assert SCRIPT.index('shipped-size" --depth 6 --title') < SCRIPT.index("dpkg-deb --root-owner-group") < SCRIPT.index('shipped-size" "$target"'), "the tree before it is packed, the file after"
+    assert "the archive's dbm module" in SCRIPT and SCRIPT.index("the archive's dbm module") < SCRIPT.index('prune.py" --python-only "$app"'), "whether the archive has _dbm is said before prune.py takes it out"
+    assert "libpython3*" not in SCRIPT, "prune.py --python-only takes the shared libpython out (tests/test_appimage.py)"

@@ -14,5 +14,5 @@
     winshell.py   the shell of Windows: pywebview (WebView2) for the window, pystray for the tray icon
     winplace.py   the window's placement on Windows (GetWindowPlacement, SetWindowPlacement): saved and given back
 
-Only qtshell.py and winshell.py import a toolkit (PySide6, pywebview, pystray, Pillow); they are the app's optional dependencies (`pip install neoaprs[app]`) and nothing else imports them.
+Only qtshell.py and winshell.py import a toolkit (PySide6, pywebview, pystray); they are the app's optional dependencies (`pip install neoaprs[app]`) and nothing else imports them.
 """

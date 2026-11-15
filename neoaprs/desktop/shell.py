@@ -74,7 +74,7 @@ def choose(platform: str | None = None, importer: Importer = importlib.import_mo
     why: list[str] = []
     if platform == "win32":
         module = "neoaprs.desktop.winshell"
-        tray_problem = _can_import(importer, "pystray", "PIL.Image")
+        tray_problem = _can_import(importer, "pystray")
         window_problem = _can_import(importer, "webview")
         if window_problem is None and not runtime():
             window_problem = "the WebView2 runtime is not installed"

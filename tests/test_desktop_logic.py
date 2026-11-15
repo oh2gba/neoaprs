@@ -323,12 +323,13 @@ def test_a_toolkit_that_is_installed_and_broken_is_a_fallback_and_not_a_crash() 
 
 def test_windows_has_the_window_and_the_tray_when_webview2_is_there() -> None:
     assert shell.choose("win32", importer(set()), lambda: True) == shell.Choice("neoaprs.desktop.winshell", True)
+    assert shell.choose("win32", importer({"PIL"}), lambda: True) == shell.Choice("neoaprs.desktop.winshell", True), "the tray needs no Pillow: the app does not ship it"
 
 
 @pytest.mark.parametrize("missing, runtime, module, window", [
     (set(), False, "neoaprs.desktop.winshell", False),             # no WebView2 runtime: pywebview would fall back to the old Internet Explorer engine, which cannot show the page
     ({"webview"}, True, "neoaprs.desktop.winshell", False),        # pywebview is not installed
-    ({"pystray"}, True, None, False), ({"PIL"}, True, None, False),
+    ({"pystray"}, True, None, False),
 ])
 def test_windows_falls_back_to_the_tray_or_the_browser(missing: set[str], runtime: bool, module: str | None, window: bool) -> None:
     choice = shell.choose("win32", importer(missing), lambda: runtime)

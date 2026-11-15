@@ -1,6 +1,7 @@
-"""The Windows shell against stand-ins for pywebview, pystray and Pillow (`sys.modules` gets them, so this runs on any system and CI): what the shell asks of each toolkit, the closing of the window that
-hides it, the tray menu made from the data of the actions, the page's script that sends other sites to the browser, and the way on without a window when WebView2 cannot start. What the real toolkits do with
-those calls is what only a Windows desktop can say."""
+"""The Windows shell against stand-ins for pywebview and pystray (`sys.modules` gets them, so this runs on any system and CI): what the shell asks of each toolkit, the closing of the window that
+hides it, the tray menu made from the data of the actions, the page's script that sends other sites to the browser, and the way on without a window when WebView2 cannot start. The tray icon's image is
+icon.ico written as it is (no imaging library): where the real pystray is installed (the CI's Windows job), its own code is read for the one call it makes of the image, and the image goes through it. What
+the real toolkits do with those calls is what only a Windows desktop can say."""
 import inspect
 import ctypes
 import logging
@@ -207,12 +208,10 @@ class Toolkits:
         pystray.Icon = self.make_icon  # type: ignore[attr-defined]
         pystray.Menu = FakeMenu  # type: ignore[attr-defined]
         pystray.MenuItem = FakeMenuItem  # type: ignore[attr-defined]
-        pil = types.ModuleType("PIL")
-        image = types.ModuleType("PIL.Image")
-        image.open = lambda path: ("image", str(path))  # type: ignore[attr-defined]
-        pil.Image = image  # type: ignore[attr-defined]
-        for name, module in (("webview", webview), ("pystray", pystray), ("PIL", pil), ("PIL.Image", image)):
+        for name, module in (("webview", webview), ("pystray", pystray)):
             monkeypatch.setitem(sys.modules, name, module)
+        for name in ("PIL", "PIL.Image"):
+            monkeypatch.setitem(sys.modules, name, None)            # (an import of Pillow fails: the shell must not need it)
 
     def create_window(self, *args: Any, **kwargs: Any) -> FakeWindow:
         window = FakeWindow(args, kwargs, self.user32)
@@ -304,7 +303,7 @@ def test_the_window_has_the_size_it_had_is_hidden_in_the_tray_and_starts_on_edge
     assert rig.toolkits.started == [{"gui": "edgechromium", "private_mode": False, "storage_path": str(rig.data / "webview")}]
     assert rig.toolkits.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] is True and rig.browser == []
     icon = rig.toolkits.icons[0]
-    assert (icon.name, icon.title, icon.image[0]) == ("NeoAPRS", "NeoAPRS", "image") and icon.image[1].endswith("icon.png") and icon.calls == ["run_detached", "update_menu"]
+    assert (icon.name, icon.title) == ("NeoAPRS", "NeoAPRS") and isinstance(icon.image, winshell.IcoFile) and icon.image.path.name == "icon.ico" and icon.calls == ["run_detached", "update_menu"]
     quit_through_the_menu(rig, thread)
     assert icon.calls[-1] == "stop" and window.calls[-1] == "destroy"
 
@@ -638,3 +637,80 @@ def test_a_window_that_cannot_start_when_the_app_starts_hidden_opens_no_browser(
     until(lambda: rig.ctx.watch is not None and rig.toolkits.icons)
     assert rig.browser == []
     quit_through_the_menu(rig, thread)
+
+
+# ---- the tray icon's image, without Pillow
+
+def test_the_tray_image_writes_the_bytes_of_icon_ico_as_pystray_asks_for_an_ico() -> None:
+    import io
+    image = winshell.IcoFile()
+    assert image.path == winshell.icon_path() and image.path.name == "icon.ico" and image.path.is_file()
+    for format in ("ICO", "ico", None):
+        out = io.BytesIO()
+        image.save(out, format=format)
+        assert out.getvalue() == image.path.read_bytes(), format
+    data = image.path.read_bytes()
+    assert data[:4] == b"\0\0\1\0", "an icon file"
+    with pytest.raises(ValueError, match="PNG"):
+        image.save(io.BytesIO(), format="PNG")
+
+
+def test_a_missing_icon_file_fails_the_shell_where_it_starts_and_not_later_in_pystrays_thread(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """pystray asks the image for its file in its own thread, when the icon is shown; a failure there is a line in the log and an app without a tray, whose window then hides into nothing. So icon.ico is
+    read when the icon is made, on the thread that starts the shell, whose failure the app answers with the page in the browser."""
+    gone = tmp_path / "icon.ico"
+    with pytest.raises(FileNotFoundError):
+        winshell.IcoFile(gone)
+    Toolkits(monkeypatch)
+    monkeypatch.setattr(winshell, "icon_path", lambda: gone)
+    with pytest.raises(FileNotFoundError):
+        winshell.make_icon(winshell.WinFrame(True))
+    gone.write_bytes(b"\0\0\1\0 made up")
+    image = winshell.IcoFile(gone)
+    gone.unlink()
+    import io
+    out = io.BytesIO()
+    image.save(out, format="ICO")
+    assert out.getvalue() == b"\0\0\1\0 made up", "what pystray is given later is what was read"
+
+
+def test_the_real_pystray_asks_the_image_to_write_itself_as_an_ico_and_has_windows_load_that_file() -> None:
+    """pystray 0.19.5 on Windows: `_assert_icon_handle` makes the file with `serialized_image(self.icon, 'ICO')` and loads it with LoadImage; `serialized_image` calls `image.save(f, format=format)`.
+    A pystray whose code says otherwise fails here, on the CI's Windows job, and not in an operator's tray."""
+    if sys.platform != "win32":
+        pytest.skip("the real pystray is installed with the extra app on Windows only")
+    util = pytest.importorskip("pystray._util")
+    win32 = pytest.importorskip("pystray._win32")
+    made = inspect.getsource(util.serialized_image)
+    assert "image.save(f, format=format)" in made
+    loaded = inspect.getsource(win32.Icon._assert_icon_handle)
+    assert "serialized_image(self.icon, 'ICO')" in loaded and "LoadImage(" in loaded and "LR_LOADFROMFILE" in loaded
+    with util.serialized_image(winshell.IcoFile(), "ICO") as path:
+        assert Path(path).read_bytes() == winshell.icon_path().read_bytes(), "the file Windows loads is icon.ico"
+
+
+# What the frozen app has on Windows: pystray and its Windows backend with no Pillow at all (the spec excludes PIL). Run in a Python of its own, in which any import of PIL fails.
+WITHOUT_PILLOW = """
+import sys
+sys.modules["PIL"] = None
+import pystray, pystray._win32, pystray._util, pystray._util.win32
+from neoaprs.desktop import winshell
+assert pystray.Icon is pystray._win32.Icon, pystray.Icon
+with pystray._util.serialized_image(winshell.IcoFile(), "ICO") as path:
+    with open(path, "rb") as made:
+        assert made.read() == winshell.icon_path().read_bytes()
+print("pystray without Pillow")
+"""
+
+
+def test_the_real_pystray_and_its_windows_backend_run_without_pillow() -> None:
+    """The CI's Windows job has Pillow (the extra app installs it, as pystray asks), the frozen app has none. A pystray whose Windows modules or shared helpers import PIL fails here, and not in an
+    operator's tray."""
+    if sys.platform != "win32":
+        pytest.skip("the real pystray is installed with the extra app on Windows only")
+    pytest.importorskip("pystray._win32")
+    import os
+    import subprocess
+    env = {name: value for name, value in os.environ.items() if name != "PYSTRAY_BACKEND"}
+    done = subprocess.run([sys.executable, "-c", WITHOUT_PILLOW], capture_output=True, text=True, timeout=120, env=env, cwd=Path(__file__).resolve().parents[1])
+    assert done.returncode == 0 and "pystray without Pillow" in done.stdout, done.stderr

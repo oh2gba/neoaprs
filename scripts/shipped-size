@@ -1,0 +1,257 @@
+#!/usr/bin/env python3
+"""What a download carries, printed, so that a cut in size is a measured number and not a guess. The release workflow runs it on each tree before it is packed and on each finished file.
+
+  scripts/shipped-size PATH...                     a folder: its size and file count, its size by group (the folders DEPTH deep, 1 by default) and its 30 largest files; a file: its size
+  scripts/shipped-size --depth 2 dist/NeoAPRS      groups two folders deep (_internal/PIL, _internal/neoaprs, ...)
+  scripts/shipped-size --pyi-archive EXE...        the Python archive (PYZ) inside a program of PyInstaller, summed by top package, from `pyi-archive_viewer -l -r` (the recursive listing is the one that
+                                                   goes into PYZ.pyz: the plain one lists only the program's own archive); --viewer names the viewer when it is not beside this Python or on the PATH
+  --modules                                        with --pyi-archive: every module of the archive besides, one line each (`module: NAME`), so that two builds' lists can be compared
+  --absent NAME                                    fails (exit 1) when NAME is there: a path inside a folder given, or a top package in a program's archive given (repeatable)
+  --title TEXT                                     the heading of the printout
+
+Sizes are in MB of 1,000,000 bytes, as the release notes say them. When $GITHUB_STEP_SUMMARY names a file, the same goes into it as Markdown, so that the run's page shows every size. Exit code: 0, 1 when a name
+given to --absent is there, 2 when a path is not there or the viewer's listing cannot be read. Nothing but the Python standard library is used."""
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+
+LARGEST = 30
+GROUPS = 40                                            # the groups printed by name; the rest is one line
+MB = 1_000_000
+
+
+class Unreadable(Exception):
+    """The input is not what this script reads: the sentence for the user (exit code 2)."""
+
+
+def mb(size: int) -> str:
+    return f"{size / MB:.1f} MB"
+
+
+@dataclass
+class TreeReport:
+    root: Path
+    total: int = 0
+    files: int = 0
+    groups: dict[str, int] = field(default_factory=dict)
+    largest: list[tuple[int, str]] = field(default_factory=list)
+
+
+def group_of(relative: Path, depth: int) -> str:
+    """The group a file counts in: its folder `depth` deep, or the file itself when it lies higher up."""
+    parts = relative.parts
+    return "/".join(parts[:depth]) if len(parts) > depth else relative.as_posix()
+
+
+def measure_tree(root: Path, depth: int = 1, largest: int = LARGEST) -> TreeReport:
+    """Every file under `root` (links are not followed and count nothing: the file they name is counted where it is)."""
+    report = TreeReport(root)
+    sizes: list[tuple[int, str]] = []
+    for folder, dirs, names in os.walk(root):
+        dirs.sort()
+        for name in sorted(names):
+            path = Path(folder) / name
+            if path.is_symlink():
+                continue
+            size = path.stat().st_size
+            relative = path.relative_to(root)
+            report.total += size
+            report.files += 1
+            key = group_of(relative, depth)
+            report.groups[key] = report.groups.get(key, 0) + size
+            sizes.append((size, relative.as_posix()))
+    report.largest = sorted(sizes, key=lambda item: (-item[0], item[1]))[:largest]
+    return report
+
+
+def tree_lines(report: TreeReport, title: str) -> list[str]:
+    lines = [f"{title}: {mb(report.total)} in {report.files} files ({report.total} bytes)", "  by group:"]
+    groups = sorted(report.groups.items(), key=lambda item: (-item[1], item[0]))
+    lines += [f"    {mb(size):>10}  {name}" for name, size in groups[:GROUPS]]
+    rest = groups[GROUPS:]
+    if rest:
+        lines.append(f"    {mb(sum(size for _, size in rest)):>10}  ({len(rest)} more groups)")
+    lines.append(f"  the {len(report.largest)} largest files:")
+    lines += [f"    {mb(size):>10}  {name}" for size, name in report.largest]
+    return lines
+
+
+def tree_markdown(report: TreeReport, title: str) -> list[str]:
+    lines = [f"### {title}", "", f"{mb(report.total)} in {report.files} files ({report.total} bytes)", "", "| group | size |", "|---|---:|"]
+    groups = sorted(report.groups.items(), key=lambda item: (-item[1], item[0]))
+    lines += [f"| `{name}` | {mb(size)} |" for name, size in groups[:GROUPS]]
+    rest = groups[GROUPS:]
+    if rest:
+        lines.append(f"| ({len(rest)} more groups) | {mb(sum(size for _, size in rest))} |")
+    lines += ["", "| largest files | size |", "|---|---:|"]
+    lines += [f"| `{name}` | {mb(size)} |" for size, name in report.largest]
+    return [*lines, ""]
+
+
+# ---- the Python archive of a program of PyInstaller ----
+
+CONTENTS = re.compile(r"^\s*Contents of (?P<name>.+?)\s*\((?P<kind>[^)]*)\)\s*:?\s*$")
+QUOTED_NAME = re.compile(r"""(?:'(?P<single>[^']*)'|"(?P<double>[^"]*)")\s*$""")
+
+
+@dataclass
+class ArchiveReport:
+    program: str
+    entries: int = 0
+    total: int = 0
+    packages: dict[str, int] = field(default_factory=dict)
+    modules: list[str] = field(default_factory=list)
+
+
+def parse_listing(text: str, program: str = "") -> ArchiveReport:
+    """The PYZ part of `pyi-archive_viewer -l -r`: under each heading `Contents of 'PYZ.pyz' (PYZ...)`, a line of column names, then one line an entry whose last field is the module's name in quotes.
+    The column called `length` is the entry's size in the archive (compressed). An entry is counted in its top package (`PIL.Image` in `PIL`). A listing with no PYZ part, or one whose columns name no
+    length, is refused: the printout would be a wrong number."""
+    report = ArchiveReport(program)
+    in_pyz, columns, seen_pyz = False, None, False
+    for line in text.splitlines():
+        heading = CONTENTS.match(line)
+        if heading:
+            in_pyz, columns = "PYZ" in heading.group("kind").upper(), None
+            seen_pyz = seen_pyz or in_pyz
+            continue
+        if not in_pyz or not line.strip():
+            continue
+        if columns is None:
+            columns = [word.strip().lower() for word in line.split(",")]
+            if "length" not in columns or "name" not in columns:
+                raise Unreadable(f"the listing of {program or 'the program'} has a PYZ part whose columns are {line.strip()!r}: no length and name to read")
+            continue
+        named = QUOTED_NAME.search(line)
+        if named is None:
+            continue
+        name = named.group("single") if named.group("single") is not None else named.group("double")
+        fields = [word.strip() for word in line[: named.start()].rstrip().rstrip(",").split(",")]
+        if len(fields) != len(columns) - 1:
+            raise Unreadable(f"the listing of {program or 'the program'} has an entry that does not fit its columns: {line.strip()!r}")
+        size = int(fields[columns.index("length")])
+        top = name.split(".", 1)[0]
+        report.entries += 1
+        report.total += size
+        report.packages[top] = report.packages.get(top, 0) + size
+        report.modules.append(name)
+    if not seen_pyz:
+        raise Unreadable(f"the listing of {program or 'the program'} has no PYZ part (was it made with -r?)")
+    return report
+
+
+def find_viewer(given: str = "") -> str:
+    """pyi-archive_viewer: the one named, else the one beside this Python (a build environment's Scripts or bin folder), else the PATH's."""
+    if given:
+        return given
+    here = Path(sys.executable).parent
+    for name in ("pyi-archive_viewer.exe", "pyi-archive_viewer"):
+        if (here / name).is_file():
+            return str(here / name)
+    found = shutil.which("pyi-archive_viewer")
+    if found is None:
+        raise Unreadable("pyi-archive_viewer is not beside this Python nor on the PATH: run this with the Python of the build environment, or give --viewer")
+    return found
+
+
+def list_archive(viewer: str, program: Path, run: Callable[[list[str]], str] | None = None) -> str:
+    def default(argv: list[str]) -> str:
+        done = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace", timeout=300)
+        if done.returncode != 0:
+            raise Unreadable(f"{' '.join(argv)} ended with {done.returncode}: {(done.stderr or done.stdout).strip()[-400:]}")
+        return done.stdout
+    return (run or default)([viewer, "-l", "-r", str(program)])
+
+
+def archive_lines(report: ArchiveReport) -> list[str]:
+    lines = [f"{report.program}: its PYZ is {mb(report.total)} in {report.entries} modules (compressed, {report.total} bytes)", "  by top package:"]
+    packages = sorted(report.packages.items(), key=lambda item: (-item[1], item[0]))
+    lines += [f"    {mb(size):>10}  {name}" for name, size in packages[:GROUPS]]
+    rest = packages[GROUPS:]
+    if rest:
+        lines.append(f"    {mb(sum(size for _, size in rest)):>10}  ({len(rest)} more packages)")
+    return lines
+
+
+def archive_markdown(report: ArchiveReport) -> list[str]:
+    lines = [f"### {report.program}: the PYZ", "", f"{mb(report.total)} in {report.entries} modules (compressed)", "", "| package | size |", "|---|---:|"]
+    packages = sorted(report.packages.items(), key=lambda item: (-item[1], item[0]))
+    lines += [f"| `{name}` | {mb(size)} |" for name, size in packages[:GROUPS]]
+    return [*lines, ""]
+
+
+# ---- the command ----
+
+def present(names: Iterable[str], root: Path | None = None, archive: ArchiveReport | None = None) -> list[str]:
+    """Of the names given to --absent, those that are there: a path under `root`, or a top package of `archive`."""
+    found = []
+    for name in names:
+        if root is not None and (root / name).exists():
+            found.append(f"{name} is in {root}")
+        if archive is not None and name in archive.packages:
+            found.append(f"{name} is in the archive of {archive.program} ({mb(archive.packages[name])})")
+    return found
+
+
+def summary_file(env: Mapping[str, str] = os.environ) -> Path | None:
+    name = env.get("GITHUB_STEP_SUMMARY", "")
+    return Path(name) if name else None
+
+
+def main(argv: Sequence[str] | None = None, run: Callable[[list[str]], str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="shipped-size", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("paths", nargs="+", type=Path, metavar="PATH")
+    parser.add_argument("--depth", type=int, default=1, help="how many folders deep a group is (default 1)")
+    parser.add_argument("--pyi-archive", action="store_true", help="the paths are programs of PyInstaller: print their PYZ by top package")
+    parser.add_argument("--viewer", default="", help="pyi-archive_viewer, when it is not beside this Python or on the PATH")
+    parser.add_argument("--modules", action="store_true", help="with --pyi-archive: every module of the archive, one line each")
+    parser.add_argument("--absent", action="append", default=[], metavar="NAME", help="fail when NAME is there (repeatable)")
+    parser.add_argument("--title", default="", help="the heading of the printout")
+    args = parser.parse_args(argv)
+    if args.depth < 1:
+        parser.error("--depth is 1 or more")
+    out: list[str] = []
+    markdown: list[str] = []
+    found: list[str] = []
+    try:
+        for path in args.paths:
+            title = args.title or path.as_posix()
+            if not path.exists():
+                raise Unreadable(f"{path} is not there")
+            if args.pyi_archive:
+                report = parse_listing(list_archive(find_viewer(args.viewer), path, run), path.name)
+                out += archive_lines(report)
+                if args.modules:
+                    out += [f"  module: {name}" for name in sorted(report.modules)]
+                markdown += archive_markdown(report)
+                found += present(args.absent, archive=report)
+            elif path.is_dir():
+                tree = measure_tree(path, args.depth)
+                out += tree_lines(tree, title)
+                markdown += tree_markdown(tree, title)
+                found += present(args.absent, root=path)
+            else:
+                size = path.stat().st_size
+                out.append(f"{title}: {mb(size)} ({size} bytes)")
+                markdown += [f"**{title}**: {mb(size)} ({size} bytes)", ""]
+    except Unreadable as error:
+        print(f"shipped-size: {error}", file=sys.stderr)
+        return 2
+    print("\n".join(out), flush=True)
+    summary = summary_file()
+    if summary is not None:
+        with summary.open("a", encoding="utf-8") as handle:
+            handle.write("\n".join(markdown) + "\n")
+    for line in found:
+        print(f"shipped-size: {line}, and it must not be", file=sys.stderr)
+    return 1 if found else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

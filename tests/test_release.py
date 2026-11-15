@@ -147,7 +147,8 @@ def test_the_frozen_app_has_three_programs_whose_names_differ_for_a_system_that_
     names = re.findall(r'EXE\(pyz, a\.scripts, \[\], name="([^"]+)", console=(True|False)', spec)
     assert names == [("neoaprs", "True"), ("neoaprsw", "False"), ("neoaprs-app", "False")]
     assert len({name.lower() for name, _ in names}) == 3, "NeoAPRS.exe would be neoaprs.exe"
-    assert "icon=icon" in spec and 'excludes=["tkinter", "PySide6", "shiboken6"]' in spec and "COLLECT(console, windowed, app," in spec
+    assert "icon=icon" in spec and 'excludes=["tkinter", "PySide6", "shiboken6", "PIL"]' in spec and "COLLECT(console, windowed, app," in spec
+    assert '"PIL' not in spec.split("excludes=", 1)[0], "Pillow is no hidden import: the tray is given icon.ico as it is, and pystray's X11 backend would pull Pillow in without the exclude"
 
 
 @pytest.mark.parametrize("program, calls", [("neoaprs.exe", "main"), ("neoaprsw.exe", "gui_main"), ("neoaprs-app.exe", "app_main"), ("NeoAPRS-App.EXE", "app_main")])

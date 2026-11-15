@@ -1,0 +1,30 @@
+# The files the Windows app's folder (dist/NeoAPRS) must have, checked by packaging/windows/must_ship.py after PyInstaller in the release workflow: a build that lacks one fails.
+# Made from a real build (must_ship.py --write); a line goes only in the commit that removes its file on purpose, and that commit names the clean install on the Windows 11 N machine that proves it.
+# Until the list of a real build replaces this one: the never-drop files alone (tests/test_shipped.py fails while this line is here).
+_internal/vcruntime140.dll
+_internal/vcruntime140_1.dll
+_internal/python313.dll
+_internal/libcrypto-3*.dll
+_internal/libssl-3*.dll
+_internal/libffi-*.dll
+_internal/sqlite3.dll
+_internal/_asyncio.pyd
+_internal/_ctypes.pyd
+_internal/_hashlib.pyd
+_internal/_overlapped.pyd
+_internal/_socket.pyd
+_internal/_sqlite3.pyd
+_internal/_ssl.pyd
+_internal/select.pyd
+_internal/_cffi_backend*.pyd
+_internal/cryptography/hazmat/bindings/_rust.pyd
+_internal/pydantic_core/_pydantic_core*.pyd
+_internal/pythonnet/runtime/python.runtime.dll
+_internal/clr_loader/ffi/dlls/amd64/clrloader.dll
+_internal/webview/lib/microsoft.web.webview2.core.dll
+_internal/webview/lib/microsoft.web.webview2.winforms.dll
+_internal/webview/lib/runtimes/win-x64/native/webview2loader.dll
+_internal/base_library.zip
+_internal/certifi/cacert.pem
+_internal/neoaprs/maps/basemap-world.pmtiles
+_internal/neoaprs/desktop/icon.ico
