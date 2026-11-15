@@ -35,8 +35,10 @@ const PATH_KEYS = ["beacon/path", "digi/enabled"];
 const MOVING_KEYS = ["beacon/travel"];
 
 /** Whether a setting is there for the radios that are on (`fm/enabled` and `hf/enabled` of the values): the one Beacon choice while any radio is, and the path, the digipeater and Travelling while FM is. */
-export function shownByRadios(key: string, values: Readonly<Record<string, string>>): boolean {
+export function shownByRadios(key: string, values: Readonly<Record<string, string>>, radios: readonly PageRadio[] | null = null): boolean {
   if (key === "beacon/interval_min") return fmOn(values) || hfOn(values);
+  if (radios !== null && key === "beacon/path") return radios.some((radio) => radio.carriesPath); // (the Path rows: one for each radio on that may carry a path, SettingsPath.vue)
+  if (radios !== null && MOVING_KEYS.includes(key)) return radios.some((radio) => radio.row.allowed.smart_beacon); // (Travelling: while a radio on does SmartBeaconing)
   if (PATH_KEYS.includes(key) || MOVING_KEYS.includes(key)) return fmOn(values);
   return true;
 }

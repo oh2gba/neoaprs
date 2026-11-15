@@ -65,10 +65,9 @@ function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean, ma
   return { kind: "waiting", text, mark: "", title: waiting };
 }
 
-/** The "you" chip of an attempt: the radio's name as its mark where it is named. Left out (`undefined`), the rule of before: HF marked, FM and an attempt kept before there were two radios not (until MessageChain gives the name). */
-function youChip(attempt: AttemptRow, time: string, radio: string | null | undefined): Chip {
-  if (radio === undefined && attempt.radio === "hf") return { kind: "you", text: t("chain.you"), mark: t("chain.hf"), title: t("chain.sent_hf", { time }) };
-  if (radio == null) return { kind: "you", text: t("chain.you"), mark: "", title: t("chain.sent", { time }) };
+/** The "you" chip of an attempt: the radio's name as its mark where it is named, none where it is not. */
+function youChip(time: string, radio: string | null): Chip {
+  if (radio === null) return { kind: "you", text: t("chain.you"), mark: "", title: t("chain.sent", { time }) };
   return { kind: "you", text: t("chain.you"), mark: radio, title: t("chain.sent_on", { time, name: radio }) };
 }
 
@@ -80,9 +79,9 @@ export function chainOf(
   latest: boolean,
   heardDirect: ReadonlySet<string> = new Set(),
   mail = false,
-  radio?: string | null,
+  radio: string | null = null,
 ): Chip[] {
-  const chips: Chip[] = [youChip(attempt, dateTimeText(attempt.sent_at), radio)];
+  const chips: Chip[] = [youChip(dateTimeText(attempt.sent_at), radio)];
   chips.push(...attempt.hops.filter((hop) => !isMarker(hop.call)).map((hop) => hopChip(hop, heardDirect)));
   if (attempt.internet !== null && !attempt.hops.some((hop) => hop.by_internet)) {
     chips.push({ kind: "internet", text: t("chain.internet"), mark: "", title: t("chain.copy_back", { by: attempt.internet }) });

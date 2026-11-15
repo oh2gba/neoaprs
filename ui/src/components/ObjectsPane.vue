@@ -6,7 +6,7 @@
 // as the form's category is what offers an object to those who ask. The rows are selectable like the rows of the Nearby tab (a click or Enter highlights the row and says `select`, which selects the object on the map as a click there does), and the
 // form changes the selected object: Save; with none selected it adds a new object: Add; selecting a row scrolls the tab up to the form. An object whose kill is going out is not selectable and has no delete.
 import { computed, nextTick, ref, watch } from "vue";
-import TagMark, { type TagTone } from "@/components/TagMark.vue";
+import TagMark from "@/components/TagMark.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
@@ -19,6 +19,7 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { useRadios } from "@/composables/useRadios";
+import { radioTone, titled } from "@/lib/channels";
 import { inForce, stateText } from "@/lib/ownobjects";
 import type { PageRadio } from "@/lib/radios";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
@@ -44,7 +45,6 @@ const radioTags = computed(() => {
 const NONE = { shown: [], rest: [] } as const;
 const tagsOf = (row: OwnObjectRow): { readonly shown: readonly PageRadio[]; readonly rest: readonly PageRadio[] } => radioTags.value.get(row.name) ?? NONE;
 /** The tone of a radio's tag: its kind's, dashed for a Dummy radio. */
-const toneOf = (radio: PageRadio): TagTone => (radio.dummy ? "dummy" : radio.kind === "hf" ? "hf" : "neutral");
 const sentOn = (radio: PageRadio): string => t("objects.sent_on", { name: radio.name });
 const sure = useSure<string>(); // (the name of a row)
 /** The copy menu of a row: the name of the object. */
@@ -122,11 +122,11 @@ watch(
               <TagMark v-if="row.qru_group" tone="neutral" class="own-category" :title="t('objects.in_group', { group: groupName(row.qru_group) })">{{
                 categoryLabel(row.qru_group)
               }}</TagMark>
-              <TagMark v-for="radio in tagsOf(row).shown" :key="radio.id" :tone="toneOf(radio)" class="own-radio" :title="sentOn(radio)">{{
+              <TagMark v-for="radio in tagsOf(row).shown" :key="radio.id" :tone="radioTone(radio)" class="own-radio" :title="sentOn(radio)">{{
                 radio.name
               }}</TagMark>
-              <TagMark v-if="tagsOf(row).rest.length > 0" tone="neutral" class="own-radio" :title="tagsOf(row).rest.map(sentOn).join('\n')">{{
-                t("objects.radio_more", { n: tagsOf(row).rest.length })
+              <TagMark v-if="tagsOf(row).rest.length > 0" tone="neutral" class="own-radio" :title="titled(tagsOf(row).rest.map(sentOn))">{{
+                t("radio.more", { n: tagsOf(row).rest.length })
               }}</TagMark>
             </div>
           </li>

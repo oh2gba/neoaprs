@@ -51,7 +51,7 @@ describe("SymbolField", () => {
       },
     });
     const config = ref(configValues());
-    const guide = useSetupGuide(config, ref(null), ref(null), () => true);
+    const guide = useSetupGuide(config, ref(null), () => true);
     guide.show();
     guide.step = 2;
     const setup = mount(SetupGuide, { global: withDaemon(fakeDaemon({ config, guide })) });

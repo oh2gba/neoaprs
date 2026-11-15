@@ -165,13 +165,17 @@
 .convo-radio {
   flex: none;
 }
-/* the tag of the radio the messages go on, where radios are named: the room of a name of eight characters at the tag's size, the tag at its right, so that Route beside it stays where it is when the radio changes */
+/* the tag of the radio the messages go on, where radios are named: the room of a name of eight characters at the tag's size, and of the widest name of the radios that are on (their tags hidden in the same place,
+   .twowords), the tag at its right, so that Route beside it stays where it is when the radio changes */
 .convo-radio {
   display: inline-flex;
   justify-content: flex-end;
   min-width: calc(8ch + 14px);
   font-size: 11px;
   font-weight: 600;
+}
+.convo-radio .twowords > span {
+  text-align: end;
 }
 .route-dot {
   display: inline-block;

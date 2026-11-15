@@ -30,7 +30,7 @@ scope.look(
   () => shown.value,
   () => radio.value,
 );
-const on = computed(() => radio.value !== null && scope.asked.value === radio.value);
+const on = computed(() => radio.value !== null && scope.asked.value.includes(radio.value));
 /** The card's name: with the radio's where several radios are on (its radio is on: it has a scope). */
 const title = computed(() => {
   const id = radio.value;
@@ -55,7 +55,7 @@ const listeners = { ...drag.on, ...menu.on };
     </header>
     <div class="card-body" v-on="menu.pressOn">
       <div ref="picture" class="monitor-picture" tabindex="0" aria-haspopup="menu"><HfWaterfall :speed="speed" :radio="radio" @shown="shown = $event" /></div>
-      <HfLevelBar :on="on" />
+      <HfLevelBar :on="on" :radio="radio" />
     </div>
     <Teleport to="body">
       <MonitorMenu v-if="menu.menu.value" :key="menu.key.value" v-bind="menu.menu.value" :speed="speed" @speed="speed = $event" @close="menu.close()" />

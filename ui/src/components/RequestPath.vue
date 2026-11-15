@@ -3,7 +3,7 @@
 // OH2RDK-7,OH2RCH-2 for a station that a fill-in digipeater relays only when it is named, WIDE1-1,WIDE2-1) or DIRECT for none; empty is the request's own default (`usual`, empty for direct), which the placeholder shows. The path
 // builder's button (PathBuilder) beside the field builds one to put in it, held to the same rule. RF only (ticked unless the person
 // unticks it) puts RFONLY after the path, so that the iGates keep the request off the internet. A path that cannot go is orange with the reason in its title, as the other path fields are, and the caller keeps Ask off with the same
-// reason. The fold starts open when either is not the default, so that what will be sent is in sight; its title never changes. While the radio the request goes on carries no path (`disabled`), both rows are greyed in their places
+// reason. The fold starts open when either is not the default, so that what will be sent is in sight; its title never changes. While the radio the request goes on carries no path (`disabled`), both rows are greyed in their places (`pathless` their title, "HF: no path", as Route's)
 // with their values kept, as Route's are, and nothing in them is marked wrong.
 import { useId } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
@@ -12,7 +12,10 @@ import PathBuilder from "@/components/PathBuilder.vue";
 import { requestPathProblem } from "@/composables/useRequestPath";
 import { t } from "@/i18n";
 
-const props = withDefaults(defineProps<{ path: string; rfOnly: boolean; usual: string; problem: string; disabled?: boolean }>(), { disabled: false });
+const props = withDefaults(defineProps<{ path: string; rfOnly: boolean; usual: string; problem: string; disabled?: boolean; pathless?: string }>(), {
+  disabled: false,
+  pathless: undefined,
+});
 const emit = defineEmits<{ "update:path": [path: string]; "update:rfOnly": [on: boolean] }>();
 const id = useId();
 const opened = props.path.trim() !== "" || !props.rfOnly;
@@ -29,7 +32,7 @@ function ticked(event: Event): void {
 
 <template>
   <DisclosureBox class="settings-fold" :title="t('settings.fold.advanced')" :open="opened">
-    <div class="field" :class="{ invalid: problem !== '', disabled }" :title="problem || undefined">
+    <div class="field" :class="{ invalid: problem !== '', disabled }" :title="problem || (disabled ? pathless : undefined)">
       <label :for="`${id}-path`">{{ t("route.path") }}</label>
       <div class="field-control">
         <input
@@ -44,13 +47,20 @@ function ticked(event: Event): void {
           spellcheck="false"
           @input="typed"
         />
-        <PathBuilder :value="path" :usual="usual" :disabled="disabled" :check="(text) => requestPathProblem(text, rfOnly)" @use="emit('update:path', $event)" />
+        <PathBuilder
+          :value="path"
+          :usual="usual"
+          :disabled="disabled"
+          :why="pathless"
+          :check="(text) => requestPathProblem(text, rfOnly)"
+          @use="emit('update:path', $event)"
+        />
         <InfoTip :label="about(t('route.path'))"
           ><span class="info-line">{{ t("route.request_path_tip") }}</span></InfoTip
         >
       </div>
     </div>
-    <div class="field" :class="{ disabled }">
+    <div class="field" :class="{ disabled }" :title="disabled ? pathless : undefined">
       <label :for="`${id}-rfonly`">{{ t("route.rf_only") }}</label>
       <div class="field-control">
         <input :id="`${id}-rfonly`" class="check" type="checkbox" :checked="rfOnly" :disabled="disabled" @change="ticked" />

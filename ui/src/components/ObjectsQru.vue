@@ -13,10 +13,11 @@ import StatusFold from "@/components/StatusFold.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
 import { useRequestPath, type RequestPath as Request } from "@/composables/useRequestPath";
+import RadioPick from "@/components/RadioPick.vue";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
 import { attend } from "@/lib/attention";
-import { tncNotConnected } from "@/lib/compose";
+import { radioBlockedReason } from "@/lib/compose";
 import { effectivePath } from "@/lib/messages";
 import { askWait, kmWrong, qruLook, requestText, sentLine } from "@/lib/qru";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
@@ -26,12 +27,10 @@ import { LIMITS } from "@/protocol/lists";
 import type { Command } from "@/protocol/protocol";
 
 const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPath } = useDaemonContext();
-const { told, several, enabled, main, allowsPath, byId, named } = useRadios();
-/** The radio chosen beside Ask (null: the main radio), and the one Ask goes on: the one chosen while it is on, else the main radio. */
-const picked = ref<RadioId | null>(null);
-const radio = computed(() => (picked.value !== null && enabled.value.some((r) => r.id === picked.value) ? picked.value : (main.value?.id ?? null)));
-/** The choice: the main radio first, then the others in the order of their boxes. */
-const choices = computed(() => [...enabled.value].sort((a, b) => Number(b.id === main.value?.id) - Number(a.id === main.value?.id)));
+const radios = useRadios();
+const { told, several, enabled, allowsPath, byId, named, choose } = radios;
+/** The radio chosen beside Ask (`picked`, null: the main radio), the one it goes on, and the radios to choose from, the main radio first (useRadios `choose`). */
+const { picked, radio, choices } = choose();
 
 /** The path and RF only of each radio, remembered by this browser apart: radio 1, the FM radio of before, keeps what this browser kept before the radios had ids. */
 const scope = effectScope(); // (the pane's own: it ends with the pane)
@@ -48,6 +47,8 @@ function requestOn(id: RadioId | null): Request {
 const request = computed(() => requestOn(radio.value));
 /** Whether a request on the radio has a path and RF only to set: some radio that is on may carry one (else the fold is not there), and this one does (else it is greyed). */
 const routable = (id: RadioId | null): boolean => allowsPath.value && (id === null || byId(id)?.carriesPath !== false);
+/** Why the fold is greyed on that radio, as Route says it ("HF: no path"). */
+const pathless = (id: RadioId | null): string | undefined => (id === null ? undefined : t("radio.no_path", { name: byId(id)?.name ?? "" }));
 /** The path a request goes by when none is typed: the one set for the station QRU, else the beacon's. */
 const usual = computed(() => effectivePath(prefs.paths.value, fallbackPath.value, "QRU").text);
 const typed = ref<string | null>(null); // (what the person typed; null until then, and the field is the map's radius)
@@ -82,8 +83,7 @@ const look = computed(() => {
 /** Why nothing may go on the radio: it is not connected (named where several are on), or there is none; undefined before the daemon has told its radios. */
 const offline = (id: RadioId | null): string | undefined => {
   const on = id === null ? undefined : byId(id);
-  if (!told.value || on?.connected === true) return undefined;
-  return on === undefined ? t("error.radio.none") : named(on.id) ? t("radio.not_connected", { name: on.name }) : tncNotConnected();
+  return radioBlockedReason(on, on !== undefined && named(on.id), told.value);
 };
 /** Why a request on the radio that waits `seconds` may not go, or undefined when it may (RX only, the radio, the path, its wait). */
 const heldBy = (id: RadioId | null, seconds: number): string | undefined => {
@@ -95,13 +95,13 @@ const why = computed(() => heldBy(radio.value, wait.value));
 const groupWhy = (word: string): string | undefined => heldBy(againOn.value, waitFor(word));
 
 watch(lastError, (toast) => {
-  if (toast?.cmd === "qru_ask") refusal.value = errorReason(toast);
+  if (toast?.cmd === "qru_ask") refusal.value = errorReason(toast, radios);
 });
 watch(
   () => asked.value?.at,
   () => (refusal.value = ""),
 );
-/** The choice follows each request (and the one kept when the pane opens) to its radio while that is on, so that the fold in sight is the one a group's button and Ask again go by; a choice that goes off is forgotten, and does not come back by itself. */
+/** The choice follows each request (and the one kept when the pane opens) to its radio while that is on, so that the fold in sight is the one a group's button and Ask again go by (a choice that goes off is forgotten: useRadios `choose`). */
 watch(
   () => [asked.value?.at, told.value],
   () => {
@@ -110,9 +110,6 @@ watch(
   },
   { immediate: true },
 );
-watch(enabled, (on) => {
-  if (picked.value !== null && !on.some((r) => r.id === picked.value)) picked.value = null;
-});
 
 /** The request as the command carries it: the text, the path and RF only only when the fold says other than the usual (an empty path and RF only ticked: the path of messages to QRU with RFONLY), and the radio while several are on. */
 function command(text: string, id: RadioId | null): Command {
@@ -159,15 +156,7 @@ function inStations(names: readonly string[]): void {
       </InfoTip>
     </legend>
     <div class="qru-ask">
-      <select
-        v-if="several"
-        class="input qru-radio"
-        :value="radio"
-        :aria-label="t('objects.field.radio')"
-        @change="picked = Number(($event.target as HTMLSelectElement).value)"
-      >
-        <option v-for="choice in choices" :key="choice.id" :value="choice.id">{{ choice.name }}</option>
-      </select>
+      <RadioPick v-if="several" class="qru-radio" :radio="radio" :choices="choices" @pick="picked = $event" />
       <button type="button" class="btn" :disabled="why !== undefined || wrong" :title="why" @click="ask('INFO')">{{ t("objects.qru_ask") }}</button>
       <input
         v-model="km"
@@ -190,6 +179,7 @@ function inStations(names: readonly string[]): void {
       :usual="usual"
       :problem="routable(radio) ? request.problem.value : ''"
       :disabled="!routable(radio)"
+      :pathless="pathless(radio)"
     />
     <StatusFold v-if="look" class="qrustatus" :state="look.state" :tone="look.tone" :line="look.line">
       <template v-if="asked" #default>

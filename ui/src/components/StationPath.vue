@@ -3,7 +3,7 @@
 // message go by the path that has lately been heard to reach the station (`heard`, the daemon's), the others by the beacon's path (`fallback`). A path typed is the station's own and is used for every attempt ("Your path:"); the word
 // DIRECT is an own path with no digipeaters. It is saved when the field is changed and left, or Enter is pressed (the browser's change event), and the x (or an empty field) gives the choice back to the automatic one. What is put
 // in the slot (the RF only tickbox) sits beside it. The path builder's button (PathBuilder) beside the field builds a path to put in it, from the path in force, with "As its packets come" (the station's best route turned round); Use saves
-// it as Enter would. `pathless` greys the row while the radio in force carries no path, with that as the title of each greyed control; the line still says what the messages go by, which on such a radio is direct.
+// it as Enter would. `pathless` greys the row while the radio in force carries no path (the look of a greyed field, `.disabled`), with that as the title of each greyed control; the line still says what the messages go by, which on such a radio is direct.
 import { computed, ref, useId, watch } from "vue";
 import PathBuilder from "@/components/PathBuilder.vue";
 import { t } from "@/i18n";
@@ -57,7 +57,7 @@ function build(path: string): void {
 </script>
 
 <template>
-  <div class="pathbox">
+  <div class="pathbox" :class="{ disabled: pathless !== undefined }">
     <label :for="id" class="path-label">{{ t("route.path") }}</label>
     <input
       :id="id"
@@ -72,7 +72,7 @@ function build(path: string): void {
       spellcheck="false"
       @change="save"
     />
-    <PathBuilder :value="draft" :usual="effective.text" :station="call" :disabled="pathless !== undefined" @use="build" />
+    <PathBuilder :value="draft" :usual="effective.text" :station="call" :disabled="pathless !== undefined" :why="pathless" @use="build" />
     <button
       v-if="effective.own"
       type="button"

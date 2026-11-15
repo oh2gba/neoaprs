@@ -12,6 +12,7 @@ import type { StationKeys } from "@/composables/useStationKeys";
 import type { StationPrefs } from "@/composables/useStationPrefs";
 import type { Aging } from "@/lib/aging";
 import type { Home } from "@/lib/mapview";
+import type { RadioId } from "@/lib/radios";
 import type { RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
 import type { ScopeMemory } from "@/lib/scopememory";
@@ -58,10 +59,12 @@ export interface DaemonContext {
   radios: Read<ReadonlyMap<string, RadioRow> | null>;
   /** the answer to this page's latest `radio_add`: the id of the radio it made, whose row comes with the next patch of `radios` (composables/useRadios.ts `added` waits for it); null before */
   radioAdded: Read<RadioAddedMessage | null>;
-  /** whether the radios are named on the page: only where there are two, while the HF radio is on (the FM radio's channel tag is "FM" beside "HF", else "RF") */
+  /** whether the radios are named on the page: more than one radio is on (plan section 6) */
   radiosNamed: Read<boolean>;
-  /** what the page keeps of the HF radio's waterfall (the rows of the last two minutes, the stations heard), which the panes draw from and listen to */
+  /** what the page keeps of the HF radio's waterfall of before, radio 2's (the rows of the last two minutes, the stations heard), which the panes draw from and listen to */
   scopeRows: ScopeMemory;
+  /** what the page keeps of a radio's waterfall, each radio's apart (radio 2's is `scopeRows`) */
+  scopeOf: (radio: RadioId) => ScopeMemory;
   /** who looks at the scope (the box in Settings, the monitor card over the map), counted in one place: the rows are asked for only while someone does */
   scope: ScopeLooks;
   /** the GPS receiver and the moving station's beacon; null until the daemon has told */

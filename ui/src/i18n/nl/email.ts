@@ -26,7 +26,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.used_before": "Eerder gebruikt",
   "email.forget": "{address} vergeten",
   "email.send": "Verzenden",
-  "email.fm_off": "E-mail gaat via de FM-set, en die staat uit",
+  "email.fm_off": "No radio that internet gateways hear is on",
+  "email.radio_title": "Email goes on radio {name}",
 
   "email.state.waiting": "Wacht op de set",
   "email.state.sending": "Verzenden ({attempt} van {max})",

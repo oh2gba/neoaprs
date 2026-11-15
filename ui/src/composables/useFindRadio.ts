@@ -51,7 +51,6 @@ export function useFindRadio(
   settings: Pick<Settings, "change" | "expected">,
   config: Ref<ConfigValues | null>,
   say: (text: string) => void,
-  _guide?: unknown, // (the guide of before, whose Radio step had answers of its own; useAppShell.ts still passes it)
 ) {
   const running = ref(false);
   /** The radio the search is for. */

@@ -99,21 +99,6 @@
   flex-wrap: wrap;
   gap: 4px;
 }
-/* Send on in the object form's Advanced: a tick for each radio that is on, by its name (at most eight characters), as many to a line as fit, the names in the weight of a value, not of a label */
-.send-on-ticks {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  min-width: 0;
-}
-.field .send-on-tick {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: normal;
-  white-space: nowrap;
-}
 .ownobject.selectable {
   cursor: pointer;
 }

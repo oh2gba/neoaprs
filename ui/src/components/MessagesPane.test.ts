@@ -650,12 +650,12 @@ describe("MessagesPane, with more than one radio", () => {
     const wrapper = await many("OH2RDG", 375);
     expect(wrapper.find(".msgpane").classes()).toContain("narrow");
     const head = wrapper.find(".convo-head");
-    expect([head.find(".convo-back").exists(), head.find(".convo-title").text(), head.find(".convo-radio").text(), head.find(".route-button").text()]).toEqual([
-      true,
-      "OH2RDG",
-      "Mobile",
-      "Route",
-    ]);
+    expect([
+      head.find(".convo-back").exists(),
+      head.find(".convo-title").text(),
+      head.find(".convo-radio .tag").text(),
+      head.find(".route-button").text(),
+    ]).toEqual([true, "OH2RDG", "Mobile", "Route"]);
     expect(wrapper.findAll(".bubble-route").map((line) => line.text())).toEqual(["Mobile via OH2RCH-2"]);
   });
 
@@ -675,12 +675,12 @@ describe("MessagesPane, with more than one radio", () => {
     await wrapper.find("#msg-text").setValue("Moi");
     const send = wrapper.find<HTMLButtonElement>(".compose button[type='submit']");
     expect([send.element.disabled, send.attributes("title")]).toEqual([true, "80 m: not connected"]);
-    expect(wrapper.find(".convo-radio").text()).toBe("80 m");
+    expect(wrapper.find(".convo-radio .tag").text()).toBe("80 m");
   });
 
   it("is the same wide: the list beside the conversation, the radio in the header", async () => {
     const wrapper = await many("OH2RDG", WIDE);
-    expect([wrapper.find(".msgpane").classes(), wrapper.find(".convlist").exists(), wrapper.find(".convo-radio").text()]).toEqual([
+    expect([wrapper.find(".msgpane").classes(), wrapper.find(".convlist").exists(), wrapper.find(".convo-radio .tag").text()]).toEqual([
       expect.arrayContaining(["wide"]),
       true,
       "Mobile",

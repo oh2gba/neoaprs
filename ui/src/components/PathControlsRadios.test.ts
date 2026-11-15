@@ -147,9 +147,42 @@ describe("Route in a conversation", () => {
     expect(box.findAll(".route-radio select")).toHaveLength(1);
   });
 
-  it("has no radio to choose for a call the book does not hold, whose choice no row could say back", async () => {
-    const box = await opened(conversation(BOTH, "OH2NEW"));
-    expect([box.find("select").exists(), box.findAll("label").map((l) => l.text())]).toEqual([false, ["Path", "RF only"]]);
+  it("has the radio's row greyed on Automatic for a call the book does not hold, whose choice no row could say back, and live once the station is heard, nothing above Path moving", async () => {
+    const wrapper = conversation(BOTH, "OH2NEW", stations(fmHeard));
+    const box = await opened(wrapper);
+    const list = box.find<HTMLSelectElement>(".route-radio select");
+    expect([list.element.disabled, box.find(".route-radio").classes(), options(box), box.findAll("label").map((l) => l.text())]).toEqual([
+      true,
+      expect.arrayContaining(["disabled"]),
+      ["Automatic: FM", "FM", "HF"],
+      ["Radio", "Path", "RF only"],
+    ]);
+    const before = box.findAll(".prefs > *").map((row) => row.classes()[0]);
+    await tell(daemon, { stations: stations(fmHeard, station("OH2NEW", { heard_fm: 1, heard_hf: 0, radio_now: 1 })) });
+    const now = wrapper.find(".route-box");
+    expect([now.find<HTMLSelectElement>(".route-radio select").element.disabled, now.find(".route-radio").classes()]).toEqual([
+      false,
+      ["pathbox", "route-radio"],
+    ]);
+    expect(now.findAll(".prefs > *").map((row) => row.classes()[0])).toEqual(before);
+    expect(sent("station_radio")).toEqual([]);
+  });
+
+  it("has Route's button for a call the book does not hold where no radio that is on carries a path, so that it does not come when the station is heard", () => {
+    const twoHf = radiosTopic(radioRow(2, "mercury", { name: "20 m" }), radioRow(4, "dummy-hf", { name: "40 m", number: 2 }));
+    expect(hasRoute(conversation(BOTH, "OH2NEW", stations(), { radios: twoHf }))).toBe(true);
+  });
+
+  it("greys Route's rows on a radio that carries no path with the look of every greyed field (`.disabled`, as Ask's and the object's Path), and the path builder says why too", async () => {
+    const box = await opened(conversation(BOTH, "OH2HF"));
+    const row = box.find(".pathbox:not(.route-radio)");
+    expect(row.classes()).toContain("disabled");
+    expect(box.find(".pathbuild-open").attributes("title")).toBe("HF: no path");
+    const live = await opened(conversation(BOTH, "OH2FM"));
+    expect([live.find(".pathbox:not(.route-radio)").classes(), live.find(".pathbuild-open").attributes("title")]).toEqual([["pathbox"], "Build the path"]);
+    const sheet = readFileSync(resolve(__dirname, "../styles/settings.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const dimmed = sheet.match(/([^{}]*)\{\s*opacity: 0\.5;\s*\}/g)?.find((rule) => rule.includes(".field.disabled label")) ?? "";
+    for (const part of [".pathbox.disabled .path-label", ".pathbox.disabled .rfonly"]) expect(dimmed, part).toContain(part);
   });
 
   it("sets and clears the path of the radio in force: radio 1's as before, another's with the radio named, its own path setting as the automatic one", async () => {

@@ -11,7 +11,7 @@ import { pageRadio } from "@/lib/radios";
 import { hfState, radioRow } from "@/test/fixtures";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const asked = (send: { mock: { calls: unknown[][] } }) => send.mock.calls.map(([c]) => c).filter((c) => (c as { cmd: string }).cmd === "hf_frequencies");
+const asked = (send: { mock: { calls: unknown[][] } }) => send.mock.calls.map(([c]) => c).filter((c) => (c as { cmd: string }).cmd === "frequencies");
 
 function withModem(frequencies: { band: string; dial: string }[]) {
   const state = hfState();
@@ -89,13 +89,25 @@ describe("asking the daemon to look at the project's file", () => {
     callback?.([{ isIntersecting: false }]);
     expect(asked(daemon.send)).toEqual([]);
     callback?.([{ isIntersecting: true }]);
-    expect(asked(daemon.send)).toEqual([{ cmd: "hf_frequencies" }]);
+    expect(asked(daemon.send)).toEqual([{ cmd: "frequencies" }]);
     vi.advanceTimersByTime(30_000);
     callback?.([{ isIntersecting: true }]);
     expect(asked(daemon.send)).toHaveLength(1);
     vi.advanceTimersByTime(31_000);
     callback?.([{ isIntersecting: true }]);
     expect(asked(daemon.send)).toHaveLength(2);
+  });
+
+  it("asks when the socket opens if the row came into view before it was open (a reload with Settings in front), and once", async () => {
+    const daemon = fakeDaemon({ hf: hfState(), connection: "connecting" });
+    mount(HfFrequencies, { global: withDaemon(daemon) });
+    callback?.([{ isIntersecting: true }]);
+    expect(asked(daemon.send)).toEqual([]);
+    await tell(daemon, { connection: "open" });
+    expect(asked(daemon.send)).toEqual([{ cmd: "frequencies" }]);
+    await tell(daemon, { connection: "closed" });
+    await tell(daemon, { connection: "open" });
+    expect(asked(daemon.send)).toHaveLength(1);
   });
 
   it("stops watching when the row goes", () => {
@@ -109,7 +121,7 @@ describe("asking the daemon to look at the project's file", () => {
     globalThis.IntersectionObserver = undefined as unknown as typeof IntersectionObserver;
     const daemon = fakeDaemon({ hf: hfState() });
     mount(HfFrequencies, { global: withDaemon(daemon) });
-    expect(asked(daemon.send)).toEqual([{ cmd: "hf_frequencies" }]);
+    expect(asked(daemon.send)).toEqual([{ cmd: "frequencies" }]);
   });
 });
 

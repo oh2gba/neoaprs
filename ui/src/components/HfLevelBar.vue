@@ -1,15 +1,17 @@
 <script setup lang="ts">
-// The receive level of the HF radio's audio, one row of the scope: a bar with its good range, and the number. The level comes with every row of the waterfall (the page's `scopeRows`) while `on` (the caller asks for the rows), and from the
+// The receive level of a radio's audio, one row of the scope: a bar with its good range, and the number. The level comes with every row of the waterfall of `radio` (the page's memory of that radio's rows; none: radio 2's) while `on` (the caller asks for the rows), and from the
 // newest of the rows the daemon kept when they come; while the radio transmits the rows are of our own signal, so the bar is dimmed and holds the last level received. The box in Settings (components/HfScope.vue) has the (i) of it (`tip`); the monitor card over the map (components/MonitorCard.vue) has the row alone.
 import { computed, onBeforeUnmount, ref, useId, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
 import { GOOD_PERCENT, dbText, levelPercent, levelZone } from "@/lib/hflevel";
+import type { RadioId } from "@/lib/radios";
+import { HF_ID } from "@/lib/radiosides";
 import type { ScopeRow } from "@/lib/scoperow";
 
-const props = defineProps<{ on: boolean; tip?: boolean }>();
-const { scopeRows } = useDaemonContext();
+const props = defineProps<{ on: boolean; radio?: RadioId | null; tip?: boolean }>();
+const { scopeOf } = useDaemonContext();
 const id = useId();
 const level = ref<number | null>(null);
 const transmitting = ref(false);
@@ -26,10 +28,11 @@ function listen(on: boolean): void {
     transmitting.value = row.tx;
     if (!row.tx) level.value = row.level;
   };
-  stop = scopeRows.listen({
+  const memory = scopeOf(props.radio ?? HF_ID);
+  stop = memory.listen({
     row: (kept) => take(kept.row),
     whole: () => {
-      const rows = scopeRows.rows;
+      const rows = memory.rows;
       let i = rows.length - 1;
       while (i >= 0 && rows[i].row.tx) i--;
       level.value = i >= 0 ? rows[i].row.level : null;
@@ -37,7 +40,11 @@ function listen(on: boolean): void {
     },
   });
 }
-watch(() => props.on, listen, { immediate: true });
+watch(
+  () => [props.on, props.radio] as const,
+  ([on]) => listen(on),
+  { immediate: true },
+);
 onBeforeUnmount(() => listen(false));
 
 const zone = computed(() => (level.value === null ? "low" : levelZone(level.value)));

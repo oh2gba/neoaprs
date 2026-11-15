@@ -1,5 +1,6 @@
-// The places of the page where the two radios show beyond the Radio group: the HF tag of a conversation, the mark of an attempt over HF and the tag under a message that came over HF, the email gateway with the FM radio off, the channel tags FM and HF
-// of the Stations table and the Packets tab while the HF radio is on (and RF as it always was while it is off). The setup guide's Radio step, live as the Radio group is, is SetupGuide.test.ts's.
+// The places of the page where the two radios of before show beyond the Radio group: a conversation's note, the mark of an attempt over HF and the tag under a message that came over HF, the email gateway with the FM radio
+// off, the channel tags FM and HF of the Stations table and the Packets tab while the HF radio is on (and RF as it always was while it is off). A conversation's radio, Route and Send are ConversationRadio.test.ts's and
+// PathControlsRadios.test.ts's; the setup guide's Radio step, live as the Radio group is, is SetupGuide.test.ts's.
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { shallowRef } from "vue";
@@ -10,7 +11,6 @@ import EmailPane from "@/components/EmailPane.vue";
 import MessageChain from "@/components/MessageChain.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
 import StationsTable from "@/components/StationsTable.vue";
-import { chainOf } from "@/lib/chain";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { ago, attemptRow, configValues, incoming, message, packet, station, table } from "@/test/fixtures";
 
@@ -27,44 +27,6 @@ describe("the conversation header", () => {
     const daemon = fakeDaemon({ config: configValues(values), stations: shallowRef(new Map([heardOnHf, heardOnFm].map((row) => [row.call, row]))) });
     return mount(ConversationView, { props: { selected: call, narrow: false, thread: [] }, global: withDaemon(daemon) });
   };
-  const tag = (wrapper: ReturnType<typeof header>) => wrapper.find(".convo-head .convo-radio");
-
-  it("has FM and HF before Send in place of the tag while both radios are on, HF pressed for a station heard on the HF radio alone and no Route", () => {
-    const wrapper = header(BOTH, "OH2HF");
-    expect(tag(wrapper).exists()).toBe(false);
-    const radios = wrapper.findAll(".compose-radio button");
-    expect(radios.map((b) => [b.text(), b.attributes("aria-pressed")])).toEqual([
-      ["FM", "false"],
-      ["HF", "true"],
-    ]);
-    expect(wrapper.findAll("button").some((b) => b.text() === "Route")).toBe(false);
-  });
-
-  it("has the HF tag with the title that says where its messages go while the FM radio is off, and no FM and HF to choose from", () => {
-    const wrapper = header(FM_OFF, "OH2HF");
-    expect(tag(wrapper).text()).toBe("HF");
-    expect(tag(wrapper).classes()).toContain("tag-hf");
-    expect(tag(wrapper).attributes("title")).toBe("Messages to this station go over the HF radio: direct, no path");
-    expect(wrapper.find(".compose-radio").exists()).toBe(false);
-  });
-
-  it("sends the other radio for the station when it is pressed, and follows the station's choice: Route comes back with FM", async () => {
-    const chosen = station("OH2GAX-2", { heard_fm: 40, heard_hf: 21, message_radio: "hf" });
-    const daemon = fakeDaemon({ config: configValues(BOTH), stations: shallowRef(new Map([[chosen.call, chosen]])) });
-    const sent = () => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "message_radio");
-    const wrapper = mount(ConversationView, { props: { selected: "OH2GAX-2", narrow: false, thread: [] }, global: withDaemon(daemon) });
-    const [fm, hf] = wrapper.findAll(".compose-radio button");
-    expect(hf?.attributes("aria-pressed")).toBe("true");
-    expect(wrapper.findAll("button").some((b) => b.text() === "Route")).toBe(false);
-    await hf?.trigger("click");
-    expect(sent()).toEqual([]);
-    await fm?.trigger("click");
-    expect(sent()).toEqual([{ cmd: "message_radio", call: "OH2GAX-2", radio: "fm" }]);
-  });
-
-  it("has no FM and HF for a call nothing is known of: there is no station to keep the choice with", () => {
-    expect(header(BOTH, "OH2NEW").find(".compose-radio").exists()).toBe(false);
-  });
 
   it("says above the box to write in that a station whose position takes no messages may not take them, with the (i) that says why, and lets the message go", async () => {
     const quiet = station("OH2PLN", { heard_fm: 2, may_not_message: true });
@@ -77,75 +39,10 @@ describe("the conversation header", () => {
     expect(wrapper.find<HTMLButtonElement>("button[type='submit']").element.disabled).toBe(false);
     expect(header({}, "OH2FM").find(".convo-maynot").exists()).toBe(false);
   });
-
-  it("has Route and no tag for a station heard on FM, on both or never, as it is today", () => {
-    for (const call of ["OH2FM", "OH2NEW"]) {
-      const wrapper = header(BOTH, call);
-      expect(tag(wrapper).exists(), call).toBe(false);
-      expect(
-        wrapper.findAll("button").some((b) => b.text() === "Route"),
-        call,
-      ).toBe(true);
-    }
-  });
-
-  it("has the tag for every station while the FM radio is off, and none while the HF radio is off whatever was heard", () => {
-    for (const call of ["OH2HF", "OH2FM", "OH2NEW"]) expect(tag(header(FM_OFF, call)).exists(), call).toBe(true);
-    const off = header({}, "OH2HF");
-    expect(tag(off).exists()).toBe(false);
-    expect(off.findAll("button").some((b) => b.text() === "Route")).toBe(true);
-  });
-});
-
-describe("Send follows the link of the radio the message takes", () => {
-  // both radios ticked, the FM TNC unplugged, the HF modem up
-  const hfUpOnly = (radio: "fm" | "hf") => radio === "hf";
-  const world = (connectedOn: (radio: "fm" | "hf") => boolean) =>
-    fakeDaemon({ config: configValues(BOTH), connectedOn, stations: shallowRef(new Map([heardOnHf, heardOnFm].map((row) => [row.call, row]))) });
-  const sendOf = (wrapper: ReturnType<typeof mount>) => wrapper.find<HTMLButtonElement>("button[type='submit']");
-
-  it("keeps Send to an FM station off with the TNC not connected, and leaves it on to an HF station", async () => {
-    for (const [call, off] of [
-      ["OH2FM", true],
-      ["OH2NEW", true],
-      ["OH2HF", false],
-    ] as const) {
-      const wrapper = mount(ConversationView, {
-        props: { selected: call, narrow: false, thread: [] },
-        global: withDaemon(world(hfUpOnly)),
-        attachTo: document.body,
-      });
-      await wrapper.find("textarea, input[type='text']").setValue("hello");
-      expect([call, sendOf(wrapper).element.disabled]).toEqual([call, off]);
-    }
-  });
-
-  it("keeps Check email and Send of an email off, since the gateway is reached over FM", async () => {
-    const wrapper = mount(EmailPane, { props: { thread: [], addresses: [] }, global: withDaemon(world(hfUpOnly)), attachTo: document.body });
-    const check = wrapper.findAll("button").find((b) => b.text() === "Check email");
-    expect([check?.element.disabled, check?.attributes("title")]).toEqual([true, "The TNC is not connected"]);
-    await wrapper.find("#mail-to").setValue("a@example.org");
-    await wrapper.find("#mail-text").setValue("hello");
-    expect(sendOf(wrapper).element.disabled).toBe(true);
-  });
 });
 
 describe("the chain of a message sent over HF", () => {
   const attempt = (radio: "" | "fm" | "hf") => attemptRow({ acked: true, radio });
-
-  it("marks the you chip HF, with the hover that says over HF, and leaves an FM attempt and one kept before there were two radios as they were", () => {
-    const row = message(1, { to_call: "OH2CUB-7", state: "acked", acked_at: "2026-10-22T12:00:05Z" });
-    const hf = chainOf(row, attempt("hf"), true);
-    expect(hf.map((chip) => [chip.text, chip.mark])).toEqual([
-      ["you", "HF"],
-      ["OH2CUB-7", "✓"],
-    ]);
-    expect(hf[0]?.title).toMatch(/^sent \d{4}-\d\d-\d\d \d\d:\d\d:\d\d over HF$/);
-    for (const radio of ["fm", ""] as const) {
-      const chips = chainOf(row, attempt(radio), true);
-      expect([chips[0]?.mark, chips[0]?.title]).toEqual(["", expect.stringMatching(/^sent \d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/)]);
-    }
-  });
 
   it("is drawn with the mark after the chip", () => {
     const row = message(1, { to_call: "OH2CUB-7", state: "acked", acked_at: "2026-10-22T12:00:05Z", attempts_detail: [attempt("hf")] });
@@ -181,13 +78,13 @@ describe("the email gateway with the FM radio off", () => {
       attachTo: document.body,
     });
 
-  it("keeps Send off with the title that says the gateway goes out over FM, once there is an address and a text", async () => {
+  it("keeps Send off with the title that says no radio the gateways hear is on, once there is an address and a text", async () => {
     const wrapper = compose(FM_OFF);
     await wrapper.find("#mail-to").setValue("a@example.org");
     await wrapper.find("#mail-text").setValue("hello");
     const send = wrapper.find<HTMLButtonElement>("button[type='submit']");
     expect(send.element.disabled).toBe(true);
-    expect(send.attributes("title")).toBe("Email goes out over the FM radio, which is off");
+    expect(send.attributes("title")).toBe("No radio that internet gateways hear is on");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("send")).toBeUndefined();
   });
@@ -208,7 +105,7 @@ describe("the email gateway with the FM radio off", () => {
       global: withDaemon(fakeDaemon({ config: configValues(FM_OFF) })),
     });
     const check = wrapper.findAll("button").find((b) => b.text() === "Check email");
-    expect([check?.element.disabled, check?.attributes("title")]).toEqual([true, "Email goes out over the FM radio, which is off"]);
+    expect([check?.element.disabled, check?.attributes("title")]).toEqual([true, "No radio that internet gateways hear is on"]);
   });
 });
 

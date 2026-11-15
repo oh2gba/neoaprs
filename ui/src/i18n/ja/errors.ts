@@ -32,7 +32,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.far": "そのテストの開始は30日より先です",
   "error.sked.unreachable": "HFテスト掲示板にいま接続できません。しばらくしてからもう一度お試しください",
   "error.radio.busy": "無線機の検索はすでに実行中です",
-  "error.radio.last_enabled": "局には少なくとも1台の無線機が必要です：FM無線機かHF無線機にチェックを入れてください",
+  "error.radio.last_enabled": "at least one radio stays on: turn another radio on first",
   "error.radio.name_form":
     "the name '{name}' cannot be a radio's: a name is at most {max} printable ASCII characters (letters, digits and the signs of the keyboard)",
   "error.radio.name_label": "the name '{name}' is how a radio without a name of its own is called: give this one another",
@@ -61,7 +61,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.alert.own": "{call}は自局です: 通知は他局に設定します",
   "error.message.control": "テキストに制御文字があります",
   "error.message.empty": "メッセージが空です",
-  "error.message.email_fm_off": "メールはFM無線機で送られますが、FM無線機はオフです",
+  "error.message.email_fm_off": "no radio that internet gateways hear is on",
   "error.message.forbidden": "テキストに{chars}があります。メッセージでは使えません(使えないのは{forbidden}です)",
   "error.message.not_ascii": {
     select: "chars",

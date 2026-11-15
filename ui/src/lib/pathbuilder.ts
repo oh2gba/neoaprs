@@ -52,7 +52,7 @@ const time = (iso: string | null): number => (iso === null ? 0 : Date.parse(iso)
 /** The digipeaters we hear direct, the most useful first. */
 export function firstHops(rows: Iterable<StationRow>): HopChoice[] {
   return digipeaters(rows)
-    .filter((digi) => digi.repeated > 0 || (digi.row?.heard_direct ?? 0) > 0)
+    .filter((digi) => digi.repeated > 0 || (digi.row?.last_direct_at ?? null) !== null) // (heard direct on a radio that may carry a path: plan 6b)
     .map((digi) => ({ call: digi.call, count: digi.repeated, at: digi.row?.last_direct_at ?? null, km: digi.row?.distance_km ?? null }))
     .sort((a, b) => b.count - a.count || time(b.at) - time(a.at) || nearer(a.km, b.km) || a.call.localeCompare(b.call));
 }

@@ -1,6 +1,7 @@
 // How the settings that belong together are handled when they apply as they are changed: the fields that are sent in one `set_config`, the values that go with a choice so that the choice is valid at once, the field a
 // refusal of the daemon is shown under when it names another setting than the one that was changed, the changes that ask first.
 import { t } from "@/i18n";
+import type { RadioNames } from "@/i18n/errortext";
 import { isLoopbackHost } from "@/lib/pagealert";
 import { reasonOf } from "@/lib/settings";
 import { radioFieldOf } from "@/lib/settingsradio";
@@ -52,11 +53,15 @@ export function linkedValues(key: string, text: string, draft: Readonly<Record<s
 }
 
 /** The field a refusal is shown under, and what it says there. `error` is the daemon's `error` for the `set_config` (its `key` is the setting it names, null when it names none, its `code` and `params` say what is wrong), `keys` the
- * settings that were sent. The comment that is too long for the power just set is shown under the power; the radio without a rigctld under the rigctld that was just cleared. */
-export function refusalFor(error: Pick<ErrorMessage, "text" | "cmd" | "key" | "code" | "params">, keys: readonly string[]): { key: string; reason: string } {
+ * settings that were sent. The comment that is too long for the power just set is shown under the power; the radio without a rigctld under the rigctld that was just cleared. `radios` names a radio the refusal names in the page's words. */
+export function refusalFor(
+  error: Pick<ErrorMessage, "text" | "cmd" | "key" | "code" | "params">,
+  keys: readonly string[],
+  radios?: RadioNames,
+): { key: string; reason: string } {
   const first = keys[0] ?? "";
   const named = error.key;
-  const reason = reasonOf(error);
+  const reason = reasonOf(error, radios);
   if (named === null) return { key: first, reason };
   if (keys.includes(named)) return { key: named, reason };
   if (named === "station/comment" && keys.includes("beacon/power_w")) {

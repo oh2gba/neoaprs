@@ -9,12 +9,14 @@ import type { Notice } from "@/composables/useNotice";
 import { t } from "@/i18n";
 import { errorLine } from "@/i18n/errortext";
 import { useOpenSetting } from "@/composables/useOpenSetting";
+import { useRadios } from "@/composables/useRadios";
 import { rxOnlyLink } from "@/lib/settinglink";
 
 const props = defineProps<{ toast: Toast | null; notice?: Notice | null; seconds?: number }>();
 
 const shown = ref<Toast | Notice | null>(null);
 const goTo = useOpenSetting();
+const radios = useRadios(); // (a refusal that names a radio says it as the page does)
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 function show(next: Toast | Notice | null): void {
@@ -42,9 +44,9 @@ onBeforeUnmount(() => clearTimeout(timer));
       :title="rxOnlyLink().title"
       @click="goTo('settings', rxOnlyLink().control)"
     >
-      {{ errorLine(shown) }}
+      {{ errorLine(shown, radios) }}
     </button>
-    <span v-else>{{ errorLine(shown) }}</span>
+    <span v-else>{{ errorLine(shown, radios) }}</span>
     <IconButton kind="close" :label="t('common.dismiss')" :title="t('common.dismiss')" @click="shown = null" />
   </div>
   <div v-else-if="shown" :key="shown.n" class="toast notice" role="status">

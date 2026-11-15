@@ -202,7 +202,6 @@ export const stations = {
   "channel.dummy": "Dummy",
   "channel.join": "{first} · {second}",
   "channel.title.rf": "Heard on the radio",
-  "channel.title.fm": "Heard on the FM radio",
   "channel.title.hf": "Heard on the HF radio",
   "channel.title.gated": "Heard on the radio from an iGate, which took it from the internet",
   "channel.title.is": "Received over the internet (APRS-IS), not on the radio",

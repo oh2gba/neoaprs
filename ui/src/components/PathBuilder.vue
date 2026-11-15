@@ -4,7 +4,8 @@
 // recommended path, the automatic one, the beacon's; empty is direct; whether home digipeaters may take the first hop starts as the usual path has it: WIDE1-1 first for a moving station, a wide hop for a fixed one), and Use gives the path built to the field (`use`: the calls separated by commas, DIRECT for none), which saves it the way the field saves what is typed;
 // Cancel, Esc and a press beside the dialog leave the field as it is. `check` is the field's own rule (what is wrong with a path, "" when nothing is): Use is off while it finds something. `station` is the call of the station
 // whose Route this is, for "As its packets come". The dialog is put at the end of the page's body (Teleport), so that it is not inside the field's form or its box: nothing of theirs styles it, Enter in it submits nothing,
-// and the presses and the focus in it do not reach the box that the Route button opens, which would take them for a press outside and close, taking the dialog with it.
+// and the presses and the focus in it do not reach the box that the Route button opens, which would take them for a press outside and close, taking the dialog with it. `why` is the reason the button is off, its title while it is
+// (the row's own, "HF: no path"), so that the button does not say less than the row it is in.
 // The digipeaters it offers are worked out from the stations that a radio which may carry a path heard (plan 6b): a station that only radios with no path heard (HF, where nothing repeats) is left out, so that one heard
 // direct far away on HF is not offered as the first hop; a station no radio heard (one only named in the routes of others) and our own stay.
 import { computed, inject, ref } from "vue";
@@ -17,11 +18,15 @@ import { callsProblem, hopsOf } from "@/lib/pathbuilder";
 import { homeFirst } from "@/lib/pathreach";
 import type { StationRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ value: string; usual: string; check?: (path: string) => string; station?: string; disabled?: boolean }>(), {
-  check: callsProblem,
-  station: undefined,
-  disabled: false,
-});
+const props = withDefaults(
+  defineProps<{ value: string; usual: string; check?: (path: string) => string; station?: string; disabled?: boolean; why?: string }>(),
+  {
+    check: callsProblem,
+    station: undefined,
+    disabled: false,
+    why: undefined,
+  },
+);
 const emit = defineEmits<{ use: [path: string] }>();
 
 const page = inject(DAEMON_KEY, null);
@@ -51,7 +56,15 @@ function use(path: string): void {
 </script>
 
 <template>
-  <IconButton ref="trigger" kind="path" class="pathbuild-open" :label="t('pathbuilder.open')" :disabled="disabled" @click="open = true" />
+  <IconButton
+    ref="trigger"
+    kind="path"
+    class="pathbuild-open"
+    :label="t('pathbuilder.open')"
+    :title="disabled ? why : undefined"
+    :disabled="disabled"
+    @click="open = true"
+  />
   <Teleport v-if="open" to="body">
     <PathBuilderDialog
       :start="start"

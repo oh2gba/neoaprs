@@ -8,14 +8,9 @@ import { useSetupAnswers } from "@/composables/useSetupAnswers";
 import { useSetupSave } from "@/composables/useSetupSave";
 import type { Toast } from "@/composables/useDaemon";
 import { LAST_STEP, RADIO_STEP } from "@/lib/setup";
-import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
+import type { Command, ConfigValues } from "@/protocol/protocol";
 
-export function useSetupGuide(
-  config: Ref<ConfigValues | null>,
-  lastError: Ref<Toast | null>,
-  _ports: Ref<PortsMessage | null>, // (the Radio step's boxes read the page's ports, as the Settings tab's do)
-  send: (command: Command) => boolean,
-) {
+export function useSetupGuide(config: Ref<ConfigValues | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean) {
   const open = ref(false);
   const step = ref(0);
   const peeking = ref(false); // only the head shows, so that the map can be clicked on a narrow page

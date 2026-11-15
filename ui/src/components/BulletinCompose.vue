@@ -5,7 +5,7 @@
 // (plan rule 3.5): Post is off while that radio is not connected, with that as its reason (the radio named while several are on), as Send is.
 import { useRadios } from "@/composables/useRadios";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
-import { rxOnlyReason, tncNotConnected } from "@/lib/compose";
+import { radioBlockedReason, rxOnlyReason } from "@/lib/compose";
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -26,11 +26,7 @@ const about = (field: MessageId) => t("settings.about", { label: t(field) });
 const rxOnly = useReceiveOnly();
 const { told, main, named } = useRadios();
 /** Why nothing may go on the main radio: it is not connected, or there is none; undefined before the daemon has told its radios. */
-const offline = computed(() => {
-  const radio = main.value;
-  if (!told.value || radio?.connected === true) return undefined;
-  return radio === null ? t("error.radio.none") : named(radio.id) ? t("radio.not_connected", { name: radio.name }) : tncNotConnected();
-});
+const offline = computed(() => radioBlockedReason(main.value, main.value !== null && named(main.value.id), told.value));
 const ready = computed(() => canPost(draft));
 const badGroup = computed(() => draft.group.trim() !== "" && !groupOk(draft.group));
 

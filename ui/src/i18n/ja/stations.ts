@@ -203,7 +203,6 @@ export const stations: Record<keyof typeof source, Message> = {
   "channel.dummy": "ダミー",
   "channel.join": "{first} · {second}",
   "channel.title.rf": "無線で受信",
-  "channel.title.fm": "FM無線機で受信",
   "channel.title.hf": "HF無線機で受信",
   "channel.title.gated": "無線で受信（iGateがインターネットから取得）",
   "channel.title.is": "インターネット（APRS-IS）で受信、無線ではない",

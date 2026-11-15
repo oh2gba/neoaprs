@@ -67,9 +67,9 @@ describe("MonitorCard", () => {
     expect(wrapper.find(".monitor-picture canvas").exists()).toBe(true);
     expect(wrapper.find("[role='meter']").exists()).toBe(true);
     expect(wrapper.find(".info-tip, .infotip").exists()).toBe(false);
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, named: true }]);
     wrapper.unmount();
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
   });
 
   it("shows the level of the rows that come", async () => {
@@ -137,10 +137,10 @@ describe("the card that has no room for its picture", () => {
       expect(scopeCalls(daemon)).toEqual([]);
       width.set(540);
       await flushPromises();
-      expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+      expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, named: true }]);
       width.set(0);
       await flushPromises();
-      expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+      expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
       wrapper.unmount();
     } finally {
       width.restore();
@@ -153,13 +153,13 @@ describe("the one counting place", () => {
     localStorage.setItem("NeoAPRS.settings.fold.hf-scope", "open");
     const daemon = hfAlone();
     const box = mount(HfScope, { global: withDaemon(daemon), attachTo: document.body });
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, named: true }]);
     const card = mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
     expect(scopeCalls(daemon)).toHaveLength(1);
     box.unmount();
     expect(scopeCalls(daemon)).toHaveLength(1);
     card.unmount();
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
     expect(scopeCalls(daemon)).toHaveLength(2);
   });
 
@@ -184,10 +184,10 @@ describe("the one counting place", () => {
     const again = mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
     expect(shows).toHaveBeenCalledTimes(1);
     expect(shows.mock.calls[0][0]).toHaveLength(20); // (the card's picture at once from the page's rows, those it did not see among them)
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]); // (the box looked all the time: the page asked once)
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, named: true }]); // (the box looked all the time: the page asked once)
     again.unmount();
     box.unmount();
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
   });
 });
 
@@ -420,10 +420,10 @@ const before = (rows: RadioRow[]) => {
 /** The page's context with these radios, its counting of who looks given the topic `radios` and the page's rows, as the page makes it. */
 function station(...rows: RadioRow[]) {
   const scopeRows = useScopeRows();
-  // (the rows are given after the context is made: a counting of who looks that the context makes of them, as it does with insert B, would also say whose rows they are)
   const daemon = fakeDaemon({ radios: radiosTopic(...rows), config: before(rows) });
   daemon.scopeRows = scopeRows.memory;
-  daemon.scope = useScopeLooks(daemon.send, daemon.hf, daemon.connection, shallowRef(true), { radios: daemon.radios, rows: scopeRows.memory });
+  daemon.scopeOf = scopeRows.of;
+  daemon.scope = useScopeLooks(daemon.send, daemon.hf, daemon.connection, shallowRef(true), { radios: daemon.radios });
   const card = () => mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
   return { daemon, scopeRows, card };
 }
@@ -436,7 +436,7 @@ describe("the card by radio", () => {
     const wrapper = card();
     expect(head(wrapper)).toBe("Monitor");
     expect(wrapper.attributes("aria-label")).toBe("Monitor");
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 3, on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 3, on: true, named: true }]);
   });
 
   it("names the HF radio on a station with an FM and an HF radio", () => {
@@ -450,13 +450,13 @@ describe("the card by radio", () => {
     await flushPromises();
     expect(head(wrapper)).toBe("20 m: Monitor");
     expect(wrapper.attributes("aria-label")).toBe("20 m: Monitor");
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, named: true }]);
     daemon.scope.showOnMonitor(5);
     await flushPromises();
     expect(head(wrapper)).toBe("40 m: Monitor");
     expect(scopeCalls(daemon).slice(1)).toEqual([
-      { cmd: "radio_scope", radio: 2, on: false },
-      { cmd: "radio_scope", radio: 5, on: true },
+      { cmd: "radio_scope", radio: 2, on: false, named: true },
+      { cmd: "radio_scope", radio: 5, on: true, named: true },
     ]);
     wrapper.unmount();
     expect(head(card())).toBe("40 m: Monitor"); // (this browser remembers the radio chosen)
@@ -478,8 +478,8 @@ describe("the card by radio", () => {
       await flushPromises();
       expect(head(wrapper)).toBe("Monitor"); // (one radio is on: it is not named)
       expect(scopeCalls(daemon).slice(-2)).toEqual([
-        { cmd: "radio_scope", radio: 5, on: false },
-        { cmd: "radio_scope", radio: 2, on: true },
+        { cmd: "radio_scope", radio: 5, on: false, named: true },
+        { cmd: "radio_scope", radio: 2, on: true, named: true },
       ]);
       wrapper.unmount();
     }
@@ -494,48 +494,51 @@ describe("the card by radio", () => {
       const name = chosen === 5 ? "40 m" : "20 m";
       const wrapper = card();
       await flushPromises();
-      for (let i = 0; i < 5; i++) scopeRows.hfScopeRow(row());
+      for (let i = 0; i < 5; i++) scopeRows.hfScopeRow(row(), chosen);
       const shows = vi.spyOn(Waterfall.prototype, "show");
       daemon.radios.value = radiosTopic(...rows.map((radio) => (radio.id === chosen ? mercury(chosen, { name }, false) : radio)));
       await flushPromises();
       expect(head(wrapper)).toBe(`${name}: Monitor`);
-      expect(scopeRows.memory.rows).toHaveLength(5);
+      expect(scopeRows.of(chosen).rows).toHaveLength(5);
       daemon.radios.value = radiosTopic(...rows);
       await flushPromises();
       expect(head(wrapper)).toBe(`${name}: Monitor`);
-      expect(scopeRows.memory.rows).toHaveLength(5);
+      expect(scopeRows.of(chosen).rows).toHaveLength(5);
       expect(shows.mock.calls.map(([kept]) => kept.length)).toEqual([5]); // (drawn again as its scope came back: its own picture, not another radio's)
       expect(scopeCalls(daemon)).toEqual([
-        { cmd: "radio_scope", radio: chosen, on: true },
-        { cmd: "radio_scope", radio: chosen, on: false },
-        { cmd: "radio_scope", radio: chosen, on: true },
+        { cmd: "radio_scope", radio: chosen, on: true, named: true },
+        { cmd: "radio_scope", radio: chosen, on: false, named: true },
+        { cmd: "radio_scope", radio: chosen, on: true, named: true },
       ]);
       wrapper.unmount();
       shows.mockRestore();
     }
   });
 
-  it("while another radio's rows are asked for (its box in Settings opened after the card), shows its ground and ruler alone, and the rows again when they are its radio's", async () => {
+  it("goes on with its own radio's rows while another radio's box in Settings looks at that one's: both are asked for at once, and each picture is drawn from its own radio's frames", async () => {
     const { daemon, scopeRows, card } = station(mercury(2, { name: "20 m" }), mercury(5, { name: "40 m" }));
     const wrapper = card();
     await flushPromises();
-    for (let i = 0; i < 5; i++) scopeRows.hfScopeRow(row());
-    const shows = vi.spyOn(Waterfall.prototype, "show");
+    for (let i = 0; i < 5; i++) scopeRows.hfScopeRow(row(), 2);
     const pushes = vi.spyOn(Waterfall.prototype, "push");
     localStorage.setItem("NeoAPRS.settings.fold.radio-5-scope", "open");
     const box = mount(HfScope, { props: { radio: 5 }, global: withDaemon(daemon), attachTo: document.body });
     await flushPromises();
-    expect(daemon.scope.asked.value).toBe(5);
-    expect(shows.mock.calls.every(([rows]) => rows.length === 0)).toBe(true); // (radio 2's rows are let go, and the card shows none of radio 5's)
-    scopeRows.hfScopeRow(row());
-    expect(pushes).toHaveBeenCalledTimes(1); // (the box's picture alone)
+    expect(daemon.scope.asked.value).toEqual([2, 5]);
+    expect(scopeCalls(daemon)).toEqual([
+      { cmd: "radio_scope", radio: 2, on: true, named: true },
+      { cmd: "radio_scope", radio: 5, on: true, named: true },
+    ]);
+    scopeRows.hfScopeRow(row(), 5);
+    expect(pushes).toHaveBeenCalledTimes(1); // (the box's picture alone: the card is radio 2's)
     const boxPainter = pushes.mock.contexts[0];
+    scopeRows.hfScopeRow(row(), 2);
+    expect(pushes).toHaveBeenCalledTimes(2); // (the card's)
+    expect(pushes.mock.contexts[1]).not.toBe(boxPainter);
+    expect(scopeRows.of(2).rows).toHaveLength(6);
     box.unmount();
     await flushPromises();
-    expect(daemon.scope.asked.value).toBe(2);
-    scopeRows.hfScopeRow(row());
-    expect(pushes).toHaveBeenCalledTimes(2); // (the card's, its radio's rows again)
-    expect(pushes.mock.contexts[1]).not.toBe(boxPainter);
+    expect(daemon.scope.asked.value).toEqual([2]);
     expect(head(wrapper)).toBe("20 m: Monitor");
   });
 

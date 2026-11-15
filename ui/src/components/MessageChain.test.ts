@@ -2,7 +2,8 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import MessageChain from "@/components/MessageChain.vue";
 import type { AttemptRow, HopRow, MessageRow } from "@/protocol/protocol";
-import { attemptRow, incoming, message } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { attemptRow, configValues, incoming, message, radioRow, radiosTopic } from "@/test/fixtures";
 
 const hop = (call: string, extra: Partial<HopRow> = {}): HopRow => ({ call, heard: false, heard_at: null, by_internet: false, ...extra });
 const attempt = (at: string, hops: HopRow[], extra: Partial<AttemptRow> = {}): AttemptRow => attemptRow({ sent_at: at, hops, ...extra });
@@ -78,6 +79,33 @@ describe("MessageChain", () => {
   it("draws nothing for a message that has no attempt kept, or one that came in", () => {
     expect(show(message(1)).find(".chain").exists()).toBe(false);
     expect(show(incoming(2, "OH2RDG")).find(".chain").exists()).toBe(false);
+  });
+
+  it("names the radio of the attempt on the you chip where radios are named, FM as HF, and none with one radio on", () => {
+    const sent = (radio: "fm" | "hf", values: Record<string, string>) =>
+      mount(MessageChain, {
+        props: { row: message(1, { to_call: "OH2CUB-7", attempts_detail: [attempt("2026-10-22T12:00:00Z", [], { radio })] }) },
+        global: withDaemon(fakeDaemon({ config: configValues(values) })),
+      })
+        .find(".chips li")
+        .text();
+    expect([sent("fm", { "hf/enabled": "true" }), sent("hf", { "hf/enabled": "true" })]).toEqual(["youFM", "youHF"]);
+    expect([sent("fm", {}), sent("hf", { "fm/enabled": "false", "hf/enabled": "true" })]).toEqual(["you", "you"]);
+    expect(sent("hf", {})).toBe("youHF");
+  });
+
+  it("names a third radio, and one removed since, by its name", () => {
+    const radios = radiosTopic(
+      radioRow(1, "kenwood-tnc2"),
+      radioRow(3, "kiss", { name: "Mobile", number: 2 }),
+      radioRow(4, "kiss", { name: "Old", number: 3, removed: true, enabled: false, state: "stopped" }),
+    );
+    const on = (id: number) =>
+      mount(MessageChain, {
+        props: { row: message(1, { attempts_detail: [attempt("2026-10-22T12:00:00Z", [], { radio: "", radio_id: id })] }) },
+        global: withDaemon(fakeDaemon({ config: configValues({}), radios })),
+      }).find(".chips li");
+    expect([on(3).text(), on(4).text(), on(1).text()]).toEqual(["youMobile", "youOld", "youFM"]);
   });
 
   it("uses only the page's colour variables, so that both schemes show it", () => {

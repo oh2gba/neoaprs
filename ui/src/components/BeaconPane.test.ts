@@ -871,6 +871,43 @@ describe("BeaconPane with several radios", () => {
       wrapper.unmount();
     });
 
+    it("is the one row, Path, of the one radio that is on when it is not radio 1, and sends that radio's own setting", async () => {
+      const { wrapper, send } = radiosPane([FM({ removed: true, enabled: false }), FM3()], { "fm/enabled": "false" });
+      expect(pathLabels(wrapper)).toEqual(["Path"]);
+      expect(wrapper.find("#set-beacon-path").exists()).toBe(false);
+      await wrapper.find("#set-radio-3-path").setValue("direct");
+      expect(configs(send)).toEqual([{ cmd: "set_config", values: { "radio/3/path": "DIRECT" } }]);
+    });
+
+    it("has Travelling while a radio that is on does SmartBeaconing, and not for the HF radio alone", () => {
+      const moving = { "gps/source": "gpsd" };
+      const travelling = (wrapper: Wrapper) => wrapper.find("#set-beacon-travel").exists();
+      expect(travelling(radiosPane([FM({ removed: true, enabled: false }), FM3()], { ...moving, "fm/enabled": "false" }).wrapper)).toBe(true);
+      expect(travelling(radiosPane([FM({ enabled: false }), HF()], { ...moving, "fm/enabled": "false" }).wrapper)).toBe(false);
+      expect(travelling(radiosPane([FM(), HF()], moving).wrapper)).toBe(true);
+    });
+
+    it("sends Recommended for a radio's own path, chosen or by emptying its Custom field", async () => {
+      const custom = { choices: { beacon: true, path: "WIDE2-2", digipeat: false } };
+      const { wrapper, send, daemon } = radiosPane([FM(), HF(), FM3(custom)], {}, { attach: true });
+      const answer = async (path: string) => {
+        const base = daemon.config.value;
+        if (base === null) throw new Error("no config");
+        await tell(daemon, { config: { ...base, radio_values: { ...base.radio_values, "radio/3/path": path } } });
+      };
+      await wrapper.find("#set-radio-3-path").setValue("recommended");
+      expect(configs(send)).toEqual([{ cmd: "set_config", values: { "radio/3/path": "" } }]);
+      await answer("");
+      expect(wrapper.find<HTMLSelectElement>("#set-radio-3-path").element.value).toBe("recommended");
+      await answer("WIDE2-2"); // (another page sets it again)
+      expect(wrapper.find<HTMLSelectElement>("#set-radio-3-path").element.value).toBe("custom");
+      const typed = wrapper.find<HTMLInputElement>("#set-radio-3-path-typed");
+      await typed.setValue("");
+      await typed.trigger("blur");
+      expect(configs(send)[1]).toEqual({ cmd: "set_config", values: { "radio/3/path": "" } });
+      wrapper.unmount();
+    });
+
     it("greys every row in RX only, as it greys the one", () => {
       const { wrapper } = radiosPane([FM(), HF(), FM3()], { "station/transmit": "false" });
       expect(["#set-beacon-path", "#set-radio-3-path"].map((id) => wrapper.find(id).attributes("disabled"))).toEqual(["", ""]);

@@ -32,7 +32,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.far": "tuo testi alkaa yli 30 päivän päästä",
   "error.sked.unreachable": "HF-testitaulua ei tavoitettu juuri nyt; yritä myöhemmin uudelleen",
   "error.radio.busy": "radion haku on jo käynnissä",
-  "error.radio.last_enabled": "asemalla on oltava vähintään yksi radio: valitse FM-radio tai HF-radio",
+  "error.radio.last_enabled": "at least one radio stays on: turn another radio on first",
   "error.radio.name_form":
     "the name '{name}' cannot be a radio's: a name is at most {max} printable ASCII characters (letters, digits and the signs of the keyboard)",
   "error.radio.name_label": "the name '{name}' is how a radio without a name of its own is called: give this one another",
@@ -61,7 +61,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.alert.own": "{call} on oma asemamme: hälytys on toista asemaa varten",
   "error.message.control": "tekstissä on ohjausmerkki",
   "error.message.empty": "viesti on tyhjä",
-  "error.message.email_fm_off": "sähköposti lähtee FM-radion kautta, joka on pois päältä",
+  "error.message.email_fm_off": "no radio that internet gateways hear is on",
   "error.message.forbidden": "tekstissä on {chars}, jota viesti ei voi sisältää ({forbidden} eivät ole sallittuja)",
   "error.message.not_ascii": {
     select: "chars",

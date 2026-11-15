@@ -3,7 +3,7 @@
 // What a field says of itself is words of the catalogue (i18n/en/settings.ts), made when they are read: `FIELDS[key].label` is in the language the page has at that moment, so a template that reads it follows a change of language.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { errorReason, type Failure } from "@/i18n/errortext";
+import { errorReason, type Failure, type RadioNames } from "@/i18n/errortext";
 import type { Params } from "@/i18n/message";
 import { STATION_HOURS_KEY } from "@/lib/aging";
 import { ANTENNA, beaconOff } from "@/lib/beaconoff";
@@ -101,6 +101,15 @@ function field(spec: FieldSpec): FieldInfo {
 
 const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
+/** The Radio type of every box, of either kind: one (i) for the one list of types (plan section 6). */
+const RADIO_TYPE: FieldSpec = {
+  label: "settings.profile.label",
+  kind: "choice",
+  tipLabel: "settings.profile.tip_label",
+  tip: ["settings.profile.tip1", "settings.profile.tip2"],
+  picture: "dummy",
+};
+
 const SPECS: Record<string, FieldSpec> = {
   "station/transmit": {
     name: "settings.transmit.name",
@@ -160,21 +169,8 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.hf_enabled.tip1", "settings.hf_enabled.tip2"],
     picture: "tworadios",
   },
-  "tnc/profile": {
-    label: "settings.profile.label",
-    kind: "choice",
-    choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })),
-    tipLabel: "settings.profile.tip_label",
-    tip: ["settings.profile.tip1", "settings.profile.tip2"],
-    picture: "dummy",
-  },
-  "hf/profile": {
-    label: "settings.profile.label",
-    kind: "choice",
-    choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })),
-    tip: ["settings.hf_profile.tip1", "settings.hf_profile.tip2"],
-    picture: "dummy",
-  },
+  "tnc/profile": { ...RADIO_TYPE, choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })) },
+  "hf/profile": { ...RADIO_TYPE, choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })) },
   "serial/port": {
     name: "settings.port.name",
     label: "settings.port.label",
@@ -422,8 +418,8 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
   return shown.flatMap((id) => groups.filter((g) => g.id === id && g.keys.length > 0));
 }
 
-/** What is wrong, without the command and the setting in front: the page's sentence for the refusal's code, else the daemon's English one, whose sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). */
-export const reasonOf: (error: Failure) => string = errorReason;
+/** What is wrong, without the command and the setting in front: the page's sentence for the refusal's code, else the daemon's English one, whose sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). `radios`: the page's, by which a radio the refusal names is said in the page's words. */
+export const reasonOf = (error: Failure, radios?: RadioNames): string => errorReason(error, radios);
 
 /** What the field of a key says of itself for these settings: the beacon choice of a station that moves is Off or On (SmartBeaconing), else the field's own; a radio's own setting (`radio/3/port`) says what the same field of the
  * radios of before says (`serial/port`), in the words every radio's port has; a key this page does not know is its own label. */

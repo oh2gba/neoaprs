@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // "Key" in the header of a conversation, beside Route, while encrypted messages are on: a button of the same make that opens a box under the header with the station's key (its fingerprint and when it was heard, or that it has not sent one),
 // Send my key (our public key goes to the station as an ordinary message) and, when the station's key is here, Forget key (pressed twice: the next key it announces is then taken). Closed by Esc, a click outside or the focus moving away, as Route is.
-// A dot on the button says the station's key is here.
+// A dot on the button says the station's key is here. Send my key is off while the radio the messages to the station go on is not connected (`offline`, its reason), as Send is (plan 6a).
 import { ref, watch } from "vue";
 import TwoWords from "@/components/TwoWords.vue";
 import { t } from "@/i18n";
@@ -10,7 +10,7 @@ import { useSure } from "@/composables/useSure";
 import { dateTimeText } from "@/lib/format";
 import type { StationKey } from "@/protocol/protocol";
 
-defineProps<{ call: string; theirs: StationKey | null }>();
+withDefaults(defineProps<{ call: string; theirs: StationKey | null; offline?: string }>(), { offline: undefined });
 const emit = defineEmits<{ sendKey: [call: string]; forget: [call: string] }>();
 
 const open = ref(false);
@@ -44,7 +44,7 @@ watch(
         <span class="muted">{{ t("lock.heard", { date: dateTimeText(theirs.heard_at) }) }}</span>
       </p>
       <p class="keybox-buttons">
-        <button type="button" class="btn" @click="emit('sendKey', call)">{{ t("lock.send_key") }}</button>
+        <button type="button" class="btn" :disabled="offline !== undefined" :title="offline" @click="emit('sendKey', call)">{{ t("lock.send_key") }}</button>
         <button
           v-if="theirs !== null"
           type="button"

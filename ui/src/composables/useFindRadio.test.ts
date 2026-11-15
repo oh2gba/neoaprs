@@ -9,7 +9,7 @@ import { configValues, radioSearch, toastOf } from "@/test/fixtures";
 const step = (extra: Partial<RadioSearchMessage>): RadioSearchMessage => radioSearch(extra);
 const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage => step({ state: "found", profile: "kenwood-tnc2", number: 0, total: 0, ...extra });
 
-function setUp(saved: Record<string, string> = {}, guide?: { onRadio: boolean; fillRadio: (found: Record<string, string>) => void }) {
+function setUp(saved: Record<string, string> = {}) {
   const message = shallowRef<RadioSearchMessage | null>(null);
   const error = shallowRef<Toast | null>(null);
   const connection = shallowRef<Connection>("open");
@@ -20,7 +20,7 @@ function setUp(saved: Record<string, string> = {}, guide?: { onRadio: boolean; f
   const config = shallowRef(configValues());
   const scope = effectScope();
   const find = scope.run(() =>
-    useFindRadio(message, error, connection, send, { change, expected: (key: string) => values[key as keyof typeof values] ?? "" }, config, say, guide),
+    useFindRadio(message, error, connection, send, { change, expected: (key: string) => values[key as keyof typeof values] ?? "" }, config, say),
   );
   if (!find) throw new Error("no scope");
   return { find, message, error, connection, send, change, say };
@@ -131,23 +131,6 @@ describe("useFindRadio", () => {
     send.mockReturnValueOnce(false);
     find.start();
     expect(find.running.value).toBe(false);
-  });
-});
-
-// The setup guide's Radio step is live, as the Settings group is (plan section 6): what is found there goes into the settings as from the Settings tab, not into answers of the guide.
-describe("useFindRadio while the Radio step of the setup guide is on the screen", () => {
-  it("puts what it finds in the settings, as it does when the step is not on the screen", async () => {
-    for (const onRadio of [true, false]) {
-      const fillRadio = vi.fn();
-      const { find, message, change, say } = setUp({}, { onRadio, fillRadio });
-      find.start();
-      message.value = found({ baud: 57600 });
-      await nextTick();
-      expect(change, String(onRadio)).toHaveBeenCalledWith({ "tnc/profile": "kenwood-tnc2", "serial/port": "/dev/ttyUSB0", "serial/baud": "57600" });
-      expect(fillRadio).not.toHaveBeenCalled();
-      expect(say).not.toHaveBeenCalled();
-      expect(find.running.value).toBe(false);
-    }
   });
 });
 

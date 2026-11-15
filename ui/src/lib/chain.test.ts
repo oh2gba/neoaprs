@@ -107,11 +107,6 @@ describe("the radio of an attempt on the you chip", () => {
     }
   });
 
-  it("keeps the rule of before while its caller gives no name: HF marked, FM and an attempt of before not", () => {
-    expect(chainOf(row, attempt([], { radio: "hf" }), true)[0]?.mark).toBe("HF");
-    expect(chainOf(row, attempt([], { radio: "fm" }), true)[0]?.mark).toBe("");
-  });
-
   it("names it in the mail's chain as in a message's", () => {
     expect(chainOf(row, attempt([], { radio: "fm" }), true, new Set(), true, "Shack")[0]?.mark).toBe("Shack");
   });

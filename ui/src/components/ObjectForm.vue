@@ -38,6 +38,8 @@ const on = computed(() => enabled.value.map((radio) => radio.id));
 const sendOn = computed(() => inForce(draft.radios, on.value, main.value?.id ?? null));
 /** No radio it goes out on may carry a path: the Path row is greyed. */
 const noPath = computed(() => !sendOn.value.some((id) => byId(id)?.carriesPath === true));
+/** Why Path is greyed, as Route says it: "HF: no path" for the radios ticked. */
+const pathless = computed(() => t("radio.no_path", { name: sendOn.value.map((id) => byId(id)?.name ?? "").join(", ") }));
 /** A tick of Send on: the radio is added to the object's, or taken off (never the last: its tick is greyed). */
 const tick = (id: number): void => {
   draft.radios = ticked(draft.radios, on.value, main.value?.id ?? null, id);
@@ -167,24 +169,15 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
     <DisclosureBox :key="`${form.editing ?? ''}-advanced`" class="settings-fold" :title="t('settings.fold.advanced')" :open="advanced">
       <div v-if="several" class="field send-on" role="group" :aria-labelledby="`${id}-sendon`">
         <span :id="`${id}-sendon`" class="field-label">{{ t("radio.send_on") }}</span>
-        <div class="field-control">
-          <span class="send-on-ticks">
-            <label v-for="radio in enabled" :key="radio.id" class="send-on-tick">
-              <input
-                class="check"
-                type="checkbox"
-                :checked="sendOn.includes(radio.id)"
-                :disabled="sendOn.length === 1 && sendOn[0] === radio.id"
-                @change="tick(radio.id)"
-              />{{ radio.name }}
-            </label>
-          </span>
-          <InfoTip :label="about('radio.send_on')"
-            ><span class="info-line">{{ t("objects.tip.send_on") }}</span></InfoTip
-          >
+        <div class="field-control toolbar-checks">
+          <label v-for="radio in enabled" :key="radio.id" class="check">
+            <input type="checkbox" :checked="sendOn.includes(radio.id)" :disabled="sendOn.length === 1 && sendOn[0] === radio.id" @change="tick(radio.id)" />{{
+              radio.name
+            }}
+          </label>
         </div>
       </div>
-      <div v-if="allowsPath" class="field" :class="{ invalid: problems.path, disabled: noPath }" :title="problems.path">
+      <div v-if="allowsPath" class="field" :class="{ invalid: problems.path, disabled: noPath }" :title="problems.path || (noPath ? pathless : undefined)">
         <label :for="`${id}-path`">{{ t("objects.field.path") }}</label>
         <div class="field-control">
           <input
@@ -197,7 +190,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
             autocomplete="off"
             spellcheck="false"
           />
-          <PathBuilder :value="draft.path" :usual="fallbackPath" :disabled="noPath" @use="draft.path = $event" />
+          <PathBuilder :value="draft.path" :usual="fallbackPath" :disabled="noPath" :why="pathless" @use="draft.path = $event" />
           <InfoTip :label="about('objects.field.path')"
             ><span class="info-line">{{ t("objects.tip.path") }}</span></InfoTip
           >

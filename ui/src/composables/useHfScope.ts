@@ -17,5 +17,5 @@ export function useHfScope(given?: RadioId) {
     () => open.value && shown.value && available.value,
     () => radio,
   );
-  return { radio, open, shown, available, wanted: computed(() => open.value && scope.asked.value === radio) };
+  return { radio, open, shown, available, wanted: computed(() => open.value && scope.asked.value.includes(radio)) };
 }

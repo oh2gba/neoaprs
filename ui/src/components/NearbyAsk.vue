@@ -13,20 +13,19 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { usePersisted } from "@/composables/usePersisted";
 import { useRadios } from "@/composables/useRadios";
 import { useRequestPath, type RequestPath as Request } from "@/composables/useRequestPath";
+import RadioPick from "@/components/RadioPick.vue";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
 import { GENERAL_KINDS, askLines, generalWait, queryOf } from "@/lib/askaround";
-import { tncNotConnected } from "@/lib/compose";
+import { radioBlockedReason } from "@/lib/compose";
 import type { RadioId } from "@/lib/radios";
 
 const { general, receiveOnly, send, lastError, now, fallbackPath } = useDaemonContext();
-const { told, several, enabled, main, allowsPath, byId, named } = useRadios();
+const radios = useRadios();
+const { told, several, allowsPath, byId, named, choose } = radios;
 const kind = usePersisted("ask.kind", GENERAL_KINDS[0] ?? "aprs", GENERAL_KINDS);
-/** The radio chosen beside Ask (null: the main radio), and the one the query goes on: the one chosen while it is on, else the main radio. */
-const picked = ref<RadioId | null>(null);
-const radio = computed(() => (picked.value !== null && enabled.value.some((r) => r.id === picked.value) ? picked.value : (main.value?.id ?? null)));
-/** The choice: the main radio first, then the others in the order of their boxes. */
-const choices = computed(() => [...enabled.value].sort((a, b) => Number(b.id === main.value?.id) - Number(a.id === main.value?.id)));
+/** The radio chosen beside Ask (`picked`, null: the main radio), the one it goes on, and the radios to choose from, the main radio first (useRadios `choose`). */
+const { picked, radio, choices } = choose();
 /** The path and RF only of each radio, remembered by this browser apart from Local info's: radio 1, the FM radio of before, keeps what this browser kept before the radios had ids. */
 const scope = effectScope(); // (the pane's own: it ends with the pane)
 const requests = new Map<RadioId | null, Request>();
@@ -54,8 +53,7 @@ const wait = computed(() => generalWait(onRadio.value, kind.value, now.value));
 /** Why nothing may go on the radio: it is not connected (named where several are on), or there is none; undefined before the daemon has told its radios. */
 const offline = computed(() => {
   const on = radio.value === null ? undefined : byId(radio.value);
-  if (!told.value || on?.connected === true) return undefined;
-  return on === undefined ? t("error.radio.none") : named(on.id) ? t("radio.not_connected", { name: on.name }) : tncNotConnected();
+  return radioBlockedReason(on, on !== undefined && named(on.id), told.value);
 });
 const why = computed(() => {
   const problem = routable.value ? request.value.problem.value : "";
@@ -71,16 +69,12 @@ const lines = computed(() => {
 });
 
 watch(lastError, (toast) => {
-  if (toast?.cmd === "general_query") refusal.value = errorReason(toast);
+  if (toast?.cmd === "general_query") refusal.value = errorReason(toast, radios);
 });
 watch(
   () => general.value?.asked.at(-1)?.at,
   () => (refusal.value = ""),
 );
-/** A choice that goes off is forgotten (the query goes on the main radio), and does not come back by itself when that radio is on again. */
-watch(enabled, (on) => {
-  if (picked.value !== null && !on.some((r) => r.id === picked.value)) picked.value = null;
-});
 
 function ask(): void {
   if (why.value !== undefined) return;
@@ -103,15 +97,7 @@ function ask(): void {
       <select v-model="kind" class="input ask-kind" :aria-label="t('nearby.ask_kind_label')" :title="queryOf(kind)">
         <option v-for="k in GENERAL_KINDS" :key="k" :value="k" :title="queryOf(k)">{{ t(`nearby.ask_kind.${k}`) }}</option>
       </select>
-      <select
-        v-if="several"
-        class="input ask-radio"
-        :value="radio"
-        :aria-label="t('objects.field.radio')"
-        @change="picked = Number(($event.target as HTMLSelectElement).value)"
-      >
-        <option v-for="choice in choices" :key="choice.id" :value="choice.id">{{ choice.name }}</option>
-      </select>
+      <RadioPick v-if="several" class="ask-radio" :radio="radio" :choices="choices" @pick="picked = $event" />
       <button type="button" class="btn" :disabled="why !== undefined" :title="why ?? t('nearby.ask_title', { query: queryOf(kind) })" @click="ask">
         {{ t("nearby.ask_button") }}
       </button>
@@ -123,6 +109,7 @@ function ask(): void {
       :usual="fallbackPath"
       :problem="routable ? request.problem.value : ''"
       :disabled="!routable"
+      :pathless="radio === null ? undefined : t('radio.no_path', { name: byId(radio)?.name ?? '' })"
     />
     <p class="ask-line" :class="lines.refused ? 'warn' : 'muted'" :title="lines.title || undefined">{{ lines.line }}</p>
     <p class="ask-line muted" :title="lines.countTitle || undefined">{{ lines.count }}</p>

@@ -3,7 +3,7 @@
 // cut off the device the page is open on asks first.
 import { computed, ref, type Ref } from "vue";
 import type { Settings } from "@/composables/useSettings";
-import { confirmMessage, remotePage, TOGETHER } from "@/lib/settinglinks";
+import { confirmMessage, remotePage, togetherOf } from "@/lib/settinglinks";
 import { inputId } from "@/lib/settingsradio";
 import { groupKeys, type Scope } from "@/lib/settings";
 import type { ConfigValues } from "@/protocol/protocol";
@@ -43,7 +43,7 @@ export function useSettingsForm(config: Ref<ConfigValues | null>, settings: Sett
 
   /** A typed field was finished with Enter (`next` is null) or left for the element `next`: it is sent, with the fields it belongs with, unless focus only moved to one of those. */
   function finish(key: string, next: EventTarget | null): void {
-    const together = TOGETHER[key] ?? [key];
+    const together = togetherOf(key);
     const within = next instanceof Element && together.some((other) => other !== key && next.id === fieldId(other));
     if (!within) settings.commit(together);
   }

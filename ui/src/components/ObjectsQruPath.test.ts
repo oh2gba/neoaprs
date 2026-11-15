@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import ObjectsQru from "@/components/ObjectsQru.vue";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { cssRule } from "@/test/css";
-import { fakeDaemon, tell, withDaemon } from "@/test/context";
+import { fakeDaemon, ofRadios, tell, withDaemon } from "@/test/context";
 import { ago, configValues, qruAsked, qruState, radioRow, radiosTopic, status } from "@/test/fixtures";
 import type { RadioRow, StationPref } from "@/protocol/protocol";
 
@@ -99,9 +99,7 @@ describe("the path of a request for local info", () => {
 describe("the radio of a request for local info (plan rule 3.6)", () => {
   /** A station of these radios as the daemon tells them once the settings of before are gone (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
   function on(given: Parameters<typeof fakeDaemon>[0], ...rows: RadioRow[]) {
-    const config = configValues();
-    const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
-    return make({ radios: radiosTopic(...rows), config: { ...config, values }, ...given });
+    return make({ ...ofRadios(...rows), ...given });
   }
   const FM = radioRow(1, "kenwood-tnc2");
   const HF = radioRow(2, "mercury");
@@ -150,6 +148,15 @@ describe("the radio of a request for local info (plan rule 3.6)", () => {
     expect((pathField(wrapper).element as HTMLInputElement).disabled).toBe(true);
     expect((rfOnly(wrapper).element as HTMLInputElement).disabled).toBe(true);
     expect(fold(wrapper).find("button.pathbuild-open").attributes("disabled")).toBeDefined();
+    expect(fold(wrapper).find("button.pathbuild-open").attributes("title"), "the path builder's button says why it is off, as its row does").toBe(
+      "HF: no path",
+    );
+    expect(
+      fold(wrapper)
+        .findAll(".field")
+        .map((f) => f.attributes("title")),
+      "the reason, as Route's greyed Path has it",
+    ).toEqual(["HF: no path", "HF: no path"]);
     await ask(wrapper).trigger("click");
     await choice(wrapper).setValue("3");
     expect(

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // How messages to one station are sent, in Route of a conversation and of the station panel: the radio they go on (where more than one is on: the radios that are on, and "Automatic", which names the radio it gives now),
 // then the path they go by and whether it is RF only (the tickbox beside the path), which are there while a radio that is on may carry a path and greyed, the value kept, while the radio in force carries none
-// (`pathless`, composables/useStationRadio.ts). The fields say what they want, the page sends it. `heard` is the path that has lately been heard to reach the station (null: none), which the automatic choice of the first attempts goes by.
+// (`pathless`, composables/useStationRadio.ts). For a call the book does not hold the radio's row is there greyed on "Automatic" (`fixed`), so that nothing moves when the station is first heard. The fields say what they want, the page sends it. `heard` is the path that has lately been heard to reach the station (null: none), which the automatic choice of the first attempts goes by.
 import { useId } from "vue";
 import StationPath from "@/components/StationPath.vue";
 import StationRfOnly from "@/components/StationRfOnly.vue";
@@ -21,6 +21,8 @@ withDefaults(
     choice?: RadioId | null;
     /** the radio "Automatic" gives now; null when it is not known */
     auto?: string | null;
+    /** the radio cannot be chosen yet (a call the book does not hold, whose choice no row could say back): the row is there, greyed, so that nothing moves when the station is heard */
+    fixed?: boolean;
     /** the path and RF only are offered (a radio that is on may carry a path) */
     pathShown?: boolean;
     pathless?: string;
@@ -31,6 +33,7 @@ withDefaults(
     radios: () => [],
     choice: null,
     auto: null,
+    fixed: false,
     pathShown: true,
     pathless: undefined,
   },
@@ -53,9 +56,9 @@ function picked(event: Event, call: string, choice: RadioId | null): void {
 
 <template>
   <div class="prefs">
-    <div v-if="radios.length > 1" class="pathbox route-radio">
-      <label :for="id" class="path-label">{{ t("route.radio") }}</label>
-      <select :id="id" class="input route-radio-pick" :value="choice === null ? '' : String(choice)" @change="picked($event, call, choice)">
+    <div v-if="radios.length > 1" class="pathbox route-radio" :class="{ disabled: fixed }">
+      <label :for="id" class="path-label">{{ t("radio.choice") }}</label>
+      <select :id="id" class="input route-radio-pick" :value="choice === null ? '' : String(choice)" :disabled="fixed" @change="picked($event, call, choice)">
         <option value="">{{ auto === null ? t("radio.automatic") : t("route.radio_auto", { name: auto }) }}</option>
         <option v-for="radio in radios" :key="radio.id" :value="String(radio.id)">{{ radio.name }}</option>
       </select>

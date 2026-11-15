@@ -23,7 +23,8 @@ export const email = {
   "email.used_before": "Used before",
   "email.forget": "Forget {address}",
   "email.send": "Send",
-  "email.fm_off": "Email goes out over the FM radio, which is off",
+  "email.fm_off": "No radio that internet gateways hear is on",
+  "email.radio_title": "Email goes on radio {name}",
 
   "email.state.waiting": "Waiting for the radio",
   "email.state.sending": "Sending ({attempt} of {max})",

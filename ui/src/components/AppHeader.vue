@@ -24,7 +24,7 @@ const PROJECT_URL = "https://neo.oh2gba.eu/";
 <template>
   <header class="appheader">
     <h1>
-      <a class="brand" :href="PROJECT_URL" target="_blank" rel="noopener" :title="t('header.project_title')">NeoAPRS</a>
+      <a class="brand" :href="PROJECT_URL" target="_blank" rel="noopener" :title="t('header.project_title')">Neo<b>APRS</b></a>
     </h1>
     <button v-if="call === ''" type="button" class="nocall" :title="t('header.no_call_title')" @click="emit('setup')">
       {{ t("header.no_call") }}

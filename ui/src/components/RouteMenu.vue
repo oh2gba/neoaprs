@@ -19,10 +19,11 @@ const props = withDefaults(
     radios?: readonly PageRadio[];
     choice?: RadioId | null;
     auto?: string | null;
+    fixed?: boolean;
     pathShown?: boolean;
     pathless?: string;
   }>(),
-  { rfOnly: () => new Set<string>(), heard: null, radios: () => [], choice: null, auto: null, pathShown: true, pathless: undefined },
+  { rfOnly: () => new Set<string>(), heard: null, radios: () => [], choice: null, auto: null, fixed: false, pathShown: true, pathless: undefined },
 );
 const emit = defineEmits<{
   path: [call: string, path: string];
@@ -67,6 +68,7 @@ watch(
         :radios="radios"
         :choice="choice"
         :auto="auto"
+        :fixed="fixed"
         :path-shown="pathShown"
         :pathless="pathless"
         @path="(c, p) => emit('path', c, p)"

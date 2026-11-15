@@ -2,6 +2,7 @@
 // (each with the time it was written, in UTC) in the viewer's time.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
+import type { RadioNames } from "@/i18n/errortext";
 import { ageText, bytesText, clockText, silentText } from "@/lib/format";
 import { problemText } from "@/lib/radios";
 import type { ModemState, RadioRow, TncLine, TncState, TncStats } from "@/protocol/protocol";
@@ -108,19 +109,19 @@ export const rowPillText = (row: RadioRow): string => (dummyRow(row) ? t("settin
 export const rowPillClass = (row: RadioRow): string => (dummyRow(row) ? "tnc-dummy" : `tnc-${row.state}`);
 
 /** The one line of a radio's row, in the words of the lines of before: the Dummy's, silent since when, searching, the modem's line, the last packet, Connecting…, else why it is not connected. */
-export function rowStatus(row: RadioRow, nowMs: number): string {
+export function rowStatus(row: RadioRow, nowMs: number, radios?: RadioNames): string {
   if (dummyRow(row)) return t(row.kind === "hf" ? "settings.tnc.dummy_hf" : "settings.tnc.dummy");
   if (row.state === "silent") return silentText(row.problem?.code === "radio.silent" ? String(row.problem.params["since"] ?? "") || null : null, nowMs);
   if (row.state === "connected") return row.modem ? modemLine(row, row.modem, nowMs) : lastPacketText(row, nowMs);
-  return rowDownText(row);
+  return rowDownText(row, radios);
 }
 
 /** A radio's line while it is not connected: searching, Connecting…, the modem's reason, else what its problem says. */
-function rowDownText(row: RadioRow): string {
+function rowDownText(row: RadioRow, radios?: RadioNames): string {
   if (row.problem?.code === "radio.searching") return t("settings.tnc.searching");
   if (row.state === "connecting") return t("settings.tnc.connecting");
   if (row.modem?.state === "waiting") return t(MODEM_WAITING[row.modem.reason]);
-  return row.problem === null ? t("settings.tnc.not_connected") : problemText(row.problem);
+  return row.problem === null ? t("settings.tnc.not_connected") : problemText(row.problem, t, radios);
 }
 
 /** The counters of a radio's line, as the hover title of its status. */

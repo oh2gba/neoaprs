@@ -114,6 +114,7 @@ function onEscape(event: KeyboardEvent): void {
         spellcheck="false"
         :value="modelValue"
         :placeholder="placeholder"
+        :maxlength="info.maxLength"
         :readonly="info.kind === 'readonly'"
         :disabled="disabled"
         :aria-invalid="error !== ''"

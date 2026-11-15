@@ -26,7 +26,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.used_before": "過去に使用",
   "email.forget": "{address}を削除",
   "email.send": "送信",
-  "email.fm_off": "メールはFM無線機で送られますが、FM無線機はオフです",
+  "email.fm_off": "No radio that internet gateways hear is on",
+  "email.radio_title": "Email goes on radio {name}",
 
   "email.state.waiting": "無線機を待っています",
   "email.state.sending": "送信中({attempt}/{max})",

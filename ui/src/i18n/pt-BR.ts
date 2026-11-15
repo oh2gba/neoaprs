@@ -11,6 +11,7 @@ import { messages } from "@/i18n/pt-BR/messages";
 import { nearby } from "@/i18n/pt-BR/nearby";
 import { objects } from "@/i18n/pt-BR/objects";
 import { packets } from "@/i18n/pt-BR/packets";
+import { radio } from "@/i18n/pt-BR/radio";
 import { settings } from "@/i18n/pt-BR/settings";
 import { setup } from "@/i18n/pt-BR/setup";
 import { shell } from "@/i18n/pt-BR/shell";
@@ -36,6 +37,7 @@ export const ptBR: Catalogue = {
   ...packets,
   ...weather,
   ...symbols,
+  ...radio,
   ...settings,
   ...beacon,
   ...setup,

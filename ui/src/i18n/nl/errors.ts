@@ -32,7 +32,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.far": "die test begint over meer dan 30 dagen",
   "error.sked.unreachable": "het bord met HF-tests was zojuist niet bereikbaar; probeer het later opnieuw",
   "error.radio.busy": "de set wordt al gezocht",
-  "error.radio.last_enabled": "een station heeft minstens één set: vink de FM-set of de HF-set aan",
+  "error.radio.last_enabled": "at least one radio stays on: turn another radio on first",
   "error.radio.name_form":
     "the name '{name}' cannot be a radio's: a name is at most {max} printable ASCII characters (letters, digits and the signs of the keyboard)",
   "error.radio.name_label": "the name '{name}' is how a radio without a name of its own is called: give this one another",
@@ -61,7 +61,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.alert.own": "{call} is van ons: een melding is voor een ander station",
   "error.message.control": "de tekst bevat een besturingsteken",
   "error.message.empty": "het bericht is leeg",
-  "error.message.email_fm_off": "e-mail gaat via de FM-set, en die staat uit",
+  "error.message.email_fm_off": "no radio that internet gateways hear is on",
   "error.message.forbidden": "de tekst bevat {chars}, wat niet in een bericht kan ({forbidden} zijn niet toegestaan)",
   "error.message.not_ascii": {
     select: "chars",

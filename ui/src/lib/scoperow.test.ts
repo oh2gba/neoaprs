@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LIMITS } from "@/protocol/lists";
-import { HISTORY_KIND, ROW_KIND, dbOfRowByte, parseScopeFrame, parseScopeHistory, parseScopeRow } from "@/lib/scoperow";
+import { HISTORY_KIND, RADIO_KIND, ROW_KIND, dbOfRowByte, parseScopeFrame, parseScopeHistory, parseScopeRow, radioFrame } from "@/lib/scoperow";
 
 const { rowBins } = LIMITS.scope;
 
@@ -83,6 +83,30 @@ describe("the rows the daemon kept", () => {
     whole[0] = 3;
     expect(parseScopeHistory(whole.buffer)).toBeNull();
     expect(parseScopeHistory(new ArrayBuffer(0))).toBeNull();
+  });
+});
+
+/** A frame of one radio's scope, as neoaprs/web/scopefeed.py makes it: the kind, the radio's id (little-endian uint32), then the frame whole. */
+function named(radio: number, inner: ArrayBuffer): ArrayBuffer {
+  const bytes = new Uint8Array(5 + inner.byteLength);
+  bytes[0] = RADIO_KIND;
+  new DataView(bytes.buffer).setUint32(1, radio, true);
+  bytes.set(new Uint8Array(inner), 5);
+  return bytes.buffer;
+}
+
+describe("a frame of one radio's scope", () => {
+  it("names its radio before a row or the rows kept, whole; a frame that names none is radio 2's, the HF radio of before", () => {
+    expect(radioFrame(named(7, frame(0, -41)))?.radio).toBe(7);
+    expect(parseScopeFrame(named(7, frame(1, -41)))).toMatchObject({ radio: 7, row: { level: -41, tx: true } });
+    expect(parseScopeFrame(named(300, history([{ flags: 0, level: -30, age: 7, bin: 0 }])))).toMatchObject({
+      radio: 300,
+      history: { clock: CLOCK, rows: [{ age: 7, row: { level: -30 } }] },
+    });
+    expect(parseScopeFrame(frame(0, -41))).toMatchObject({ radio: 2 });
+    expect(radioFrame(frame(0, -41))).toBeNull();
+    expect(radioFrame(Uint8Array.of(RADIO_KIND, 1, 0, 0, 0).buffer)).toBeNull(); // (a radio with no frame in it)
+    expect(parseScopeFrame(named(3, Uint8Array.of(9).buffer))).toBeNull(); // (a frame of a kind this page does not know, inside)
   });
 });
 

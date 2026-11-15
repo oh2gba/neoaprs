@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; where more than one radio is on, the tag of the radio its messages go on; "Route" for the radio,
 // the path and RF only; "Key" for the station's key while encrypted messages are on, KeyMenu), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose: the text, "12 left" and Send, no To:
-// the conversation is the station) fixed at the bottom. The radio is the one the daemon says the messages go on (composables/useStationRadio.ts): Send waits for its link, and Route shows its path. An overheard pair has no
+// the conversation is the station) fixed at the bottom; the tag keeps the room of the longest name of the radios that are on. The radio is the one the daemon says the messages go on (composables/useStationRadio.ts): Send waits for its link, and Route shows its path. An overheard pair has no
 // Route and no box to write in (the messages are not ours: only the bubbles, and the delete in the list). It is the page's to put a new one in place of this when another conversation is picked (a `key`), and on a narrow
 // page it takes the focus when it appears, so that Esc goes back. The header is not text to select; a right-click on the call offers to copy it (CopyMenu).
 import { computed, onMounted, ref } from "vue";
@@ -15,7 +15,9 @@ import TagMark from "@/components/TagMark.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { radioTone, useStationRadio } from "@/composables/useStationRadio";
+import { useRadios } from "@/composables/useRadios";
+import { useStationRadio } from "@/composables/useStationRadio";
+import { radioTone } from "@/lib/channels";
 import { conversationName, isOverheard, overheardPair, replyTo } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -37,11 +39,14 @@ const { heardDirect, heardPaths, prefs, keys, stations } = useDaemonContext();
 /** The station's row; null for a call nothing is known of. */
 const row = computed(() => stations.value.get(props.selected) ?? null);
 /** The radio the messages to the station go on, and its Route. */
-const { over, named, offline, shown, paths, fallback, choices, choice, auto, pathShown, pathless, setPath, clearPath, choose } = useStationRadio(
+const { over, named, offline, shown, paths, fallback, choices, choice, auto, fixed, pathShown, pathless, setPath, clearPath, choose } = useStationRadio(
   () => props.selected,
   () => row.value,
   () => props.thread,
 );
+/** The tags the radio's tag keeps the room of: its own first, then every other radio that is on, all in one place and the others hidden (`.twowords`), so that the call and Route stay where they are whichever radio it names. */
+const radios = useRadios();
+const room = computed(() => (over.value === null ? [] : [over.value, ...radios.enabled.value.filter((radio) => radio.id !== over.value?.id)]));
 /** Its position says it takes no messages and it never sent one: a message may not be read there (it can be sent all the same). */
 const mayNot = computed(() => row.value?.may_not_message === true);
 const { rfOnly } = prefs;
@@ -70,7 +75,13 @@ onMounted(() => {
         <template v-else>{{ selected }}</template>
       </h3>
       <span v-if="!heard && named && over" class="convo-radio">
-        <TagMark :tone="radioTone(over)" :title="t('messages.radio_title', { name: over.name })">{{ over.name }}</TagMark>
+        <span class="twowords"
+          ><span v-for="radio in room" :key="radio.id" :class="{ 'twowords-off': radio.id !== over.id }" :aria-hidden="radio.id !== over.id"
+            ><TagMark :tone="radioTone(radio)" :title="radio.id === over.id ? t('messages.radio_title', { name: radio.name }) : undefined">{{
+              radio.name
+            }}</TagMark></span
+          ></span
+        >
       </span>
       <RouteMenu
         v-if="!heard && shown"
@@ -83,6 +94,7 @@ onMounted(() => {
         :radios="choices"
         :choice="choice"
         :auto="auto"
+        :fixed="fixed"
         :path-shown="pathShown"
         :pathless="pathless"
         @path="setPath"
@@ -95,6 +107,7 @@ onMounted(() => {
         :key="`key-${selected}`"
         :call="replyTo(selected)"
         :theirs="theirs"
+        :offline="offline"
         @send-key="keys.sendKey"
         @forget="keys.forget"
       />

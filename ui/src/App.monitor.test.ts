@@ -61,12 +61,12 @@ describe("App: the monitor card", () => {
     item()?.click();
     await flushPromises();
     expect(card()).not.toBeNull();
-    expect(socket.sent).toContainEqual({ cmd: "radio_scope", radio: 2, on: true });
+    expect(socket.sent).toContainEqual({ cmd: "radio_scope", radio: 2, on: true, named: true });
     expect(localStorage.getItem("NeoAPRS.monitor")).toBe("open");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     await flushPromises();
     expect(card()).toBeNull();
-    expect(socket.sent.at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+    expect(socket.sent.at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
     expect(localStorage.getItem("NeoAPRS.monitor")).toBe("closed");
     wrapper.unmount();
   });

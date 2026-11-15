@@ -1,0 +1,32 @@
+// The words of the radios that every place of the page shares: a radio's box in Settings → Radio and in the setup guide (Add, Name, Remove, the main radio, the types of radio), the choice of a radio, Send on, and a radio's
+// name in a line. A radio's name stands in two forms only, so that no language has to inflect it: the name and a colon ("{name}: {line}"), or after a noun that carries the grammar ("Heard on radio {name}").
+export const radio = {
+  "radio.add": "Add radio",
+  "radio.add_button": "Add",
+  "radio.new": "New radio",
+  "radio.remove": "Remove",
+  "radio.remove_sure": "Really remove?",
+  "radio.main": "Main radio",
+  "radio.main.tip_label": "About the main radio",
+  "radio.main.tip1": "Bulletins and the status go out on it, and it is the first choice for Ask around, Local info and email.",
+  "radio.name": "Name",
+  "radio.name.tip_label": "About the name",
+  "radio.name.tip1": "A short name for this radio: the page calls the radio by it everywhere.",
+  "radio.choice": "Radio",
+  "radio.automatic": "Automatic",
+  "radio.send_on": "Send on",
+  "radio.line": "{name}: {line}",
+  "radio.not_connected": "{name}: not connected",
+  "radio.no_path": "{name}: no path",
+  "radio.heard_on": "Heard on radio {name}",
+  "radio.more": "+{n}",
+
+  "radio.type.kenwood_tnc2": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+  "radio.type.kenwood_d710": "Kenwood TM-D710 / TH-D72",
+  "radio.type.kantronics": "Kantronics KPC-3+",
+  "radio.type.kiss": "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
+  "radio.type.kiss_tcp": "KISS over TCP (Direwolf, soundmodem)",
+  "radio.type.dummy": "Dummy (no radio, made-up traffic)",
+  "radio.type.mercury": "Mercury HF modem (sound card, SSB radio)",
+  "radio.type.dummy_hf": "Dummy HF radio (no radio, made-up distant stations)",
+} as const;

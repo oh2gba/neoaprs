@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import NearbyAsk from "@/components/NearbyAsk.vue";
 import { clockText } from "@/lib/format";
-import { fakeDaemon, tell, withDaemon } from "@/test/context";
+import { fakeDaemon, ofRadios, tell, withDaemon } from "@/test/context";
 import { cssRule } from "@/test/css";
 import { NOW, ago, configValues, radioRow, radiosTopic, status, toastOf } from "@/test/fixtures";
 import type { GeneralAsked, GeneralState, RadioRow } from "@/protocol/protocol";
@@ -195,9 +195,7 @@ describe("Ask around in the Nearby tab", () => {
 describe("the radio of Ask around (plan rule 3.6)", () => {
   /** A station of these radios as the daemon tells them once the settings of before are gone (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
   function on(given: Parameters<typeof fakeDaemon>[0], ...rows: RadioRow[]) {
-    const config = configValues();
-    const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
-    return make({ radios: radiosTopic(...rows), config: { ...config, values }, ...given });
+    return make({ ...ofRadios(...rows), ...given });
   }
   const FM = radioRow(1, "kenwood-tnc2");
   const HF = radioRow(2, "mercury");

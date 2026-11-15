@@ -1,8 +1,10 @@
-// The Radio group of the Settings tab with any number of radios (the round's package U2): the words of a radio's box, of adding and removing a radio, of the main radio, and the radio types' names. The shared words of the
-// radios (`radio.*`) are spelled as the round's plan has them; the integration joins this file into the areas and takes out the words another package also gives.
-export const u2 = {
+import type { radio as en } from "@/i18n/en/radio";
+import type { Message } from "@/i18n/message";
+
+export const radio: Readonly<Record<keyof typeof en, Message>> = {
   "radio.add": "Add radio",
   "radio.add_button": "Add",
+  "radio.new": "New radio",
   "radio.remove": "Remove",
   "radio.remove_sure": "Really remove?",
   "radio.main": "Main radio",
@@ -11,9 +13,14 @@ export const u2 = {
   "radio.name": "Name",
   "radio.name.tip_label": "About the name",
   "radio.name.tip1": "A short name for this radio: the page calls the radio by it everywhere.",
+  "radio.choice": "無線機",
+  "radio.automatic": "Automatic",
+  "radio.send_on": "Send on",
   "radio.line": "{name}: {line}",
-  "settings.group.lora_radio": "LoRa radio",
-
+  "radio.not_connected": "{name}: 未接続",
+  "radio.no_path": "{name}: no path",
+  "radio.heard_on": "Heard on radio {name}",
+  "radio.more": "+{n}",
   "radio.type.kenwood_tnc2": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
   "radio.type.kenwood_d710": "Kenwood TM-D710 / TH-D72",
   "radio.type.kantronics": "Kantronics KPC-3+",
@@ -22,4 +29,4 @@ export const u2 = {
   "radio.type.dummy": "Dummy (no radio, made-up traffic)",
   "radio.type.mercury": "Mercury HF modem (sound card, SSB radio)",
   "radio.type.dummy_hf": "Dummy HF radio (no radio, made-up distant stations)",
-} as const;
+};

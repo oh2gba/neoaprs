@@ -94,7 +94,7 @@ function radioLine(beacon: RadioBeaconState, nowMs: number, smart: boolean): str
 
 /** The lines behind the arrow while several radios are on: each radio's beacon, by its name (`moving`: the radios with SmartBeaconing follow the GPS, the others keep their interval). */
 const radioLines = (radios: readonly BeaconRadio[], nowMs: number, moving = false): string[] =>
-  radios.map((radio) => t("beacon.fold.radio", { name: radio.name, line: radioLine(radio.beacon, nowMs, moving && radio.smart) }));
+  radios.map((radio) => t("radio.line", { name: radio.name, line: radioLine(radio.beacon, nowMs, moving && radio.smart) }));
 
 /** The block of a moving station: the GPS, and under it SmartBeaconing's words, or why nothing is sent (`quiet`, empty when something is); while several radios are on, a line for each radio the beacon goes out on, for a radio
  * without SmartBeaconing sends the timed beacon with the latest fix (plan rule 3.1). */

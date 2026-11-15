@@ -1,11 +1,11 @@
 // The counting of who looks at a radio's scope (composables/useScopeLooks.ts): the rows are asked for while at least one pane looks, the page is in front, the radio has a scope (on, its type has one, its modem the interface) and
-// the socket is open, and not otherwise; one radio's at a time, the one the pane looks at that began last, since a frame does not name its radio; the page's rows are that radio's (composables/useScopeRows.ts), and the
-// monitor card's radio is the one chosen while it has a scope, else the first.
+// the socket is open, and not otherwise; every radio looked at at once, in frames that name their radio; the page keeps each radio's rows apart (composables/useScopeRows.ts), and the monitor card's radio is the one
+// chosen while it has a scope, else the first.
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick, shallowReactive, shallowRef } from "vue";
 import { useScopeLooks } from "@/composables/useScopeLooks";
-import { rowsRadio, useScopeRows } from "@/composables/useScopeRows";
+import { useScopeRows } from "@/composables/useScopeRows";
 import type { Connection } from "@/lib/hub";
 import { BINS } from "@/lib/waterfall";
 import type { PacketRow, RadioRow } from "@/protocol/protocol";
@@ -40,7 +40,7 @@ describe("who looks at the scope", () => {
     pane(a);
     pane(b);
     expect(looks.lookers.value).toBe(1);
-    expect(asked()).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(asked()).toEqual([{ cmd: "radio_scope", radio: 2, on: true, named: true }]);
     a.value = true;
     await nextTick();
     expect(looks.lookers.value).toBe(2);
@@ -51,7 +51,7 @@ describe("who looks at the scope", () => {
     a.value = false;
     await nextTick();
     expect(looks.lookers.value).toBe(0);
-    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
   });
 
   it("takes a pane that goes away out of the count, and asks no more when it was the last", () => {
@@ -60,7 +60,7 @@ describe("who looks at the scope", () => {
     expect(looks.wanted.value).toBe(true);
     wrapper.unmount();
     expect(looks.lookers.value).toBe(0);
-    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
   });
 
   it("asks for nothing while the page is hidden, and when the modem has no scope", () => {
@@ -70,7 +70,7 @@ describe("who looks at the scope", () => {
     expect(hidden.looks.wanted.value).toBe(false);
     expect(hidden.asked()).toEqual([]);
     hidden.visible.value = true;
-    expect(hidden.asked()).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(hidden.asked()).toEqual([{ cmd: "radio_scope", radio: 2, on: true, named: true }]);
     const none = setup(false);
     none.pane(shallowRef(true));
     expect(none.looks.available.value).toBe(false);
@@ -86,8 +86,8 @@ describe("who looks at the scope", () => {
     connection.value = "open";
     await nextTick();
     expect(asked()).toEqual([
-      { cmd: "radio_scope", radio: 2, on: true },
-      { cmd: "radio_scope", radio: 2, on: true },
+      { cmd: "radio_scope", radio: 2, on: true, named: true },
+      { cmd: "radio_scope", radio: 2, on: true, named: true },
     ]);
   });
 });
@@ -106,7 +106,7 @@ function byRadio(...rows: RadioRow[]) {
   const rows_ = useScopeRows(packets, undefined, () => clock.now);
   const connection = shallowRef<Connection>("open");
   const visible = shallowRef(true);
-  const looks = useScopeLooks(send, shallowRef(null), connection, visible, { radios, rows: rows_.memory });
+  const looks = useScopeLooks(send, shallowRef(null), connection, visible, { radios });
   /** A pane that looks at `radio` (none: the first with a scope) while `looking` is true. */
   const pane = (looking: { value: boolean }, radio?: { value: number | null }) =>
     mount(
@@ -148,102 +148,84 @@ describe("the scope by radio", () => {
     expect(setup(false).looks.radios.value).toEqual([]);
   });
 
-  it("asks for one radio's rows at a time: of the pane that began to look last, and of the one before when it stops", async () => {
+  it("asks for the rows of each radio looked at, at once and each in frames that name it, and stops each when the last pane of it stops", async () => {
     const { pane, asked, looks } = byRadio(mercury(2), mercury(5));
     const a = shallowRef(true);
     const b = shallowRef(false);
     pane(a, shallowRef(2));
     pane(b, shallowRef(5));
-    expect(asked()).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(asked()).toEqual([{ cmd: "radio_scope", radio: 2, on: true, named: true }]);
     b.value = true;
     await nextTick();
-    expect(looks.asked.value).toBe(5);
+    expect(looks.asked.value).toEqual([2, 5]);
     expect(looks.lookers.value).toBe(2);
-    expect(asked().slice(1)).toEqual([
-      { cmd: "radio_scope", radio: 2, on: false },
-      { cmd: "radio_scope", radio: 5, on: true },
-    ]);
+    expect(asked().slice(1)).toEqual([{ cmd: "radio_scope", radio: 5, on: true, named: true }]); // (radio 2's go on: nothing is asked again)
     b.value = false;
     await nextTick();
-    expect(asked().slice(3)).toEqual([
-      { cmd: "radio_scope", radio: 5, on: false },
-      { cmd: "radio_scope", radio: 2, on: true },
-    ]);
+    expect(asked().slice(2)).toEqual([{ cmd: "radio_scope", radio: 5, on: false, named: true }]);
     a.value = false;
     await nextTick();
-    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
-    expect(looks.asked.value).toBeNull();
+    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
+    expect(looks.asked.value).toEqual([]);
+    expect(looks.wanted.value).toBe(false);
   });
 
   it("asks once for two panes of one radio, and a pane that names no radio looks at the first with a scope", async () => {
     const { pane, asked } = byRadio(radioRow(1, "kenwood-tnc2"), mercury(4, { position: 1 }), mercury(9, { position: 2 }));
     const one = pane(shallowRef(true));
     pane(shallowRef(true), shallowRef(4));
-    expect(asked()).toEqual([{ cmd: "radio_scope", radio: 4, on: true }]);
+    expect(asked()).toEqual([{ cmd: "radio_scope", radio: 4, on: true, named: true }]);
     one.unmount();
     await nextTick();
     expect(asked()).toHaveLength(1);
   });
 
-  it("passes over a pane whose radio has no scope now (off, removed, its modem without the interface): the next pane's radio is asked for", async () => {
+  it("stops the rows of a radio that has no scope now (off, removed, its modem without the interface), and goes on with the others", async () => {
     const { pane, asked, radios } = byRadio(mercury(2), mercury(5));
     pane(shallowRef(true), shallowRef(2));
     pane(shallowRef(true), shallowRef(5));
-    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 5, on: true });
+    expect(asked()).toEqual([
+      { cmd: "radio_scope", radio: 2, on: true, named: true },
+      { cmd: "radio_scope", radio: 5, on: true, named: true },
+    ]);
     radios.value = radiosTopic(mercury(2), mercury(5, { removed: true, enabled: false }));
     await nextTick();
-    expect(asked().slice(-2)).toEqual([
-      { cmd: "radio_scope", radio: 5, on: false },
-      { cmd: "radio_scope", radio: 2, on: true },
-    ]);
+    expect(asked().slice(2)).toEqual([{ cmd: "radio_scope", radio: 5, on: false, named: true }]);
     radios.value = radiosTopic(mercury(2, { enabled: false, state: "stopped" }));
     await nextTick();
-    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
   });
 
-  it("keeps the rows of the radio asked for last, and lets them go when another radio's are asked for", async () => {
+  it("keeps each radio's rows apart, by the radio the frame names, and keeps them when nobody looks any more: a picture opened again is whole at once", async () => {
     const { pane, rows, looks } = byRadio(mercury(2), mercury(5));
-    expect(rowsRadio(rows.memory)?.value).toBe(2); // (the first with a scope, before any was asked for)
-    pane(shallowRef(true), shallowRef(2));
-    for (let i = 0; i < 3; i++) rows.hfScopeRow({ db: new Float32Array(BINS).fill(-40), level: -20, tx: false });
-    expect(rows.memory.rows).toHaveLength(3);
-    const b = shallowRef(true);
-    const other = pane(b, shallowRef(5));
-    expect(looks.rowsOf.value).toBe(5);
-    expect(rowsRadio(rows.memory)?.value).toBe(5);
-    expect(rows.memory.rows).toHaveLength(0);
-    rows.hfScopeRow({ db: new Float32Array(BINS).fill(-40), level: -20, tx: false });
-    other.unmount();
-    await nextTick();
-    expect(looks.rowsOf.value).toBe(2);
-    expect(rows.memory.rows).toHaveLength(0); // (radio 5's are let go: radio 2's come again from the daemon)
-  });
-
-  it("keeps the rows when nobody looks any more: a picture opened again on the same radio is whole at once", async () => {
-    const { pane, rows, looks } = byRadio(mercury(2), mercury(5));
+    const row = () => ({ db: new Float32Array(BINS).fill(-40), level: -20, tx: false });
     const a = shallowRef(true);
-    pane(a, shallowRef(5));
-    rows.hfScopeRow({ db: new Float32Array(BINS).fill(-40), level: -20, tx: false });
+    pane(a, shallowRef(2));
+    pane(shallowRef(true), shallowRef(5));
+    for (let i = 0; i < 3; i++) rows.hfScopeRow(row(), 2);
+    rows.hfScopeRow(row(), 5);
+    expect([rows.of(2).rows.length, rows.of(5).rows.length]).toEqual([3, 1]);
+    expect(rows.of(2)).toBe(rows.memory); // (radio 2's is the memory of before)
     a.value = false;
     await nextTick();
-    expect(looks.asked.value).toBeNull();
-    expect(looks.rowsOf.value).toBe(5);
-    expect(rows.memory.rows).toHaveLength(1);
+    expect(looks.asked.value).toEqual([5]);
+    expect(rows.of(2).rows).toHaveLength(3);
   });
 
-  it("writes down the stations heard on the radio whose rows it keeps, with the SNR of the frame, and not those of another radio", async () => {
-    const { rows, packets, clock, pane } = byRadio(mercury(2), mercury(5));
+  it("writes down the stations heard on each radio whose rows it keeps, with the SNR of the frame, in that radio's memory alone", async () => {
+    const { rows, packets, clock } = byRadio(mercury(2), mercury(5));
     const heard = (id: number, radio: number, call: string, snr: number | null) =>
       packets.set(
         String(id),
         packet(id, { radio: "", radio_id: radio, source: call, snr, heard_at: new Date(clock.now).toISOString().replace(/\.\d+Z$/, "Z") }),
       );
-    pane(shallowRef(true), shallowRef(5));
+    rows.of(5); // (a pane showed radio 5)
     heard(1, 5, "OH5AAA", 7);
     heard(2, 2, "OH2BBB", 3);
     heard(3, 1, "OH1CCC", null);
     await nextTick();
-    expect(rows.memory.heard.map((h) => [h.call, h.snr])).toEqual([["OH5AAA", 7]]);
+    expect(rows.of(5).heard.map((h) => [h.call, h.snr])).toEqual([["OH5AAA", 7]]);
+    expect(rows.of(2).heard.map((h) => [h.call, h.snr])).toEqual([["OH2BBB", null]]); // (radio 2's SNR is its modem's, from the topic `hf`: none here)
   });
 
   it("shows on the monitor the radio chosen while it can have a scope, else the first that has one, and this browser remembers the choice", async () => {

@@ -5,6 +5,7 @@
 // (`station/main_radio`), which the daemon tells apart in `config.radio_values`, are settings like the others here: saved, held and refused the same way (`set_config` takes them beside the rest).
 import { computed, getCurrentScope, onScopeDispose, reactive, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
+import type { RadioNames } from "@/i18n/errortext";
 import { useSettingsAnswers } from "@/composables/useSettingsAnswers";
 import { useSettingsFeedback } from "@/composables/useSettingsFeedback";
 import { useSettingsQueue, type Request } from "@/composables/useSettingsQueue";
@@ -12,7 +13,7 @@ import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
 import { linkedValues } from "@/lib/settinglinks";
 import type { Command, ConfigValues } from "@/protocol/protocol";
 
-export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean) {
+export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean, radios?: RadioNames) {
   const draft = reactive<Record<string, string>>({});
   const errors = reactive<Record<string, string>>({});
   const feedback = useSettingsFeedback();
@@ -66,7 +67,7 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     commit(Object.keys(choices), true);
   }
 
-  useSettingsAnswers(whole, lastError, draft, queue, feedback, (request, reason, key) => refuse(request, reason, key));
+  useSettingsAnswers(whole, lastError, draft, queue, feedback, (request, reason, key) => refuse(request, reason, key), radios);
 
   return {
     draft,

@@ -2,6 +2,7 @@
 // of `set_config` is the answer too, and names the key it refused.
 import { watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
+import type { RadioNames } from "@/i18n/errortext";
 import type { useSettingsFeedback } from "@/composables/useSettingsFeedback";
 import type { Request, useSettingsQueue } from "@/composables/useSettingsQueue";
 import { refusalFor } from "@/lib/settinglinks";
@@ -14,6 +15,7 @@ export function useSettingsAnswers(
   queue: ReturnType<typeof useSettingsQueue>,
   feedback: ReturnType<typeof useSettingsFeedback>,
   refuse: (request: Request, reason: string, key: string) => void,
+  radios?: RadioNames,
 ): void {
   // a value the person has not touched follows the daemon; one being edited, or waiting in the queue, does not (what the request in flight sent is taken the way the daemon writes it)
   watch(
@@ -34,7 +36,7 @@ export function useSettingsAnswers(
   watch(lastError, (toast) => {
     const request = queue.inflight.value;
     if (!toast || !request || toast.cmd !== "set_config") return;
-    const where = refusalFor(toast, request.keys);
+    const where = refusalFor(toast, request.keys, radios);
     queue.release();
     refuse(request, where.reason, where.key);
     queue.pump();

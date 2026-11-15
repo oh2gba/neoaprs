@@ -45,10 +45,12 @@ fieldset.composebox > legend {
 .field .field-label {
   font-weight: 600;
 }
-/* a field that does not apply now (the beacon is Off): the label and the control are dimmed, the value stays, the (i) is not dimmed */
+/* a field that does not apply now (the beacon is Off, the radio carries no path): the label and the control are dimmed, the value stays, the (i) is not dimmed; Route's rows (.pathbox) the same way */
 .field.disabled label,
 .field.disabled .unit,
-.field.disabled .check {
+.field.disabled .check,
+.pathbox.disabled .path-label,
+.pathbox.disabled .rfonly {
   opacity: 0.5;
 }
 .field-control {
@@ -77,8 +79,10 @@ fieldset.composebox > legend {
   min-width: 0;
   text-overflow: ellipsis;
 }
+/* a row of ticks inside a field (Send on in the Beacon group and the object form): the names in the weight of a value, not of a label */
 .field-control .check {
   margin: 0;
+  font-weight: 400;
 }
 .symbolfield {
   flex-wrap: wrap;

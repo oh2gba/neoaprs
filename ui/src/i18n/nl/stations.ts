@@ -204,7 +204,6 @@ export const stations: Record<keyof typeof source, Message> = {
   "channel.dummy": "Dummy",
   "channel.join": "{first} · {second}",
   "channel.title.rf": "Via de radio gehoord",
-  "channel.title.fm": "Op de FM-set gehoord",
   "channel.title.hf": "Op de HF-set gehoord",
   "channel.title.gated": "Via de radio gehoord van een iGate, die het van internet haalde",
   "channel.title.is": "Via internet ontvangen (APRS-IS), niet via de radio",

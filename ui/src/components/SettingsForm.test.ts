@@ -1585,6 +1585,14 @@ describe("the radios that are on", () => {
     expect(legends(make(BOTH, "settings").wrapper)).toEqual(fm.flatMap((l) => (l === "Digipeater" ? [l, "FM radio"] : [l])));
   });
 
+  it("has no empty hover title on the legend of the Digipeater group's radio box", () => {
+    const legend = make(BOTH, "settings")
+      .wrapper.findAll("fieldset legend")
+      .find((l) => l.text() === "FM radio" && l.element.closest("fieldset")?.querySelector("#set-digi-enabled"));
+    expect(legend?.exists()).toBe(true);
+    expect(legend?.attributes("title")).toBeUndefined();
+  });
+
   it("has the one Beacon choice for both radios, with today's four choices and no second interval, whatever radios are on", () => {
     for (const extra of [{}, BOTH, FM_OFF]) {
       const { wrapper } = make({ ...extra, "beacon/interval_min": "30" }, "beacon");

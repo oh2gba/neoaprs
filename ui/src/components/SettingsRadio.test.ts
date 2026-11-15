@@ -44,7 +44,7 @@ const outside = (box: ReturnType<typeof boxOf>, folded: HTMLDetailsElement) =>
 
 const BOTH = { "hf/enabled": "true" };
 const HF_ONLY = { "fm/enabled": "false", "hf/enabled": "true" };
-const ONLY = "The station's only radio: tick the other first";
+const ONLY = "The station's only radio that is on";
 
 describe("the Radio group of the Settings tab", () => {
   it("has the RX only tickbox first, then the FM radio and the HF radio in a box each, each beginning with its Enable tickbox", () => {

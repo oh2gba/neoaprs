@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { refusedAtField } from "@/lib/settinglinks";
 import { useFindRadio } from "@/composables/useFindRadio";
+import { setLocale } from "@/i18n";
 import type { PortsMessage, RadioRow, RadioSearchMessage } from "@/protocol/protocol";
 import { shallowRef } from "vue";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
@@ -264,10 +265,31 @@ describe("a radio other than those of before, in its box", () => {
       await name.trigger("keydown", { key: "Enter" });
       expect(box("Mobile").find("#set-radio-3-name-error").text(), text).toBe(`the name '${text}' is another radio's already: give this one another`);
     }
+    for (const text of ["FM 2", "hf 7", "RF"]) {
+      await name.setValue(text); // (no other radio's now, but in the form of a label: the daemon refuses it so, radio.name_label)
+      await name.trigger("keydown", { key: "Enter" });
+      expect(box("Mobile").find("#set-radio-3-name-error").text(), text).toBe(
+        `the name '${text}' is how a radio without a name of its own is called: give this one another`,
+      );
+    }
     expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ cmd: "radio_change" }));
-    await name.setValue("FM 2"); // (its own label: no other radio's)
+    await name.setValue("Shack");
     await name.trigger("keydown", { key: "Enter" });
-    expect(send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, name: "FM 2" });
+    expect(send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, name: "Shack" });
+  });
+
+  it("refuses a name in the form of a label in the page's language too, as the daemon refuses its English ones", async () => {
+    const { wrapper, send } = make();
+    setLocale("de");
+    try {
+      const name = wrapper.find<HTMLInputElement>("#set-radio-3-name");
+      await name.setValue("KW 4");
+      await name.trigger("keydown", { key: "Enter" });
+      expect(wrapper.find("#set-radio-3-name-error").text()).toContain("KW 4");
+      expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ cmd: "radio_change" }));
+    } finally {
+      setLocale("en");
+    }
   });
 
   it("keeps the type chosen while its row changes for anything else, and says the refusal that comes after under the type", async () => {
@@ -446,7 +468,7 @@ describe("a radio that is off, removed or the only one on", () => {
     const off = { enabled: false, state: "stopped" } as const;
     const { box } = make({ radios: sixRadios({ 1: off, 2: off, 4: off, 5: off, 6: off }) }, { "fm/enabled": "false", "hf/enabled": "false" });
     expect(box("Mobile").find<HTMLInputElement>("#set-radio-3-enabled").element.disabled).toBe(true);
-    expect(box("Mobile").find(".field").attributes("title")).toBe("The station's only radio: tick the other first");
+    expect(box("Mobile").find(".field").attributes("title")).toBe("The station's only radio that is on");
   });
 });
 
@@ -484,6 +506,22 @@ describe("Add radio", () => {
     (row.querySelector(".info-toggle") as HTMLElement).click();
     await flushPromises();
     expect([...row.querySelectorAll(".info-line")].map((l) => l.textContent)).toEqual([t("settings.profile.tip1"), t("settings.profile.tip2")]);
+  });
+
+  it("gives the Radio type of every box, FM or HF, the same one (i) as Add radio's, of the whole list, with no file of the documents in it (plan section 6: one (i) for the one list)", async () => {
+    const { group } = make();
+    const tips: string[][] = [];
+    for (const id of ["set-tnc-profile", "set-hf-profile", "set-radio-3-type", "set-radio-4-type", "set-radio-6-type", "set-radio-add"]) {
+      const row = group().find(`#${id}`).element.closest(".field")!;
+      const toggle = row.querySelector<HTMLElement>(".info-toggle")!;
+      toggle.click();
+      await flushPromises();
+      tips.push([id, toggle.getAttribute("aria-label") ?? "", ...[...row.querySelectorAll(".info-line")].map((l) => l.textContent ?? "")]);
+    }
+    const one = [t("settings.profile.tip_label"), t("settings.profile.tip1"), t("settings.profile.tip2")];
+    expect(tips.map(([, ...tip]) => tip)).toEqual(tips.map(() => one));
+    expect(one.join(" ")).not.toMatch(/docs\/|\.md\b/);
+    expect(one.join(" ")).toContain("Mercury");
   });
 
   it("leads to the box of the radio added once its row has come, once: it opens and its Enable takes the keyboard, and folded it opens again only for what a box opens for", async () => {

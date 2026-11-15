@@ -10,6 +10,7 @@ import { messages } from "@/i18n/en/messages";
 import { nearby } from "@/i18n/en/nearby";
 import { objects } from "@/i18n/en/objects";
 import { packets } from "@/i18n/en/packets";
+import { radio } from "@/i18n/en/radio";
 import { settings } from "@/i18n/en/settings";
 import { setup } from "@/i18n/en/setup";
 import { shell } from "@/i18n/en/shell";
@@ -18,13 +19,6 @@ import { stats } from "@/i18n/en/stats";
 import { stations } from "@/i18n/en/stations";
 import { symbols } from "@/i18n/en/symbols";
 import { time } from "@/i18n/en/time";
-import { u4 } from "@/i18n/en/u4";
-import { u5a } from "@/i18n/en/u5a";
-import { u5b } from "@/i18n/en/u5b";
-import { u5c } from "@/i18n/en/u5c";
-import { u6 } from "@/i18n/en/u6";
-import { u2 } from "@/i18n/en/u2";
-import { u3 } from "@/i18n/en/u3";
 import { weather } from "@/i18n/en/weather";
 import type { Message } from "@/i18n/message";
 
@@ -44,15 +38,9 @@ export const en = {
   ...packets,
   ...weather,
   ...symbols,
+  ...radio,
   ...settings,
   ...beacon,
   ...setup,
   ...help,
-  ...u4,
-  ...u5a,
-  ...u5b,
-  ...u5c,
-  ...u6,
-  ...u2,
-  ...u3,
 } as const satisfies Record<string, Message>;

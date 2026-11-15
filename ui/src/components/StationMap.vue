@@ -15,6 +15,7 @@ import MapAttribution from "@/components/MapAttribution.vue";
 import { archiveUrl, archivesPresent, glyphsUrl, loadMapEngine } from "@/lib/basemap";
 import { BASEMAP_FILE, WORLD_FILE, basemapStyle, MAX_ZOOM, OPEN_ZOOM, type Archives } from "@/lib/basemapstyle";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useRadios } from "@/composables/useRadios";
 import { useMapCircles } from "@/composables/useMapCircles";
 import { useMapControlLabels } from "@/composables/useMapControlLabels";
 import { useClearOfCard } from "@/composables/useClearOfCard";
@@ -67,15 +68,15 @@ const emit = defineEmits<{
   monitor: [];
   replay: [open: boolean];
 }>();
-const page = useDaemonContext();
+const [page, radios] = [useDaemonContext(), useRadios()]; // (the radios: the hover card names each radio by its name where radios are named)
 /** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
 const mapFiles = computed(() => filesKey(page.map.value));
 
 const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const card = useClearOfCard(root, host);
-const selectedCall = (): string | null => props.selected;
 const stationOf = (call: string): StationRow | undefined => page.stations.value.get(call);
+const selectedCall = (): string | null => props.selected;
 const circles = useMapCircles(() => map, host, selectedCall);
 const labelControls = useMapControlLabels(host);
 useResized(host, () => map?.resize());
@@ -303,7 +304,7 @@ watch(mapFiles, (key) => {
 watch(page.dark, (dark) => map?.setStyle(styleFor(dark)));
 
 onMounted(() => {
-  if (root.value) hover = new HoverCard(root.value, stationOf, () => page.now.value, page.radiosNamed);
+  if (root.value) hover = new HoverCard(root.value, stationOf, () => page.now.value, radios);
   void create();
 });
 onBeforeUnmount(() => {

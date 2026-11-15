@@ -2,7 +2,7 @@
 // on, and the radio this page has just added. Read from the page's context (the topic `radios`, the settings, the status, the lines of before); a pane mounted without the page's context (a test of its own) is as a
 // station with the FM radio alone. The radios are made once for each page and shared by every pane that asks, and a radio stays the same object while nothing of its own changes, so that a stats-only patch of
 // the topic draws again only what shows the counts.
-import { computed, effectScope, inject, type ComputedRef } from "vue";
+import { computed, effectScope, inject, ref, watch, type ComputedRef, type Ref } from "vue";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { emailRadio, enabledRadios, isNamed, mainRadio, messageRadio, pageRadios, sameRadio, sendingRadio, type PageRadio, type RadioId } from "@/lib/radios";
 import { pageRows } from "@/lib/radiosides";
@@ -36,6 +36,16 @@ export interface Radios {
   ) => PageRadio | null;
   /** the radio of a message: the one its next attempt goes on while it is on its way, else the one it came or went on; null for none */
   forMessage: (row: Pick<MessageRow, "radio_now" | "radio_id">) => PageRadio | null;
+  /** a choice of one radio beside a button that asks (Local info, Ask around: plan rule 3.6), made for the pane that calls it */
+  choose: () => RadioChoice;
+}
+
+/** The radio chosen beside a button: `picked` the operator's (null: the main radio), `radio` the one it goes on (the one picked while it is on, else the main radio), `choices` the radios on, the main radio first. A
+ * choice that goes off is forgotten, and does not come back by itself when that radio is on again. */
+interface RadioChoice {
+  picked: Ref<RadioId | null>;
+  radio: ComputedRef<RadioId | null>;
+  choices: ComputedRef<PageRadio[]>;
 }
 
 /** The radios of one page, made in a scope of their own so that they outlive the pane that asked first. */
@@ -83,6 +93,17 @@ function make(context: DaemonContext | null): Radios {
     forMessage: (row) => {
       const id = messageRadio(row);
       return id === null ? null : (byId(id) ?? null);
+    },
+    choose: () => {
+      const picked = ref<RadioId | null>(null);
+      watch(enabled, (on) => {
+        if (picked.value !== null && !on.some((r) => r.id === picked.value)) picked.value = null;
+      }); // (in the scope of the pane that asked: it ends with the pane)
+      return {
+        picked,
+        radio: computed(() => (picked.value !== null && enabled.value.some((r) => r.id === picked.value) ? picked.value : (main.value?.id ?? null))),
+        choices: computed(() => [...enabled.value].sort((a, b) => Number(b.id === main.value?.id) - Number(a.id === main.value?.id))),
+      };
     },
   };
 }

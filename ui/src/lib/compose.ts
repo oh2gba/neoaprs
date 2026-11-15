@@ -1,5 +1,6 @@
 // What the boxes to write in say about the limits of a text and about Send, in one place: the title of the counter ("12 of 67 bytes left"), the counter itself ("12 left", "3 over") and why Send is off while the radio link is down.
 import { t } from "@/i18n";
+import type { PageRadio } from "@/lib/radios";
 
 /** The title of Send, and the reason of any button that sends, while the TNC is not connected. */
 export function tncNotConnected(): string {
@@ -9,6 +10,12 @@ export function tncNotConnected(): string {
 /** Why a button that sends is off: transmitting is switched off (RX only), or the TNC is not connected; undefined when neither. */
 export function sendBlockedReason(connected: boolean, rxOnly = false): string | undefined {
   return rxOnly ? rxOnlyReason() : connected ? undefined : tncNotConnected();
+}
+
+/** Why nothing may go on a radio: it is not connected (named where it is named: several on, or it is off), or there is none; undefined while it is connected, and while `told` is false (before the daemon has told its radios). */
+export function radioBlockedReason(radio: PageRadio | null | undefined, named: boolean, told = true): string | undefined {
+  if (!told || radio?.connected === true) return undefined;
+  return radio == null ? t("error.radio.none") : named ? t("radio.not_connected", { name: radio.name }) : tncNotConnected();
 }
 
 /** The title of every button that sends while transmitting is switched off. */

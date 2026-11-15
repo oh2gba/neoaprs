@@ -210,6 +210,7 @@ export function useDaemon(url: () => string = socketUrl) {
     ownBulletins: own.ownBulletins,
     ...whole.refs,
     scopeRows: scope.memory,
+    scopeOf: scope.of,
     status,
     connection,
     lastError,

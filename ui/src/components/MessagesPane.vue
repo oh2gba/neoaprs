@@ -11,8 +11,8 @@ import GroupCompose from "@/components/GroupCompose.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useElementWidth } from "@/composables/useElementWidth";
+import { useRadios } from "@/composables/useRadios";
 import { MESSAGES_WIDE } from "@/lib/layout";
-import { radioFor } from "@/lib/radiosides";
 import type { Conversation } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -43,10 +43,13 @@ const emit = defineEmits<{
   deleteOverheard: [from: string, to: string];
   "update:showOverheard": [show: boolean];
 }>();
-const { connectedOn, now, stations, config } = useDaemonContext();
+const { now, stations } = useDaemonContext();
+const radios = useRadios();
 
-/** Whether the link of the radio each recipient of the group is messaged on is up. */
-const groupConnected = computed(() => (props.group ?? []).every((call) => connectedOn(radioFor(stations.value.get(call) ?? null, config.value?.values ?? {}))));
+/** Whether the link of the radio each recipient of the group is messaged on is up: the station's radio now (each text is a message of its own), the main radio for a call the book does not hold. */
+const groupConnected = computed(() =>
+  (props.group ?? []).every((call) => (radios.forStation(stations.value.get(call) ?? null) ?? radios.main.value)?.connected === true),
+);
 
 const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);

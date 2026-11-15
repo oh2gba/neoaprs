@@ -197,7 +197,7 @@ describe("the settings area in the pseudo-locale", () => {
 
   it("draws the small panels", () => {
     const context = daemon();
-    const guide = useSetupGuide(ref(configValues()), ref(null), ref(null), () => true);
+    const guide = useSetupGuide(ref(configValues()), ref(null), () => true);
     expect(untranslated(draw(KeyScreen, undefined))).toEqual([]);
     expect(untranslated(draw(ConfirmRow, undefined, { message: "x" }))).toEqual([]);
     expect(untranslated(draw(SymbolPicker, undefined, { table: "/", code: "-" }))).toEqual([]);

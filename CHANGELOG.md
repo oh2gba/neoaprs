@@ -21,6 +21,12 @@
 - **Changed:** a conversation shows the radio its messages really go on, and Route and Send follow it.
 - **Changed:** a port, sound card or keying line the other radio is set to is refused at Save, instead of the radio waiting for it.
 - **Changed:** the page has the colours and shapes of the project's site, in the light and the dark theme, and so has the icon.
+- **New:** any number of radios of any type: add, name and remove them in Settings → Radio, and choose the main radio.
+- **New:** with several radios, Route chooses a station's radio, and each tag, message, object and Monitor names its radio.
+- **New:** with several radios, Send on chooses the radios of the beacon and of each object; Ask around and Local info choose theirs.
+- **Changed:** the HF tests tab shows only while an HF radio is on.
+- **Changed:** Post, Ask, Ask around, a station's questions, Beacon now, Send status now, Retry and Send my key wait for their radio, as Send does.
+- **Changed:** the setup guide's Radio step saves each change at once; Find my radio shows only for a radio on a serial port.
 - **Fixed:** a page on another device could change the alert command, the update address and the map source. Only this computer can now.
 - **Fixed:** behind a reverse proxy, visitors were taken for the NeoAPRS computer itself. They are now asked for the access key.
 - **Fixed:** a message too long for its radio waited for ever. It now fails at once and says it is too long for the radio.

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Find my radio button, in the row of the radio's fields where the Settings tab and the Radio step of the setup guide both have it (composables/useFindRadio.ts runs the search and puts what it finds in the settings, or in the guide's answers).
+// The Find my radio button, in the row of the radio's fields where the Settings tab and the Radio step of the setup guide both have it (composables/useFindRadio.ts runs the search and puts what it finds in the settings of the radio of the box).
 // It is not there where the daemon cannot look for the radio among the ports (`find` of the ports message: Linux, Windows and macOS can); it is shown until the daemon has said.
 import { computed } from "vue";
 import { t } from "@/i18n";

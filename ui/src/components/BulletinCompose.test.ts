@@ -1,8 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import type { OwnBulletinRow, RadioRow } from "@/protocol/protocol";
-import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, ownBulletin, radioRow, radiosTopic, status } from "@/test/fixtures";
+import { fakeDaemon, ofRadios, tell, withDaemon, type Given } from "@/test/context";
+import { ownBulletin, radioRow, radiosTopic, status } from "@/test/fixtures";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 
 function compose() {
@@ -153,9 +153,7 @@ describe("BulletinCompose", () => {
 describe("Post and the main radio, which a bulletin goes on", () => {
   /** A station of these radios as the daemon tells them once the settings of before are gone (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
   function on(given: Given, ...rows: RadioRow[]) {
-    const config = configValues();
-    const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
-    const daemon = fakeDaemon({ radios: radiosTopic(...rows), config: { ...config, values }, ...given });
+    const daemon = fakeDaemon({ ...ofRadios(...rows), ...given });
     const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });
     return { wrapper, daemon, post: () => wrapper.find<HTMLButtonElement>("button[type='submit']") };
   }

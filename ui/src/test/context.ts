@@ -6,18 +6,20 @@ import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useFindRadio } from "@/composables/useFindRadio";
 import { usePanel } from "@/composables/usePanel";
-import { useScopeLooks, type ScopeLooks } from "@/composables/useScopeLooks";
+import { useScopeLooks, type ScopeLooks, type ScopeParts } from "@/composables/useScopeLooks";
+import { scopeMemories } from "@/composables/useScopeRows";
 import { pageVisible } from "@/composables/useVisible";
 import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationKeys } from "@/composables/useStationKeys";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
-import { hfOn, type RadioKind } from "@/lib/radiosides";
+import { enabledRadios, pageRadios } from "@/lib/radios";
+import { pageRows, type RadioKind } from "@/lib/radiosides";
 import { ScopeMemory } from "@/lib/scopememory";
 import type { Connection } from "@/lib/hub";
 import type { Command, ConfigValues, PacketRow, RadioRow, RadioSearchMessage, StationKey, StationPref, StationRow, TncState } from "@/protocol/protocol";
-import { NOW, configValues, radiosOf } from "@/test/fixtures";
+import { NOW, configValues, radiosOf, radiosTopic } from "@/test/fixtures";
 
 /** The context as a test changes it: the parts that are refs are writable. */
 export type FakeDaemon = { [K in keyof DaemonContext]: DaemonContext[K] extends Readonly<Ref<infer T>> ? Ref<T> : DaemonContext[K] } & {
@@ -28,8 +30,8 @@ export type FakeDaemon = { [K in keyof DaemonContext]: DaemonContext[K] extends 
 export type Given = { [K in keyof DaemonContext]?: DaemonContext[K] extends Readonly<Ref<infer T>> ? T | Ref<T> : DaemonContext[K] };
 
 /** Who looks at the scope: the one a test gave, else the page's own counting over the given parts. */
-function scopeOf(over: Given, send: FakeDaemon["send"], hf: Ref<TncState | null>, connection: Ref<Connection>): ScopeLooks {
-  return over.scope ?? useScopeLooks(send, hf, connection, pageVisible());
+function scopeOf(over: Given, send: FakeDaemon["send"], hf: Ref<TncState | null>, connection: Ref<Connection>, parts: ScopeParts): ScopeLooks {
+  return over.scope ?? useScopeLooks(send, hf, connection, pageVisible(), parts);
 }
 
 type RadioTopic = ReadonlyMap<string, RadioRow> | null;
@@ -51,6 +53,18 @@ function radiosPart(
   });
 }
 
+/** Whether the radios are named: the one a test gave, else as the page has it, more than one radio on. */
+function namedPart(
+  given: Given["radiosNamed"],
+  radios: Ref<RadioTopic>,
+  config: Ref<ConfigValues | null>,
+  tnc: Ref<TncState | null>,
+  hf: Ref<TncState | null>,
+): Readonly<Ref<boolean>> {
+  if (given !== undefined) return isRef(given) ? given : shallowRef(given);
+  return computed(() => enabledRadios(pageRadios(pageRows(radios.value, config.value, tnc.value, hf.value), config.value)).length > 1);
+}
+
 /** The context a test mounts a pane in; a part given as a value is put in a ref. */
 export function fakeDaemon(over: Given = {}): FakeDaemon {
   const send = vi.fn((_command: Command) => true);
@@ -66,6 +80,8 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const tnc = part(over.tnc, null);
   const hf = part(over.hf, null);
   const connection = part(over.connection, "open" as const);
+  const radios = radiosPart(over.radios, config, connected, tnc, hf);
+  const scopeRows = over.scopeRows ?? new ScopeMemory();
   const context = {
     send: sender,
     say: over.say ?? vi.fn((_text: string) => undefined),
@@ -73,10 +89,11 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     status,
     tnc,
     hf,
-    scopeRows: over.scopeRows ?? new ScopeMemory(),
-    radios: radiosPart(over.radios, config, connected, tnc, hf),
+    scopeRows,
+    scopeOf: over.scopeOf ?? scopeMemories(scopeRows).of,
+    radios,
     radioAdded: part(over.radioAdded, null),
-    radiosNamed: over.radiosNamed === undefined ? computed(() => hfOn(config.value?.values ?? {})) : part(over.radiosNamed, false),
+    radiosNamed: namedPart(over.radiosNamed, radios, config, tnc, hf),
     gps: part(over.gps, null),
     igate: part(over.igate, null),
     qru: part(over.qru, null),
@@ -93,7 +110,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     releaseNotes: part(over.releaseNotes, null),
     lastError,
     connection,
-    scope: scopeOf(over, sender, hf, connection),
+    scope: scopeOf(over, sender, hf, connection, { radios }),
     version: part(over.version, ""),
     install: part(over.install, null),
     local: part(over.local, true),
@@ -120,7 +137,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),
     keys: over.keys ?? useStationKeys(shallowReactive(new Map<string, StationKey>()), status, sender),
     settings,
-    guide: over.guide ?? useSetupGuide(config, lastError, ports, sender),
+    guide: over.guide ?? useSetupGuide(config, lastError, sender),
     panel: over.panel ?? usePanel(),
   };
   // the alert of the browser listens to the window: it is made when a pane asks for it
@@ -132,6 +149,13 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
 /** The `global` option of a mount: the context provided to the pane. */
 export function withDaemon(context: DaemonContext = fakeDaemon()): { provide: Record<symbol, DaemonContext> } {
   return { provide: { [DAEMON_KEY as symbol]: context } };
+}
+
+/** A station of these radios as the daemon tells them once the settings of before are gone: the topic, and settings without the Enable of before (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
+export function ofRadios(...rows: RadioRow[]): Given {
+  const config = configValues();
+  const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
+  return { radios: radiosTopic(...rows), config: { ...config, values } };
 }
 
 /** What the daemon tells after the pane is up: those parts of the context change, and the pane follows. */

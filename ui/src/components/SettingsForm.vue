@@ -103,7 +103,7 @@ const shown = (keys: readonly string[], inGroup = true) =>
       !(inGroup && folded.has(key)) &&
       (key !== ALERT_KEY || local.value) &&
       shownFor(key, profile.value, network.value) &&
-      shownByRadios(key, draft) &&
+      shownByRadios(key, draft, radios.enabled.value) &&
       shownByValues(key, draft),
   );
 const radios = useRadios();

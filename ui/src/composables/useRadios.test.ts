@@ -35,7 +35,7 @@ const ids = (radios: { id: number }[]) => radios.map((radio) => radio.id);
 function viewsBefore(values: Record<string, string>) {
   const fm = values["fm/enabled"] !== "false";
   const hf = values["hf/enabled"] === "true";
-  return { two: fm && hf, fmOff: !fm, named: hf };
+  return { two: fm && hf, fmOff: !fm, named: fm && hf }; // (named: more than one radio on, plan section 6)
 }
 const FM = { "fm/enabled": "true", "hf/enabled": "false" };
 const BOTH = { "fm/enabled": "true", "hf/enabled": "true" };
@@ -204,7 +204,7 @@ describe("the views of before over the radios", () => {
     const { seen } = read(daemon);
     expect([seen().two, seen().fmOff]).toEqual([true, false]);
     await tell(daemon, { config: configValues(HF) });
-    expect([seen().two, seen().fmOff, seen().named]).toEqual([false, true, true]);
+    expect([seen().two, seen().fmOff, seen().named]).toEqual([false, true, false]);
     await tell(daemon, { config: null, radios: topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) });
     expect([seen().two, seen().fmOff]).toEqual([false, false]);
   });

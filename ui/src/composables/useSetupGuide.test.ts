@@ -14,7 +14,7 @@ function setUp(initial: ConfigValues | null = fresh()) {
   const portList = ref<PortsMessage | null>(null);
   const sent: Command[] = [];
   const send = vi.fn((command: Command) => (sent.push(command), true));
-  const guide = useSetupGuide(config, lastError, portList, send);
+  const guide = useSetupGuide(config, lastError, send);
   /** The daemon tells the settings again, as it does after a save. */
   const told = async (extra: Record<string, string> = {}) => {
     const now = config.value ?? fresh();

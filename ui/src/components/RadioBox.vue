@@ -102,7 +102,7 @@ function settle(part: Part): void {
 watch(lastError, (toast) => {
   const mine = asked.value;
   if (toast === null || toast.cmd !== "radio_change" || mine?.radio !== props.radio.id) return;
-  refusal.value = { part: mine.part, text: errorReason(toast) };
+  refusal.value = { part: mine.part, text: errorReason(toast, radios) };
   settle(mine.part);
 });
 // the row says what was asked: what is shown is the daemon's again (a row that changes for anything else, its state, keeps what was chosen)
@@ -165,11 +165,18 @@ const nameInfo = computed<FieldInfo>(() => ({
 /** Whether another radio of the station is called by this name already (its name or, without one, its label "FM 2"), case folded as the daemon compares names. */
 const taken = (typed: string): boolean =>
   typed !== "" && radios.all.value.some((other) => !other.removed && other.id !== props.radio.id && other.name.toLowerCase() === typed.toLowerCase());
+/** Whether a name is in the form of the label of a radio with no name of its own in the page's language: a word of a kind ("FM", "KW" in German), alone or with a space and a number ("UKW 2"), case folded (the daemon
+ * refuses its English labels itself: `radio.name_label`). */
+const labelLike = (typed: string): boolean => {
+  const folded = typed.toLowerCase().replace(/ \d+$/, "");
+  return (["channel.fm", "channel.hf", "channel.rf"] as const).some((id) => t(id).toLowerCase() === folded);
+};
 function rename(): void {
   const typed = name.value.trim();
   if (typed === props.radio.row.name) return void (name.value = typed);
   if (typed.length > max || !/^[\x20-\x7e]*$/.test(typed)) return void (nameProblem.value = t("error.radio.name_form", { name: typed, max }));
   if (taken(typed)) return void (nameProblem.value = t("error.radio.name_taken", { name: typed }));
+  if (labelLike(typed)) return void (nameProblem.value = t("error.radio.name_label", { name: typed }));
   nameProblem.value = "";
   name.value = typed;
   change("name", { name: typed });
@@ -292,6 +299,7 @@ const hasGain = computed(() => (flat.value === null ? can.value.tx_gain && gainK
         <template v-if="tools">
           <HfTuneRow v-if="can.tune" :id="ids(radioElementId(radio, 'tune'))" :radio="radio" />
           <HfLevelRow v-if="hasGain" :id="ids(radioElementId(radio, 'txlevel'))" :settings="settings" :form="form" :radio="radio" :setting-key="gainKey" />
+          <HfScope :radio="radio.id" />
         </template>
       </template>
     </RadioStatus>

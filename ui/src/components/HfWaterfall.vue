@@ -4,11 +4,12 @@
 // and the stations heard are what the page keeps (`scopeRows`, lib/scopememory.ts: two minutes, each row at the moment it was made, over the page's one floor), so the picture is drawn whole at once when it is mounted, and again
 // when the rows the daemon kept come; the rows that come after are drawn as they come (the caller asks for them). A canvas that is not shown is not drawn on, and is drawn whole when it has room. Its `speed` is the monitor card's
 // choice (components/MonitorMenu.vue; the box in Settings is always at Normal), and a new one draws the picture again in place from the same rows; the floor and the passband's shape are still followed by themselves. `radio` is
-// the radio it shows: what the page keeps is one radio's rows at a time (composables/useScopeLooks.ts, `rowsOf`), and while they are another's the picture is its ground and ruler alone, drawn whole when they are its own again.
+// the radio it shows (none: radio 2, the HF radio of before): the page keeps each radio's rows apart (composables/useScopeRows.ts), and another radio is drawn whole at once from what is kept of it.
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
 import type { RadioId } from "@/lib/radios";
+import { HF_ID } from "@/lib/radiosides";
 import type { Heard } from "@/lib/scopememory";
 import { snrText, type Speed } from "@/lib/waterfall";
 import { Waterfall } from "@/lib/waterfallpainter";
@@ -17,35 +18,52 @@ const props = withDefaults(defineProps<{ speed?: Speed; radio?: RadioId | null }
 
 /** Whether the canvas has room (it has none in a fold that is closed, under another tab or in a panel a phone does not show): the pane that holds it looks at the scope only while it does. */
 const emit = defineEmits<{ shown: [shown: boolean] }>();
-const { scopeRows, scope } = useDaemonContext();
+const { scopeOf, scope } = useDaemonContext();
 const canvas = ref<HTMLCanvasElement | null>(null);
 let painter: Waterfall | null = null;
 let stop: (() => void) | null = null;
 
 /** What is written for a station heard: its call and the modem's SNR of it, or the call alone where the page did not read one. */
 const text = (heard: Heard): string => (heard.snr === null ? heard.call : t("settings.scope.heard", { call: heard.call, db: snrText(heard.snr) }));
-/** What the page keeps is this radio's rows (a picture that names no radio shows what is kept). */
-const ours = (): boolean => props.radio === null || scope.rowsOf.value === props.radio;
+/** The radio shown, and what the page keeps of it. */
+const shownRadio = (): RadioId => props.radio ?? HF_ID;
+let memory = scopeOf(shownRadio());
 
 /** The whole picture from what the page keeps, as it stands now. */
 let drawn = ""; // what the whole picture was last drawn of: the line of its moment at its speed, the rows and the stations heard
 function whole(force = true): void {
-  const now = scopeRows.now();
+  const now = memory.now();
   if (!painter) return;
-  const mine = ours();
-  const of = `${props.speed} ${painter.slot(now)} ${mine} ${scopeRows.rows.length} ${scopeRows.rows.at(-1)?.at} ${scopeRows.heard.length}`;
+  const of = `${props.speed} ${painter.slot(now)} ${shownRadio()} ${memory.rows.length} ${memory.rows.at(-1)?.at} ${memory.heard.length}`;
   if (!force && of === drawn) return; // (asked again in the moment it was drawn: the same picture)
   drawn = of;
-  painter.show(mine ? scopeRows.rows : [], mine ? scopeRows.heard.map((heard) => ({ at: heard.at, text: text(heard) })) : [], now);
+  painter.show(
+    memory.rows,
+    memory.heard.map((heard) => ({ at: heard.at, text: text(heard) })),
+    now,
+  );
 }
 
 // the rows are asked for again (the page is in front again, the socket open anew): the picture as it stands now at once, the time it was away at the top until the daemon's rows fill it, so that nothing moves when they come
 watch(
-  () => scope.asked.value !== null && (props.radio === null || scope.asked.value === props.radio),
+  () => scope.asked.value.includes(shownRadio()),
   (on) => on && whole(false),
 );
-// the rows kept became this radio's, or another's: the picture as it stands for it at once
-watch(ours, () => whole());
+/** Listens to what is kept of the radio shown. */
+function listen(): void {
+  stop?.();
+  stop = memory.listen({
+    row: (kept) => painter?.push(kept.bytes, kept.at, kept.tx),
+    heard: (heard) => painter?.label(text(heard), heard.at),
+    whole,
+  });
+}
+// another radio shown (the monitor card's): its picture as it stands at once, and its rows as they come
+watch(shownRadio, (radio) => {
+  memory = scopeOf(radio);
+  listen();
+  whole();
+});
 // another speed: the same rows drawn again in place at once
 watch(
   () => props.speed,
@@ -77,11 +95,7 @@ onMounted(() => {
     observer.observe(canvas.value);
   }
   whole();
-  stop = scopeRows.listen({
-    row: (kept) => ours() && painter?.push(kept.bytes, kept.at, kept.tx),
-    heard: (heard) => ours() && painter?.label(text(heard), heard.at),
-    whole,
-  });
+  listen();
   report();
 });
 onBeforeUnmount(() => {

@@ -145,7 +145,7 @@ describe("the one Location control", () => {
     form.place(60.17, 24.94);
     const objects = mount(ObjectForm, { props: { form, fallbackPath: "" } });
     const config = ref(configValues({ "station/lat": "60.17", "station/lon": "24.94" }));
-    const guide = useSetupGuide(config, ref(null), ref(null), () => true);
+    const guide = useSetupGuide(config, ref(null), () => true);
     guide.show();
     guide.step = 1;
     const setup = mount(SetupGuide, { global: withDaemon(fakeDaemon({ config, guide })) });

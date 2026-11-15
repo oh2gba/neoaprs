@@ -62,32 +62,32 @@ interface Line {
 
 /** Why a radio is not connected, in the words of the page: its coded problem (lib/radios.ts `problemText`), searching while its line is being opened, else its state; never the daemon's line of what it does
  * (that names ports and devices: the log has it). */
-function whyOf(state: TncState["state"], radio: PageRadio | undefined): string {
+function whyOf(state: TncState["state"], radio: PageRadio | undefined, radios: readonly PageRadio[] = []): string {
   const problem = radio?.problem ?? null;
   if (state === "connecting" && (problem === null || problem.code === "radio.not_connected")) return t("settings.tnc.searching");
-  return problem === null ? t(`settings.tnc.state.${state}`) : problemText(problem);
+  return problem === null ? t(`settings.tnc.state.${state}`) : problemText(problem, t, { byId: (id) => radios.find((one) => one.id === id) });
 }
 
 /** The line of radio 1 or 2 as its topic of before (`tnc`, `hf`) tells it, its problem in the daemon's words where it says one; null before it is told. */
-const lineBefore = (before: TncState | null, radio: PageRadio | undefined): Line | null =>
+const lineBefore = (before: TncState | null, radio: PageRadio | undefined, radios: readonly PageRadio[]): Line | null =>
   before === null
     ? null
     : {
         state: before.state,
         dummy: before.dummy,
         since: before.silent_since,
-        why: before.problem || whyOf(before.state, radio),
+        why: before.problem || whyOf(before.state, radio, radios),
         kiss: before.describe.includes("entering KISS"),
       };
 
 /** The line of a radio by its row of the topic `radios`. */
-function lineOfRow(radio: PageRadio): Line {
+function lineOfRow(radio: PageRadio, radios: readonly PageRadio[]): Line {
   const since = radio.problem?.code === "radio.silent" ? String(radio.problem.params["since"] ?? "") : "";
   return {
     state: radio.state,
     dummy: radio.dummy,
     since: since === "" ? null : since,
-    why: whyOf(radio.state, radio),
+    why: whyOf(radio.state, radio, radios),
     kiss: false,
   };
 }
@@ -95,9 +95,10 @@ function lineOfRow(radio: PageRadio): Line {
 /** The line of a radio: radio 1 (FM) and radio 2 (HF) as their topics of before tell it, in their words; any other by its row of the topic `radios`. Unknown (waiting) while the page's socket is not open. */
 function lineOf(link: Link, radio: PageRadio | undefined): Line | null {
   if (link.connection !== "open") return null;
-  if (radio === undefined || (radio.id === FM_ID && radio.kind === "fm")) return lineBefore(link.tnc, radio);
-  if (radio.id === HF_ID && radio.kind === "hf") return lineBefore(link.hf, radio);
-  return lineOfRow(radio);
+  const radios = link.radios ?? [];
+  if (radio === undefined || (radio.id === FM_ID && radio.kind === "fm")) return lineBefore(link.tnc, radio, radios);
+  if (radio.id === HF_ID && radio.kind === "hf") return lineBefore(link.hf, radio, radios);
+  return lineOfRow(radio, radios);
 }
 
 /** The control a radio's mark leads to, inside its box in Settings → Radio (which is flashed): the type of radio 1 and 2, as the group has them; the Enable of any other's box. */
@@ -113,7 +114,7 @@ const whyTitle = (text: string) => ({ title: "pill.radio_why_title", titleValues
 /** The mark of a radio in the state of its line. `name` is the radio's short name where it is named (two marks), and the mark says "Radio" (the words it always had) where there is one. */
 function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: string, name: string | null): HeaderPill {
   const base = { id, target: "settings", focus } as const;
-  const values = name === null ? undefined : { radio: name };
+  const values = name === null ? undefined : { radio: name, name }; // (`name` for the shared words of a radio: "{name}: not connected")
   const word = (plain: MessageId, withName: MessageId) => ({ text: name === null ? plain : withName, textValues: values }) as const;
   if (line === null) return { ...base, ...word("pill.radio_waiting", "pill.radio_named_waiting"), tone: "warn", ...whyTitle(t("pill.radio_waiting_why")) };
   if (line.state === "connected") {
@@ -125,7 +126,7 @@ function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: s
           text: "pill.radio_named",
           textValues: values,
           tone: "ok",
-          ...whyTitle(t("radio.state", { name, state: t("settings.tnc.state.connected") })),
+          ...whyTitle(t("radio.line", { name, line: t("settings.tnc.state.connected") })),
         }; // ("FM: connected": a name stands before a colon)
   }
   if (line.state === "silent")
@@ -135,7 +136,7 @@ function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: s
       ? { ...base, ...word("pill.radio_kiss", "pill.radio_named_kiss"), tone: "warn", ...whyTitle(line.why) }
       : { ...base, ...word("pill.radio_searching", "pill.radio_named_searching"), tone: "warn", ...whyTitle(line.why) };
   }
-  return { ...base, ...word("pill.radio_off", "pill.radio_named_off"), tone: "warn", ...whyTitle(line.why) };
+  return { ...base, ...word("pill.radio_off", "radio.not_connected"), tone: "warn", ...whyTitle(line.why) };
 }
 
 /** The one mark of three radios and more: "Radios" while every one is connected (dashed when every one is a Dummy), else the radio in trouble in its words ("20 m: not connected"), or how many are ("Radios: 2 not
@@ -143,7 +144,7 @@ function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: s
 function radiosPill(link: Link, on: readonly PageRadio[], first: PageRadio | undefined): HeaderPill {
   const lines = on.map((radio) => ({ radio, line: lineOf(link, radio) }));
   const said = lines.map(({ radio, line }) => {
-    if (line?.state === "connected") return t("radio.state", { name: radio.name, state: t("settings.tnc.state.connected") });
+    if (line?.state === "connected") return t("radio.line", { name: radio.name, line: t("settings.tnc.state.connected") });
     const mark = radioPill(link, line, "radios", "", radio.name); // (a radio not connected in the words its own mark would have: "Portable: searching…")
     return t(mark.text, mark.textValues);
   });

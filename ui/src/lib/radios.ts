@@ -3,7 +3,7 @@
 // `config.radio_values` and the status; composables/useRadios.ts is the reactive side, and lib/radiosides.ts reads the same radios out of the settings of before against a daemon that tells no topic.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { errorReason } from "@/i18n/errortext";
+import { errorReason, type RadioNames } from "@/i18n/errortext";
 import { RADIO_TYPES } from "@/protocol/lists";
 import type { ConfigValues, MessageRow, RadioProblem, RadioRow, StationRow, StatusMessage } from "@/protocol/protocol";
 
@@ -72,11 +72,12 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
   "modem.sound_card": "settings.tnc.hf.sound_card",
 };
 
-/** What a radio's problem says to the operator: the words of its line's state, else (a device another holds, RX only, a beacon not sent) the sentence of its refusal, and "Not connected" where the catalogue has none. */
-export function problemText(problem: RadioProblem, words: typeof t = t): string {
+/** What a radio's problem says to the operator: the words of its line's state, else (a device another holds, RX only, a beacon not sent) the sentence of its refusal, and "Not connected" where the catalogue has none.
+ * `radios`: the page's, by which the radio holding a device is said in the page's words. */
+export function problemText(problem: RadioProblem, words: typeof t = t, radios?: RadioNames): string {
   const id = PROBLEM_WORDS[problem.code];
   if (id !== undefined) return words(id, problem.params);
-  return errorReason({ code: problem.code, params: problem.params, cmd: "", key: null, text: words("settings.tnc.not_connected") });
+  return errorReason({ code: problem.code, params: problem.params, cmd: "", key: null, text: words("settings.tnc.not_connected") }, radios);
 }
 
 /** A radio's own settings out of `radio_values`, by the key of the field. */

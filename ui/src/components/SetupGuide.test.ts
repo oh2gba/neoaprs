@@ -49,7 +49,7 @@ function make(opts: Made = {}) {
   const portList = ref<PortsMessage | null>(opts.ports ?? null);
   const sent: Command[] = [];
   const send = (command: Command) => (sent.push(command), true);
-  const guide = useSetupGuide(config, lastError, portList, send);
+  const guide = useSetupGuide(config, lastError, send);
   guide.show();
   const map = opts.map === undefined ? mapState() : opts.map;
   const settings = useSettings(config, lastError, send);
@@ -111,7 +111,7 @@ const labels = (wrapper: VueWrapper) => wrapper.findAll(".setup-body .field > la
 const PLACE = { cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } };
 /** What Finish sends on a fresh installation that keeps the symbol: the call, the place, the beacon of a new station; nothing of a radio. */
 const FINISH = { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } };
-const ONLY = "The station's only radio: tick the other first";
+const ONLY = "The station's only radio that is on";
 
 afterEach(() => {
   document.body.replaceChildren();

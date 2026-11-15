@@ -6,7 +6,7 @@ import { useRadios } from "@/composables/useRadios";
 import { isOn } from "@/lib/radios";
 import { FM_ID, HF_ID } from "@/lib/radiosides";
 
-/** Whether the radios are named on the page: only where there are two, that is while the HF radio is on, the FM radio's tag is "FM" beside "HF"; else "RF" as it always was. */
+/** Whether the radios are named on the page: more than one radio is on (plan section 6). */
 export function useRadiosNamed(): ComputedRef<boolean> {
   const context = inject(DAEMON_KEY, null);
   return computed(() => context?.radiosNamed.value ?? false);

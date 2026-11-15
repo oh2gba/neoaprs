@@ -120,6 +120,34 @@ describe("the radio of a conversation", () => {
     expect(rule).toContain("justify-content: flex-end");
   });
 
+  it("keeps the room of the widest name of the radios that are on, whichever it names: the other radios' tags in the same place, hidden, so that a name wider than eight digits moves nothing either", async () => {
+    const wide = radiosTopic(
+      radioRow(1, "kenwood-tnc2", { name: "FM" }),
+      radioRow(2, "mercury", { name: "HF" }),
+      radioRow(3, "kiss", { name: "WWWWWWWW", number: 2 }),
+    );
+    const daemon = fakeDaemon({ config: configValues(BOTH), radios: wide, stations: shallowRef(new Map([["OH2RDG", station("OH2RDG", { radio_now: 2 })]])) });
+    const wrapper = mount(ConversationView, { props: { selected: "OH2RDG", narrow: false, thread: [] }, global: withDaemon(daemon), attachTo: document.body });
+    const room = () =>
+      wrapper
+        .findAll(".convo-radio .twowords > span")
+        .map((part) => [part.text(), part.classes().includes("twowords-off"), part.attributes("aria-hidden"), part.find(".tag").attributes("title") ?? null]);
+    expect(room()).toEqual([
+      ["HF", false, "false", "Messages to this station go on radio HF"],
+      ["FM", true, "true", null],
+      ["WWWWWWWW", true, "true", null],
+    ]);
+    expect(named(wrapper)).toBe("HF");
+    await tell(daemon, { stations: new Map([["OH2RDG", station("OH2RDG", { radio_now: 3 })]]) });
+    expect(room().map(([name, hidden]) => [name, hidden])).toEqual([
+      ["WWWWWWWW", false],
+      ["FM", true],
+      ["HF", true],
+    ]);
+    const sheet = readFileSync(resolve(__dirname, "../styles/tables.css"), "utf8");
+    expect(sheet).toMatch(/\.twowords > span \{\s*grid-area: 1 \/ 1;/);
+  });
+
   it("is in the header bar beside the call, before Route, and the compose has no radio to press", () => {
     const wrapper = header("OH2RDG", [station("OH2RDG", { heard_fm: 3, heard_hf: 2 })]);
     const head = [...wrapper.find(".convo-head").element.children].map((e) => e.className.split(" ")[0]);
@@ -255,9 +283,6 @@ describe("the radio of email", () => {
   });
 
   it("goes over HF never: with no radio internet gateways hear on, both are off with that reason", () => {
-    expect(check(pane({ config: configValues(FM_OFF), status: status({ email_radio: null }) }))).toEqual([
-      true,
-      "Email goes out over the FM radio, which is off",
-    ]);
+    expect(check(pane({ config: configValues(FM_OFF), status: status({ email_radio: null }) }))).toEqual([true, "No radio that internet gateways hear is on"]);
   });
 });

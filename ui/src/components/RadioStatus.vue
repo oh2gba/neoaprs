@@ -8,11 +8,13 @@ import { computed } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import StatusFold from "@/components/StatusFold.vue";
 import TncTerminal from "@/components/TncTerminal.vue";
+import { useRadios } from "@/composables/useRadios";
 import { t } from "@/i18n";
 import { pillClass, pillText, rowPillClass, rowPillText, rowStatus, searchedPorts, statsCounts, tncCounts, tncStatus } from "@/lib/tncstatus";
 import type { RadioRow, TncState } from "@/protocol/protocol";
 
 const props = withDefaults(defineProps<{ tnc: TncState | null; row?: RadioRow | null; now: number; open?: boolean }>(), { row: null, open: false });
+const radios = useRadios(); // (a device another radio holds is said by that radio's name, as the page calls it)
 
 /** What the row of the status says: from the radio's topic of before, else from its row. */
 const look = computed(() => {
@@ -33,7 +35,7 @@ const look = computed(() => {
   return {
     state: rowPillText(row),
     tone: rowPillClass(row),
-    line: rowStatus(row, props.now),
+    line: rowStatus(row, props.now, radios),
     hover: statsCounts(row.stats),
     ports: null,
     problem: "",

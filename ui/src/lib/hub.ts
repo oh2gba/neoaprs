@@ -32,6 +32,7 @@ import type {
   PositionHistoryMessage,
 } from "@/protocol/protocol";
 import { MESSAGE_TYPES, TOPIC_NAMES } from "@/protocol/lists";
+import type { RadioId } from "@/lib/radios";
 import { parseScopeFrame, type ScopeHistory, type ScopeRow } from "@/lib/scoperow";
 
 export const FIRST_DELAY_MS = 1000;
@@ -78,10 +79,10 @@ export interface Store {
   radioAdded(message: RadioAddedMessage): void;
   /** an alert set on a station fired (not an answer: every page is told, once) */
   stationAlert(message: StationAlertMessage): void;
-  /** a row of the HF radio's waterfall, told to a page that asked for the scope: a binary frame, not a message (PROTOCOL.md) */
-  hfScopeRow(row: ScopeRow): void;
+  /** a row of a radio's waterfall, told to a page that asked for its scope: a binary frame, not a message (PROTOCOL.md) */
+  hfScopeRow(row: ScopeRow, radio: RadioId): void;
   /** the rows of the waterfall the daemon kept, oldest first with their ages, and the daemon's clock, told to a page when it begins to look (no row: what the page holds is to be forgotten) */
-  hfScopeHistory(history: ScopeHistory): void;
+  hfScopeHistory(history: ScopeHistory, radio: RadioId): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
   replaceRadios(rows: Record<string, RadioRow>): void;
@@ -337,8 +338,8 @@ export class Hub {
   private row(data: ArrayBuffer): void {
     const frame = parseScopeFrame(data);
     if (frame === null) return;
-    if ("row" in frame) this.store.hfScopeRow(frame.row);
-    else this.store.hfScopeHistory(frame.history);
+    if ("row" in frame) this.store.hfScopeRow(frame.row, frame.radio);
+    else this.store.hfScopeHistory(frame.history, frame.radio);
   }
 
   /** The answer to a command (the weather series, the packets by the hour, the ports...), kept by the store under its own name; a pong is nothing to keep. */

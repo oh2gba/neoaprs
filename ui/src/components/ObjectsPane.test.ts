@@ -5,9 +5,9 @@ import { nextTick, ref } from "vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
-import type { Command, OwnObjectRow, RadioRow } from "@/protocol/protocol";
-import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { ago, configValues, ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
+import type { Command, OwnObjectRow } from "@/protocol/protocol";
+import { fakeDaemon, ofRadios, tell, withDaemon, type Given } from "@/test/context";
+import { ago, ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
 import { cssRule } from "@/test/css";
 
 function pane(rows: OwnObjectRow[] = []) {
@@ -19,13 +19,6 @@ function pane(rows: OwnObjectRow[] = []) {
   } as unknown as Panel);
   const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })) });
   return { wrapper, form, sent, table };
-}
-
-/** A station of these radios as the daemon tells them once the settings of before are gone: the topic, and settings without the Enable of before (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
-function ofRadios(...rows: RadioRow[]): Given {
-  const config = configValues();
-  const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
-  return { radios: radiosTopic(...rows), config: { ...config, values } };
 }
 
 const rows = [
@@ -145,7 +138,7 @@ describe("ObjectsPane", () => {
         [
           ["Shack", "Sent on radio Shack", "tag-neutral"],
           ["20m", "Sent on radio 20m", "tag-hf"],
-          ["+4", "Sent on radio HFdummy\nSent on radio Mobile\nSent on radio Remote12\nSent on radio 40m", "tag-neutral"],
+          ["+4", "Sent on radio HFdummy; Sent on radio Mobile; Sent on radio Remote12; Sent on radio 40m", "tag-neutral"], // (the title of "+n" as Stations has it)
         ],
         [
           ["HFdummy", "Sent on radio HFdummy", "tag-dummy"],

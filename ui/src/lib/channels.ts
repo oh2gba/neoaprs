@@ -57,8 +57,8 @@ function joined(parts: readonly string[]): string {
   return parts.length === 0 ? "" : parts.reduce((all, part) => t("channel.join", { first: all, second: part }));
 }
 
-/** Titles joined with a semicolon. */
-function titled(parts: readonly string[]): string {
+/** Titles joined with a semicolon: the title of a "+n" tag (Stations, My objects). */
+export function titled(parts: readonly string[]): string {
   return parts.length === 0 ? "" : parts.reduce((all, part) => t("channel.title_join", { first: all, second: part }));
 }
 
@@ -183,7 +183,7 @@ export function heardParts(row: Heard & Times, radios: readonly PageRadio[]): He
 /** A part with its time: "RF 3 min ago", and beside a radio's typed name or number "20 m: 3 min ago" (a name is not a word of the sentence: the colon keeps it apart from the time). */
 function timed(part: HeardPart, nowMs: number, colon: boolean): string {
   const when = agoWords(part.at, nowMs);
-  return colon ? t("radio.heard_at", { name: part.label, when }) : t("channel.ago", { channel: part.label, when });
+  return colon ? t("radio.line", { name: part.label, line: when }) : t("channel.ago", { channel: part.label, when });
 }
 
 /** A tag of "Heard on". */

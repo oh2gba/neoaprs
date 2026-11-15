@@ -31,7 +31,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.sked.far": "esa prueba empieza dentro de más de 30 días",
   "error.sked.unreachable": "no se pudo acceder al tablón de pruebas HF ahora mismo; inténtalo más tarde",
   "error.radio.busy": "ya hay una búsqueda de la radio en curso",
-  "error.radio.last_enabled": "una estación tiene al menos una radio: marca la radio FM o la radio HF",
+  "error.radio.last_enabled": "at least one radio stays on: turn another radio on first",
   "error.radio.name_form":
     "the name '{name}' cannot be a radio's: a name is at most {max} printable ASCII characters (letters, digits and the signs of the keyboard)",
   "error.radio.name_label": "the name '{name}' is how a radio without a name of its own is called: give this one another",
@@ -60,7 +60,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.alert.own": "{call} es nuestra: un aviso es para otra estación",
   "error.message.control": "el texto tiene un carácter de control",
   "error.message.empty": "el mensaje está vacío",
-  "error.message.email_fm_off": "el correo sale por la radio FM, que está apagada",
+  "error.message.email_fm_off": "no radio that internet gateways hear is on",
   "error.message.forbidden": "el texto tiene {chars}, que un mensaje no puede llevar ({forbidden} no están permitidos)",
   "error.message.not_ascii": {
     select: "chars",

@@ -4,10 +4,10 @@ import { ref } from "vue";
 import ObjectForm from "@/components/ObjectForm.vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
-import type { Command, OwnObjectRow, RadioRow } from "@/protocol/protocol";
+import type { Command, OwnObjectRow } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
-import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
+import { fakeDaemon, ofRadios, tell, withDaemon, type Given } from "@/test/context";
+import { ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
 
 /** The form with a place picked (60.17, 24.94), unless `placed` is false: a new object has none to start with. */
 function form(rows: OwnObjectRow[] = [], placed = true) {
@@ -529,13 +529,6 @@ describe("ObjectForm", () => {
   });
 });
 
-/** A station of these radios as the daemon tells them once the settings of before are gone: the topic, and settings without the Enable of before (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
-function ofRadios(...rows: RadioRow[]): Given {
-  const config = configValues();
-  const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
-  return { radios: radiosTopic(...rows), config: { ...config, values } };
-}
-
 describe("Send on, the radios of an object", () => {
   const withRadios = (station: Given, rows: OwnObjectRow[] = [], given: Given = {}) => {
     const table = new Map(rows.map((r) => [r.name, r]));
@@ -549,14 +542,14 @@ describe("Send on, the radios of an object", () => {
     const sendOn = () => wrapper.find(".field.send-on");
     const ticks = () =>
       sendOn()
-        .findAll("label.send-on-tick")
+        .findAll("label.check")
         .map((tick) => {
           const box = tick.find<HTMLInputElement>("input[type='checkbox']").element;
           return [tick.text(), box.checked, box.disabled];
         });
     const tick = (name: string) =>
       sendOn()
-        .findAll("label.send-on-tick")
+        .findAll("label.check")
         .find((t) => t.text() === name)
         ?.find("input")
         .trigger("change");
@@ -598,7 +591,7 @@ describe("Send on, the radios of an object", () => {
         .map((f) => f.find("label, .field-label").text()),
     ).toEqual(["Send on", "Path", "Category"]);
     expect(advanced()?.element.open).toBe(false); // (the main radio alone is what a new object has)
-    expect(sendOn().find(".info-toggle").attributes("aria-label")).toBe("About Send on");
+    expect(sendOn().find(".info-toggle").exists(), "the row of the Beacon group's Send on: no (i) of its own").toBe(false);
   });
 
   it("ticks the main radio that the daemon names for a new object, first or not", () => {
@@ -627,6 +620,10 @@ describe("Send on, the radios of an object", () => {
     expect(field("Path")?.find<HTMLInputElement>("input").element.disabled).toBe(true);
     expect(field("Path")?.find<HTMLInputElement>("input").element.value).toBe("WIDE1-1");
     expect(field("Path")?.find<HTMLButtonElement>("button.pathbuild-open").element.disabled).toBe(true);
+    expect(field("Path")?.attributes("title"), "the reason, as Route's greyed Path has it").toBe("HF: no path");
+    expect(field("Path")?.find("button.pathbuild-open").attributes("title"), "the path builder's button says why it is off, as its row does").toBe(
+      "HF: no path",
+    );
     expect(field("Path")?.element.previousElementSibling).toBe(wrapper.find(".field.send-on").element);
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ cmd: "object_set", name: "MARK", radios: [2], path: "WIDE1-1" });
@@ -695,15 +692,16 @@ describe("Send on, the radios of an object", () => {
   });
 
   it("has a tick for each of six radios on a phone, by names of up to eight characters, as many to a line as fit and none cut", async () => {
-    const { ticks, tick, sent, wrapper } = withRadios(ofRadios(...SIX));
+    const { ticks, tick, sent, wrapper, sendOn } = withRadios(ofRadios(...SIX));
     expect(ticks().map(([name]) => name)).toEqual(["Shack", "20m", "Mobile", "HFdummy", "Remote12", "40m"]);
     await tick("Remote12");
     await tick("40m");
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ radios: [1, 5, 6] });
-    expect(cssRule(".send-on-ticks")).toMatch(/flex-wrap:\s*wrap/);
-    expect(cssRule(".send-on-ticks")).toMatch(/min-width:\s*0/);
-    expect(cssRule(".field .send-on-tick")).toMatch(/white-space:\s*nowrap/);
-    expect(cssRule(".field .send-on-tick")).toMatch(/font-weight:\s*normal/);
+    expect(sendOn().find(".field-control").classes(), "the row of ticks of the Beacon group's Send on, one pattern").toContain("toolbar-checks");
+    expect(cssRule(".toolbar-checks")).toMatch(/flex-wrap:\s*wrap/);
+    expect(cssRule(".field-control")).toMatch(/min-width:\s*0/);
+    expect(cssRule(".check")).toMatch(/white-space:\s*nowrap/);
+    expect(cssRule(".field-control .check")).toMatch(/font-weight:\s*400/);
   });
 });

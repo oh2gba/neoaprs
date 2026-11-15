@@ -70,7 +70,8 @@ function openGuideOnce(config: Readonly<Ref<ConfigValues | null>>, guide: SetupG
 /** What the panes read of the daemon's state besides the topics themselves: who and where we are, the stations heard, how they age, the settings and the stations' own choices. */
 function useDerived(daemon: ReturnType<typeof useDaemon>) {
   const { config, status, tnc, lastError, send } = daemon;
-  const settings = useSettings(config, lastError, send);
+  const shellRadios = useShellRadios(daemon);
+  const settings = useSettings(config, lastError, send, { byId: (id: number) => shellRadios.all.value.find((radio) => radio.id === id) }); // (a refusal of Save names its radio as the page does)
   const prefs = useStationPrefs(daemon.stationPrefs, send);
   const keys = useStationKeys(daemon.stationKeys, status, send);
   const heard = useHeardIndex(daemon.stations, config);
@@ -184,7 +185,7 @@ export function useAppShell() {
     if (state === "open") send({ cmd: "list_ports" });
   });
   const derived = useDerived(daemon);
-  const guide = useSetupGuide(config, lastError, daemon.ports, send);
+  const guide = useSetupGuide(config, lastError, send);
   openGuideOnce(config, guide);
   const panel = usePanel();
   const tabs = useTabs(daemon, panel);
@@ -214,7 +215,7 @@ export function useAppShell() {
     },
     blocked: escBlocked,
   });
-  const scope = useScopeLooks(send, daemon.hf, connection, pageVisible());
+  const scope = useScopeLooks(send, daemon.hf, connection, pageVisible(), { radios: daemon.radios });
   const mapwrap = ref<HTMLElement | null>(null); // (the map's box, bound by App.vue)
   const mapWidth = useElementWidth(mapwrap);
   const { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays } = useMapOverlays(scope.available, layout.phone, mapWidth);
@@ -223,7 +224,7 @@ export function useAppShell() {
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);
   useStationAlerts(daemon.stationAlert, tabs.alerts, say); // (an alert set on a station that fired: as a message alerts, and in the toast)
-  const findRadio = useFindRadio(daemon.radioSearch, lastError, connection, send, derived.settings, config, say, guide);
+  const findRadio = useFindRadio(daemon.radioSearch, lastError, connection, send, derived.settings, config, say);
 
   provideDaemon({
     ...daemon,

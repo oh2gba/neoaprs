@@ -96,7 +96,7 @@ export interface RangeCircle {
 
 /** How far the farthest station heard direct is, in km: our simplex reach as far as the stations heard tell it; 0 while none was heard direct (or none has a distance). */
 function reachKm(rows: Iterable<StationRow>): number {
-  return Math.max(0, ...[...rows].filter((row) => isOther(row) && row.heard_direct > 0).map((row) => row.distance_km ?? 0));
+  return Math.max(0, ...[...rows].filter((row) => isOther(row) && row.last_direct_at !== null).map((row) => row.distance_km ?? 0)); // (heard direct on a radio that may carry a path: plan 6b)
 }
 
 /** What the map draws for the selected station: its range circle when it is a digipeater of the list (`digipeaters`) that gave a range and has a position, or, for our own station, the circle of our reach (`reachKm`) round our position;
