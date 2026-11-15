@@ -4,7 +4,7 @@ it was."""
 import sqlite3
 from pathlib import Path
 
-from neoaprs.config import DEFAULTS
+from neoaprs.config import DEFAULTS, RADIO_STATION_KEYS
 from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.store import DB_NAME
 from neoaprs.web.protocol import TOPIC_NAMES
@@ -37,7 +37,7 @@ async def test_the_config_topic_says_of_the_flat_keys_what_radios_1_and_2_say(tm
     assert fm is not None and hf is not None and (fm.type, dict(fm.settings)) == ("kenwood-tnc2", {"baud": "1200", "digipeat": "true", "path": "WIDE1-1,WIDE2-1"})
     assert {key: values[key] for key in FLAT} == {**{key: DEFAULTS.to_data()[key] for key in FLAT}, "tnc/profile": "kenwood-tnc2", "serial/baud": "1200", "beacon/path": "WIDE1-1,WIDE2-1",
                                                   "digi/enabled": "true", "mercury/keying": "vox", "mercury/tx_gain_db": "-4"}
-    assert sorted(values) == sorted(DEFAULTS.to_data()), "the keys of the wire, as they were"
+    assert sorted(values) == sorted(key for key in DEFAULTS.to_data() if key not in RADIO_STATION_KEYS), "the keys of the wire, as they were (station/main_radio is told in radio_values)"
     await e.stop()
 
 
@@ -70,6 +70,6 @@ async def test_set_config_that_would_leave_no_radio_on_is_refused_and_nothing_is
     before = await e.ctl.store.radios()
     await page.send({"cmd": "set_config", "values": {"fm/enabled": "false"}})
     error = await page.expect("error")
-    assert error["code"] == "setting.no_radio" and error["key"] == "hf/enabled"
+    assert error["code"] == "radio.last_enabled" and error["key"] == "fm/enabled", "the refusal names the key that was set"
     assert await e.ctl.store.radios() == before and e.ctl.config.fm_enabled
     await e.stop()

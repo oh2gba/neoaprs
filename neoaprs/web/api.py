@@ -11,6 +11,7 @@ from dataclasses import asdict
 from typing import Any
 
 from neoaprs import VERSION
+from neoaprs.beaconrule import station_interval
 from neoaprs.clock import iso
 from neoaprs.controller import Controller
 from neoaprs.tasks import TaskSet
@@ -65,8 +66,9 @@ class Api:
         cpu_percent, rss_mb = self.meter.sample()
         return {"type": "status", "version": VERSION, "started_at": iso(self.started_at), "packets": await self.ctl.packetlog.count(), "stations": len(self.ctl.stationbook),
                 "call": c.station_call, "lat": c.station_lat, "lon": c.station_lon,
-                "beacon_interval_min": c.beacon_interval(), "beacon_last_sent": iso(beacon.last_sent), "beacon_next_due": iso(beacon.next_due),
+                "beacon_interval_min": station_interval(c.beacon_interval_min, c.radios, c.main_radio), "beacon_last_sent": iso(beacon.last_sent), "beacon_next_due": iso(beacon.next_due),
                 "hf_beacon_last_sent": iso(self.ctl.hf_beacon.last_sent), "hf_beacon_next_due": iso(self.ctl.hf_beacon.next_due),
+                "main_radio": c.main_radio, "email_radio": None if (email := self.ctl.radios.email()) is None else email.id,
                 "station_status": rig.last_text, "station_status_last_sent": iso(rig.last_sent_at), "rig_state": rig.rig_state,
                 "update": None if (latest := self.ctl.updatecheck.latest) is None else {"version": latest.version, "url": latest.url, "message": latest.message},          # (the dial goes to the HF box, not here)
                 "message_key": self.ctl.keyring.fingerprint() if self.ctl.keyring.enabled else "",        # (a key file left by an earlier run with --encryption is nothing while the flag is off)

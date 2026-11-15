@@ -8,7 +8,7 @@ from .messagewire import SetMessageRadio
 from .tncwire import HfFrequencies, HfKeyTest, HfScope, HfTune
 
 
-def _may_transmit(ctx: Ctx, name: str) -> None:
+def may_transmit(ctx: Ctx, name: str) -> None:
     """The transmit interlock as every other transmission has it: receive only, and a call that may be sent under (a tone with no identification is a transmission too)."""
     config = ctx.ctl.config
     if not config.station_transmit:
@@ -23,7 +23,7 @@ async def hf_tune(ctx: Ctx, cmd: HfTune) -> None:
     if not cmd.on:
         await ctx.ctl.mercury.tune_stop()
         return
-    _may_transmit(ctx, "hf_tune")
+    may_transmit(ctx, "hf_tune")
     try:
         await ctx.ctl.mercury.tune()
     except CodedError as e:
@@ -33,7 +33,7 @@ async def hf_tune(ctx: Ctx, cmd: HfTune) -> None:
 @command(HfKeyTest)
 async def hf_key_test(ctx: Ctx, cmd: HfKeyTest) -> None:
     """Keys the radio for a second with next to no audio; the same refusals as `hf_tune`."""
-    _may_transmit(ctx, "hf_key_test")
+    may_transmit(ctx, "hf_key_test")
     try:
         await ctx.ctl.mercury.key_test()
     except CodedError as e:
@@ -55,5 +55,6 @@ async def hf_frequencies(ctx: Ctx, cmd: HfFrequencies) -> None:
 
 @command(SetMessageRadio)
 async def message_radio(ctx: Ctx, cmd: SetMessageRadio) -> None:
-    if not ctx.ctl.radios.choose(cmd.call, cmd.radio):
+    """The command of before chooses for a station of the book only, whatever the store of the choices keeps (`station_radio` is the one that may keep a call the book does not hold: plan rule 3.2)."""
+    if ctx.ctl.stationbook.get(cmd.call) is None or not ctx.ctl.radios.choose(cmd.call, cmd.radio):
         raise UserError(f"{cmd.cmd}: there is no station {cmd.call!r}", "station.unknown", params={"call": cmd.call})

@@ -13,7 +13,7 @@ from tornado.httpclient import HTTPClientError
 
 from neoaprs import VERSION
 from neoaprs.clock import iso
-from neoaprs.config import DEFAULTS, STATION_KEYS
+from neoaprs.config import DEFAULTS, RADIO_STATION_KEYS, STATION_KEYS
 from neoaprs.source import Source
 from tests.support.air import ack_info, message_info, on_air, reject_info
 from tests.support.env import Env, idle_for, ON_AIR, OPERATOR, until
@@ -47,7 +47,7 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     await e.start()
     page = await e.ws()
     hello = await page.expect("hello")
-    assert hello["version"] == VERSION and hello["protocol"] == 1 and hello["topics"] == list(TOPIC_NAMES) == ["stations", "packets", "tnc", "hf", "config", "station_prefs", "messages", "station_keys", "bulletins", "own_objects", "own_bulletins", "map", "update", "gps", "igate", "qru", "skeds", "general"]
+    assert hello["version"] == VERSION and hello["protocol"] == 1 and hello["topics"] == list(TOPIC_NAMES) == ["stations", "packets", "radios", "tnc", "hf", "config", "station_prefs", "messages", "station_keys", "bulletins", "own_objects", "own_bulletins", "map", "update", "gps", "igate", "qru", "skeds", "general"]
     status = await page.expect("status")
     assert status["version"] == VERSION and status["packets"] == 0 and status["stations"] == 1 and (status["call"], status["lat"], status["lon"]) == ("OH2GBA", 60.17, 24.94)
     assert (status["beacon_interval_min"], status["beacon_last_sent"], status["beacon_next_due"]) == (0, None, None)
@@ -61,7 +61,9 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     assert list(stations) == ["OH2GBA"] and stations["OH2GBA"]["is_me"] is True and stations["OH2GBA"]["distance_km"] is None
     assert states["packets"]["value"] == {}
     assert states["tnc"]["value"]["state"] == "connected" and states["tnc"]["value"]["path"] == e.link
-    assert states["config"]["value"] == {"values": {**DEFAULTS.to_data(), **OPERATOR}, "defaults": DEFAULTS.to_data(), "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
+    config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key not in RADIO_STATION_KEYS}      # (station/main_radio is told in radio_values)
+    assert {key: config[key] for key in ("values", "defaults", "urls", "https")} == {"values": wire({**DEFAULTS.to_data(), **OPERATOR}), "defaults": wire(DEFAULTS.to_data()), "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
+    assert config["radio_values"]["station/main_radio"] == "" and "radio/1/port" in config["radio_values"] and set(config["radio_values"]) == set(config["radio_defaults"])
     assert states["messages"]["value"] == {} and states["station_prefs"]["value"] == {}
     for name, message in states.items():
         TOPIC_VALUES[name].validate_json(json.dumps(message["value"]))                       # the value is of the type TopicValues says
@@ -190,8 +192,8 @@ async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_
     page = await e.ws()
     await page.send({"cmd": "list_ports"})
     assert await page.expect("ports") == {"type": "ports", "search": False, "find": True, "ports": [
-        {"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001", "vid": 1027, "pid": 24577},
-        {"device": "COM4", "description": "Bluetooth", "hwid": "BTHENUM", "vid": None, "pid": None}], "sound_cards": [], "keying": ""}
+        {"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001", "vid": 1027, "pid": 24577, "held_by": None},
+        {"device": "COM4", "description": "Bluetooth", "hwid": "BTHENUM", "vid": None, "pid": None, "held_by": None}], "sound_cards": [], "keying": ""}
     monkeypatch.setattr(web_handlers, "available_ports", lambda: [])
     await page.send({"cmd": "list_ports"})
     await page.until(lambda: len(page.of("ports")) == 2)

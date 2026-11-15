@@ -14,6 +14,7 @@ class PortRow(_Model):
     hwid: str = Field(description="the hardware id the system gives, such as `USB VID:PID=0403:6001 SER=A1`; `n/a` where it does not say")
     vid: int | None = Field(description="the USB vendor id of an adapter; null for a port that is not USB")
     pid: int | None = Field(description="the USB product id of an adapter; null for a port that is not USB")
+    held_by: int | None = Field(description="the radio of the station that holds the port now (its id), 0 for the GPS receiver; null while none of ours does. A port another radio holds is not proposed, and the page greys it with the holder's name")
 
 
 class SoundCardRow(_Model):
@@ -23,12 +24,15 @@ class SoundCardRow(_Model):
     numbered: str = Field(default="", description="the same card by its number (`plughw:3,0`), as a setting made before named it; empty where the id is not by name")
     default: bool = Field(description="whether it is the system's default device, which the empty setting means")
     pick: bool = Field(description="whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it")
+    held_by: int | None = Field(description="the radio of the station whose modem holds the card now (its id); null while none does. A card another radio holds is never the `pick`")
 
 
 class ListPorts(_Command):
     """Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked.
-    A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed."""
+    A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. With `radio`, the sound cards are listed while that radio's type is Mercury, and the proposals leave out what the
+    other radios and the GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`)."""
     cmd: Literal["list_ports"]
+    radio: int | None = Field(default=None, ge=1, description="the radio the list is for (its id); left out: the radios of before, the sound cards while radio 2 is the Mercury modem")
 
 
 class PortsMsg(_Message):
@@ -45,13 +49,17 @@ class FindRadio(_Command):
     """Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be
     put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that
     put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running
-    (`radio.busy`), when there is no port to try (`radio.no_ports`) and when none answered (`radio.not_found`)."""
+    (`radio.busy`), when there is no port to try (`radio.no_ports`), when none answered (`radio.not_found`) and for a `radio` that is none or of a type that has no serial line (`radio.unknown`). With `radio` only that radio's line is let go, the ports
+    another radio or the GPS receiver holds are passed over, and the messages name it."""
     cmd: Literal["find_radio"]
+    radio: int | None = Field(default=None, ge=1, description="the radio the search is for (its id); left out: radio 1, the FM radio of before")
 
 
 class FindRadioCancel(_Command):
-    """Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running."""
+    """Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running. One search runs at a time, so `radio` changes nothing: it is taken so that the page names the radio
+    in every command of its box."""
     cmd: Literal["find_radio_cancel"]
+    radio: int | None = Field(default=None, ge=1, description="the radio whose search is ended; left out: the one running")
 
 
 class RadioSearchMsg(_Message):
@@ -63,3 +71,5 @@ class RadioSearchMsg(_Message):
     profile: str = Field(description="for `found`, the key of the TNC profile (`tnc/profile`); empty otherwise")
     number: int = Field(ge=0, description="the try that is under way, from 1; 0 for `found` and `cancelled`")
     total: int = Field(ge=0, description="how many tries there are if nothing answers; 0 for `found` and `cancelled`")
+    radio: int | None = Field(description="the radio the search is for (its id); null for a search that named none (radio 1)")
+    radio_type: str = Field(description="for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every FM type: 1.11's `type`, which the message's own tag takes); empty otherwise")

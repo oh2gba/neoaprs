@@ -11,6 +11,7 @@ from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol
 
+from .coded import CodedError
 from .packetcodec import parse_stamp
 from .radiospec import FM_ID, HF_ID, RadioError, RadioId, RadioSpec, enabled, live, main_radio
 from .radiotype import KINDS, Kind, stored_text
@@ -250,11 +251,13 @@ class RadioViews:
     @staticmethod
     def check_radio(spec: RadioSpec, key: str, text: str) -> str:
         """The text of a radio's setting as it is stored; RadioError naming `radio/<id>/<key>` when the key is no setting of its kind or the text is not a value of it."""
-        found = kind_field(spec.kind, key)
+        found, named = kind_field(spec.kind, key), f"radio/{spec.id}/{key}"
         if found is None:
-            raise RadioError(f"radio/{spec.id}/{key}: a radio of the kind {spec.kind} has no such setting")
+            raise RadioError(f"{named}: a radio of the kind {spec.kind} has no such setting", "setting.unknown")
         try:
             return stored_text(found.parse(text))
+        except CodedError as e:
+            raise RadioError(f"{named}: {e}", e.code, **e.params) from None
         except ValueError as e:
-            raise RadioError(f"radio/{spec.id}/{key}: {e}") from None
+            raise RadioError(f"{named}: {e}") from None
 

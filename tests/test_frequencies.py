@@ -1,6 +1,6 @@
-"""The frequencies the project suggests for the HF radio (neoaprs/services/frequencies.py, neoaprs/versions.py): the file `site/frequencies.json` and how it is understood (every entry checked, at most three), the service that asks for it a minute after
+"""The frequencies the project suggests for the HF radio (neoaprs/services/frequencies.py, neoaprs/versions.py): the file `site/frequencies.json` and how it is understood (every entry checked, at most four), the service that asks for it a minute after
 the start and when a page shows the HF box and not more often than every fifteen minutes (and never with the update check off), the last good list kept across a restart, a file that is bad or a server that is not there leaving it as it was, the fall-back
-to the version page's dial and then to the built-in two, and the page's `hf_frequencies` and the list in the topic `hf`."""
+to the version page's dial and then to the built-in two, and the page's `frequencies` (and `hf_frequencies`, its name of before) and the list in the topics `hf`, `radios` and `skeds`."""
 import json
 import logging
 from pathlib import Path
@@ -223,6 +223,28 @@ async def test_the_hf_topic_has_the_list_and_a_page_that_shows_the_box_asks_for_
     await page.send({"cmd": "hf_frequencies"})
     await page.quiet(0.3)
     assert len(server.asked) == 1, "the second asking is within the fifteen minutes"
+    await e.stop()
+    await air.aclose()
+
+
+async def test_four_frequencies_go_through_the_topics_hf_radios_and_skeds_as_the_wire_says_one_to_four(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """versions.MAX_FREQUENCIES is four (the box keeps room for four lines): the wire's lists take four, and every message that leaves is checked against the models (NEOAPRS_VALIDATE_OUT=1)."""
+    monkeypatch.setenv("NEOAPRS_VALIDATE_OUT", "1")
+    four = [{"band": "80 m", "dial": "3.5975 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "30 m", "dial": "10.1462 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}]
+    assert MAX_FREQUENCIES == 4 and parse_frequencies(json.dumps({"frequencies": four}).encode()) == [Frequency(f["band"], f["dial"]) for f in four]
+    air = Air(frame_sec=0.2)
+    station = air.station()
+    e = Env(tmp_path, radio=station, web=True)
+    await e.start()
+    server = Server(json.dumps({"frequencies": four}).encode())
+    e.ctl.frequencies._fetch = server
+    e.ctl.frequencies._environ = {}
+    page = await e.ws()
+    await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running")
+    await page.send({"cmd": "frequencies"})
+    await page.until(lambda: page.topics["hf"]["modem"]["frequencies"] == four and page.topics["radios"]["2"]["modem"]["frequencies"] == four)
+    await page.until(lambda: [{"band": f["band"], "dial": f["dial"]} for f in page.topics["skeds"]["frequencies"]] == four)
+    assert len(server.asked) == 1 and not page.of("error")
     await e.stop()
     await air.aclose()
 

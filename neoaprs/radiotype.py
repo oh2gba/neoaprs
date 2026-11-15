@@ -7,6 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 
+from .coded import CodedError
+
 Kind = Literal["fm", "hf", "lora"]
 KINDS: tuple[Kind, ...] = ("fm", "hf", "lora")              # the order of the page's lists and of the numbering within a kind ("FM", "HF 2")
 LOCAL_KINDS: frozenset[Kind] = frozenset({"fm", "lora"})     # rule 3.2: heard on a local kind wins over hf within the recent time (policy.MESSAGE_RADIO_RECENT_HOURS)
@@ -85,8 +87,8 @@ class RadioType:
         return next((f for f in self.fields if f.key == key), None)
 
 
-class RadioTypeError(ValueError):
-    """A type that is not one (uncoded through wave 3: a code would change the page's list of codes)."""
+class RadioTypeError(CodedError):
+    """A type that is not one: the code `radio.unknown_type` with the `type` named (radiotypes.type_of)."""
 
 
 def radio_id_of(slot: str) -> RadioId | None:

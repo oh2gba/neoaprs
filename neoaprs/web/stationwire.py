@@ -62,6 +62,12 @@ class RouteMarkValues(_Model):
     lon: float | None
 
 
+class HeardOn(_Model):
+    """What one radio heard of a station."""
+    count: int = Field(ge=1, description="how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the radio")
+    last_at: Iso | None = Field(description="when the latest of them did; null when that is not known")
+
+
 class StationRow(_Model):
     """One station of the station book: who it is, where it was heard and how often. An object or an item is a row of its own, named by the object. The rows are the values of the topic `stations`
     (keyed by `call`): a station heard again is a `set` of its row, a station that is forgotten or pruned (or an object that was killed) a `del`. When our own position changes in the settings every
@@ -91,20 +97,24 @@ class StationRow(_Model):
     last_rf_gated_at: Iso | None = Field(description="when a third-party packet of the station was last heard on the radio (`rf-gated`); null when none was")
     last_is_at: Iso | None = Field(description="when a packet of the station was last received from the internet (`is`); null when none was")
     last_dummy_at: Iso | None = Field(description="when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was")
-    heard_fm: int = Field(ge=0, description="how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the FM radio (the KISS TNC), and how many on the HF modem (`Packet.radio`); a message to the station goes out on the radio it was last heard on, FM when on both")
-    heard_hf: int = Field(ge=0, description="how many came on the HF modem")
-    last_fm_at: Iso | None = Field(description="when a packet of the station last came on the FM radio; null when none did")
-    last_hf_at: Iso | None = Field(description="when a packet of the station last came on the HF modem; null when none did")
+    heard_fm: int = Field(ge=0, description="how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on radio 1 (the FM radio of before), and how many on radio 2 (the HF radio of before): `heard` has every radio's, "
+                                            "and `radio_now` the radio a message to the station goes out on")
+    heard_hf: int = Field(ge=0, description="how many came on radio 2")
+    last_fm_at: Iso | None = Field(description="when a packet of the station last came on radio 1; null when none did")
+    last_hf_at: Iso | None = Field(description="when a packet of the station last came on radio 2; null when none did")
+    heard: dict[str, HeardOn] = Field(description="what each radio heard of the station, by the radio's id as text: how many packets of the air came on it and when the latest did; a radio that heard nothing of it has no entry")
     snr: float | None = Field(description="the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy HF radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was")
     rssi: float | None = Field(description="the received strength of that packet, dBm; null when its radio gave none (Mercury gives none)")
     signal_at: Iso | None = Field(description="when that packet was heard; null until one with a reading was")
     position_via: Literal["rf", "rf-gated", "is", "dummy"] | None = Field(description="the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own")
     packets_hour: int = Field(ge=0, description="how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer)")
     device: str = Field(description="what the station runs, as the APRS device identification list names it (\"Kenwood TH-D74\", \"APRSdroid\"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown")
-    last_path: list[str] = Field(description="the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`")
+    last_path: list[str] = Field(description="the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`: the packet the radio that heard the station last (`last_path_radio`) heard last")
+    last_path_radio: int | None = Field(description="the radio whose latest packet `last_path` is (the radio that heard the station last, radio 1 on a tie), its id; null for a station no radio heard. After a restart a station HF heard last shows HF's path, direct")
     last_route: str = Field(description="how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in)")
     heard_direct: int = Field(ge=0, description="how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept)")
-    last_direct_at: Iso | None = Field(description="when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct")
+    last_direct_at: Iso | None = Field(description="when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`, on the radios that may carry a path; null for a station never heard direct")
+    last_direct_any_at: Iso | None = Field(description="when a packet of the station was last heard direct on any radio, HF too (plan 6b: the green check, the map's ring and the \"direct only\" filter count any radio); null for a station never heard direct")
     heard_via: list[tuple[str, int]] = Field(description="[the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted")
     gated: int = Field(ge=0, description="how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, "
                                          "and for a station that is in the book); not `heard_rf_gated`, which counts the packets of this station that some iGate put on the air")
@@ -135,8 +145,13 @@ class StationRow(_Model):
                                           "internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`)")
     may_not_message: bool = Field(description="the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never "
                                               "sent a message or an ack: the conversation says a message may not be read there")
-    message_radio: Literal["", "fm", "hf"] = Field(description="the radio the operator chose for messages to the station while both are on; empty for the daemon's choice (the FM radio unless the station was heard "
-                                                   "on HF alone)")
+    message_radio: Literal["", "fm", "hf"] = Field(description="the radio the operator chose for messages to the station, as the word of before: `fm` radio 1, `hf` radio 2; empty for the daemon's choice and for a choice "
+                                                   "of another radio (`radio_choice` says which; `radio_now` is the radio a message goes on)")
+    radio_choice: int | None = Field(description="the radio the operator chose for messages to the station (`station_radio`), its id, while that radio is enabled; null for the daemon's choice (plan rule 3.2), and while the radio chosen is off")
+    radio_now: int | None = Field(description="the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before HF, "
+                                              "else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own "
+                                              "(`radio_now` of its row). The page shows Route, the path and the radio's state of this radio")
+    paths: dict[str, str] = Field(description="the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too)")
     track: list[tuple[Iso, float, float]] = Field(max_length=50, description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed")
 
 

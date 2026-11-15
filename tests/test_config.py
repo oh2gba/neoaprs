@@ -17,7 +17,7 @@ from neoaprs.configstatus import MAX_STATUS, fill_template
 
 def test_the_defaults_are_the_ones_of_the_brief() -> None:
     assert DEFAULTS.to_data() == {
-        "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "hf/enabled": "false", "hf/profile": "mercury", "mercury/sound_card": "", "mercury/keying": "", "mercury/tx_gain_db": "0", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "station/call": "", "station/transmit": "true", "fm/enabled": "true", "station/lat": "", "station/lon": "",
+        "tnc/profile": "kiss", "serial/port": "", "serial/baud": "", "tcp/host": "127.0.0.1", "tcp/port": "8001", "hf/enabled": "false", "hf/profile": "mercury", "mercury/sound_card": "", "mercury/keying": "", "mercury/tx_gain_db": "0", "serial/last_port": "", "serial/pattern": "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", "serial/skip": "", "station/call": "", "station/transmit": "true", "station/main_radio": "", "fm/enabled": "true", "station/lat": "", "station/lon": "",
         "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS", "station/status": "", "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0",
         "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/https": "false", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "",
@@ -30,9 +30,9 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
 
 def test_every_field_has_a_key_or_is_the_radios_and_every_key_a_field_or_a_view_of_a_radio() -> None:
     """Before the radios were stored every key was a field. Now a key is a field (the station's settings, and radio 1's last port) or one of today's flat keys of the radios, which is a view of
-    radio 1 or 2; and the radios and the choice of the main one are fields with no key."""
+    radio 1 or 2; the radios are a field with no key, and the choice of the main one the field of `station/main_radio`, kept last of the fields."""
     stored = [s.attr for s in SETTINGS if s.attr not in FLAT_HOMES]
-    assert [*stored, "radios", "main_choice"] == [f.name for f in fields(Config)]
+    assert [*(a for a in stored if a != "main_choice"), "radios", "main_choice"] == [f.name for f in fields(Config)] and BY_KEY["station/main_radio"].attr == "main_choice"
     assert len(set(KEYS)) == len(KEYS) == len(BY_KEY) and [s.attr for s in SETTINGS if s.attr in FLAT_HOMES] == sorted(FLAT_HOMES, key=[s.attr for s in SETTINGS].index) and len(FLAT_HOMES) == 13
     assert all(isinstance(getattr(Config, attr), property) for attr in FLAT_HOMES) and not any(isinstance(getattr(Config, attr, None), property) for attr in stored)
     assert STATION_KEYS == tuple(s.key for s in SETTINGS if s.attr in stored and s.key != "serial/last_port") and len(STATION_KEYS) == len(KEYS) - 14, "the rows of the table `settings` under their own key"
@@ -531,7 +531,7 @@ def test_a_save_keeps_the_radios_of_the_settings_it_is_made_of_and_puts_the_flat
     assert saved.radios == (RadioSpec(1, "fm", "kiss", "Mobile", True, 5, None, {"port": "/dev/ttyUSB0", "baud": "4800"}), RadioSpec(2, "hf", "mercury", "", True, 2), THIRD)
     assert (saved.main_choice, saved.main_radio, saved.station_comment, saved.station_call) == (3, 3, "saved", "OH2GBA"), "the name, the place, the third radio and the main radio are not the flat keys' to lose"
     assert base.changed(saved) == ["serial/baud", "hf/enabled", "station/comment"] and Config.checked(base, {}) == base
-    with pytest.raises(ValueError, match="fm/enabled: a station has at least one radio"):
+    with pytest.raises(ValueError, match="fm/enabled: at least one radio stays on"):
         Config.checked(replace(base, radios=base.radios[:1]), {"fm/enabled": "false"})
     with pytest.raises(ValueError, match="serial/baud"):
         Config.checked(base, {"serial/baud": "fast"})

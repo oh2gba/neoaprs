@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from neoaprs.aprsisline import parse_is_line
+from neoaprs.claims import Claim, Claims
 from neoaprs.aprsparse import parse
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import AT_GATE, Attempt, HopSeen
@@ -14,7 +15,9 @@ from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Message, Packet, ThirdParty, Undecoded
 from neoaprs.pref import Pref
 from neoaprs.qrutext import Asked, Server
+from neoaprs.radiospec import RadioSpec
 from neoaprs.smartbeacon import Reason, Sent
+from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
 from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.tnc import Tnc
@@ -240,14 +243,55 @@ def qru_rows(views: Any) -> list[dict[str, Any]]:
     return [views.qru_state(FakeQru()), views.qru_state(FakeQru(Asked("INFO", T0))), views.qru_state(FakeQru(Asked("RP70 150", T0 + timedelta(seconds=30)), [first, second]))]
 
 
+@dataclass
+class FakeBeacon:
+    """A radio's beacon as the topic `radios` reads it."""
+    last_sent: datetime | None = None
+    next_due: datetime | None = None
+    interval_min: int = 0
+    problem: str = ""
+
+
+@dataclass
+class FakeRadio:
+    """A radio at run time as the topic `radios` reads it: its line and its beacon."""
+    line: Tnc
+    beacon: FakeBeacon
+
+
+RADIOS = (RadioSpec(1, "fm", "kiss", "Mobile", True, 1, settings={"port": "/dev/ttyUSB0", "path": "WIDE1-1", "digipeat": "true"}),
+          RadioSpec(2, "hf", "dummy-hf", "", True, 2, settings={"beacon": "false"}),
+          RadioSpec(3, "fm", "kiss", "", True, 3, settings={"port": "/dev/ttyUSB0"}),
+          RadioSpec(4, "fm", "dummy", "Gone", False, 4, removed_at=T0))
+
+
+def radio_rows(views: Any) -> list[dict[str, Any]]:
+    """The topic `radios`: an FM radio connected with its beacon, the Dummy HF radio with Send on unticked, a second FM radio whose port the first holds, and a removed one."""
+    claims = Claims()
+    claims.hold(Claim("serial", "/dev/ttyUSB0", 1))
+    waiting = Tnc(clock=FixedClock(T0))
+    waiting.state = Source.State.WAITING
+    at_work = {1: FakeRadio(tnc(), FakeBeacon(T0, T0 + timedelta(minutes=30), 30)), 2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem="receive only: transmitting is switched off")),
+               3: FakeRadio(waiting, FakeBeacon(problem="no position"))}
+    at_work[1].line.state = Source.State.CONNECTED
+    from neoaprs.web.radioview import radio_row             # (the radios' row has its own module beside views.py)
+    return [row for spec in RADIOS if (row := radio_row(spec, RADIOS, at_work.get(spec.id), claims)) is not None]
+
+
+def station_radios(views: Any) -> Any:
+    """What the station rows say of the radios: a choice for one station, the radio a message takes now, and a path on radio 3 for one station."""
+    return views.StationRadios(choice=lambda call: 3 if call == "N0AAA" else None, now=lambda call: 3 if call == "N0AAA" else 1, paths=lambda call: {3: ("OH2RCH-2",)} if call == "N0AAA" else {})
+
+
 def rows(views: Any) -> dict[str, Any]:
     """Every row of the world as `views` (neoaprs/web/views.py, or an older copy of it) makes it."""
     from neoaprs.config import DEFAULTS
     world = book()
     return {
-        "stations": {s.call: views.station_row(world, s) for s in world.stations()},
+        "stations": {s.call: views.station_row(world, s, station_radios(views)) for s in world.stations()},
+        "radios": radio_rows(views),
         "packets": {str(n): views.packet_row(n, p) for n, p in enumerate(packets(), 1)},
-        "messages": {str(r.id): views.message_row(r, attempts) for r, attempts in messages()},
+        "messages": {str(r.id): views.message_row(r, attempts, radio_now=1 if r.state == "sending" else None) for r, attempts in messages()},
         "bulletins": {b.key: views.bulletin_row(b) for b in bulletins()},
         "own_objects": {o.name: views.own_object_row(o, at) for o, at in own_objects()},
         "own_bulletins": {b.slot: views.own_bulletin_row(b, at) for b, at in own_bulletins()},

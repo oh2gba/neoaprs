@@ -237,7 +237,7 @@ def test_the_fm_radio_may_go_off_while_a_third_radio_is_on_and_the_last_radio_on
     connection.close()
     assert db("set", "fm/enabled", "false", data=stored) == 2
     err = capsys.readouterr().err
-    assert "fm/enabled: a station has at least one radio" in err, "the words begin with what was set"
+    assert "fm/enabled: at least one radio stays on" in err, "the words begin with what was set"
 
 
 def test_a_flat_key_of_a_radio_the_station_does_not_have_is_refused_with_the_way_to_add_it(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -132,6 +132,19 @@
           "default": true,
           "description": "RFONLY after the path; left out it is true",
           "type": "boolean"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the radio the request goes on (plan rule 3.6), its id; left out: the main radio. Refused with `radio.unknown` for a radio that is none and `radio.not_connected` for one that is off or not connected; the waits are that radio's"
         }
       },
       "required": [
@@ -188,13 +201,24 @@
           "type": "boolean"
         },
         "radio": {
-          "description": "the radio the attempt went out on: `fm` the FM radio, `hf` the HF modem (direct, no path); empty for an attempt kept before there were two radios",
+          "description": "the radio the attempt went out on: `fm` radio 1 (the FM radio of before), `hf` radio 2 (the HF radio of before); empty for an attempt kept before there were two radios and for one on any other radio (`radio_id` says which)",
           "enum": [
             "",
             "fm",
             "hf"
           ],
           "type": "string"
+        },
+        "radio_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio the attempt went out on, its id (a row of the topic `radios`); null for an attempt kept before the radio was"
         }
       },
       "required": [
@@ -202,7 +226,8 @@
         "hops",
         "internet",
         "acked",
-        "radio"
+        "radio",
+        "radio_id"
       ],
       "title": "AttemptRow",
       "type": "object"
@@ -384,6 +409,19 @@
           "maxLength": 64,
           "minLength": 1,
           "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the radio whose path for the station is taken away, its id; left out: radio 1"
         }
       },
       "required": [
@@ -401,7 +439,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "the settings in force, key to text; every key is there",
+          "description": "the settings in force, key to text; every key is there (the keys of `CONFIG_KEYS`: the station's, and the flat keys of radios 1 and 2 of before)",
           "type": "object"
         },
         "defaults": {
@@ -409,6 +447,20 @@
             "type": "string"
           },
           "description": "the same keys with their defaults, for a form's reset",
+          "type": "object"
+        },
+        "radio_values": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "the radios' own settings in force, `radio/<id>/<key>` to text, every field of its kind for each radio that is not removed (the fields of `RADIO_TYPES`), and the station's settings of the radios (`station/main_radio`, the main radio's id, empty for the first enabled): what `set_config` takes beside `values`; kept apart from `values` so that the form of before shows none of them",
+          "type": "object"
+        },
+        "radio_defaults": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "the same keys with their defaults (the field's of the radio's kind)",
           "type": "object"
         },
         "urls": {
@@ -426,6 +478,8 @@
       "required": [
         "values",
         "defaults",
+        "radio_values",
+        "radio_defaults",
         "urls",
         "https"
       ],
@@ -1322,11 +1376,24 @@
     },
     "FindRadio": {
       "additionalProperties": false,
-      "description": "Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be\nput into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that\nput it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running\n(`radio.busy`), when there is no port to try (`radio.no_ports`) and when none answered (`radio.not_found`).",
+      "description": "Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be\nput into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that\nput it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running\n(`radio.busy`), when there is no port to try (`radio.no_ports`), when none answered (`radio.not_found`) and for a `radio` that is none or of a type that has no serial line (`radio.unknown`). With `radio` only that radio's line is let go, the ports\nanother radio or the GPS receiver holds are passed over, and the messages name it.",
       "properties": {
         "cmd": {
           "const": "find_radio",
           "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the radio the search is for (its id); left out: radio 1, the FM radio of before"
         }
       },
       "required": [
@@ -1337,11 +1404,24 @@
     },
     "FindRadioCancel": {
       "additionalProperties": false,
-      "description": "Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running.",
+      "description": "Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running. One search runs at a time, so `radio` changes nothing: it is taken so that the page names the radio\nin every command of its box.",
       "properties": {
         "cmd": {
           "const": "find_radio_cancel",
           "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the radio whose search is ended; left out: the one running"
         }
       },
       "required": [
@@ -1405,6 +1485,21 @@
         "call"
       ],
       "title": "ForgetStationKeyCommand",
+      "type": "object"
+    },
+    "Frequencies": {
+      "additionalProperties": false,
+      "description": "The page shows the station's suggested frequencies (the box of a radio whose type can show them, the HF tests tab): the daemon asks the project's server for them again, unless it asked less than 15 minutes ago or the\nupdate check is off (`NEOAPRS_UPDATE_CHECK=0`). The suggested dials are the project's, not a radio's: one list for the station. Nothing is answered; the topic `skeds` and each Mercury radio's `modem` have the list\nwhen it changes. `hf_frequencies` is the same command under its name of before.",
+      "properties": {
+        "cmd": {
+          "const": "frequencies",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "FrequenciesCommand",
       "type": "object"
     },
     "FrequencyRow": {
@@ -1539,6 +1634,17 @@
           "description": "the information field it went with, `?APRS?`, `?IGATE?` or `?WX?`",
           "type": "string"
         },
+        "radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio it went on, its id; only what that radio heard is counted in `new`"
+        },
         "at": {
           "description": "when it was sent",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
@@ -1567,6 +1673,7 @@
       "required": [
         "kind",
         "query",
+        "radio",
         "at",
         "path",
         "until",
@@ -1604,6 +1711,19 @@
         },
         "rf_only": {
           "type": "boolean"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the radio the query goes on (plan rule 3.6), its id; left out: the main radio. Refused with `radio.unknown` for a radio that is none and `radio.not_connected` for one that is off or not connected; the minute between two queries of a kind is that radio's"
         }
       },
       "required": [
@@ -1620,7 +1740,14 @@
       "description": "The general queries sent from here: the last one of each kind. Forgotten when the daemon stops. Told whole as it changes.",
       "properties": {
         "asked": {
-          "description": "the last query of each kind, the oldest first; empty before one",
+          "description": "the last query of each kind, whatever radio it went on, the oldest first; empty before one",
+          "items": {
+            "$ref": "#/$defs/GeneralAsked"
+          },
+          "type": "array"
+        },
+        "by_radio": {
+          "description": "the last query of each kind on each radio, the oldest first: the wait before the next of a kind is that radio's (`general.too_soon`); left out before the first query in this version",
           "items": {
             "$ref": "#/$defs/GeneralAsked"
           },
@@ -1799,6 +1926,36 @@
         "last_beacon_at"
       ],
       "title": "GpsState",
+      "type": "object"
+    },
+    "HeardOn": {
+      "additionalProperties": false,
+      "description": "What one radio heard of a station.",
+      "properties": {
+        "count": {
+          "description": "how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the radio",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "last_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the latest of them did; null when that is not known"
+        }
+      },
+      "required": [
+        "count",
+        "last_at"
+      ],
+      "title": "HeardOn",
       "type": "object"
     },
     "Hello": {
@@ -2094,11 +2251,24 @@
     },
     "ListPorts": {
       "additionalProperties": false,
-      "description": "Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked.\nA KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.",
+      "description": "Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked.\nA KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. With `radio`, the sound cards are listed while that radio's type is Mercury, and the proposals leave out what the\nother radios and the GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`).",
       "properties": {
         "cmd": {
           "const": "list_ports",
           "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the radio the list is for (its id); left out: the radios of before, the sound cards while radio 2 is the Mercury modem"
         }
       },
       "required": [
@@ -2576,13 +2746,35 @@
           "description": "the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one"
         },
         "radio": {
-          "description": "the radio a message that came in came on: `fm` the FM radio, `hf` the HF modem; empty for a message of ours (its attempts say) and for one kept before there were two radios",
+          "description": "the radio a message that came in came on: `fm` radio 1 (the FM radio of before), `hf` radio 2 (the HF radio of before); empty for a message of ours (its attempts say), for one kept before there were two radios and for one of any other radio (`radio_id` says which)",
           "enum": [
             "",
             "fm",
             "hf"
           ],
           "type": "string"
+        },
+        "radio_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio a message that came in came on, its id; null for a message of ours (its attempts say) and for one from the internet or kept before the radio was"
+        },
+        "radio_now": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "for a message of ours on its way (`sending`, `queued`), the radio its next attempt goes on: the one its first attempt went on, which it keeps until it ends unless Route changes or that radio is switched off, else the station's radio now (plan rule 3.2); null for every other message and while there is no radio it may go on. The page shows Route, the path and the radio's state of this radio"
         },
         "state": {
           "description": "`queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt, or the reason in `failure`; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for)",
@@ -2702,6 +2894,8 @@
         "text",
         "msg_id",
         "radio",
+        "radio_id",
+        "radio_now",
         "state",
         "failure",
         "attempts",
@@ -2795,11 +2989,11 @@
           "type": "string"
         },
         "frequencies": {
-          "description": "the frequencies the project suggests, one to three: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `hf_frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio",
+          "description": "the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies` or `hf_frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio",
           "items": {
             "$ref": "#/$defs/FrequencyRow"
           },
-          "maxItems": 3,
+          "maxItems": 4,
           "type": "array"
         },
         "keying": {
@@ -2907,7 +3101,7 @@
     },
     "ObjectSet": {
       "additionalProperties": false,
-      "description": "Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9\ncharacters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal\ndegrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls\nseparated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`); `qru_group` the group of QRU it belongs to (up to 8 letters and digits, not `INFO` or `NEXT`; empty for none) and `on_request` true to send it\nonly to a station that asks for it, never on the schedule. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.",
+      "description": "Makes an object or an item of ours, or changes the one of that name (a changed object starts its schedule again, and is sent at once, never sooner than a minute after its last packet). `name` is 1 to 9\ncharacters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal\ndegrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls\nseparated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`); `qru_group` the group of QRU it belongs to (up to 8 letters and digits, not `INFO` or `NEXT`; empty for none) and `on_request` true to send it\nonly to a station that asks for it, never on the schedule; `radios` the radios it goes out on (their ids: `radio`, the word of before, is then not read). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.",
       "properties": {
         "cmd": {
           "const": "object_set",
@@ -2999,6 +3193,23 @@
             "both"
           ],
           "type": "string"
+        },
+        "radios": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 64,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the radios it goes out on, their ids; left out (or null): `radio`, the word of before (a page of before sends only that)"
         }
       },
       "required": [
@@ -3193,13 +3404,20 @@
           "type": "boolean"
         },
         "radio": {
-          "description": "the radio it goes out on: `fm`, `hf` or `both`; with one radio on it goes on that one, whatever is kept (the page offers the choice while both radios are on)",
+          "description": "the radio it goes out on, as the word of before: `fm` radio 1, `hf` radio 2, `both` the two (`radios` has every radio's id); with one radio on it goes on that one, whatever is kept",
           "enum": [
             "fm",
             "hf",
             "both"
           ],
           "type": "string"
+        },
+        "radios": {
+          "description": "the radios it goes out on (Send on), their ids, ascending: each that is enabled; with none of them enabled, the main radio",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
         },
         "state": {
           "description": "`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten",
@@ -3265,6 +3483,7 @@
         "qru_group",
         "on_request",
         "radio",
+        "radios",
         "state",
         "created_at",
         "updated_at",
@@ -3417,13 +3636,24 @@
           "type": "string"
         },
         "radio": {
-          "description": "the radio the packet came on or went out on: `fm` the FM radio (the KISS TNC), `hf` the HF modem; empty for a packet from the internet",
+          "description": "the radio the packet came on or went out on: `fm` radio 1 (the FM radio of before), `hf` radio 2 (the HF radio of before); empty for a packet from the internet and for one of any other radio (`radio_id` says which). Goes with the topics `tnc` and `hf`",
           "enum": [
             "",
             "fm",
             "hf"
           ],
           "type": "string"
+        },
+        "radio_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio the packet came on or went out on, its id (a row of the topic `radios`, a removed one too); null for a packet from the internet"
         },
         "snr": {
           "anyOf": [
@@ -3522,6 +3752,7 @@
         "kind",
         "route",
         "radio",
+        "radio_id",
         "snr",
         "rssi",
         "via",
@@ -3746,6 +3977,17 @@
             }
           ],
           "description": "the USB product id of an adapter; null for a port that is not USB"
+        },
+        "held_by": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio of the station that holds the port now (its id), 0 for the GPS receiver; null while none of ours does. A port another radio holds is not proposed, and the page greys it with the holder's name"
         }
       },
       "required": [
@@ -3753,7 +3995,8 @@
         "description",
         "hwid",
         "vid",
-        "pid"
+        "pid",
+        "held_by"
       ],
       "title": "PortRow",
       "type": "object"
@@ -4078,11 +4321,23 @@
           "description": "when it was sent",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
           "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio it went on, its id; null for a request kept from before the radio was named"
         }
       },
       "required": [
         "text",
-        "at"
+        "at",
+        "radio"
       ],
       "title": "QruAsked",
       "type": "object"
@@ -4305,6 +4560,582 @@
       "title": "QueryStationCommand",
       "type": "object"
     },
+    "RadioAdd": {
+      "additionalProperties": false,
+      "description": "Adds a radio of the type (`type`, a `key` of `RADIO_TYPES`): after the others, enabled, with the defaults of its kind, the name typed (empty or left out: none), and started at once. Answered with `radio_added` (its\nid) to the page that asked, at once, and then the `set` of its row in `radios` (the topic is told at most four times a second: the row may come a few messages later, so a page that opens the new radio waits\nfor it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `setting.not_stored`.",
+      "properties": {
+        "cmd": {
+          "const": "radio_add",
+          "type": "string"
+        },
+        "type": {
+          "maxLength": 32,
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "description": "the name typed; left out or empty: none",
+          "maxLength": 64,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "type"
+      ],
+      "title": "RadioAddCommand",
+      "type": "object"
+    },
+    "RadioAddedMsg": {
+      "additionalProperties": false,
+      "description": "The answer to `radio_add`, to the page that asked: the id the new radio was given.",
+      "properties": {
+        "type": {
+          "const": "radio_added",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "title": "RadioAddedMessage",
+      "type": "object"
+    },
+    "RadioAllowed": {
+      "additionalProperties": false,
+      "description": "What we decided the radio's type may do (neoaprs/radiotype.py `Allowed`): a control exists only where it is true.",
+      "properties": {
+        "paths": {
+          "description": "our frames on it may carry digipeaters: the path controls are shown for it; false: every frame goes direct",
+          "type": "boolean"
+        },
+        "digipeat": {
+          "description": "it may repeat what it hears (its own Digipeater tick, `radio/<id>/digipeat`)",
+          "type": "boolean"
+        },
+        "smart_beacon": {
+          "description": "a moving station's SmartBeaconing applies on it; elsewhere the timed beacon goes with the latest fix",
+          "type": "boolean"
+        },
+        "gateway_heard": {
+          "description": "internet gateways hear its kind: email may go out on it",
+          "type": "boolean"
+        },
+        "shared_channel": {
+          "description": "it is a 1200-baud shared channel: the ALOHA circle is worked out from what it hears",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "paths",
+        "digipeat",
+        "smart_beacon",
+        "gateway_heard",
+        "shared_channel"
+      ],
+      "title": "RadioAllowed",
+      "type": "object"
+    },
+    "RadioBeaconState": {
+      "additionalProperties": false,
+      "description": "The radio's own beacon timer.",
+      "properties": {
+        "last_sent": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when our position last went out on it; null before one"
+        },
+        "next_due": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the next timed beacon is due on it; null while none is planned (off, a moving station, the radio off)"
+        },
+        "interval_min": {
+          "description": "the interval in force on it, in minutes: `beacon/interval_min` raised to the radio's own floor; 0 while the beacon does not go out on it (off, Send on not ticked, the radio off)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "problem": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RadioProblem"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "why the latest beacon due on it did not go out (`transmit.off`, `beacon.not_sent`); null after one that did"
+        }
+      },
+      "required": [
+        "last_sent",
+        "next_due",
+        "interval_min",
+        "problem"
+      ],
+      "title": "RadioBeaconState",
+      "type": "object"
+    },
+    "RadioCan": {
+      "additionalProperties": false,
+      "description": "What the radio's type can do (neoaprs/radiotype.py `Can`): the controls of its box.",
+      "properties": {
+        "find": {
+          "description": "Find my radio (a serial line: `find_radio` with this radio)",
+          "type": "boolean"
+        },
+        "terminal": {
+          "description": "its line's log can be shown (`lines`)",
+          "type": "boolean"
+        },
+        "tune": {
+          "description": "Tune (`radio_tune`)",
+          "type": "boolean"
+        },
+        "key_test": {
+          "description": "the keying test (`radio_key_test`)",
+          "type": "boolean"
+        },
+        "scope": {
+          "description": "the spectrum scope (`radio_scope`); whether it is shown now is the modem's `scope`",
+          "type": "boolean"
+        },
+        "tx_gain": {
+          "description": "the transmit gain (`radio/<id>/tx_gain_db`)",
+          "type": "boolean"
+        },
+        "frequencies": {
+          "description": "the station's suggested frequencies are shown in its box",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "find",
+        "terminal",
+        "tune",
+        "key_test",
+        "scope",
+        "tx_gain",
+        "frequencies"
+      ],
+      "title": "RadioCan",
+      "type": "object"
+    },
+    "RadioChange": {
+      "additionalProperties": false,
+      "description": "Changes what is given of the radio and nothing else: its `name` (empty: none), its `type` (one of its own kind), its Enable (`enabled`) or its place in the list (`position`, from 1; the others keep theirs, a tie goes by\nid). Stored, then in force; the radio is restarted when its type or its Enable changed what runs. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on is not switched off),\n`radio.name_form`, `radio.name_taken`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`.",
+      "properties": {
+        "cmd": {
+          "const": "radio_change",
+          "type": "string"
+        },
+        "radio": {
+          "description": "the radio's id, the `id` of its row in the topic `radios`",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the new name; left out: unchanged"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the new type; left out: unchanged"
+        },
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the new Enable; left out: unchanged"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the new place; left out: unchanged"
+        }
+      },
+      "required": [
+        "cmd",
+        "radio"
+      ],
+      "title": "RadioChangeCommand",
+      "type": "object"
+    },
+    "RadioChoices": {
+      "additionalProperties": false,
+      "description": "The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force.",
+      "properties": {
+        "beacon": {
+          "description": "Send on: the beacon goes out on this radio (with one radio on, it goes on that one whatever this says)",
+          "type": "boolean"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the digipeaters of its frames as the setting holds them (empty: the recommended path of the station's symbol, `DIRECT`: none); null for a kind that has no path"
+        },
+        "digipeat": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "its digipeater is on; null for a kind that may not repeat"
+        }
+      },
+      "required": [
+        "beacon",
+        "path",
+        "digipeat"
+      ],
+      "title": "RadioChoices",
+      "type": "object"
+    },
+    "RadioHold": {
+      "additionalProperties": false,
+      "description": "A device the radio holds now in the station's table of resources: no other radio, and not the GPS receiver, is given it.",
+      "properties": {
+        "resource": {
+          "description": "what kind of device: a serial port, a sound card, the keying line's port, the port pair of a Mercury modem",
+          "enum": [
+            "serial",
+            "sound_card",
+            "keying",
+            "modem_ports",
+            "gps"
+          ],
+          "type": "string"
+        },
+        "value": {
+          "description": "the device as the table holds it: a serial port's resolved path (`/dev/ttyUSB0`, `COM3`), a sound card's id, the broadcast port of a Mercury pair (`8100`)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource",
+        "value"
+      ],
+      "title": "RadioHold",
+      "type": "object"
+    },
+    "RadioKeyTest": {
+      "additionalProperties": false,
+      "description": "The keying test on the radio's modem, as `hf_key_test`: keys it for a second with next to no audio. The same refusals as `radio_tune`.",
+      "properties": {
+        "cmd": {
+          "const": "radio_key_test",
+          "type": "string"
+        },
+        "radio": {
+          "description": "the radio's id, the `id` of its row in the topic `radios`",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "radio"
+      ],
+      "title": "RadioKeyTestCommand",
+      "type": "object"
+    },
+    "RadioLimits": {
+      "additionalProperties": false,
+      "description": "What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of the type.",
+      "properties": {
+        "max_frame": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own"
+        },
+        "beacon_min_min": {
+          "description": "the shortest beacon interval the radio takes, in minutes (FM 20, HF 30): the station's interval is raised to it on this radio",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_frame",
+        "beacon_min_min"
+      ],
+      "title": "RadioLimits",
+      "type": "object"
+    },
+    "RadioProblem": {
+      "additionalProperties": false,
+      "description": "Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told).",
+      "properties": {
+        "code": {
+          "description": "`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log)",
+          "enum": [
+            "radio.not_connected",
+            "radio.searching",
+            "radio.silent",
+            "radio.resource_held",
+            "modem.not_installed",
+            "modem.stopped",
+            "modem.network",
+            "modem.no_port",
+            "modem.not_started",
+            "modem.sound_card",
+            "transmit.off",
+            "beacon.not_sent"
+          ],
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "description": "the values of the sentence, by name; empty for a code that has none",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "params"
+      ],
+      "title": "RadioProblem",
+      "type": "object"
+    },
+    "RadioRemove": {
+      "additionalProperties": false,
+      "description": "Removes the radio: it is stopped for good, and in the same write its id leaves the objects' sets, the stations' choices of it and their paths on it. Its row stays in `radios`, `removed`, so that what came by it keeps\nits name. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on stays), `setting.not_stored`.",
+      "properties": {
+        "cmd": {
+          "const": "radio_remove",
+          "type": "string"
+        },
+        "radio": {
+          "description": "the radio's id, the `id` of its row in the topic `radios`",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "radio"
+      ],
+      "title": "RadioRemoveCommand",
+      "type": "object"
+    },
+    "RadioRow": {
+      "additionalProperties": false,
+      "description": "One radio of the station: what it is, how it is set, and how its line, its beacon and its modem are now. The rows are the values of the topic `radios`, keyed by `id` as text; a removed radio stays, marked,\nso that the packets and messages that name it still have its name. A radio that is added is a `set` of its row; a change of its state, counters, lines, beacon or modem is a `set` of the row, told at most four\ntimes a second; a change of the settings tells the topic whole.",
+      "properties": {
+        "id": {
+          "description": "the radio's id (an integer the database gave it, never given again): what every other row and command names it by",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "kind": {
+          "description": "the kind of radio, fixed when it was added: its tag's colour and the defaults follow it",
+          "enum": [
+            "fm",
+            "hf",
+            "lora"
+          ],
+          "type": "string"
+        },
+        "type": {
+          "description": "its type, a `key` of `RADIO_TYPES` (ui/src/protocol/lists.ts), of its kind; it may change within the kind (`radio_change`)",
+          "type": "string"
+        },
+        "name": {
+          "description": "the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `HF 2`) in its own words",
+          "type": "string"
+        },
+        "number": {
+          "description": "its number within its kind: 1 for the first of the kind by id among the radios not removed (`HF 2` is 2); a removed radio keeps its own",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "enabled": {
+          "description": "its Enable is ticked (`radio_change` with `enabled`); false for a removed radio",
+          "type": "boolean"
+        },
+        "position": {
+          "description": "its place in the list of boxes (and of the first enabled, the main radio's default): the lowest first, then by id",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "removed": {
+          "description": "it was removed: its row stays so that what came by it keeps its name; it is no longer started, chosen or offered",
+          "type": "boolean"
+        },
+        "dummy": {
+          "description": "its type is a Dummy radio: the traffic is made up and nothing goes on the air; its tag is dashed",
+          "type": "boolean"
+        },
+        "state": {
+          "description": "its line, as the topic `tnc` says it of radio 1 (`stopped` for a radio that is off or removed)",
+          "enum": [
+            "stopped",
+            "connecting",
+            "connected",
+            "waiting",
+            "silent"
+          ],
+          "type": "string"
+        },
+        "problem": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RadioProblem"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "why it is not connected, while it is enabled and not connected; null otherwise"
+        },
+        "stats": {
+          "$ref": "#/$defs/TncStats"
+        },
+        "lines": {
+          "description": "the latest 100 lines of what its line saw and did, oldest first; empty for a removed radio",
+          "items": {
+            "$ref": "#/$defs/TncLine"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "limits": {
+          "$ref": "#/$defs/RadioLimits"
+        },
+        "allowed": {
+          "$ref": "#/$defs/RadioAllowed"
+        },
+        "can": {
+          "$ref": "#/$defs/RadioCan"
+        },
+        "choices": {
+          "$ref": "#/$defs/RadioChoices"
+        },
+        "beacon": {
+          "$ref": "#/$defs/RadioBeaconState"
+        },
+        "modem": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModemState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "its Mercury modem, while its type is Mercury; null for every other type and for a removed radio"
+        },
+        "holds": {
+          "description": "the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none",
+          "items": {
+            "$ref": "#/$defs/RadioHold"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "type",
+        "name",
+        "number",
+        "enabled",
+        "position",
+        "removed",
+        "dummy",
+        "state",
+        "problem",
+        "stats",
+        "lines",
+        "limits",
+        "allowed",
+        "can",
+        "choices",
+        "beacon",
+        "modem",
+        "holds"
+      ],
+      "title": "RadioRow",
+      "type": "object"
+    },
     "RadioRulesState": {
       "additionalProperties": false,
       "description": "What the kind of the radio in use allows (neoaprs/radiorules.py): the page shows the path, the digipeater and the moving-station controls only where they apply.",
@@ -4343,6 +5174,32 @@
         "beacon_min_min"
       ],
       "title": "RadioRulesState",
+      "type": "object"
+    },
+    "RadioScope": {
+      "additionalProperties": false,
+      "description": "The scope of the radio's modem, as `hf_scope`: with `on`, this page is sent the rows of its waterfall as binary frames (*Binary frames*), with `on` false, or when the page closes, no more. Nothing is refused, and\nnothing happens for a radio whose modem has no scope; in this version the binary frames are those of radio 2's modem (the HF radio of before), which a frame does not name, so another radio's scope sends nothing.",
+      "properties": {
+        "cmd": {
+          "const": "radio_scope",
+          "type": "string"
+        },
+        "radio": {
+          "description": "the radio's id, the `id` of its row in the topic `radios`",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "on": {
+          "description": "true starts the rows for this page, false stops them",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cmd",
+        "radio",
+        "on"
+      ],
+      "title": "RadioScopeCommand",
       "type": "object"
     },
     "RadioSearchMsg": {
@@ -4390,6 +5247,21 @@
           "description": "how many tries there are if nothing answers; 0 for `found` and `cancelled`",
           "minimum": 0,
           "type": "integer"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio the search is for (its id); null for a search that named none (radio 1)"
+        },
+        "radio_type": {
+          "description": "for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every FM type: 1.11's `type`, which the message's own tag takes); empty otherwise",
+          "type": "string"
         }
       },
       "required": [
@@ -4399,9 +5271,37 @@
         "baud",
         "profile",
         "number",
-        "total"
+        "total",
+        "radio",
+        "radio_type"
       ],
       "title": "RadioSearchMessage",
+      "type": "object"
+    },
+    "RadioTune": {
+      "additionalProperties": false,
+      "description": "Tune on the radio's modem, as `hf_tune` on the HF radio's: with `on`, keys the radio and sends the steady tone for ten seconds, then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: \"tune\"`\nmeanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and\nwhile a frame is on the air or the channel is busy (`hf.held`).",
+      "properties": {
+        "cmd": {
+          "const": "radio_tune",
+          "type": "string"
+        },
+        "radio": {
+          "description": "the radio's id, the `id` of its row in the topic `radios`",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "on": {
+          "description": "true starts the tone, false stops it",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cmd",
+        "radio",
+        "on"
+      ],
+      "title": "RadioTuneCommand",
       "type": "object"
     },
     "ReachValues": {
@@ -4633,7 +5533,7 @@
     },
     "SetConfig": {
       "additionalProperties": false,
-      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the\nTNC, `station/*` move our own station on the map. A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`.",
+      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the\nTNC, `station/*` move our own station on the map. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio\nalone where its driver says so; a radio that is none or removed is refused with `radio.unknown`, a key its kind has not with `radio.no_setting` (its `name`), `station/main_radio` changed to name no radio with\n`radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`), each with the key. A key of the form of before whose radio (1 or 2) is\nremoved is refused with `radio.unknown` when it would change what it shows (sent back as shown, it is let through). A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`.",
       "properties": {
         "cmd": {
           "const": "set_config",
@@ -4657,7 +5557,7 @@
     },
     "SetMessageRadio": {
       "additionalProperties": false,
-      "description": "Chooses the radio messages to a station go out on while both radios are on: `fm`, `hf`, or empty to leave it to the daemon again (the FM radio unless the station was heard on HF alone). It holds\nfrom the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`). Answered by the station's row, or by an `error` for a station that is not\nknown (`station.unknown`).",
+      "description": "Chooses the radio messages to a station go out on: `fm` radio 1, `hf` radio 2, or empty to leave it to the daemon again (plan rule 3.2: the radio that heard the station lately, a local one before HF); `station_radio`\nnames any radio by its id. It holds from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`, `radio_choice`). Answered by the station's row, or by an\n`error` for a station that is not known (`station.unknown`).",
       "properties": {
         "cmd": {
           "const": "message_radio",
@@ -4766,6 +5666,19 @@
         "path": {
           "maxLength": 256,
           "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the radio the path is for (plan rule 3.3: a path belongs to the radio it was set on), its id; left out: radio 1, whose path is the entry's `path`; another radio's is the station's row's `paths`"
         }
       },
       "required": [
@@ -5050,11 +5963,11 @@
           "description": "when the board was last read from the server (or when the one kept from the last run was); null before the first"
         },
         "frequencies": {
-          "description": "the dials the project suggests for the HF radio, one to three, the same as `modem.frequencies` of the topic `hf` (the tab does not depend on a radio's state)",
+          "description": "the dials the project suggests for the HF radio, one to four, the same as `modem.frequencies` of the topic `hf` (the tab does not depend on a radio's state)",
           "items": {
             "$ref": "#/$defs/SkedFrequency"
           },
-          "maxItems": 3,
+          "maxItems": 4,
           "type": "array"
         },
         "rows": {
@@ -5114,13 +6027,25 @@
         "pick": {
           "description": "whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it",
           "type": "boolean"
+        },
+        "held_by": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio of the station whose modem holds the card now (its id); null while none does. A card another radio holds is never the `pick`"
         }
       },
       "required": [
         "id",
         "name",
         "default",
-        "pick"
+        "pick",
+        "held_by"
       ],
       "title": "SoundCardRow",
       "type": "object"
@@ -5344,6 +6269,40 @@
       "title": "StationPref",
       "type": "object"
     },
+    "StationRadio": {
+      "additionalProperties": false,
+      "description": "Chooses the radio messages to a station go out on (`radio`, or null to leave it to the daemon again: plan rule 3.2, the radio that heard it lately, a local one before HF). It holds from the next attempt on, also of a\nmessage on its way, and across a restart; the station's row says it (`radio_choice`, and `radio_now` the radio a message takes now). A radio that is off is no choice: the station's row says null while it is. Answered\nby the station's row (and the `radio_now` of each message to it on its way), or an `error`: `radio.unknown` (no radio of that id that is not removed) and `station.unknown` (a call the book does not hold: in\nthis version the choice is kept on a station of the book only, so the page offers the choice for a station it lists; plan rule 3.2 keeps it by call, which needs the store of the choices to keep a call\nwithout a station, and then this refusal goes).",
+      "properties": {
+        "cmd": {
+          "const": "station_radio",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "description": "the radio's id, the `id` of its row in the topic `radios`",
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "radio"
+      ],
+      "title": "StationRadioCommand",
+      "type": "object"
+    },
     "StationRow": {
       "additionalProperties": false,
       "description": "One station of the station book: who it is, where it was heard and how often. An object or an item is a row of its own, named by the object. The rows are the values of the topic `stations`\n(keyed by `call`): a station heard again is a `set` of its row, a station that is forgotten or pruned (or an object that was killed) a `del`. When our own position changes in the settings every\nrow has a new distance and bearing, and the topic is told whole again.",
@@ -5535,12 +6494,12 @@
           "description": "when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was"
         },
         "heard_fm": {
-          "description": "how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the FM radio (the KISS TNC), and how many on the HF modem (`Packet.radio`); a message to the station goes out on the radio it was last heard on, FM when on both",
+          "description": "how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on radio 1 (the FM radio of before), and how many on radio 2 (the HF radio of before): `heard` has every radio's, and `radio_now` the radio a message to the station goes out on",
           "minimum": 0,
           "type": "integer"
         },
         "heard_hf": {
-          "description": "how many came on the HF modem",
+          "description": "how many came on radio 2",
           "minimum": 0,
           "type": "integer"
         },
@@ -5555,7 +6514,7 @@
               "type": "null"
             }
           ],
-          "description": "when a packet of the station last came on the FM radio; null when none did"
+          "description": "when a packet of the station last came on radio 1; null when none did"
         },
         "last_hf_at": {
           "anyOf": [
@@ -5568,7 +6527,14 @@
               "type": "null"
             }
           ],
-          "description": "when a packet of the station last came on the HF modem; null when none did"
+          "description": "when a packet of the station last came on radio 2; null when none did"
+        },
+        "heard": {
+          "additionalProperties": {
+            "$ref": "#/$defs/HeardOn"
+          },
+          "description": "what each radio heard of the station, by the radio's id as text: how many packets of the air came on it and when the latest did; a radio that heard nothing of it has no entry",
+          "type": "object"
         },
         "snr": {
           "anyOf": [
@@ -5632,11 +6598,22 @@
           "type": "string"
         },
         "last_path": {
-          "description": "the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`",
+          "description": "the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`: the packet the radio that heard the station last (`last_path_radio`) heard last",
           "items": {
             "type": "string"
           },
           "type": "array"
+        },
+        "last_path_radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio whose latest packet `last_path` is (the radio that heard the station last, radio 1 on a tie), its id; null for a station no radio heard. After a restart a station HF heard last shows HF's path, direct"
         },
         "last_route": {
           "description": "how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in)",
@@ -5658,7 +6635,20 @@
               "type": "null"
             }
           ],
-          "description": "when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct"
+          "description": "when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`, on the radios that may carry a path; null for a station never heard direct"
+        },
+        "last_direct_any_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when a packet of the station was last heard direct on any radio, HF too (plan 6b: the green check, the map's ring and the \"direct only\" filter count any radio); null for a station never heard direct"
         },
         "heard_via": {
           "description": "[the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted",
@@ -5873,13 +6863,42 @@
           "type": "boolean"
         },
         "message_radio": {
-          "description": "the radio the operator chose for messages to the station while both are on; empty for the daemon's choice (the FM radio unless the station was heard on HF alone)",
+          "description": "the radio the operator chose for messages to the station, as the word of before: `fm` radio 1, `hf` radio 2; empty for the daemon's choice and for a choice of another radio (`radio_choice` says which; `radio_now` is the radio a message goes on)",
           "enum": [
             "",
             "fm",
             "hf"
           ],
           "type": "string"
+        },
+        "radio_choice": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio the operator chose for messages to the station (`station_radio`), its id, while that radio is enabled; null for the daemon's choice (plan rule 3.2), and while the radio chosen is off"
+        },
+        "radio_now": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before HF, else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio"
+        },
+        "paths": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too)",
+          "type": "object"
         },
         "track": {
           "description": "the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed",
@@ -5935,6 +6954,7 @@
         "heard_hf",
         "last_fm_at",
         "last_hf_at",
+        "heard",
         "snr",
         "rssi",
         "signal_at",
@@ -5942,9 +6962,11 @@
         "packets_hour",
         "device",
         "last_path",
+        "last_path_radio",
         "last_route",
         "heard_direct",
         "last_direct_at",
+        "last_direct_any_at",
         "heard_via",
         "gated",
         "igate",
@@ -5969,6 +6991,9 @@
         "can_message",
         "may_not_message",
         "message_radio",
+        "radio_choice",
+        "radio_now",
+        "paths",
         "track"
       ],
       "title": "StationRow",
@@ -6076,7 +7101,7 @@
           "description": "our own longitude, from the settings; null while none is set"
         },
         "beacon_interval_min": {
-          "description": "minutes between our position packets, from the settings; 0 is off",
+          "description": "minutes between our position packets on some radio: `beacon/interval_min` as it is in force, the shortest of the radios the beacon goes out on (each raised to its own floor; each radio's own is `beacon.interval_min` of its row in `radios`); 0 is off",
           "type": "integer"
         },
         "beacon_last_sent": {
@@ -6130,6 +7155,28 @@
             }
           ],
           "description": "when the HF beacon's timer sends the next one, its random pause included; null while the interval is 0 or the HF radio is off"
+        },
+        "main_radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the main radio (its id): the one chosen (`station/main_radio`) while it is enabled, else the first enabled by position; it carries the bulletins, the status, and Ask around, Local info and email unless they name another. Null while no radio is enabled"
+        },
+        "email_radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio an email to the gateway goes out on (its id): the main radio when internet gateways hear its kind, else the first enabled radio of such a kind (FM, LoRa; never HF); null while there is none, and Send of an email is off"
         },
         "station_status": {
           "description": "the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone",
@@ -6206,6 +7253,8 @@
         "beacon_next_due",
         "hf_beacon_last_sent",
         "hf_beacon_next_due",
+        "main_radio",
+        "email_radio",
         "station_status",
         "station_status_last_sent",
         "rig_state",
@@ -6760,13 +7809,20 @@
           "description": "the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest",
           "type": "object"
         },
+        "radios": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RadioRow"
+          },
+          "description": "every radio of the station by id (as text), removed ones too (marked): what it is, how it is set, its line, its beacon and its modem. A radio added is a `set`; a change of its state, counters, lines, beacon or modem a `set` of its row, at most four times a second; a change of the settings or of the devices held tells it whole. No radio leaves it",
+          "type": "object"
+        },
         "tnc": {
           "$ref": "#/$defs/TncState",
-          "description": "the FM radio (the KISS TNC); told whole as it changes, at most four times a second"
+          "description": "radio 1, the FM radio of before (the KISS TNC); told whole as it changes, at most four times a second. `radios` has every radio"
         },
         "hf": {
           "$ref": "#/$defs/TncState",
-          "description": "the HF radio (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second"
+          "description": "radio 2, the HF radio of before (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second. `radios` has every radio"
         },
         "config": {
           "$ref": "#/$defs/ConfigValues",
@@ -6846,6 +7902,7 @@
       "required": [
         "stations",
         "packets",
+        "radios",
         "tnc",
         "hf",
         "config",
@@ -7364,6 +8421,7 @@
           "forget_all_stations": "#/$defs/ForgetAllStations",
           "forget_station": "#/$defs/ForgetStation",
           "forget_station_key": "#/$defs/ForgetStationKey",
+          "frequencies": "#/$defs/Frequencies",
           "general_query": "#/$defs/GeneralQuery",
           "hf_frequencies": "#/$defs/HfFrequencies",
           "hf_key_test": "#/$defs/HfKeyTest",
@@ -7388,6 +8446,12 @@
           "position_history": "#/$defs/PositionHistory",
           "qru_ask": "#/$defs/AskQru",
           "query": "#/$defs/QueryStation",
+          "radio_add": "#/$defs/RadioAdd",
+          "radio_change": "#/$defs/RadioChange",
+          "radio_key_test": "#/$defs/RadioKeyTest",
+          "radio_remove": "#/$defs/RadioRemove",
+          "radio_scope": "#/$defs/RadioScope",
+          "radio_tune": "#/$defs/RadioTune",
           "release_notes": "#/$defs/ReleaseNotes",
           "send_key": "#/$defs/SendKey",
           "send_message": "#/$defs/SendMessage",
@@ -7400,6 +8464,7 @@
           "sked_post": "#/$defs/SkedPost",
           "skeds_wanted": "#/$defs/SkedsWanted",
           "speed_series": "#/$defs/SpeedSeries",
+          "station_radio": "#/$defs/StationRadio",
           "station_traffic": "#/$defs/StationTraffic",
           "status": "#/$defs/AskStatus",
           "status_now": "#/$defs/StatusNow",
@@ -7583,6 +8648,30 @@
         },
         {
           "$ref": "#/$defs/PageError"
+        },
+        {
+          "$ref": "#/$defs/RadioAdd"
+        },
+        {
+          "$ref": "#/$defs/RadioRemove"
+        },
+        {
+          "$ref": "#/$defs/RadioChange"
+        },
+        {
+          "$ref": "#/$defs/RadioTune"
+        },
+        {
+          "$ref": "#/$defs/RadioKeyTest"
+        },
+        {
+          "$ref": "#/$defs/RadioScope"
+        },
+        {
+          "$ref": "#/$defs/StationRadio"
+        },
+        {
+          "$ref": "#/$defs/Frequencies"
         }
       ],
       "title": "Command"
@@ -7598,6 +8687,7 @@
           "pong": "#/$defs/Pong",
           "ports": "#/$defs/PortsMsg",
           "position_history": "#/$defs/PositionHistoryMsg",
+          "radio_added": "#/$defs/RadioAddedMsg",
           "radio_search": "#/$defs/RadioSearchMsg",
           "release_notes": "#/$defs/ReleaseNotesMsg",
           "signal_series": "#/$defs/SignalSeriesMsg",
@@ -7665,6 +8755,9 @@
         },
         {
           "$ref": "#/$defs/StationAlertMsg"
+        },
+        {
+          "$ref": "#/$defs/RadioAddedMsg"
         }
       ],
       "title": "Message"

@@ -110,6 +110,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
     Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
     Setting("station_transmit", "station/transmit", boolean),               # false: receive only, nothing is transmitted whatever is asked or due (can_transmit); kept in the database, so it holds after a restart
+    Setting("main_choice", "station/main_radio", optional_int(1, 2**31 - 1)),        # the radio the operator chose as the main one, by its id (bulletins, the status, the first choice of Ask and email); empty: the first enabled by position
     Setting("fm_enabled", "fm/enabled", boolean),                           # true: the FM radio (the KISS TNC of tnc/profile) is there; false: no FM radio, no port searched, no FM beacon (a station with the HF radio alone)
     Setting("station_lat", "station/lat", optional_float(*LATITUDE)),     # empty: no position (no beacon; the map opens on the world)
     Setting("station_lon", "station/lon", optional_float(*LONGITUDE)),
@@ -150,7 +151,8 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("beacon_travel", "beacon/travel", word_among(TRAVEL)),    # how a station that follows the GPS (gps/source is not off) travels: by car, bicycle, foot or boat, which decides how often SmartBeaconing beacons
 )
 BY_KEY = {s.key: s for s in SETTINGS}
-KEYS = tuple(s.key for s in SETTINGS)             # every key of the settings form and of the wire's `config`, in the form's order: the station's rows, and today's flat keys of radios 1 and 2 (configradios.FLAT_HOMES: a view until the wire names a radio)
+KEYS = tuple(s.key for s in SETTINGS)             # every key of the settings table and of the wire's `config`, in the form's order: the station's rows, and today's flat keys of radios 1 and 2 (configradios.FLAT_HOMES: a view until the wire names a radio)
+RADIO_STATION_KEYS = ("station/main_radio",)      # the station's settings of the radios, which the wire's `config` tells beside the radios' own keys (`radio_values`), not among the settings the form of before shows
 LAST_PORT = radio_state_key(FM_ID, "last_port")   # the row `serial/last_port` is kept in once the radios are stored: radio 1's own state
 STATION_KEYS = tuple(s.key for s in SETTINGS if s.attr not in FLAT_HOMES and s.key != "serial/last_port")       # the settings that are the station's: the rows of the table `settings` under their own key
 BEACON_SENT = "beacon/last_sent_at"          # the rows of before of the two beacons' last sends, which migration 31 renamed radio/1/ and radio/2/beacon_last_sent_at; a Beacon made without the station's maker of frames (tests, until the round's removals) still keeps the first
@@ -209,7 +211,7 @@ class Config(FlatFields, RadioViews):
     gps_baud: int = 4800
     beacon_travel: str = TRAVEL[0]
     radios: tuple[RadioSpec, ...] = DEFAULT_RADIOS         # every radio, removed ones too, by id, as they are stored (Store.radios()); settings that say nothing have today's two, the FM radio on and the HF radio off
-    main_choice: RadioId | None = None                    # the radio the operator chose as the main one (station/main_radio, from wave 4 on); None: the first enabled
+    main_choice: RadioId | None = None                    # the radio the operator chose as the main one (station/main_radio); None: the first enabled
 
     @property
     def mobile(self) -> bool:
@@ -232,10 +234,10 @@ class Config(FlatFields, RadioViews):
         return station_interval(self.beacon_interval_min, self.radios, self.main_radio)
 
     def radio_refusal(self, key: str = "hf/enabled") -> SettingError | None:
-        """Why the radios' tickboxes do not go together, or None when they do: at least one radio that is not removed stays on (the page greys the last one that is on, so this is for the shell). `key` is the
-        one that was set, which the words begin with; the rest of the words and the key the page is given stay as they were until the wire's radios (the generated errors.json holds the words)."""
+        """Why the radios' tickboxes do not go together, or None when they do: at least one radio that is not removed stays on (the page greys the last one that is on, so this is for the shell). `key`
+        is the one that was set, which the refusal names."""
         if not self.enabled_radios:
-            return SettingError("hf/enabled", "setting.no_radio", {}, f"{key}: a station has at least one radio: tick the FM radio or the HF radio")
+            return SettingError(key, "radio.last_enabled", {}, f"{key}: at least one radio stays on: turn another radio on first")
         return None
 
     @property
@@ -323,7 +325,7 @@ class Config(FlatFields, RadioViews):
         parsed = {key: cls.check(key, text) for key, text in values.items()}
         rows = {key: text for key, text in {**base.to_data(), **parsed}.items() if BY_KEY[key].attr not in FLAT_HOMES}
         flat = {BY_KEY[key].attr: cls.parse(key, text) for key, text in parsed.items() if BY_KEY[key].attr in FLAT_HOMES}
-        config = replace(cls.from_data(rows, radios=base.radios), main_choice=base.main_choice, **flat)
+        config = replace(cls.from_data(rows, radios=base.radios), **flat)
         if COMMENT_KEYS & parsed.keys() and (refusal := config.comment_refusal()):
             raise refusal
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:

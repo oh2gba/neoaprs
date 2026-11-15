@@ -1,8 +1,11 @@
-"""The radio on the wire: the topics `tnc` and `hf` (one value each, told whole at most four times a second), and the commands of the HF radio's Tune and keying test. Models like the rest of the protocol, listed in
-`neoaprs/web/protocol.py`."""
+"""The radios on the wire: the topic `radios` (a table of rows by id, every radio of the station, removed ones too, each told at most four times a second), the topics of before `tnc` and `hf` (radio 1's and
+radio 2's line, one value each, told whole at most four times a second, until the page reads `radios`), the commands of the HF radio's Tune and keying test, and the station's suggested frequencies. Models like the
+rest of the protocol, listed in `neoaprs/web/protocol.py`; the commands that name a radio are neoaprs/web/radiowire.py's."""
 from typing import Literal
 
 from pydantic import Field
+
+from neoaprs.versions import MAX_FREQUENCIES
 
 from .wirebase import Iso, _Command, _Model
 
@@ -49,7 +52,7 @@ class ModemState(_Model):
     frames_keyed: int = Field(ge=0, description="how many times the radio was keyed since the modem started")
     max_frame: int = Field(ge=1, description="the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut")
     sound_card: str = Field(description="the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device")
-    frequencies: list[FrequencyRow] = Field(max_length=3, description="the frequencies the project suggests, one to three: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `hf_frequencies`), else the dial the version page names, else the built-in "
+    frequencies: list[FrequencyRow] = Field(max_length=MAX_FREQUENCIES, description="the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies` or `hf_frequencies`), else the dial the version page names, else the built-in "
                                                                        "two; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio")
     keying: str = Field(description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`")
     scope: bool = Field(description="the daemon reads the modem's UI interface: the spectrum scope can be shown (`hf_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem)")
@@ -114,3 +117,97 @@ class HfKeyTest(_Command):
     """The keying test: keys the HF radio for one second, so that the operator sees it go to transmit and come back: with next to no audio (Mercury's TUNE at its quietest level) where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio (VOX); the topic `hf` says
     `test: "key"` meanwhile. The same refusals as `hf_tune`."""
     cmd: Literal["hf_key_test"]
+
+
+class Frequencies(_Command):
+    """The page shows the station's suggested frequencies (the box of a radio whose type can show them, the HF tests tab): the daemon asks the project's server for them again, unless it asked less than 15 minutes ago or the
+    update check is off (`NEOAPRS_UPDATE_CHECK=0`). The suggested dials are the project's, not a radio's: one list for the station. Nothing is answered; the topic `skeds` and each Mercury radio's `modem` have the list
+    when it changes. `hf_frequencies` is the same command under its name of before."""
+    cmd: Literal["frequencies"]
+
+
+# ---- the topic `radios`
+
+RadioProblemCode = Literal["radio.not_connected", "radio.searching", "radio.silent", "radio.resource_held", "modem.not_installed", "modem.stopped", "modem.network", "modem.no_port", "modem.not_started",
+                           "modem.sound_card", "transmit.off", "beacon.not_sent"]
+
+
+class RadioProblem(_Model):
+    """Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told)."""
+    code: RadioProblemCode = Field(description="`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: "
+                                               "when the latest byte came, UTC); `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, "
+                                               "`GPS` for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log)")
+    params: dict[str, str | int] = Field(description="the values of the sentence, by name; empty for a code that has none")
+
+
+class RadioLimits(_Model):
+    """What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of the type."""
+    max_frame: int | None = Field(description="the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own")
+    beacon_min_min: int = Field(ge=1, description="the shortest beacon interval the radio takes, in minutes (FM 20, HF 30): the station's interval is raised to it on this radio")
+
+
+class RadioAllowed(_Model):
+    """What we decided the radio's type may do (neoaprs/radiotype.py `Allowed`): a control exists only where it is true."""
+    paths: bool = Field(description="our frames on it may carry digipeaters: the path controls are shown for it; false: every frame goes direct")
+    digipeat: bool = Field(description="it may repeat what it hears (its own Digipeater tick, `radio/<id>/digipeat`)")
+    smart_beacon: bool = Field(description="a moving station's SmartBeaconing applies on it; elsewhere the timed beacon goes with the latest fix")
+    gateway_heard: bool = Field(description="internet gateways hear its kind: email may go out on it")
+    shared_channel: bool = Field(description="it is a 1200-baud shared channel: the ALOHA circle is worked out from what it hears")
+
+
+class RadioCan(_Model):
+    """What the radio's type can do (neoaprs/radiotype.py `Can`): the controls of its box."""
+    find: bool = Field(description="Find my radio (a serial line: `find_radio` with this radio)")
+    terminal: bool = Field(description="its line's log can be shown (`lines`)")
+    tune: bool = Field(description="Tune (`radio_tune`)")
+    key_test: bool = Field(description="the keying test (`radio_key_test`)")
+    scope: bool = Field(description="the spectrum scope (`radio_scope`); whether it is shown now is the modem's `scope`")
+    tx_gain: bool = Field(description="the transmit gain (`radio/<id>/tx_gain_db`)")
+    frequencies: bool = Field(description="the station's suggested frequencies are shown in its box")
+
+
+class RadioChoices(_Model):
+    """The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force."""
+    beacon: bool = Field(description="Send on: the beacon goes out on this radio (with one radio on, it goes on that one whatever this says)")
+    path: str | None = Field(description="the digipeaters of its frames as the setting holds them (empty: the recommended path of the station's symbol, `DIRECT`: none); null for a kind that has no path")
+    digipeat: bool | None = Field(description="its digipeater is on; null for a kind that may not repeat")
+
+
+class RadioBeaconState(_Model):
+    """The radio's own beacon timer."""
+    last_sent: Iso | None = Field(description="when our position last went out on it; null before one")
+    next_due: Iso | None = Field(description="when the next timed beacon is due on it; null while none is planned (off, a moving station, the radio off)")
+    interval_min: int = Field(ge=0, description="the interval in force on it, in minutes: `beacon/interval_min` raised to the radio's own floor; 0 while the beacon does not go out on it (off, Send on not ticked, the radio off)")
+    problem: RadioProblem | None = Field(description="why the latest beacon due on it did not go out (`transmit.off`, `beacon.not_sent`); null after one that did")
+
+
+class RadioHold(_Model):
+    """A device the radio holds now in the station's table of resources: no other radio, and not the GPS receiver, is given it."""
+    resource: Literal["serial", "sound_card", "keying", "modem_ports", "gps"] = Field(description="what kind of device: a serial port, a sound card, the keying line's port, the port pair of a Mercury modem")
+    value: str = Field(description="the device as the table holds it: a serial port's resolved path (`/dev/ttyUSB0`, `COM3`), a sound card's id, the broadcast port of a Mercury pair (`8100`)")
+
+
+class RadioRow(_Model):
+    """One radio of the station: what it is, how it is set, and how its line, its beacon and its modem are now. The rows are the values of the topic `radios`, keyed by `id` as text; a removed radio stays, marked,
+    so that the packets and messages that name it still have its name. A radio that is added is a `set` of its row; a change of its state, counters, lines, beacon or modem is a `set` of the row, told at most four
+    times a second; a change of the settings tells the topic whole."""
+    id: int = Field(ge=1, description="the radio's id (an integer the database gave it, never given again): what every other row and command names it by")
+    kind: Literal["fm", "hf", "lora"] = Field(description="the kind of radio, fixed when it was added: its tag's colour and the defaults follow it")
+    type: str = Field(description="its type, a `key` of `RADIO_TYPES` (ui/src/protocol/lists.ts), of its kind; it may change within the kind (`radio_change`)")
+    name: str = Field(description="the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `HF 2`) in its own words")
+    number: int = Field(ge=1, description="its number within its kind: 1 for the first of the kind by id among the radios not removed (`HF 2` is 2); a removed radio keeps its own")
+    enabled: bool = Field(description="its Enable is ticked (`radio_change` with `enabled`); false for a removed radio")
+    position: int = Field(ge=1, description="its place in the list of boxes (and of the first enabled, the main radio's default): the lowest first, then by id")
+    removed: bool = Field(description="it was removed: its row stays so that what came by it keeps its name; it is no longer started, chosen or offered")
+    dummy: bool = Field(description="its type is a Dummy radio: the traffic is made up and nothing goes on the air; its tag is dashed")
+    state: Literal["stopped", "connecting", "connected", "waiting", "silent"] = Field(description="its line, as the topic `tnc` says it of radio 1 (`stopped` for a radio that is off or removed)")
+    problem: RadioProblem | None = Field(description="why it is not connected, while it is enabled and not connected; null otherwise")
+    stats: TncStats
+    lines: list[TncLine] = Field(max_length=100, description="the latest 100 lines of what its line saw and did, oldest first; empty for a removed radio")
+    limits: RadioLimits
+    allowed: RadioAllowed
+    can: RadioCan
+    choices: RadioChoices
+    beacon: RadioBeaconState
+    modem: ModemState | None = Field(description="its Mercury modem, while its type is Mercury; null for every other type and for a removed radio")
+    holds: list[RadioHold] = Field(description="the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none")

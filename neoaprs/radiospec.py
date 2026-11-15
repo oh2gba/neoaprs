@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from .coded import CodedError
 from .radiotype import FM_ID as FM_ID, HF_ID as HF_ID, Kind, RadioId as RadioId, RadioType
 from .radiotypes import kind_field, type_of
 
@@ -16,8 +17,9 @@ MAX_NAME = 8                         # the longest name of a radio: the label of
 KIND_WORDS: Mapping[Kind, str] = {"fm": "FM", "hf": "HF", "lora": "LoRa"}     # the English word of a kind, for the log's name of a radio that has none of its own (the page has its catalogue's)
 
 
-class RadioError(ValueError):
-    """A refusal about a radio, with an English text naming `radio/<id>/<key>` or the radio's log name. Plain through wave 3: a code would change the page's list of codes (W1 makes it coded)."""
+class RadioError(CodedError):
+    """A refusal about a radio, with an English text naming `radio/<id>/<key>` or the radio's log name, and the code and values the page says it by (`radio.unknown`, `radio.last_enabled`,
+    `radio.name_taken`, `radio.name_form`, `radio.type_kind`: scripts/errorcodes.py writes them into the page's list); `other` for one the page's commands cannot meet (a column that is no column)."""
 
 
 @dataclass(frozen=True)
@@ -123,11 +125,9 @@ def check_name(text: str, specs: Iterable[RadioSpec], own: RadioId | None) -> st
     name = text.strip()
     if not name:
         return ""
-    if len(name) > MAX_NAME:
-        raise RadioError(f"the name of a radio is at most {MAX_NAME} characters, not {len(name)}")
-    if not (name.isascii() and name.isprintable()):
-        raise RadioError(f"the name {name!r} has a character that is not printable ASCII")
+    if len(name) > MAX_NAME or not (name.isascii() and name.isprintable()):
+        raise RadioError(f"the name {name!r} cannot be a radio's: a name is at most {MAX_NAME} printable ASCII characters (letters, digits and the signs of the keyboard)", "radio.name_form", name=name, max=MAX_NAME)
     taken = next((s for s in live(specs) if s.id != own and s.name.casefold() == name.casefold()), None)
     if taken is not None:
-        raise RadioError(f"the name {name!r} is radio {taken.id}'s already")
+        raise RadioError(f"the name {name!r} is radio {taken.id}'s already: give this one another", "radio.name_taken", name=name, radio=taken.id)
     return name

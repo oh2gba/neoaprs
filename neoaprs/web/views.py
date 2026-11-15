@@ -3,7 +3,8 @@ the station preferences, the TNC and the settings. The models of the wire module
 from the attribute of the object that has its name: what is written here is only what the object does not have as it is, the values that are worked out (a distance, the next time a thing
 is sent, the route as text)."""
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -12,7 +13,7 @@ from neoaprs.aprsweather import Weather
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import AT_GATE, Attempt
 from neoaprs.clock import iso
-from neoaprs.config import DEFAULTS, Config
+from neoaprs.config import DEFAULTS, RADIO_STATION_KEYS, Config
 from neoaprs.geo import Point
 from neoaprs.gpsfix import Fix
 from neoaprs.mercury import MAX_PAYLOAD, MODE
@@ -24,6 +25,8 @@ from neoaprs.packet import Packet
 from neoaprs.packetcodec import encode_decoded, tnc2
 from neoaprs.pref import Fired, Pref
 from neoaprs.qrutext import Asked, Server
+from neoaprs.radiotype import RadioId
+from neoaprs.radiotypes import kind_fields
 from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.route import digipeaters, heard_path, received_text, route_text, suggested_path
 from neoaprs.station import Station
@@ -94,12 +97,32 @@ def replay_tracks(tracks: Mapping[str, Sequence[Point]]) -> dict[str, list[list[
     return {station: [[iso(at), round(lat, 5), round(lon, 5)] for at, lat, lon in points] for station, points in tracks.items()}
 
 
-def station_row(book: StationBook, station: Station) -> dict[str, Any]:
+@dataclass(frozen=True)
+class StationRadios:
+    """What a station's row says of the radios that is not the station's own: the operator's choice for it in force, the radio a message to it goes on now (plan rule 3.2, the daemon's: the page works none
+    of it out), and the paths set for it on each radio (rule 3.3). Each by the station's call; the defaults say nothing (a book with no radios, an older copy of the views)."""
+    choice: Callable[[str], RadioId | None] = lambda call: None
+    now: Callable[[str], RadioId | None] = lambda call: None
+    paths: Callable[[str], Mapping[RadioId, tuple[str, ...]]] = lambda call: {}
+
+
+NO_RADIOS = StationRadios()
+
+
+def _radio_fields(station: Station, radios: StationRadios) -> dict[str, Any]:
+    direct = [at for at in (r.last_direct_at for r in station.routes.values()) if at is not None]
+    return {"heard": {str(id): {"count": h.count, "last_at": iso(h.last_at)} for id, h in sorted(station.heard_by.items())}, "last_path_radio": station.last_radio,
+            "last_direct_any_at": iso(max(direct)) if direct else None, "radio_choice": radios.choice(station.call), "radio_now": radios.now(station.call) if station.can_message else None,
+            "paths": {str(id): ",".join(path) for id, path in sorted(radios.paths(station.call).items())}}
+
+
+def station_row(book: StationBook, station: Station, radios: StationRadios = NO_RADIOS) -> dict[str, Any]:
     distance = None if station.is_me else book.distance_km(station)
     bearing = None if station.is_me else book.bearing_deg(station)
     return StationRow.row(
         station, symbol_name=symbol_name(station.symbol_table, station.symbol_code) if station.symbol_code else "unknown", weather=weather_values(station.weather),
         telemetry=telemetry_values(book, station), packets_hour=station.hour.count(book.clock()), distance_km=None if distance is None else round(distance, 2), bearing_deg=None if bearing is None else round(bearing, 1), **_routes(station, book.clock()),
+        **_radio_fields(station, radios),
     )
 
 
@@ -126,9 +149,16 @@ def _hop_row(attempt: Attempt, position: int, call: str) -> dict[str, Any]:
     return {"call": call if seen is None else seen.call, "heard": radio is not None, "heard_at": None if seen is None else iso(seen.heard_at), "by_internet": net is not None}
 
 
-def message_row(record: MessageRecord, attempts: tuple[Attempt, ...] = (), queued: bool = False) -> dict[str, Any]:
-    """The page's row of a message; `queued` (services/messaging.py, Messaging.queued) for one of ours that waits for another to the same station, which the database keeps as `sending`."""
-    return MessageRow.row(record, attempts_detail=attempt_rows(record, attempts), state="queued" if queued else record.state)
+def message_row(record: MessageRecord, attempts: tuple[Attempt, ...] = (), queued: bool = False, radio_now: RadioId | None = None) -> dict[str, Any]:
+    """The page's row of a message; `queued` (services/messaging.py, Messaging.queued) for one of ours that waits for another to the same station, which the database keeps as `sending`; `radio_now` the radio
+    one of ours on its way goes on next (Messaging.radio_of), told only while it is on its way."""
+    on_its_way = record.direction == "out" and record.state == "sending"
+    return MessageRow.row(record, attempts_detail=attempt_rows(record, attempts), state="queued" if queued else record.state, radio_now=radio_now if on_its_way else None)
+
+
+def on_their_way(records: Iterable[MessageRecord], call: str | None = None) -> list[str]:
+    """The keys of the messages of ours on their way (to the station `call`, or to any): the rows whose `radio_now` follows the radios, the main radio and the station's choice."""
+    return [str(r.id) for r in records if r.direction == "out" and r.state == "sending" and (call is None or r.to_call == call)]
 
 
 def bulletin_row(record: BulletinRecord) -> dict[str, Any]:
@@ -136,7 +166,7 @@ def bulletin_row(record: BulletinRecord) -> dict[str, Any]:
 
 
 def own_object_row(obj: OwnObject, next_at: datetime | None) -> dict[str, Any]:
-    return OwnObjectRow.row(obj, state="live" if obj.alive else "killing", next_at=iso(next_at))
+    return OwnObjectRow.row(obj, state="live" if obj.alive else "killing", next_at=iso(next_at), radios=list(obj.radios))
 
 
 def own_bulletin_row(bulletin: OwnBulletin, next_at: datetime | None) -> dict[str, Any]:
@@ -171,7 +201,14 @@ def modem_state(tnc: Tnc) -> dict[str, Any] | None:
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:
-    return {"values": config.to_data(), "defaults": DEFAULTS.to_data(), "urls": urls, "https": https or {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
+    """The topic `config`: the settings of the form of before in `values`, and the radios' own (`radio/<id>/<key>`, every field of its kind for each radio not removed) with the station's settings of the
+    radios in `radio_values`, apart, so that a form that shows every key of `values` shows none of them."""
+    values, defaults = config.to_data(), DEFAULTS.to_data()
+    values["station/main_radio"] = values["station/main_radio"] if config.radio(config.main_choice or 0) in config.live_radios else ""     # (a main radio removed is none: the first that is on is the main one)
+    radio_values = {key: values[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": spec.settings.get(f.key, f.default) for spec in config.live_radios for f in kind_fields(spec.kind)}
+    radio_defaults = {key: defaults[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": f.default for spec in config.live_radios for f in kind_fields(spec.kind)}
+    return {"values": {k: v for k, v in values.items() if k not in RADIO_STATION_KEYS}, "defaults": {k: v for k, v in defaults.items() if k not in RADIO_STATION_KEYS}, "radio_values": radio_values,
+            "radio_defaults": radio_defaults, "urls": urls, "https": https or {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
 
 
 class IgateSource(Protocol):
@@ -247,15 +284,19 @@ class AskedAround(Protocol):
     def until(self) -> datetime: ...
     @property
     def new(self) -> tuple[str, ...]: ...
+    @property
+    def radio(self) -> RadioId | None: ...
 
 
-def general_state(asked: Sequence[AskedAround]) -> dict[str, Any]:
-    """The `general` topic: the last general query of each kind and the stations heard after it."""
-    return GeneralState.row(None, asked=[GeneralAsked.row(a) for a in asked])
+def general_state(asked: Sequence[AskedAround], by_radio: Sequence[AskedAround] = ()) -> dict[str, Any]:
+    """The `general` topic: the last general query of each kind and the stations heard after it, each with the radio it went on; and the last of each kind on each radio (`by_radio`, left out before the
+    first query: I4 makes it always there with the two lines of tests/test_generalask.py that hold the topic empty)."""
+    state = GeneralState.row(None, asked=[GeneralAsked.row(a) for a in asked], by_radio=[GeneralAsked.row(a) for a in by_radio])
+    return state if by_radio else {k: v for k, v in state.items() if k != "by_radio"}
 
 
 def qru_state(qru: QruSource) -> dict[str, Any]:
     """The `qru` topic: the last request and the servers that answered it."""
     asked = qru.asked
     servers = [QruServer.row(s, groups=[QruGroup.row(None, name=name, count=count) for name, count in s.groups], sent_at=iso(s.sent_at), received=list(s.received), settles_at=iso(s.settles_at)) for s in qru.servers()]
-    return QruState.row(None, asked=None if asked is None else QruAsked.row(asked), servers=servers)
+    return QruState.row(None, asked=None if asked is None else QruAsked.row(asked, radio=getattr(asked, "radio", None)), servers=servers)

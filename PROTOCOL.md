@@ -141,7 +141,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-57 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+65 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -198,18 +198,33 @@ settings and the maps stay, and so do the packets we sent. Answered by the stati
 ### `list_ports`
 
 Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked.
-A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.
+A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. With `radio`, the sound cards are listed while that radio's type is Mercury, and the proposals leave out what the
+other radios and the GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`).
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer \| null | optional | the radio the list is for (its id); left out: the radios of before, the sound cards while radio 2 is the Mercury modem (default `null`; >= 1) |
 
 ### `find_radio`
 
 Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be
 put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that
 put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running
-(`radio.busy`), when there is no port to try (`radio.no_ports`) and when none answered (`radio.not_found`).
+(`radio.busy`), when there is no port to try (`radio.no_ports`), when none answered (`radio.not_found`) and for a `radio` that is none or of a type that has no serial line (`radio.unknown`). With `radio` only that radio's line is let go, the ports
+another radio or the GPS receiver holds are passed over, and the messages name it.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer \| null | optional | the radio the search is for (its id); left out: radio 1, the FM radio of before (default `null`; >= 1) |
 
 ### `find_radio_cancel`
 
-Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running.
+Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running. One search runs at a time, so `radio` changes nothing: it is taken so that the page names the radio
+in every command of its box.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer \| null | optional | the radio whose search is ended; left out: the one running (default `null`; >= 1) |
 
 ### `hf_tune`
 
@@ -245,7 +260,10 @@ or when the page closes, the page is sent no more. Nothing happens, and no error
 
 Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
 left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the
-TNC, `station/*` move our own station on the map. A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`.
+TNC, `station/*` move our own station on the map. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio
+alone where its driver says so; a radio that is none or removed is refused with `radio.unknown`, a key its kind has not with `radio.no_setting` (its `name`), `station/main_radio` changed to name no radio with
+`radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`), each with the key. A key of the form of before whose radio (1 or 2) is
+removed is refused with `radio.unknown` when it would change what it shows (sent back as shown, it is let through). A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`.
 
 | field | type | | description |
 |---|---|---|---|
@@ -277,9 +295,9 @@ When the TNC is not connected the message is kept and its first attempt waits fo
 
 ### `message_radio`
 
-Chooses the radio messages to a station go out on while both radios are on: `fm`, `hf`, or empty to leave it to the daemon again (the FM radio unless the station was heard on HF alone). It holds
-from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`). Answered by the station's row, or by an `error` for a station that is not
-known (`station.unknown`).
+Chooses the radio messages to a station go out on: `fm` radio 1, `hf` radio 2, or empty to leave it to the daemon again (plan rule 3.2: the radio that heard the station lately, a local one before HF); `station_radio`
+names any radio by its id. It holds from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`, `radio_choice`). Answered by the station's row, or by an
+`error` for a station that is not known (`station.unknown`).
 
 | field | type | | description |
 |---|---|---|---|
@@ -339,6 +357,7 @@ interlock's reason), the radio is away, a request to QRU was sent less than 60 s
 | `text` | string |  | (max 32 chars, min 1 chars) |
 | `path` | string \| null | optional | the path the request goes by; left out (or null, or empty) the path of messages to QRU (default `null`; max 256 chars) |
 | `rf_only` | boolean | optional | RFONLY after the path; left out it is true (default `true`) |
+| `radio` | integer \| null | optional | the radio the request goes on (plan rule 3.6), its id; left out: the main radio. Refused with `radio.unknown` for a radio that is none and `radio.not_connected` for one that is off or not connected; the waits are that radio's (default `null`; >= 1) |
 
 ### `general_query`
 
@@ -354,6 +373,7 @@ or the query of that kind was sent less than 60 seconds ago (`general.too_soon`,
 | `kind` | "aprs" \| "igate" \| "wx" |  |  |
 | `path` | string \| null |  | (max 256 chars) |
 | `rf_only` | boolean |  |  |
+| `radio` | integer \| null | optional | the radio the query goes on (plan rule 3.6), its id; left out: the main radio. Refused with `radio.unknown` for a radio that is none and `radio.not_connected` for one that is off or not connected; the minute between two queries of a kind is that radio's (default `null`; >= 1) |
 
 ### `message_retry`
 
@@ -412,6 +432,7 @@ Gives a station a path of its own: the digipeaters that a message to it, and the
 |---|---|---|---|
 | `call` | string |  | (max 64 chars, min 1 chars) |
 | `path` | string |  | (max 256 chars) |
+| `radio` | integer \| null | optional | the radio the path is for (plan rule 3.3: a path belongs to the radio it was set on), its id; left out: radio 1, whose path is the entry's `path`; another radio's is the station's row's `paths` (default `null`; >= 1) |
 
 ### `clear_station_path`
 
@@ -421,6 +442,7 @@ Takes a station's own path away, so that it has the path of the setting `beacon/
 | field | type | | description |
 |---|---|---|---|
 | `call` | string |  | (max 64 chars, min 1 chars) |
+| `radio` | integer \| null | optional | the radio whose path for the station is taken away, its id; left out: radio 1 (default `null`; >= 1) |
 
 ### `set_station_rf_only`
 
@@ -525,7 +547,7 @@ Makes an object or an item of ours, or changes the one of that name (a changed o
 characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal
 degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls
 separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`); `qru_group` the group of QRU it belongs to (up to 8 letters and digits, not `INFO` or `NEXT`; empty for none) and `on_request` true to send it
-only to a station that asks for it, never on the schedule. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.
+only to a station that asks for it, never on the schedule; `radios` the radios it goes out on (their ids: `radio`, the word of before, is then not read). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason.
 
 | field | type | | description |
 |---|---|---|---|
@@ -542,6 +564,7 @@ only to a station that asks for it, never on the schedule. Nothing is sent while
 | `qru_group` | string |  | (max 8 chars) |
 | `on_request` | boolean |  |  |
 | `radio` | "fm" \| "hf" \| "both" | optional | (default `"fm"`) |
+| `radios` | integer[] \| null | optional | the radios it goes out on, their ids; left out (or null): `radio`, the word of before (a page of before sends only that) (default `null`; max 64 items) |
 
 ### `object_kill`
 
@@ -645,9 +668,91 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 | `at` | time |  | when it happened, by the page's clock |
 | `build` | string |  | the build of the page that reported it (the `page` of `hello`) (max 64 chars) |
 
+### `radio_add`
+
+Adds a radio of the type (`type`, a `key` of `RADIO_TYPES`): after the others, enabled, with the defaults of its kind, the name typed (empty or left out: none), and started at once. Answered with `radio_added` (its
+id) to the page that asked, at once, and then the `set` of its row in `radios` (the topic is told at most four times a second: the row may come a few messages later, so a page that opens the new radio waits
+for it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `setting.not_stored`.
+
+| field | type | | description |
+|---|---|---|---|
+| `type` | string |  | (max 32 chars, min 1 chars) |
+| `name` | string | optional | the name typed; left out or empty: none (default `""`; max 64 chars) |
+
+### `radio_remove`
+
+Removes the radio: it is stopped for good, and in the same write its id leaves the objects' sets, the stations' choices of it and their paths on it. Its row stays in `radios`, `removed`, so that what came by it keeps
+its name. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on stays), `setting.not_stored`.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer |  | the radio's id, the `id` of its row in the topic `radios` (>= 1) |
+
+### `radio_change`
+
+Changes what is given of the radio and nothing else: its `name` (empty: none), its `type` (one of its own kind), its Enable (`enabled`) or its place in the list (`position`, from 1; the others keep theirs, a tie goes by
+id). Stored, then in force; the radio is restarted when its type or its Enable changed what runs. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on is not switched off),
+`radio.name_form`, `radio.name_taken`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer |  | the radio's id, the `id` of its row in the topic `radios` (>= 1) |
+| `name` | string \| null | optional | the new name; left out: unchanged (default `null`; max 64 chars) |
+| `type` | string \| null | optional | the new type; left out: unchanged (default `null`; max 32 chars, min 1 chars) |
+| `enabled` | boolean \| null | optional | the new Enable; left out: unchanged (default `null`) |
+| `position` | integer \| null | optional | the new place; left out: unchanged (default `null`; >= 1) |
+
+### `radio_tune`
+
+Tune on the radio's modem, as `hf_tune` on the HF radio's: with `on`, keys the radio and sends the steady tone for ten seconds, then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"`
+meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and
+while a frame is on the air or the channel is busy (`hf.held`).
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer |  | the radio's id, the `id` of its row in the topic `radios` (>= 1) |
+| `on` | boolean |  | true starts the tone, false stops it |
+
+### `radio_key_test`
+
+The keying test on the radio's modem, as `hf_key_test`: keys it for a second with next to no audio. The same refusals as `radio_tune`.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer |  | the radio's id, the `id` of its row in the topic `radios` (>= 1) |
+
+### `radio_scope`
+
+The scope of the radio's modem, as `hf_scope`: with `on`, this page is sent the rows of its waterfall as binary frames (*Binary frames*), with `on` false, or when the page closes, no more. Nothing is refused, and
+nothing happens for a radio whose modem has no scope; in this version the binary frames are those of radio 2's modem (the HF radio of before), which a frame does not name, so another radio's scope sends nothing.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer |  | the radio's id, the `id` of its row in the topic `radios` (>= 1) |
+| `on` | boolean |  | true starts the rows for this page, false stops them |
+
+### `station_radio`
+
+Chooses the radio messages to a station go out on (`radio`, or null to leave it to the daemon again: plan rule 3.2, the radio that heard it lately, a local one before HF). It holds from the next attempt on, also of a
+message on its way, and across a restart; the station's row says it (`radio_choice`, and `radio_now` the radio a message takes now). A radio that is off is no choice: the station's row says null while it is. Answered
+by the station's row (and the `radio_now` of each message to it on its way), or an `error`: `radio.unknown` (no radio of that id that is not removed) and `station.unknown` (a call the book does not hold: in
+this version the choice is kept on a station of the book only, so the page offers the choice for a station it lists; plan rule 3.2 keeps it by call, which needs the store of the choices to keep a call
+without a station, and then this refusal goes).
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | (max 64 chars, min 1 chars) |
+| `radio` | integer \| null |  | (>= 1) |
+
+### `frequencies`
+
+The page shows the station's suggested frequencies (the box of a radio whose type can show them, the HF tests tab): the daemon asks the project's server for them again, unless it asked less than 15 minutes ago or the
+update check is off (`NEOAPRS_UPDATE_CHECK=0`). The suggested dials are the project's, not a radio's: one list for the station. Nothing is answered; the topic `skeds` and each Mercury radio's `modem` have the list
+when it changes. `hf_frequencies` is the same command under its name of before.
+
 ## Server to client
 
-18 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+19 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -675,11 +780,13 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `call` | string |  | our own call, from the settings; empty while none is set (nothing is transmitted then) |
 | `lat` | number \| null |  | our own latitude, from the settings; null while none is set |
 | `lon` | number \| null |  | our own longitude, from the settings; null while none is set |
-| `beacon_interval_min` | integer |  | minutes between our position packets, from the settings; 0 is off |
+| `beacon_interval_min` | integer |  | minutes between our position packets on some radio: `beacon/interval_min` as it is in force, the shortest of the radios the beacon goes out on (each raised to its own floor; each radio's own is `beacon.interval_min` of its row in `radios`); 0 is off |
 | `beacon_last_sent` | time \| null |  | when the latest beacon was sent, by the timer or on request; null for none since the daemon started |
 | `beacon_next_due` | time \| null |  | when the timer sends the next one; null while the interval is 0 |
 | `hf_beacon_last_sent` | time \| null |  | when the latest beacon went out on the HF radio; null for none since the daemon started (and while the HF radio is off) |
 | `hf_beacon_next_due` | time \| null |  | when the HF beacon's timer sends the next one, its random pause included; null while the interval is 0 or the HF radio is off |
+| `main_radio` | integer \| null |  | the main radio (its id): the one chosen (`station/main_radio`) while it is enabled, else the first enabled by position; it carries the bulletins, the status, and Ask around, Local info and email unless they name another. Null while no radio is enabled |
+| `email_radio` | integer \| null |  | the radio an email to the gateway goes out on (its id): the main radio when internet gateways hear its kind, else the first enabled radio of such a kind (FM, LoRa; never HF); null while there is none, and Send of an email is off |
 | `station_status` | string |  | the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone |
 | `station_status_last_sent` | time \| null |  | when the latest status report was sent (kept over a restart); null for none yet |
 | `rig_state` | "off" \| "on" \| "unused" |  | whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`) |
@@ -854,6 +961,8 @@ How `find_radio` goes, to the page that asked.
 | `profile` | string |  | for `found`, the key of the TNC profile (`tnc/profile`); empty otherwise |
 | `number` | integer |  | the try that is under way, from 1; 0 for `found` and `cancelled` (>= 0) |
 | `total` | integer |  | how many tries there are if nothing answers; 0 for `found` and `cancelled` (>= 0) |
+| `radio` | integer \| null |  | the radio the search is for (its id); null for a search that named none (radio 1) |
+| `radio_type` | string |  | for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every FM type: 1.11's `type`, which the message's own tag takes); empty otherwise |
 
 ### `station_alert`
 
@@ -867,6 +976,14 @@ An alert set on a station fired (`set_station_alert`): told to every page that i
 | `at` | time |  | when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved) |
 | `km` | number \| null |  | for `within`, how far the station is, km with one decimal; else null |
 
+### `radio_added`
+
+The answer to `radio_add`, to the page that asked: the id the new radio was given.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | integer |  | (>= 1) |
+
 ## Topics
 
 The value of each topic (`state` carries it, a `replace` op brings a new one).
@@ -875,8 +992,9 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 |---|---|---|
 | `stations` | { [key: string]: StationRow } | the station book by call: a station heard again is a `set` of its row, one that is forgotten or pruned a `del` |
 | `packets` | { [key: string]: PacketRow } | the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest |
-| `tnc` | TncState | the FM radio (the KISS TNC); told whole as it changes, at most four times a second |
-| `hf` | TncState | the HF radio (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second |
+| `radios` | { [key: string]: RadioRow } | every radio of the station by id (as text), removed ones too (marked): what it is, how it is set, its line, its beacon and its modem. A radio added is a `set`; a change of its state, counters, lines, beacon or modem a `set` of its row, at most four times a second; a change of the settings or of the devices held tells it whole. No radio leaves it |
+| `tnc` | TncState | radio 1, the FM radio of before (the KISS TNC); told whole as it changes, at most four times a second. `radios` has every radio |
+| `hf` | TncState | radio 2, the HF radio of before (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second. `radios` has every radio |
 | `config` | ConfigValues | the settings; told again after every save, though nothing differs: the settings form waits for it |
 | `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path (null where none is set), whether it is RF only and its alert. `set_station_path`, `clear_station_path`, `set_station_rf_only` and `set_station_alert` each give a `set` of the entry, or a `del` when nothing is left in it |
 | `messages` | { [key: string]: MessageRow } | every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own |
@@ -929,20 +1047,23 @@ row has a new distance and bearing, and the topic is told whole again.
 | `last_rf_gated_at` | time \| null |  | when a third-party packet of the station was last heard on the radio (`rf-gated`); null when none was |
 | `last_is_at` | time \| null |  | when a packet of the station was last received from the internet (`is`); null when none was |
 | `last_dummy_at` | time \| null |  | when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was |
-| `heard_fm` | integer |  | how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the FM radio (the KISS TNC), and how many on the HF modem (`Packet.radio`); a message to the station goes out on the radio it was last heard on, FM when on both (>= 0) |
-| `heard_hf` | integer |  | how many came on the HF modem (>= 0) |
-| `last_fm_at` | time \| null |  | when a packet of the station last came on the FM radio; null when none did |
-| `last_hf_at` | time \| null |  | when a packet of the station last came on the HF modem; null when none did |
+| `heard_fm` | integer |  | how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on radio 1 (the FM radio of before), and how many on radio 2 (the HF radio of before): `heard` has every radio's, and `radio_now` the radio a message to the station goes out on (>= 0) |
+| `heard_hf` | integer |  | how many came on radio 2 (>= 0) |
+| `last_fm_at` | time \| null |  | when a packet of the station last came on radio 1; null when none did |
+| `last_hf_at` | time \| null |  | when a packet of the station last came on radio 2; null when none did |
+| `heard` | { [key: string]: HeardOn } |  | what each radio heard of the station, by the radio's id as text: how many packets of the air came on it and when the latest did; a radio that heard nothing of it has no entry |
 | `snr` | number \| null |  | the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy HF radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was |
 | `rssi` | number \| null |  | the received strength of that packet, dBm; null when its radio gave none (Mercury gives none) |
 | `signal_at` | time \| null |  | when that packet was heard; null until one with a reading was |
 | `position_via` | "rf" \| "rf-gated" \| "is" \| "dummy" \| null |  | the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own |
 | `packets_hour` | integer |  | how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) (>= 0) |
 | `device` | string |  | what the station runs, as the APRS device identification list names it ("Kenwood TH-D74", "APRSdroid"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown |
-| `last_path` | string[] |  | the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*` |
+| `last_path` | string[] |  | the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`: the packet the radio that heard the station last (`last_path_radio`) heard last |
+| `last_path_radio` | integer \| null |  | the radio whose latest packet `last_path` is (the radio that heard the station last, radio 1 on a tie), its id; null for a station no radio heard. After a restart a station HF heard last shows HF's path, direct |
 | `last_route` | string |  | how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in) |
 | `heard_direct` | integer |  | how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept) (>= 0) |
-| `last_direct_at` | time \| null |  | when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`; null for a station never heard direct |
+| `last_direct_at` | time \| null |  | when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`, on the radios that may carry a path; null for a station never heard direct |
+| `last_direct_any_at` | time \| null |  | when a packet of the station was last heard direct on any radio, HF too (plan 6b: the green check, the map's ring and the "direct only" filter count any radio); null for a station never heard direct |
 | `heard_via` | [string, integer][] |  | [the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted |
 | `gated` | integer |  | how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_rf_gated`, which counts the packets of this station that some iGate put on the air (>= 0) |
 | `igate` | boolean |  | a capabilities packet of the station said `IGATE`: it says it is an iGate |
@@ -966,7 +1087,10 @@ row has a new distance and bearing, and the topic is told whole again.
 | `own` | boolean |  | an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row |
 | `can_message` | boolean |  | a message can go to the station, and the card has a Message button: false for an object or an item, for our own station and for a station known only from the internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`) |
 | `may_not_message` | boolean |  | the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never sent a message or an ack: the conversation says a message may not be read there |
-| `message_radio` | "" \| "fm" \| "hf" |  | the radio the operator chose for messages to the station while both are on; empty for the daemon's choice (the FM radio unless the station was heard on HF alone) |
+| `message_radio` | "" \| "fm" \| "hf" |  | the radio the operator chose for messages to the station, as the word of before: `fm` radio 1, `hf` radio 2; empty for the daemon's choice and for a choice of another radio (`radio_choice` says which; `radio_now` is the radio a message goes on) |
+| `radio_choice` | integer \| null |  | the radio the operator chose for messages to the station (`station_radio`), its id, while that radio is enabled; null for the daemon's choice (plan rule 3.2), and while the radio chosen is off |
+| `radio_now` | integer \| null |  | the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before HF, else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio |
+| `paths` | { [key: string]: string } |  | the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too) |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
 ### PacketRow
@@ -985,7 +1109,8 @@ One packet heard or sent. The rows are the values of the topic `packets`, keyed 
 | `path` | string[] |  | the digipeaters, the one that repeated it marked with `*`; for a packet from the internet everything between the destination and the colon of the line (`TCPIP*`, the q-construct `qAC`, the server `T2FINLAND`) |
 | `kind` | "position" \| "message" \| "object" \| "item" \| "status" \| "other" \| "undecoded" |  | a telemetry report is `other`; its `decoded.type` is `telemetry` |
 | `route` | string |  | how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet |
-| `radio` | "" \| "fm" \| "hf" |  | the radio the packet came on or went out on: `fm` the FM radio (the KISS TNC), `hf` the HF modem; empty for a packet from the internet |
+| `radio` | "" \| "fm" \| "hf" |  | the radio the packet came on or went out on: `fm` radio 1 (the FM radio of before), `hf` radio 2 (the HF radio of before); empty for a packet from the internet and for one of any other radio (`radio_id` says which). Goes with the topics `tnc` and `hf` |
+| `radio_id` | integer \| null |  | the radio the packet came on or went out on, its id (a row of the topic `radios`, a removed one too); null for a packet from the internet |
 | `snr` | number \| null |  | the signal-to-noise ratio the radio measured of the frame, dB, tied to the frame where it was read (the Mercury modem and the Dummy HF radio give it); null for a packet of ours, one from the internet and one of a radio that gives none (a KISS TNC) |
 | `rssi` | number \| null |  | the received strength the radio measured of the frame, dBm; null as `snr` is, and for the Mercury modem, which gives none |
 | `via` | "rf" \| "rf-gated" \| "is" \| "dummy" |  | the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) |
@@ -1009,7 +1134,9 @@ of a message that came in, `to_call` of one we sent.
 | `to_call` | string |  | the addressee: our call for a message sent to us, the other station for one of ours, whoever it is for when overheard |
 | `text` | string |  |  |
 | `msg_id` | string \| null |  | the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one |
-| `radio` | "" \| "fm" \| "hf" |  | the radio a message that came in came on: `fm` the FM radio, `hf` the HF modem; empty for a message of ours (its attempts say) and for one kept before there were two radios |
+| `radio` | "" \| "fm" \| "hf" |  | the radio a message that came in came on: `fm` radio 1 (the FM radio of before), `hf` radio 2 (the HF radio of before); empty for a message of ours (its attempts say), for one kept before there were two radios and for one of any other radio (`radio_id` says which) |
+| `radio_id` | integer \| null |  | the radio a message that came in came on, its id; null for a message of ours (its attempts say) and for one from the internet or kept before the radio was |
+| `radio_now` | integer \| null |  | for a message of ours on its way (`sending`, `queued`), the radio its next attempt goes on: the one its first attempt went on, which it keeps until it ends unless Route changes or that radio is switched off, else the station's radio now (plan rule 3.2); null for every other message and while there is no radio it may go on. The page shows Route, the path and the radio's state of this radio |
 | `state` | "queued" \| "sending" \| "acked" \| "rejected" \| "failed" \| "unconfirmed" \| "cancelled" \| "received" \| "overheard" |  | `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt, or the reason in `failure`; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) |
 | `failure` | "too_long_for_radio" \| null |  | why a `failed` message failed when it is not that no answer came: `too_long_for_radio`, its frame does not fit the radio it goes out on (it may have been sent before the radio changed; sent again, it is refused with `message.too_long_for_radio` while it does not fit); null for every other message, and for a failed one that had no answer |
 | `attempts` | integer |  | how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960) (>= 0) |
@@ -1230,8 +1357,10 @@ The settings: each key of the settings table (`station/call`, `serial/baud`, ...
 
 | field | type | | description |
 |---|---|---|---|
-| `values` | { [key: string]: string } |  | the settings in force, key to text; every key is there |
+| `values` | { [key: string]: string } |  | the settings in force, key to text; every key is there (the keys of `CONFIG_KEYS`: the station's, and the flat keys of radios 1 and 2 of before) |
 | `defaults` | { [key: string]: string } |  | the same keys with their defaults, for a form's reset |
+| `radio_values` | { [key: string]: string } |  | the radios' own settings in force, `radio/<id>/<key>` to text, every field of its kind for each radio that is not removed (the fields of `RADIO_TYPES`), and the station's settings of the radios (`station/main_radio`, the main radio's id, empty for the first enabled): what `set_config` takes beside `values`; kept apart from `values` so that the form of before shows none of them |
+| `radio_defaults` | { [key: string]: string } |  | the same keys with their defaults (the field's of the radio's kind) |
 | `urls` | string[] |  | where another device opens the page while `web/network` is on (this computer's address on the network and its name there, with the port); empty while it is off (with `https` on, the https addresses) |
 | `https` | HttpsState |  | the secure connection: whether it is served, its port, the fingerprint of the authority's certificate (which `GET /neoaprs-ca.crt` downloads), and why not when it could not start |
 
@@ -1295,7 +1424,8 @@ One transmission of a message of ours and what came back of it.
 | `hops` | HopRow[] |  | the digipeaters of the path the attempt went by, in order; empty for a direct path |
 | `internet` | string \| null |  | the call of the iGate that put a copy of the message back on the air as a third-party packet, when one was heard for this attempt; null otherwise |
 | `acked` | boolean |  | the acknowledgement was heard after this attempt and before the next one: the attempt the ack answers |
-| `radio` | "" \| "fm" \| "hf" |  | the radio the attempt went out on: `fm` the FM radio, `hf` the HF modem (direct, no path); empty for an attempt kept before there were two radios |
+| `radio` | "" \| "fm" \| "hf" |  | the radio the attempt went out on: `fm` radio 1 (the FM radio of before), `hf` radio 2 (the HF radio of before); empty for an attempt kept before there were two radios and for one on any other radio (`radio_id` says which) |
+| `radio_id` | integer \| null |  | the radio the attempt went out on, its id (a row of the topic `radios`); null for an attempt kept before the radio was |
 
 ### BulletinRow
 
@@ -1383,6 +1513,7 @@ A general query sent from here.
 |---|---|---|---|
 | `kind` | "aprs" \| "igate" \| "wx" |  | which query: `aprs` (?APRS?), `igate` (?IGATE?) or `wx` (?WX?) |
 | `query` | string |  | the information field it went with, `?APRS?`, `?IGATE?` or `?WX?` |
+| `radio` | integer \| null |  | the radio it went on, its id; only what that radio heard is counted in `new` |
 | `at` | time |  | when it was sent |
 | `path` | string[] |  | the path it went by, `RFONLY` last when it was RF only; empty for no digipeaters |
 | `until` | time |  | when the counting of `new` ends, two minutes after it was sent |
@@ -1394,7 +1525,8 @@ The general queries sent from here: the last one of each kind. Forgotten when th
 
 | field | type | | description |
 |---|---|---|---|
-| `asked` | GeneralAsked[] |  | the last query of each kind, the oldest first; empty before one |
+| `asked` | GeneralAsked[] |  | the last query of each kind, whatever radio it went on, the oldest first; empty before one |
+| `by_radio` | GeneralAsked[] | optional | the last query of each kind on each radio, the oldest first: the wait before the next of a kind is that radio's (`general.too_soon`); left out before the first query in this version |
 
 ### GpsState
 
@@ -1416,6 +1548,15 @@ The GPS receiver and what the beacon does with it: the latest fix, whether it ca
 | `next_beacon_at` | time \| null |  | when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first |
 | `last_beacon_reason` | "" \| "start" \| "time" \| "turn" \| "request" |  | why the latest mobile beacon of this run went out: `start` (the first fix), `time`, `turn` (a corner), `request` (Beacon now); empty before the first |
 | `last_beacon_at` | time \| null |  | when it went out; null before the first |
+
+### HeardOn
+
+What one radio heard of a station.
+
+| field | type | | description |
+|---|---|---|---|
+| `count` | integer |  | how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the radio (>= 1) |
+| `last_at` | time \| null |  | when the latest of them did; null when that is not known |
 
 ### HopRow
 
@@ -1543,7 +1684,7 @@ The Mercury HF modem behind the line, while the radio type is Mercury: the progr
 | `frames_keyed` | integer |  | how many times the radio was keyed since the modem started (>= 0) |
 | `max_frame` | integer |  | the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut (>= 1) |
 | `sound_card` | string |  | the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device |
-| `frequencies` | FrequencyRow[] |  | the frequencies the project suggests, one to three: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `hf_frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio (max 3 items) |
+| `frequencies` | FrequencyRow[] |  | the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies` or `hf_frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio (max 4 items) |
 | `keying` | string |  | how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` |
 | `scope` | boolean |  | the daemon reads the modem's UI interface: the spectrum scope can be shown (`hf_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem) |
 | `tx_gain_db` | integer |  | the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it (>= -20, <= 20) |
@@ -1594,7 +1735,8 @@ map shows; a killed one leaves that topic at once and stays here, as `killing`, 
 | `path` | string \| null |  | the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used |
 | `qru_group` | string |  | the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none |
 | `on_request` | boolean |  | true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule |
-| `radio` | "fm" \| "hf" \| "both" |  | the radio it goes out on: `fm`, `hf` or `both`; with one radio on it goes on that one, whatever is kept (the page offers the choice while both radios are on) |
+| `radio` | "fm" \| "hf" \| "both" |  | the radio it goes out on, as the word of before: `fm` radio 1, `hf` radio 2, `both` the two (`radios` has every radio's id); with one radio on it goes on that one, whatever is kept |
+| `radios` | integer[] |  | the radios it goes out on (Send on), their ids, ascending: each that is enabled; with none of them enabled, the main radio |
 | `state` | "live" \| "killing" |  | `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten |
 | `created_at` | time |  | when it was first made |
 | `updated_at` | time |  | when it was last changed or killed |
@@ -1625,6 +1767,7 @@ A serial port the system lists, or a Bluetooth device paired with it (Linux; on 
 | `hwid` | string |  | the hardware id the system gives, such as `USB VID:PID=0403:6001 SER=A1`; `n/a` where it does not say |
 | `vid` | integer \| null |  | the USB vendor id of an adapter; null for a port that is not USB |
 | `pid` | integer \| null |  | the USB product id of an adapter; null for a port that is not USB |
+| `held_by` | integer \| null |  | the radio of the station that holds the port now (its id), 0 for the GPS receiver; null while none of ours does. A port another radio holds is not proposed, and the page greys it with the holder's name |
 
 ### QruAsked
 
@@ -1634,6 +1777,7 @@ The request we sent last.
 |---|---|---|---|
 | `text` | string |  | what was asked (`INFO`, `RP70 150`) |
 | `at` | time |  | when it was sent |
+| `radio` | integer \| null |  | the radio it went on, its id; null for a request kept from before the radio was named |
 
 ### QruGroup
 
@@ -1671,6 +1815,109 @@ The servers that answered a request for local info, and the last request. What i
 |---|---|---|---|
 | `asked` | QruAsked \| null |  | the last request sent from here; null before one, and an hour after it |
 | `servers` | QruServer[] |  | the servers that answered in the last hour, by call |
+
+### RadioAllowed
+
+What we decided the radio's type may do (neoaprs/radiotype.py `Allowed`): a control exists only where it is true.
+
+| field | type | | description |
+|---|---|---|---|
+| `paths` | boolean |  | our frames on it may carry digipeaters: the path controls are shown for it; false: every frame goes direct |
+| `digipeat` | boolean |  | it may repeat what it hears (its own Digipeater tick, `radio/<id>/digipeat`) |
+| `smart_beacon` | boolean |  | a moving station's SmartBeaconing applies on it; elsewhere the timed beacon goes with the latest fix |
+| `gateway_heard` | boolean |  | internet gateways hear its kind: email may go out on it |
+| `shared_channel` | boolean |  | it is a 1200-baud shared channel: the ALOHA circle is worked out from what it hears |
+
+### RadioBeaconState
+
+The radio's own beacon timer.
+
+| field | type | | description |
+|---|---|---|---|
+| `last_sent` | time \| null |  | when our position last went out on it; null before one |
+| `next_due` | time \| null |  | when the next timed beacon is due on it; null while none is planned (off, a moving station, the radio off) |
+| `interval_min` | integer |  | the interval in force on it, in minutes: `beacon/interval_min` raised to the radio's own floor; 0 while the beacon does not go out on it (off, Send on not ticked, the radio off) (>= 0) |
+| `problem` | RadioProblem \| null |  | why the latest beacon due on it did not go out (`transmit.off`, `beacon.not_sent`); null after one that did |
+
+### RadioCan
+
+What the radio's type can do (neoaprs/radiotype.py `Can`): the controls of its box.
+
+| field | type | | description |
+|---|---|---|---|
+| `find` | boolean |  | Find my radio (a serial line: `find_radio` with this radio) |
+| `terminal` | boolean |  | its line's log can be shown (`lines`) |
+| `tune` | boolean |  | Tune (`radio_tune`) |
+| `key_test` | boolean |  | the keying test (`radio_key_test`) |
+| `scope` | boolean |  | the spectrum scope (`radio_scope`); whether it is shown now is the modem's `scope` |
+| `tx_gain` | boolean |  | the transmit gain (`radio/<id>/tx_gain_db`) |
+| `frequencies` | boolean |  | the station's suggested frequencies are shown in its box |
+
+### RadioChoices
+
+The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force.
+
+| field | type | | description |
+|---|---|---|---|
+| `beacon` | boolean |  | Send on: the beacon goes out on this radio (with one radio on, it goes on that one whatever this says) |
+| `path` | string \| null |  | the digipeaters of its frames as the setting holds them (empty: the recommended path of the station's symbol, `DIRECT`: none); null for a kind that has no path |
+| `digipeat` | boolean \| null |  | its digipeater is on; null for a kind that may not repeat |
+
+### RadioHold
+
+A device the radio holds now in the station's table of resources: no other radio, and not the GPS receiver, is given it.
+
+| field | type | | description |
+|---|---|---|---|
+| `resource` | "serial" \| "sound_card" \| "keying" \| "modem_ports" \| "gps" |  | what kind of device: a serial port, a sound card, the keying line's port, the port pair of a Mercury modem |
+| `value` | string |  | the device as the table holds it: a serial port's resolved path (`/dev/ttyUSB0`, `COM3`), a sound card's id, the broadcast port of a Mercury pair (`8100`) |
+
+### RadioLimits
+
+What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of the type.
+
+| field | type | | description |
+|---|---|---|---|
+| `max_frame` | integer \| null |  | the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own |
+| `beacon_min_min` | integer |  | the shortest beacon interval the radio takes, in minutes (FM 20, HF 30): the station's interval is raised to it on this radio (>= 1) |
+
+### RadioProblem
+
+Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told).
+
+| field | type | | description |
+|---|---|---|---|
+| `code` | "radio.not_connected" \| "radio.searching" \| "radio.silent" \| "radio.resource_held" \| "modem.not_installed" \| "modem.stopped" \| "modem.network" \| "modem.no_port" \| "modem.not_started" \| "modem.sound_card" \| "transmit.off" \| "beacon.not_sent" |  | `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log) |
+| `params` | { [key: string]: string \| integer } |  | the values of the sentence, by name; empty for a code that has none |
+
+### RadioRow
+
+One radio of the station: what it is, how it is set, and how its line, its beacon and its modem are now. The rows are the values of the topic `radios`, keyed by `id` as text; a removed radio stays, marked,
+so that the packets and messages that name it still have its name. A radio that is added is a `set` of its row; a change of its state, counters, lines, beacon or modem is a `set` of the row, told at most four
+times a second; a change of the settings tells the topic whole.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | integer |  | the radio's id (an integer the database gave it, never given again): what every other row and command names it by (>= 1) |
+| `kind` | "fm" \| "hf" \| "lora" |  | the kind of radio, fixed when it was added: its tag's colour and the defaults follow it |
+| `type` | string |  | its type, a `key` of `RADIO_TYPES` (ui/src/protocol/lists.ts), of its kind; it may change within the kind (`radio_change`) |
+| `name` | string |  | the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `HF 2`) in its own words |
+| `number` | integer |  | its number within its kind: 1 for the first of the kind by id among the radios not removed (`HF 2` is 2); a removed radio keeps its own (>= 1) |
+| `enabled` | boolean |  | its Enable is ticked (`radio_change` with `enabled`); false for a removed radio |
+| `position` | integer |  | its place in the list of boxes (and of the first enabled, the main radio's default): the lowest first, then by id (>= 1) |
+| `removed` | boolean |  | it was removed: its row stays so that what came by it keeps its name; it is no longer started, chosen or offered |
+| `dummy` | boolean |  | its type is a Dummy radio: the traffic is made up and nothing goes on the air; its tag is dashed |
+| `state` | "stopped" \| "connecting" \| "connected" \| "waiting" \| "silent" |  | its line, as the topic `tnc` says it of radio 1 (`stopped` for a radio that is off or removed) |
+| `problem` | RadioProblem \| null |  | why it is not connected, while it is enabled and not connected; null otherwise |
+| `stats` | TncStats |  |  |
+| `lines` | TncLine[] |  | the latest 100 lines of what its line saw and did, oldest first; empty for a removed radio (max 100 items) |
+| `limits` | RadioLimits |  |  |
+| `allowed` | RadioAllowed |  |  |
+| `can` | RadioCan |  |  |
+| `choices` | RadioChoices |  |  |
+| `beacon` | RadioBeaconState |  |  |
+| `modem` | ModemState \| null |  | its Mercury modem, while its type is Mercury; null for every other type and for a removed radio |
+| `holds` | RadioHold[] |  | the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none |
 
 ### RadioRulesState
 
@@ -1738,7 +1985,7 @@ The sked board: where it stands, the dials the project suggests, and the skeds t
 |---|---|---|---|
 | `state` | "ok" \| "offline" \| "off" \| "closed" |  | `ok`: the board was read (or has not been tried yet), and a sked may be posted. `offline`: the project's server could not be reached or its answer was not a board; `rows` are the last board known, and posting is off. `off`: the check is off (`NEOAPRS_UPDATE_CHECK=0`): nothing is read or posted, `rows` is empty. `closed`: the board is closed to new skeds (by the project, or for this call); `rows` are shown without the form |
 | `fetched_at` | time \| null |  | when the board was last read from the server (or when the one kept from the last run was); null before the first |
-| `frequencies` | SkedFrequency[] |  | the dials the project suggests for the HF radio, one to three, the same as `modem.frequencies` of the topic `hf` (the tab does not depend on a radio's state) (max 3 items) |
+| `frequencies` | SkedFrequency[] |  | the dials the project suggests for the HF radio, one to four, the same as `modem.frequencies` of the topic `hf` (the tab does not depend on a radio's state) (max 4 items) |
 | `rows` | SkedRow[] |  | the skeds to come by the daemon's clock, the nearest start first; empty when there are none (max 100 items) |
 
 ### SoundCardRow
@@ -1752,6 +1999,7 @@ A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card
 | `numbered` | string | optional | the same card by its number (`plughw:3,0`), as a setting made before named it; empty where the id is not by name (default `""`) |
 | `default` | boolean |  | whether it is the system's default device, which the empty setting means |
 | `pick` | boolean |  | whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it |
+| `held_by` | integer \| null |  | the radio of the station whose modem holds the card now (its id); null while none does. A card another radio holds is never the `pick` |
 
 ### StationKey
 

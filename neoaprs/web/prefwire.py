@@ -33,6 +33,7 @@ class SetStationPath(_Command):
     cmd: Literal["set_station_path"]
     call: Call
     path: PathText
+    radio: int | None = Field(default=None, ge=1, description="the radio the path is for (plan rule 3.3: a path belongs to the radio it was set on), its id; left out: radio 1, whose path is the entry's `path`; another radio's is the station's row's `paths`")
 
 
 class ClearStationPath(_Command):
@@ -40,6 +41,7 @@ class ClearStationPath(_Command):
     (or the `del` of the entry when it was not RF only either), or by an `error`."""
     cmd: Literal["clear_station_path"]
     call: Call
+    radio: int | None = Field(default=None, ge=1, description="the radio whose path for the station is taken away, its id; left out: radio 1")
 
 
 class SetStationRfOnly(_Command):

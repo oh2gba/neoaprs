@@ -18,12 +18,14 @@ class GeneralQuery(_Command):
     kind: Literal["aprs", "igate", "wx"]
     path: PathText | None
     rf_only: bool
+    radio: int | None = Field(default=None, ge=1, description="the radio the query goes on (plan rule 3.6), its id; left out: the main radio. Refused with `radio.unknown` for a radio that is none and `radio.not_connected` for one that is off or not connected; the minute between two queries of a kind is that radio's")
 
 
 class GeneralAsked(_Model):
     """A general query sent from here."""
     kind: Literal["aprs", "igate", "wx"] = Field(description="which query: `aprs` (?APRS?), `igate` (?IGATE?) or `wx` (?WX?)")
     query: str = Field(description="the information field it went with, `?APRS?`, `?IGATE?` or `?WX?`")
+    radio: int | None = Field(description="the radio it went on, its id; only what that radio heard is counted in `new`")
     at: Iso = Field(description="when it was sent")
     path: list[str] = Field(description="the path it went by, `RFONLY` last when it was RF only; empty for no digipeaters")
     until: Iso = Field(description="when the counting of `new` ends, two minutes after it was sent")
@@ -33,4 +35,6 @@ class GeneralAsked(_Model):
 
 class GeneralState(_Model):
     """The general queries sent from here: the last one of each kind. Forgotten when the daemon stops. Told whole as it changes."""
-    asked: list[GeneralAsked] = Field(description="the last query of each kind, the oldest first; empty before one")
+    asked: list[GeneralAsked] = Field(description="the last query of each kind, whatever radio it went on, the oldest first; empty before one")
+    by_radio: list[GeneralAsked] = Field(default_factory=list, description="the last query of each kind on each radio, the oldest first: the wait before the next of a kind is that radio's (`general.too_soon`); "
+                                         "left out before the first query in this version")

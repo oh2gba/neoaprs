@@ -3,7 +3,7 @@
 
   ui/src/protocol/schema.json   JSON Schema of the Command and the Message union, and of the value of each topic
   ui/src/protocol/protocol.ts   TypeScript types made from it (by this script: no node, no json-schema-to-typescript)
-  ui/src/protocol/lists.ts      the lists the daemon owns and the page shows (the settings' keys, the TNC profiles, the symbol names, ...) and `LIMITS`, every number the page checks a value against (the
+  ui/src/protocol/lists.ts      the lists the daemon owns and the page shows (the settings' keys, the TNC profiles, the types of radio with their fields, the symbol names, ...) and `LIMITS`, every number the page checks a value against (the
                                 ranges of the settings, the length of a comment, a message, a status, the minimum interval ...), written from the daemon's own constants
   ui/src/protocol/errors.json   the refusals of the daemon that carry a code: for each code the values it passes and the English sentence it writes (found in the source by scripts/errorcodes.py); the page's catalogue
                                 is held to it by ui/src/i18n/errors.test.ts
@@ -39,10 +39,14 @@ from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
 from neoaprs.pref import ALERT_KM_MAX, ALERT_KM_MIN  # noqa: E402
-from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, MIN_STATUS_INTERVAL_MIN, RANGES, STATION_HOURS, SYMBOL_TABLES, Config  # noqa: E402
+from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, KEYS, RADIO_STATION_KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, MIN_STATUS_INTERVAL_MIN, RANGES, STATION_HOURS, SYMBOL_TABLES, Config  # noqa: E402
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
+from neoaprs.radiospec import MAX_NAME  # noqa: E402
+from neoaprs.radiotype import KINDS, RadioType  # noqa: E402
+from neoaprs.radiotypes import types_of  # noqa: E402
+from neoaprs.versions import MAX_FREQUENCIES  # noqa: E402
 from neoaprs.services import generalask  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
 from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, QRU_GROUP_MAX, QRU_RESERVED, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
@@ -206,6 +210,19 @@ def _profiles() -> str:
             f"export const HF_PROFILES = {_literal(hf)} as const;\n")
 
 
+def _radio_type(t: RadioType) -> dict[str, Any]:
+    fields = [{"key": f.key, "kind": f.kind, "range": None if f.range is None else list(f.range), "choices": list(f.choices), "default": f.default, "together": f.together, "text": f.text} for f in t.fields]
+    return {"key": t.key, "kind": t.kind, "text": t.text, "can": vars(t.can), "allowed": vars(t.allowed), "limits": {"max_frame": t.limits.max_frame, "beacon_min_min": t.limits.beacon_min_min}, "fields": fields}
+
+
+def _radio_types() -> str:
+    """The types of radio the page adds and changes a radio to, by kind and in the order it lists them (neoaprs/radiotypes), each with what it can do, what it may do, its limits and its own settings."""
+    rows = [_radio_type(t) for kind in KINDS for t in types_of(kind)]
+    return ("/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, its catalogue id (`text`), what its box offers (`can`), what we decided it may do (`allowed`), "
+            "its limits, and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */\n"
+            f"export const RADIO_TYPES = {_literal(rows)} as const;\n")
+
+
 def _symbol_names() -> str:
     return ("/** The names of the APRS symbols, the codes `!` to `~` in order, of the primary and of the alternate table (SYMBOL_NAMES of neoaprs/symbols.py): the symbol picker lists them. */\n"
             f"export const SYMBOL_NAMES = {_literal({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n")
@@ -259,6 +276,7 @@ def limits() -> dict[str, Any]:
                   "rowBins": mercuryscope.ROW_BINS, "rowFirstBin": mercuryscope.ROW_FIRST_BIN, "rowSpectra": mercuryscope.ROW_SPECTRA, "rowOffsetDb": mercuryscope.ROW_OFFSET_DB, "rowStepDb": mercuryscope.ROW_STEP_DB,
                   "modemBins": mercuryscope.MODEM_BINS, "modemRate": mercuryscope.MODEM_RATE, "levelMinDbfs": mercuryscope.LEVEL_MIN_DBFS, "levelMaxDbfs": mercuryscope.LEVEL_MAX_DBFS, "levelGoodDbfs": list(mercuryscope.LEVEL_GOOD_DBFS), "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS,
                   "historySec": mercuryscope.HISTORY_SEC},
+        "radio": {"nameMax": MAX_NAME, "frequenciesMax": MAX_FREQUENCIES},
         "mercury": {"version": mercury.VERSION, "mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
     }
 
@@ -289,8 +307,10 @@ def lists_text() -> str:
         _number("PROTOCOL", PROTOCOL, "The version of the messages (PROTOCOL of neoaprs/web/hubwire.py): a `hello` of another number means the page is out of date."),
         _array("TOPIC_NAMES", protocol.TOPIC_NAMES, "The topics of the hub, in the order the daemon tells them (TopicValues of neoaprs/web/protocol.py)."),
         _array("MESSAGE_TYPES", sorted(protocol.MESSAGE_NAMES), "Every message the daemon sends (the `type` of the Message union)."),
-        _array("CONFIG_KEYS", KEYS, "The keys of the settings, in the order of the settings form (SETTINGS of neoaprs/config.py)."),
+        _array("CONFIG_KEYS", tuple(key for key in KEYS if key not in RADIO_STATION_KEYS), "The keys of the settings, in the order of the settings form (SETTINGS of neoaprs/config.py): the keys of `config.values`."),
+        _array("RADIO_STATION_KEYS", RADIO_STATION_KEYS, "The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`."),
         _profiles(),
+        _radio_types(),
         _symbol_names(),
         _mobile_symbols(),
         _igate_overlays(),

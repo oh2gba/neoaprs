@@ -29,7 +29,8 @@ class OwnObjectRow(_Model):
     path: str | None = Field(description="the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used")
     qru_group: str = Field(description="the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none")
     on_request: bool = Field(description="true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule")
-    radio: Literal["fm", "hf", "both"] = Field(description="the radio it goes out on: `fm`, `hf` or `both`; with one radio on it goes on that one, whatever is kept (the page offers the choice while both radios are on)")
+    radio: Literal["fm", "hf", "both"] = Field(description="the radio it goes out on, as the word of before: `fm` radio 1, `hf` radio 2, `both` the two (`radios` has every radio's id); with one radio on it goes on that one, whatever is kept")
+    radios: list[int] = Field(description="the radios it goes out on (Send on), their ids, ascending: each that is enabled; with none of them enabled, the main radio")
     state: Literal["live", "killing"] = Field(description="`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten")
     created_at: Iso = Field(description="when it was first made")
     updated_at: Iso = Field(description="when it was last changed or killed")
@@ -56,7 +57,7 @@ class ObjectSet(_Command):
     characters for an object and 3 to 9 for an item, printable ASCII without `!`, `_`, `|` and `~` and without a blank at either end, and not our own call or the call of a station; `lat` and `lon` the position in decimal
     degrees; the symbol is a table character and a code character; `comment` at most 43 characters (36 with a course or speed); `course_deg` and `speed_kmh` the course and speed, each or both or none; `path` the digipeaters, calls
     separated by commas, or `DIRECT` for none at all (null or empty: `beacon/path`); `qru_group` the group of QRU it belongs to (up to 8 letters and digits, not `INFO` or `NEXT`; empty for none) and `on_request` true to send it
-    only to a station that asks for it, never on the schedule. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason."""
+    only to a station that asks for it, never on the schedule; `radios` the radios it goes out on (their ids: `radio`, the word of before, is then not read). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_objects` and `stations`, or by an `error` that names the reason."""
     cmd: Literal["object_set"]
     name: str = Field(min_length=OBJECT_NAME[0], max_length=OBJECT_NAME[1])
     kind: Literal["object", "item"]
@@ -71,6 +72,7 @@ class ObjectSet(_Command):
     qru_group: str = Field(max_length=QRU_GROUP_MAX)
     on_request: bool
     radio: Literal["fm", "hf", "both"] = "fm"
+    radios: list[int] | None = Field(default=None, min_length=1, max_length=64, description="the radios it goes out on, their ids; left out (or null): `radio`, the word of before (a page of before sends only that)")
 
 
 class ObjectKill(_Command):

@@ -1,15 +1,19 @@
 """The topics of the hub (neoaprs/web/hub.py) and what changes them: the table of what the pages follow, and the one place of neoaprs/web/ that connects the daemon's signals.
 
     stations   the station book by call            changed by StationBook.changed, .recounted and .removed; our own position in the settings moves every distance, so it is told whole. While `igate/enabled` is off the
-                                                   internet is hidden (nothing is deleted): a station known only from APRS-IS is not in it, one heard both ways has its radio side only (Station.radio_view), and a change of the setting tells it whole
-    packets    the latest 200 packets by id         changed by Tnc.packet and by the packets of APRS-IS (Services.internet_packet); the window is kept here (neoaprs/web/packetwindow.py; the daemon's database is the log, this is what a page opens
+                                                   internet is hidden (nothing is deleted): a station known only from APRS-IS is not in it, one heard both ways has its radio side only (Station.radio_view), and a change of the setting tells it whole;
+                                                   so does a change of the radios in force (radios_in_force: what a row's radios are worked out from)
+    packets    the latest 200 packets by id         changed by every radio's packets (Services.radio_packet) and by the packets of APRS-IS (Services.internet_packet); the window is kept here (neoaprs/web/packetwindow.py; the daemon's database is the log, this is what a page opens
                                                    with), and shows the latest 200 that were not from the internet while `igate/enabled` is off
+    radios     every radio by id, removed ones too    changed by Services.radio_changed (a radio's state, lines, counters or modem), by every packet of ours (its beacon went out), by Claims.changed (the devices held) and by every save of
+                                                   the settings (told whole); at most four times a second
     tnc        the FM radio                          changed by Tnc.changed and Tnc.state_changed; at most four times a second
     hf         the HF radio                          changed by the HF radio's Tnc (.changed and .state_changed) and by the modem part (Mercury.changed); at most four times a second
     config     the settings                          changed by Controller.config_changed, which every save emits
-    messages   every message by id                   changed by Messaging.changed (a new or changed message) and .removed (one that was deleted)
+    messages   every message by id                   changed by Messaging.changed (a new or changed message) and .removed (one that was deleted); those on their way by a change of the radios in force
+                                                   (radios_in_force) and of the station's choice (`station_radio`): their `radio_now`
     bulletins  the message board by sender/slot    changed by Bulletins.changed (a new or heard again) and .removed (one that is deleted)
-    own_objects  the objects and items of ours by name     changed by OwnObjects.changed (made, changed, sent) and .removed (forgotten)
+    own_objects  the objects and items of ours by name     changed by OwnObjects.changed (made, changed, sent) and .removed (forgotten), and whole by a change of the radios in force (a removed one leaves them)
     own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
     station_prefs  the path, RF only and alert of each station by call       changed by PrefBook.changed (one of them set or cleared)
     station_keys   the key each station announced, by call                   changed by Keyring.changed (a key heard, or forgotten)
@@ -32,12 +36,14 @@ from typing import Any
 
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.config import Config
+from neoaprs.callsign import normal_name
 from neoaprs.controller import Controller
-from neoaprs.message import MessageRecord
+from neoaprs.message import MessageRecord, MessagingError
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.pref import Fired, Pref
+from neoaprs.radiospec import RadioId
 from neoaprs.signal import Signal
 from neoaprs.source import Source
 from neoaprs.station import Station
@@ -48,7 +54,8 @@ from .packetwindow import PACKETS_KEPT, PacketWindow
 from .scopefeed import ScopeFeed
 from .skedview import skeds_state
 from .updatewire import UpdateState
-from .views import bulletin_row, config_values, general_state, gps_state, igate_state, key_row, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_alert_message, station_row, tnc_state
+from .radioview import radio_row
+from .views import StationRadios, bulletin_row, config_values, general_state, gps_state, igate_state, key_row, message_row, on_their_way, own_bulletin_row, own_object_row, pref_row, qru_state, station_alert_message, station_row, tnc_state
 
 log = logging.getLogger("neoaprs.web")
 
@@ -57,6 +64,12 @@ GPS_EVERY_SEC = 1.0                     # the GPS gives a fix a second: told at 
 IGATE_EVERY_SEC = 1.0                   # the iGate counts every packet it hears: told at most once a second
 DISTANCES_EVERY_SEC = 30.0              # every station's distance and bearing follow our moving at most this often (our own row follows at every step of the GPS service)
 PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")      # (a station that turns mobile or stays moves our row between home and the fix)
+
+
+def radios_in_force(config: Config) -> tuple[object, ...]:
+    """What of the settings' radios the rows of the stations, the messages and the objects read (the radio a message takes now, a choice in force, an object's radios): each radio's id, kind, type, Enable,
+    place and whether it is removed, and the main radio. A name, a radio's own settings and the paths are none of it (a station's path on a radio is told by PrefBook.path_changed)."""
+    return tuple((s.id, s.kind, s.type, s.enabled, s.position, s.removed) for s in config.radios), config.main_radio
 
 
 class Topics:
@@ -71,8 +84,10 @@ class Topics:
         self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
         self._config = ctl.config                   # the settings the stations were last told with
         self.window.internet = ctl.config.igate_enabled
+        self.station_radios = StationRadios(self._radio_choice, self._radio_now, self._paths_of)
         hub.add(Topic("stations", self._stations, lambda call: self._station(call)))
         hub.add(Topic("packets", self.window.whole, self.window.item))
+        hub.add(Topic("radios", self._radios, self._radio, interval=TNC_EVERY_SEC))
         hub.add(Topic("tnc", lambda: tnc_state(ctl.tnc), interval=TNC_EVERY_SEC))
         hub.add(Topic("hf", lambda: tnc_state(ctl.hf), interval=TNC_EVERY_SEC))
         hub.add(Topic("config", lambda: config_values(ctl.config, reach(), None if secure is None else secure())))
@@ -88,7 +103,7 @@ class Topics:
         hub.add(Topic("igate", lambda: igate_state(ctl.config, ctl.igate), interval=IGATE_EVERY_SEC))
         hub.add(Topic("qru", lambda: qru_state(ctl.qruask)))
         hub.add(Topic("skeds", lambda: skeds_state(ctl.skeds)))
-        hub.add(Topic("general", lambda: general_state(ctl.generalask.asked())))
+        hub.add(Topic("general", lambda: general_state(ctl.generalask.asked(), ctl.generalask.asked_by_radio())))
         self.connected = False
 
     def _stations(self) -> dict[str, Any]:
@@ -102,7 +117,40 @@ class Topics:
     def _row(self, station: Station) -> dict[str, Any] | None:
         """The station's row as the page is shown it: with the internet hidden (`igate/enabled` off) none for a station known only from there, and the radio's side of one heard both ways."""
         shown = station if self.ctl.config.igate_enabled else station.radio_view()
-        return None if shown is None else station_row(self.ctl.stationbook, shown)
+        return None if shown is None else station_row(self.ctl.stationbook, shown, self.station_radios)
+
+    # ---- what a station's row says of the radios (the daemon's rules: the page works none of it out)
+    def _radio_choice(self, call: str) -> RadioId | None:
+        """The operator's radio for the station while it is enabled; None for the daemon's own choice."""
+        chosen = self.ctl.radios.choice(call)
+        return chosen if chosen is not None and any(spec.id == chosen for spec in self.ctl.config.enabled_radios) else None
+
+    def _radio_now(self, call: str) -> RadioId | None:
+        """The radio a message to the station goes on now (services/messageradio.py); None while there is none."""
+        try:
+            return self.ctl.messaging.message_radios.station(call).id
+        except MessagingError:
+            return None
+
+    def _paths_of(self, call: str) -> dict[RadioId, tuple[str, ...]]:
+        """The path set for the station on each radio that is not removed, by the radio's id."""
+        try:
+            key = normal_name(call)
+        except ValueError:
+            return {}
+        found = ((spec.id, self.ctl.prefbook.path_on(key, spec.id)) for spec in self.ctl.config.live_radios)
+        return {id: path for id, path in found if path is not None}
+
+    def _radios(self) -> dict[str, Any]:
+        rows = ((str(spec.id), self._radio_of(spec.id)) for spec in self.ctl.config.radios)
+        return {key: row for key, row in rows if row is not None}
+
+    def _radio(self, key: str) -> dict[str, Any] | None:
+        return self._radio_of(int(key)) if key.isdigit() else None
+
+    def _radio_of(self, id: RadioId) -> dict[str, Any] | None:
+        spec = self.ctl.config.radio(id)
+        return None if spec is None else radio_row(spec, self.ctl.config.radios, self.ctl.radios.get(id), self.ctl.radios.claims)
 
     def _station_pref(self, call: str) -> dict[str, Any] | None:
         pref = self.ctl.prefbook.all().get(call)
@@ -135,7 +183,9 @@ class Topics:
         return None if record is None else self._message_row(record)
 
     def _message_row(self, record: MessageRecord) -> dict[str, Any]:
-        return message_row(record, self.ctl.messaging.delivery.attempts_of(record.id), self.ctl.messaging.queued(record))
+        sending = record.direction == "out" and record.state == "sending"
+        radio = self.ctl.messaging.radio_of(record) if sending else None
+        return message_row(record, self.ctl.messaging.delivery.attempts_of(record.id), self.ctl.messaging.queued(record), None if radio is None else radio.id)
 
     async def start(self) -> None:
         """The window starts with the packets the database holds, and from then on the signals tell the hub."""
@@ -149,8 +199,8 @@ class Topics:
         ctl = self.ctl
         return [
             (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
-            (ctl.stationbook.cleared, self._stations_cleared),
-            (ctl.tnc.packet, self._packet), (ctl.hf.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
+            (ctl.stationbook.cleared, self._stations_cleared), (ctl.radio_changed, self._radio_changed), (ctl.radios.claims.changed, self._radios_changed), (ctl.prefbook.path_changed, self._path_changed),
+            (ctl.radio_packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
             (ctl.hf.changed, self._hf_changed), (ctl.hf.state_changed, self._hf_state_changed), (ctl.mercury.changed, self._hf_changed), (ctl.mercury.scope_row, self.scope.row),
             (ctl.mercury.scope_cleared, self.scope.cleared),
             (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved), (ctl.igate.changed, self._igate_changed),
@@ -188,6 +238,16 @@ class Topics:
         self.hub.changed("stations")
         self.hub.changed("packets")
 
+    def _radio_changed(self, id: RadioId) -> None:
+        self.hub.changed("radios", str(id))
+
+    def _radios_changed(self) -> None:
+        self.hub.changed("radios")
+
+    def _path_changed(self, call: str, radio: RadioId) -> None:
+        """A station's path on a radio other than radio 1 is another now (radio 1's is its entry of `station_prefs` too): its row's `paths`."""
+        self.hub.changed("stations", call)
+
     def _tnc_changed(self) -> None:
         self.hub.changed("tnc")
 
@@ -205,6 +265,8 @@ class Topics:
             self.hub.changed("packets", str(number))
         if packet.direction == "out":
             self.hub.changed("gps")                 # (the beacon that went out is the latest of its kind)
+            if packet.radio_id is not None:
+                self.hub.changed("radios", str(packet.radio_id))        # (its beacon's last and next)
             if self._sent is not None:
                 self._sent()
 
@@ -267,7 +329,14 @@ class Topics:
     def _config_changed(self, config: Config) -> None:
         keys = self._config.changed(config)
         moved = any(key in PLACE_KEYS for key in keys)
+        radios = radios_in_force(config) != radios_in_force(self._config)
         self._config = config
+        self.hub.changed("radios")                  # (a radio's settings, its Enable, its beacon's interval)
+        if radios:
+            self.hub.changed("stations")            # (the radio a message to each takes now, and the choices in force)
+            self.hub.changed("own_objects")         # (a radio removed has left the objects' radios: OwnObjects.forget_radio)
+            for key in on_their_way(self.ctl.messaging.records()):
+                self.hub.changed("messages", key)   # (the radio each goes on next)
         if "igate/enabled" in keys:
             self.window.internet = config.igate_enabled
             self.hub.changed("packets")

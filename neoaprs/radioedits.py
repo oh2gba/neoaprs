@@ -15,7 +15,7 @@ from dataclasses import replace
 from .config import MESSAGE_RADIOS, SETTINGS, Config
 from .configradios import FLAT_HOMES
 from .radiodriver import RunOverrides
-from .radiospec import FM_ID, HF_ID, RadioError, RadioId, RadioSpec, check_name, enabled, log_name
+from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioError, RadioId, RadioSpec, check_name, enabled, log_name
 from .radiosql import CHANGEABLE
 from .radiotypes import BY_KEY, DEFAULT_TYPE, type_of
 from .radiotype import Kind
@@ -110,13 +110,14 @@ def live_radio(config: Config, id: RadioId) -> RadioSpec:
     """The radio of the id, which is not removed; RadioError when there is none."""
     spec = config.radio(id)
     if spec is None or spec.removed:
-        raise RadioError(f"radio {id}: there is no such radio" if spec is None else f"radio {id} ({log_name(spec, config.radios)}) is removed")
+        raise RadioError(f"radio {id}: there is no such radio" if spec is None else f"radio {id} ({log_name(spec, config.radios)}) is removed", "radio.unknown", radio=id)
     return spec
 
 
 def _refuse_last(config: Config, spec: RadioSpec, what: str) -> None:
     if spec.enabled and [s.id for s in enabled(config.radios)] == [spec.id]:
-        raise RadioError(f"the {log_name(spec, config.radios)} radio is the last one that is enabled: a station has at least one, so it cannot be {what}")
+        raise RadioError(f"the {log_name(spec, config.radios)} radio is the last one that is enabled: a station has at least one, so it cannot be {what}; turn another radio on first",
+                         "radio.last_enabled", name=log_name(spec, config.radios))
 
 
 def new_id(config: Config, kind: Kind) -> RadioId:
@@ -145,7 +146,8 @@ def changed_radio(config: Config, id: RadioId, columns: Mapping[str, object]) ->
     if "type" in columns:
         rtype = type_of(str(columns["type"]))
         if rtype.kind != spec.kind:
-            raise RadioError(f"radio/{id}/type: {rtype.key} is a type of {rtype.kind} radios, and the {log_name(spec, config.radios)} radio is a {spec.kind} radio")
+            key, name = f"radio/{id}/type", log_name(spec, config.radios)
+            raise RadioError(f"{key}: {rtype.key} is a type of another kind of radio than the {name} radio ({KIND_WORDS[spec.kind]})", "radio.type_kind", type=rtype.key, kind=KIND_WORDS[spec.kind], name=name)
         new = replace(new, type=rtype.key)
     if "enabled" in columns:
         if not isinstance(columns["enabled"], bool):

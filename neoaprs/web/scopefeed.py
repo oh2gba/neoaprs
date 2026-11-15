@@ -28,6 +28,10 @@ class ScopeFeed:
     def pages(self) -> int:
         return len(self._pages)
 
+    def follows(self, modem: object) -> bool:
+        """Whether this feed's rows are of that modem (`radio_scope` names a radio: the rows a page is sent are those of radio 2's modem, which the binary frames do not name)."""
+        return modem is self._modem
+
     def ask(self, conn: Connection, on: bool) -> None:
         """This page wants the rows (or no more of them). A page that has left meanwhile is not taken (its command ran after it closed: the command is a task, and the close came in the same read)."""
         if not on:

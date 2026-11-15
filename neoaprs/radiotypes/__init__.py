@@ -17,7 +17,7 @@ def type_of(key: str) -> RadioType:
     try:
         return BY_KEY[key.strip()]
     except KeyError:
-        raise RadioTypeError(f"{key!r} is not a type of radio (the types are {', '.join(BY_KEY)})") from None
+        raise RadioTypeError(f"{key!r} is not a type of radio (the types are {', '.join(BY_KEY)})", "radio.unknown_type", type=key) from None
 
 
 def types_of(kind: Kind) -> tuple[RadioType, ...]:

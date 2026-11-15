@@ -17,6 +17,7 @@ class AskQru(_Command):
     text: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9]{1,8}( \d{1,5})?$")
     path: PathText | None = Field(default=None, description="the path the request goes by; left out (or null, or empty) the path of messages to QRU")
     rf_only: bool = Field(default=True, description="RFONLY after the path; left out it is true")
+    radio: int | None = Field(default=None, ge=1, description="the radio the request goes on (plan rule 3.6), its id; left out: the main radio. Refused with `radio.unknown` for a radio that is none and `radio.not_connected` for one that is off or not connected; the waits are that radio's")
 
 
 class QruGroup(_Model):
@@ -45,6 +46,7 @@ class QruAsked(_Model):
     """The request we sent last."""
     text: str = Field(description="what was asked (`INFO`, `RP70 150`)")
     at: Iso = Field(description="when it was sent")
+    radio: int | None = Field(description="the radio it went on, its id; null for a request kept from before the radio was named")
 
 
 class QruState(_Model):
