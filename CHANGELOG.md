@@ -38,7 +38,7 @@ As many radios as you have, FM, HF and LoRa side by side, a new look, HF tests a
 - **Changed:** an object on an HF or LoRa radio repeats at most every 30 minutes once its first sends are out.
 - **Changed:** the alert's distance tickbox is greyed while there is no position; two lines of explanation are gone.
 - **Changed:** a radio of a type this version does not have, from a newer NeoAPRS, is left off and the station starts.
-- **Changed:** the Windows program takes about 63 MB less disk space.
+- **Changed:** smaller downloads: the Mac app by 200 MB, the Windows installer by 13 MB, the AppImage by 10 MB; Windows uses 60 MB less.
 - **Fixed:** a page on another device could change the alert command, the update address and the map source. Only this computer can now.
 - **Fixed:** behind a reverse proxy, visitors were taken for the NeoAPRS computer itself. They are now asked for the access key.
 - **Fixed:** a message too long for its radio waited for ever. It now fails at once and says it is too long for the radio.
