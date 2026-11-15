@@ -6,6 +6,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import re
 import shlex
 import shutil
 import stat
@@ -62,7 +63,11 @@ def test_the_deb_check_holds_what_the_release_workflows_deb_job_holds(installs: 
 
 def test_the_two_debian_images_are_the_ones_the_release_workflow_names(installs: ModuleType) -> None:
     assert installs.DEBIAN == "debian:bookworm-slim" and "debian:bookworm-slim" in deb_job()
-    assert installs.UBUNTU == "ubuntu:24.04" and "ubuntu-latest" in deb_job() and "FROM ubuntu:24.04" in (ROOT / "packaging" / "ci" / "Dockerfile").read_text(encoding="utf-8")
+    ubuntu = re.fullmatch(r"ubuntu:(\d\d\.\d\d)@sha256:[0-9a-f]{64}", installs.UBUNTU)
+    assert ubuntu is not None and ubuntu.group(1) == "24.04", "the older LTS, pinned by its digest"
+    assert re.search(r"^ +runner: ubuntu-24\.04-arm$", deb_job(), re.M), "as the release workflow's job `deb` installs on its arm64 runner"
+    series = json.loads((ROOT / "packaging" / "ci" / "runner.json").read_text(encoding="utf-8"))["facts"]["os"]
+    assert re.search(rf"^FROM ubuntu:{re.escape(series)}@sha256:", (ROOT / "packaging" / "ci" / "Dockerfile").read_text(encoding="utf-8"), re.M), "the wheel and the AppImage: the runner's series"
 
 
 def test_the_probe_names_what_the_scripts_it_starts_have(installs: ModuleType) -> None:
@@ -123,7 +128,8 @@ class Rig:
             folder.mkdir(parents=True)
         shutil.copy(SCRIPT, scripts / "check-installs")
         shutil.copy(ROOT / "scripts" / "check-in-container", scripts / "check-in-container")
-        shutil.copy(ROOT / "packaging" / "ci" / "Dockerfile", self.repo / "packaging" / "ci" / "Dockerfile")
+        for name in ("Dockerfile", "runner.json"):
+            shutil.copy(ROOT / "packaging" / "ci" / name, self.repo / "packaging" / "ci" / name)
         (self.repo / "neoaprs" / "__init__.py").write_text('VERSION = "0.0.1"\n', encoding="utf-8")
         (self.repo / "neoaprs" / "mercury.py").write_text('VERSION = "1.2.3"\n', encoding="utf-8")
         for name in ("smoke.py", "install-probe.py", "smoke-appimage"):
@@ -173,7 +179,7 @@ def option(line: list[str], name: str) -> list[str]:
     return [line[index + 1] for index, word in enumerate(line) if word == name and index + 1 < len(line)]
 
 
-def test_every_check_builds_what_it_needs_and_runs_in_a_container_of_its_own(rig: Rig) -> None:
+def test_every_check_builds_what_it_needs_and_runs_in_a_container_of_its_own(rig: Rig, installs: ModuleType) -> None:
     rig.pin()
     rig.cached()
     done = rig.run()
@@ -187,7 +193,7 @@ def test_every_check_builds_what_it_needs_and_runs_in_a_container_of_its_own(rig
     runs = rig.runs()
     assert len(runs) == 5
     images = [line[line.index("sh") - 1] for line in runs]
-    assert images[1:3] == ["debian:bookworm-slim", "ubuntu:24.04"] and images[4] == "ubuntu:24.04" and images[0] == images[3] and images[0].startswith("neoaprs-ci:")
+    assert images[1:3] == ["debian:bookworm-slim", installs.UBUNTU] and images[4] == installs.UBUNTU and images[0] == images[3] and images[0].startswith("neoaprs-ci:")
     for line in runs:
         assert option(line, "--volume")[0] == f"{rig.work}:/work:ro" and "--rm" in line and "--init" in line and "NEOAPRS_NO_DEVICES=1" in option(line, "--env") and "NEOAPRS_UPDATE_CHECK=0" in option(line, "--env")
         assert not {"--publish", "-p", "--device", "--privileged", "--network", "--cap-add"} & set(line), "no port, no device, nothing of this machine's"

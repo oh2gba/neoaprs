@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+"""Says where GitHub's runner and packaging/ci/runner.json part, so that the container of scripts/check-in-container never drifts from the runner without a word: on the runner itself (a step of
+ci.yml), by the clock (the weekly audit) and before a push (scripts/check --stage audit).
+
+  scripts/runner-facts --here [--github]           this machine's system against runner.json's `facts`: the Ubuntu series, gcc's version and default -march, glibc, PHP
+  scripts/runner-facts --latest LABEL [--github]   whether this machine, a runner of LABEL (ubuntu-latest, windows-latest, macos-latest), is the system runner.json's `latest` names for it
+  scripts/runner-facts --published [--github]      the readme GitHub publishes of the image of `facts.os` against the facts it lists (the series, gcc, glibc, PHP; never -march, which it does not list)
+  scripts/runner-facts --announcements [--github]  the open announcements of GitHub's runner images that name one of our runners and that runner.json does not list as read, or lists as read
+                                                   until a day that has passed (GH_TOKEN, when it is set, is sent with the one request)
+
+--published and --announcements may be given together. Each fact is compared at the precision runner.json gives it, which is the one that holds for a whole Ubuntu series: gcc by its major,
+glibc and PHP by major and minor. One line for what was read, one for each fact that parts; with --github these are GitHub's annotations (`::error::`, and the image's version a `::notice::`).
+The exit code is 1 when a fact parts, a -latest label moved, an announcement is unread, or a page could not be fetched or read; 2 for a wrong argument or a runner.json that cannot be read.
+What to do then is docs/MAINTAINING.md, "When GitHub moves an image". The standard library only, Python 3.10 or newer (the system's Python of a runner runs it).
+"""
+import argparse
+import datetime
+import json
+import os
+import platform
+import re
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parent.parent
+RUNNER_FILE = ROOT / "packaging" / "ci" / "runner.json"
+OS_RELEASE = Path("/etc/os-release")
+README = "https://raw.githubusercontent.com/actions/runner-images/main/images/ubuntu/Ubuntu{series}-Readme.md"          # the series without its dot: 2604
+ANNOUNCEMENTS = "https://api.github.com/repos/actions/runner-images/issues?labels=Announcement&state=open&per_page=100"
+PATIENCE_SEC = 30
+FACTS = ("os", "gcc", "march", "glibc", "php")
+FAILED, NOT_SET_UP = 1, 2
+
+
+class Unreadable(Exception):
+    """A page or an answer that could not be fetched or read, as the words that say so."""
+
+
+class Out:
+    """The lines of a run: plain for a terminal, GitHub's annotations for a runner's log."""
+
+    def __init__(self, github: bool) -> None:
+        self.github = github
+        self.failed = False
+
+    def info(self, text: str) -> None:
+        print(f"runner-facts: {text}", flush=True)
+
+    def notice(self, text: str) -> None:
+        print(f"::notice title=runner-facts::{text}" if self.github else f"runner-facts: {text}", flush=True)
+
+    def error(self, text: str) -> None:
+        self.failed = True
+        print(f"::error title=runner-facts::{text}" if self.github else f"runner-facts: {text}", flush=True)
+
+
+def load_runner(file: Path = RUNNER_FILE) -> dict[str, Any]:
+    runner = json.loads(file.read_text(encoding="utf-8"))
+    if not isinstance(runner, dict) or not isinstance(runner.get("facts"), dict) or set(runner["facts"]) != set(FACTS):
+        raise ValueError(f"{file.name} has no `facts` of {', '.join(FACTS)}")
+    return runner
+
+
+def agrees(found: str | None, fact: str) -> bool:
+    """Whether a version read here is the fact at the fact's own precision: 15.2.0 is gcc 15, 2.43 is glibc 2.43, 8.5.4 is PHP 8.5. A word (x86-64-v3) must be the same word."""
+    if found is None:
+        return False
+    if not re.fullmatch(r"\d+(\.\d+)*", fact):
+        return found == fact
+    return found.split(".")[: fact.count(".") + 1] == fact.split(".")
+
+
+# ---- --here ----
+
+def first_line(command: Sequence[str], environment: Mapping[str, str] | None = None) -> str | None:
+    """What a program prints, or None when it is not there or fails."""
+    try:
+        done = subprocess.run(list(command), capture_output=True, text=True, timeout=PATIENCE_SEC, env=None if environment is None else dict(environment))
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def os_series(os_release: Path = OS_RELEASE) -> str | None:
+    try:
+        text = os_release.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    found = re.search(r'^VERSION_ID="?([^"\n]+)"?$', text, re.M)
+    return found.group(1) if found else None
+
+
+def default_march(help_text: str | None) -> str | None:
+    found = re.search(r"^\s+-march=\s+(\S+)\s*$", help_text or "", re.M)
+    return found.group(1) if found else None
+
+
+def glibc_version(ldd_text: str | None) -> str | None:
+    found = re.search(r" (\d+\.\d+)\s*$", (ldd_text or "").splitlines()[0] if ldd_text else "")
+    return found.group(1) if found else None
+
+
+def read_here(os_release: Path = OS_RELEASE, run: Callable[[Sequence[str]], str | None] = first_line) -> dict[str, str | None]:
+    """This machine's side of the facts."""
+    gcc = run(["gcc", "-dumpfullversion"])
+    php = run(["php", "-r", "echo PHP_VERSION;"])
+    return {"os": os_series(os_release), "gcc": gcc.strip() if gcc else None, "march": default_march(run(["gcc", "-Q", "--help=target"])),
+            "glibc": glibc_version(run(["ldd", "--version"])), "php": php.strip() if php else None}
+
+
+def compare(out: Out, found: Mapping[str, str | None], facts: Mapping[str, str], where: str) -> None:
+    """One line of what was read, one error for each fact that parts."""
+    out.info(f"read {where}: " + ", ".join(f"{name} {found.get(name) or 'not found'}" for name in FACTS if name in found))
+    for name in FACTS:
+        if name in found and not agrees(found[name], facts[name]):
+            out.error(f"{name} is {found[name] or 'not found'} {where}, packaging/ci/runner.json says {facts[name]}")
+
+
+def here(out: Out, runner: Mapping[str, Any], environment: Mapping[str, str], os_release: Path = OS_RELEASE, run: Callable[[Sequence[str]], str | None] = first_line) -> None:
+    compare(out, read_here(os_release, run), runner["facts"], "here")
+    image = environment.get("ImageVersion")
+    if image:
+        out.notice(f"the runner's image is {image}; runner.json's facts were last checked against {runner['image_version']}")
+
+
+# ---- --latest ----
+
+def macos_version(environment: Mapping[str, str] = os.environ) -> str | None:
+    """macOS's own version. A Python built against an older SDK may be shown Apple's compatibility number (as 10.16 was shown on macOS 11), so sw_vers, the system's own program, is asked first,
+    with the compatibility number turned off; platform.mac_ver() only when it is not there."""
+    said = first_line(["sw_vers", "-productVersion"], {**environment, "SYSTEM_VERSION_COMPAT": "0"})
+    return said.strip() if said and said.strip() else platform.mac_ver()[0] or None
+
+
+def latest(out: Out, runner: Mapping[str, Any], label: str, os_release: Path = OS_RELEASE, windows_version: str | None = None, mac_version: str | None = None) -> None:
+    """Whether this runner of `label` is the system runner.json's `latest` names: the Ubuntu series, the start of Windows's version (its build), the major of macOS."""
+    named = runner["latest"][label]
+    if label.startswith("ubuntu-"):
+        found = os_series(os_release)
+        moved = found != named
+    elif label.startswith("windows-"):
+        found = windows_version if windows_version is not None else platform.version()
+        moved = not (found or "").startswith(named + ".") and found != named
+    else:
+        found = mac_version if mac_version is not None else macos_version()
+        found = (found or "").split(".")[0] or None
+        moved = found != named
+    out.info(f"{label} is {found or 'not known'} here; runner.json names {named}")
+    if moved:
+        out.error(f"{label} is no longer {named} but {found or 'not known'}: the workflows' named runners and runner.json are due to move (docs/MAINTAINING.md)")
+
+
+# ---- --published ----
+
+def fetch(url: str, token: str | None = None) -> str:
+    """A page of GitHub's, over https only; the token, when there is one, goes to the API's address alone."""
+    if not url.startswith("https://"):
+        raise Unreadable(f"{url} is not fetched: https only")
+    headers = {"User-Agent": "runner-facts"}
+    if token and url.startswith("https://api.github.com/"):
+        headers |= {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    request = urllib.request.Request(url, headers=headers)  # noqa: S310  (https only: the check above)
+    try:
+        with urllib.request.urlopen(request, timeout=PATIENCE_SEC) as answer:  # noqa: S310  (https only: the check above)
+            body: bytes = answer.read()
+        return body.decode("utf-8")
+    except (urllib.error.URLError, OSError, UnicodeDecodeError) as error:
+        raise Unreadable(f"{url} could not be fetched ({getattr(error, 'reason', error)})") from error
+
+
+def apt_version(readme: str, package: str) -> str | None:
+    """A package's version in the readme's table of apt packages, without its epoch: `| gcc | 4:15.2.0-5ubuntu1 |` is 15.2.0-5ubuntu1."""
+    found = re.search(rf"^\|\s*{re.escape(package)}\s*\|\s*([^|\s]+)\s*\|", readme, re.M)
+    return re.sub(r"^\d+:", "", found.group(1)) if found else None
+
+
+def read_readme(readme: str) -> dict[str, str | None]:
+    """The facts the readme of a runner image lists. -march is not among them: no readme says it."""
+    series = re.search(r"^\s*-\s*OS Version:\s*(\d+\.\d+)", readme, re.M)
+    php = re.search(r"^\s*-\s*PHP:?\s+(\d+\.\d+(?:\.\d+)?)", readme, re.M)
+    gcc, locales = apt_version(readme, "gcc"), apt_version(readme, "locales")
+    return {"os": series.group(1) if series else None, "gcc": gcc.split("-")[0] if gcc else None, "glibc": locales.split("-")[0] if locales else None, "php": php.group(1) if php else None}
+
+
+def published(out: Out, runner: Mapping[str, Any], get: Callable[[str], str]) -> None:
+    url = README.format(series=runner["facts"]["os"].replace(".", ""))
+    try:
+        found = read_readme(get(url))
+    except Unreadable as error:
+        out.error(str(error))
+        return
+    missing = [name for name, value in found.items() if value is None]
+    if missing:
+        out.error(f"{url} could not be read: no {', '.join(missing)} in it")
+        return
+    compare(out, found, runner["facts"], "in GitHub's readme")
+
+
+# ---- --announcements ----
+
+def names_of(runner: Mapping[str, Any]) -> list[str]:
+    """What an announcement that concerns us names: one of our labels, a -latest label we follow, or the series of the image."""
+    return [*runner["labels"], *runner["latest"], runner["facts"]["os"]]
+
+
+def names(text: str, name: str) -> bool:
+    """Whether `text` names `name` as a word of its own: ubuntu-22.04 in "ubuntu-22.04 is retired", 26.04 in "Ubuntu 26.04.1", but not 26.04 in 2026.04."""
+    return re.search(rf"(?<![\w.]){re.escape(name)}(?!\w)", text, re.I) is not None
+
+
+def unread(issues: Sequence[Mapping[str, Any]], runner: Mapping[str, Any], today: datetime.date) -> list[Mapping[str, Any]]:
+    """The open announcements that name one of ours and are not read: not in runner.json's `announcements`, or read until a day before `today`."""
+    read: Mapping[str, str | None] = runner.get("announcements") or {}
+    found = []
+    for issue in issues:
+        if "pull_request" in issue or not isinstance(issue.get("number"), int):
+            continue
+        text = f"{issue.get('title') or ''}\n{issue.get('body') or ''}"
+        if not any(names(text, name) for name in names_of(runner)):
+            continue
+        number = str(issue["number"])
+        if number in read and (read[number] is None or datetime.date.fromisoformat(str(read[number])) >= today):
+            continue
+        found.append(issue)
+    return found
+
+
+def announcements(out: Out, runner: Mapping[str, Any], get: Callable[[str], str], today: datetime.date) -> None:
+    try:
+        answer = json.loads(get(ANNOUNCEMENTS))
+    except Unreadable as error:
+        out.error(str(error))
+        return
+    except ValueError as error:
+        out.error(f"{ANNOUNCEMENTS} could not be read ({error})")
+        return
+    if not isinstance(answer, list) or not all(isinstance(issue, dict) for issue in answer):
+        out.error(f"{ANNOUNCEMENTS} could not be read: not a list of issues")
+        return
+    found = unread(answer, runner, today)
+    out.info(f"{len(answer)} open announcements, {len(found)} that name one of our runners and are not read")
+    for issue in found:
+        read_until = (runner.get("announcements") or {}).get(str(issue["number"]))
+        state = f"read until {read_until}, which has passed" if read_until else "not read"
+        out.error(f"#{issue['number']} {issue.get('title') or ''} ({state}): read it, act on it, and add it to `announcements` in packaging/ci/runner.json with the day until which it stays read")
+
+
+# ---- the command ----
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="runner-facts", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--here", action="store_true", help="this machine's system against runner.json's facts")
+    parser.add_argument("--latest", metavar="LABEL", help="whether this runner of LABEL is the system runner.json names for it")
+    parser.add_argument("--published", action="store_true", help="GitHub's readme of the image against the facts")
+    parser.add_argument("--announcements", action="store_true", help="the open announcements that name our runners and are not read")
+    parser.add_argument("--github", action="store_true", help="GitHub's annotations instead of plain lines")
+    args = parser.parse_args(argv)
+    if not (args.here or args.latest or args.published or args.announcements):
+        parser.error("say what to compare: --here, --latest LABEL, --published or --announcements")
+    try:
+        runner = load_runner()
+    except (OSError, ValueError) as error:
+        print(f"runner-facts: packaging/ci/runner.json could not be read ({error})", file=sys.stderr)
+        return NOT_SET_UP
+    if args.latest is not None and args.latest not in runner["latest"]:
+        parser.error(f"--latest takes one of {', '.join(runner['latest'])}")
+    out = Out(args.github)
+    token = os.environ.get("GH_TOKEN") or None
+    if args.here:
+        here(out, runner, os.environ)
+    if args.latest:
+        latest(out, runner, args.latest)
+    if args.published:
+        published(out, runner, fetch)
+    if args.announcements:
+        announcements(out, runner, lambda url: fetch(url, token), datetime.date.today())
+    return FAILED if out.failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

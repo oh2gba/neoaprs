@@ -11,9 +11,9 @@ no NeoAPRS, and an upgrade: the last release installed and started with both rad
 
 The files come from the build scripts the release workflow runs, run here on this tree: `uv build --wheel`, scripts/build-mercury --tar, scripts/build-deb and scripts/build-appimage (the architecture is this
 machine's, amd64: the arm64 package and the macOS and Windows builds are not tried here). Each check runs in a container that has nothing of NeoAPRS and none of this tree: the built files and the scripts that test
-them are mounted read-only, nothing a container makes reaches this machine, and no container is given a device or a port. The wheel and the AppImage are tried in the image of scripts/check-in-container (Ubuntu 24.04
-with the libraries of the Qt web engine, uv and Python 3.13); the .deb in debian:bookworm-slim and ubuntu:24.04 as the release workflow's job `deb` has it (the Debian one also proves that Mercury needs no
-library of the system). The upgrade starts from the .deb in packaging/ci/old-release.json, fetched once into the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build) and checked against the SHA-256 that is
+them are mounted read-only, nothing a container makes reaches this machine, and no container is given a device or a port. The wheel and the AppImage are tried in the image of scripts/check-in-container (the
+Ubuntu of GitHub's runner that packaging/ci/runner.json names, 26.04, with the libraries of the Qt web engine, uv and Python 3.13); the .deb in debian:bookworm-slim and in ubuntu:24.04, the older LTS, as the
+release workflow's job `deb` has it on its arm64 runner and pinned by its digest (the Debian one also proves that Mercury needs no library of the system). The upgrade starts from the .deb in packaging/ci/old-release.json, fetched once into the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build) and checked against the SHA-256 that is
 pinned there; an old release that is not pinned is a check that did not run, which is a failure. Every daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
 
 Exit code 0 when every check passed, 1 when one failed or could not run, 2 when docker or uv is missing or does not answer, or an argument is wrong. Needs Linux, docker, uv, curl, dpkg-deb, and for Mercury gcc, make and libasound2-dev.
@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CONTAINER = ROOT / "scripts" / "check-in-container"
 PIN = ROOT / "packaging" / "ci" / "old-release.json"
 CHECKS = ("wheel", "deb-debian", "deb-ubuntu", "appimage", "upgrade")
-DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04"
+DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"          # Ubuntu by its index digest (`docker buildx imagetools inspect ubuntu:24.04`): tag and digest move together
 RELEASES = "https://github.com/oh2gba/neoaprs/releases/download"          # (the same address neoaprs/updateasset.py has)
 MAX_DOWNLOAD = 200_000_000
 TAIL_LINES = 40                                                           # of the log of a check that failed, as many as the report shows

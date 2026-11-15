@@ -412,7 +412,7 @@ def test_beside_the_other_stages_vitest_has_eight_workers_at_most_and_no_more_th
     (("--stage", "ui-tests"), {}, ["npx vitest run"]),
     (("--stage", "page"), {}, [PAGE]),
     (("--stage", "security"), {}, [SECURITY]),
-    (("--stage", "audit"), {}, [f"{SECURITY} --audit"]),
+    (("--stage", "audit"), {}, [f"{SECURITY} --audit", "python scripts/runner-facts --published --announcements"]),
     (("--stage", "flaky"), {}, ["python scripts/flaky"]),
     (("--serial",), {}, [MYPY, MYPY_WINDOWS, ARCHITECTURE, SUITE, "npx vitest run", PAGE, SECURITY]),
 ])

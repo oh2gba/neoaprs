@@ -246,7 +246,7 @@ def job(name: str) -> str:
 
 def test_mercury_is_built_for_both_architectures_in_the_oldest_system_and_the_linux_downloads_wait_for_it() -> None:
     mercury_job = job("mercury")
-    assert "arch: amd64\n            runner: ubuntu-latest" in mercury_job and "arch: arm64\n            runner: ubuntu-24.04-arm" in mercury_job
+    assert "arch: amd64\n            runner: ubuntu-26.04" in mercury_job and "arch: arm64\n            runner: ubuntu-24.04-arm" in mercury_job
     assert "container: ubuntu:22.04" in mercury_job, "glibc 2.35, the floor the AppImage and the .deb document"
     assert "python3 scripts/build-mercury --tar --out dist-mercury" in mercury_job, "run by the Python 3.10 of the container"
     assert "build-essential pkg-config libasound2-dev libasound2-data python3" in mercury_job and " patch" in mercury_job, "patch applies packaging/mercury/loopback.patch"
@@ -260,9 +260,16 @@ def test_mercury_is_built_for_both_architectures_in_the_oldest_system_and_the_li
     assert pattern and "mercury" not in pattern.group(1), "the tarballs are build material and not files of the release"
 
 
+def test_the_appimage_is_tried_on_the_oldest_ubuntu_the_manual_promises() -> None:
+    """While GitHub still has a runner of the oldest Ubuntu the manual names for the AppImage, the file is run there: leaving it gives up the proof of what the manual says, a decision of its own."""
+    promised = re.search(r"glibc (\d+\.\d+) or newer \(Ubuntu (\d\d\.\d\d),", (ROOT / "docs" / "manual" / "install.md").read_text(encoding="utf-8"))
+    assert promised is not None, "the manual's sentence of what the AppImage runs on"
+    assert f"runs-on: ubuntu-{promised.group(2)}\n" in job("appimage"), f"the AppImage job runs on Ubuntu {promised.group(2)}, glibc {promised.group(1)}, as the manual promises"
+
+
 def test_the_macos_app_is_built_with_its_own_mercury_on_a_mac_signed_and_tried_before_it_joins_the_release() -> None:
     macos = job("macos")
-    assert "runs-on: macos-latest" in macos and re.search(r"needs: \[verify, wheel\]", macos), "the wheel of the wheel job; Mercury is built in this job (a Mac's build), not taken from the Linux ones"
+    assert "runs-on: macos-26" in macos and re.search(r"needs: \[verify, wheel\]", macos), "the wheel of the wheel job; Mercury is built in this job (a Mac's build), not taken from the Linux ones"
     assert "scripts/build-mercury --tar --out dist-mercury" in macos and "mercury-$version-macos-arm64.tar.gz" in macos
     assert "scripts/build-macos-app --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-macos-arm64.tar.gz --out dist-macos" in macos
     assert "scripts/smoke-macos-app dist-macos/NeoAPRS-*.dmg" in macos and "--no-mercury" not in macos
@@ -288,7 +295,7 @@ def test_the_package_is_proved_to_need_nothing_of_the_system_for_mercury() -> No
 
 def test_mercury_for_windows_is_built_from_the_pinned_source_on_linux_with_the_packages_of_rhizomaticas_own_workflow() -> None:
     built = job("mercury-windows")
-    assert "runs-on: ubuntu-latest" in built and "container: debian:trixie" in built, "the container Mercury's own release workflow builds its Windows zip in"
+    assert "runs-on: ubuntu-26.04" in built and "container: debian:trixie" in built, "the container Mercury's own release workflow builds its Windows zip in"
     assert "gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common" in built and " patch" in built and "python3" in built, "the cross compiler, its headers and runtime, and patch for the two patches"
     assert "python3 scripts/build-mercury --windows --tar --out dist-mercury-windows" in built
     assert built.index("apt-get install") < built.index("actions/checkout") < built.index("build-mercury --windows") < built.index("file dist-mercury-windows") < built.index("upload-artifact")

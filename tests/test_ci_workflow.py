@@ -83,5 +83,8 @@ def test_the_audit_is_a_weekly_workflow_of_its_own_that_runs_the_stage_and_publi
     assert re.search(r"^  schedule:\n    - cron: \"\d{1,2} \d{1,2} \* \* [0-6]\"", AUDIT, re.M), "once a week"
     assert "workflow_dispatch" in AUDIT and "scripts/check --stage audit" in AUDIT and "python3 scripts/security-tools osv-scanner" in AUDIT
     assert re.search(r"^permissions:\n  contents: read$", AUDIT, re.M) and "contents: write" not in AUDIT and "secrets." not in AUDIT
-    assert [action.split("@")[0] for action in re.findall(r"uses: (\S+)", AUDIT)] == ["actions/checkout", "astral-sh/setup-uv"], "nothing else runs there (tests/test_release.py holds how an action is pinned)"
+    for name in ("audit", "latest"):
+        uses = [action.split("@")[0] for action in re.findall(r"uses: (\S+)", job(name, AUDIT))]
+        assert uses == ["actions/checkout", "astral-sh/setup-uv"], f"nothing else runs in the job {name} (tests/test_release.py holds how an action is pinned)"
+    assert len(re.findall(r"^  [\w-]+:\n", AUDIT.split("\njobs:\n", 1)[1], re.M)) == 2, "and there is no other job"
     assert "audit" in CHECK and "schedule:" not in CI, "a scheduled run of ci.yml would count as the green run of a commit that the release asks for"

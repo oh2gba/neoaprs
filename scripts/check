@@ -7,7 +7,7 @@
 #   scripts/check --stage NAME    one stage only (see STAGES below); its output is shown (on stderr) as it is written, which the CI log relies on
 #   scripts/check --stage sim     the HF net simulation with real Mercury instances (scripts/mercury-sim), which is not in the default list: about six minutes, Linux only, and the Mercury built once with
 #                                 scripts/build-mercury --install (the stage builds it when the venv has none); the one the CI job `sim` runs on every push to master
-#   scripts/check --stage audit   the packages of both lock files asked of the advisory lists (scripts/security-check --audit), which is not in the default list: it needs the network
+#   scripts/check --stage audit   the packages of both lock files asked of the advisory lists (scripts/security-check --audit) and GitHub's runners against packaging/ci/runner.json (scripts/runner-facts --published --announcements), which is not in the default list: it needs the network
 #   scripts/check --stage flaky   the hunt for tests that fail on some runs only (scripts/flaky): 20 runs of the CI's command for the tests in the container of scripts/check-in-container, half in file order and half shuffled,
 #                                 half the runner's size and half starved, four side by side; an hour or more, Linux and docker only, and not in the default list. It prints a table of every test that failed with its count
 #   scripts/check --list          the stage names
@@ -187,7 +187,8 @@ stage_dup_py() { ui_run ../scripts/dup-check; }                           # jscp
 # The security checks of scripts/security-check: with no argument the ones that ask nobody (it prints seven lines: secret-files, tokens, gitleaks, php-lint, psalm, shellcheck, zizmor), each run by a pinned program that scripts/security-tools has fetched; --audit asks the advisory lists about the
 # packages of both lock files, so it runs only by name.
 stage_security() { "$python" scripts/security-check; }
-stage_audit() { "$python" scripts/security-check --audit; }
+# The weekly audit also reads what GitHub publishes of its runners against packaging/ci/runner.json (scripts/runner-facts: the image's readme, and the announcements not yet read). Both run, and either fails the stage.
+stage_audit() { local status=0; "$python" scripts/security-check --audit || status=1; "$python" scripts/runner-facts --published --announcements || status=1; return "$status"; }
 # The hunt for tests that fail on some runs only: scripts/flaky starts the containers of scripts/check-in-container (its own docs say how many and in which settings); the stage is its exit code and its table.
 stage_flaky() { "$python" scripts/flaky; }
 # The wheel as a user gets it, as the CI job `smoke` does it: built, installed into a fresh environment (uv takes what its cache has, and asks the net only when that is not everything), and the installed command run

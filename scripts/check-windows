@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runs the CI's two Windows jobs on a real Windows, in a VirtualBox virtual machine of this computer, over SSH, so that what fails on GitHub's windows-latest fails here first.
+"""Runs the CI's two Windows jobs on a real Windows, in a VirtualBox virtual machine of this computer, over SSH, so that what fails on GitHub's windows-2025 fails here first.
 
   scripts/check-windows                       sync, lock, ruff, pytest and smoke in this order, each with its result line; a failed step stops none but sync
   scripts/check-windows --only NAME           only the steps named (repeatable): sync lock ruff pytest smoke (ruff and pytest need the environment that sync makes, so sync runs with them)

@@ -28,7 +28,7 @@ jobs:
   # for it: each a few seconds, before anything is built.
   verify:
     if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -79,7 +79,7 @@ jobs:
   wheel:
     needs: verify
     if: ${{ !failure() && !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -87,6 +87,7 @@ jobs:
           persist-credentials: false     # (no later step uses git with the job's token)
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - name: Build the wheel and the sdist (the wheel is built from the sdist)
@@ -112,7 +113,7 @@ jobs:
   windows:
     needs: [verify, mercury-windows]
     if: ${{ !failure() && !cancelled() }}
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 45
     defaults:
       run:
@@ -123,6 +124,7 @@ jobs:
           persist-credentials: false     # (no later step uses git with the job's token)
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - name: The version
@@ -345,7 +347,7 @@ jobs:
   mercury-windows:
     needs: verify
     if: ${{ !failure() && !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 40
     container: debian:trixie
     steps:
@@ -386,7 +388,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
@@ -419,7 +421,7 @@ jobs:
           overwrite: true
 
   # The Linux app as one file: CPython, the wheel and the locked dependencies of its extra app (Qt with the web engine) in an AppImage (scripts/build-appimage, from the wheel of the job above), then run as a user
-  # would (scripts/smoke-appimage: the daemon, the page, the service unit, the window on the offscreen platform). ubuntu-22.04 and not latest: it has glibc 2.35, the oldest that the Qt wheels
+  # would (scripts/smoke-appimage: the daemon, the page, the service unit, the window on the offscreen platform). ubuntu-22.04 and not 26.04: it has glibc 2.35, the oldest that the Qt wheels
   # inside (glibc 2.34) run on, so that the file is shown to run on the oldest system it claims (what is inside does not depend on the runner that builds it). GitHub retires a runner image some two years
   # after the next LTS: when ubuntu-22.04 goes, this job moves to ubuntu-24.04 and only loses that proof; the file itself stays the same.
   appimage:
@@ -433,6 +435,7 @@ jobs:
           persist-credentials: false     # (no later step uses git with the job's token)
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       # the tools the build scripts fetch (the CPython of python-build-standalone, appimagetool and its runtime), kept between runs for as long as their pins in the scripts stay
@@ -476,7 +479,7 @@ jobs:
   appimage-update:
     needs: [wheel, appimage]
     if: ${{ !failure() && !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -484,6 +487,7 @@ jobs:
           persist-credentials: false     # (no later step uses git with the job's token)
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -533,12 +537,12 @@ jobs:
 
   # The macOS app as a disk image: the CPython of python-build-standalone for Apple silicon, the wheel and the locked dependencies of its extra app (Qt with the web engine) laid out as NeoAPRS.app, with Mercury built from
   # the pinned source on the same runner (scripts/build-mercury on a Mac: CoreAudio alone, for macOS 14 and newer; Rhizomatica's own universal build asks for macOS 26), everything signed ad hoc (there is no Apple
-  # developer account), then opened and run as a user would (scripts/smoke-macos-app: the signature, the daemon, the page, the launchd agent, the window on the offscreen platform). macos-latest is Apple silicon; what
+  # developer account), then opened and run as a user would (scripts/smoke-macos-app: the signature, the daemon, the page, the launchd agent, the window on the offscreen platform). macos-26 is Apple silicon; what
   # the app asks of a Mac (macOS 14, the floor of the Qt wheels) does not depend on the runner that builds it.
   macos:
     needs: [verify, wheel]
     if: ${{ !failure() && !cancelled() }}
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -546,6 +550,7 @@ jobs:
           persist-credentials: false     # (no later step uses git with the job's token)
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -590,7 +595,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
@@ -601,6 +606,7 @@ jobs:
           persist-credentials: false     # (no later step uses git with the job's token)
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -697,7 +703,7 @@ jobs:
   assemble:
     needs: [wheel, windows, appimage, appimage-update, macos, deb]
     if: ${{ !failure() && !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -752,7 +758,7 @@ jobs:
   release:
     needs: assemble
     if: ${{ startsWith(github.ref, 'refs/tags/v') && !failure() && !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: write

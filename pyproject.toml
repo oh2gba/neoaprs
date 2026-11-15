@@ -167,6 +167,7 @@ extend-include = [
     "scripts/mercury-sim",
     "scripts/migration-size",
     "scripts/release",
+    "scripts/runner-facts",
     "scripts/security-check",
     "scripts/security-tools",
     "scripts/site-check",

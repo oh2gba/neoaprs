@@ -1,32 +1,43 @@
 #!/usr/bin/env python3
-"""Runs the suite in a container the size of GitHub's runner, so that it can be run here as it runs there: the system, the user, the tools and the number of threads of the CI's Linux job, on a copy of this tree.
+"""Runs the suite in a container the size of GitHub's runner, so that it can be run here as it runs there: the system, the compiler, the user, the tools and the number of threads of the CI's
+Linux jobs, on a copy of this tree.
 
-  scripts/check-in-container                   the commands of the CI's Linux job in order, stopping at the first that fails
+  scripts/check-in-container                   the commands of the CI's job `python` on Linux in order, stopping at the first that fails
+  scripts/check-in-container --job sim         the commands of the CI's job `sim` instead: the pinned Mercury built with the runner's compiler, then the simulation of an HF net
   scripts/check-in-container --starved         the same on half a runner, where the tests that depend on time show themselves
   scripts/check-in-container -- COMMAND...     this command instead, in the copy of the tree (it makes its own environment: `uv sync` first, or `uv run`)
   scripts/check-in-container --image-only      builds the image when it is not there, prints its name and stops
+  scripts/check-in-container --prune           removes the images of other Dockerfiles that no container uses, and stops
 
-The image is packaging/ci/Dockerfile (Ubuntu 24.04, the CI job's libraries, git, PHP, a compiler, the pinned uv and node, the user `runner`). It is built when it is missing or the Dockerfile has
-changed, and no file of the project is in it. The tree goes in as it is on disk, the tracked files and the untracked ones that are not ignored (`git ls-files -co --exclude-standard`), packed here
-before anything is started and unpacked inside the container as a repository of one commit. An untracked file that an ignore rule names stays on this machine, and so does a file of access tokens (`.secrets` and
-whatever follows that name, in any folder) whatever git says of it; every other untracked file goes in, so a key or a token under another name is kept out by a line in .gitignore. No variable of
-this machine's environment is passed on. The working tree is never mounted: nothing a run does reaches it, and the .venv and the node_modules a run makes are the container's own. uv's and npm's
-caches are the volumes neoaprs-ci-uv and neoaprs-ci-npm, which make the second run fast (`docker volume rm` them to start cold).
+The image is packaging/ci/Dockerfile: the Ubuntu of the runner packaging/ci/runner.json names, with its compiler's default machine (x86-64-v3) and its C library, the CI jobs' libraries and tools,
+git, PHP, the pinned uv and node, the user `runner`. It is built when it is missing or the Dockerfile has changed, and no file of the project is in it. Its programs need a processor with
+x86-64-v3: the script asks the system's loader before docker is asked anything, and without it says so in one line. The first line of a run says what the image follows, from runner.json; the
+workflows' labels are held to that file by the tests. The images of other Dockerfiles (other worktrees, older commits) are never removed by a run, only counted in one line; --prune removes
+those that no container uses.
+
+The tree goes in as it is on disk, the tracked files and the untracked ones that are not ignored (`git ls-files -co --exclude-standard`), packed here before anything is started and unpacked
+inside the container as a repository of one commit. An untracked file that an ignore rule names stays on this machine, and so does a file of access tokens (`.secrets` and whatever follows that
+name, in any folder) whatever git says of it; every other untracked file goes in, so a key or a token under another name is kept out by a line in .gitignore. No variable of this machine's
+environment is passed on. The working tree is never mounted: nothing a run does reaches it, and the .venv and the node_modules a run makes are the container's own. uv's and npm's caches and the
+build cache (where scripts/build-mercury keeps Mercury's source archive) are the volumes neoaprs-ci-uv, neoaprs-ci-npm and neoaprs-ci-build, which make the second run fast (`docker volume rm`
+them to start cold).
 
 The runner's size is four threads, two cores with their siblings as /sys/devices/system/cpu names them, and 16 GB with no swap; --starved is two threads of one core and 7 GB. The threads are given
 as a CPU set, because a quota would leave `pytest -n auto` starting a worker for every thread of the machine. Runs side by side each take cores that no other run holds, and each container has its
 own loopback, so their ports cannot meet. Inside, NEOAPRS_UPDATE_CHECK=0, NEOAPRS_NO_DEVICES=1 and UV_FROZEN=1 are set, and there is no display and no terminal.
 
-The output streams through and the exit code is the command's (of the first that failed): 125 when docker could not build the image or start the container, 2 when docker, git or the list of the
-machine's cores is missing, when the folder of this script is not the working tree of a git repository, and when a file of the tree cannot be read or a folder of it not listed; the last two are
-said in one line before the image is asked for or a container started. Needs Linux, docker and git.
+The output streams through and the exit code is the command's (of the first that failed): 125 when docker could not build the image, start the container or list the images, 2 when docker, git
+or the list of the machine's cores is missing, when the processor lacks x86-64-v3, when the folder of this script is not the working tree of a git repository, and when a file of the tree cannot
+be read or a folder of it not listed; the processor and the last two are said in one line before the image is asked for or a container started. Needs Linux, docker and git.
 """
 import argparse
 import contextlib
 import fcntl
 import hashlib
 import io
+import json
 import os
+import re
 import shlex
 import shutil
 import signal
@@ -45,14 +56,18 @@ from typing import IO
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCKERFILE = ROOT / "packaging" / "ci" / "Dockerfile"
+RUNNER_FILE = ROOT / "packaging" / "ci" / "runner.json"       # what the image and the workflows follow (read for the first line of a run; the tests hold the rest to it)
 SYS_CPU = Path("/sys/devices/system/cpu")
+LOADER = Path("/lib64/ld-linux-x86-64.so.2")         # the system's loader: its --help says which levels of x86-64 this processor and its system can run
+V3_SUPPORTED = "x86-64-v3 (supported"                # how its --help says that the image's programs can run here
 
 IMAGE = "neoaprs-ci"                                   # the tag after it is the Dockerfile's digest (image_tag)
 WORK = "/home/runner/work"                             # the folder of the image the tree is unpacked in, as `neoaprs/`
 TREE = "neoaprs"
 TRACKED = "tracked"                                    # the member of the tar beside the tree that lists its tracked files
 NEVER_PACKED = ".secrets"                              # how the name of a file of access tokens begins (.gitignore): it stays on this machine even where no ignore rule names it
-VOLUMES = {"neoaprs-ci-uv": "/home/runner/.cache/uv", "neoaprs-ci-npm": "/home/runner/.npm"}          # the caches all runs share (uv and npm each lock their own)
+VOLUMES = {"neoaprs-ci-uv": "/home/runner/.cache/uv", "neoaprs-ci-npm": "/home/runner/.npm",          # the caches all runs share (uv and npm each lock their own), and the build cache, where
+           "neoaprs-ci-build": "/home/runner/.cache/neoaprs-build"}                                  # scripts/build-mercury keeps the source archive it checks against its pin
 CPUS_LABEL = "eu.oh2gba.neoaprs.check-cpus"            # on every container of this script: the threads it holds, which is how a run started beside it knows them
 SHM = "1g"                                             # docker's 64 MB of /dev/shm is too little for the Qt web engine's tests
 NOT_SET_UP, DOCKER_FAILED = 2, 125                     # (125 is what `docker run` itself says when it could not run the container)
@@ -67,7 +82,7 @@ class Size:
 
 
 RUNNER = Size(threads=4, memory_gb=16)                 # GitHub's Linux runner of a public repository
-STARVED = Size(threads=2, memory_gb=7)                 # half of it, the size of GitHub's smaller runners: where a test that counts on time fails
+STARVED = Size(threads=2, memory_gb=7)                 # half a runner, 7 GB: where a test that counts on time fails
 
 # The commands of the job `python` of .github/workflows/ci.yml as it runs on Linux, in its order (tests/test_check_in_container.py compares them with the workflow): the install, then the stages of scripts/check, which
 # are what the workflow calls, so that the commands of the lock check, ruff, mypy and the suite are written once, in that script.
@@ -79,6 +94,15 @@ CI_COMMANDS = (
     "scripts/check --stage architecture",
     "scripts/check --stage pytest",
 )
+
+# The commands of the job `sim` of ci.yml, in its order, without what only GitHub needs: the cache of the built Mercury (here the build cache volume keeps the source archive, and the build itself
+# is done at every run, with the image's compiler), the log copied with `tee`, and the artifacts. Its system packages are a line of the Dockerfile.
+SIM_COMMANDS = (
+    "uv sync --frozen",
+    "uv run scripts/build-mercury --install",
+    "uv run scripts/mercury-sim --report mercury-sim.json --keep",
+)
+CI_JOBS = {"python": CI_COMMANDS, "sim": SIM_COMMANDS}
 
 # What is set inside: the workflow's own two (no daemon asks the version page, uv never changes the lock), the switch that keeps every daemon from the machine's devices, and uv told that its cache is
 # on another file system than the tree (a volume), where it copies instead of linking and would say so at every package. Under UV_FROZEN `uv lock --check` reads uv.lock and does not compare it with
@@ -357,6 +381,79 @@ def run(tag: str, size: Size, cores: Sequence[tuple[int, ...]], commands: Sequen
         return container.wait()
 
 
+# ---- this machine, what the image follows, and the images of other Dockerfiles ----
+
+def runs_v3(loader: Path = LOADER) -> bool:
+    """Whether this processor and its system run x86-64-v3 programs, as the system's loader says (`ld.so --help`, the check Ubuntu tells users of its amd64v3 builds to run). The loader also
+    knows whether the system saves the wider registers, which the processor's flags in /proc/cpuinfo do not say. No loader, or one that does not answer, is no."""
+    try:
+        done = subprocess.run([str(loader), "--help"], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return V3_SUPPORTED in done.stdout
+
+
+def follows(file: Path = RUNNER_FILE) -> str:
+    """The line that says what the image follows, from runner.json: the runner's label and the facts a test can feel."""
+    try:
+        runner = json.loads(file.read_text(encoding="utf-8"))
+        facts = runner["facts"]
+        return f"follows ubuntu-{facts['os']} (gcc {facts['gcc']}, {facts['march']}, glibc {facts['glibc']}, image {runner['image_version']})"
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        return f"follows what {file.name} says, which could not be read ({error})"
+
+
+SIZE_UNITS = {"B": 1, "kB": 1000, "KB": 1000, "MB": 1000**2, "GB": 1000**3, "TB": 1000**4}        # how docker writes a size (decimal units)
+
+
+def size_bytes(text: str) -> int | None:
+    found = re.fullmatch(r"([\d.]+)\s*([kKMGT]?B)", text.strip())
+    if found is None:
+        return None
+    with contextlib.suppress(ValueError):
+        return int(float(found.group(1)) * SIZE_UNITS[found.group(2)])
+    return None
+
+
+def other_images(tag: str) -> list[tuple[str, int | None]] | None:
+    """The images of this script's name but another tag than `tag` (the Dockerfiles of other worktrees and of older commits), each with its size as docker gives it; None when docker did not answer."""
+    done = subprocess.run(["docker", "image", "ls", IMAGE, "--format", "{{.Tag}}\t{{.Size}}"], capture_output=True, text=True)
+    if done.returncode != 0:
+        return None
+    images = []
+    for line in done.stdout.splitlines():
+        name, _, size = line.partition("\t")
+        if name.strip() and name.strip() not in ("<none>", tag.partition(":")[2]):
+            images.append((f"{IMAGE}:{name.strip()}", size_bytes(size)))
+    return images
+
+
+def gigabytes(images: Sequence[tuple[str, int | None]]) -> str:
+    sizes = [size for _, size in images if size is not None]
+    return f"{sum(sizes) / 1000**3:.1f} GB" + (" and more" if len(sizes) < len(images) else "")
+
+
+def say_other_images(tag: str) -> None:
+    """One line when images of other Dockerfiles are on this machine: how many and how much disk. None is removed here: other worktrees, scripts/check-installs and scripts/flaky may be using them."""
+    images = other_images(tag)
+    if images:
+        say(f"{len(images)} other {IMAGE} image{'s' if len(images) != 1 else ''} on this machine, {gigabytes(images)} (--prune removes those no container uses)")
+
+
+def prune(tag: str) -> int:
+    """Removes the images of other Dockerfiles that no container uses (docker refuses to remove one that a container, running or stopped, was made from) and says what went and what stayed."""
+    images = other_images(tag)
+    if images is None:
+        say("docker could not list its images")
+        return DOCKER_FAILED
+    removed, kept = [], []
+    for image in images:
+        done = subprocess.run(["docker", "image", "rm", image[0]], capture_output=True, text=True)
+        (removed if done.returncode == 0 else kept).append(image)
+    say(f"removed {len(removed)} image{'s' if len(removed) != 1 else ''} of other Dockerfiles ({gigabytes(removed)})" + (f"; kept {len(kept)} that a container uses: {', '.join(name for name, _ in kept)}" if kept else ""))
+    return 0
+
+
 # ---- the command ----
 
 def split_command(argv: Sequence[str]) -> tuple[list[str], list[str]]:
@@ -369,15 +466,24 @@ def split_command(argv: Sequence[str]) -> tuple[list[str], list[str]]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     own, command = split_command(sys.argv[1:] if argv is None else argv)
-    parser = argparse.ArgumentParser(prog="check-in-container", usage="scripts/check-in-container [--starved] [--image-only] [-- COMMAND...]", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(prog="check-in-container", usage="scripts/check-in-container [--job python|sim] [--starved] [--image-only] [--prune] [-- COMMAND...]", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--job", choices=sorted(CI_JOBS), default="python", help="the CI job whose commands are run (python by default)")
     parser.add_argument("--starved", action="store_true", help="half a runner: two threads of one core and 7 GB")
     parser.add_argument("--image-only", action="store_true", help="build the image when it is missing, print its name and stop")
+    parser.add_argument("--prune", action="store_true", help="remove the images of other Dockerfiles that no container uses, and stop")
     args = parser.parse_args(own)
     for tool in ("docker", "git"):
         if shutil.which(tool) is None:
             say(f"{tool} is not installed")
             return NOT_SET_UP
+    if args.prune:
+        return prune(image_tag())
+    if not runs_v3():
+        say("this computer's processor lacks x86-64-v3, which the runner's programs need")
+        return NOT_SET_UP
     if args.image_only:
+        say(follows())
         tag = ensure_image()
         if tag is not None:
             print(tag)
@@ -390,14 +496,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             say(f"nothing was run: {error}")
             return NOT_SET_UP
         tar.seek(0)
+        say(follows())
         tag = ensure_image()
         if tag is None:
             return DOCKER_FAILED
+        say_other_images(tag)
         cores = read_cores()
         if not cores:
             say(f"the cores of this machine are not listed in {SYS_CPU}: without them the container would get every thread")
             return NOT_SET_UP
-        return run(tag, STARVED if args.starved else RUNNER, cores, [shlex.join(command)] if command else list(CI_COMMANDS), tar)
+        return run(tag, STARVED if args.starved else RUNNER, cores, [shlex.join(command)] if command else list(CI_JOBS[args.job]), tar)
 
 
 if __name__ == "__main__":
