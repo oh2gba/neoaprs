@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.20.2
+
 All radios are equal: each thing goes on the radios you tick; the Sound card radio and Update now put right.
 
 - **New:** with several radios, Ask around and Local info have their own Send on and send one request on each radio ticked.
