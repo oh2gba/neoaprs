@@ -215,6 +215,13 @@ fieldset.composebox > legend {
   flex: none;
   min-width: 2.5em;
 }
+/* a typed setting with a limit (the comment, the status): the counter right of the field, as in the box to write a message in */
+.field-control .compose-left {
+  margin-left: 0;
+}
+.field.disabled .compose-left {
+  opacity: 0.5;
+}
 .field.changed .input {
   border-color: var(--accent);
 }

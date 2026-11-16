@@ -39,14 +39,18 @@ describe("MessageCompose", () => {
     expect(wrapper.emitted("send")).toHaveLength(1);
   });
 
-  it("shows the bytes left of 67 as the text grows, and in orange when there are too many", async () => {
+  it("shows the bytes left of 67 as the text grows, and takes no more: a paste is cut at the limit", async () => {
     const { wrapper, text, send } = compose();
     await text.setValue("hello");
     expect(wrapper.find(".compose-left").text()).toBe("62 left");
+    await text.setValue("x".repeat(70));
+    expect(text.element.value).toBe("x".repeat(67));
+    expect(wrapper.find(".compose-left").text()).toBe("0 left");
+    expect(wrapper.find(".compose-left").classes()).not.toContain("over");
+    expect(send.attributes("disabled")).toBeUndefined();
     await text.setValue("å".repeat(34));
-    expect(wrapper.find(".compose-left").text()).toBe("1 over");
-    expect(wrapper.find(".compose-left").classes()).toContain("over");
-    expect(send.attributes("disabled")).toBeDefined();
+    expect(text.element.value).toBe("å".repeat(33)); // (two bytes each: the 34th does not fit whole)
+    expect(wrapper.find(".compose-left").text()).toBe("1 left");
   });
 
   it("has Send off while the text is empty or the TNC is not connected, and says why in a title, not in a sentence", async () => {
@@ -114,8 +118,22 @@ describe("the padlock of an encrypted message", () => {
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("send")).toEqual([["OH2RDG", "Moi, täällä ok", true]]);
     await text.setValue("ä".repeat(18));
-    expect(wrapper.find(".compose-left").text()).toBe("2 over");
+    expect(text.element.value).toBe("ä".repeat(17));
+    expect(wrapper.find(".compose-left").text()).toBe("0 left");
+  });
+
+  it("says how many bytes are over, in orange, when the padlock is pressed under a longer text, and lets it only be shortened", async () => {
+    const { wrapper, text, send } = compose({ lockable: true });
+    await text.setValue("x".repeat(40));
+    await wrapper.find(".compose-lock").trigger("click");
+    expect(wrapper.find(".compose-left").text()).toBe("6 over");
+    expect(wrapper.find(".compose-left").classes()).toContain("over");
     expect(send.element.disabled).toBe(true);
+    await text.setValue("x".repeat(41));
+    expect(text.element.value).toBe("x".repeat(40));
+    await text.setValue("x".repeat(34));
+    expect(wrapper.find(".compose-left").text()).toBe("0 left");
+    expect(send.element.disabled).toBe(false);
   });
 
   it("lets go when the station can no longer be written to that way", async () => {

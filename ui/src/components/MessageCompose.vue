@@ -10,8 +10,8 @@ import IconButton from "@/components/IconButton.vue";
 import { t } from "@/i18n";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
-import { bytesLeft, textBytes } from "@/lib/messages";
 import { canSendAll } from "@/lib/recipients";
+import { bytes, leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
 
 const props = withDefaults(defineProps<{ to: readonly string[]; connected: boolean; lockable?: boolean; offline?: string }>(), {
@@ -32,7 +32,9 @@ watch(
     if (!can) locked.value = false;
   },
 );
-const left = computed(() => (locked.value ? LIMITS.message.lockedMax - textBytes(text.value) : bytesLeft(text.value)));
+/** The bytes a message holds, 34 when it is encrypted; the field takes no more (lib/textlimit.ts, as every field with a counter). */
+const limit = computed<TextLimit>(() => ({ max: locked.value ? LIMITS.message.lockedMax : LIMITS.message.textMax, measure: bytes, kind: "bytes" }));
+const left = computed(() => leftOf(text.value, limit.value));
 const rxOnly = useReceiveOnly();
 const ready = computed(() =>
   locked.value ? props.connected && text.value.trim() !== "" && left.value >= 0 : canSendAll(props.connected, props.to, "", text.value),
@@ -56,11 +58,22 @@ function submit(): void {
     :label="t('messages.compose')"
     inline
     :left="left"
-    :left-title="leftTitle(left, 'bytes', locked ? LIMITS.message.lockedMax : LIMITS.message.textMax)"
+    :left-max="LIMITS.message.textMax"
+    :left-title="leftTitle(left, 'bytes', limit.max)"
     @submit="submit"
   >
     <label class="sr-only" for="msg-text">{{ t("messages.compose") }}</label>
-    <input id="msg-text" ref="input" v-model="text" class="input compose-text" type="text" :placeholder="t('messages.compose')" autocomplete="off" />
+    <input
+      id="msg-text"
+      ref="input"
+      :value="text"
+      class="input compose-text"
+      type="text"
+      :placeholder="t('messages.compose')"
+      autocomplete="off"
+      @input="text = typedInto($event, text, limit)"
+      @compositionend="text = typedInto($event, text, limit)"
+    />
     <template #buttons>
       <IconButton
         v-if="lockable"

@@ -40,7 +40,7 @@ from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias,
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
 from neoaprs.pref import ALERT_KM_MAX, ALERT_KM_MIN  # noqa: E402
 from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, RADIO_STATION_KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, MIN_STATUS_INTERVAL_MIN, RANGES, STATION_HOURS, SYMBOL_TABLES, Config  # noqa: E402
-from neoaprs.configstatus import MAX_STATUS  # noqa: E402
+from neoaprs.configstatus import LONGEST_FREQ, LONGEST_MODE, MAX_STATUS, STATUS_FIELDS, fill_template, status_template  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
 from neoaprs.radiospec import MAX_NAME  # noqa: E402
@@ -259,7 +259,7 @@ def limits() -> dict[str, Any]:
     return {
         "range": ranges,
         "comment": {"max": MAX_COMMENT, "maxWithPhg": MAX_COMMENT_PHG},
-        "status": {"max": MAX_STATUS},
+        "status": {"max": MAX_STATUS, "widest": dict(zip(STATUS_FIELDS, (LONGEST_FREQ, LONGEST_MODE), strict=True))},
         "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN, "hfBeaconMinMin": HF_BEACON_MIN_MIN},
         "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY, "lockedMax": MAX_LOCKED},
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
@@ -598,6 +598,8 @@ SETTING_VALUES = [(key, text) for key in ("station/lat", "station/lon") for text
      for text in ("", "0", "1", "9", "10", "299", "300", "1000", "1001", "9999", "10000", "65535", "65536", "921600", "921601", "-1", "1.5", "abc", " 5 ")]
 PHG_CASES = [(p, h, 3, "NE") for p in (0, 1, 2, 5, 25, 81, 100, 9999) for h in (0, 1, 3, 3.048, 4, 10, 20, 100, 9999)] + [(5, 10, g, d) for g in (0, 3, 9, 10, -1) for d in ANTENNA_DIRECTIONS]
 POSITIONS = [(60.17, 24.94), (0.0, 0.0), (-33.8688, 151.2093), (90.0, 180.0), (-90.0, -180.0), (59.999999, 24.999999), (0.03125, 0.09375), (60.169999, -24.940001), (-0.00001, -0.00001), (0.0083333, 100.0)]
+STATUS_TEMPLATES = ["QRV {freq} {mode}", "", "{freq}", "{mode}", "{freq}{freq}{freq}{freq}", "{freq}{freq}{freq}{freq}x", "{fre", "{freq", "{{freq}}", "{FREQ} {mode}", "QRV {freq} " + "x" * 38,
+                    "QRV {freq} " + "x" * 39, "x" * 55, "x" * 56]
 BEACON_BASE = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS",
                "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}
 STATION_NAMES = ["WINLINK", "OH2XYZ-L", "OH2XYZ-20", "oh2xyz-l", " winlink ", "OH2GBA", "OH2GBA-0", "OH2GBA-15", "OH2GBA-00", "OH2GBA-007", "ABCDEFGHI", "ABCDEFGHIJ", "A", "A-", "-A", "A-B-C", "1", "9-9",
@@ -719,6 +721,16 @@ def _beacon_vector(changes: dict[str, str]) -> dict[str, Any]:
     return {"values": values, "text": text}
 
 
+def _template_vector(template: str) -> dict[str, Any]:
+    """How long a status template counts (each field it names filled with the widest value) and whether the daemon takes it."""
+    try:
+        status_template(template)
+        ok = True
+    except ValueError:
+        ok = False
+    return {"template": template, "length": len(fill_template(template, LONGEST_FREQ, LONGEST_MODE)), "ok": ok}
+
+
 def vectors() -> dict[str, list[dict[str, Any]]]:
     return {
         "calls": [_call_vector(t) for t in CALLS],
@@ -737,6 +749,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "phg": [{"power": p, "height": h, "gain": g, "direction": d, "text": phg_text(p, h, g, d)} for p, h, g, d in PHG_CASES],
         "positions": [{"lat": lat, "lon": lon, "table": "/", "code": "-", "text": uncompressed_position(lat, lon, "/", "-").decode("ascii")} for lat, lon in POSITIONS],
         "beacons": [_beacon_vector(changes) for changes in BEACONS],
+        "status_templates": [_template_vector(t) for t in STATUS_TEMPLATES],
     }
 
 

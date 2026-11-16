@@ -10,7 +10,8 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useWhenShown } from "@/composables/useWhenShown";
 import { t } from "@/i18n";
 import { leftTitle } from "@/lib/compose";
-import { TIMES, NOTE_MAX, dayChoices, draftDial, draftOk, ended, mayPostAs, noteLeft, postCommand, startDraft, utcDay } from "@/lib/skeds";
+import { TIMES, NOTE_MAX, dayChoices, draftDial, draftOk, ended, mayPostAs, postCommand, startDraft, utcDay } from "@/lib/skeds";
+import { leftOf, type TextLimit, trimmedCharacters, typedInto } from "@/lib/textlimit";
 
 const { skeds, call, now, send, connection } = useDaemonContext();
 const frequencies = computed(() => skeds.value?.frequencies ?? []);
@@ -20,7 +21,9 @@ const OTHER = "other";
 /** The Frequency choice: a dial the project suggests (when it is the one in the draft), else Other. */
 const choice = computed(() => (draft.typed ? OTHER : draft.dial));
 const placeholder = computed(() => frequencies.value[0]?.dial ?? "7.0541 MHz USB");
-const left = computed(() => noteLeft(draft.note));
+/** The characters of the note; the field takes no more (lib/textlimit.ts, as every field with a counter). */
+const limit: TextLimit = { max: NOTE_MAX, measure: trimmedCharacters, kind: "characters" };
+const left = computed(() => leftOf(draft.note, limit));
 const over = computed(() => ended(draft, now.value));
 const typedWrong = computed(() => draft.typed && draft.dial.trim() !== "" && draftDial(draft) === null);
 const ready = computed(() => skeds.value?.state === "ok" && mayPostAs(call.value) && draftOk(draft, now.value));
@@ -76,7 +79,14 @@ function submit(): void {
 </script>
 
 <template>
-  <ComposeBar class="sked-compose" :label="t('skeds.post_label')" :left="left" :left-title="leftTitle(left, 'characters', NOTE_MAX)" @submit="submit">
+  <ComposeBar
+    class="sked-compose"
+    :label="t('skeds.post_label')"
+    :left="left"
+    :left-max="NOTE_MAX"
+    :left-title="leftTitle(left, 'characters', NOTE_MAX)"
+    @submit="submit"
+  >
     <div class="field">
       <label for="sked-day">{{ t("skeds.day") }}</label>
       <div class="field-control">
@@ -124,7 +134,15 @@ function submit(): void {
     <div class="field">
       <label for="sked-note">{{ t("skeds.note") }}</label>
       <div class="field-control">
-        <input id="sked-note" v-model="draft.note" class="input" type="text" autocomplete="off" />
+        <input
+          id="sked-note"
+          :value="draft.note"
+          class="input"
+          type="text"
+          autocomplete="off"
+          @input="draft.note = typedInto($event, draft.note, limit)"
+          @compositionend="draft.note = typedInto($event, draft.note, limit)"
+        />
       </div>
     </div>
     <template #buttons>

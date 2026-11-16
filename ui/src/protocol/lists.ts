@@ -989,7 +989,10 @@ export const LIMITS = {
     "station/lon": { min: -180.0, max: 180.0 },
   },
   comment: { max: 43, maxWithPhg: 36 },
-  status: { max: 55 },
+  status: {
+    max: 55,
+    widest: { freq: "1296.000 MHz", mode: "PKTUSB" },
+  },
   interval: { beaconMinMin: 20, statusMinMin: 15, hfBeaconMinMin: 30 },
   message: { textMax: 67, forbidden: "|~{", gateway: "EMAIL-2", lockedMax: 34 },
   call: { baseMax: 6, amateurBaseMin: 3, maxSsid: 15, placeholders: ["MYCALL", "N0CALL", "NOCALL"] },

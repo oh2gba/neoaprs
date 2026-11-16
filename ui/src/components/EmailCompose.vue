@@ -10,7 +10,8 @@ import { t } from "@/i18n";
 import { useRadios } from "@/composables/useRadios";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
-import { canSendEmail, emailBytesLeft } from "@/lib/email";
+import { canSendEmail, emailLine } from "@/lib/email";
+import { bytes, leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
 
 const props = withDefaults(defineProps<{ connected: boolean; addresses: readonly string[]; offline?: string }>(), { offline: undefined });
@@ -21,7 +22,9 @@ const text = ref("");
 const textBox = ref<HTMLInputElement | null>(null);
 const listed = ref(false);
 
-const left = computed(() => emailBytesLeft(to.value, text.value));
+/** The characters of a message, the address and the space with the text; the text takes no more (lib/textlimit.ts, as every field with a counter). */
+const limit = computed<TextLimit>(() => ({ max: LIMITS.message.textMax, measure: (body) => bytes(emailLine(to.value, body)), kind: "address" }));
+const left = computed(() => leftOf(text.value, limit.value));
 const rxOnly = useReceiveOnly();
 const radios = useRadios();
 /** No radio that internet gateways hear is on: there is none for email to go on. */
@@ -73,6 +76,7 @@ function submit(): void {
     class="mailform"
     :label="t('email.compose')"
     :left="left"
+    :left-max="LIMITS.message.textMax"
     :left-title="leftTitle(left, 'address', LIMITS.message.textMax)"
     @submit="submit"
     @keydown.esc.stop="escape"
@@ -105,7 +109,16 @@ function submit(): void {
     <div class="field">
       <label for="mail-text">{{ t("email.field.text") }}</label>
       <div class="field-control">
-        <input id="mail-text" ref="textBox" v-model="text" class="input" type="text" autocomplete="off" />
+        <input
+          id="mail-text"
+          ref="textBox"
+          :value="text"
+          class="input"
+          type="text"
+          autocomplete="off"
+          @input="text = typedInto($event, text, limit)"
+          @compositionend="text = typedInto($event, text, limit)"
+        />
         <InfoTip :label="t('settings.about', { label: t('email.field.text') })">{{ t("email.text_tip") }}</InfoTip>
       </div>
     </div>

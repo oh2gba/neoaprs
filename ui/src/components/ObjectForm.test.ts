@@ -190,6 +190,11 @@ describe("ObjectForm", () => {
     await input("Speed")?.setValue("40");
     expect(counter().text()).toBe("28 left");
     await input("Comment")?.setValue("x".repeat(40));
+    expect(input("Comment")?.element.value).toBe("x".repeat(36));
+    expect(counter().text()).toBe("0 left");
+    await input("Speed")?.setValue("");
+    await input("Comment")?.setValue("x".repeat(40));
+    await input("Speed")?.setValue("40");
     expect(counter().text()).toBe("4 over");
     expect(counter().classes()).toContain("over");
     expect(field("Comment")?.classes()).toContain("invalid");

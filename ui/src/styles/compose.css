@@ -74,9 +74,24 @@ fieldset.composebox {
 .field-control .mail-address {
   flex: 1;
 }
+/* the counter of a text with a limit (LeftCounter.vue), the same in every box and field: its room is the width of the widest it says (`data-room`, the full limit left, and `data-over`, as many over, two
+   lines laid before it unseen with no height, in the weight of "3 over"), the number at its right end, on one line, so that nothing beside it moves while the number shrinks or goes over */
 .compose-left {
+  display: inline-block;
+  flex: none;
   margin-left: auto;
   color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+.compose-left::before {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 600;
+  white-space: pre;
+  content: attr(data-room) "\A" attr(data-over);
 }
 .compose-left.over {
   color: var(--bad);

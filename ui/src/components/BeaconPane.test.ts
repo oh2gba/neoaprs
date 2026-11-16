@@ -926,3 +926,52 @@ describe("BeaconPane with several radios", () => {
     });
   });
 });
+
+describe("BeaconPane: the comment and the status count what is left, as a message does", () => {
+  const counterOf = (wrapper: Wrapper, id: string) => wrapper.find(id).element.closest(".field")?.querySelector(".compose-left");
+  const typeInto = async (wrapper: Wrapper, id: string, text: string) => {
+    const input = wrapper.find<HTMLInputElement>(id);
+    input.element.value = text;
+    await input.trigger("input");
+    return input.element.value;
+  };
+
+  it("has the counter of a message right of the Comment, of the 43 characters a comment may have, and of 36 with a power (the PHG extension)", async () => {
+    const { wrapper } = pane();
+    expect(counterOf(wrapper, "#set-station-comment")?.textContent).toBe("36 left");
+    expect(counterOf(wrapper, "#set-station-comment")?.getAttribute("title")).toBe("36 of 43 characters left");
+    expect(counterOf(wrapper, "#set-station-comment")?.className).toBe("compose-left mono");
+    await typeInto(wrapper, "#set-beacon-power_w", "5");
+    expect(counterOf(wrapper, "#set-station-comment")?.textContent).toBe("29 left");
+    expect(counterOf(wrapper, "#set-station-comment")?.getAttribute("title")).toBe("29 of 36 characters left");
+  });
+
+  it("takes no more than the comment may have: a paste is cut at the limit", async () => {
+    const { wrapper } = pane({ "beacon/power_w": "5" });
+    expect(await typeInto(wrapper, "#set-station-comment", "z".repeat(50))).toBe("z".repeat(36));
+    expect(counterOf(wrapper, "#set-station-comment")?.textContent).toBe("0 left");
+  });
+
+  it("shows a comment that became too long (a power was set after it) as it is, with how many are over, and lets it only be shortened", async () => {
+    const long = "w".repeat(40);
+    const { wrapper } = pane({ "beacon/power_w": "5", "station/comment": long });
+    expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe(long);
+    expect(counterOf(wrapper, "#set-station-comment")?.textContent).toBe("4 over");
+    expect(await typeInto(wrapper, "#set-station-comment", long + "w")).toBe(long);
+    expect(await typeInto(wrapper, "#set-station-comment", long.slice(0, 39))).toBe(long.slice(0, 39));
+  });
+
+  it("counts the 55 characters of the status text and takes no more", async () => {
+    const { wrapper } = pane({ "status/source": "text", "station/status": "QRV 145.500" });
+    expect(counterOf(wrapper, "#set-station-status")?.textContent).toBe("44 left");
+    expect(await typeInto(wrapper, "#set-station-status", "s".repeat(60))).toBe("s".repeat(55));
+    expect(counterOf(wrapper, "#set-station-status")?.textContent).toBe("0 left");
+  });
+
+  it("counts a status made from the radio as the daemon checks it, the frequency and the mode at their widest", async () => {
+    const { wrapper } = pane({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
+    expect(counterOf(wrapper, "#set-status-template")?.textContent).toBe("32 left"); // (QRV {freq} {mode}: 4 + 12 + 1 + 6)
+    expect(await typeInto(wrapper, "#set-status-template", "QRV {freq} {mode} " + "x".repeat(40))).toBe("QRV {freq} {mode} " + "x".repeat(31));
+    expect(counterOf(wrapper, "#set-status-template")?.textContent).toBe("0 left");
+  });
+});

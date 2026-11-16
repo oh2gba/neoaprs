@@ -33,8 +33,11 @@ describe("EmailCompose", () => {
     await wrapper.find("#mail-text").setValue("Hello");
     expect(wrapper.find(".compose-left").text()).toBe("59 left");
     expect(wrapper.find(".compose-left").attributes("title")).toBe("59 of 67 characters left; the address and the space count too");
-    await wrapper.find("#mail-text").setValue("å".repeat(32) + "x");
-    expect(wrapper.find(".compose-left").text()).toBe("1 over");
+    await wrapper.find("#mail-text").setValue("x".repeat(70));
+    expect(wrapper.find<HTMLInputElement>("#mail-text").element.value).toBe("x".repeat(64));
+    expect(wrapper.find(".compose-left").text()).toBe("0 left");
+    await wrapper.find("#mail-to").setValue("meme");
+    expect(wrapper.find(".compose-left").text()).toBe("2 over");
     expect(wrapper.find(".compose-left").classes()).toContain("over");
     wrapper.unmount();
   });
@@ -46,9 +49,11 @@ describe("EmailCompose", () => {
     expect(send(wrapper).attributes("disabled")).toBeDefined();
     await wrapper.find("#mail-to").setValue("jane@example.com");
     expect(send(wrapper).attributes("disabled")).toBeUndefined();
-    await wrapper.find("#mail-text").setValue("x".repeat(51));
-    expect(send(wrapper).attributes("disabled")).toBeDefined();
     await wrapper.find("#mail-text").setValue("x".repeat(50));
+    expect(send(wrapper).attributes("disabled")).toBeUndefined();
+    await wrapper.find("#mail-to").setValue("jane.doe@example.com"); // (the text takes no more, but a longer address can push the line over)
+    expect(send(wrapper).attributes("disabled")).toBeDefined();
+    await wrapper.find("#mail-to").setValue("jane@example.com");
     expect(send(wrapper).attributes("disabled")).toBeUndefined();
     await wrapper.setProps({ connected: false });
     expect(send(wrapper).attributes("disabled")).toBeDefined();

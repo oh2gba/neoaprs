@@ -167,16 +167,14 @@ describe("SkedCompose", () => {
   });
 
   describe("the note", () => {
-    it("counts the characters it has left, in orange when it is too long, and Post is off then", async () => {
+    it("counts the characters it has left and takes no more: a paste is cut at the limit", async () => {
       const wrapper = form();
       expect(wrapper.find(".compose-left").text()).toBe("80 left");
       await wrapper.find("#sked-note").setValue("Mercury, 10 W");
       expect(wrapper.find(".compose-left").text()).toBe("67 left");
       await wrapper.find("#sked-note").setValue("x".repeat(81));
-      expect(wrapper.find(".compose-left").text()).toBe("1 over");
-      expect(wrapper.find(".compose-left").classes()).toContain("over");
-      expect(post(wrapper).attributes("disabled")).toBeDefined();
-      await wrapper.find("#sked-note").setValue("x".repeat(80));
+      expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("x".repeat(80));
+      expect(wrapper.find(".compose-left").text()).toBe("0 left");
       expect(post(wrapper).attributes("disabled")).toBeUndefined();
     });
 

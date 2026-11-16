@@ -8,6 +8,7 @@
 - **Changed:** **Add radio** lists the radio types in groups: FM, HF, LoRa, and Without a radio.
 - **Changed:** the (i) buttons show nothing on hover.
 - **Changed:** in Dutch a radio is "radio", no longer "set".
+- **Changed:** the status text and the beacon comment show how many characters are left, as a message does, and no text takes more than fits.
 
 ## 0.20.0
 

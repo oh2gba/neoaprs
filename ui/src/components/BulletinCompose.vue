@@ -14,13 +14,16 @@ import type { MessageId } from "@/i18n/catalogue";
 import { leftTitle } from "@/lib/compose";
 import { LIMITS } from "@/protocol/lists";
 import type { OwnBulletinRow } from "@/protocol/protocol";
-import { GROUP_MAX, POST_KINDS, canPost, charsLeft, groupOf, groupOk, idsOf, kindTitle, postCommand, type PostDraft } from "@/lib/bulletins";
+import { leftOf, type TextLimit, trimmedCharacters, typedInto } from "@/lib/textlimit";
+import { GROUP_MAX, POST_KINDS, canPost, groupOf, groupOk, idsOf, kindTitle, postCommand, type PostDraft } from "@/lib/bulletins";
 
 const props = defineProps<{ ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
 const emit = defineEmits<{ post: [slot: string, text: string] }>();
 const draft = reactive<PostDraft>({ kind: "bulletin", id: "1", group: "", text: "" });
 
-const left = computed(() => charsLeft(draft.text));
+/** The characters of a message; the field takes no more (lib/textlimit.ts, as every field with a counter). */
+const limit: TextLimit = { max: LIMITS.message.textMax, measure: trimmedCharacters, kind: "characters" };
+const left = computed(() => leftOf(draft.text, limit));
 /** The name of an (i) for a screen reader: "About Group". */
 const about = (field: MessageId) => t("settings.about", { label: t(field) });
 const rxOnly = useReceiveOnly();
@@ -64,6 +67,7 @@ function submit(): void {
     class="bulletin-compose"
     :label="t('bulletins.post_label')"
     :left="left"
+    :left-max="LIMITS.message.textMax"
     :left-title="leftTitle(left, 'characters', LIMITS.message.textMax)"
     @submit="submit"
   >
@@ -105,7 +109,15 @@ function submit(): void {
     <div class="field">
       <label for="post-text">{{ t("bulletins.text") }}</label>
       <div class="field-control">
-        <input id="post-text" v-model="draft.text" class="input" type="text" autocomplete="off" />
+        <input
+          id="post-text"
+          :value="draft.text"
+          class="input"
+          type="text"
+          autocomplete="off"
+          @input="draft.text = typedInto($event, draft.text, limit)"
+          @compositionend="draft.text = typedInto($event, draft.text, limit)"
+        />
         <InfoTip :label="about('bulletins.text')">{{ t("bulletins.text_tip") }}</InfoTip>
       </div>
     </div>

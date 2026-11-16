@@ -355,15 +355,14 @@ describe("MessagesPane, the box to write in", () => {
     expect(parts).toEqual(["convo-head", "bubbles", "composebar"]);
   });
 
-  it("shows the bytes left of 67 as the text grows, and in orange when there are too many", async () => {
+  it("shows the bytes left of 67 as the text grows, and takes no more", async () => {
     const wrapper = await pane();
     expect(wrapper.find(".compose-left").text()).toBe("67 left");
     await wrapper.find("#msg-text").setValue("hello");
     expect(wrapper.find(".compose-left").text()).toBe("62 left");
-    await wrapper.find("#msg-text").setValue("å".repeat(34));
-    expect(wrapper.find(".compose-left").text()).toBe("1 over");
-    expect(wrapper.find(".compose-left").classes()).toContain("over");
-    expect(wrapper.find(".compose button[type='submit']").attributes("disabled")).toBeDefined();
+    await wrapper.find("#msg-text").setValue("x".repeat(68));
+    expect(wrapper.find<HTMLInputElement>("#msg-text").element.value).toBe("x".repeat(67));
+    expect(wrapper.find(".compose-left").text()).toBe("0 left");
   });
 
   it("sends the text to the station of the conversation, and empties the box", async () => {

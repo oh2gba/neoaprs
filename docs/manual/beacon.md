@@ -86,7 +86,7 @@ Older versions took an empty path to mean none; a database that has one is chang
 
 The same path is what status reports, objects without a path of their own, bulletins and the answers to queries use, and what a message goes by for its last two attempts (below, in [messages](messages.md#how-the-path-of-a-message-is-chosen)).
 
-The **comment** is printable ASCII without `|` and `~`, at most 43 characters, and 36 when the PHG extension is sent. A save that breaks this is refused with the reason, and a beacon whose comment is too long is not sent.
+The **comment** is printable ASCII without `|` and `~`, at most 43 characters, and 36 when the PHG extension is sent. Right of the field the counter says how many are left, as in the box of a message, and the field takes no more: a paste is cut at the limit. A comment that is already longer (a power was set after it) is shown as it is, the counter says how many are over, and it can only be shortened. A save that breaks this is refused with the reason, and a beacon whose comment is too long is not sent.
 
 Your own row on the map is your settings (position, symbol and comment), or the GPS fix for a moving station, never what a packet says. A packet with your own call that you hear back (the TNC may echo what it sends, a digipeater repeats it) only updates the time you were last heard.
 
@@ -238,7 +238,7 @@ A status report is a text line that tells what you are doing. It goes out on the
 
 The tab shows only the fields the choice needs, with **Every** directly under the choice. For a text: **Every** and **Text**. For the radio: **Every**, **Rigctld** and **Text** (the template). While the choice is off only the choice is shown: **Every**, the fields of the sources and the status line with **Send status now** appear as soon as another choice is made. Left empty, the setting follows the others: the radio while `status/rigctld` is set, else the text while there is one, else off. Choosing the radio without a rigctld address is refused with the reason.
 
-**From the radio.** NeoAPRS connects to `host:port` of the rigctld (Hamlib's default is `127.0.0.1:4532`) every 30 seconds, asks the frequency and the mode, and fills in the template. The default template is `QRV {freq} {mode}`. `{freq}` is megahertz with three decimals (`14.074 MHz`), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM`). No other field in braces, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`). With `14074000` Hz and `USB` the frame at 12:00 UTC on the 21st is:
+**From the radio.** NeoAPRS connects to `host:port` of the rigctld (Hamlib's default is `127.0.0.1:4532`) every 30 seconds, asks the frequency and the mode, and fills in the template. The default template is `QRV {freq} {mode}`. `{freq}` is megahertz with three decimals (`14.074 MHz`), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM`). No other field in braces, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`): the counter of **Text** counts them so, and it takes no more. With `14074000` Hz and `USB` the frame at 12:00 UTC on the 21st is:
 
 ```
 OH2GBA>APZNEO,WIDE2-2:>211200zQRV 14.074 MHz USB

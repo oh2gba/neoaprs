@@ -58,8 +58,9 @@ describe("BulletinCompose", () => {
     expect(post.element.disabled).toBe(false);
     expect(wrapper.find(".compose-left").text()).toBe("56 left");
     await text.setValue("x".repeat(68));
-    expect(post.element.disabled).toBe(true);
-    expect(wrapper.find(".compose-left").classes()).toContain("over");
+    expect(text.element.value).toBe("x".repeat(67));
+    expect(wrapper.find(".compose-left").text()).toBe("0 left");
+    expect(post.element.disabled).toBe(false);
     await text.setValue("a|b");
     expect(post.element.disabled).toBe(true);
   });

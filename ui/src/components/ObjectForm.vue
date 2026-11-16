@@ -23,6 +23,7 @@ import { leftTitle } from "@/lib/compose";
 import { placeOfText } from "@/lib/locator";
 import { CATEGORY_CODES, categoryMessage, isStandardCategory } from "@/lib/qrucategories";
 import { commentLimit, draftProblems, draftReady, inForce, NAME_MAX, steppedCourse, steppedSpeed, ticked } from "@/lib/ownobjects";
+import { leftOf, type TextLimit, trimmedCharacters, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
 
 const props = defineProps<{ form: OwnObjectsView; fallbackPath: string }>();
@@ -76,7 +77,9 @@ function choose(value: string): void {
 }
 /** The name of an (i) for a screen reader: "About Path". */
 const about = (field: MessageId) => t("settings.about", { label: t(field) });
-const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
+/** The characters of the comment, fewer behind a course or a speed; the field takes no more (lib/textlimit.ts, as every field with a counter). */
+const limit = computed<TextLimit>(() => ({ max: commentLimit(draft), measure: trimmedCharacters, kind: "comment" }));
+const left = computed(() => leftOf(draft.comment, limit.value));
 </script>
 
 <template>
@@ -84,6 +87,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
     class="objform"
     :label="form.editing === null ? t('objects.form.new') : t('objects.edit_label', { name: form.editing })"
     :left="left"
+    :left-max="LIMITS.object.commentMax"
     :left-title="leftTitle(left, 'comment')"
     @submit="form.save(main?.id ?? null)"
   >
@@ -120,7 +124,15 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
     <div class="field" :class="{ invalid: problems.comment }" :title="problems.comment">
       <label :for="`${id}-comment`">{{ t("objects.field.comment") }}</label>
       <div class="field-control">
-        <input :id="`${id}-comment`" v-model="draft.comment" class="input" type="text" autocomplete="off" />
+        <input
+          :id="`${id}-comment`"
+          :value="draft.comment"
+          class="input"
+          type="text"
+          autocomplete="off"
+          @input="draft.comment = typedInto($event, draft.comment, limit)"
+          @compositionend="draft.comment = typedInto($event, draft.comment, limit)"
+        />
         <InfoTip :label="about('objects.field.comment')"
           ><span class="info-line">{{ t("objects.tip.comment") }}</span></InfoTip
         >

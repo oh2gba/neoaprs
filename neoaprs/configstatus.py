@@ -9,7 +9,7 @@ MAX_STATUS = 55                      # the most characters of the text of a stat
 DEFAULT_STATUS_TEMPLATE = "QRV {freq} {mode}"
 STATUS_SOURCES = ("off", "text", "rig")      # where our status report comes from: nowhere, the text of station/status, or the radio (status/rigctld and status/template)
 STATUS_FIELDS = ("freq", "mode")     # what status/template may name in braces
-_LONGEST_FREQ, _LONGEST_MODE = "1296.000 MHz", "PKTUSB"       # the widest a frequency and a mode come out, to check that a template can fit MAX_STATUS
+LONGEST_FREQ, LONGEST_MODE = "1296.000 MHz", "PKTUSB"         # the widest a frequency and a mode come out, to check that a template can fit MAX_STATUS (also the page's: LIMITS.status)
 _BRACES = re.compile(r"\{([^{}]*)\}")
 
 
@@ -55,7 +55,7 @@ def status_template(text: str) -> str:
     unknown = [name for name in _BRACES.findall(value) if name not in STATUS_FIELDS]
     if unknown:
         raise CodedError(f"{{{unknown[0]}}} is not a field of the template (the fields are {{freq}} and {{mode}})", "setting.template_field", field=unknown[0])
-    size = len(fill_template(value, _LONGEST_FREQ, _LONGEST_MODE))
+    size = len(fill_template(value, LONGEST_FREQ, LONGEST_MODE))
     if size > MAX_STATUS:
         raise CodedError(f"{size} characters with a long frequency and mode is more than the {MAX_STATUS} allowed", "setting.template_long", length=size, max=MAX_STATUS)
     return value
