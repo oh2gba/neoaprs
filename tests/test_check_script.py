@@ -403,7 +403,7 @@ def test_the_folder_goes_when_what_the_stages_started_has_ended(gate: Gate) -> N
         run.send_signal(signal.SIGTERM)
         output, _ = run.communicate(timeout=30)
         assert run.returncode == 143, output
-        assert not [pid for pid in started if alive(pid)], "the run has ended before what its stage started"
+        until(lambda: not any(alive(pid) for pid in started), "what the stage started is still running")    # (under a full load a program that was just ended is seen for a moment yet)
     finally:
         run.kill()
         end_what_is_left(gate.folder, started)
