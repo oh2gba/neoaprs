@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.20.1
+
 Simpler names for the radio types, a Send on for the status text, and small things put right after 0.20.0.
 
 - **New:** 80 m among the suggested HF frequencies: 3.5850 MHz USB.
