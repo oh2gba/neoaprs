@@ -67,7 +67,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.alert.own": "{call}は自局です: 通知は他局に設定します",
   "error.message.control": "テキストに制御文字があります",
   "error.message.empty": "メッセージが空です",
-  "error.message.email_fm_off": "iGateが受信できる無線機がオンになっていません",
   "error.message.forbidden": "テキストに{chars}があります。メッセージでは使えません(使えないのは{forbidden}です)",
   "error.message.not_ascii": {
     select: "chars",

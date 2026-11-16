@@ -1,6 +1,6 @@
 """`state.json` of the support bundle: what the running daemon knows now, the state that a bundle made from the data folder alone cannot have (neoaprs/cli/supportmake.py). It is the values the page is told, built the same way
-(neoaprs/web/views.py): every radio with its line, its latest lines and its beacon (`radios`, by position), the main radio's beacon, the GPS, the base map, the update, and beside them the serial ports
-with who holds them and what the process costs.
+(neoaprs/web/views.py): every radio with its line, its latest lines and its beacon (`radios`, by position), the station's beacon, the GPS, the base map, the update, the radios each object and bulletin of
+ours is set to go out on (`send_on`, by name and by slot), and beside them the serial ports with who holds them and what the process costs.
 
 `live_state` runs on the loop, where the parts are read; the ports are listed in a thread."""
 import asyncio
@@ -46,12 +46,15 @@ def ports_with_holders() -> list[dict[str, Any]]:
 
 
 def beacon_state(server: LiveHost) -> dict[str, Any]:
-    """The station's beacon as the summary says it: the settings, and the main radio's beacon timer (each radio's own is in its entry of `radios`)."""
+    """The station's beacon as the summary says it: the settings, and of the radios the beacon goes out on the latest send (with its reason), the soonest next one and the first problem (each radio's
+    own is in its entry of `radios`)."""
     ctl = server.controller
-    main, c = ctl.radios.main, ctl.config
-    beacon = None if main is None else main.beacon
-    return {"interval_min": c.beacon_interval_min, "mobile": c.mobile, "last_sent": None if beacon is None else iso(beacon.last_sent), "last_reason": "" if beacon is None else beacon.last_reason,
-            "next_due": None if beacon is None else iso(beacon.next_due), "problem": "" if beacon is None else beacon.problem, "transmit_blocked": can_transmit(c)}
+    c, beacons = ctl.config, [radio.beacon for radio in ctl.radios.beaconing()]
+    sent = [beacon for beacon in beacons if beacon.last_sent is not None]
+    latest = max(sent, key=lambda beacon: beacon.last_sent or beacon.clock(), default=None)
+    due = [at for beacon in beacons if (at := beacon.next_due) is not None]
+    return {"interval_min": c.beacon_interval_min, "mobile": c.mobile, "last_sent": None if latest is None else iso(latest.last_sent), "last_reason": "" if latest is None else latest.last_reason,
+            "next_due": iso(min(due, default=None)), "problem": next((beacon.problem for beacon in beacons if beacon.problem), ""), "transmit_blocked": can_transmit(c)}
 
 
 def line_state(tnc: Tnc) -> dict[str, Any]:
@@ -78,7 +81,8 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
         "gps": gps_state(ctl.config, ctl.gps, NO_PLAN if (moving := ctl.moving_beacon()) is None else moving.mobile, None if moving is None else moving.next_due),
         "beacon": beacon_state(server),
         "rig": {"state": rig.rig_state, "last_text": rig.last_text, "last_sent": iso(rig.last_sent_at)},
-        "map": map_state(ctl.mapfetch.status(), ctl.aloha.radius_km),
+        "map": map_state(ctl.mapfetch.status(), ctl.aloha.radii),
+        "send_on": {"objects": {name: list(radios) for name, radios in ctl.ownobjects.radio_sets().items()}, "bulletins": {slot: list(radios) for slot, radios in ctl.ownbulletins.radio_sets().items()}},
         "update": {"latest": None if ctl.updatecheck.latest is None else asdict(ctl.updatecheck.latest), "now": UpdateState.row(ctl.selfupdate.status()),
                    "detail": ctl.selfupdate.status().detail},
     }

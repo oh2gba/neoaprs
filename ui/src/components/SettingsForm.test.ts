@@ -94,11 +94,10 @@ describe("SettingsForm", () => {
         3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
         1 + // (Language)
-        1, // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list"; one radio has no Name and no main radio)
+        1, // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list"; one radio has no Name)
     );
     expect(wrapper.find("#set-igate-password").exists()).toBe(false);
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
-    expect(wrapper.find("#set-station-main_radio").exists()).toBe(false); // (one radio: no main radio; plan section 6 decision 4)
   });
 
   it("has no field for what is fixed or left to the shell: the log time, the daily update check, the page's port and host names", () => {

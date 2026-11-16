@@ -1,4 +1,4 @@
-"""What every type of radio shares: the fields of the operator's choices on a radio (whether the beacon and the status go out on it, the path of our frames, the digipeater), each kept by a type only where it is allowed
+"""What every type of radio shares: the fields of the operator's choices on a radio (whether the beacon, the status, Ask around and Local info's request go out on it, the path of our frames, the digipeater), each kept by a type only where it is allowed
 (`fields_of`), the values of the kinds (`FM_LIMITS`, `HF_LIMITS`, `LORA_LIMITS`, `FM_ALLOWED`, `HF_ALLOWED`, `LORA_ALLOWED`), whose numbers and reasons are neoaprs/radiotype.py's, and what the types
 share whatever their kind (`NOTHING_ALLOWED`, `TERMINAL_ONLY`, `LISTENS`)."""
 from dataclasses import replace
@@ -10,10 +10,13 @@ from neoaprs.radiotype import (FM_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_BEACO
 from neoaprs.tnc2line import MAX_TEXT
 
 BEACON = Field("beacon", "bool", boolean, "true", text="radio.field.beacon")               # the beacon goes out on this radio (Send on)
-STATUS = Field("status", "bool", boolean, "false", text="radio.field.status")              # the status report goes out on this radio (the status's Send on); no radio ticked: the main radio (beaconrule.status_radios)
+STATUS = Field("status", "bool", boolean, "false", text="radio.field.status")              # the status report goes out on this radio (the status's Send on: beaconrule.send_on_radios)
+ASK = Field("ask", "bool", boolean, "false", text="radio.field.ask")                       # Ask around's query goes out on this radio (its Send on), read as the status's
+LOCAL_INFO = Field("local_info", "bool", boolean, "false", text="radio.field.local_info")  # Local info's request INFO goes out on this radio (its Send on), read as the status's
+SEND_ON = (BEACON, STATUS, ASK, LOCAL_INFO)                                                # the Send on of each thing that goes to no station in particular: a tick for each radio that can send
 PATH = Field("path", "path", digipeater_path, "", text="radio.field.path")                 # the digipeaters of our frames on it: empty the recommended path of the symbol, DIRECT none (today's beacon/path)
 DIGIPEAT = Field("digipeat", "bool", boolean, "false", text="radio.field.digipeat")        # the fill-in digipeater repeats what this radio hears (today's digi/enabled)
-COMMON_FIELDS: tuple[Field, ...] = (BEACON, STATUS, PATH, DIGIPEAT)
+COMMON_FIELDS: tuple[Field, ...] = (*SEND_ON, PATH, DIGIPEAT)
 
 NOTHING_ALLOWED = Allowed(paths=False, digipeat=False, smart_beacon=False, gateway_heard=False, shared_channel=False)     # no path, digipeater, SmartBeaconing, gateway or shared channel of ours
 TERMINAL_ONLY = Can(find=False, terminal=True, tune=False, key_test=False, scope=False, tx_gain=False, frequencies=False)    # a Terminal and nothing else to do on the radio
@@ -29,5 +32,5 @@ LORA_PATH = "WIDE1-1"                  # the path of the LoRa networks, which th
 
 
 def fields_of(own: tuple[Field, ...], allowed: Allowed, *, transmit: bool = True) -> tuple[Field, ...]:
-    """A type's fields: its own, then the beacon and the status where it can send (`Can.transmit`), and the path and the digipeater where it is allowed them."""
-    return (*own, *((BEACON, STATUS) if transmit else ()), *((PATH,) if allowed.paths else ()), *((DIGIPEAT,) if allowed.digipeat else ()))
+    """A type's fields: its own, then the Send on of the beacon, the status, Ask around and Local info where it can send (`Can.transmit`), and the path and the digipeater where it is allowed them."""
+    return (*own, *(SEND_ON if transmit else ()), *((PATH,) if allowed.paths else ()), *((DIGIPEAT,) if allowed.digipeat else ()))

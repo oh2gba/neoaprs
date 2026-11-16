@@ -62,9 +62,9 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     assert list(stations) == ["OH2GBA"] and stations["OH2GBA"]["is_me"] is True and stations["OH2GBA"]["distance_km"] is None
     assert states["packets"]["value"] == {}
     assert states["radios"]["value"]["1"]["state"] == "connected" and list(states["radios"]["value"]) == ["1"]
-    config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key in CONFIG_KEYS}      # (station/main_radio is told in radio_values, and every radio's own setting)
+    config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key in CONFIG_KEYS}      # (email/radio is told in radio_values, and every radio's own setting)
     assert {key: config[key] for key in ("values", "defaults", "urls", "https")} == {"values": wire({**DEFAULTS.to_data(), **OPERATOR}), "defaults": wire(DEFAULTS.to_data()), "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "reason": ""}}
-    assert config["radio_values"]["station/main_radio"] == "" and config["radio_values"]["radio/1/path"] == OPERATOR["beacon/path"] and set(config["radio_values"]) == set(config["radio_defaults"])
+    assert config["radio_values"]["email/radio"] == "" and "station/main_radio" not in config["radio_values"] and config["radio_values"]["radio/1/path"] == OPERATOR["beacon/path"] and set(config["radio_values"]) == set(config["radio_defaults"])
     assert states["messages"]["value"] == {} and states["station_prefs"]["value"] == {}
     for name, message in states.items():
         TOPIC_VALUES[name].validate_json(json.dumps(message["value"]))                       # the value is of the type TopicValues says

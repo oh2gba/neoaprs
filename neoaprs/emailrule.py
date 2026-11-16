@@ -1,11 +1,13 @@
-"""The radio an email goes out on (plan rule 3.5), as one function of the radios there are and the main radio: the radio registry's `email()` and the status of the page read it, and the services send on it.
+"""The radio an email goes out on (plan rule 3.5), as one function of the radios there are and the operator's choice (`email/radio`, the select of the E-mail tab): the radio registry's `email()` and the
+status of the page read it, and the services send on it.
 
-An email is a message to the gateway EMAIL-2, a station of the internet: it arrives only where an internet gateway (an iGate) hears the frame. Whether gateways hear a radio is its type's (`Allowed.gateway_heard`:
-the FM types yes, the HF ones no). So the email goes on the main radio when gateways hear it, else on the first enabled radio that they hear (by position), else on none, and then a mail is refused. With the radios
-of today this is what it always was: the FM radio while it is on, else none. A radio whose type is not known is heard by no gateway. No I/O."""
+An email is one message to the gateway EMAIL-2, and it goes out once, on one radio. Only the radios that are enabled and can send count (`radiospec.senders`), of any kind. With one of them, that one,
+whatever is stored (the page then shows no choice). Else the radio chosen while it is one of them. Else (no choice stored, or one that names a radio that is off) the first radio that can send, in the order
+of the boxes (`radiospec.unheard_radio`). None only while no radio that can send is on. Migration 34 stored the radio a mail went on before there was a choice, and a radio that comes on beside it keeps
+it there (neoaprs/sendonrule.py). Whether internet gateways hear a radio's type (`gateway_heard`) the page shows; it chooses nothing. No I/O."""
 from collections.abc import Iterable
 
-from .radiospec import RadioId, RadioSpec, senders
+from .radiospec import RadioId, RadioSpec, senders, unheard_radio
 from .radiotype import RadioTypeError
 
 
@@ -17,9 +19,12 @@ def gateway_heard(spec: RadioSpec) -> bool:
         return False
 
 
-def email_radio(specs: Iterable[RadioSpec], main: RadioId | None) -> RadioId | None:
-    """The id of the radio an email goes out on: the main radio while gateways hear it, else the first enabled radio by position that gateways hear; None when no enabled radio is heard by one."""
-    heard = [spec.id for spec in senders(specs) if gateway_heard(spec)]
-    if main is not None and main in heard:
-        return main
-    return heard[0] if heard else None
+def email_radio(specs: Iterable[RadioSpec], chosen: RadioId | None) -> RadioId | None:
+    """The id of the radio an email goes out on: the one radio that can send; else the one chosen while it is on and can send; else the first radio that can send. None while no radio that can send is on."""
+    pool = list(specs)
+    on = [spec.id for spec in senders(pool)]
+    if len(on) == 1:
+        return on[0]
+    if chosen is not None and chosen in on:
+        return chosen
+    return unheard_radio(pool)

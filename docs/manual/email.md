@@ -20,7 +20,7 @@ The tab is a mail list, not a conversation. It has one row for each message to o
 
 - Check email asks the gateway to send again the mail it kept for you. The list shows a row "Checked email" with its state.
 - It is off while the radio of email is not connected, and it says "Already checking" while an earlier question is still being sent, so the gateway is not asked twice.
-- While several radios are on, the tag of the radio email goes on stands beside it (its hover text: "Email goes on radio FM").
+- While several radios that can send are on, a list of them stands beside it: it chooses the radio email goes on ([below](#which-radio)).
 
 **At the bottom**, always there, is the group box **Write an email**, a row for each field with an (i) after it:
 
@@ -28,7 +28,18 @@ The tab is a mail list, not a conversation. It has one row for each message to o
 - **Text** and "N left", the characters left of the 67 over the address, the space and the text.
 - **Send** at the lower right. It is off while the radio of email is not connected, the address or the text is empty, the address has a space in it, or the line is more than 67 bytes. After Send the text is empty again and the address stays, for the next mail to the same person.
 
-**The radio of email** is one that internet gateways hear: an FM or a LoRa radio, never a Mercury radio, which no iGate hears. It is the [main radio](radio.md#the-main-radio) when that is such a radio, else the first such radio that is on. While none is on, Send and Check email are off with the title "No radio that internet gateways hear is on".
+## Which radio
+
+Email goes on one radio, and a mail goes out once. With one radio on that can send, it is that radio and there is nothing to choose.
+
+With several, the list beside **Check email** has every radio that is on and can send, by its name, whatever its kind: FM, Mercury or LoRa. The one you pick carries every mail and Check email from then on, and a mail that is still being sent takes it from its next attempt. The choice is kept across a restart (`email/radio`, [settings.md](settings.md)).
+
+- Until you pick one, email goes on the radio that can send whose box is highest in Settings → Radio ([radio.md](radio.md#what-goes-on-which-radio)). A radio you add or switch on does not move it: the radio it went on is then kept as your pick.
+- While the radio you picked is off, the list shows the radio email goes on meanwhile, chosen as if you had picked none. Your choice is back when that radio is on again.
+- Send and Check email follow that one radio: they are off while it is not connected ("FM: not connected"), though another radio is.
+- A mail arrives only where an iGate hears the radio it goes on.
+
+In the Stations tab, the Route of `EMAIL-2` shows this radio greyed. It is chosen here and nowhere else.
 
 ## The rows
 

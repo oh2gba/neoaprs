@@ -193,7 +193,7 @@ class Beacon:
         stopped, and its line takes no frame."""
         c = self._config()
         spec = c.radio(self._radio.id)
-        return spec is None or not spec.enabled or spec.id in beacon_radios(c.radios, c.main_radio)
+        return spec is None or not spec.enabled or spec.id in beacon_radios(c.radios)
 
     @property
     def interval_min(self) -> int:

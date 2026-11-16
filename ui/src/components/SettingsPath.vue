@@ -3,7 +3,7 @@
 // the custom calls apply on Enter or when the field is left (`commit`), and Esc (`cancel`) puts the path in force back. A path that is neither of the first two (WIDE2-2) shows as Custom with its calls in the field. An empty custom
 // field is the recommended path again. The path builder's button (PathBuilder) beside the choice builds a path from the one in force, held to the setting's rule; Use applies it at once, as a choice does (DIRECT is Direct only).
 // With the radios: a Path row for each radio that is on and may carry a path (lib/beaconstatus.ts `pathRows`), each named while several radios are on ("FM: path") and each the radio's own setting (`radio/<id>/path`),
-// worked on the page's settings as the form works its fields. A page with no context has the one row of the props.
+// worked on the page's settings as the form works its fields; each row's Recommended is the path that radio really takes while its own is empty (a LoRa radio's WIDE1-1, else the station's symbol's). A page with no context has the one row of the props.
 import { computed, inject, ref, watch } from "vue";
 import PathBuilder from "@/components/PathBuilder.vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -13,7 +13,7 @@ import { t } from "@/i18n";
 import { pathRows, radioValueOf } from "@/lib/beaconstatus";
 import { DIRECT, callListText } from "@/lib/calls";
 import { problemOf } from "@/lib/fieldcheck";
-import { fieldId } from "@/lib/radios";
+import { fieldId, recommendedFor } from "@/lib/radios";
 import type { Choice } from "@/lib/settingchoices";
 import type { FieldInfo } from "@/lib/settings";
 
@@ -40,6 +40,11 @@ const valueOf = (key: string): string => settings?.draft[key] ?? inForce(key);
 const changedOf = (key: string): boolean => settings !== undefined && valueOf(key) !== settings.expected(key);
 const infoOf = (name: string | null): FieldInfo => (name === null ? props.info : { ...props.info, label: t("settings.path.on_radio", { name }) });
 const idOf = (key: string): string => `set-${fieldId(key)}`;
+/** What a radio's Recommended is: the path its type recommends (LoRa WIDE1-1), else the station's symbol's, the one of the props: what the daemon sends on it while its own path is empty. */
+const recommendedOf = (id: number): string => {
+  const radio = radios.byId(id);
+  return radio === undefined ? props.recommended : recommendedFor(radio, props.recommended);
+};
 /** A radio's typed path is checked as the beacon's is (the setting's rule), and sent. */
 function commitRow(key: string): void {
   if (settings === undefined) return;
@@ -153,7 +158,7 @@ watch(
       :model-value="valueOf(one.key)"
       :error="settings.errors[one.key] ?? ''"
       :changed="changedOf(one.key)"
-      :recommended="recommended"
+      :recommended="recommendedOf(one.radio)"
       :disabled="disabled"
       @update:model-value="settings.edit(one.key, $event)"
       @choose="settings.change({ [one.key]: $event })"

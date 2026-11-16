@@ -306,7 +306,7 @@ describe("useSettings: no toast", () => {
   });
 });
 
-// The radios' own settings (`radio/3/port`) and the main radio, which the daemon tells apart in `config.radio_values`: the form works them as it works the others.
+// The radios' own settings (`radio/3/port`) and the station's (`email/radio`), which the daemon tells apart in `config.radio_values`: the form works them as it works the others.
 describe("useSettings: the radios' own settings", () => {
   const withOwn = (config: ConfigValues, own: Record<string, string>): ConfigValues => ({
     ...config,
@@ -318,7 +318,7 @@ describe("useSettings: the radios' own settings", () => {
     const { config, settings, sets } = setUp();
     config.value = withOwn(configValues(), { "radio/3/port": "/dev/ttyACM0", "radio/3/baud": "" });
     return nextTick().then(() => {
-      expect([settings.draft["radio/3/port"], settings.draft["station/main_radio"], settings.draft["station/call"]]).toEqual(["/dev/ttyACM0", "", "OH2GBA"]);
+      expect([settings.draft["radio/3/port"], settings.draft["email/radio"], settings.draft["station/call"]]).toEqual(["/dev/ttyACM0", "", "OH2GBA"]);
       expect(settings.defaults.value["radio/3/baud"]).toBe("9600");
       settings.change({ "radio/3/port": "/dev/ttyUSB1" });
       expect(sets()).toEqual([{ "radio/3/port": "/dev/ttyUSB1" }]);

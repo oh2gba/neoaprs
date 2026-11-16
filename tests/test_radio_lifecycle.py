@@ -84,7 +84,7 @@ async def test_the_last_enabled_radio_is_neither_switched_off_nor_removed(tmp_pa
     with pytest.raises(RadioError, match="last one that is enabled"):
         await e.ctl.change_radio(id, enabled=False)
     await until(lambda: e.tnc.state is Source.State.STOPPED)
-    assert [s.id for s in e.ctl.config.enabled_radios] == [id] and e.ctl.radios.main is e.ctl.radios.get(id), "radio 1 is stopped, the other is the main radio"
+    assert [s.id for s in e.ctl.config.enabled_radios] == [id] and e.ctl.radios.senders() == [e.ctl.radios.get(id)], "radio 1 is stopped, the other sends"
     await e.stop()
 
 
@@ -267,7 +267,7 @@ async def test_a_stored_radio_of_a_type_this_build_does_not_know_is_left_off_and
     try:
         await ctl.start()
         assert [r.id for r in ctl.radios.all()] == [FM_ID] and ctl.radios.get(2) is None
-        assert [r.id for r in ctl.radios.senders()] == [FM_ID] and ctl.radios.main is ctl.radios.get(FM_ID) and [r.id for r in ctl.radios.beaconing()] == [FM_ID]
+        assert [r.id for r in ctl.radios.senders()] == [FM_ID] and ctl.radios.senders()[0] is ctl.radios.get(FM_ID) and [r.id for r in ctl.radios.beaconing()] == [FM_ID]
         assert "radio 2 is of the type carrier-pigeon, which this NeoAPRS does not have: it is left off" in caplog.text
         assert await ctl.change_radio(FM_ID, name="Base"), "a save with the radio of the unknown type among the settings"
         assert ctl.radios.get(2) is None and caplog.text.count("which this NeoAPRS does not have") == 1, "told once"

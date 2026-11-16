@@ -34,7 +34,6 @@
  "message.bad_text": {"params": [], "text": ["the text has a character a message cannot carry, or is too long"]},
  "message.busy": {"params": ["count"], "text": ["{count} messages are being sent at once: no message id is free"]},
  "message.control": {"params": [], "text": ["the text has a control character"]},
- "message.email_fm_off": {"params": [], "text": ["email goes out over the FM radio, which is off", "no radio that internet gateways hear is on"]},
  "message.empty": {"params": [], "text": ["the message is empty"]},
  "message.forbidden": {"params": ["chars"], "text": ["the text has {chars}, which a message cannot carry ({*} are not allowed)"]},
  "message.not_ascii": {"params": ["chars"], "text": ["the text has {*} that is not printable ASCII: a message carries printable ASCII only"]},

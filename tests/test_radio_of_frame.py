@@ -207,7 +207,7 @@ async def test_with_one_radio_enabled_an_object_goes_on_it_whatever_it_was_given
     radios = Lines(only_hf)
     objects = await objects_on(tmp_path, radios, only_hf)
     objects.set("FMSAID", "object", 61.5, 23.9, "/", ">", "said fm", radios=(FM_ID,))
-    assert objects.tick() and [f.info[:8] for f in radios[HF_ID].sent] == [b";FMSAID "] and radios[FM_ID].sent == [], "the main radio, the HF one, takes it"
+    assert objects.tick() and [f.info[:8] for f in radios[HF_ID].sent] == [b";FMSAID "] and radios[FM_ID].sent == [], "the one radio that is on, the HF one, takes it"
     assert objects.get("FMSAID").radios == (FM_ID,), "the choice is kept for the day the FM radio is on"       # type: ignore[union-attr]
     none = replace(only_hf, hf_enabled=False)                               # (no radio at all: what the settings refuse, and a fresh installation of the round)
     (tmp_path / "none").mkdir()
@@ -293,7 +293,8 @@ async def test_the_general_query_and_the_heard_query_asked_over_hf_are_answered_
 
 def test_the_status_report_is_built_for_the_radio_it_goes_on() -> None:
     rig = Rig()
-    rig.radios.enabled, rig.pick.on = {"hf"}, {HF_ID}                       # (the FM radio off: the default radio is the HF one)
+    rig.radios.enabled, rig.pick.on = {"hf"}, {HF_ID}                       # (the FM radio off: the HF radio is the one that sends)
+    rig.set(fm_enabled=False)
     assert rig.status._try("QRV 14.074 MHz USB") == ""
     [frame] = rig.radios.hf.sent
     assert frame.path == () and len(ax25.encode(frame)) <= 60 and rig.radios.fm.sent == []

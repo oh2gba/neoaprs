@@ -1,7 +1,9 @@
-// The radio a conversation's messages go on, as the daemon says it (composables/useStationRadio.ts): that of a message on its way, else the station's radio now, else for a call the book does not hold the main radio; the
+// The radio a conversation's messages go on, as the daemon says it (composables/useStationRadio.ts): that of a message on its way, else the station's radio now, else for a call the book does not hold the radio the daemon
+// names for a call no radio heard (`status.unheard_radio`), which Route shows as what Automatic gives before Send; the
 // operator's choice in force comes before all, as it holds for a message on its way from its next attempt. Where more than one radio is on the header names it with a tag (the room of a name of eight characters kept), Send
 // waits for its link and says so with its name, and the bubbles of messages that came in name theirs; with one radio on none is named, and a message that came on a radio that is not on (off, removed) always is. The Email
-// tab goes on the daemon's email radio, named beside Check email where radios are named, and is off with its reason while there is none; a mail that came in names the radio it came on as a bubble does.
+// tab goes on the daemon's email radio, which a list beside Check email chooses while several radios that can send are on (every such radio, of any kind; `email/radio`), and is off with its reason while that radio is not
+// connected or there is none; a mail that came in names the radio it came on as a bubble does.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { mount } from "@vue/test-utils";
@@ -12,7 +14,7 @@ import ConversationView from "@/components/ConversationView.vue";
 import EmailPane from "@/components/EmailPane.vue";
 import type { MessageRow, RadioRow, StationRow } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { heardBy, incoming, message, radioRow, radiosTopic, station, status } from "@/test/fixtures";
+import { configValues, heardBy, incoming, message, radioRow, radiosTopic, station, status } from "@/test/fixtures";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => document.body.replaceChildren());
@@ -71,14 +73,39 @@ describe("the radio of a conversation", () => {
     expect(named(header("OH2RDG", [{ ...pressedFm, radio_choice: 2, radio_now: 2 }], [{ ...sending, radio_id: 1, radio_now: 1 }]))).toBe("Mercury");
   });
 
-  it("is the main radio for a call nothing is known of, and for a row that names none", async () => {
-    const hf = header("OH2NEW", [], [], { status: status({ main_radio: 2 }) });
+  it("is, for a call nothing is known of and for a row that names none, the radio the daemon names for a call no radio heard", async () => {
+    const hf = header("OH2NEW", [], [], { status: status({ unheard_radio: 2 }) });
     expect([named(hf), hasRoute(hf)]).toEqual(["Mercury", true]);
     await hf.find(".route-button").trigger("click");
     const path = hf.find<HTMLInputElement>(".route-box .pathbox input[type='text']");
     expect([path.element.disabled, path.attributes("title")]).toEqual([true, "Mercury: no path"]);
-    expect(named(header("OH2NEW", [], [], { status: status({ main_radio: 1 }) }))).toBe("FM");
-    expect(named(header("OH2NET", [station("OH2NET", { can_message: false, radio_now: null })], [], { status: status({ main_radio: 2 }) }))).toBe("Mercury");
+    expect(named(header("OH2NEW", [], [], { status: status({ unheard_radio: 1 }) }))).toBe("FM");
+    expect(named(header("OH2NET", [station("OH2NET", { can_message: false, radio_now: null })], [], { status: status({ unheard_radio: 2 }) }))).toBe("Mercury");
+  });
+
+  it('shows in Route, before Send, which radio Automatic gives a call no radio heard: the row greyed on "Automatic: NAME", in the page\'s own words', async () => {
+    const route = async (given: Given) => {
+      const wrapper = header("OH2NEW", [], [], given);
+      await wrapper.find(".route-button").trigger("click");
+      const list = wrapper.find<HTMLSelectElement>(".route-box select.route-radio-pick");
+      if (!list.exists()) return null;
+      return [list.element.disabled, list.element.selectedOptions[0]?.text, list.findAll("option").map((option) => option.text())];
+    };
+    expect(await route({ status: status({ unheard_radio: 2 }) })).toEqual([true, "Automatic: Mercury", ["Automatic: Mercury", "FM", "Mercury"]]);
+    expect(await route({ status: status({ unheard_radio: 1 }) })).toEqual([true, "Automatic: FM", ["Automatic: FM", "FM", "Mercury"]]);
+    expect((await route({ radios: SIX, status: status({ unheard_radio: 6 }) }))?.[1]).toBe("Automatic: 80 m");
+    expect(await route({ radios: HF_OFF, status: status({ unheard_radio: 1 }) })).toBeNull(); // (one radio that can send: no row)
+  });
+
+  it("names the radio of a text to CQ, which is no station, as it does a call no radio heard", async () => {
+    const wrapper = header("CQ", [], [], { status: status({ unheard_radio: 2 }) });
+    expect(named(wrapper)).toBe("Mercury");
+    expect(await sendOf(wrapper)).toEqual([false, undefined]);
+    const down = header("CQ", [], [], {
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { state: "waiting" })),
+      status: status({ unheard_radio: 2 }),
+    });
+    expect(await sendOf(down)).toEqual([true, "Mercury: not connected"]);
   });
 
   it("is any radio the daemon says, a third one too, by the name the operator gave it", () => {
@@ -227,30 +254,113 @@ describe("a message that came in", () => {
 });
 
 describe("the radio of email", () => {
-  const pane = (given: Given) => mount(EmailPane, { props: { thread: [], addresses: [] }, global: withDaemon(fakeDaemon(given)), attachTo: document.body });
+  const mount_ = (given: Given) => {
+    const daemon = fakeDaemon(given);
+    return { daemon, wrapper: mount(EmailPane, { props: { thread: [], addresses: [] }, global: withDaemon(daemon), attachTo: document.body }) };
+  };
+  const pane = (given: Given) => mount_(given).wrapper;
   const check = (wrapper: ReturnType<typeof pane>) => {
     const button = wrapper.findAll("button").find((b) => b.text() === "Check email");
     return [button?.element.disabled, button?.attributes("title")];
   };
-  const mailTag = (wrapper: ReturnType<typeof pane>) => wrapper.find(".mail-bar .mail-radio");
+  const list = (wrapper: ReturnType<typeof pane>) => wrapper.find<HTMLSelectElement>(".mail-bar select.mail-radio");
+  const offered = (wrapper: ReturnType<typeof pane>) =>
+    list(wrapper)
+      .findAll("option")
+      .map((option) => option.text());
+  const sendOfMail = async (wrapper: ReturnType<typeof pane>) => {
+    await wrapper.find("#mail-to").setValue("a@example.org");
+    await wrapper.find("#mail-text").setValue("hello");
+    const send = wrapper.find<HTMLButtonElement>(".mailform button[type='submit']");
+    return [send.element.disabled, send.attributes("title")];
+  };
+  /** Six radios with a monitor that only receives (7) and a radio that is off (8) beside them. */
+  const EIGHT = radiosTopic(
+    ...SIX.values(),
+    radioRow(7, "tnc-text", { name: "FTM", number: 4 }),
+    radioRow(8, "dummy-lora", { name: "Bike", enabled: false, state: "stopped" }),
+  );
 
-  it("is named beside Check email where radios are named: the daemon's email radio", () => {
-    const wrapper = pane({ radios: SIX, status: status({ email_radio: 3 }) });
-    expect([mailTag(wrapper).text(), mailTag(wrapper).attributes("title")]).toEqual(["Mobile", "Email goes on radio Mobile"]);
+  it("is chosen in a list beside Check email while several radios that can send are on: every such radio by its name, of any kind, and the daemon's email radio shown", () => {
+    const wrapper = pane({ radios: EIGHT, status: status({ email_radio: 3 }) });
+    expect(offered(wrapper)).toEqual(["Shack", "20 m", "Mobile", "40 m", "Portable", "80 m"]);
+    expect([list(wrapper).element.value, list(wrapper).element.selectedOptions[0]?.text]).toEqual(["3", "Mobile"]);
+    expect([list(wrapper).attributes("aria-label"), list(wrapper).attributes("title"), list(wrapper).classes()]).toEqual([
+      "Radio",
+      undefined,
+      ["input", "mail-radio"],
+    ]);
     expect(check(wrapper)).toEqual([false, undefined]);
+    expect(wrapper.find(".mail-bar .tag").exists()).toBe(false);
   });
 
-  it("is not named with one radio on, as today", () => {
-    expect(mailTag(pane({ radios: HF_OFF })).exists()).toBe(false);
+  it("stores the radio picked at once as `email/radio`, shows it while the daemon is asked, and follows the daemon's email radio after", async () => {
+    const { daemon, wrapper } = mount_({ radios: BOTH, status: status({ email_radio: 1 }) });
+    expect(list(wrapper).element.value).toBe("1");
+    await list(wrapper).setValue("2");
+    expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "email/radio": "2" } });
+    expect(list(wrapper).element.value).toBe("2");
+    await tell(daemon, { config: configValues({}, { "email/radio": "2" }), status: status({ email_radio: 2 }) });
+    expect([list(wrapper).element.value, list(wrapper).element.selectedOptions[0]?.text]).toEqual(["2", "Mercury"]);
+    expect(daemon.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the radio in force while the one stored is off: the list has the radios that are on, and the stored one comes back with its radio", async () => {
+    const stored = configValues({}, { "email/radio": "2" });
+    const { daemon, wrapper } = mount_({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }), radioRow(3, "dummy-lora")),
+      config: stored,
+      status: status({ email_radio: 1 }),
+    });
+    expect([offered(wrapper), list(wrapper).element.value]).toEqual([["FM", "LoRa"], "1"]);
+    await tell(daemon, {
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "dummy-lora")),
+      status: status({ email_radio: 2 }),
+    });
+    expect([offered(wrapper), list(wrapper).element.value]).toEqual([["FM", "Mercury", "LoRa"], "2"]);
+    expect(daemon.send).not.toHaveBeenCalled();
+  });
+
+  it("has no list with one radio that can send, a monitor beside it or not: email goes on that radio and nothing is shown", async () => {
+    for (const radios of [HF_OFF, FM_OFF, radiosTopic(radioRow(2, "mercury"), radioRow(7, "tnc-text", { name: "FTM" }))]) {
+      const wrapper = pane({ radios, status: status({ email_radio: [...radios.values()].find((row) => row.enabled && row.can.transmit)?.id ?? null }) });
+      expect([list(wrapper).exists(), wrapper.find(".mail-bar .tag").exists()]).toEqual([false, false]);
+      expect(check(wrapper)).toEqual([false, undefined]);
+      expect(await sendOfMail(wrapper)).toEqual([false, undefined]);
+      wrapper.unmount();
+    }
+  });
+
+  it("takes the same room whichever radio is chosen: the list beside the button, then the room, then the (i), and no line of words", async () => {
+    const { daemon, wrapper } = mount_({ radios: SIX, status: status({ email_radio: 1 }) });
+    const bar = () => [...wrapper.find(".mail-bar").element.children].map((e) => `${e.tagName.toLowerCase()}.${e.className.split(" ").join(".")}`);
+    const before = bar();
+    expect(before).toEqual(["button.btn", "select.input.mail-radio", "span.grow", "span.infotip"]);
+    await list(wrapper).setValue("6");
+    await tell(daemon, { status: status({ email_radio: 6 }) });
+    expect(bar()).toEqual(before);
+    expect(wrapper.find(".mail-bar").text()).toBe("Check emailShack20 mMobile40 mPortable80 mi");
+    const sheet = readFileSync(resolve(__dirname, "../styles/email.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(sheet.match(/\.mail-radio \{([^}]*)\}/)?.[1]).toContain("flex: none");
   });
 
   it("keeps Check email and Send off while its radio is not connected, saying which", async () => {
     const wrapper = pane({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")) });
     expect(check(wrapper)).toEqual([true, "FM: not connected"]);
-    await wrapper.find("#mail-to").setValue("a@example.org");
-    await wrapper.find("#mail-text").setValue("hello");
-    const send = wrapper.find<HTMLButtonElement>(".mailform button[type='submit']");
-    expect([send.element.disabled, send.attributes("title")]).toEqual([true, "FM: not connected"]);
+    expect(await sendOfMail(wrapper)).toEqual([true, "FM: not connected"]);
+  });
+
+  it("has Send on while the radio chosen takes frames, a Mercury radio too, and off while that one is not connected though another is", async () => {
+    const up = pane({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")), status: status({ email_radio: 2 }) });
+    expect([check(up), await sendOfMail(up)]).toEqual([
+      [false, undefined],
+      [false, undefined],
+    ]);
+    const down = pane({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { state: "waiting" })), status: status({ email_radio: 2 }) });
+    expect([check(down), await sendOfMail(down)]).toEqual([
+      [true, "Mercury: not connected"],
+      [true, "Mercury: not connected"],
+    ]);
   });
 
   it("holds Retry of a mail while its radio is not connected", () => {
@@ -280,8 +390,17 @@ describe("the radio of email", () => {
     expect(wrapper.find(".mail-detail").text()).not.toContain("FM");
   });
 
-  it("goes over Mercury never: with no radio internet gateways hear on, both are off with that reason", () => {
-    expect(check(pane({ radios: FM_OFF, status: status({ email_radio: null }) }))).toEqual([true, "No radio that internet gateways hear is on"]);
+  it("goes over Mercury where that is the one radio that can send, and is off with the reason of every send while no radio is on", async () => {
+    const hfAlone = pane({ radios: FM_OFF, status: status({ email_radio: 2 }) });
+    expect([check(hfAlone), await sendOfMail(hfAlone)]).toEqual([
+      [false, undefined],
+      [false, undefined],
+    ]);
+    const none = radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
+    const off = pane({ radios: none, status: status({ email_radio: null }) });
+    expect(check(off)).toEqual([true, "there is no radio: add one, or turn one on"]);
+    expect(await sendOfMail(off)).toEqual([true, "there is no radio: add one, or turn one on"]);
+    expect(list(off).exists()).toBe(false);
   });
 });
 

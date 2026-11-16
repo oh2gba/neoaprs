@@ -1,5 +1,5 @@
 // The Radio group and the Digipeater group of the Settings tab with any number of radios (plan sections 6 and 6a): a box for each radio that is not removed, its Enable, its Name and Remove while the station has several
-// radios, its status and behind the arrow its type, its fields and what its type can do, each sent by its own radio's id; the main radio after the last box while more than one radio is on; Add radio last; one Digipeater Enable for each radio that may repeat.
+// radios, its status and behind the arrow its type, its fields and what its type can do, each sent by its own radio's id; Add radio right after the last box, no radio of the station chosen above the others; one Digipeater Enable for each radio that may repeat.
 // A station of six radios with the page set for a phone (375 px; jsdom has no layout, so what fits is the browser's to show), and a station whose database has radio 1 alone.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -75,7 +75,7 @@ function make(more: Given = {}, values: Record<string, string> = {}) {
     config: sixSettings(values),
     radios: sixRadios(),
     ports,
-    status: status({ main_radio: 1 }),
+    status: status({ unheard_radio: 1 }),
     ...more,
   });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
@@ -107,14 +107,13 @@ afterEach(() => {
 });
 
 describe("the Radio group of a station of six radios", () => {
-  it("has RX only, then a box for each radio in the daemon's order, then the main radio, then Add radio", () => {
+  it("has RX only, then a box for each radio in the daemon's order, then Add radio, and no radio of the station chosen above the others", () => {
     const { group } = make();
     const rows = [...group().element.querySelector(".group-body")!.children];
     expect(rows[0]?.querySelector("label")?.textContent).toBe("RX only");
-    expect(rows.slice(1, -2).map((row) => (row.matches("fieldset.subbox") ? row.querySelector("legend")?.textContent : "")?.trim())).toEqual(LEGENDS);
-    expect(rows.at(-2)?.querySelector("label")?.textContent).toBe("Main radio");
-    expect(rows.at(-2)?.contains(document.getElementById("set-station-main_radio"))).toBe(true);
+    expect(rows.slice(1, -1).map((row) => (row.matches("fieldset.subbox") ? row.querySelector("legend")?.textContent : "")?.trim())).toEqual(LEGENDS);
     expect(rows.at(-1)?.querySelector("label")?.textContent).toBe("Add radio");
+    expect(rows.at(-2)?.matches("fieldset.subbox")).toBe(true);
   });
 
   it("has in each box its Enable first, then its Name with Remove, then its status, and the Name's placeholder is what the radio is called without one", () => {
@@ -167,27 +166,6 @@ describe("the Radio group of a station of six radios", () => {
       expect(ids, id).toContain(id);
     expect(ids).not.toContain("set-radio-5-port"); // (a TNC over TCP has its host and port, not a serial port)
     expect(ids).not.toContain("set-radio-4-tune"); // (the Dummy HF radio has no modem to tune)
-  });
-
-  it("has the main radio as a choice of the radios that are on, by name, showing the one in force, and sends the one chosen as any setting", async () => {
-    const { group, send } = make();
-    const select = group().find<HTMLSelectElement>("#set-station-main_radio");
-    expect([...select.element.options].map((o) => o.text)).toEqual(["FM", "Mercury", "Mobile", "20 m", "FM 3", "WWWWWWWW"]);
-    expect(select.element.value).toBe("1");
-    await select.setValue("3");
-    expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "station/main_radio": "3" } });
-  });
-
-  it("shows the main radio the setting names while that radio is on, and the one in force while it names one that is off", () => {
-    const on = make({ config: { ...sixSettings(), radio_values: { ...sixSettings().radio_values, "station/main_radio": "3" } } });
-    expect(on.group().find<HTMLSelectElement>("#set-station-main_radio").element.value).toBe("3");
-    on.wrapper.unmount();
-    const off = make({
-      config: { ...sixSettings(), radio_values: { ...sixSettings().radio_values, "station/main_radio": "3" } },
-      radios: sixRadios({ 3: { enabled: false, state: "stopped" } }),
-      status: status({ main_radio: 2 }),
-    });
-    expect(off.group().find<HTMLSelectElement>("#set-station-main_radio").element.value).toBe("2");
   });
 
   it("has the rules of settings.css that keep a Name of eight letters whole, wrap Remove and Add under their field where the row is narrow, and never cut a legend", () => {
@@ -382,7 +360,7 @@ describe("a radio other than those of before, in its box", () => {
 
   it("asks for its own ports, finds itself, and tunes and keys its own modem", async () => {
     const searches = shallowRef<RadioSearchMessage | null>(null);
-    const daemon = fakeDaemon({ config: sixSettings(), radios: sixRadios(), ports, status: status({ main_radio: 1 }) });
+    const daemon = fakeDaemon({ config: sixSettings(), radios: sixRadios(), ports, status: status({ unheard_radio: 1 }) });
     const find = useFindRadio(searches, daemon.lastError, shallowRef("open"), daemon.send, daemon.settings, daemon.config, daemon.say);
     const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon({ ...daemon, findRadio: find }), attachTo: document.body });
     await wrapper.find("#set-radio-6-txlevel-up").trigger("click");
@@ -458,12 +436,10 @@ describe("a radio that is off, removed or the only one on", () => {
     ).toEqual(LEGENDS.slice(0, 5));
   });
 
-  it("greys the Enable of the only radio on and turns its Remove off; with one radio on there is no main radio, and every box keeps its Name", () => {
-    // (plan section 6: Name and Remove "outside the status fold, so that a radio that is off can be renamed and removed"; decision 4: the main radio "shown only with several radios", several on)
+  it("greys the Enable of the only radio on and turns its Remove off, and every box keeps its Name", () => {
+    // (plan section 6: Name and Remove "outside the status fold, so that a radio that is off can be renamed and removed")
     const off = { enabled: false, state: "stopped" } as const;
     const { group, box } = make({ radios: sixRadios({ 2: off, 3: off, 4: off, 5: off, 6: off }) });
-    expect(group().find("#set-station-main_radio").exists()).toBe(false);
-    expect(group().text()).not.toContain("Main radio");
     expect(group().find<HTMLInputElement>("#set-radio-3-name").exists()).toBe(true);
     expect(group().find<HTMLButtonElement>("#set-radio-3-remove").element.disabled).toBe(false);
     expect(group().find<HTMLButtonElement>("#set-radio-1-remove").element.disabled).toBe(true);
@@ -570,13 +546,13 @@ describe("a radio that is off, removed or the only one on", () => {
     const unsent = make({ radios: alone, send: vi.fn(() => false) });
     await unsent.box("Mobile").find("#set-radio-3-enabled").setValue(true);
     expect(unsent.send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, enabled: true });
-    expect([ticked(unsent), onlyOne(unsent), unsent.group().find("#set-station-main_radio").exists()]).toEqual([false, true, false]);
+    expect([ticked(unsent), onlyOne(unsent)]).toEqual([false, true]);
     unsent.wrapper.unmount();
     const lost = make({ radios: alone });
     await lost.box("Mobile").find("#set-radio-3-enabled").setValue(true);
-    expect([ticked(lost), onlyOne(lost), lost.group().find("#set-station-main_radio").exists()]).toEqual([true, false, true]);
+    expect([ticked(lost), onlyOne(lost)]).toEqual([true, false]);
     await tell(lost.daemon, { connection: "closed" });
-    expect([ticked(lost), onlyOne(lost), lost.group().find("#set-station-main_radio").exists()]).toEqual([false, true, false]);
+    expect([ticked(lost), onlyOne(lost)]).toEqual([false, true]);
   });
 
   it("opens the folded Radio group for a complaint about a radio's field, not for one about a radio removed meanwhile", async () => {
@@ -750,15 +726,12 @@ const sameNodes = (nodes: Element[]): boolean => {
   return now.length === nodes.length && now.every((row, i) => row === nodes[i]);
 };
 
-/** Where the main radio's row stands among the rows of the Radio group: right after the last box and right before Add radio, or null when it is not there. */
-function mainRadioPlace(): "after the last box" | "elsewhere" | null {
-  const select = document.getElementById("set-station-main_radio");
-  if (select === null) return null;
-  const rows = [...(select.closest(".group-body")?.children ?? [])];
-  const at = rows.findIndex((row) => row.contains(select));
-  const before = rows[at - 1];
-  const after = rows[at + 1];
-  return before?.matches("fieldset.subbox") && after?.contains(document.getElementById("set-radio-add")) ? "after the last box" : "elsewhere";
+/** Where Add radio stands among the rows of the Radio group: right after the last box, with no row between (no radio of the station is chosen above the others). */
+function addRadioPlace(): "after the last box" | "elsewhere" {
+  const add = document.getElementById("set-radio-add");
+  const rows = [...(add?.closest(".group-body")?.children ?? [])];
+  const at = rows.findIndex((row) => add !== null && row.contains(add));
+  return rows[at - 1]?.matches("fieldset.subbox") ? "after the last box" : "elsewhere";
 }
 
 /** The rows (fields' labels and boxes' legends) of the Settings tab that stand before an element, by their text: what would move the element if it changed. */
@@ -774,13 +747,12 @@ describe("ticking a radio moves nothing under the pointer", () => {
   it("keeps every row above the Mercury radio's Enable when it is ticked and the daemon tells it", async () => {
     const off = { enabled: false, state: "stopped" } as const;
     const two = (hf: Partial<RadioRow>) => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", hf));
-    const daemon = fakeDaemon({ radios: two(off), ports, status: status({ main_radio: 1 }) });
+    const daemon = fakeDaemon({ radios: two(off), ports, status: status({ unheard_radio: 1 }) });
     mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
     const was = rowsBefore("set-radio-2-enabled");
     const nodes = rowsToLastBox();
-    expect(was).not.toContain("Main radio");
     expect(was).toContain("Name");
-    expect(mainRadioPlace()).toBeNull();
+    expect(addRadioPlace()).toBe("after the last box");
     const input = document.getElementById("set-radio-2-enabled") as HTMLInputElement;
     input.checked = true;
     input.dispatchEvent(new Event("change"));
@@ -788,13 +760,12 @@ describe("ticking a radio moves nothing under the pointer", () => {
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 2, enabled: true });
     expect(rowsBefore("set-radio-2-enabled")).toEqual(was);
     expect(sameNodes(nodes)).toBe(true);
-    expect(mainRadioPlace()).toBe("after the last box");
+    expect(addRadioPlace()).toBe("after the last box");
     await tell(daemon, { radios: two({}) });
     await flushPromises();
     expect(rowsBefore("set-radio-2-enabled")).toEqual(was);
     expect(sameNodes(nodes)).toBe(true);
-    expect(mainRadioPlace()).toBe("after the last box");
-    expect((document.getElementById("set-station-main_radio") as HTMLSelectElement).disabled).toBe(false);
+    expect(addRadioPlace()).toBe("after the last box");
   });
 
   it("keeps every row above radio 3's Enable when it is ticked beside radio 1 alone", async () => {
@@ -802,33 +773,33 @@ describe("ticking a radio moves nothing under the pointer", () => {
     const { daemon } = make({ radios: sixRadios({ 2: off, 3: off, 4: off, 5: off, 6: off }) });
     const was = rowsBefore("set-radio-3-enabled");
     const nodes = rowsToLastBox();
-    expect(mainRadioPlace()).toBeNull();
+    expect(addRadioPlace()).toBe("after the last box");
     (document.getElementById("set-radio-3-enabled") as HTMLInputElement).click();
     await flushPromises();
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, enabled: true });
     expect(rowsBefore("set-radio-3-enabled")).toEqual(was);
     expect(sameNodes(nodes)).toBe(true);
-    expect(mainRadioPlace()).toBe("after the last box");
+    expect(addRadioPlace()).toBe("after the last box");
     await tell(daemon, { radios: sixRadios({ 2: off, 4: off, 5: off, 6: off }) });
     await flushPromises();
     expect(rowsBefore("set-radio-3-enabled")).toEqual(was);
     expect(sameNodes(nodes)).toBe(true);
-    expect(mainRadioPlace()).toBe("after the last box");
+    expect(addRadioPlace()).toBe("after the last box");
   });
 
-  it("takes the main radio away, and moves nothing above it, when one of two radios on is unticked", async () => {
+  it("moves nothing above the last box when one of two radios on is unticked", async () => {
     const off = { enabled: false, state: "stopped" } as const;
     const { daemon } = make({ radios: sixRadios({ 2: off, 4: off, 5: off, 6: off }) });
-    expect(mainRadioPlace()).toBe("after the last box");
+    expect(addRadioPlace()).toBe("after the last box");
     const nodes = rowsToLastBox();
     (document.getElementById("set-radio-3-enabled") as HTMLInputElement).click();
     await flushPromises();
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, enabled: false });
-    expect(mainRadioPlace()).toBeNull();
+    expect(addRadioPlace()).toBe("after the last box");
     expect(sameNodes(nodes)).toBe(true);
     await tell(daemon, { radios: sixRadios({ 2: off, 3: off, 4: off, 5: off, 6: off }) });
     await flushPromises();
-    expect(mainRadioPlace()).toBeNull();
+    expect(addRadioPlace()).toBe("after the last box");
   });
 
   it("lets a radio that is off beside the one radio on be renamed and removed without ticking it", async () => {
@@ -846,9 +817,9 @@ describe("ticking a radio moves nothing under the pointer", () => {
 
 describe("a station whose database has radio 1 alone", () => {
   const one = (row: Partial<RadioRow> = {}) =>
-    make({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", row)), config: configValues(), status: status({ main_radio: 1 }) });
+    make({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", row)), config: configValues(), status: status({ unheard_radio: 1 }) });
 
-  it("sees today's box of its one radio and Add radio, and no Mercury box, no main radio, no Name", () => {
+  it("sees today's box of its one radio and Add radio, and no Mercury box, no Name", () => {
     const { group } = one();
     const rows = [...group().element.querySelector(".group-body")!.children];
     expect(rows[0]?.querySelector("label")?.textContent).toBe("RX only");
@@ -858,8 +829,7 @@ describe("a station whose database has radio 1 alone", () => {
         .map((l) => l.text()),
     ).toEqual(["FM radio"]);
     expect(rows.at(-1)?.querySelector("label")?.textContent).toBe("Add radio");
-    for (const id of ["#set-station-main_radio", "#set-radio-1-name", "#set-radio-1-remove", "#set-radio-2-enabled"])
-      expect(group().find(id).exists(), id).toBe(false);
+    for (const id of ["#set-radio-1-name", "#set-radio-1-remove", "#set-radio-2-enabled"]) expect(group().find(id).exists(), id).toBe(false);
     expect(group().find<HTMLInputElement>("#set-radio-1-enabled").element.disabled).toBe(true);
     expect(group().find("#set-radio-1-type").exists()).toBe(true);
   });

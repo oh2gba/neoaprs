@@ -5,11 +5,13 @@ Nothing goes while the call is not set (the interlock, `ready("object")`: the fi
 confirmed or settling after KISS ON, or (the HF modem) transmitting or hearing a busy channel. What is due then is not skipped and not made up: it waits, the log says once per outage `... due and the radio is silent`,
 and it goes out when the radio is back. The radio is the radio of the frame (services/radioset.py: the radios by id, `RadioPick`, each an `AirRadio`): `ready(kind)` says whether some enabled radio takes a frame now,
 `ready(kind, radio)` whether that one does, and `send` refuses a frame for a radio that does not (the owner tries again at its next tick), so that an object on two radios goes on the one that is up while the other
-is away, and an object on the HF radio alone does not wait for the FM radio. A frame for no radio in particular (a bulletin) goes on the main radio; while there is none, nothing goes (NO_RADIO). Our own frames go
+is away, and an object on the HF radio alone does not wait for the FM radio. Every frame names its radio (an object's and a bulletin's are those of its set); a frame for which none is named (a test's) is
+built for the first radio that can send, in the order of the boxes, and while there is none nothing goes (NO_RADIO). Our own frames go
 out one at a time on each radio: after one, `spacing_sec` pass before the next on that radio (plan rule 3.1: the pause between our scheduled frames is per radio), so that a restart with many objects due at once,
 or a radio that comes back, never sends a burst, and a frame due on one radio does not wait for the pause of another. An object on several radios goes on each in the first tick that radio's pause allows (so it may go on one a few seconds after
-the other); its round ends when every connected radio has taken it (services/ownobjects.py). An object
-whose radios are all off goes on the main radio (`radios_for`), so that a station with one radio sends every object on it, and the object's own radios are in force again once one of them is on. The frame is the one fit function's
+the other); its round ends when every connected radio has taken it (services/ownobjects.py). An object or a bulletin
+goes on its radios as the set is in force (`radios_for`): a station with one radio that sends sends every one on it, and one whose radios are all off while several others are on goes on none (ticked
+nowhere), until a tick of it is changed or one of its radios is on again. The frame is the one fit function's
 (`radioset.fit`): from `station/call` to the tocall by the path given, else the radio's own path, none where the radio carries none, its comment cut to what the radio carries; one that cannot be made (a path of
 more than 8 digipeaters, an information field that is too long) is a SendError."""
 import logging
@@ -23,7 +25,7 @@ from neoaprs.radiospec import in_force_set
 from neoaprs.radiotype import RadioId
 from neoaprs.services.common import ConfigSource, Radio, as_pick
 from neoaprs.services.pace import SPACING_SEC
-from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, fit
+from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender, fit
 from neoaprs.services.radioset import SendError as SendError          # (services/radioset.py's, where the one fit function raises it; here under its old name)
 from neoaprs.source import Source
 
@@ -72,26 +74,27 @@ class Sender:
         return True
 
     def radios_for(self, ids: Iterable[RadioId]) -> list[AirRadio]:
-        """The radios of these ids (an object's `radios`) as the set is in force (radiospec.in_force_set, as the beacon's: those that are enabled and can send, by position; one radio on: everything goes on it,
-        whatever was chosen; the main radio when none of them is; none while there is none). Where the settings name a radio the registry does not have (an old shape of a test's), the registry's main radio."""
+        """The radios of these ids (an object's or a bulletin's `radios`) as the set is in force (radiospec.in_force_set, as the beacon's: those that are enabled and can send, by position; one radio that
+        can send: everything goes on it, whatever was chosen; none when none of them is, or none can send). An old shape of a test's, whose radios the settings do not name, is its one radio."""
         config = self._config()
         on = {radio.id: radio for radio in self.radios.senders()}
-        found = [on[i] for i in in_force_set(ids, config.radios, config.main_radio) if i in on]
-        main = self.radios.main
-        return found or ([main] if main is not None else [])
+        found = [on[i] for i in in_force_set(ids, config.radios) if i in on]
+        if not found and len(on) == 1 and not any(spec.id in on for spec in config.radios):
+            return list(on.values())
+        return found
 
     def frame(self, info: bytes, path: tuple[str, ...] | None, radio: AirRadio | None = None) -> ax25.Frame:
-        """Our frame with this information field by this path (None: the radio's own path) for `radio` (the main radio when none is named), its comment cut to what the radio carries (said in the log). Raises
-        SendError, also while there is no radio."""
-        target = radio if radio is not None else self.radios.main
+        """Our frame with this information field by this path (None: the radio's own path) for `radio` (when none is named, the first radio that can send), its comment cut to what the radio carries (said in
+        the log). Raises SendError, also while there is no radio."""
+        target = radio if radio is not None else first_sender(self.radios)
         if target is None:
             raise SendError(NO_RADIO)
         return fit(target, self._config(), info, path)
 
     def send(self, info: bytes, path: tuple[str, ...] | None, radio: AirRadio | None = None) -> bool:
-        """Sends the frame on `radio`, else the main radio; False when there is none, or it is not usable now (`problem` says why), its pause after our latest frame on it is running, or it would not take
-        the frame (it is settling, or the write failed): it is tried again at the next tick. Raises SendError."""
-        target = radio if radio is not None else self.radios.main
+        """Sends the frame on `radio` (when none is named, the first radio that can send); False when there is none, or it is not usable now (`problem` says why), its pause after our latest frame on it is
+        running, or it would not take the frame (it is settling, or the write failed): it is tried again at the next tick. Raises SendError."""
+        target = radio if radio is not None else first_sender(self.radios)
         if target is None or not target.usable:
             self.problem = NO_RADIO if target is None else target.why_unusable()
             return False

@@ -60,6 +60,10 @@
   margin-left: 6px;
   color: var(--accent);
 }
+/* the radios a bulletin of ours goes out on, while several are on: tags after "ours", as My objects has them */
+.bulletin-head .own-radio {
+  margin-left: 4px;
+}
 .bulletin.mine {
   border-color: var(--accent);
 }
@@ -130,10 +134,11 @@
   flex: none;
   width: 6.5em;
 }
-/* the radio Local info asks on, beside Ask while several are on: as wide as its longest name, whichever is chosen */
-.qru-radio {
-  flex: none;
-  max-width: 100%;
+/* a server's call, with the tag of the radio it answered on while several radios are on */
+.qru-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .qru-servers {
   display: grid;

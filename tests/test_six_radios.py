@@ -1,8 +1,8 @@
 """A station of six made-up radios for a simulated day (plan step 7: any number of radios of any type, side by side): two Dummy FM radios, three Dummy Mercury radios and one Dummy LoRa radio on the real
 controller, with the tests' clock moved over a whole day. Every radio beacons at its own interval and floor (FM at the station's 20 minutes, Mercury and LoRa at their own 30 with the pause after each), and the one
-whose Send on is unticked never does; each hears its own made-up world and no other's; a message goes out by rule 3.2 (on the radio that heard the station, on the Mercury radio that heard it last, on the main
-radio for a station nobody heard) and is acked from that radio's world; the digipeater repeats on the FM radio whose digipeater is on, what that radio heard, and nowhere else, and a type that may not repeat
-has no digipeater to turn on; the status and the bulletins go on the main radio alone, an object on the radios set for it and on no other, Ask around on the main radio or on the one named, each by that
+whose Send on is unticked never does; each hears its own made-up world and no other's; a message goes out by rule 3.2 (on the radio that heard the station, on the Mercury radio that heard it last, on the first
+box for a station nobody heard) and is acked from that radio's world; the digipeater repeats on the FM radio whose digipeater is on, what that radio heard, and nowhere else, and a type that may not repeat
+has no digipeater to turn on; the status and the bulletins go on radio 1 alone (what it carried before the others came), an object on the radios set for it and on no other, Ask around on radio 1 or on the one ticked, each by that
 radio's own path; a radio switched off for two hours sends nothing and hears nothing in them, forgets none of the stations the other Dummy Mercury radios still hear (the Mercury worlds share their six cities), and a
 message on its way on it goes on by another Mercury radio that hears the station. What went out on each radio is counted, by kind and by path, and the counts are held here: a change of any of them is a change on
 the air of a station with many radios. The same day is played again with two real types beside the six, a LoRa iGate on the network and a text monitor (`tnc-text`), each on a fake line: the six's counts are the
@@ -57,7 +57,7 @@ HF_IDS = (HF1, HF2, HF3)
 OFF = HF1                             # the radio switched off for two hours in the day (the settings' own HF radio, radio 2) ...
 OFF_FROM, OFF_UNTIL = START + timedelta(hours=12), START + timedelta(hours=14)        # ... from and until
 POST_AT = START + timedelta(hours=1)   # the bulletin posted and the object set (on FM2 and LoRa)
-ASK_AT = START + timedelta(hours=3)    # Ask around, on the main radio and on the LoRa radio
+ASK_AT = START + timedelta(hours=3)    # Ask around, on radio 1 (ticked when radio 2 came) and then on the LoRa radio (ticked alone)
 SEND_AT = START + timedelta(hours=6)
 CITY = "Q3TKU"                        # the HF station that answers a message
 QUIET = "Q1KUO"                       # an HF station that takes none
@@ -68,8 +68,8 @@ STATUS = {"station/status": "QRV 145.500", "status/source": "text", "status/inte
 # of a step's frames its burst limit lets through depends on how many fell in that minute of the stepped clock.)
 OUT = {
     FM1: {"beacon": 72, "status": 25, "bulletin": 14, "query": 1, "message": 5, "ack": 1},   # beacons every 20 minutes; the status every hour from 00:00 to 24:00; the bulletin posted at 01:00 by its plan (at
-                                                                       # once, +2 and +6 minutes, then every 20 up to four hours: 3 + 11); Ask on the main radio; the message to its home station, and four
-                                                                       # attempts to the station nobody heard (the main radio's)
+                                                                       # once, +2 and +6 minutes, then every 20 up to four hours: 3 + 11); Ask on radio 1; the message to its home station, and four
+                                                                       # attempts to the station nobody heard (the first box)
     HF1: {"beacon": 41, "message": 3, "ack": 1},                       # every 30 minutes and its pause, but for its two hours off; the message to the city (it heard the city last of the three) and the
                                                                        # first two attempts to the quiet city before it was switched off
     FM2: {"object": 50, "message": 1, "ack": 1},                       # Send on unticked: no beacon; the object set for it and LoRa (at 0, 1, 3, 7, 15 and 31 minutes, then every 30, LoRa's floor, on both: 6 + 44);
@@ -239,7 +239,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
         with pytest.raises(RadioError):
             await e.ctl.save_radio_settings(id, {"digipeat": "true"})
     await until_started(lambda: all(r.usable and r.beacon.running for r in e.ctl.radios.all() if r.id != TEXT))      # (connected, settled and its beacon's timer going while the clock stands: each first beacon 30 s in)
-    assert [r.id for r in e.ctl.radios.beaconing()] == [FM1, HF1, HF2, HF3, LORA, *((BOARD, WOLF) if beside else ())] and e.ctl.radios.main is not None and e.ctl.radios.main.id == FM1
+    assert [r.id for r in e.ctl.radios.beaconing()] == [FM1, HF1, HF2, HF3, LORA, *((BOARD, WOLF) if beside else ())] and e.ctl.radios.senders()[0].id == FM1
     if beside:
         monitor = e.ctl.radios.get(TEXT)
         assert monitor is not None
@@ -251,7 +251,9 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
     e.ctl.ownbulletins.post("BLN1", "net tonight 20z")
     e.ctl.ownobjects.set("SIXOBJ", "object", 60.2, 24.9, "/", "r", "on two radios", radios=(FM2, LORA))
     await day.until(ASK_AT)
-    assert [e.ctl.generalask.ask("aprs").radio, e.ctl.generalask.ask("aprs", radio=LORA).radio] == [FM1, LORA], "Ask around on the main radio, and on the radio named"
+    assert e.ctl.generalask.ask("aprs").radios == (FM1,), "Ask around on the FM radio, ticked when the second radio came beside it (what it carried alone)"
+    assert await e.ctl.save_radio_settings(FM1, {"ask": "false"}) and await e.ctl.save_radio_settings(LORA, {"ask": "true"})
+    assert e.ctl.generalask.ask("aprs").radios == (LORA,), "and with its Send on ticked for the LoRa radio alone: on that one, whose minute is its own"
     await day.until(SEND_AT)
     book = {s.call: s for s in e.ctl.stationbook.stations()}
     latest = max(book[CITY].heard_on(r).last_at or START for r in HF_IDS)

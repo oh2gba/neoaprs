@@ -35,9 +35,8 @@ import { useTitle } from "@/composables/useTitle";
 import { pageVisible } from "@/composables/useVisible";
 import { useWhatsNew } from "@/composables/useWhatsNew";
 import { agingOf, type Aging } from "@/lib/aging";
-import { pathCalls } from "@/lib/calls";
 import { headerPills } from "@/lib/pills";
-import { enabledRadios, listensOnly, mainRadio, pageRadios, portsAsks } from "@/lib/radios";
+import { enabledRadios, listensOnly, pageRadios, portsAsks } from "@/lib/radios";
 import { inApp } from "@/lib/shell";
 import { recommendedPath } from "@/lib/symbols";
 import type { ConfigValues, RadioRow } from "@/protocol/protocol";
@@ -48,7 +47,7 @@ const NO_RADIOS: ReadonlyMap<string, RadioRow> = new Map();
 function useShellRadios(daemon: ReturnType<typeof useDaemon>) {
   const all = computed(() => pageRadios(daemon.radios.value ?? NO_RADIOS, daemon.config.value));
   const enabled = computed(() => enabledRadios(all.value));
-  return { all, enabled, main: computed(() => mainRadio(all.value, daemon.status.value)) };
+  return { all, enabled };
 }
 
 /** The guide opens once, when the daemon says it has no call (the page's first word of a fresh install): not again when the settings are told again, nor when the call is set. */
@@ -100,8 +99,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     home: useHome(config, status),
     fallbackPath: computed(() => {
       const values = config.value?.values ?? {};
-      const text = radios.main.value?.row.choices.path ?? "";
-      return (pathCalls(text, recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? "")) ?? [text]).join(",");
+      return recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? "");
     }),
     connected: computed(() => radios.enabled.value.some((radio) => radio.connected)), // (any radio that is on)
   };

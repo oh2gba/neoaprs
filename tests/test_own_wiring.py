@@ -1,4 +1,4 @@
-"""Our own objects and bulletins inside the whole daemon, the radio a fake TNC on the loopback: an object goes out as a KISS frame on radio 1, the main radio, and is on the map as ours, a copy of it that is heard back makes no second one,
+"""Our own objects and bulletins inside the whole daemon, the radio a fake TNC on the loopback: an object goes out as a KISS frame on radio 1, the one radio, and is on the map as ours, a copy of it that is heard back makes no second one,
 another station that reports it takes it over, a kill is sent three times, a bulletin goes out and is not heard as a bulletin of somebody else, nothing is sent without a call, a restart finds both, and the commands
 and topics of the page."""
 from pathlib import Path
@@ -39,8 +39,8 @@ async def test_an_object_goes_out_as_a_kiss_frame_and_is_on_the_map_as_ours(tmp_
     assert (station.kind, station.own, station.is_me, station.reported_by, station.lat, station.lon, station.symbol_code, station.last_comment) == ("object", True, False, "OH2GBA", 60.17, 24.94, ">", "Rescue 1")
     [sent] = [p for p in await e.packets() if p.direction == "out"]
     assert sent.kind == "object" and sent.source == "OH2GBA" and sent.radio_id == FM_ID
-    main = e.ctl.sender.radios.main
-    assert main is not None and main.id == FM_ID and [r.id for r in e.ctl.sender.radios.enabled()] == [FM_ID], "the FM radio alone is on: it is the main radio"
+    main = next(iter(e.ctl.sender.radios.senders()), None)
+    assert main is not None and main.id == FM_ID and [r.id for r in e.ctl.sender.radios.enabled()] == [FM_ID], "the FM radio alone is on: it carries everything"
     assert "LEADER" not in [s.call for s in await e.stations()], "our object is not in the station cache: the table of our own objects keeps it"
     await e.stop()
 
@@ -130,7 +130,7 @@ async def test_a_bulletin_goes_out_and_the_copy_that_is_heard_back_is_not_a_bull
     await until(lambda: [b.key for b in e.ctl.bulletins.records()] == ["OH2XYZ/BLN2"])
     await e.settled()
     assert [b.slot for b in e.ctl.ownbulletins.records()] == ["BLN1"] and e.ctl.ownbulletins.records()[0].sent == 1
-    assert [p.radio_id for p in await e.packets() if p.direction == "out"] == [FM_ID], "it went on the main radio"
+    assert [p.radio_id for p in await e.packets() if p.direction == "out"] == [FM_ID], "it went on the one radio"
     assert [b.key for b in await e.ctl.bulletinlog.all()] == ["OH2XYZ/BLN2"], "nothing of ours in the board's table"
     assert [m for m in e.ctl.messaging.records() if m.state == "overheard"] == [] and e.ctl.messaging.records() == []
     await e.stop()

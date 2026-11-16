@@ -19,7 +19,7 @@ from neoaprs.emailrule import email_radio
 from neoaprs.messagerule import message_radio
 from neoaprs.packet import GATEABLE, Packet
 from neoaprs.radiodriver import RunOverrides
-from neoaprs.radiospec import RadioHeard, RadioSpec, in_force_choice, in_force_set, main_radio, senders, transmits
+from neoaprs.radiospec import RadioHeard, RadioSpec, in_force_choice, in_force_set, senders, transmits, unheard_radio
 from neoaprs.radiotypes import BY_KEY, type_of
 from neoaprs.source import Source
 from neoaprs.serialprobe import named_ports
@@ -69,7 +69,7 @@ async def refused(page: object, command: dict[str, object]) -> str:
 async def test_alone_every_sending_service_refuses_with_rx_only_and_not_one_byte_leaves_on_its_line(tmp_path: object) -> None:
     e, _ = await started(tmp_path, beside=False)
     page = await e.ws()
-    assert e.ctl.config.listens_only and e.ctl.config.main_radio is None and e.ctl.radios.senders() == [] and e.ctl.radios.beaconing() == []
+    assert e.ctl.config.listens_only and e.ctl.config.unheard_radio is None and e.ctl.radios.senders() == [] and e.ctl.radios.beaconing() == []
     assert can_transmit(e.ctl.config) == LISTENS_ONLY != RECEIVE_ONLY, "the log and the support bundle say why: the radios cannot send, not that the operator switched transmitting off"
     assert await refused(page, {"cmd": "beacon_now"}) == "transmit.off"
     assert await refused(page, {"cmd": "status_now"}) == "transmit.off"
@@ -100,11 +100,11 @@ async def test_beside_a_dummy_fm_radio_everything_goes_on_that_one_an_ack_too_an
     assert fm is not None
     e.ctl.sender.spacing_sec = 0.0                                             # (our frames one after the other: the pause between them is not what this is about)
     page = await e.ws()
-    assert not e.ctl.config.listens_only and e.ctl.config.main_radio == fm and [r.id for r in e.ctl.radios.senders()] == [fm] and [r.id for r in e.ctl.radios.beaconing()] == [fm]
+    assert not e.ctl.config.listens_only and e.ctl.config.unheard_radio == fm and [r.id for r in e.ctl.radios.senders()] == [fm] and [r.id for r in e.ctl.radios.beaconing()] == [fm]
     assert e.ctl.radios.for_station(HEARD).id == fm, "a station heard on the text radio alone gets its messages on the radio that sends"      # type: ignore[union-attr]
     await page.send({"cmd": "beacon_now"})
     await page.send({"cmd": "send_message", "to": HEARD, "text": "Hello"})
-    assert await refused(page, {"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True, "radio": 1}) == "radio.receive_only", "the text radio named: refused, by its name"
+    assert await refused(page, {"cmd": "qru_ask", "text": "INFO", "radio": 1}) == "radio.receive_only", "the text radio named: refused, by its name"
     assert await refused(page, {"cmd": "station_radio", "call": HEARD, "radio": 1}) == "radio.receive_only", "the text radio is no radio for a station's messages"
     assert e.ctl.radios.choice(HEARD) is None and e.ctl.radios.for_station(HEARD).id == fm, "nothing was chosen"      # type: ignore[union-attr]
     await page.send({"cmd": "object_set", "name": "FIELDDAY", "kind": "object", "lat": 60.2, "lon": 24.9, "symbol_table": "/", "symbol_code": "[", "comment": "", "course_deg": None,
@@ -204,11 +204,10 @@ def test_every_radio_a_rule_picks_can_send(specs: tuple[RadioSpec, ...], choice:
     now = FixedClock()()
     can = {s.id for s in senders(specs)}
     assert all(transmits(s) and s.enabled and not s.removed for s in senders(specs))
-    main = main_radio(specs, choice)
     heard = {id: RadioHeard(1, now - timedelta(minutes=m)) for id, m in heard_minutes.items()}
-    picked = [main, in_force_choice(choice, specs), message_radio(choice, heard, specs, main, now), email_radio(specs, main), *beacon_radios(specs, main), *in_force_set(ticks, specs, main)]
+    picked = [in_force_choice(choice, specs), message_radio(choice, heard, specs, now), unheard_radio(specs), email_radio(specs, choice), email_radio(specs, None), *beacon_radios(specs), *in_force_set(ticks, specs)]
     assert all(id is None or id in can for id in picked), (specs, picked)
-    assert (main is None) == (not can), "a main radio while some radio can send, and only then"
+    assert (email_radio(specs, choice) is None) == (unheard_radio(specs) is None) == (not can), "a radio for email and for a call no radio heard while some radio can send, and only then"
 
 
 def test_a_type_whose_profile_reads_text_or_writes_nothing_cannot_send_and_every_other_can() -> None:
@@ -222,10 +221,10 @@ def test_the_row_of_a_radio_that_only_receives_has_no_path_and_no_digipeat_choic
     for key in (TNC_TEXT.key, "lora-console"):
         spec = RadioSpec(3, type_of(key).kind, key, "", True, 3, settings={"port": "/dev/ttyUSB7"})
         row = radio_row(spec, (spec,), None, Claims())
-        assert row is not None and row["choices"] == {"beacon": True, "status": False, "path": None, "digipeat": None}, (key, row and row["choices"])
+        assert row is not None and row["choices"] == {"beacon": True, "status": False, "ask": False, "local_info": False, "path": None, "digipeat": None}, (key, row and row["choices"])
     tnc = RadioSpec(5, "fm", "kiss", "", True, 5)
     row = radio_row(tnc, (tnc,), None, Claims())
-    assert row is not None and row["choices"] == {"beacon": True, "status": False, "path": "", "digipeat": False}
+    assert row is not None and row["choices"] == {"beacon": True, "status": False, "ask": False, "local_info": False, "path": "", "digipeat": False}
 
 
 def test_a_search_leaves_out_the_ports_the_radios_that_only_listen_are_set_to() -> None:

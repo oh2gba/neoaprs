@@ -1,6 +1,6 @@
-// A radio of a type that only listens (`tnc-text`) on the page of a station that has senders beside it: it is in none of the lists of the radios to send on (the main radio, Send on, the radio beside Ask), its box has
+// A radio of a type that only listens (`tnc-text`) on the page of a station that has senders beside it: it is in none of the lists of the radios to send on (the beacon's Send on, Ask around's Send on), its box has
 // no Find my radio, no path and no "find automatically" for its port, and while it is the only radio that is on, the beacon's fields are greyed as with RX only ticked.
-import { mount } from "@vue/test-utils";
+import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { shallowRef } from "vue";
 import BeaconPane from "@/components/BeaconPane.vue";
@@ -19,14 +19,16 @@ const DUMMY = radioRow(3, "dummy", { name: "Dummy", number: 2 });
 const KISS = radioRow(4, "kiss", { name: "Mobile", number: 3 });
 
 const daemonOf = (...rows: RadioRow[]) =>
-  fakeDaemon({ radios: radiosTopic(...rows), status: status({ main_radio: rows.find((row) => row.type !== "tnc-text")?.id ?? 1 }) });
+  fakeDaemon({ radios: radiosTopic(...rows), status: status({ unheard_radio: rows.find((row) => row.type !== "tnc-text")?.id ?? 1 }) });
 const settings = (...rows: RadioRow[]) => mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemonOf(...rows)), attachTo: document.body });
-const mainChoices = (wrapper: ReturnType<typeof settings>) => wrapper.findAll("#set-station-main_radio option").map((option) => option.text());
 
 describe("a radio that only listens beside radios that send", () => {
-  it("is no main radio: with one sender beside it there is none to choose, with two the choice is of those two", () => {
-    expect(settings(TEXT, DUMMY).find("#set-station-main_radio").exists()).toBe(false);
-    expect(mainChoices(settings(TEXT, DUMMY, KISS))).toEqual(["Dummy", "Mobile"]);
+  it("is chosen above no other, and no radio is: with one sender beside it or two, the Radio group has no row of a radio of the station", () => {
+    for (const wrapper of [settings(TEXT, DUMMY), settings(TEXT, DUMMY, KISS)]) {
+      const add = wrapper.find("#set-radio-add").element;
+      const rows = [...(add.closest(".group-body")?.children ?? [])];
+      expect(rows[rows.findIndex((row) => row.contains(add)) - 1]?.matches("fieldset.subbox")).toBe(true); // (Add radio right after the last box)
+    }
   });
 
   it("has a box with its port and its speed alone: no Find my radio, no path, and no port found automatically", () => {
@@ -39,18 +41,15 @@ describe("a radio that only listens beside radios that send", () => {
     expect(wrapper.findAll("#set-radio-1-port option").map((option) => option.text())[0]).toBe("not set");
   });
 
-  it("is no tick of Send on and no choice beside Ask", () => {
+  it("is no tick of Send on, the beacon's or Ask around's", () => {
     const pane = (...rows: RadioRow[]) => mount(BeaconPane, { global: withDaemon(daemonOf(...rows)) });
-    const ticks = (wrapper: ReturnType<typeof pane>) => wrapper.findAll("#beacon-send-on ~ .field-control label.check").map((label) => label.text());
+    const ticks = (wrapper: Pick<VueWrapper, "findAll">, id: string) => wrapper.findAll(`#${id} ~ .field-control label.check`).map((label) => label.text());
     expect(pane(TEXT, DUMMY).find("#beacon-send-on").exists()).toBe(false);
-    expect(ticks(pane(TEXT, DUMMY, KISS))).toEqual(["Dummy", "Mobile"]);
+    expect(ticks(pane(TEXT, DUMMY, KISS), "beacon-send-on")).toEqual(["Dummy", "Mobile"]);
     const ask = (...rows: RadioRow[]) => mount(NearbyAsk, { global: withDaemon(daemonOf(...rows)) });
-    expect(ask(TEXT, DUMMY).find("select.ask-radio").exists()).toBe(false);
-    expect(
-      ask(TEXT, DUMMY, KISS)
-        .findAll("select.ask-radio option")
-        .map((option) => option.text()),
-    ).not.toContain("FTM");
+    expect(ask(TEXT, DUMMY).find("#ask-send-on").exists()).toBe(false);
+    expect(ask(TEXT, DUMMY).find(".nearby-ask select:not(.ask-kind)").exists()).toBe(false);
+    expect(ticks(ask(TEXT, DUMMY, KISS), "ask-send-on")).toEqual(["Dummy", "Mobile"]);
   });
 
   it("alone greys the beacon's fields as RX only does", () => {
@@ -65,7 +64,7 @@ describe("a radio that only listens beside radios that send", () => {
     const routeRadios = async (...rows: RadioRow[]) => {
       const given = {
         radios: radiosTopic(...rows),
-        status: status({ main_radio: 3 }),
+        status: status({ unheard_radio: 3 }),
         stations: shallowRef(new Map([[heard.call, heard]])),
         fallbackPath: "WIDE1-1,WIDE2-1",
       };

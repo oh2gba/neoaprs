@@ -115,7 +115,7 @@ export interface DaemonContext {
   call: Read<string | null>;
   /** where our station is; null while there is no place */
   home: Read<Home | null>;
-  /** the path of the setting beacon/path, which a station without one of its own has */
+  /** the recommended path of the station's symbol: what a radio whose own path is empty and whose type recommends none goes by (lib/radios.ts `radioPath`, useRadios `pathOf`) */
   fallbackPath: Read<string>;
   /** the stations heard, ours with the symbol of the settings */
   stations: Read<ReadonlyMap<string, StationRow>>;

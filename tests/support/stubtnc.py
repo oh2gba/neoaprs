@@ -132,8 +132,9 @@ class StubRadios:
 
 
 class StubRegistry:
-    """Two stubs as the one `RadioPick` of the services (neoaprs/services/radioset.py): radio 1, the FM radio, and radio 2, the HF radio (its frame cap `hf_max_frame`), each on while its id is in `on`; the main radio
-    the FM one while it is on, else the HF one, else none; the choice by station (`hf_stations` go on HF while both are on) and by packet (the radio it came on, else the main one); an email goes on the FM radio."""
+    """Two stubs as the one `RadioPick` of the services (neoaprs/services/radioset.py): radio 1, the FM radio, and radio 2, the HF radio (its frame cap `hf_max_frame`), each on while its id is in `on`; the radio of a
+    call no radio heard the FM one while it is on, else the HF one, else none; the choice by station (`hf_stations` go on HF while both are on) and by packet (the radio it came on while it is on, else none, a packet made without a radio too); an email goes on the FM radio
+    while it is on, else on the one radio that is."""
 
     def __init__(self, hf_stations: tuple[str, ...] = (), hf_max_frame: int = 123) -> None:
         self.fm, self.hf = StubTnc(), StubTnc(max_frame=hf_max_frame)
@@ -158,10 +159,10 @@ class StubRegistry:
 
     def for_packet(self, packet: Packet) -> StubTnc | None:
         came = self.get(packet.radio_id) if packet.radio_id is not None else None
-        return came if came is not None and came.id in self.on else self.main
+        return came if came is not None and came.id in self.on else None
 
     def email(self) -> StubTnc | None:
-        return self.fm if FM_ID in self.on else None
+        return self.fm if FM_ID in self.on else self.main
 
 
 def as_air(radio: StubTnc) -> AirRadio:

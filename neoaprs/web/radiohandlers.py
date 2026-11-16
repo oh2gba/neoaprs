@@ -71,11 +71,11 @@ def named_radio(ctx: Ctx, name: str, id: RadioId) -> LiveRadio[Any]:
 def sending_radio(ctx: Ctx, name: str, id: RadioId | None) -> RadioId | None:
     """The radio a command that sends names, checked: `radio.unknown` for none, `radio.off` (with its name) for one that is switched off, `radio.receive_only` (with its name) for one of a type that only
     receives (`Can.transmit` false), `radio.not_connected` (with its name) for one that does not take frames now; with no radio named, `transmit.off` while every enabled radio is one that only receives,
-    and `radio.none` while the station has no main radio (no radio is enabled). The id, or None for the main radio."""
+    and `radio.none` while no radio that can send is on. The id, or None for the radios the command's own rule gives."""
     if id is None:
         if ctx.ctl.config.listens_only:
             raise UserError(f"{name}: RX only: nothing is sent", "transmit.off")
-        if ctx.ctl.radios.main is None:
+        if not ctx.ctl.radios.senders():
             raise UserError(f"{name}: there is no radio: add one, or turn one on", "radio.none")
         return None
     radio = named_radio(ctx, name, id)

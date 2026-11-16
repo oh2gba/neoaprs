@@ -4,13 +4,20 @@
 // numbers); under it the number the post has (a capital letter for an announcement, the same row), the group of a group bulletin (its row is always there, greyed for the other kinds, so that choosing a kind moves
 // nothing) and the text, with the characters it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits; it says Replace while the
 // number, letter or group chosen holds a post of ours, which the new text replaces (both words are in the button, TwoWords: it is as wide as the longer). The text is
-// cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. A bulletin goes on the main radio
-// (plan rule 3.5): Post is off while that radio is not connected, with that as its reason (the radio named while several are on), as Send is.
+// cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. Under the text, while several radios that can send are on, Send on (SendOn.vue, the beacon's
+// row, bound to the draft and applied by Post, as the object form's by Save): a tick for each radio, those the bulletin goes out on ticked, a new draft as the bulletin posted last (the daemon's
+// `status.new_bulletin_radios`), the last tick greyed; Post sends the ticks with the text, so that a text for a slot that holds one of ours replaces its ticks too. The row comes and goes only with the radios (in
+// Settings), and the counter and Post stay at the foot of the box. Post is off while none of the radios ticked is connected, with that as its reason (each named while several are on), as Send is.
+import { DAEMON_KEY } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
-import { radioBlockedReason, rxOnlyReason } from "@/lib/compose";
-import { computed, reactive, ref, watch } from "vue";
+import { useDraftSendOn } from "@/composables/useSendOn";
+import { rxOnlyReason } from "@/lib/compose";
+import type { RadioId } from "@/lib/radios";
+import { radiosBlockedReason } from "@/lib/sendon";
+import { computed, inject, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
+import SendOn from "@/components/SendOn.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import { t } from "@/i18n";
 import { leftTitle } from "@/lib/compose";
@@ -20,16 +27,25 @@ import { leftOf, type TextLimit, trimmedCharacters, typedInto } from "@/lib/text
 import { GROUP_MAX, POST_KINDS, canPost, groupOf, groupOk, idsOf, kindTitle, postCommand, slotOf, type PostDraft } from "@/lib/bulletins";
 
 const props = defineProps<{ ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
-const emit = defineEmits<{ post: [slot: string, text: string] }>();
+const emit = defineEmits<{ post: [slot: string, text: string, radios?: RadioId[]] }>();
 const draft = reactive<PostDraft>({ kind: "bulletin", id: "1", group: "", text: "" });
 
 /** The characters of a message; the field takes no more (lib/textlimit.ts, as every field with a counter). */
 const limit: TextLimit = { max: LIMITS.message.textMax, measure: trimmedCharacters, kind: "characters" };
 const left = computed(() => leftOf(draft.text, limit));
 const rxOnly = useReceiveOnly();
-const { told, main, named } = useRadios();
-/** Why nothing may go on the main radio: it is not connected, or there is none; undefined before the daemon has told its radios. */
-const offline = computed(() => radioBlockedReason(main.value, main.value !== null && named(main.value.id), told.value));
+const page = inject(DAEMON_KEY, null);
+const radios = useRadios();
+const { told, named, severalSenders: several } = radios;
+/** The radios ticked in the draft; null until a tick is pressed: a new draft starts as the bulletin posted last, as the daemon says it. */
+const chosen = ref<RadioId[] | null>(null);
+const own = (): readonly RadioId[] => chosen.value ?? page?.status.value?.new_bulletin_radios ?? [];
+/** Send on, bound to the draft: the ticks, and the radios the bulletin goes out on as they stand. */
+const { ticks, radios: on, tick } = useDraftSendOn(own, (ids) => (chosen.value = ids), "post", radios);
+/** No tick is ticked (the radios ticked are off): Post is off until one is, with no title (the row of ticks shows it). */
+const unticked = computed(() => several.value && on.value.length === 0);
+/** Why nothing may go on the radios ticked: none of them is connected (each named where several are on), or there is none; undefined before the daemon has told its radios. */
+const offline = computed(() => (unticked.value ? undefined : radiosBlockedReason(on.value, named, told.value)));
 const ready = computed(() => canPost(draft));
 const grouped = computed(() => draft.kind === "group");
 const badGroup = computed(() => grouped.value && draft.group.trim() !== "" && !groupOk(draft.group));
@@ -56,12 +72,19 @@ watch(
 );
 
 function submit(): void {
-  if (offline.value !== undefined) return;
+  if (offline.value !== undefined || unticked.value) return;
   const command = postCommand(draft);
   if (command === null) return;
   draft.group = groupOf(draft.group);
   asked.value = { slot: command.slot, text: command.text, before: props.ownBulletins.get(command.slot) };
-  emit("post", command.slot, command.text);
+  if (several.value)
+    emit(
+      "post",
+      command.slot,
+      command.text,
+      on.value.map((radio) => radio.id),
+    );
+  else emit("post", command.slot, command.text);
 }
 </script>
 
@@ -121,8 +144,9 @@ function submit(): void {
         />
       </div>
     </div>
+    <SendOn v-if="ticks.length > 0" id="post-send-on" class="send-on" :ticks="ticks" error="" @tick="tick" />
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || offline !== undefined" :title="rxOnly ? rxOnlyReason() : offline">
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || unticked || offline !== undefined" :title="rxOnly ? rxOnlyReason() : offline">
         <TwoWords :second="replaces">
           <template #first>{{ t("bulletins.post") }}</template>
           <template #second>{{ t("bulletins.replace") }}</template>

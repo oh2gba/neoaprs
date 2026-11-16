@@ -163,7 +163,7 @@ async def test_a_sound_card_radio_is_a_new_installations_radio_1_by_the_command_
     await e.start(connected=False)
     try:
         radio = e.ctl.radios.get(FM_ID)
-        assert radio is not None and isinstance(radio.driver, DirewolfDriver) and e.ctl.config.main_radio == FM_ID, "the first start runs radio 1 as the type the command line gave it"
+        assert radio is not None and isinstance(radio.driver, DirewolfDriver) and e.ctl.config.unheard_radio == FM_ID, "the first start runs radio 1 as the type the command line gave it"
         await until(lambda: radio.usable, 20)
         assert (radio.driver.modem.sound_card, radio.driver.modem.keying.text) == ("plughw:7,0", "vox")
         assert f"ADEVICE {adevice('plughw:7,0', radio.driver.modem._numbers)}\n" in (radio_folder(data, FM_ID) / CONF_FILE).read_text(encoding="utf-8"), "the card as this system takes it"

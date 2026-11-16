@@ -1,5 +1,5 @@
 """What the services see of the radios once there are any number of them (plan §2): `AirRadio`, one radio with its kind, its limits, what it is allowed, its counters and the operator's choices on it, and
-`RadioPick`, the choice of a radio (by id, the enabled ones, the main radio, the station's, the one a packet came on, the email radio). `fit` is the one place that makes our frame for a radio: the path where the
+`RadioPick`, the choice of a radio (by id, the enabled ones, those that send, the station's, the one a packet came on and no other, the email radio). `fit` is the one place that makes our frame for a radio: the path where the
 radio may carry one, the comment cut to what it carries whole; `our_frame`, `fixed_prefix` and `fit_frame` are its parts (services/common.py and services/sender.py give them, and SendError, under their old
 names), here so that every service may import this module and it imports none of theirs.
 
@@ -15,7 +15,7 @@ from neoaprs import TOCALL, ax25, kiss
 from neoaprs.callsign import CallsignError
 from neoaprs.coded import Reason
 from neoaprs.config import Config
-from neoaprs.message import path_choice
+from neoaprs.message import EMAIL_GATEWAY, path_choice, same_call
 from neoaprs.packet import Packet
 from neoaprs.radiotype import Allowed, Kind, Limits, RadioId
 from neoaprs.radiotypes import recommended_path
@@ -25,7 +25,7 @@ from neoaprs.tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.radioset")
 
-NO_RADIO = Reason("there is no radio", "radio.none")      # the reason of every send while the main or the chosen radio is None (a fresh installation)
+NO_RADIO = Reason("there is no radio", "radio.none")      # the reason of every send while no radio it may go on is there (none can send, or none is ticked)
 FRAME_ERRORS = (ax25.Ax25Error, CallsignError, ValueError)          # what `our_frame` raises for a call or a path that makes no frame
 _EXTENSION = re.compile(rb"PHG\d{4}|RNG\d{4}|\d{3}/\d{3}|DFS\d{4}")        # a 7-byte data extension right after a position (spec chapter 7)
 UNCOMPRESSED = 19                                                    # a position with its symbol: 8 + 1 + 9 + 1
@@ -72,8 +72,6 @@ class RadioPick(Protocol):
     def senders(self) -> Sequence[AirRadio]:
         """The enabled radios that can send, by position: a receive-only radio is never one."""
         ...
-    @property
-    def main(self) -> AirRadio | None: ...
     def for_station(self, call: str) -> AirRadio | None: ...
     def for_packet(self, packet: Packet) -> AirRadio | None: ...
     def email(self) -> AirRadio | None: ...
@@ -154,23 +152,31 @@ def fit(radio: AirRadio, config: Config, info: bytes, path: tuple[str, ...] | No
     return fitted
 
 
+def first_sender(pick: RadioPick) -> AirRadio | None:
+    """The first radio that can send, in the order of the boxes (radiospec.unheard_radio): what a frame for which no radio is named is built for (a test's; the daemon always names one); None while none."""
+    return next(iter(pick.senders()), None)
+
+
 def sends(pick: RadioPick, radio: AirRadio) -> bool:
     """Whether the radio is one of those that can send now (`senders`: enabled, of a type that can transmit)."""
     return any(r.id == radio.id for r in pick.senders())
 
 
 def ack_radio(pick: RadioPick, packet: Packet, call: str) -> AirRadio | None:
-    """The radio an ack to a message (`packet`, from `call`) goes back on: the one it came on (`for_packet`) while that one can send; else the radio a message to the station goes on (`for_station`, which
-    only picks radios that send), so that a station heard on a receive-only radio alone is acked all the same and stops sending the message again; None while no radio can send."""
+    """The radio an ack to a message (`packet`, from `call`) goes back on: the one it came on (`for_packet`) while that one can send; else (it only receives, or it was switched off or removed since) the
+    radio a message to the station goes on (`for_station`, which only picks radios that send; for the email gateway the email radio, `email`), so that a station heard on such a radio alone is acked all
+    the same and stops sending the message again; None while no radio can send."""
     came = pick.for_packet(packet)
-    return came if came is None or sends(pick, came) else pick.for_station(call)
+    if came is not None and sends(pick, came):
+        return came
+    return pick.email() if same_call(call, EMAIL_GATEWAY) else pick.for_station(call)
 
 
 def answerable(pick: RadioPick, packet: Packet) -> bool:
     """Whether a question heard in the packet (on the air) is to be taken: not when the radio it came on sends nothing, so that this copy is neither answered nor noted, and the copy a radio that sends hears
-    is the one taken."""
+    is the one taken; and not when that radio is no longer on (`for_packet` gives none: an answer goes on the radio the question came on, and on no other)."""
     came = pick.for_packet(packet)
-    if came is None or sends(pick, came):
+    if came is not None and sends(pick, came):
         return True
-    log.debug("a query of %s is not answered: heard on %s, a radio that sends nothing", packet.sender, came.name)
+    log.debug("a query of %s is not answered: heard on %s", packet.sender, "a radio that is no longer on" if came is None else f"{came.name}, a radio that sends nothing")
     return False

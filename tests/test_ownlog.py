@@ -65,8 +65,8 @@ def test_an_object_gives_its_row_and_the_row_gives_the_object_back(shape: bool) 
 
 def test_a_bulletin_gives_its_row_and_the_row_gives_the_bulletin_back() -> None:
     sent = post(sent=2, first_sent_at=T0, last_sent_at=T0 + timedelta(minutes=2))
-    assert bulletin_row(sent) == ("BLN3HAMS", "HAMS", "Net tonight", "2026-10-21T12:00:00.000000Z", 2, "2026-10-21T12:00:00.000000Z", "2026-10-21T12:02:00.000000Z")
-    assert bulletin_of(bulletin_row(sent)) == sent
+    assert bulletin_row(sent) == ("BLN3HAMS", "HAMS", "Net tonight", "2026-10-21T12:00:00.000000Z", 2, "2026-10-21T12:00:00.000000Z", "2026-10-21T12:02:00.000000Z", "1")
+    assert bulletin_of(bulletin_row(sent)) == sent and bulletin_of(bulletin_row(replace(sent, radios=(2, 5)))).radios == (2, 5) and bulletin_row(replace(sent, radios=(5, 2)))[-1] == "2,5"
     assert bulletin_of(bulletin_row(post("BLNA"))) == post("BLNA") and bulletin_of(bulletin_row(post("BLNA"))).kind == "announcement"
 
 

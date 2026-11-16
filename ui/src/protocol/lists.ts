@@ -93,7 +93,7 @@ export const CONFIG_KEYS = [
 ] as const;
 
 /** The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`. */
-export const RADIO_STATION_KEYS = ["station/main_radio"] as const;
+export const RADIO_STATION_KEYS = ["email/radio"] as const;
 
 /** The FM types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */
 export const TNC_PROFILES = [
@@ -111,7 +111,7 @@ export const HF_PROFILES = [
   {"key": "dummy-hf", "name": "Dummy Mercury radio", "transport": "dummy"},
 ] as const;
 
-/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), its limits, and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */
+/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), its limits, the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */
 export const RADIO_TYPES = [
   {
     "key": "direwolf",
@@ -122,6 +122,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": true, "key_test": true, "scope": false, "tx_gain": true, "frequencies": false, "transmit": true, "rx_level": true},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
+    "recommended_path": "",
     "fields": [
       {
         "key": "sound_card",
@@ -169,6 +170,24 @@ export const RADIO_TYPES = [
         "text": "radio.field.status",
       },
       {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
+      },
+      {
         "key": "path",
         "kind": "path",
         "range": null,
@@ -197,6 +216,7 @@ export const RADIO_TYPES = [
     "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
+    "recommended_path": "",
     "fields": [
       {
         "key": "port",
@@ -233,6 +253,24 @@ export const RADIO_TYPES = [
         "default": "false",
         "together": "",
         "text": "radio.field.status",
+      },
+      {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
       },
       {
         "key": "path",
@@ -263,6 +301,7 @@ export const RADIO_TYPES = [
     "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
+    "recommended_path": "",
     "fields": [
       {
         "key": "port",
@@ -299,6 +338,24 @@ export const RADIO_TYPES = [
         "default": "false",
         "together": "",
         "text": "radio.field.status",
+      },
+      {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
       },
       {
         "key": "path",
@@ -329,6 +386,7 @@ export const RADIO_TYPES = [
     "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
+    "recommended_path": "",
     "fields": [
       {
         "key": "port",
@@ -365,6 +423,24 @@ export const RADIO_TYPES = [
         "default": "false",
         "together": "",
         "text": "radio.field.status",
+      },
+      {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
       },
       {
         "key": "path",
@@ -395,6 +471,7 @@ export const RADIO_TYPES = [
     "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
+    "recommended_path": "",
     "fields": [
       {
         "key": "port",
@@ -433,6 +510,24 @@ export const RADIO_TYPES = [
         "text": "radio.field.status",
       },
       {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
+      },
+      {
         "key": "path",
         "kind": "path",
         "range": null,
@@ -461,6 +556,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
+    "recommended_path": "",
     "fields": [
       {
         "key": "port",
@@ -508,6 +604,24 @@ export const RADIO_TYPES = [
         "text": "radio.field.status",
       },
       {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
+      },
+      {
         "key": "path",
         "kind": "path",
         "range": null,
@@ -536,6 +650,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": false, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": null, "beacon_min_min": 20},
+    "recommended_path": "",
     "fields": [
       {
         "key": "port",
@@ -566,6 +681,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
+    "recommended_path": "",
     "fields": [
       {
         "key": "beacon",
@@ -584,6 +700,24 @@ export const RADIO_TYPES = [
         "default": "false",
         "together": "",
         "text": "radio.field.status",
+      },
+      {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
       },
       {
         "key": "path",
@@ -614,6 +748,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": true, "key_test": true, "scope": true, "tx_gain": true, "frequencies": true, "transmit": true, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 123, "beacon_min_min": 30},
+    "recommended_path": "",
     "fields": [
       {
         "key": "sound_card",
@@ -660,6 +795,24 @@ export const RADIO_TYPES = [
         "together": "",
         "text": "radio.field.status",
       },
+      {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
+      },
     ],
   },
   {
@@ -671,6 +824,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": true, "transmit": true, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 123, "beacon_min_min": 30},
+    "recommended_path": "",
     "fields": [
       {
         "key": "beacon",
@@ -690,6 +844,24 @@ export const RADIO_TYPES = [
         "together": "",
         "text": "radio.field.status",
       },
+      {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
+      },
     ],
   },
   {
@@ -701,6 +873,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "recommended_path": "WIDE1-1",
     "fields": [
       {
         "key": "tcp_host",
@@ -739,6 +912,24 @@ export const RADIO_TYPES = [
         "text": "radio.field.status",
       },
       {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
+      },
+      {
         "key": "path",
         "kind": "path",
         "range": null,
@@ -758,6 +949,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "recommended_path": "WIDE1-1",
     "fields": [
       {
         "key": "port",
@@ -796,6 +988,24 @@ export const RADIO_TYPES = [
         "text": "radio.field.status",
       },
       {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
+      },
+      {
         "key": "path",
         "kind": "path",
         "range": null,
@@ -815,6 +1025,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": false, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "recommended_path": "WIDE1-1",
     "fields": [
       {
         "key": "port",
@@ -845,6 +1056,7 @@ export const RADIO_TYPES = [
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "recommended_path": "WIDE1-1",
     "fields": [
       {
         "key": "beacon",
@@ -863,6 +1075,24 @@ export const RADIO_TYPES = [
         "default": "false",
         "together": "",
         "text": "radio.field.status",
+      },
+      {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
       },
       {
         "key": "path",

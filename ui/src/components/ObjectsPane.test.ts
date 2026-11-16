@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { mount } from "@vue/test-utils";
 import { seen, shown } from "@/test/shown";
 import { describe, expect, it, vi } from "vitest";
@@ -115,13 +116,14 @@ describe("ObjectsPane", () => {
       expect(tagsOf(ofRadios(FM, { ...HF, removed: true, enabled: false }))).toEqual([[["Food", "Category: Food (FOOD)", "tag-neutral"]], [], []]);
     });
 
-    it("shows what is in force: a radio of its own that is off or removed is not shown, and one with none of its own on shows the main radio", () => {
-      const rows = [ownObject("A", { radios: [1, 3], created_at: ago(900) }), ownObject("B", { radios: [3, 4], created_at: ago(600) })];
+    it("shows what is in force: a radio of its own that is off or removed is not shown, and one with none of its own on has no tag and says it waits", () => {
+      const rows = [ownObject("A", { radios: [1, 3], created_at: ago(900) }), ownObject("B", { radios: [3, 4], created_at: ago(600), next_at: ago(120) })];
       const radios = ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false }), radioRow(4, "dummy", { number: 3, removed: true, enabled: false }));
-      expect(tagsOf(radios, rows, { status: status({ main_radio: 2 }) })).toEqual([
-        [["FM", "Sent on radio FM", "tag-neutral"]],
-        [["Mercury", "Sent on radio Mercury", "tag-hf"]],
-      ]);
+      expect(tagsOf(radios, rows, { status: status({ unheard_radio: 2 }) })).toEqual([[["FM", "Sent on radio FM", "tag-neutral"]], []]);
+      const table = new Map(rows.map((r) => [r.name, r]));
+      const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+      const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon(radios)) });
+      expect(wrapper.findAll(".ownobject .bulletin-meta").at(1)?.text()).toBe(t("schedule.waiting", { n: rows[1]?.sent ?? 0 }));
     });
 
     it("names the first two of six by their names, then +n whose hover names the rest, a Dummy radio's dashed", () => {

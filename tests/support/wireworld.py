@@ -17,6 +17,7 @@ from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Message, Packet, ThirdParty, Undecoded
 from neoaprs.pref import Pref
 from neoaprs.qrutext import Asked, Server
+from neoaprs.services.qruask import AskedOn
 from neoaprs.radiospec import HF_ID, RadioSpec
 from neoaprs.serialprobe import claim_value
 from neoaprs.smartbeacon import Reason, Sent
@@ -228,9 +229,9 @@ class FakeQru:
 
 def qru_rows(views: Any) -> list[dict[str, Any]]:
     """The `qru` topic: nothing yet, a request nobody answered, and two servers (one with its closing line, one in miles that has only sent the closing line of a group)."""
-    first = Server("DF8LS-10", (("RP70", 10), ("RP2M", 3)), 5, 50, "km", T0, False, "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", T0 + timedelta(seconds=40))
+    first = Server("DF8LS-10", (("RP70", 10), ("RP2M", 3)), 5, 50, "km", T0, False, "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", T0 + timedelta(seconds=40), radio=2)
     second = Server("W1AW", (), None, None, "", T0 + timedelta(minutes=2), False, "Sent 2 of 7 FOOD Objects, NEXT for more. de W1AW", T0 + timedelta(minutes=2))
-    return [views.qru_state(FakeQru()), views.qru_state(FakeQru(Asked("INFO", T0))), views.qru_state(FakeQru(Asked("RP70 150", T0 + timedelta(seconds=30)), [first, second]))]
+    return [views.qru_state(FakeQru()), views.qru_state(FakeQru(Asked("INFO", T0))), views.qru_state(FakeQru(AskedOn("RP70 150", T0 + timedelta(seconds=30), (1, 2)), [first, second]))]
 
 
 @dataclass

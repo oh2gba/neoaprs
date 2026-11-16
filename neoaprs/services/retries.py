@@ -21,7 +21,7 @@ from neoaprs.message import UNCONFIRMED_MAX, MessageRecord, State, due_at, retry
 from neoaprs.radiotype import RadioId
 from neoaprs.services.answers import air_of, as_pick, radio_word
 from neoaprs.services.common import ConfigSource, Radio
-from neoaprs.services.radioset import AirRadio, RadioPick
+from neoaprs.services.radioset import AirRadio, RadioPick, first_sender
 from neoaprs.tasks import every
 
 log = logging.getLogger("neoaprs.messaging")
@@ -79,8 +79,8 @@ class Retries:
         return air_of(radio, self._config).id in self._down
 
     def radio_up(self, record: MessageRecord | None = None) -> bool:
-        """Whether an attempt of this message (of any, on the main radio, when none is named) can be made now; the log says once per radio that the attempts wait when it cannot."""
-        radio = as_pick(self._given, self._config).main if record is None else self._host.radio_of(record)
+        """Whether an attempt of this message (of any, on the first radio that can send, when none is named) can be made now; the log says once per radio that the attempts wait when it cannot."""
+        radio = first_sender(as_pick(self._given, self._config)) if record is None else self._host.radio_of(record)
         if radio is not None and radio.usable:
             return True
         key = radio.id if radio is not None else None

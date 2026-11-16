@@ -2,14 +2,13 @@
 
 One interval for the station (`beacon/interval_min`, 0 for off), raised on each radio to that radio's own floor (its type's `limits.beacon_min_min`: 20 minutes on an FM radio, 30 on an HF one), so that an FM
 radio at 20 minutes is not slowed to 30 because an HF radio is on. Each radio has its own "beacon" tick (Send on, the field `beacon` of every type, ticked by default); the beacon goes out on the enabled radios
-that are ticked, read as every stored set of radios is (`radiospec.in_force_set`): with one enabled radio on that one, and with every tick off on the main radio, so that the beacon is never off by its ticks
-(Off is the interval's alone).
-The status report has a Send on of its own, in the same pattern (`status_radios`): each radio's "status" tick (the field `status`, unticked by default), read as the beacon's are, so that while no radio that is on
-is ticked (the operator has not chosen: what every radio stores until a tick is made) the status goes out on the main radio and follows it, as it did before it had a choice; on each radio it goes at
-`status/interval_min` raised to that radio's own floor (`beacon_interval`: one rule for both). No I/O."""
+that are ticked, read as every stored set of radios is (`radiospec.in_force_set`): with one enabled radio that can send, that one; with several, the ticked ones exactly, and none when none is ticked
+(Off is the interval's; ticked nowhere is not sent either).
+The status report, Ask around and Local info's request each have a Send on of their own, in the same pattern: each radio's "status", "ask" or "local_info" tick (the fields of those keys, unticked by
+default), read by `send_on_radios`; the status goes on each radio at `status/interval_min` raised to that radio's own floor (`beacon_interval`: one rule for both). No I/O."""
 from collections.abc import Iterable
 
-from .radiospec import RadioId, RadioSpec, enabled, in_force_set, log_name, senders
+from .radiospec import RadioId, RadioSpec, enabled, in_force_set, log_name
 from .radiotype import Limits, RadioTypeError
 from .radiotypes import TYPES, kind_field, types_of
 
@@ -45,9 +44,9 @@ def beacon_interval(station_min: int, spec: RadioSpec, specs: Iterable[RadioSpec
 
 
 def ticked(spec: RadioSpec, *, say: bool = False, key: str = "beacon") -> bool:
-    """The radio's own "beacon" tick (Send on), or its "status" tick (`key`, the status's Send on): its setting, ticked where its type has no such field (a receive-only one: a tick it kept from another type
-    is not read; no rule sends on such a radio, `radiospec.senders`), and where neither its type nor its kind is known (a type that is none is read by its kind's field). A stored text that is not true or
-    false is the field's default; it is said in the log only where `say` (RadioSpec.value: the beacon's start), for this is read at every tick of every radio's beacon."""
+    """The radio's own "beacon" tick (Send on), or its tick of another thing's Send on (`key`: "status", "ask", "local_info"): its setting, ticked where its type has no such field (a receive-only one: a
+    tick it kept from another type is not read; no rule sends on such a radio, `radiospec.senders`), and where neither its type nor its kind is known (a type that is none is read by its kind's field). A
+    stored text that is not true or false is the field's default; it is said in the log only where `say` (RadioSpec.value: the beacon's start), for this is read at every tick of every radio's beacon."""
     try:
         found = spec.rtype.field(key)
     except RadioTypeError:
@@ -62,41 +61,38 @@ def ticked(spec: RadioSpec, *, say: bool = False, key: str = "beacon") -> bool:
         return bool(found.parse(found.default))
 
 
-def beacon_radios(specs: Iterable[RadioSpec], main: RadioId | None) -> tuple[RadioId, ...]:
-    """The radios the beacon goes out on, by position: the enabled radios that are ticked; the one enabled radio whatever its tick; the main radio when no enabled radio is ticked; none when none is enabled."""
+def beacon_radios(specs: Iterable[RadioSpec]) -> tuple[RadioId, ...]:
+    """The radios the beacon goes out on, by position: the enabled radios that can send and are ticked; the one enabled radio that can send whatever its tick; none when none is ticked or none can send."""
+    return send_on_radios("beacon", specs)
+
+
+SEND_ON_KEYS = ("beacon", "status", "ask", "local_info")      # the things whose Send on is a tick of each radio, `radio/<id>/<key>`
+
+
+def send_on_radios(key: str, specs: Iterable[RadioSpec]) -> tuple[RadioId, ...]:
+    """The radios a thing with a Send on of its own goes out on ("beacon"; "status": the status report; "ask": Ask around's query; "local_info": Local info's request INFO), by position: the ticks read as
+    every stored set of radios is (`radiospec.in_force_set`: the enabled radios that can send and are ticked; with one radio that can send, that one whatever is stored; none when no radio can send)."""
     pool = list(specs)
-    return in_force_set((s.id for s in pool if ticked(s)), pool, main)
+    return in_force_set((s.id for s in pool if ticked(s, key=key)), pool)
 
 
-def status_radios(specs: Iterable[RadioSpec], main: RadioId | None) -> tuple[RadioId, ...]:
-    """The radios the status report goes out on, by position, read as the beacon's are (`in_force_set`): the enabled radios that can send whose "status" tick is ticked; the one such radio whatever its tick;
-    the main radio while none is ticked (the operator has not chosen yet: every radio's `status` is false, the default, so the status follows the main radio as before it had a choice); none when no radio can send."""
-    pool = list(specs)
-    return in_force_set((s.id for s in pool if ticked(s, key="status")), pool, main)
-
-
-def status_chosen(specs: Iterable[RadioSpec]) -> bool:
-    """Whether the operator has chosen the radios of the status: an enabled radio that can send has its "status" tick ticked (else it follows the main radio)."""
-    return any(ticked(s, key="status") for s in senders(specs))
-
-
-def intervals(station_min: int, specs: Iterable[RadioSpec], main: RadioId | None) -> list[tuple[RadioSpec, int]]:
+def intervals(station_min: int, specs: Iterable[RadioSpec]) -> list[tuple[RadioSpec, int]]:
     """Each radio the beacon goes out on, by position, with the interval in force on it."""
     pool = list(specs)
-    on = set(beacon_radios(pool, main))
+    on = set(beacon_radios(pool))
     return [(s, beacon_interval(station_min, s)) for s in enabled(pool) if s.id in on]
 
 
-def station_interval(station_min: int, specs: Iterable[RadioSpec], main: RadioId | None) -> int:
+def station_interval(station_min: int, specs: Iterable[RadioSpec]) -> int:
     """The shortest interval in force on a radio the beacon goes out on, in minutes: how often our position goes out on some radio (0: off). With no radio the setting as it is."""
-    found = [minutes for _, minutes in intervals(station_min, specs, main)]
+    found = [minutes for _, minutes in intervals(station_min, specs)]
     return min(found) if found and station_min else station_min
 
 
-def interval_words(station_min: int, specs: Iterable[RadioSpec], main: RadioId | None) -> str:
+def interval_words(station_min: int, specs: Iterable[RadioSpec]) -> str:
     """The intervals in force in English, for the support summary: `20 min` while every radio the beacon goes out on has the same, else each radio's by the name the log gives it, `20 min on FM, 30 min on HF`."""
     pool = list(specs)
-    found = intervals(station_min, pool, main)
+    found = intervals(station_min, pool)
     if len({minutes for _, minutes in found}) <= 1:
         return f"{found[0][1] if found else station_min} min"
     return ", ".join(f"{minutes} min on {log_name(spec, pool)}" for spec, minutes in found)

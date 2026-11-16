@@ -71,7 +71,7 @@ def radio_of_key(key: str | None) -> RadioId | None:
 def flat_refusal(key: str, config: Config) -> SettingError | None:
     """`setting.unknown` for a key that names a radio's setting without the radio, in the one sentence of configradios.flat_moved, which names where it is now; None for any other key."""
     setting = BY_KEY.get(key)
-    moved = None if setting is None else flat_moved(setting.attr, config.radios, config.main_radio)
+    moved = None if setting is None else flat_moved(setting.attr, config.radios)
     return None if moved is None else SettingError(key, moved.code, moved.params, f"{key}: {moved}")
 
 
@@ -83,8 +83,8 @@ def refuse_flat(keys: Iterable[str], config: Config) -> None:
 
 
 def with_radio_values(base: Config, values: Mapping[str, str]) -> Config:
-    """The settings with the radios' own values (`radio/<id>/<key>`) put in, each checked by the field of its radio's kind and kept as the program writes it, and `station/main_radio` naming a radio of the
-    settings; a SettingError naming the key for the first that is wrong: `radio.unknown` for a radio that is none or removed (or a main radio that is none), `radio.no_setting` for a key its kind has not, and the
+    """The settings with the radios' own values (`radio/<id>/<key>`) put in, each checked by the field of its radio's kind and kept as the program writes it, and `email/radio` naming a radio of the
+    settings; a SettingError naming the key for the first that is wrong: `radio.unknown` for a radio that is none or removed (or an email radio that is none), `radio.no_setting` for a key its kind has not, and the
     field's own code for a value that is not one of it."""
     own: dict[RadioId, dict[str, str]] = {}
     for key, text in values.items():
@@ -168,13 +168,17 @@ def _own_value(config: Config, key: str) -> str | None:
     return None if spec is None else spec.settings.get(field, getattr(kind_field(spec.kind, field), "default", None))
 
 
-def _main_radio(base: Config, config: Config) -> Config:
-    """The settings, refused with `radio.unknown` (the key `station/main_radio`) when the main radio chosen is no radio of them that is not removed; a choice that is the one stored is let through (a form that
-    sends back what it was given, after the main radio was removed)."""
-    chosen = config.main_choice
-    if chosen is not None and chosen != base.main_choice and all(spec.id != chosen for spec in config.live_radios):
-        raise no_radio("station/main_radio", chosen, config.radios)
-    return config
+CHOICES_OF_A_RADIO = {"email/radio": "email_choice"}      # the station's settings that name one radio by its id, each with its field of Config
+
+
+def _name_radios(base: Config, config: Config, keys: Iterable[str]) -> None:
+    """Refused with `radio.unknown` (under its key, the first of CHOICES_OF_A_RADIO among `keys`) when a radio chosen (the email radio) is no radio of the settings that is not removed; a
+    choice that is the one stored is let through (a form that sends back what it was given, after that radio was removed)."""
+    sent = set(keys)
+    for key, attr in CHOICES_OF_A_RADIO.items():
+        chosen = getattr(config, attr)
+        if key in sent and chosen is not None and chosen != getattr(base, attr) and all(spec.id != chosen for spec in config.live_radios):
+            raise no_radio(key, chosen, config.radios)
 
 
 @command(SetConfig)
@@ -191,8 +195,7 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
         before = base
         refuse_flat(flat, base)
         after = with_radio_values(Config.checked(base, flat), own)
-        if "station/main_radio" in flat:
-            _main_radio(base, after)
+        _name_radios(base, after, flat)
         refuse_held(base, after, ctx.ctl.radios.claims)
         refuse_from_afar(ctx.conn, [*base.changed(after), *(key for key in own if _own_value(base, key) != _own_value(after, key))])
         return after

@@ -1,6 +1,6 @@
 """The ALOHA circle (neoaprs/aloha.py, neoaprs/services/aloha.py): the method of WB4APR's text on made-up stations at known distances (due north of the position, 1 km = 1/111.195 degree), the kinds of station, what is left out,
 the edges (no position, too few stations, one at the position), the service that works it out again, and the value on the wire. The circle of a radio (rule 3.8) counts the stations that radio heard, and
-the service draws the main radio's while its type shares a 1200 baud channel (FM), none for an HF main radio or none at all."""
+the service draws one for each radio that is on whose type shares a 1200 baud channel (FM), none for an HF radio or none at all."""
 import asyncio
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -33,6 +33,11 @@ def at_km(call: str, km: float, code: str = "-", table: str = "/", **kw: object)
 
 def homes(count: int, first_km: float = 1.0, step_km: float = 1.0) -> list[Station]:
     return [at_km(f"OH2H{n:03d}", first_km + n * step_km) for n in range(count)]
+
+
+def others(count: int, first_km: float) -> list[Station]:
+    """Home stations of other calls than `homes`, 1 km apart from `first_km`."""
+    return [at_km(f"OH3H{n:03d}", first_km + n) for n in range(count)]
 
 
 def test_the_circle_ends_at_the_station_where_the_load_reaches_1800_packets() -> None:
@@ -140,24 +145,45 @@ def test_the_circle_of_a_radio_counts_the_stations_that_radio_heard() -> None:
     assert circle(HOME, fm + late, NOW, FM_ID) is None, "heard on the air lately, but on FM too long ago"
 
 
-def test_the_service_draws_the_main_radios_circle_while_its_type_shares_a_channel() -> None:
+def test_the_service_draws_a_circle_for_each_radio_it_is_given_whose_type_shares_a_channel_from_what_that_radio_heard() -> None:
+    clock = FixedClock(NOW)
+    book = StationBook(clock)
+    book.seed(heard_on(homes(900), FM_ID) + heard_on(others(900, 2000.0), 3))
+    book.set_me("OH2GBA", *HOME)
+    on: list[object] = [SimpleNamespace(id=FM_ID, allowed=FM_ALLOWED)]
+    aloha = Aloha(book, clock, radios=lambda: on)               # type: ignore[arg-type, return-value]
+    aloha.refresh()
+    assert aloha.radii == {FM_ID: 900.0}, "the FM radio heard them"
+    on.append(SimpleNamespace(id=HF_ID, allowed=HF_ALLOWED))
+    on.append(SimpleNamespace(id=3, allowed=FM_ALLOWED))
+    aloha.refresh()
+    assert list(aloha.radii.items()) == [(FM_ID, 900.0), (3, pytest.approx(2899.0, abs=0.1))], "one for each FM radio, in the order of the boxes; none for HF"
+    on[:] = [SimpleNamespace(id=HF_ID, allowed=HF_ALLOWED)]
+    aloha.refresh()
+    assert aloha.radii == {} and aloha.radius_km is None, "an HF radio has no 1200 baud channel"
+    on[:] = []
+    aloha.refresh()
+    assert aloha.radii == {}, "no radio, no circle"
+    on[:] = [SimpleNamespace(id=HF_ID, allowed=FM_ALLOWED)]
+    aloha.refresh()
+    assert aloha.radii == {}, "a radio of a shared channel that heard none of them"
+
+
+def test_the_service_tells_a_change_of_any_one_circle() -> None:
     clock = FixedClock(NOW)
     book = StationBook(clock)
     book.seed(heard_on(homes(900), FM_ID))
     book.set_me("OH2GBA", *HOME)
-    main: list[object] = [SimpleNamespace(id=FM_ID, allowed=FM_ALLOWED)]
-    aloha = Aloha(book, clock, main=lambda: main[0])           # type: ignore[arg-type, return-value]
+    on: list[object] = [SimpleNamespace(id=FM_ID, allowed=FM_ALLOWED)]
+    aloha = Aloha(book, clock, radios=lambda: on)               # type: ignore[arg-type, return-value]
+    told: list[dict[RadioId, float]] = []
+    aloha.changed.connect(lambda: told.append(dict(aloha.radii)))
     aloha.refresh()
-    assert aloha.radius_km == 900.0, "the FM radio heard them"
-    main[0] = SimpleNamespace(id=HF_ID, allowed=HF_ALLOWED)
+    book.seed(heard_on(others(900, 3000.0), 3))
+    on.append(SimpleNamespace(id=3, allowed=FM_ALLOWED))
     aloha.refresh()
-    assert aloha.radius_km is None, "an HF main radio has no 1200 baud channel"
-    main[0] = None
     aloha.refresh()
-    assert aloha.radius_km is None, "no radio, no circle"
-    main[0] = SimpleNamespace(id=HF_ID, allowed=FM_ALLOWED)
-    aloha.refresh()
-    assert aloha.radius_km is None, "a main radio of a shared channel that heard none of them"
+    assert told == [{FM_ID: 900.0}, {FM_ID: 900.0, 3: pytest.approx(3899.0, abs=0.1)}]
 
 
 def test_no_position_and_no_stations_give_no_circle() -> None:
@@ -215,19 +241,19 @@ async def test_the_page_is_told_the_radius_in_the_topic_map_and_when_our_positio
     await e.start(connected=False)
     page = await e.ws()
     await page.until(lambda: "map" in page.topics)
-    assert page.topics["map"]["aloha_km"] is None
+    assert page.topics["map"]["aloha"] == []
     lat, lon = e.ctl.config.station_position or (0.0, 0.0)
     now = e.ctl.clock()
     stations = [Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, last_rf_at=now, heard_rf=1, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/", last_position_at=now,
-                        heard_by={FM_ID: RadioHeard(1, now)}) for n in range(900)]                   # (heard by radio 1, the main radio, as the book counts them)
+                        heard_by={FM_ID: RadioHeard(1, now)}) for n in range(900)]                   # (heard by radio 1, the FM radio, as the book counts them)
     e.ctl.stationbook.seed(stations)
     e.ctl.aloha.refresh()
-    await page.until(lambda: page.topics["map"]["aloha_km"] is not None)
-    assert page.topics["map"]["aloha_km"] == pytest.approx(900.0, abs=0.1)
+    await page.until(lambda: page.topics["map"]["aloha"] != [])
+    assert page.topics["map"]["aloha"] == [{"radio": FM_ID, "km": pytest.approx(900.0, abs=0.1)}]
 
 
 async def test_the_stations_the_hf_radio_heard_make_no_circle_on_the_map(tmp_path: Path) -> None:
-    """The composition root gives the circle the main radio (app.py `Aloha(..., main=...)`): 900 stations heard over HF alone make no circle round an FM station (rule 3.8)."""
+    """The composition root gives the circles the radios that are on (app.py `Aloha(..., radios=...)`), and only a type that shares a channel has one: 900 stations heard over HF alone make no circle round an FM station (rule 3.8)."""
     e = Env(tmp_path, web=True, radio=False)
     await e.start(connected=False)
     lat, lon = e.ctl.config.station_position or (0.0, 0.0)

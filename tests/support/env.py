@@ -23,7 +23,7 @@ it to the Controller), `e.hf` radio 2's (the HF radio, stopped unless the settin
 The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in an Env (`check_sec` 0, the Controller's `check_sec` follows the Tnc's), so that the line is usable as soon as it is open; a test about it passes `check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 type (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing.
 The settings of an Env say its radios in the words the tests have always written them in (`RADIO_ROWS`: `tnc/profile`, `serial/port`, `hf/enabled`, `mercury/keying` ...): before the daemon's first start on a database
 that has no radio, the Env adds radio 1, the FM radio, from them, and radio 2, the HF radio, when they name it (`hf/*`, `mercury/*`) or the Env is given its Mercury (`hf`), each with those rows as its own
-settings, as the operator adds a station's radios; the station's rows are written as they are. An Env whose settings never name the HF radio has no radio 2: `e.hf` is then a line that stays stopped."""
+settings, as the operator adds a station's radios (with the ticks the controller writes beside a radio that comes on: radio 1's status, Ask around and Local info where both send and are on); the station's rows are written as they are. An Env whose settings never name the HF radio has no radio 2: `e.hf` is then a line that stays stopped."""
 import asyncio
 import shutil
 import tempfile
@@ -45,6 +45,7 @@ from neoaprs.radioregistry import LiveRadio
 from neoaprs.radiospec import FM_ID, HF_ID, RadioId
 from neoaprs.radiotype import Kind
 from neoaprs.radiotypes import BY_KEY as TYPES, DEFAULT_TYPE
+from neoaprs.sendonrule import kept_in_force
 from neoaprs.services.beacon import Beacon
 from neoaprs.packet import Packet
 from neoaprs.source import Backoff, Source
@@ -359,8 +360,12 @@ class Env:
     async def add_first_radios(self) -> None:
         """The radios of the Env's settings (`first_radios`; a fresh install's have no rows), added to a database that has none, before the daemon's first start: radio 1, and radio 2 where they name it."""
         for position, (kind, type, on, own) in enumerate(first_radios(self.settings if self.operator else {}, bool(self.hf_link)), 1):
+            before = await self.ctl.store.radios()
             added = await self.ctl.store.add_radio(kind, type, "", on, position, settings=own)
             assert added == position, f"the database gave the {kind} radio the id {added}, not {position}"
+            kept = kept_in_force(before, await self.ctl.store.radios(), {}, {}, None)       # (what the controller's add_radio writes beside a radio that comes on: radio 1's ticks when radio 2 comes)
+            for id, key in kept.ticks:
+                assert await self.ctl.store.put_radio_settings(id, {key: "true"})
 
     async def until_usable(self) -> None:
         """The Tnc is connected and settled: past the wait after KISS ON, so that what the daemon sends from here on is not thrown away."""

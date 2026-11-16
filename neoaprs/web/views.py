@@ -43,7 +43,7 @@ from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
 from .prefwire import StationAlertMsg, StationPref
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
-from .generalwire import GeneralAsked, GeneralState
+from .generalwire import GeneralAsked, GeneralSent, GeneralState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
 from .tncwire import ModemState
 from .wirebase import HISTORY_MAX_HOURS
@@ -163,7 +163,7 @@ def message_row(record: MessageRecord, attempts: tuple[Attempt, ...] = (), queue
 
 
 def on_their_way(records: Iterable[MessageRecord], call: str | None = None) -> list[str]:
-    """The keys of the messages of ours on their way (to the station `call`, or to any): the rows whose `radio_now` follows the radios, the main radio and the station's choice."""
+    """The keys of the messages of ours on their way (to the station `call`, or to any): the rows whose `radio_now` follows the radios, the email radio and the station's choice."""
     return [str(r.id) for r in records if r.direction == "out" and r.state == "sending" and (call is None or r.to_call == call)]
 
 
@@ -176,7 +176,7 @@ def own_object_row(obj: OwnObject, next_at: datetime | None) -> dict[str, Any]:
 
 
 def own_bulletin_row(bulletin: OwnBulletin, next_at: datetime | None) -> dict[str, Any]:
-    return OwnBulletinRow.row(bulletin, posted_at=iso(bulletin.created_at), next_at=iso(next_at))
+    return OwnBulletinRow.row(bulletin, posted_at=iso(bulletin.created_at), next_at=iso(next_at), radios=list(bulletin.radios))
 
 
 def key_row(fingerprint: str, heard_at: datetime) -> dict[str, Any]:
@@ -209,7 +209,7 @@ def config_values(config: Config, urls: list[str], https: dict[str, Any] | None 
     `radio_values`, apart, so that a form that shows every key of `values` shows none of them."""
     values, defaults = config.to_data(), DEFAULTS.to_data()
     values, defaults = {k: v for k, v in values.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS}, {k: v for k, v in defaults.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS}
-    values["station/main_radio"] = values["station/main_radio"] if config.radio(config.main_choice or 0) in config.live_radios else ""     # (a main radio removed is none: the first that is on is the main one)
+    values["email/radio"] = values["email/radio"] if config.radio(config.email_choice or 0) in config.live_radios else ""                  # (an email radio removed is none chosen)
     radio_values = {key: values[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": spec.settings.get(f.key, f.default) for spec in config.live_radios for f in kind_fields(spec.kind)}
     radio_defaults = {key: defaults[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": f.default for spec in config.live_radios for f in kind_fields(spec.kind)}
     return {"values": {k: v for k, v in values.items() if k not in RADIO_STATION_KEYS}, "defaults": {k: v for k, v in defaults.items() if k not in RADIO_STATION_KEYS}, "radio_values": radio_values,
@@ -293,22 +293,32 @@ class AskedAround(Protocol):
     @property
     def at(self) -> datetime: ...
     @property
-    def path(self) -> tuple[str, ...]: ...
+    def path(self) -> tuple[str, ...] | None: ...
     @property
     def until(self) -> datetime: ...
     @property
     def new(self) -> tuple[str, ...]: ...
     @property
-    def radio(self) -> RadioId | None: ...
+    def radios(self) -> tuple[RadioId, ...]: ...
 
 
-def general_state(asked: Sequence[AskedAround], by_radio: Sequence[AskedAround] = ()) -> dict[str, Any]:
-    """The `general` topic: the last general query of each kind and the stations heard after it, each with the radio it went on; and the last of each kind on each radio (`by_radio`)."""
-    return GeneralState.row(None, asked=[GeneralAsked.row(a) for a in asked], by_radio=[GeneralAsked.row(a) for a in by_radio])
+class AskedOnRadio(Protocol):
+    """What the `general` topic needs of the last query of a kind on one radio (SentOn of neoaprs/services/generalask.py)."""
+    @property
+    def kind(self) -> str: ...
+    @property
+    def radio(self) -> RadioId: ...
+    @property
+    def at(self) -> datetime: ...
+
+
+def general_state(asked: Sequence[AskedAround], by_radio: Sequence[AskedOnRadio] = ()) -> dict[str, Any]:
+    """The `general` topic: the last general query of each kind with the radios it went on and the stations heard after it; and when the last of each kind went on each radio (`by_radio`)."""
+    return GeneralState.row(None, asked=[GeneralAsked.row(a) for a in asked], by_radio=[GeneralSent.row(a) for a in by_radio])
 
 
 def qru_state(qru: QruSource) -> dict[str, Any]:
     """The `qru` topic: the last request and the servers that answered it."""
     asked = qru.asked
     servers = [QruServer.row(s, groups=[QruGroup.row(None, name=name, count=count) for name, count in s.groups], sent_at=iso(s.sent_at), received=list(s.received), settles_at=iso(s.settles_at)) for s in qru.servers()]
-    return QruState.row(None, asked=None if asked is None else QruAsked.row(asked, radio=getattr(asked, "radio", None)), servers=servers)
+    return QruState.row(None, asked=None if asked is None else QruAsked.row(asked, radios=list(getattr(asked, "radios", ()))), servers=servers)

@@ -20,22 +20,23 @@ import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { useRadios } from "@/composables/useRadios";
 import { HEARD_ON_RADIOS, radioTone, titled } from "@/lib/channels";
-import { inForce, stateText } from "@/lib/ownobjects";
+import { stateText } from "@/lib/ownobjects";
+import { inForce } from "@/lib/sendon";
 import type { PageRadio } from "@/lib/radios";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
 import type { OwnObjectRow } from "@/protocol/protocol";
 
 const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: OwnObjectsView }>();
 const emit = defineEmits<{ select: [name: string, multi?: boolean] }>();
-const { fallbackPath, now } = useDaemonContext();
-/** The radio tags of a row are there while several radios are on: the radios it goes out on now (its own that are on, else the main radio). */
-const { severalSenders: several, senders: enabled, main, byId } = useRadios();
+const { now } = useDaemonContext();
+/** The radio tags of a row are there while several radios are on: the radios it goes out on now (its own that are on; none while none of them is). */
+const { severalSenders: several, senders: enabled, byId } = useRadios();
 /** The tags of each row's radios, by the object's name: the first two by name, then "+n" whose hover names the rest; none with one radio on. */
 const radioTags = computed(() => {
   const on = enabled.value.map((radio) => radio.id);
   return new Map(
     [...props.objects.values()].map((row) => {
-      const radios = several.value ? inForce(row.radios, on, main.value?.id ?? null).flatMap((id) => byId(id) ?? []) : [];
+      const radios = several.value ? inForce(row.radios, on).flatMap((id) => byId(id) ?? []) : [];
       return [row.name, { shown: radios.slice(0, HEARD_ON_RADIOS), rest: radios.slice(HEARD_ON_RADIOS) }];
     }),
   );
@@ -77,7 +78,7 @@ watch(
       <span class="info-line">{{ t("objects.about2") }}</span>
     </TabHelp>
     <div ref="scroller" class="objectlist">
-      <ObjectForm :form="form" :fallback-path="fallbackPath" />
+      <ObjectForm :form="form" />
       <fieldset class="myobjects">
         <legend>
           {{ t("objects.mine") }} <span v-if="rows.length > 0" class="muted">{{ rows.length }}</span>

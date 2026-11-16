@@ -68,7 +68,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.alert.own": "{call} is van ons: een melding is voor een ander station",
   "error.message.control": "de tekst bevat een besturingsteken",
   "error.message.empty": "het bericht is leeg",
-  "error.message.email_fm_off": "er staat geen radio aan die internetgateways horen",
   "error.message.forbidden": "de tekst bevat {chars}, wat niet in een bericht kan ({forbidden} zijn niet toegestaan)",
   "error.message.not_ascii": {
     select: "chars",

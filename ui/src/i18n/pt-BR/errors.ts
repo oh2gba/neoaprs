@@ -68,7 +68,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.alert.own": "{call} é nossa: um aviso é para outra estação",
   "error.message.control": "o texto tem um caractere de controle",
   "error.message.empty": "a mensagem está vazia",
-  "error.message.email_fm_off": "nenhum rádio que os gateways de internet ouvem está ligado",
   "error.message.forbidden": "o texto tem {chars}, que uma mensagem não pode conter (não são permitidos: {forbidden})",
   "error.message.not_ascii": {
     select: "chars",

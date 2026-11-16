@@ -13,7 +13,7 @@ import ObjectsQru from "@/components/ObjectsQru.vue";
 import StationPanel from "@/components/StationPanel.vue";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon, type Given } from "@/test/context";
-import { configValues, heardBy, qruState, radioRow, radiosTopic, station } from "@/test/fixtures";
+import { configValues, heardBy, qruState, radioRow, radiosTopic, station, status } from "@/test/fixtures";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => document.body.replaceChildren());
@@ -212,6 +212,15 @@ describe("Route in a conversation", () => {
     expect(shack.find(".route-box .path-line").text()).toBe("Automatic: WIDE1-1,WIDE2-1");
   });
 
+  it("says as the automatic path the one the radio in force really takes: radio 1's own path, a LoRa radio's WIDE1-1, else the station's symbol's", async () => {
+    const lora = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(4, "lora-tcp"));
+    const values = configValues({}, { "radio/1/path": "WIDE2-1", "radio/4/path": "" });
+    const onLora = conversation({ radios: lora }, "OH2LOR", stations(station("OH2LOR", { radio_now: 4, heard: heardBy([4, 3]) })), { config: values });
+    expect((await opened(onLora)).find(".path-line").text()).toBe("Automatic: WIDE1-1");
+    const onFm = conversation({ radios: lora }, "OH2FM", stations({ ...fmHeard, radio_now: 1 }), { config: values });
+    expect((await opened(onFm)).find(".path-line").text(), "radio 1's own path, whatever radio is first").toBe("Automatic: WIDE2-1");
+  });
+
   it("has a list of radios of a set width, not the box's, that shrinks with its row and takes it at a phone's width as the Path field does", async () => {
     const sheet = readFileSync(resolve(__dirname, "../styles/messages.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const rule = sheet.match(/\.route-radio-pick \{([^}]*)\}/)?.[1] ?? "";
@@ -242,6 +251,21 @@ describe("Route in the station panel", () => {
     await wrapper.find(".stationpanel-settings select").setValue("2");
     expect(sent("station_radio")).toEqual([{ cmd: "station_radio", call: "OH2BOTH", radio: 2 }]);
     expect(panel(FM, fmHeard).find(".stationpanel-settings select").exists()).toBe(false);
+  });
+
+  it("shows the radio of the email gateway greyed and chooses nothing: its radio is chosen in the Email tab, and a thing is offered once", () => {
+    const gateway = station("EMAIL-2", { heard: heardBy([1, 3]), radio_choice: 1, radio_now: 2 }); // (a choice Route kept in 0.20.1: it says nothing)
+    const wrapper = panel(BOTH, gateway, { status: status({ email_radio: 2 }) });
+    const list = wrapper.find<HTMLSelectElement>(".stationpanel-settings .route-radio select");
+    expect([list.element.disabled, list.element.selectedOptions[0]?.text, wrapper.find(".stationpanel-settings .route-radio").classes()]).toEqual([
+      true,
+      "Mercury",
+      ["pathbox", "route-radio", "disabled"],
+    ]);
+    expect(sent("station_radio")).toEqual([]);
+    const fm = panel(BOTH, gateway, { status: status({ email_radio: 1 }) });
+    expect(fm.find<HTMLSelectElement>(".stationpanel-settings .route-radio select").element.selectedOptions[0]?.text).toBe("FM");
+    expect(panel(BOTH, bothHeard).find<HTMLSelectElement>(".stationpanel-settings .route-radio select").element.disabled).toBe(false);
   });
 });
 

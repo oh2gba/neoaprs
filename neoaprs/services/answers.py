@@ -5,7 +5,7 @@ copies of one transmission by different digipeaters, an impatient asker) is answ
 whoever asks, with whatever call, the frames beyond it are not sent, and an answer that does not fit whole is not given at all; a frame is counted from the moment it goes on the air, the frames of an answer that are
 still to go are held for it meanwhile, and the room of a frame that did not go on the air is given back. Nothing is sent under the transmit interlock or while the radio is not usable.
 
-An answer goes on the radio the request came on (`radio`, the RadioPick's `for_packet`; the main radio when none is named), by the path that radio may carry (services/radioset.py `path_on`). The services that
+An answer goes on the radio the request came on (`radio`, the RadioPick's `for_packet`; the first radio that can send when none is named, a test's), by the path that radio may carry (services/radioset.py `path_on`). The services that
 answer and the messaging take the radios as a `RadioPick` (services/radioset.py): the registry, which app.py gives them, or an old shape that a test still gives (the old set of two, a plain Radio), which
 `as_pick` (services/common.py, given here under its name) reads as one at each call."""
 import asyncio
@@ -26,7 +26,7 @@ from neoaprs.route import rf_only_path
 from neoaprs.services.common import ConfigSource, OldAir, Paths, Radio, our_frame
 from neoaprs.services.common import as_pick as as_pick      # (the one adapter of the old shapes, under the name the services of messages and answers import it by)
 from neoaprs.services.pace import SPACING_SEC
-from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, path_on
+from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender, path_on
 from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.queries")
@@ -120,7 +120,7 @@ class Answers:
         """Sends the frames of the answer to `query`. Paced, the first goes at once and the others follow one at a time, SPACING_SEC apart (the answer counts as given once the first has gone); not paced, they all go
         at once, and the answer counts as given when every one has. With `rf_only` the frames go by the asker's path with RFONLY added, which keeps the iGates from putting them on APRS-IS. With `first_after_sec` (paced
         only) the first frame goes that long after the request, and the answer counts as given at once, so that the copies of the request that come meanwhile are not answered again. On `radio` (the one the request came
-        on; the main radio by default). Whether it was given."""
+        on; the first radio that can send when none is named). Whether it was given."""
         if not frames:
             return False
         share = self._budget.take(len(frames))
@@ -181,11 +181,11 @@ class Answers:
         return True
 
     def _transmit(self, asker: str, frame: ax25.Frame, rf_only: bool, radio: AirRadio | None) -> bool:
-        """Sends the frame by the asker's path (with RFONLY added when `rf_only`) on `radio` (the one the request came on; the main radio by default) by what that radio may carry; whether it went, and a word in the
+        """Sends the frame by the asker's path (with RFONLY added when `rf_only`) on `radio` (the one the request came on; the first radio that can send when none is named) by what that radio may carry; whether it went, and a word in the
         log when it did not."""
         if self.refused():
             return False
-        tnc = radio or as_pick(self._given, self._config).main
+        tnc = radio or first_sender(as_pick(self._given, self._config))
         if tnc is None or not tnc.usable:
             log.warning("a query of %s is not answered: %s", asker, NO_RADIO if tnc is None else tnc.why_unusable())
             return False

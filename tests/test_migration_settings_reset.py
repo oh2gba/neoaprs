@@ -23,7 +23,7 @@ from tests.test_migrations import GOLDEN, raw
 RESET = {"map/maxzoom": "14", "map/source": "https://example.org/world.pmtiles", "update/url": "http://localhost:9/v.php",
          "serial/pattern": "/dev/ttyS*", "serial/skip": "/dev/brainbox_2,/dev/ttyUSB3"}
 REMOVED = ["messages/attempts", "log/keep_days", "update/check", "tnc/check_sec", "tnc/watchdog_min", "map/hide_after_min", "beacon/destination", "beacon/compressed", "beacon/dao"]
-KEPT = {"station/call": "OH2GBA", "station/transmit": "false", "station/main_radio": "2", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "\\", "station/symbol_code": ">", "station/comment": "odd comment",
+KEPT = {"station/call": "OH2GBA", "station/transmit": "false", "station/main_radio": "2", "email/radio": "2", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "\\", "station/symbol_code": ">", "station/comment": "odd comment",
         "station/status": "hello", "tnc/profile": "kenwood-tnc2", "serial/port": "/dev/ttyUSB7", "serial/baud": "19200", "serial/last_port": "/dev/ttyUSB7", "tcp/host": "10.0.0.5", "tcp/port": "8100",
         "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "mercury/sound_card": "plughw:2,0", "mercury/keying": "rts:/dev/ttyUSB3", "mercury/tx_gain_db": "-3",
         "beacon/interval_min": "45", "beacon/path": "WIDE2-2", "beacon/power_w": "25", "beacon/antenna_height_m": "12", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE",
@@ -80,8 +80,9 @@ def test_the_settings_off_the_page_go_back_to_the_defaults_and_the_removed_rows_
         assert {key: state_row(db, key) for key in STATE} == {key: (KEPT[key], 1) for key in STATE} and found["web/bind"] == ("0.0.0.0", 1), "the daemon's own rows and the row of an older version too"
         assert {key: flat_row(db, key) for key in OWN_31} == {key: (KEPT[key], 1) for key in OWN_31}, "each radio's own setting with the revision it had, wherever it is kept"
         radios = has_table(db, "radio")
-        gone = (set(RADIOS) | {"tnc/enter_kiss"}) - set(STATE_31) if radios else set()          # (once the radios are rows: their rows, moved or written as the radios' columns)
-        assert found.keys() == {STATE_31.get(key, key) if radios else key for key in KEPT if key not in gone}, "nothing else is in the table, and nothing of it is lost"
+        gone = ((set(RADIOS) | {"tnc/enter_kiss"}) - set(STATE_31) | {"station/main_radio"}) if radios else set()          # (once the radios are rows: their rows, moved or written as the radios' columns; and the main radio, which migration 34 deletes)
+        step_34 = {key for key in found if key in ("objects/send_on", "bulletins/send_on")} if radios else set()      # (what a new object and a new bulletin start with, which migration 34 writes where several radios send)
+        assert found.keys() - step_34 == {STATE_31.get(key, key) if radios else key for key in KEPT if key not in gone}, "nothing else is in the table, and nothing of it is lost"
         assert config.tnc_profile == "kenwood-tnc2", "the type that was chosen stands, whatever tnc/enter_kiss said"
     for attr in ("map_maxzoom", "map_source", "update_url", "serial_pattern", "serial_skip"):
         assert getattr(config, attr) == getattr(DEFAULTS, attr)

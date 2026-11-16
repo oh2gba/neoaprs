@@ -2,14 +2,26 @@
 
 ## Unreleased
 
-The Sound card radio keeps its line open.
+All radios are equal: each thing goes on the radios you tick and email on the radio you choose; the Sound card radio and Update now put right.
 
+- **New:** with several radios, Ask around and Local info have their own Send on and send one request on each radio ticked.
+- **New:** with several radios, **Post a bulletin** has its own Send on, and a bulletin of yours on the board shows its radios.
+- **New:** with several radios, the Email tab has a list to choose the radio email goes on: any radio that can send, Mercury too.
+- **New:** each FM radio has its own ALOHA circle on the map, from the stations it heard.
+- **Changed:** no main radio: all radios are equal. The update ticks everything for the old main radio and puts its box first.
+- **Changed:** with several radios, a thing ticked for no radio that is on is not sent, the beacon too; nothing falls to another radio.
+- **Changed:** a radio added or switched on no longer moves the status, bulletins, Ask around, Local info or email off their radios.
+- **Changed:** with several radios, a new object is ticked as the object you saved last, and a new bulletin as the one you posted last.
+- **Changed:** bulletins and the status repeat no more often than every 30 minutes on Mercury and LoRa radios.
+- **Changed:** a station whose only radio that sends is a Mercury radio can send email; Send was off there.
+- **Changed:** in Local info a station that answers shows the radio it answered on, and its categories and Ask again go on that radio.
 - **Fixed:** a Sound card radio opened the line to its modem three times a second, for ever; it now keeps it open.
 - **Fixed:** a Sound card radio's Receive level never changed; it now follows the audio and is empty with the radio off.
 - **Fixed:** a sound card or a port stayed greyed out for other radios after its radio changed type, was switched off or removed.
 - **Fixed:** after Update now the page comes back on the port it was on; the app's window follows NeoAPRS if it must take another.
 - **Fixed:** after Update now an AppImage that ran mounted is mounted again, no longer unpacked into the temporary folder.
 - **Fixed:** the update window has lost its closing sentence about settings and open pages, and its restart line is short.
+- **Fixed:** the Path fields show the path that radio really uses: a LoRa radio's Recommended is WIDE1-1, no longer the station's WIDE2-2.
 
 ## 0.20.1
 

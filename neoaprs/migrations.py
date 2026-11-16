@@ -32,6 +32,7 @@ from .migrationsteps1to11 import _v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v
 from .migrationsteps22on import _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30
 from .migrationsteps31 import _v31
 from .migrationsteps32 import _v32, _v33
+from .migrationsteps34 import _v34
 from .stopfile import MIGRATE_LOCK_NAME, MigratingNote, clear_stale_migrating, migrating
 
 
@@ -44,7 +45,7 @@ def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
 
 
 # one function per version, in order: version N is reached by running MIGRATIONS[N - 1] on version N - 1
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21, _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30, _v31, _v32, _v33]
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21, _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30, _v31, _v32, _v33, _v34]
 SCHEMA_VERSION = len(MIGRATIONS)
 MIB = 1024 * 1024
 REWRITE_BELOW = 32                                   # a file below this version has migration 32 before it, which writes the packet table again where it lies: until that step is committed the write-ahead log holds the table once more (0.92 of a gigabyte's file, measured)

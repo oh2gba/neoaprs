@@ -19,7 +19,7 @@ The table below is made from the program, so it lists every setting there is, wi
 | --- | --- | --- | --- |
 | `station/call` | empty | My station tab, Station | your call, with an SSID if any, as one text such as `OH2GBA-9` (the page has the call in its field and the SSID in a dropdown beside it, [beacon.md](beacon.md#the-call-and-its-ssid)). **While it is empty, `N0CALL`, `NOCALL`, `MYCALL` or not an amateur call (3 to 6 letters and digits with at least one of each), nothing at all is transmitted** ([start.md](start.md#the-setup-guide)) |
 | `station/transmit` | `true` | Settings tab, Radio | `false` is RX only (the tickbox RX only of Settings → Radio is ticked): nothing at all is transmitted (beacon, status, messages, acks, answers to queries, objects, bulletins, the digipeater) and every button that sends is off; messages being sent wait, with no attempt used up. It takes effect at once. The header shows a lime RX only mark ([beacon.md](beacon.md#rx-only)). A beacon that is off is not this |
-| `station/main_radio` | empty | `neoaprs db set`, and the page once it lists the radios | the radio that carries what is addressed to no station (bulletins, the status, the first choice of Ask around, Local info and email), by its id as `neoaprs db radios` lists it; empty is the first radio that is on by position. A radio that is off or removed is not the main one: the first that is on is |
+| `email/radio` | empty | Email tab, the list beside Check email (while several radios that can send are on) | the radio email goes out on, by its id as `neoaprs db radios` lists it: any radio that can send. Empty, or a radio that is off: the topmost radio that can send, by the order of the boxes. A radio that comes on beside the one a mail went on while none was chosen stores that one, so that the mail stays there; a radio removed takes its choice with it. With one radio that can send it is that one, whatever is stored ([email.md](email.md#which-radio)) |
 | `station/lat` | empty | My station tab, Location (Position: Fixed) | where you are, decimal degrees, north positive (−90 to 90). The map opens here and distances are measured from here. The page shows it for a fixed station only; with a GPS chosen it stays stored and is used until the first fix. Empty with the longitude: no position, no beacon, no station of your own, and the map opens on the world |
 | `station/lon` | empty | My station tab, Location (Position: Fixed) | decimal degrees, east positive (−180 to 180) |
 | `station/symbol_table` | `/` | My station tab, Station (the symbol) | `/` is the primary table, `\` the alternate one, `0`-`9` and `A`-`Z` an overlay on the alternate table |
@@ -71,20 +71,20 @@ The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `h
 <!-- doc-settings:radios -->
 | type | kind | what it is | its own settings |
 | --- | --- | --- | --- |
-| `direwolf` | fm | Sound card | `sound_card`, `keying`, `tx_gain_db`, `beacon`, `status`, `path`, `digipeat` |
-| `kiss` | fm | KISS TNC (Kenwood TH-D74/D75, Mobilinkd…) | `port`, `baud`, `beacon`, `status`, `path`, `digipeat` |
-| `kenwood-d710` | fm | Kenwood TM-D710 / TH-D72 | `port`, `baud`, `beacon`, `status`, `path`, `digipeat` |
-| `kenwood-tnc2` | fm | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | `port`, `baud`, `beacon`, `status`, `path`, `digipeat` |
-| `kantronics` | fm | Kantronics KPC-3+ | `port`, `baud`, `beacon`, `status`, `path`, `digipeat` |
-| `kiss-tcp` | fm | Your own Direwolf or soundmodem | `port`, `tcp_host`, `tcp_port`, `beacon`, `status`, `path`, `digipeat` |
+| `direwolf` | fm | Sound card | `sound_card`, `keying`, `tx_gain_db`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
+| `kiss` | fm | KISS TNC (Kenwood TH-D74/D75, Mobilinkd…) | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
+| `kenwood-d710` | fm | Kenwood TM-D710 / TH-D72 | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
+| `kenwood-tnc2` | fm | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
+| `kantronics` | fm | Kantronics KPC-3+ | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
+| `kiss-tcp` | fm | Your own Direwolf or soundmodem | `port`, `tcp_host`, `tcp_port`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `tnc-text` | fm | Yaesu FTM, TNC in monitor mode (RX only) | `port`, `baud` |
-| `dummy` | fm | Dummy FM radio | `beacon`, `status`, `path`, `digipeat` |
-| `dummy-hf` | hf | Dummy Mercury radio | `beacon`, `status` |
-| `mercury` | hf | Mercury modem (sound card) | `sound_card`, `keying`, `tx_gain_db`, `beacon`, `status` |
-| `lora-tcp` | lora | LoRa APRS board on the network | `tcp_host`, `tcp_port`, `beacon`, `status`, `path` |
-| `lora-serial` | lora | LoRa APRS board on USB or Bluetooth | `port`, `baud`, `beacon`, `status`, `path` |
+| `dummy` | fm | Dummy FM radio | `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
+| `dummy-hf` | hf | Dummy Mercury radio | `beacon`, `status`, `ask`, `local_info` |
+| `mercury` | hf | Mercury modem (sound card) | `sound_card`, `keying`, `tx_gain_db`, `beacon`, `status`, `ask`, `local_info` |
+| `lora-tcp` | lora | LoRa APRS board on the network | `tcp_host`, `tcp_port`, `beacon`, `status`, `ask`, `local_info`, `path` |
+| `lora-serial` | lora | LoRa APRS board on USB or Bluetooth | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path` |
 | `lora-console` | lora | LoRa APRS iGate on USB (RX only) | `port`, `baud` |
-| `dummy-lora` | lora | Dummy LoRa radio | `beacon`, `status`, `path` |
+| `dummy-lora` | lora | Dummy LoRa radio | `beacon`, `status`, `ask`, `local_info`, `path` |
 
 | key | default | types | where | what it is |
 | --- | --- | --- | --- | --- |
@@ -93,7 +93,9 @@ The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `h
 | `radio/<id>/tcp_host` | `127.0.0.1` | `kiss-tcp`, `lora-tcp` | Settings tab, Radio (Address) | where a `kiss-tcp` radio connects while its port is empty; a `lora-tcp` radio's is empty until the board's address is typed, and nothing is opened meanwhile |
 | `radio/<id>/tcp_port` | `8001` | `kiss-tcp`, `lora-tcp` | Settings tab, Radio (Port) | the KISS port there (1 to 65535): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100 |
 | `radio/<id>/beacon` | `true` | `direwolf`, `kiss`, `kenwood-d710`, `kenwood-tnc2`, `kantronics`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `lora-tcp`, `lora-serial`, `dummy-lora` | `neoaprs db set` only | `true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says |
-| `radio/<id>/status` | `false` | `direwolf`, `kiss`, `kenwood-d710`, `kenwood-tnc2`, `kantronics`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `lora-tcp`, `lora-serial`, `dummy-lora` | My station tab, Status (Send on) | `true`: the status report goes out on this radio. While no radio that is on is ticked (the default), it goes out on the main radio; with one radio that can send, on that one whatever this says |
+| `radio/<id>/status` | `false` | `direwolf`, `kiss`, `kenwood-d710`, `kenwood-tnc2`, `kantronics`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `lora-tcp`, `lora-serial`, `dummy-lora` | My station tab, Status (Send on) | `true`: the status report goes out on this radio. With one radio that can send, on that one whatever this says; with several, on those ticked, and on none while none that is on is |
+| `radio/<id>/ask` | `false` | `direwolf`, `kiss`, `kenwood-d710`, `kenwood-tnc2`, `kantronics`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `lora-tcp`, `lora-serial`, `dummy-lora` | Nearby tab, Ask around (Send on) | `true`: Ask around sends its query on this radio. Read as `radio/<id>/status` is |
+| `radio/<id>/local_info` | `false` | `direwolf`, `kiss`, `kenwood-d710`, `kenwood-tnc2`, `kantronics`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `lora-tcp`, `lora-serial`, `dummy-lora` | Objects tab, Local info (Send on) | `true`: Local info's Ask sends its request on this radio. Read as `radio/<id>/status` is |
 | `radio/<id>/path` | empty | `direwolf`, `kiss`, `kenwood-d710`, `kenwood-tnc2`, `kantronics`, `kiss-tcp`, `dummy`, `lora-tcp`, `lora-serial`, `dummy-lora` | My station tab, Beacon, Advanced | the digipeaters of the beacon on this radio: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path of your station's type, which the symbol decides: `WIDE1-1,WIDE2-1` for a mobile symbol (a car, a bike, a boat, an aircraft ...), `WIDE2-2` for any other; on a LoRa radio it is `WIDE1-1`, the path of the LoRa networks. `DIRECT` is no digipeaters at all. Only a type that may carry a path has it |
 | `radio/<id>/digipeat` | `false` | `direwolf`, `kiss`, `kenwood-d710`, `kenwood-tnc2`, `kantronics`, `kiss-tcp`, `dummy` | Settings tab, Digipeater | `true`: this radio repeats a packet that asks for `WIDE1-1`, or for our call: the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater)) |
 | `radio/<id>/sound_card` | empty | `direwolf`, `mercury` | Settings tab, Radio (Sound card) | the sound card of the radio's modem (the Mercury modem, Direwolf), as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows); one card is one radio's. The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice ([radio.md](radio.md#the-mercury-modem)) |
@@ -131,6 +133,8 @@ These rows are written by the daemon so that a restart goes on where it stopped.
 - `status/last_text`: the text of that status report, which ?APRSS answers with and the page shows.
 - `map/auto`: whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`).
 - `messages/radio_by_station`: the radio the operator chose for messages to a station, by call and the radio's number, while several radios that can send are on.
+- `objects/send_on`: the radios of the object saved last with radios of its own (`1,3`), which a new object starts with.
+- `bulletins/send_on`: the radios of the bulletin posted last with radios of its own, which a new bulletin starts with.
 - `update/install_id`: the random number of this installation that the update check sends.
 - `update/not_counted`: `true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page.
 - `update/sked_token`: the secret of this installation that goes with each HF test it posts, so that only it can delete them; never shown in the log or the support bundle.

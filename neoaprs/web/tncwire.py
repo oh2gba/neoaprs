@@ -93,7 +93,7 @@ class RadioAllowed(_Model):
     paths: bool = Field(description="our frames on it may carry digipeaters: the path controls are shown for it; false: every frame goes direct")
     digipeat: bool = Field(description="it may repeat what it hears (its own Digipeater tick, `radio/<id>/digipeat`)")
     smart_beacon: bool = Field(description="a moving station's SmartBeaconing applies on it; elsewhere the timed beacon goes with the latest fix")
-    gateway_heard: bool = Field(description="internet gateways hear its kind: email may go out on it")
+    gateway_heard: bool = Field(description="internet gateways hear its kind: where no radio is chosen for email (`email/radio`), it goes on such a radio while one is on")
     shared_channel: bool = Field(description="it is a 1200-baud shared channel: the ALOHA circle is worked out from what it hears")
 
 
@@ -106,14 +106,16 @@ class RadioCan(_Model):
     scope: bool = Field(description="the spectrum scope (`radio_scope`); whether it is shown now is the modem's `scope`")
     tx_gain: bool = Field(description="the transmit gain (`radio/<id>/tx_gain_db`)")
     frequencies: bool = Field(description="the station's suggested frequencies are shown in its box")
-    transmit: bool = Field(description="it can send: false for a receive-only type, which is never the main radio, a message's, the beacon's, an object's or the email radio, and whose line is never written to")
+    transmit: bool = Field(description="it can send: false for a receive-only type, which is never a message's, the beacon's, an object's, a bulletin's or the email radio, and whose line is never written to")
     rx_level: bool = Field(description="its receive level is shown in its box (its modem's `rx_level`)")
 
 
 class RadioChoices(_Model):
-    """The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/status`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force."""
+    """The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/status`, `radio/<id>/ask`, `radio/<id>/local_info`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force."""
     beacon: bool = Field(description="Send on: the beacon goes out on this radio (with one radio on, it goes on that one whatever this says)")
-    status: bool = Field(description="the status's Send on: the status report goes out on this radio; false for every radio until the operator ticks one, and while none that is on is ticked it goes on the main radio (with one radio on, on that one whatever this says); false for a radio that only receives")
+    status: bool = Field(description="the status's Send on: the status report goes out on this radio; false by default (with one radio that can send on, on that one whatever this says; with several, while none that is on is ticked, on none); false for a radio that only receives")
+    ask: bool = Field(description="Ask around's Send on: a general query (`general_query`) goes out on this radio; read as `status` is")
+    local_info: bool = Field(description="Local info's Send on: the request to QRU that names no radio (`qru_ask`) goes out on this radio; read as `status` is")
     path: str | None = Field(description="the digipeaters of its frames as the setting holds them (empty: the recommended path of the station's symbol, `DIRECT`: none); null for a kind that has no path")
     digipeat: bool | None = Field(description="its digipeater is on; null for a kind that may not repeat")
 
@@ -149,7 +151,7 @@ class RadioRow(_Model):
     name: str = Field(description="the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `Mercury 2`) in its own words")
     number: int = Field(ge=1, description="its number within its kind: 1 for the first of the kind by id among the radios not removed (`Mercury 2` is 2); a removed radio keeps its own")
     enabled: bool = Field(description="its Enable is ticked (`radio_change` with `enabled`); false for a removed radio")
-    position: int = Field(ge=1, description="its place in the list of boxes (and of the first enabled, the main radio's default): the lowest first, then by id")
+    position: int = Field(ge=1, description="its place in the list of boxes (and of the radio a call no radio heard takes: the first that can send): the lowest first, then by id")
     removed: bool = Field(description="it was removed: its row stays so that what came by it keeps its name; it is no longer started, chosen or offered")
     dummy: bool = Field(description="its type is a Dummy radio: the traffic is made up and nothing goes on the air; its tag is dashed")
     state: Literal["stopped", "connecting", "connected", "waiting", "silent"] = Field(description="its line: `waiting` is between two attempts to open it, `silent` the line is open and the radio does not answer (a check of the keep-alive got no byte at all in answer), nothing is sent until it does; `stopped` for a radio that is off or removed")

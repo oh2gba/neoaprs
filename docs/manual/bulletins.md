@@ -46,6 +46,7 @@ Under the kind:
 - the **Number** of a bulletin or a group bulletin, 0 to 9, or the **Letter** of an announcement, A to Z. You can have one post on each: ten bulletins, twenty-six announcements, ten for each group;
 - the **Group**, a name of one to five letters and digits, for a group bulletin. The row is greyed for the other kinds;
 - the **Text**, with the characters of the 67 it has left;
+- **Send on**, only while several radios that can send are on: the beacon's row of ticks, a tick for each of them by its name, the radios this post goes out on. A new post is ticked as the one you posted last; the last tick ticked is greyed. The ticks go with **Post**, so a post that replaces one of yours replaces its radios too. With one radio that can send the row is not there;
 - **Post**, which is on when the post can be sent. It says **Replace** while the number, the letter or the number and group you chose holds a post of yours: the new text takes its place and is sent from the start again.
 
 What goes on the air:
@@ -58,7 +59,7 @@ What goes on the air:
 
 ### The packet
 
-A bulletin is a message without an id (chapter 14 of the specification), sent on the main radio by its path (`radio/<id>/path`): `:BLN3     :Snow expected in Tampa RSN`, an announcement `:BLNQ     :Mt St Helen digi will be QRT this weekend`, a group bulletin `:BLN4WX   :Stand by your snowplows`. The addressee is padded to nine characters.
+A bulletin is a message without an id (chapter 14 of the specification), sent on its radios, each by that radio's path (`radio/<id>/path`): `:BLN3     :Snow expected in Tampa RSN`, an announcement `:BLNQ     :Mt St Helen digi will be QRT this weekend`, a group bulletin `:BLN4WX   :Stand by your snowplows`. The addressee is padded to nine characters.
 
 Nobody acknowledges a bulletin, so it is sent more than once:
 
@@ -69,13 +70,13 @@ The times are the same on every radio and by every path: the digipeaters of the 
 
 A text posted to a slot that holds one replaces it and starts the schedule again, never within a minute of the last packet of the slot. The same text posted again, once the schedule is over, goes out again. You can have at most 36 posted at once.
 
-A bulletin goes on the [main radio](radio.md#the-main-radio), and so do its repeats. **Post** is off while that radio is not connected, with that as its title ("The radio is not connected", or "FM: not connected" while several radios are on).
+A bulletin goes on the radios ticked when it was posted, and so do its repeats, once on each in every round ([radio.md](radio.md#what-goes-on-which-radio)); with one radio that can send, on that one. While a radio it goes on is Mercury or LoRa, its repeats come every 30 minutes on each of its radios, not every 20: their airtime is everyone's. **Post** is off while no radio ticked is connected, with that as its title ("The radio is not connected", or "FM: not connected" while several radios are on), and while no tick is ticked (the radios of the last post were switched off).
 
 Nothing is posted while the call is not set. What is due waits for the radio, and one packet goes out when it is back. At most one packet of yours of this kind (an object or a bulletin) goes out every 10 seconds, and a restart sends no burst ([objects.md](objects.md#when-it-is-sent)).
 
 ### Yours on the board
 
-Your posts are on the board in their section, under your call and marked "ours". Each shows how often it was sent and when it goes out next, and "ended" once its schedule is over; it stays until you delete it or post it again.
+Your posts are on the board in their section, under your call and marked "ours". Each shows how often it was sent and when it goes out next, and "ended" once its schedule is over; it stays until you delete it or post it again. While several radios that can send are on, each has the tags of the radios it goes out on after "ours", as My objects has them: two by name, then "+n", whose hover names the rest.
 
 The trash can on a post of yours asks twice, stops it, and takes it off the board and out of the database. Its hover title says "Delete (stop sending)". The one on an entry that was heard is the board's delete.
 

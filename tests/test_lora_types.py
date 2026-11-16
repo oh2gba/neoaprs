@@ -33,12 +33,12 @@ def test_the_boards_are_types_of_the_kind_lora_on_the_tnc_driver_and_the_one_on_
 
 def test_where_a_board_is_reached_are_its_only_fields_besides_the_beacon_and_the_path() -> None:
     tcp, serial, console = (type_of(key) for key in BOARDS)
-    assert [f.key for f in tcp.fields] == ["tcp_host", "tcp_port", "beacon", "status", "path"] and tcp.field("tcp_port").default == "8001"     # type: ignore[union-attr]
+    assert [f.key for f in tcp.fields] == ["tcp_host", "tcp_port", "beacon", "status", "ask", "local_info", "path"] and tcp.field("tcp_port").default == "8001"     # type: ignore[union-attr]
     host = tcp.field("tcp_host")
     assert host is not None and (host.default, host.parse(""), host.parse(" 192.168.1.20 ")) == ("", "", "192.168.1.20"), "a board on the network has no address until the operator types the board's"
     with pytest.raises(ValueError):
         host.parse("two words")
-    assert [f.key for f in serial.fields] == ["port", "baud", "beacon", "status", "path"] and [f.key for f in console.fields] == ["port", "baud"], "a radio that only receives has no choice of what goes out"
+    assert [f.key for f in serial.fields] == ["port", "baud", "beacon", "status", "ask", "local_info", "path"] and [f.key for f in console.fields] == ["port", "baud"], "a radio that only receives has no choice of what goes out"
     assert serial.field("port").claims == "serial", "a board's port is the radio's: no other radio and no search opens it"                    # type: ignore[union-attr]
     assert not any(f.key in ("frequency", "spreading_factor", "bandwidth", "coding_rate") for t in types_of("lora") for f in t.fields), "no firmware takes them from a program safely"
 

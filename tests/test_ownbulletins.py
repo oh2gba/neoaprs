@@ -1,6 +1,6 @@
 """The bulletins, announcements and group bulletins of ours (neoaprs/services/ownbulletins.py) on the station's radios as the registry gives them (services/radioset.py's RadioPick, tests/support/seamshapes.py)
 over lines that are stubs, a real log in a temporary database and a clock the test holds: the schedule of each kind, a text that replaces the one in its slot, the delete, the interlock, the radio that is away, the
-main radio a bulletin goes on, and a restart."""
+radio a bulletin goes on, and a restart."""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -157,13 +157,27 @@ async def test_the_radio_that_is_silent_holds_it_back_and_it_is_not_made_up_when
 
 
 @pytest.mark.parametrize(("fm", "hf", "on"), [(True, True, "fm"), (True, False, "fm"), (False, True, "hf")])
-async def test_a_bulletin_goes_on_the_main_radio_the_fm_one_while_it_is_on_else_the_hf_one_by_its_own_path(tmp_path: Path, fm: bool, hf: bool, on: str) -> None:
+async def test_a_new_bulletin_goes_on_the_first_radio_that_can_send_the_fm_one_while_it_is_on_else_the_hf_one_by_its_own_path(tmp_path: Path, fm: bool, hf: bool, on: str) -> None:
     rig = await rig_at(tmp_path, fm_enabled=fm, hf_enabled=hf)
     rig.posts.post("BLN1", "Net tonight")
     rig.run(10)
     sent = rig.tnc.sent if on == "fm" else rig.hf.sent
     assert len(sent) == 1 and (rig.hf.sent if on == "fm" else rig.tnc.sent) == []
     assert sent[0].path_text == ("WIDE1-1,WIDE2-1" if on == "fm" else ""), "beacon/path on the FM radio, no path on HF"
+
+
+async def test_the_post_boxs_ticks_go_with_the_text_a_text_for_a_slot_of_ours_replaces_its_radios_and_a_new_one_starts_as_the_last(tmp_path: Path) -> None:
+    """What the Post box sends (BulletinCompose.vue: the radios ticked with every Post while several can send), counted per radio: the first text on FM alone, the same slot posted again on the
+    Mercury radio alone goes there from its first frame, and a slot never posted starts as the one posted last."""
+    rig = await rig_at(tmp_path, fm_enabled=True, hf_enabled=True)
+    rig.posts.post("BLN1", "Net tonight", [FM_ID])
+    rig.run(10)
+    assert (len(rig.tnc.sent), len(rig.hf.sent)) == (1, 0)
+    rig.posts.post("BLN1", "Net moved", [HF_ID])
+    rig.run(600)
+    assert (len(rig.tnc.sent), len(rig.hf.sent)) == (1, 3), "the replaced text and its repeats on the new radio alone: 1, 3 and 7 minutes after the first"
+    assert rig.posts.get("BLN1").radios == (HF_ID,) and rig.posts.new_radios() == (HF_ID,)                   # type: ignore[union-attr]
+    assert rig.posts.post("BLN2", "Club news").radios == (HF_ID,), "a new one with no ticks named: as the one posted last"
 
 
 async def test_a_slot_or_a_text_that_cannot_be_sent_is_refused_with_the_reason(rig: Rig) -> None:

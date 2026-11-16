@@ -3,7 +3,7 @@
 Like the message board's log (bulletinlog.py) this runs on the database thread (db.py) and says no instead of raising when the database is not open (dblog.py). An object is kept by its name and a bulletin by
 its slot; a write is an append that nobody waits for, in order with everything else the thread was asked. The statements are ownsql.py's.
 
-An object's row names its radios by their ids (`OwnObject.radios`: "1", "2", "1,2"; migration 33)."""
+An object's row names its radios by their ids (`OwnObject.radios`: "1", "2", "1,2"; migration 33), and a bulletin's the same (`OwnBulletin.radios`; migration 34)."""
 import logging
 from datetime import datetime
 
@@ -31,7 +31,7 @@ def object_row(o: OwnObject) -> Row:
 
 
 def radios_of(stored: object) -> tuple[RadioId, ...]:
-    """The ids of an object's radios from its row, as `object_row` writes them ("1", "2", "1,3"): each once and ascending. Raises ValueError for anything else."""
+    """The ids of an object's or a bulletin's radios from its row, as `object_row` writes them ("1", "2", "1,3"): each once and ascending. Raises ValueError for anything else."""
     text = str(stored)
     try:
         radios = tuple(int(part) for part in text.split(","))
@@ -54,16 +54,17 @@ def object_of(row: Row) -> OwnObject:
 
 def bulletin_row(b: OwnBulletin) -> Row:
     """The columns of the own_bulletin table, in order."""
-    return (b.slot, b.group, b.text, stamp(b.created_at), b.sent, _stamp(b.first_sent_at), _stamp(b.last_sent_at))
+    return (b.slot, b.group, b.text, stamp(b.created_at), b.sent, _stamp(b.first_sent_at), _stamp(b.last_sent_at), ",".join(str(radio) for radio in b.radios))
 
 
 def bulletin_of(row: Row) -> OwnBulletin:
     """The bulletin from its row. Raises ValueError (or TypeError) for a row this program did not write."""
-    (slot, group, text, created, sent, first, last) = row
+    (slot, group, text, created, sent, first, last, radios) = row
     name, found_group, kind = slot_of(str(slot))
     if found_group != group:
         raise ValueError(f"the group {group!r} is not the one of {slot!r}")
-    return OwnBulletin(name, found_group, kind, str(text), parse_stamp(str(created)), int(sent), None if first is None else parse_stamp(str(first)), None if last is None else parse_stamp(str(last)))
+    return OwnBulletin(name, found_group, kind, str(text), parse_stamp(str(created)), int(sent), None if first is None else parse_stamp(str(first)), None if last is None else parse_stamp(str(last)),
+                       radios=radios_of(radios))
 
 
 class OwnLog(DbLog):

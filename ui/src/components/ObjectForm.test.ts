@@ -8,7 +8,7 @@ import type { Panel } from "@/composables/usePanel";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, ofRadios, tell, withDaemon, type Given } from "@/test/context";
-import { ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
+import { configValues, ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
 
 /** The form with a place picked (60.17, 24.94), unless `placed` is false: a new object has none to start with. */
 function form(rows: OwnObjectRow[] = [], placed = true) {
@@ -19,7 +19,7 @@ function form(rows: OwnObjectRow[] = [], placed = true) {
     tab: ref("objects"),
   } as unknown as Panel);
   if (placed) view.place(60.17, 24.94);
-  const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" }, global: withDaemon(fakeDaemon()) }); // (the page's context: radio 1 alone, a serial TNC)
+  const wrapper = mount(ObjectForm, { props: { form: view }, global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })) }); // (the page's context: radio 1 alone, a serial TNC, a moving station's symbol)
   const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === label);
   const input = (label: string) => field(label)?.find<HTMLInputElement>("input");
   /** The entry under the place (latitude, longitude, locator), opened by a click on the place. */
@@ -38,7 +38,7 @@ describe("ObjectForm", () => {
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
-  it("starts with no place, with the repeater and the path of the beacon as the placeholder", async () => {
+  it("starts with no place, with the repeater and the path of its radio as the placeholder", async () => {
     const { wrapper, input, field, coordinate, view } = form([], false);
     expect(wrapper.find(".location-place").text()).toBe("Not set");
     expect(view.draft).toMatchObject({ lat: "", lon: "" });
@@ -109,10 +109,10 @@ describe("ObjectForm", () => {
     expect(sent).toEqual([]);
   });
 
-  it("says (default) in the path when the beacon has none", () => {
+  it("says direct in the path when its radio goes direct", () => {
     const view = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-    const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "" }, global: withDaemon(fakeDaemon()) });
-    expect(wrapper.find("input[placeholder='(default)']").exists()).toBe(true);
+    const wrapper = mount(ObjectForm, { props: { form: view }, global: withDaemon(fakeDaemon({ config: configValues({}, { "radio/1/path": "DIRECT" }) })) });
+    expect(wrapper.find("input[placeholder='direct']").exists()).toBe(true);
   });
 
   it("has Add, off until the draft is ready, for a new object, and Save for the one that is selected, and a plain Cancel beside it", async () => {
@@ -542,8 +542,8 @@ describe("Send on, the radios of an object", () => {
     const view = useOwnObjects(table, (command) => (sent.push(command), true), { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
     view.place(60.17, 24.94);
     view.draft.name = "MARK";
-    const daemon = fakeDaemon({ ...station, ...given });
-    const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" }, global: withDaemon(daemon) });
+    const daemon = fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1", status: status({ new_object_radios: [1] }), ...station, ...given });
+    const wrapper = mount(ObjectForm, { props: { form: view }, global: withDaemon(daemon) });
     const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label, .field-label").text() === label);
     const sendOn = () => wrapper.find(".field.send-on");
     const ticks = () =>
@@ -583,7 +583,7 @@ describe("Send on, the radios of an object", () => {
     }
   });
 
-  it("is the first row of Advanced while several radios are on: a tick for each by its name, a new object ticked for the main radio alone, whose tick is greyed as the last", () => {
+  it("is the first row of Advanced while several radios are on: a tick for each by its name, a new object ticked as the object saved last, the one tick greyed as the last", () => {
     const { sendOn, ticks, advanced } = withRadios(ofRadios(FM, HF));
     expect(sendOn().find(".field-label").text()).toBe("Send on");
     expect(sendOn().attributes("role")).toBe("group");
@@ -596,12 +596,12 @@ describe("Send on, the radios of an object", () => {
         ?.findAll(".field")
         .map((f) => f.find("label, .field-label").text()),
     ).toEqual(["Send on", "Path", "Category"]);
-    expect(advanced()?.element.open).toBe(false); // (the main radio alone is what a new object has)
+    expect(advanced()?.element.open).toBe(false); // (the ticks a new object has)
     expect(sendOn().find(".info-toggle").exists(), "the row of the Beacon group's Send on: no (i) of its own").toBe(false);
   });
 
-  it("ticks the main radio that the daemon names for a new object, first or not", () => {
-    const { ticks } = withRadios(ofRadios(FM, HF), [], { status: status({ main_radio: 2 }) });
+  it("ticks a new object as the object saved last, which the daemon names, first box or not", () => {
+    const { ticks } = withRadios(ofRadios(FM, HF), [], { status: status({ new_object_radios: [2] }) });
     expect(ticks()).toEqual([
       ["FM", false, false],
       ["Mercury", true, true],
@@ -672,7 +672,7 @@ describe("Send on, the radios of an object", () => {
     expect(fm.advanced()?.element.open).toBe(true);
   });
 
-  it("opens Advanced for an object being changed whose radios are other than the main radio alone, with its ticks; a radio of its own that is off is kept and not shown", async () => {
+  it("opens Advanced for an object being changed whose radios differ from those a new object has, with its ticks; a radio of its own that is off is kept and not shown", async () => {
     const rows = [ownObject("FAR", { radios: [2] }), ownObject("NEAR", { radios: [1] }), ownObject("WIDE", { radios: [1, 3] })];
     const { wrapper, view, ticks, advanced, tick, sent } = withRadios(ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })), rows);
     view.edit("FAR");
@@ -694,6 +694,53 @@ describe("Send on, the radios of an object", () => {
     await tick("Mercury");
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ name: "WIDE", radios: [1, 2, 3] });
+  });
+
+  it("opens Advanced by itself for an object being changed whose ticks differ from those of the object saved last, also where that one had two", async () => {
+    const rows = [ownObject("BOTH", { radios: [1, 2] }), ownObject("ONE", { radios: [2] })];
+    const { wrapper, view, advanced } = withRadios(ofRadios(FM, HF), rows, { status: status({ new_object_radios: [1, 2] }) });
+    expect(advanced()?.element.open).toBe(false);
+    view.edit("BOTH");
+    await wrapper.vm.$nextTick();
+    expect(advanced()?.element.open).toBe(false);
+    view.edit("ONE");
+    await wrapper.vm.$nextTick();
+    expect(advanced()?.element.open).toBe(true);
+  });
+
+  it("shows no tick ticked and none greyed for an object none of whose radios is on, keeps it as it is on Save, and sends the radio ticked once one is", async () => {
+    const rows = [ownObject("GONE", { radios: [3] })];
+    const { wrapper, view, ticks, tick, advanced, sent, field } = withRadios(ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })), rows);
+    view.edit("GONE");
+    await wrapper.vm.$nextTick();
+    expect(ticks()).toEqual([
+      ["FM", false, false],
+      ["Mercury", false, false],
+    ]);
+    expect(advanced()?.element.open).toBe(true);
+    expect(field("Path")?.classes(), "ticked nowhere: the path waits for a tick, not greyed with a reason that names no radio").not.toContain("disabled");
+    expect(field("Path")?.attributes("title")).toBeUndefined();
+    expect(field("Path")?.find("input").attributes("placeholder")).toBe("(default)");
+    await tick("Mercury");
+    expect(ticks()).toEqual([
+      ["FM", false, false],
+      ["Mercury", true, true],
+    ]);
+    await wrapper.find("form").trigger("submit");
+    expect(sent.at(-1)).toMatchObject({ name: "GONE", radios: [2] });
+  });
+
+  it("has as its Path placeholder the path its ticked radios share, as the daemon gives each, and the page's word for the default while theirs differ", async () => {
+    const LORA = radioRow(3, "lora-tcp", { name: "LoRa" });
+    const { field, tick } = withRadios(ofRadios(FM, HF, LORA), [], { status: status({ new_object_radios: [3] }) });
+    const placeholder = () => field("Path")?.find("input").attributes("placeholder");
+    expect(placeholder(), "a LoRa radio with no path of its own goes by WIDE1-1").toBe("WIDE1-1");
+    await tick("Mercury");
+    expect(placeholder(), "the Mercury radio carries no path: the LoRa radio's alone counts").toBe("WIDE1-1");
+    await tick("FM");
+    expect(placeholder(), "FM by the station's symbol, LoRa by its own").toBe("(default)");
+    await tick("LoRa");
+    expect(placeholder()).toBe("WIDE1-1,WIDE2-1");
   });
 
   it("follows the radios as they are turned on and off: the ticks come and go, and the form's own ticks stay", async () => {

@@ -67,6 +67,33 @@ def test_the_summarys_beacon_is_each_radios_interval_in_force_the_hf_radio_raise
     assert "on, every 30 min" in made(tmp_path / "alone", alone)[1]["summary.txt"], "the Mercury radio alone: one interval, raised"
 
 
+def test_the_summary_says_on_which_radios_each_thing_goes_one_line_each_objects_and_bulletins_from_the_running_daemon(tmp_path: Path) -> None:
+    data = fake_folder(tmp_path, settings={"station/call": "OH2GBA", "beacon/interval_min": "20", "hf/enabled": "true", "hf/profile": "dummy-hf"}, radios=True)
+    s = opened(data / DB_NAME)
+    try:
+        put_radio_settings(s.db, 2, {"status": "true", "ask": "true"})
+        put_radio_settings(s.db, 1, {"status": "false", "ask": "true", "local_info": "true"})
+        s.db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('email/radio', '2')")
+    finally:
+        s.close()
+    live = {"daemon": {"uptime_sec": 60}, "radios": [], "send_on": {"objects": {"NET": [1, 2], "GONE": [7]}, "bulletins": {"BLN1": [2]}}}
+    summary = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"]
+    assert [" ".join(line.split()) for line in section(summary, "Send on").splitlines()] == [
+        "Beacon: FM, Mercury",
+        "Status: Mercury",
+        "Ask around: FM, Mercury",
+        "Local info: FM",
+        "E-mail: Mercury",
+        "Object NET: FM, Mercury",
+        "Object GONE: none",
+        "Bulletin BLN1: Mercury",
+    ], "a thing ticked nowhere (an object on a radio the station no longer has) says none"
+    (tmp_path / "again").mkdir()
+    without = made(tmp_path / "again", fake_folder(tmp_path / "again"))[1]["summary.txt"]
+    assert "Objects, bulletins: not known: the daemon was not asked" in section(without, "Send on"), "a bundle made without the daemon says it does not have them"
+    assert section(without, "Send on").startswith("  Beacon:"), "one radio: everything on it"
+
+
 def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_screen(tmp_path: Path) -> None:
     summary = made(tmp_path)[1]["summary.txt"]
     assert "NeoAPRS:" in summary and VERSION in summary

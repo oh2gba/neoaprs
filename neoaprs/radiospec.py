@@ -1,5 +1,5 @@
 """A radio as it is stored (`RadioSpec`: its id, kind, type, name, whether it is enabled, its place in the list, its own settings as text), what one radio heard of a station (`RadioHeard`), and the rules that read a
-choice against the radios there are: which are live and enabled, the number of a radio within its kind and the name the log gives it, the main radio, and a stored choice or set of radios that names one that is
+choice against the radios there are: which are live and enabled, the number of a radio within its kind and the name the log gives it, the radio of what no fact gives one (`unheard_radio`), and a stored choice or set of radios that names one that is
 off or gone (plan §2). No I/O."""
 import logging
 from collections.abc import Iterable, Mapping
@@ -29,7 +29,7 @@ class RadioSpec:
     type: str                                    # RadioType.key, of this kind
     name: str                                    # what the operator typed; "" for none (a typed name is never empty)
     enabled: bool
-    position: int                                # the order of the boxes and of "the first enabled"
+    position: int                                # the order of the boxes
     removed_at: datetime | None = None
     settings: Mapping[str, str] = field(default_factory=dict)     # its own keys as text (kind_fields)
 
@@ -89,7 +89,7 @@ def transmits(spec: RadioSpec) -> bool:
 
 
 def senders(specs: Iterable[RadioSpec]) -> list[RadioSpec]:
-    """The radios that are enabled and can send, by position (then id): the only ones a rule picks to send on (the main radio, a message's, the beacon's, an object's, the email radio)."""
+    """The radios that are enabled and can send, by position (then id): the only ones a rule picks to send on (a message's, the beacon's, an object's, a bulletin's, the email radio)."""
     return [s for s in enabled(specs) if transmits(s)]
 
 
@@ -115,11 +115,10 @@ def log_name(spec: RadioSpec, specs: Iterable[RadioSpec]) -> str:
     return KIND_WORDS[spec.kind] + (f" {number}" if number > 1 else "")
 
 
-def main_radio(specs: Iterable[RadioSpec], chosen: RadioId | None) -> RadioId | None:
-    """The main radio (plan §2): the one chosen while it is enabled and can send, else the first such by position, else None (no radio, or none that can send)."""
+def unheard_radio(specs: Iterable[RadioSpec]) -> RadioId | None:
+    """The radio of what must go on one radio where no fact says which (a message to a call no radio heard, an email while its own choice names no radio that is on): the first radio that can send, in the order
+    of the boxes; None when none can."""
     on = senders(specs)
-    if chosen is not None and any(s.id == chosen for s in on):
-        return chosen
     return on[0].id if on else None
 
 
@@ -131,14 +130,14 @@ def in_force_choice(choice: RadioId | None, specs: Iterable[RadioSpec]) -> Radio
     return choice if choice is not None and any(s.id == choice for s in on) else None
 
 
-def in_force_set(ids: Iterable[RadioId], specs: Iterable[RadioSpec], main: RadioId | None) -> tuple[RadioId, ...]:
-    """A stored set of radios (an object's, the beacon's) as it is in force: with one radio that can send (`senders`) that one; else its ticks of such radios, by position; else the main radio; else none."""
+def in_force_set(ids: Iterable[RadioId], specs: Iterable[RadioSpec]) -> tuple[RadioId, ...]:
+    """A stored set of radios (an object's, a bulletin's, the beacon's ticks) as it is in force: with one radio that can send (`senders`) that one, whatever is stored; else its ticks of such radios, by
+    position; none when none of them is one (ticked nowhere is not sent) or no radio can send."""
     on = senders(specs)
     if len(on) == 1:
         return (on[0].id,)
     ticked = set(ids)
-    found = tuple(s.id for s in on if s.id in ticked)
-    return found or ((main,) if main is not None else ())
+    return tuple(s.id for s in on if s.id in ticked)
 
 
 def check_name(text: str, specs: Iterable[RadioSpec], own: RadioId | None) -> str:

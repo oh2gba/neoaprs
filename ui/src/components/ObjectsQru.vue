@@ -1,56 +1,48 @@
 <script setup lang="ts">
 // Local info (QRU), the last group box of the Objects tab (the stations that ask are answered with the objects that have a QRU group, the form's field; here we ask): **Ask** sends INFO to the stations near us (one request by radio only: the daemon sends it once, with RFONLY, at most one in a minute, and refuses it in RX only) with a distance in km that starts at the
-// map's radius (empty: the servers' own). It goes on one radio (plan rule 3.6): while more than one is on, the radio is chosen in front of Ask, as in Ask around (the main radio first; chosen at the start unless a request is kept, and following each request to its radio), the state word of the status line says the radio the request went on ("HF: Asked"), and
-// Ask again and a group's button go on that radio; with one radio on there is no choice and nothing is named. Ask is off while its radio is not connected, with that as its reason. Under it the closed fold of the request's Path and
-// RF only (RequestPath.vue, shared with Ask around; remembered by this browser for this box and for each radio apart; there only while some radio that is on may carry a path, and greyed with its values kept while the radio chosen
-// carries none; left as they are, an empty path and RF only ticked, the command carries neither and the request goes by the path of messages to QRU with RFONLY, as it always did); then the one status row of the groups (StatusFold): when the last request was sent and waiting for answers, then how many servers answered or that none did, or why it was refused. Ask is held for the minute,
+// map's radius (empty: the servers' own). While several radios that can send are on, Send on stands under it (SendOn.vue, the beacon's row: a tick for each radio, `radio/<id>/local_info`, applied at once): the request goes once on each ticked radio that is connected, and the state word of the status line names the
+// radios it went on ("FM, Mercury: Asked"). A server's row carries the tag of the radio it answered on, and its groups' buttons and Ask again go on that radio (a fact: it is where the server hears us); with one radio on there is no row, no tag and nothing is named. Ask is off while none of its radios is connected, with that as its reason. Under Send on the closed fold of the request's Path and
+// RF only (RequestPath.vue, shared with Ask around; one fold for every radio, remembered by this browser for this box; there only while some radio that is on may carry a path, and greyed with its values kept while no ticked radio
+// carries one; left as they are, an empty path and RF only ticked, the command carries neither and the request goes by the path of messages to QRU with RFONLY, as it always did); then the one status row of the groups (StatusFold): when the last request was sent and waiting for answers, then how many servers answered or that none did, or why it was refused. Ask is held for the minute,
 // with the time left in its title, and while the path is wrong, with the reason. The servers that answered are a row each: its call, its groups as tags, by their plain names (the number of objects in each; a press asks that group, with the same distance) and under them, quiet, how many objects its closing line says it sent and how many arrived ("sent 1 · 1 arrived"; its closing line is the hover). Fewer than it sent, once the daemon has waited for late ones, is the warn colour with Ask again
 // (the same request; it obeys the same waits as Ask). The objects themselves arrive as ordinary objects (the map, the Stations tab, where they carry the Local info tag); "in Stations" opens that tab and flashes the first of them.
-import { computed, effectScope, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import RequestPath from "@/components/RequestPath.vue";
+import SendOn from "@/components/SendOn.vue";
 import StatusFold from "@/components/StatusFold.vue";
+import TagMark from "@/components/TagMark.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
-import { useRequestPath, type RequestPath as Request } from "@/composables/useRequestPath";
-import RadioPick from "@/components/RadioPick.vue";
+import { useRequestPath } from "@/composables/useRequestPath";
+import { useSendOn } from "@/composables/useSendOn";
+import { PREFS_RADIO } from "@/composables/useStationRadio";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
 import { attend } from "@/lib/attention";
-import { radioBlockedReason } from "@/lib/compose";
+import { radioTone } from "@/lib/channels";
 import { effectivePath } from "@/lib/messages";
 import { askWait, kmWrong, qruLook, requestText, sentLine } from "@/lib/qru";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
-import type { RadioId } from "@/lib/radios";
+import { sharedPath, type PageRadio } from "@/lib/radios";
+import { radiosBlockedReason, radiosNamed, radiosPathless } from "@/lib/sendon";
 import { stationRowId } from "@/lib/stations";
 import { LIMITS } from "@/protocol/lists";
-import type { Command } from "@/protocol/protocol";
+import type { Command, QruServer } from "@/protocol/protocol";
 
-const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPath } = useDaemonContext();
+const { qru, receiveOnly, send, config, lastError, now, panel, prefs } = useDaemonContext();
 const radios = useRadios();
-const { told, severalSenders: several, enabled, allowsPath, byId, named, choose } = radios;
-/** The radio chosen beside Ask (`picked`, null: the main radio), the one it goes on, and the radios to choose from, the main radio first (useRadios `choose`). */
-const { picked, radio, choices } = choose();
-
-/** The path and RF only of each radio, remembered by this browser apart: radio 1, the FM radio of before, keeps what this browser kept before the radios had ids. */
-const scope = effectScope(); // (the pane's own: it ends with the pane)
-const requests = new Map<RadioId | null, Request>();
-function requestOn(id: RadioId | null): Request {
-  let request = requests.get(id);
-  if (request === undefined) {
-    const key = id === null || id === 1 ? "qru" : `qru.${id}`;
-    request = scope.run(() => useRequestPath(key)) ?? useRequestPath(key);
-    requests.set(id, request);
-  }
-  return request;
-}
-const request = computed(() => requestOn(radio.value));
-/** Whether a request on the radio has a path and RF only to set: some radio that is on may carry one (else the fold is not there), and this one does (else it is greyed). */
-const routable = (id: RadioId | null): boolean => allowsPath.value && (id === null || byId(id)?.carriesPath !== false);
-/** Why the fold is greyed on that radio, as Route says it ("HF: no path"). */
-const pathless = (id: RadioId | null): string | undefined => (id === null ? undefined : t("radio.no_path", { name: byId(id)?.name ?? "" }));
-/** The path a request goes by when none is typed: the one set for the station QRU, else the beacon's. */
-const usual = computed(() => effectivePath(prefs.paths.value, fallbackPath.value, "QRU").text);
+const { told, severalSenders: several, senders, allowsPath, byId, named, pathOf } = radios;
+/** Local info's Send on: its ticks, and the radios the request INFO goes on as they stand. */
+const { ticks, radios: on, error: tickError, tick } = useSendOn("local_info", radios);
+/** The path and RF only of a request, remembered by this browser apart from Ask around's: one for every radio. */
+const request = useRequestPath("qru");
+/** Whether a request on these radios has a path and RF only to set: some radio that is on may carry one (else the fold is not there), and one of these does (else it is greyed). */
+const routable = (to: readonly PageRadio[]): boolean => allowsPath.value && (to.length === 0 || to.some((radio) => radio.carriesPath));
+/** The path a request goes by on a radio when none is typed: on radio 1 the one set for the station QRU (the topic `station_prefs`), else the radio's own. */
+const qruPath = (radio: PageRadio): string => (radio.id === PREFS_RADIO ? effectivePath(prefs.paths.value, pathOf(radio), "QRU").text : pathOf(radio));
+/** The path the request INFO goes by with none typed: the one its radios share; null while theirs differ. */
+const usual = computed(() => sharedPath(on.value, qruPath));
 const typed = ref<string | null>(null); // (what the person typed; null until then, and the field is the map's radius)
 const km = computed({
   get: () => typed.value ?? config.value?.values["map/radius_km"] ?? "",
@@ -58,43 +50,45 @@ const km = computed({
 });
 const wrong = computed(() => kmWrong(km.value));
 const servers = computed(() => qru.value?.servers ?? []);
-/** Each server with what its row says of the objects it sent. */
-const rows = computed(() => servers.value.map((server) => ({ server, line: sentLine(server, now.value) })));
-const asked = computed(() => qru.value?.asked ?? null);
-/** The radio a request already sent goes on again (Ask again, a group's button): the one it went on while that is on, else the one chosen. */
-const againOn = computed(() => {
-  const went = asked.value?.radio ?? null;
-  return went !== null && enabled.value.some((r) => r.id === went) ? went : radio.value;
-});
-/** The seconds before the request may go on the radio: the waits are that radio's (the topic tells the last request, with its radio). */
-const waitOn = (id: RadioId | null, text: string | null): number => {
-  const last = asked.value;
-  return askWait(last !== null && (last.radio === null || id === null || last.radio === id) ? last : null, now.value, text);
+/** The radio a server answered on, while it is on and can send: where a request to it goes; null for none (the request then goes on the ticked radios). */
+const radioOf = (server: QruServer): PageRadio | null => senders.value.find((radio) => radio.id === server.radio) ?? null;
+/** The radios a request to a server goes on: the one it answered on, else those of Send on. */
+const toServer = (server: QruServer): readonly PageRadio[] => {
+  const one = radioOf(server);
+  return one === null ? on.value : [one];
 };
-const waitFor = (word: string): number => waitOn(againOn.value, requestText(word, km.value));
-const wait = computed(() => waitOn(radio.value, requestText("INFO", km.value)));
+/** Each server with what its row says of the objects it sent, and the radio it answered on where a radio is named (its tag). */
+const rows = computed(() =>
+  servers.value.map((server) => {
+    const answered = server.radio === null || !named(server.radio) ? undefined : byId(server.radio);
+    return { server, line: sentLine(server, now.value), answered };
+  }),
+);
+const asked = computed(() => qru.value?.asked ?? null);
+/** The seconds before the request may go on the radios: the waits are each radio's (the topic tells the last request, with its radios), and a request waits for every radio it would go on. */
+const waitOn = (to: readonly PageRadio[], text: string | null): number => {
+  const last = asked.value;
+  const theirs = last !== null && (last.radios.length === 0 || to.length === 0 || to.some((radio) => last.radios.includes(radio.id)));
+  return askWait(theirs ? last : null, now.value, text);
+};
 const refusal = ref(""); // (why the daemon refused the last request, until the next one)
 const look = computed(() => {
   const found = qruLook(asked.value, servers.value, refusal.value, now.value);
-  const went = asked.value?.radio ?? null;
-  const name = went === null || refusal.value !== "" || !named(went) ? undefined : byId(went)?.name;
-  return found === null || name === undefined ? found : { ...found, state: t("radio.line", { name, line: found.state }) };
+  const name = refusal.value !== "" ? "" : radiosNamed(asked.value?.radios ?? [], byId, named);
+  return found === null || name === "" ? found : { ...found, state: t("radio.line", { name, line: found.state }) };
 });
-/** Why nothing may go on the radio: it is not connected (named where several are on), or there is none; undefined before the daemon has told its radios. */
-const offline = (id: RadioId | null): string | undefined => {
-  const on = id === null ? undefined : byId(id);
-  return radioBlockedReason(on, on !== undefined && named(on.id), told.value);
-};
-/** Why a request on the radio that waits `seconds` may not go, or undefined when it may (RX only, the radio, the path, its wait). */
-const heldBy = (id: RadioId | null, seconds: number): string | undefined => {
-  const problem = routable(id) ? requestOn(id).problem.value : "";
+/** Why a request on the radios that waits `seconds` may not go, or undefined when it may (RX only, the radios, the path, its wait); "" while it goes on no radio that is on (ticked nowhere: the row of ticks shows it). */
+const heldBy = (to: readonly PageRadio[], seconds: number): string | undefined => {
+  const problem = routable(to) ? request.problem.value : "";
   return receiveOnly.value
     ? t("error.transmit.off")
-    : (offline(id) ?? (problem !== "" ? problem : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined));
+    : several.value && to.length === 0
+      ? ""
+      : (radiosBlockedReason(to, named, told.value) ?? (problem !== "" ? problem : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined));
 };
-const why = computed(() => heldBy(radio.value, wait.value));
-/** Why a group's button is off, or undefined when it may be pressed (RX only, the radio, the path, or its own wait). */
-const groupWhy = (word: string): string | undefined => heldBy(againOn.value, waitFor(word));
+const why = computed(() => heldBy(on.value, waitOn(on.value, requestText("INFO", km.value))));
+/** Why a group's button is off, or undefined when it may be pressed (RX only, the server's radio, the path, or its own wait). */
+const groupWhy = (server: QruServer, word: string): string | undefined => heldBy(toServer(server), waitOn(toServer(server), requestText(word, km.value)));
 
 watch(lastError, (toast) => {
   if (toast?.cmd === "qru_ask") refusal.value = errorReason(toast, radios);
@@ -103,42 +97,40 @@ watch(
   () => asked.value?.at,
   () => (refusal.value = ""),
 );
-/** The choice follows each request (and the one kept when the pane opens) to its radio while that is on, so that the fold in sight is the one a group's button and Ask again go by (a choice that goes off is forgotten: useRadios `choose`). */
-watch(
-  () => [asked.value?.at, told.value],
-  () => {
-    const went = asked.value?.radio ?? null;
-    if (went !== null && enabled.value.some((r) => r.id === went)) picked.value = went;
-  },
-  { immediate: true },
-);
 
-/** The request as the command carries it: the text, the path and RF only only when the fold says other than the usual (an empty path and RF only ticked: the path of messages to QRU with RFONLY), and the radio while several are on. */
-function command(text: string, id: RadioId | null): Command {
-  const fold = requestOn(id);
-  const on = several.value && id !== null ? { radio: id } : {};
-  return !routable(id) || (fold.sent.value === null && fold.rfOnly.value)
-    ? { cmd: "qru_ask", text, ...on }
-    : { cmd: "qru_ask", text, path: fold.sent.value, rf_only: fold.rfOnly.value, ...on };
+/** The request as the command carries it: the text, the path and RF only only when the fold says other than the usual (an empty path and RF only ticked: the path of messages to QRU with RFONLY), and the one radio of a
+ * request to a server while several are on (none: the radios of Send on). */
+function command(text: string, to: readonly PageRadio[], one: PageRadio | null): Command {
+  const radio = several.value && one !== null ? { radio: one.id } : {};
+  return !routable(to) || (request.sent.value === null && request.rfOnly.value)
+    ? { cmd: "qru_ask", text, ...radio }
+    : { cmd: "qru_ask", text, path: request.sent.value, rf_only: request.rfOnly.value, ...radio };
 }
 
-/** Sends the request for INFO with the distance of the field on the radio chosen, or for a group on the radio of the request it answers, unless that request is held (RX only, the radio, the path, or its own wait: a group may go ten seconds after INFO, whose minute is not its own). */
-function ask(word: string): void {
+/** Sends the request for INFO with the distance of the field on the radios of Send on, unless it is held (RX only, the radios, the path, or its wait). */
+function ask(): void {
+  const text = requestText("INFO", km.value);
+  if (text === null || why.value !== undefined) return;
+  refusal.value = "";
+  send(command(text, on.value, null));
+}
+
+/** Sends the request for a group of a server, with the distance of the field, on the radio the server answered on, unless it is held (a group may go ten seconds after INFO, whose minute is not its own). */
+function askGroup(server: QruServer, word: string): void {
   const text = requestText(word, km.value);
-  const id = word === "INFO" ? radio.value : againOn.value;
-  if (text === null || (word === "INFO" ? why.value : groupWhy(word)) !== undefined) return;
+  if (text === null || groupWhy(server, word) !== undefined) return;
   refusal.value = "";
-  send(command(text, id));
+  send(command(text, toServer(server), radioOf(server)));
 }
 
-/** Why Ask again is off (RX only, the radio, the path, or the wait for that request), or undefined when it may be pressed. */
-const againWhy = (text: string): string | undefined => heldBy(againOn.value, waitOn(againOn.value, text));
+/** Why Ask again is off (RX only, the server's radio, the path, or the wait for that request), or undefined when it may be pressed. */
+const againWhy = (server: QruServer, text: string): string | undefined => heldBy(toServer(server), waitOn(toServer(server), text));
 
-/** The same request once more, as it went (its own distance, not the field's), on its radio by the path of that radio's fold. */
-function again(text: string): void {
-  if (againWhy(text) !== undefined) return;
+/** The same request once more, as it went (its own distance, not the field's), on the radio the server answered on. */
+function again(server: QruServer, text: string): void {
+  if (againWhy(server, text) !== undefined) return;
   refusal.value = "";
-  send(command(text, againOn.value));
+  send(command(text, toServer(server), radioOf(server)));
 }
 
 /** The Stations tab, with the row of the first of the objects that arrived flashed. */
@@ -158,8 +150,7 @@ function inStations(names: readonly string[]): void {
       </InfoTip>
     </legend>
     <div class="qru-ask">
-      <RadioPick v-if="several" class="qru-radio" :radio="radio" :choices="choices" @pick="picked = $event" />
-      <button type="button" class="btn" :disabled="why !== undefined || wrong" :title="why" @click="ask('INFO')">{{ t("objects.qru_ask") }}</button>
+      <button type="button" class="btn" :disabled="why !== undefined || wrong" :title="why || undefined" @click="ask">{{ t("objects.qru_ask") }}</button>
       <input
         v-model="km"
         class="input mono qru-km"
@@ -170,18 +161,19 @@ function inStations(names: readonly string[]): void {
         :maxlength="String(LIMITS.qru.kmMax).length"
         :placeholder="t('objects.qru_km')"
         :aria-label="t('objects.qru_km_label')"
-        @keydown.enter="ask('INFO')"
+        @keydown.enter="ask"
       />
       <InfoTip :label="t('settings.about', { label: t('objects.qru_km_label') })">{{ t("objects.qru_km_tip") }}</InfoTip>
     </div>
+    <SendOn v-if="ticks.length > 0" id="qru-send-on" :ticks="ticks" :error="tickError" @tick="tick" />
     <RequestPath
       v-if="allowsPath"
       v-model:path="request.path.value"
       v-model:rf-only="request.rfOnly.value"
       :usual="usual"
-      :problem="routable(radio) ? request.problem.value : ''"
-      :disabled="!routable(radio)"
-      :pathless="pathless(radio)"
+      :problem="routable(on) ? request.problem.value : ''"
+      :disabled="!routable(on)"
+      :pathless="radiosPathless(on)"
     />
     <StatusFold v-if="look" class="qrustatus" :state="look.state" :tone="look.tone" :line="look.line">
       <template v-if="asked" #default>
@@ -189,17 +181,20 @@ function inStations(names: readonly string[]): void {
       </template>
     </StatusFold>
     <ul v-if="servers.length > 0" class="qru-servers" :aria-label="t('objects.qru')">
-      <li v-for="{ server, line } in rows" :key="server.call" class="qru-server">
-        <span class="mono strong qru-call">{{ server.call }}</span>
+      <li v-for="{ server, line, answered } in rows" :key="server.call" class="qru-server">
+        <span class="qru-call"
+          ><span class="mono strong">{{ server.call }}</span
+          ><TagMark v-if="answered" :tone="radioTone(answered)" :title="t('radio.heard_on', { name: answered.name })">{{ answered.name }}</TagMark></span
+        >
         <span class="qru-groups">
           <button
             v-for="group in server.groups"
             :key="group.name"
             type="button"
             class="btn small qru-group"
-            :disabled="groupWhy(group.name) !== undefined || wrong"
-            :title="groupWhy(group.name) ?? t('objects.qru_group', { server: server.call, group: groupName(group.name) })"
-            @click="ask(group.name)"
+            :disabled="groupWhy(server, group.name) !== undefined || wrong"
+            :title="groupWhy(server, group.name) || t('objects.qru_group', { server: server.call, group: groupName(group.name) })"
+            @click="askGroup(server, group.name)"
           >
             {{ categoryLabel(group.name) }}{{ " " }}<span class="qru-count">{{ group.count }}</span>
           </button>
@@ -210,9 +205,9 @@ function inStations(names: readonly string[]): void {
             v-if="line.again"
             type="button"
             class="btn small qru-again"
-            :disabled="againWhy(line.again) !== undefined"
-            :title="againWhy(line.again) ?? t('objects.qru_again_title', { server: server.call, request: line.again })"
-            @click="again(line.again)"
+            :disabled="againWhy(server, line.again) !== undefined"
+            :title="againWhy(server, line.again) || t('objects.qru_again_title', { server: server.call, request: line.again })"
+            @click="again(server, line.again)"
           >
             {{ t("objects.qru_again") }}
           </button>

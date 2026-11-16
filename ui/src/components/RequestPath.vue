@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The closed fold under an Ask (Ask around in the Nearby tab, Local info in the Objects tab), as the object form's Advanced: the **Path** the request goes by and **RF only**. The path is calls or aliases separated by commas (an explicit
-// OH2RDK-7,OH2RCH-2 for a station that a fill-in digipeater relays only when it is named, WIDE1-1,WIDE2-1) or DIRECT for none; empty is the request's own default (`usual`, empty for direct), which the placeholder shows. The path
+// OH2RDK-7,OH2RCH-2 for a station that a fill-in digipeater relays only when it is named, WIDE1-1,WIDE2-1) or DIRECT for none; empty is each radio's own path (`usual`: the one path the radios of the request share,
+// empty for direct; null while theirs differ), which the placeholder shows (while they differ the page's word for the default). The path
 // builder's button (PathBuilder) beside the field builds one to put in it, held to the same rule. RF only (ticked unless the person
 // unticks it) puts RFONLY after the path, so that the iGates keep the request off the internet. A path that cannot go is orange with the reason in its title, as the other path fields are, and the caller keeps Ask off with the same
 // reason. The fold starts open when either is not the default, so that what will be sent is in sight; its title never changes. While the radio the request goes on carries no path (`disabled`), both rows are greyed in their places (`pathless` their title, "HF: no path", as Route's)
@@ -12,7 +13,7 @@ import PathBuilder from "@/components/PathBuilder.vue";
 import { requestPathProblem } from "@/composables/useRequestPath";
 import { t } from "@/i18n";
 
-const props = withDefaults(defineProps<{ path: string; rfOnly: boolean; usual: string; problem: string; disabled?: boolean; pathless?: string }>(), {
+const props = withDefaults(defineProps<{ path: string; rfOnly: boolean; usual: string | null; problem: string; disabled?: boolean; pathless?: string }>(), {
   disabled: false,
   pathless: undefined,
 });
@@ -40,7 +41,7 @@ function ticked(event: Event): void {
           class="input mono"
           type="text"
           :value="path"
-          :placeholder="usual || t('route.direct')"
+          :placeholder="usual === null ? t('route.default') : usual || t('route.direct')"
           :aria-invalid="problem !== ''"
           :disabled="disabled"
           autocomplete="off"
@@ -49,7 +50,7 @@ function ticked(event: Event): void {
         />
         <PathBuilder
           :value="path"
-          :usual="usual"
+          :usual="usual ?? ''"
           :disabled="disabled"
           :why="pathless"
           :check="(text) => requestPathProblem(text, rfOnly)"

@@ -8,7 +8,8 @@ The net cycle time follows the path (the spec's chapter 2, point 4): 10 minutes 
   caller's: beaconrule.repeat_floor_sec, 30 minutes on HF and LoRa), until it is changed (then the decay starts again) or killed.
 * A killed object or item (`kill_wait_sec`): KILL_SENDS transmissions, 0, 1 and 3 minutes after the kill, and then it is forgotten.
 * A bulletin or a group bulletin ("sent a few times an hour for a few hours"): BULLETIN, an announcement ("less frequently but perhaps for several days"): ANNOUNCEMENT. Both go out at once, then
-  after the waits of `early`, then every `every` seconds as long as the next one is no later than `lasts` seconds after the first (`bulletin_wait_sec`; None when it is over).
+  after the waits of `early`, then every `every` seconds (or the floor of a radio it goes out on where that is longer: 30 minutes on HF and LoRa) as long as the next one is no later than `lasts` seconds
+  after the first (`bulletin_wait_sec`; None when it is over).
 
 No packet of one thing goes out less than MIN_GAP_SEC after the one before it, whatever the change."""
 from dataclasses import dataclass
@@ -67,7 +68,8 @@ BULLETIN = Plan(early=(120, 240), every=20 * 60, lasts=4 * 3600)
 ANNOUNCEMENT = Plan(early=(120, 240), every=3600, lasts=72 * 3600)
 
 
-def bulletin_wait_sec(plan: Plan, sent: int, since_first_sec: float) -> int | None:
-    """How long after the `sent`-th transmission (1 or more) of a bulletin the next is due, `since_first_sec` after its first; None when that would be later than the plan lasts: it is over."""
-    wait = plan.early[sent - 1] if 0 < sent <= len(plan.early) else plan.every
+def bulletin_wait_sec(plan: Plan, sent: int, since_first_sec: float, floor_sec: int = 0) -> int | None:
+    """How long after the `sent`-th transmission (1 or more) of a bulletin the next is due, `since_first_sec` after its first; None when that would be later than the plan lasts: it is over. The early waits
+    stay; the repeats after them come no more often than `floor_sec` (the longest floor of the radios it goes out on: beaconrule.repeat_floor_sec)."""
+    wait = plan.early[sent - 1] if 0 < sent <= len(plan.early) else max(plan.every, floor_sec)
     return wait if since_first_sec + wait <= plan.lasts else None

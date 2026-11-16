@@ -1,6 +1,6 @@
 """Asking around (neoaprs/services/generalask.py, the command `general_query` and the topic `general`): the frame of each general query byte for byte, the path given or `beacon/path`, RFONLY, the refusals and the
-minute between two queries of a kind, the stations that were quiet before a query and spoke after it, and the whole through the daemon and the socket."""
-import logging
+minute between two queries of a kind, the stations that were quiet before a query and spoke after it, and the whole through the daemon and the socket. Its Send on with several radios (one query on each
+ticked radio, all or nothing) is tests/test_ask_send_on.py's."""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -10,7 +10,7 @@ import pytest
 from neoaprs import TOCALL, ax25
 from neoaprs.message import MessagingError
 from neoaprs.packet import Other, Packet, ThirdParty, Via
-from neoaprs.services.common import asked_radio
+from neoaprs.services.common import asked_radios
 from neoaprs.services.generalask import ASK_EVERY_SEC, COUNT_FOR, QUERIES, QUIET_BEFORE, GeneralAsk
 from neoaprs.source import Source
 from neoaprs.station import Station
@@ -124,14 +124,19 @@ def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away() -> 
         rig.general.ask("aprs")
 
 
-def test_a_query_goes_on_the_main_radio_by_the_path_that_radio_carries() -> None:
+def test_a_query_goes_on_the_one_radio_that_can_send_by_the_path_it_carries_and_with_both_on_on_the_ticked_one() -> None:
     rig = Rig(hf_enabled=True, fm_enabled=False)
     hf = with_hf(rig, rig.radios)
-    rig.radios.on = {HF_ID}                                                 # (the HF radio alone: the main radio, which carries no path)
+    rig.radios.on = {HF_ID}                                                 # (the HF radio alone: the one radio that can send, which carries no path)
     asked = rig.general.ask("aprs")
-    assert hf.lines() == ["OH2GBA>APZNEO:?APRS?"] and rig.tnc.sent == [] and asked.path == ()
-    rig.radios.on.add(FM_ID)                                                # (both on: the main radio is the first by position, the FM one)
-    rig.general.ask("igate")
+    assert hf.lines() == ["OH2GBA>APZNEO:?APRS?"] and rig.tnc.sent == [] and (asked.path, asked.radios) == ((), (HF_ID,))
+    rig.set(fm_enabled=True)
+    rig.radios.on.add(FM_ID)                                                # (both on, no tick stored: ticked nowhere, nothing goes)
+    with pytest.raises(MessagingError) as refused:
+        rig.general.ask("igate")
+    assert refused.value.code == "radio.none"
+    rig.set(radios=tuple(replace(spec, settings={**spec.settings, "ask": "true"}) if spec.id == FM_ID else spec for spec in rig.config.radios))
+    assert rig.general.ask("igate").radios == (FM_ID,)
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY:?IGATE?"] and len(hf.sent) == 1
 
 
@@ -148,33 +153,7 @@ def test_a_kind_goes_once_a_minute_and_the_others_are_not_held_by_it() -> None:
     rig.clock.advance(15)
     rig.general.ask("aprs")
     assert [a.kind for a in rig.general.asked()] == ["igate", "wx", "aprs"], "the last of each kind, the oldest first"
-
-
-def test_a_query_goes_on_the_radio_named_and_the_minute_between_two_of_a_kind_is_that_radios(caplog: pytest.LogCaptureFixture) -> None:
-    caplog.set_level(logging.INFO, "neoaprs.queries")
-    rig = Rig(hf_enabled=True)
-    hf = with_hf(rig, rig.radios)
-    asked = rig.general.ask("aprs", radio=HF_ID)
-    assert hf.lines() == ["OH2GBA>APZNEO:?APRS?"] and rig.tnc.sent == [] and (asked.radio, asked.path) == (HF_ID, ()), "on the radio named, by the path it carries"
-    assert rig.general.ask("aprs").radio == FM_ID and len(rig.tnc.sent) == 1, "the main radio's minute is its own: the same query goes there at once"
-    with pytest.raises(MessagingError) as refused:
-        rig.general.ask("aprs", radio=HF_ID)
-    assert refused.value.code == "general.too_soon" and len(hf.sent) == 1
-    assert [(a.radio, a.kind) for a in rig.general.asked_by_radio()] == [(HF_ID, "aprs"), (FM_ID, "aprs")], "the last of each kind on each radio"
-    assert [(a.radio, a.kind) for a in rig.general.asked()] == [(FM_ID, "aprs")], "the page is given one of each kind, the latest, whose wait is never shorter than the one in force"
-    assert [r.getMessage() for r in caplog.records] == ["asked around: ?APRS? by no digipeaters on Mercury", "asked around: ?APRS? by WIDE1-1,WIDE2-1,RFONLY on FM"], "with two radios on the log says which"
-
-
-def test_a_query_on_a_radio_that_is_off_or_away_is_refused_and_sends_nothing() -> None:
-    rig = Rig()
-    with pytest.raises(MessagingError, match="there is no radio 2") as refused:
-        rig.general.ask("aprs", radio=HF_ID)
-    assert (refused.value.code, refused.value.params) == ("radio.unknown", {"radio": HF_ID})
-    hf = with_hf(rig, rig.radios)
-    hf.state = Source.State.WAITING
-    with pytest.raises(MessagingError):
-        rig.general.ask("aprs", radio=HF_ID)
-    assert rig.tnc.sent == [] and hf.sent == [] and rig.general.asked() == []
+    assert [(s.kind, s.radio) for s in rig.general.sent_on()] == [("igate", FM_ID), ("wx", FM_ID), ("aprs", FM_ID)], "and when each went on its radio: what the wait is counted from"
 
 
 class Unnamed(LineAir):
@@ -191,31 +170,17 @@ class AllRadios(StubPick):
 
 
 @pytest.mark.parametrize(("air", "words"), [(LineAir, "radio Mercury is off: turn it on first"), (Unnamed, "radio 2 is off: turn it on first")])
-def test_a_query_on_a_radio_there_is_but_that_is_off_says_so_with_its_name_or_without(air: type[LineAir], words: str) -> None:
+def test_a_request_on_a_radio_named_that_is_off_says_so_with_its_name_or_without(air: type[LineAir], words: str) -> None:
     rig = Rig()
     radios = AllRadios([LineAir(rig.tnc, lambda: rig.config), air(StubTnc(max_frame=123), lambda: rig.config, id=HF_ID)])
     radios.on.discard(HF_ID)
     with pytest.raises(MessagingError) as refused:
-        asked_radio(radios, lambda: rig.config, HF_ID)
+        asked_radios(radios, lambda: rig.config, "local_info", HF_ID)
     assert str(refused.value) == words and refused.value.code == "radio.off" and refused.value.params["radio"] == HF_ID, "the page says the radio by its id"
-    with pytest.raises(MessagingError, match="^there is no radio 7$"):
-        asked_radio(radios, lambda: rig.config, 7)
-    assert asked_radio(radios, lambda: rig.config).id == FM_ID
-
-
-def test_the_stations_counted_after_a_query_are_those_its_radio_heard_that_it_had_not_heard_before() -> None:
-    rig = Rig(hf_enabled=True)
-    with_hf(rig, rig.radios)
-    rig.heard_before("OH2FMQ", 3)                                       # heard on FM three minutes before: no newcomer there, one on HF
-    rig.general.ask("aprs", radio=HF_ID)
-    rig.general.ask("aprs")
-    rig.hear("OH2FMQ", 5, radio=HF_ID)
-    rig.hear("OH2FMQ", 6, radio=FM_ID)
-    rig.hear("OH2HFX", 7, radio=HF_ID)
-    rig.hear("OH2FMX", 8, radio=FM_ID)
-    rig.hear("OH2ANY", 9)                                               # (a packet that names no radio counts for every query)
-    news = {a.radio: a.new for a in rig.general.asked_by_radio()}
-    assert news == {HF_ID: ("OH2FMQ", "OH2HFX", "OH2ANY"), FM_ID: ("OH2FMX", "OH2ANY")}
+    with pytest.raises(MessagingError, match="^there is no radio 7$") as none:
+        asked_radios(radios, lambda: rig.config, "local_info", 7)
+    assert (none.value.code, none.value.params) == ("radio.unknown", {"radio": 7})
+    assert [radio.id for radio in asked_radios(radios, lambda: rig.config, "ask")] == [FM_ID]
 
 
 # ---- who spoke after it

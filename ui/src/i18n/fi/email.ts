@@ -26,8 +26,6 @@ export const email: Record<keyof typeof source, Message> = {
   "email.used_before": "Aiemmin käytetyt",
   "email.forget": "Unohda {address}",
   "email.send": "Lähetä",
-  "email.no_gated_radio": "Käytössä ei ole radiota, jonka iGatet kuulevat",
-  "email.radio_title": "Sähköposti lähtee radiolla {name}",
 
   "email.state.waiting": "Odottaa radiota",
   "email.state.sending": "Lähetetään ({attempt}/{max})",

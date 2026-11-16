@@ -14,7 +14,7 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.message import MSG_IDS, MessageRecord, MessagingError, next_msg_id
 from neoaprs.radiotype import RadioId
-from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick
+from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender
 from neoaprs.source import Source
 
 log = logging.getLogger("neoaprs.messaging")
@@ -33,7 +33,7 @@ class Waiting:
 
 class Acks:
     def __init__(self, radios: Callable[[], RadioPick], interlock: Interlock, frame: Callable[[bytes, str, AirRadio], ax25.Frame], clock: Clock = utcnow) -> None:
-        self._radios = radios                                   # the station's radios as messaging has them now: the main one, and the one of an ack that waited, by its id
+        self._radios = radios                                   # the station's radios as messaging has them now: the one of an ack that waited, by its id
         self._interlock = interlock
         self._frame = frame                                     # our frame for an information field to a station on a radio (Messaging._frame): built for the radio the ack goes on, its path rules and its frame cap
         self._clock = clock
@@ -53,10 +53,10 @@ class Acks:
         return ident
 
     def send(self, to: str, msg_id: str, reply_ack: str | None = None, radio: AirRadio | None = None) -> None:
-        """Acknowledges message `msg_id` of the station `to` on `radio` (the one the message came on; the main radio by default): now, or when that radio, connected but held, takes frames again."""
+        """Acknowledges message `msg_id` of the station `to` on `radio` (the one the message came on; when none is named, a test's, the first radio that can send): now, or when that radio, connected but held, takes frames again."""
         if self._interlock.refused("ack"):
             return
-        radio = radio or self._radios().main
+        radio = radio or first_sender(self._radios())
         if radio is None:
             log.warning("no ack for message %s from %s: %s", msg_id, to, NO_RADIO)
             return

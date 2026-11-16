@@ -7,7 +7,7 @@
     python scripts/screenshots.py --check                                                  # no browser: every shot has its files, and every picture of site/ is declared at the size of its file
 
 Nothing touches a radio. The day is played through a KISS server on a TCP port of the loopback that this script serves (radio 1, of the `kiss-tcp` type, while the day is played); then the station of the shots
-is given its three radios, each of a Dummy type, which opens no device and makes up its own air (RADIOS): radio 1 becomes the Dummy FM radio "2 m" (the main radio, and every frame of the day stays its own), and
+is given its three radios, each of a Dummy type, which opens no device and makes up its own air (RADIOS): radio 1 becomes the Dummy FM radio "2 m" (the radio that carried everything, and every frame of the day stays its own), and
 the Dummy HF radio "40 m" and the Dummy LoRa radio are added (`neoaprs db radios add`), before any daemon of the shots starts. No shot uses the Mercury or the Direwolf type: either would start a modem on the
 machine's sound card. The fresh folder of the setup guide has no radio, as a new installation has none. The HF tests tab is given a board of two made-up tests by a server of the board on the loopback
 (made_up_board; its daemon's update check is on, and a version page on the loopback says this version is the latest), and the Monitor card a made-up waterfall of the Dummy HF radio, which has no scope
@@ -68,7 +68,7 @@ RADIO_TYPE = "kiss-tcp"                                              # radio 1 w
 DAY_RADIO = demoscene.DEMO_RADIO                                     # (radio 1: what the day was heard and sent on, the FM radio of RADIOS after it)
 RADIOS: tuple[tuple[str, str, str], ...] = (("fm", "dummy", "2 m"), ("hf", "dummy-hf", "40 m"), ("lora", "dummy-lora", ""))
 # The station of the shots, in the order of their boxes: (kind, type, name). Each type is a Dummy one, which opens no device: never the Mercury or the Direwolf type, which start a modem on the sound card. The first is
-# radio 1, the day's, made the Dummy FM radio once the day is played; the main radio. The LoRa radio has no name of its own: what the page calls it is its kind's word, LoRa (a name in that form is refused).
+# radio 1, the day's, made the Dummy FM radio once the day is played; what it carried stays on it. The LoRa radio has no name of its own: what the page calls it is its kind's word, LoRa (a name in that form is refused).
 LABELS = {"fm": "2 m", "hf": "40 m", "lora": "LoRa"}                 # what the page calls each radio: its tag in the Stations table and the packet log
 FORBIDDEN_TYPES = ("mercury", "direwolf")                            # (the types no shot may use)
 AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "145.500MHz QRV", "messages/alert": "true", "web/network": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
@@ -153,8 +153,8 @@ def neoaprs_db_add_radio(data: Path, radio_type: str, name: str = "") -> int:
 
 
 async def give_radios(data: Path) -> dict[str, int]:
-    """The station of the shots, once the day is played into `data` and while no daemon runs on it: radio 1, the day's, made the first radio of RADIOS (its frames stay its own), the others added after it,
-    and the first the main radio; the id of each, by its kind."""
+    """The station of the shots, once the day is played into `data` and while no daemon runs on it: radio 1, the day's, made the first radio of RADIOS (its frames stay its own), the others added after it
+    (each as the page adds one: what radio 1 carried stays ticked for it); the id of each, by its kind."""
     (fm_kind, fm_type, _), *others = RADIOS
     ctl = Controller(data)
     await ctl.open_database()
@@ -166,7 +166,6 @@ async def give_radios(data: Path) -> dict[str, int]:
     if not changed:
         raise RuntimeError(f"radio {DAY_RADIO} could not be made the {fm_type} radio")
     ids = {fm_kind: DAY_RADIO} | {kind: neoaprs_db_add_radio(data, type, name) for kind, type, name in others}
-    neoaprs_db_set(data, "station/main_radio", str(DAY_RADIO))
     return ids
 
 
@@ -617,11 +616,10 @@ async def shot_settings_web(s: Shots, _: str) -> None:
 
 async def shot_settings_tnc(s: Shots, _: str) -> None:
     """Settings, the Radio group of the station's three radios: RX only, then a box for each, the FM radio "2 m", the HF radio "40 m" and the LoRa radio, each with its Enable, its Name and Remove and its status
-    line (a connected radio keeps it folded to its one line), then the main radio and Add radio at the end."""
+    line (a connected radio keeps it folded to its one line), then Add radio at the end."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
     await made_up_web(page)
     await page.locator(f"#pane-settings fieldset.subbox[data-radio=\"{s.radios['lora']}\"]").wait_for()
-    await page.locator("#set-station-main_radio").wait_for()
     await whole_groups(page, "fieldset:has(#set-radio-add)")
     await s.save(page, "settings-tnc")
 
@@ -684,7 +682,7 @@ HF_WORLD = (57.9, 20.2, 4.5)                                       # the view of
 
 async def shot_settings_hf(s: Shots, _: str) -> None:
     """Settings, the Radio group of the station's three radios, scrolled to the HF radio's box, "40 m", opened by the arrow of its status line: the Dummy HF radio's type and what its type has (the Dummy has no
-    sound card, keying, Tune or Test of its own: those are the Mercury type's), with the LoRa radio's box, the main radio and Add radio under it."""
+    sound card, keying, Tune or Test of its own: those are the Mercury type's), with the LoRa radio's box and Add radio under it."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
     await made_up_web(page)
     box = page.locator(f'#pane-settings fieldset.subbox[data-radio="{s.radios["hf"]}"]')

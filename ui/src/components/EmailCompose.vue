@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The box to write an email in, always at the bottom of the Email tab (ComposeBar, as everywhere): To (an email address; while the box has the focus the addresses used before that match what is typed are listed under it, upward over the mail:
 // a click picks one, the trash can beside it forgets it), the text, and how many of the characters of a message the line "address text" may still have, the address and the space counting. Send, at the lower right, is off while
-// there is no radio of email, or it is not connected (its title says so: `offline`, EmailPane's words of the link) or the address or the text is empty or the line is too long. After Send the text is empty again and the address stays, for the next mail to the same person; the focus is in the text.
+// there is no radio to send on, or the radio of email is not connected (its title says so: `offline`, EmailPane's words of the link) or the address or the text is empty or the line is too long. After Send the text is empty again and the address stays, for the next mail to the same person; the focus is in the text.
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -27,13 +27,12 @@ const limit = computed<TextLimit>(() => ({ max: LIMITS.message.textMax, measure:
 const left = computed(() => leftOf(text.value, limit.value));
 const rxOnly = useReceiveOnly();
 const radios = useRadios();
-/** No radio that internet gateways hear is on: there is none for email to go on. */
+/** No radio that can send is on: there is none for email to go on. */
 const none = computed(() => radios.email.value === null);
-/** Why Send is off: RX only, no radio for email, or its link down (`offline`); undefined when none of them. */
-const blocked = computed(() => {
-  if (!rxOnly.value && none.value) return t("email.no_gated_radio");
-  return rxOnly.value || props.connected ? sendBlockedReason(props.connected, rxOnly.value) : (props.offline ?? sendBlockedReason(false));
-});
+/** Why Send is off: RX only, or no radio for email or its link down (`offline`); undefined when none of them. */
+const blocked = computed(() =>
+  rxOnly.value || props.connected ? sendBlockedReason(props.connected, rxOnly.value) : (props.offline ?? sendBlockedReason(false)),
+);
 const ready = computed(() => canSendEmail(props.connected, to.value, text.value));
 /** The addresses used before that match what is typed, other than the one that is typed whole. */
 const suggestions = computed(() => {

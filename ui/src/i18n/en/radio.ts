@@ -1,4 +1,4 @@
-// The words of the radios that every place of the page shares: a radio's box in Settings → Radio and in the setup guide (Add, Name, Remove, the main radio, the types of radio), the choice of a radio, Send on, and a radio's
+// The words of the radios that every place of the page shares: a radio's box in Settings → Radio and in the setup guide (Add, Name, Remove, the types of radio), the choice of a radio, Send on, and a radio's
 // name in a line. A radio's name stands in two forms only, so that no language has to inflect it: the name and a colon ("{name}: {line}"), or after a noun that carries the grammar ("Heard on radio {name}").
 export const radio = {
   "radio.add": "Add radio",
@@ -7,9 +7,6 @@ export const radio = {
   "radio.new": "New radio",
   "radio.remove": "Remove",
   "radio.remove_sure": "Really remove?",
-  "radio.main": "Main radio",
-  "radio.main.tip_label": "About the main radio",
-  "radio.main.tip1": "Bulletins and the status go out on it, and it is the first choice for Ask around, Local info and email.",
   "radio.name": "Name",
   "radio.name.tip_label": "About the name",
   "radio.name.tip1": "A short name for this radio: the page calls the radio by it everywhere.",

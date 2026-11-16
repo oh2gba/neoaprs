@@ -33,8 +33,8 @@ const BOTH = topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
 describe("useRadios", () => {
   it("has no radio before the daemon has told the topic `radios`", () => {
     const { seen } = read(fakeDaemon({ radios: null }));
-    const { told, all, enabled, several, main, allowsPath, byId } = seen().radios;
-    expect([told.value, all.value, enabled.value, several.value, main.value, allowsPath.value, byId(1)]).toEqual([
+    const { told, all, enabled, several, unheard, allowsPath, byId } = seen().radios;
+    expect([told.value, all.value, enabled.value, several.value, unheard.value, allowsPath.value, byId(1)]).toEqual([
       false,
       [],
       [],
@@ -45,16 +45,16 @@ describe("useRadios", () => {
     ]);
   });
 
-  it("reads the topic once it is told, follows it as it changes, and the main radio from the status", async () => {
+  it("reads the topic once it is told, follows it as it changes, and the radio of a call no radio heard from the status", async () => {
     const daemon = fakeDaemon({ radios: null });
     const { seen } = read(daemon);
-    const { told, all, enabled, several, main, allowsPath, byId } = seen().radios;
+    const { told, all, enabled, several, unheard, allowsPath, byId } = seen().radios;
     expect([told.value, ids(enabled.value), several.value]).toEqual([false, [], false]);
     await tell(daemon, {
       radios: topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { position: 0 })),
-      status: status({ main_radio: 1 }),
+      status: status({ unheard_radio: 1 }),
     });
-    expect([told.value, ids(all.value), ids(enabled.value), several.value, main.value?.id, byId(2)?.row.type]).toEqual([
+    expect([told.value, ids(all.value), ids(enabled.value), several.value, unheard.value?.id, byId(2)?.row.type]).toEqual([
       true,
       [2, 1],
       [2, 1],
@@ -64,15 +64,15 @@ describe("useRadios", () => {
     ]);
     await tell(daemon, {
       radios: topic(radioRow(1, "kenwood-tnc2", { enabled: false }), radioRow(2, "mercury")),
-      status: status({ main_radio: 2 }),
+      status: status({ unheard_radio: 2 }),
     });
-    expect([ids(enabled.value), several.value, main.value?.id, allowsPath.value]).toEqual([[2], false, 2, false]);
+    expect([ids(enabled.value), several.value, unheard.value?.id, allowsPath.value]).toEqual([[2], false, 2, false]);
   });
 
   it("has no radio in a pane mounted without the page's context", () => {
     const { seen } = read(null);
-    const { enabled, several, main } = seen().radios;
-    expect([ids(enabled.value), several.value, main.value]).toEqual([[], false, null]);
+    const { enabled, several, unheard } = seen().radios;
+    expect([ids(enabled.value), several.value, unheard.value]).toEqual([[], false, null]);
   });
 
   it("are the topic a test's daemon tells, radio 1 alone unless the test tells its own", () => {
@@ -124,9 +124,9 @@ describe("useRadios", () => {
         radioRow(5, "lora-console", { number: 2, position: 4 }),
         radioRow(6, "dummy-lora", { number: 3, name: "Bike" }),
       ),
-      status: status({ main_radio: 1 }),
+      status: status({ unheard_radio: 1 }),
     });
-    const { all, enabled, senders, severalSenders, main, named, choose } = read(daemon).seen().radios;
+    const { all, enabled, senders, severalSenders, unheard, named } = read(daemon).seen().radios;
     expect(all.value.map((radio) => [radio.id, radio.kind, radio.name])).toEqual([
       [1, "fm", "FM"],
       [2, "hf", "Mercury"],
@@ -136,13 +136,12 @@ describe("useRadios", () => {
       [6, "lora", "Bike"],
     ]);
     expect(ids(enabled.value)).toEqual([1, 2, 4, 5, 3, 6]);
-    expect([ids(senders.value), severalSenders.value, main.value?.id]).toEqual([[1, 2, 3, 6], true, 1]);
+    expect([ids(senders.value), severalSenders.value, unheard.value?.id]).toEqual([[1, 2, 3, 6], true, 1]);
     expect(all.value.map((radio) => named(radio.id))).toEqual([true, true, true, true, true, true]);
     expect(all.value.map((radio) => radio.carriesPath)).toEqual([true, false, false, false, true, true]); // (a LoRa board carries WIDE1-1; the two that only receive carry none)
-    expect(ids(choose().choices.value)).toEqual([1, 2, 3, 6]);
   });
 
-  it("gives the radio a station or a message goes on, any radio by its id, and the main radio for a call nothing is known of", () => {
+  it("gives the radio a station or a message goes on, any radio by its id, and for a call nothing is known of the radio the daemon names for a call no radio heard", () => {
     const daemon = fakeDaemon({
       radios: topic(
         radioRow(1, "kenwood-tnc2"),
@@ -150,9 +149,10 @@ describe("useRadios", () => {
         radioRow(3, "kiss", { number: 2 }),
         radioRow(4, "kiss", { number: 3, removed: true, enabled: false }),
       ),
-      status: status({ main_radio: 3 }),
+      status: status({ unheard_radio: 3 }),
     });
-    const { forStation, forMessage } = read(daemon).seen().radios;
+    const { forStation, forMessage, unheard } = read(daemon).seen().radios;
+    expect(unheard.value?.id).toBe(3);
     const row = station("OH2RDG", { heard: heardBy([1, 3]), radio_now: 3 });
     expect([
       forStation(row)?.id,
@@ -167,7 +167,7 @@ describe("useRadios", () => {
     ]).toEqual([true, "FM 2", null]);
   });
 
-  it("gives the email radio the status names, else the first radio on that the gateways hear", async () => {
+  it("gives the email radio the status names, else the first radio on that can send and the gateways hear", async () => {
     const daemon = fakeDaemon({
       radios: topic(radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }), radioRow(3, "kiss")),
       status: status({ email_radio: 3 }),

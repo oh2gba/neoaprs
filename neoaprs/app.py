@@ -19,6 +19,8 @@ from .bulletinlog import BulletinLog
 from .claims import Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, MESSAGE_RADIOS, Config
+from .radioedits import kept_change
+from .sendonrule import Kept
 from .db import Db
 from .gpsfeed import GpsFeed
 from .interlock import Interlock
@@ -54,7 +56,7 @@ from .services.qru import Qru
 from .services.qruask import QruAsk
 from .services.queries import Queries
 from .services.radiofinder import RadioFinder, candidates
-from .services.radioset import AirRadio
+from .services.radioset import AirRadio, first_sender
 from .services.rigstatus import RigStatus
 from .services.selfinstall import installer_for, release_key, release_source
 from .services.selfupdate import SelfUpdate
@@ -120,7 +122,7 @@ class Services:
         kept = Remembered(self.store)                                    # (the operator's radio by station, in a state row: neoaprs/radioregistry.py)
         self.radios: RadioRegistry[Beacon] = RadioRegistry(claims, lambda spec: self._make_driver(spec, interlock), self._make_beacon, lambda: self.config, self.stationbook,
                                                            lambda text: None if self.radios_unread else kept.put({MESSAGE_RADIOS: text}), kept.flush,
-                                                           clock=clock, run=lambda: self.run)       # the radios of the settings, any number: each with its driver, its line and its beacon, one lifecycle for all, and the choice between them (the main radio, by station, by packet)
+                                                           clock=clock, run=lambda: self.run)       # the radios of the settings, any number: each with its driver, its line and its beacon, one lifecycle for all, and the choice between them (by station, by packet, for email)
         self._make_radio_parts(clock)
         self._make_logs(clock)
         self.aprsis = AprsIs(clock)                                      # the connection to an APRS-IS server: it writes the lines it is given and reads the packets of the internet, which wiring.py hands to `hear_internet`; configured and started by the iGate
@@ -160,8 +162,9 @@ class Services:
         return next((radio.beacon for radio in self.radios.beaconing() if radio.allowed.smart_beacon), None)
 
     def position_frame(self, radio: AirRadio | None = None) -> ax25.Frame:
-        """Our position packet for the radio an answer goes on (the main radio when the question names none): the station's one maker's. BeaconError when there is no radio, or the settings make no frame."""
-        radio = radio or self.radios.main
+        """Our position packet for the radio an answer goes on (the first radio that can send when the question names none: a test's): the station's one maker's. BeaconError when there is no radio, or the
+        settings make no frame."""
+        radio = radio or first_sender(self.radios)
         if radio is None:
             raise BeaconError("there is no radio that is on")
         return self.beacon_frames.position(radio)
@@ -189,9 +192,9 @@ class Services:
 
     def _make_messaging(self, clock: Clock) -> None:
         """What sends by a schedule, the QRU parts, messaging and the answers to queries."""
-        self.sender = Sender(self.radios, lambda: self.config, clock)   # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio each goes on (the main radio for a bulletin)
-        self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
-        self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
+        self.sender = Sender(self.radios, lambda: self.config, clock)   # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio each goes on (an object's and a bulletin's radios)
+        self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock, memory=self.store)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
+        self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock, memory=self.store)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
         answer_budget = AnswerBudget(clock)                             # the frames of answers of the minute: one for the QRU server and the queries, so that it is the station's as a whole
         self.qru = Qru(self.radios, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock, budget=answer_budget)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
         self.qruask = QruAsk(self.radios, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
@@ -204,7 +207,7 @@ class Services:
         """The base map, the ALOHA circle, Find my radio and the update parts."""
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.mapauto = MapAuto(self.mapfetch, lambda: self.config, self.store, auto_map)    # the detailed map made once without a click, when a place is first set (only where the process asks for it: the daemon); started by the controller
-        self.aloha = Aloha(self.stationbook, clock, main=lambda: self.radios.main)      # the ALOHA circle round our station, the main radio's (rule 3.8), worked out again every minute and when our position moves; started by the controller
+        self.aloha = Aloha(self.stationbook, clock, radios=self.radios.enabled)      # the ALOHA circles round our station (rule 3.8), one for each radio that is on whose type shares a 1200 baud channel, worked out again every minute and when our position moves; started by the controller
         self.radiofinder = RadioFinder(self._radio_ports, self.hold_radio, self.release_radio, claims=self.radios.claims, search_lock=self.radios.search_lock)       # Find my radio: on the page's request only, for one radio (the one the page names, radio 1 when it names none); nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store, developer=install.kind == "source")   # once a day: which version is the latest (update/check); started by the controller
@@ -220,10 +223,21 @@ class Services:
             raise ValueError("only a packet received from the internet (Packet.via is) enters here")
         self.internet_packet.emit(packet)
 
+    def kept_change(self, before: Config, after: Config) -> tuple[Config, Kept]:
+        """What a change of the radios from `before` to `after` keeps in force, by the objects and bulletins of ours as they are (radioedits.kept_change), and `after` with its ticks put in."""
+        return kept_change(before, after, self.ownobjects.radio_sets(), self.ownbulletins.radio_sets())
+
+    def keep(self, kept: Kept) -> None:
+        """The objects and the bulletins of `kept` go out on their new sets from now on (their rows were written with the change of the radios)."""
+        self.ownobjects.keep_radios(kept.objects)
+        self.ownbulletins.keep_radios(kept.bulletins)
+
     def forget_radio(self, id: RadioId) -> None:
-        """A removed radio leaves what the parts keep of it in memory: the registry's sets, choices and paths, and the radios of every object (the removal's transaction took it out of their rows)."""
+        """A removed radio leaves what the parts keep of it in memory: the registry's sets, choices and paths, and the radios of every object and bulletin (the removal's transaction took it out of their
+        rows)."""
         self.radios.forget_radio(id)
         self.ownobjects.forget_radio(id)
+        self.ownbulletins.forget_radio(id)
 
     def _deliveries(self, call: str) -> Deliveries | None:
         """How the packets of the station reached us, for the path of a message to it (None for a station not in the book)."""

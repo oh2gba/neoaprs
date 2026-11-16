@@ -80,7 +80,7 @@ class Allowed:
     paths: bool                       # our frames may carry digipeaters
     digipeat: bool                    # it may repeat what it hears
     smart_beacon: bool                # SmartBeaconing applies
-    gateway_heard: bool               # internet gateways hear this kind (the email radio, rule 3.5)
+    gateway_heard: bool               # internet gateways hear this kind (the email radio while none is chosen, rule 3.5)
     shared_channel: bool              # a 1200-baud shared channel: the ALOHA circle is worked out for it (rule 3.8)
 
 

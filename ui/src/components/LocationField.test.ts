@@ -143,7 +143,7 @@ describe("the one Location control", () => {
     const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(fakeDaemon({ config: configValues() })) });
     const form = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
     form.place(60.17, 24.94);
-    const objects = mount(ObjectForm, { props: { form, fallbackPath: "" } });
+    const objects = mount(ObjectForm, { props: { form } });
     const config = ref(configValues({ "station/lat": "60.17", "station/lon": "24.94" }));
     const guide = useSetupGuide(config, ref(null), () => true);
     guide.show();

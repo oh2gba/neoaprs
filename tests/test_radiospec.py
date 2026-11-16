@@ -1,11 +1,11 @@
-"""A radio as it is stored (neoaprs/radiospec.py): the live and the enabled radios by position, the number within a kind and the log's name of a radio, the main radio, a station's choice and a set of radios
+"""A radio as it is stored (neoaprs/radiospec.py): the live and the enabled radios by position, the number within a kind and the log's name of a radio, the radio of what no fact gives one, a station's choice and a set of radios
 read against the radios that are enabled (plan §2), the name the operator types, and a radio's own value with its field's default for one that is missing or wrong."""
 import logging
 
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.radiospec import FM_ID, HF_ID, MAX_NAME, RadioError, RadioSpec, check_name, enabled, in_force_choice, in_force_set, live, log_name, main_radio, number_in_kind
+from neoaprs.radiospec import FM_ID, HF_ID, MAX_NAME, RadioError, RadioSpec, check_name, enabled, in_force_choice, in_force_set, live, log_name, number_in_kind, unheard_radio
 from neoaprs.radiotypes import type_of
 
 GONE = utc(2026, 11, 14, 9, 0)
@@ -36,11 +36,10 @@ def test_a_radio_is_numbered_within_its_kind_by_id_and_a_removed_one_after_the_l
     assert log_name(hf[1], hf) != log_name(hf[2], hf), "a removed Mercury radio 2 and a live Mercury radio 5 are not both called Mercury"
 
 
-def test_the_main_radio_is_the_chosen_one_while_it_is_enabled_else_the_first_enabled_by_position() -> None:
-    assert main_radio(SIX, 6) == 6
-    assert main_radio(SIX, 3) == 1 and main_radio(SIX, 4) == 1 and main_radio(SIX, None) == 1 and main_radio(SIX, 99) == 1
-    assert main_radio([radio(1, enabled=False), radio(2, "hf")], None) == 2, "today's default radio: FM while it is on, else Mercury"
-    assert main_radio([radio(1, enabled=False)], 1) is None and main_radio([], None) is None
+def test_what_no_fact_gives_a_radio_goes_on_the_first_that_can_send_in_the_order_of_the_boxes() -> None:
+    assert unheard_radio(SIX) == 1 and unheard_radio([radio(1, position=9), *SIX[1:]]) == 5, "by position: radio 1's box moved last, the LoRa radio's is the first that is on"
+    assert unheard_radio([radio(1, enabled=False), radio(2, "hf")]) == 2
+    assert unheard_radio([radio(1, enabled=False)]) is None and unheard_radio([]) is None
 
 
 def test_a_stations_choice_that_names_no_enabled_radio_is_automatic_and_with_one_radio_that_one() -> None:
@@ -50,11 +49,11 @@ def test_a_stations_choice_that_names_no_enabled_radio_is_automatic_and_with_one
     assert in_force_choice(1, []) is None
 
 
-def test_a_set_of_radios_is_its_enabled_ticks_else_the_main_radio_and_with_one_radio_that_one() -> None:
-    assert in_force_set([2, 1, 3], SIX, 1) == (1, 2), "the enabled ticks by position"
-    assert in_force_set([3, 4], SIX, 6) == (6,) and in_force_set([], SIX, 1) == (1,)
-    assert in_force_set([3], SIX, None) == ()
-    assert in_force_set([1], [radio(1, enabled=False), radio(2, "hf")], 2) == (2,)
+def test_a_set_of_radios_is_its_enabled_ticks_none_when_none_is_on_and_with_one_radio_that_one() -> None:
+    assert in_force_set([2, 1, 3], SIX) == (1, 2), "the enabled ticks by position"
+    assert in_force_set([3, 4], SIX) == () and in_force_set([], SIX) == (), "ticked nowhere is not sent: no radio stands in"
+    assert in_force_set([1], [radio(1, enabled=False), radio(2, "hf")]) == (2,), "one radio that can send: that one"
+    assert in_force_set([1], [radio(1, enabled=False)]) == ()
 
 
 def test_a_name_is_stripped_short_printable_ascii_and_unique_among_the_live_radios() -> None:

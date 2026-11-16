@@ -1,5 +1,5 @@
 """Where the status comes from (`status/source`) and "Send status now" (`RigStatus.send_now`, the command `status_now`): the choice follows the other settings while it is empty, off and text send nothing from the radio, and a
-status asked for goes out inside the interval and when nothing changed, by the same interlock, the same length and the same radio as the timer's (the main radio, `tests/test_rigstatus.py`'s registry), and says
+status asked for goes out inside the interval and when nothing changed, by the same interlock, the same length and the same radios as the timer's (those it is ticked for, `tests/test_rigstatus.py`'s registry), and says
 why when it cannot; in the daemon the report is made by the beacons' maker of frames."""
 import logging
 from dataclasses import replace

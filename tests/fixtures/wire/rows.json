@@ -71,10 +71,13 @@
     "reason": ""
    },
    "radio_defaults": {
+    "email/radio": "",
+    "radio/1/ask": "false",
     "radio/1/baud": "",
     "radio/1/beacon": "true",
     "radio/1/digipeat": "false",
     "radio/1/keying": "",
+    "radio/1/local_info": "false",
     "radio/1/path": "",
     "radio/1/port": "",
     "radio/1/sound_card": "",
@@ -82,18 +85,22 @@
     "radio/1/tcp_host": "127.0.0.1",
     "radio/1/tcp_port": "8001",
     "radio/1/tx_gain_db": "0",
+    "radio/2/ask": "false",
     "radio/2/beacon": "true",
     "radio/2/keying": "",
+    "radio/2/local_info": "false",
     "radio/2/sound_card": "",
     "radio/2/status": "false",
-    "radio/2/tx_gain_db": "0",
-    "station/main_radio": ""
+    "radio/2/tx_gain_db": "0"
    },
    "radio_values": {
+    "email/radio": "",
+    "radio/1/ask": "false",
     "radio/1/baud": "",
     "radio/1/beacon": "true",
     "radio/1/digipeat": "false",
     "radio/1/keying": "",
+    "radio/1/local_info": "false",
     "radio/1/path": "",
     "radio/1/port": "",
     "radio/1/sound_card": "",
@@ -101,12 +108,13 @@
     "radio/1/tcp_host": "127.0.0.1",
     "radio/1/tcp_port": "8001",
     "radio/1/tx_gain_db": "0",
+    "radio/2/ask": "false",
     "radio/2/beacon": "true",
     "radio/2/keying": "",
+    "radio/2/local_info": "false",
     "radio/2/sound_card": "",
     "radio/2/status": "false",
-    "radio/2/tx_gain_db": "0",
-    "station/main_radio": ""
+    "radio/2/tx_gain_db": "0"
    },
    "urls": [],
    "values": {
@@ -200,10 +208,13 @@
     "problem": ""
    },
    "radio_defaults": {
+    "email/radio": "",
+    "radio/1/ask": "false",
     "radio/1/baud": "",
     "radio/1/beacon": "true",
     "radio/1/digipeat": "false",
     "radio/1/keying": "",
+    "radio/1/local_info": "false",
     "radio/1/path": "",
     "radio/1/port": "",
     "radio/1/sound_card": "",
@@ -211,18 +222,22 @@
     "radio/1/tcp_host": "127.0.0.1",
     "radio/1/tcp_port": "8001",
     "radio/1/tx_gain_db": "0",
+    "radio/2/ask": "false",
     "radio/2/beacon": "true",
     "radio/2/keying": "",
+    "radio/2/local_info": "false",
     "radio/2/sound_card": "",
     "radio/2/status": "false",
-    "radio/2/tx_gain_db": "0",
-    "station/main_radio": ""
+    "radio/2/tx_gain_db": "0"
    },
    "radio_values": {
+    "email/radio": "",
+    "radio/1/ask": "false",
     "radio/1/baud": "",
     "radio/1/beacon": "true",
     "radio/1/digipeat": "false",
     "radio/1/keying": "",
+    "radio/1/local_info": "false",
     "radio/1/path": "",
     "radio/1/port": "",
     "radio/1/sound_card": "",
@@ -230,12 +245,13 @@
     "radio/1/tcp_host": "127.0.0.1",
     "radio/1/tcp_port": "8001",
     "radio/1/tx_gain_db": "0",
+    "radio/2/ask": "false",
     "radio/2/beacon": "true",
     "radio/2/keying": "",
+    "radio/2/local_info": "false",
     "radio/2/sound_card": "",
     "radio/2/status": "false",
-    "radio/2/tx_gain_db": "0",
-    "station/main_radio": ""
+    "radio/2/tx_gain_db": "0"
    },
    "urls": [
     "http://192.168.1.2:8730"
@@ -722,6 +738,9 @@
    "last_sent_at": "2026-10-21T12:02:00Z",
    "next_at": "2026-10-21T12:08:00Z",
    "posted_at": "2026-10-21T12:00:00Z",
+   "radios": [
+    1
+   ],
    "sent": 2,
    "slot": "BLN3HAMS",
    "text": "Net tonight"
@@ -732,6 +751,9 @@
    "last_sent_at": null,
    "next_at": null,
    "posted_at": "2026-10-21T12:00:00Z",
+   "radios": [
+    1
+   ],
    "sent": 0,
    "slot": "BLNA",
    "text": "Hello"
@@ -1835,7 +1857,7 @@
   {
    "asked": {
     "at": "2026-10-21T12:00:00Z",
-    "radio": null,
+    "radios": [],
     "text": "INFO"
    },
    "servers": []
@@ -1843,7 +1865,10 @@
   {
    "asked": {
     "at": "2026-10-21T12:00:30Z",
-    "radio": null,
+    "radios": [
+     1,
+     2
+    ],
     "text": "RP70 150"
    },
    "servers": [
@@ -1861,6 +1886,7 @@
       }
      ],
      "max_objects": 5,
+     "radio": 2,
      "range": 50,
      "received": [],
      "request": "",
@@ -1875,6 +1901,7 @@
      "call": "W1AW",
      "groups": [],
      "max_objects": null,
+     "radio": null,
      "range": null,
      "received": [],
      "request": "",
@@ -1914,8 +1941,10 @@
     "tx_gain": false
    },
    "choices": {
+    "ask": false,
     "beacon": true,
     "digipeat": true,
+    "local_info": false,
     "path": "WIDE1-1",
     "status": false
    },
@@ -2001,8 +2030,10 @@
     "tx_gain": false
    },
    "choices": {
+    "ask": false,
     "beacon": false,
     "digipeat": null,
+    "local_info": false,
     "path": null,
     "status": false
    },
@@ -2081,8 +2112,10 @@
     "tx_gain": false
    },
    "choices": {
+    "ask": false,
     "beacon": true,
     "digipeat": false,
+    "local_info": false,
     "path": "",
     "status": false
    },
@@ -2158,8 +2191,10 @@
     "tx_gain": false
    },
    "choices": {
+    "ask": false,
     "beacon": true,
     "digipeat": false,
+    "local_info": false,
     "path": "",
     "status": false
    },

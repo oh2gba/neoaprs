@@ -512,13 +512,13 @@ describe("the beacon being Off", () => {
   });
 });
 
-// The radios' own settings (`radio/3/port`) and the station's of the radios (`station/main_radio`): no group of the form places them; the boxes of the Radio group, the main radio and the Digipeater group do.
+// The radios' own settings (`radio/3/port`) and the station's of the radios (`email/radio`): no group of the form places them; the boxes of the Radio group, the Email tab's list and the Digipeater group do.
 describe("the radios' own settings in the form", () => {
   it("are in no group: the radios' places show them", () => {
-    const groups = groupKeys([...CONFIG_KEYS, "radio/3/port", "radio/3/digipeat", "radio/1/port", "station/main_radio"], "settings");
-    expect(groups.flatMap((g) => g.keys).filter((k) => k.startsWith("radio/") || k === "station/main_radio")).toEqual([]);
+    const groups = groupKeys([...CONFIG_KEYS, "radio/3/port", "radio/3/digipeat", "radio/1/port", "email/radio"], "settings");
+    expect(groups.flatMap((g) => g.keys).filter((k) => k.startsWith("radio/") || k === "email/radio")).toEqual([]);
     expect(groups.map((g) => g.id)).not.toContain("other");
-    expect(groupKeys(["station/call", "station/main_radio", "radio/3/beacon"], "beacon").flatMap((g) => g.keys)).toEqual(["station/call"]);
+    expect(groupKeys(["station/call", "email/radio", "radio/3/beacon"], "beacon").flatMap((g) => g.keys)).toEqual(["station/call"]);
   });
 
   it("say what the same field of the radios of before says", () => {

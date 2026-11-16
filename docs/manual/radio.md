@@ -20,7 +20,6 @@ The Radio group of the Settings tab has, from the top:
 
 - **RX only**, the tickbox that sends nothing at all ([beacon.md](beacon.md#rx-only));
 - one box for each radio, in the order they were added;
-- **Main radio**, while more than one radio that can send is on ([below](#the-main-radio));
 - **Add radio**, last.
 
 The box of a radio that is on has its **Enable** tickbox, its status line and, behind the arrow of the status line, its **Radio type**, the fields of that type and what the type can do (Find my radio, Tune, the Spectrum, the Terminal). The box of a radio that is off is its Enable alone (with its Name and Remove, below). A box folds by the arrow in front of its name, and the page remembers in this browser which ones you folded. A box opens by itself while its radio is on and not connected, when the daemon refuses one of its settings, and when the page leads you to it.
@@ -39,9 +38,20 @@ A new radio is on. To change a radio's kind, add a radio of the other kind and r
 - **Name** and **Remove** are in every box once the station has more than one. The name is at most 8 characters, such as `20 m` or `Mobile`, and is saved when you leave the field or press Enter. Its placeholder is what the radio is called without one. A name another radio has, or the name of a kind ("FM", "LoRa 2"), is refused under the field.
 - **Remove** asks twice: it reads **Really remove?** after the first press. It is off for the only radio that is on. A removed radio's packets and messages keep its name, and its box is gone.
 
-### The main radio
+### What goes on which radio
 
-**Main radio** is the radio for what is addressed to no station: bulletins, the status report, and the first choice of Ask around, Local info and email. It is a choice under the last box, there only while more than one radio that can send is on. With one such radio on, that radio is the main radio. When the main radio is switched off or removed, the first radio that is on takes its place.
+All radios are equal: each thing the station sends of its own has its own radios.
+
+- Each has its own **Send on**, a tick for each radio that can send, beside the thing it sends:
+  - the beacon, under the Beacon choice of the My station tab ([beacon.md](beacon.md#the-beacon-on-several-radios));
+  - the status report, under the Status choice of the same tab;
+  - Ask around, under Ask in the Nearby tab; Local info, under Ask in its box of the Objects tab;
+  - each object, in its form in the Objects tab ([objects.md](objects.md)); each bulletin, in the Post box of the Bulletins tab ([bulletins.md](bulletins.md)).
+- Email goes on one radio, chosen beside Check email in the Email tab ([email.md](email.md#which-radio)).
+- With one radio that can send on, everything goes on it, whatever is ticked, and no tick is shown.
+- With several, each thing goes on the radios ticked for it that are on, and on none while none of them is.
+- A radio you add or switch on stops nothing: what went on the radios that were on goes on there, and a new radio starts with its beacon alone. A new object or bulletin starts with the radios of the one you saved last.
+- A message to a call no radio heard, and a text to `CQ`, `ALL` or `QST`, go on the radio that can send whose box is highest in this group ([messages.md](messages.md#the-radio-of-a-message)). Move a box to change it.
 
 ## What each radio does, and what the station does once
 
@@ -57,7 +67,7 @@ The station has once: the call, the position and the symbol, the comment, the be
 
 A message goes on one radio: the one you choose in Route, else the radio that heard the station lately ([messages.md](messages.md#the-radio-of-a-message)). An ack or an answer goes back on the radio the message came in on.
 
-A radio that only receives (a Yaesu FTM, the LoRa iGate on USB) is left out wherever the page offers a choice of radio. Beside one other radio there is no **Main radio**, no **Send on** and no radio to choose in Route or beside **Ask**. A message heard only on it is acked on the radio a message to that station would take; a query heard only on it is not answered.
+A radio that only receives (a Yaesu FTM, the LoRa iGate on USB) is left out wherever the page offers a choice of radio. Beside one other radio there is no **Send on** and no radio to choose in Route. A message heard only on it is acked on the radio a message to that station would take; a query heard only on it is not answered.
 
 ## The types
 
@@ -132,7 +142,7 @@ On a Mac there is no *Sound card* type: run Direwolf yourself ([`docs/RADIOS.md`
 
 **Choose:** *Yaesu FTM, TNC in monitor mode (RX only)*, a radio of the kind FM, then **Port** and **Speed** (9600 for an FTM). On the FTM set Setup → DATA → COM PORT SETTING to OUTPUT PACKET at 9600. What to set on each TNC is in [`docs/RADIOS.md`](../RADIOS.md).
 
-**When it works:** what the radio hears is on the map, and with Internet stations on the station is a receive-only iGate. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never the main radio, a message's, the beacon's or an object's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the header says **RX only**.
+**When it works:** what the radio hears is on the map, and with Internet stations on the station is a receive-only iGate. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never a message's, the beacon's, an object's or a bulletin's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the header says **RX only**.
 
 ### The Dummy radios
 
@@ -248,7 +258,7 @@ The type of an FM radio (its key in brackets, as `neoaprs db radios` shows it) s
 | *Your own Direwolf or soundmodem* (`kiss-tcp`) | Direwolf (8001), UZ7HO SoundModem and QtSoundModem (8100) | nothing | nothing | no |
 | *Yaesu FTM, TNC in monitor mode (RX only)* (`tnc-text`) | a Yaesu FTM-100, -300, -400 or -500 with its data port on Output PACKET, a TAPR TNC-2, Kantronics or PK-232 left in its own monitor mode | nothing, ever | nothing | no |
 
-- **RX only** (*Yaesu FTM, TNC in monitor mode (RX only)*): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never the main radio, a message's, the beacon's or an object's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the header says RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only).
+- **RX only** (*Yaesu FTM, TNC in monitor mode (RX only)*): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never a message's, the beacon's, an object's or a bulletin's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the header says RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only).
 - **A TNC that is not asked** (*KISS TNC*, *Your own Direwolf or soundmodem*): nothing is written to it but KISS frames. There is no keep-alive check and no silent state. The open line is all NeoAPRS can know of the radio.
 - A TNC in command mode that sends text is told in the radio status; it is not answered. The Kenwood TH-D74 and TH-D75 have no command mode and cannot be asked: put them in KISS at the radio.
 - **The wait after the last step** is the settle time. What the TNC says meanwhile is thrown away and no frame is sent.

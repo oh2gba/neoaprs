@@ -282,7 +282,7 @@ class PageSocket:
                 self.messages.append(message)
 
     def config(self) -> dict[str, str]:
-        """The settings in force as the topic `config` tells them: its `values`, and a radio's own `radio/<id>/<key>` (and `station/main_radio`) wherever the daemon tells them, in `values` as breakdown 1.11
+        """The settings in force as the topic `config` tells them: its `values`, and a radio's own `radio/<id>/<key>` (and `email/radio`) wherever the daemon tells them, in `values` as breakdown 1.11
         words it or in `radio_values` beside it, which the round's wire keeps apart so that the form of before shows none of them."""
         told = self.topics.get("config") or {}
         return {**(told.get("values") or {}), **(told.get("radio_values") or {})}

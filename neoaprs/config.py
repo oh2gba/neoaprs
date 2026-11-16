@@ -111,7 +111,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
     Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
     Setting("station_transmit", "station/transmit", boolean),               # false: receive only, nothing is transmitted whatever is asked or due (can_transmit); kept in the database, so it holds after a restart
-    Setting("main_choice", "station/main_radio", optional_int(1, 2**31 - 1)),        # the radio the operator chose as the main one, by its id (bulletins, the status, the first choice of Ask and email); empty: the first enabled by position
+    Setting("email_choice", "email/radio", optional_int(1, 2**31 - 1)),              # the radio the operator chose for email, by its id (the select of the E-mail tab); empty, or a radio that is off or gone: the radio emailrule.email_radio gives
     Setting("fm_enabled", "fm/enabled", boolean),                           # true: the FM radio (the KISS TNC of tnc/profile) is there; false: no FM radio, no port searched, no FM beacon (a station with the HF radio alone)
     Setting("station_lat", "station/lat", optional_float(*LATITUDE)),     # empty: no position (no beacon; the map opens on the world)
     Setting("station_lon", "station/lon", optional_float(*LONGITUDE)),
@@ -153,17 +153,17 @@ SETTINGS: tuple[Setting, ...] = (
 )
 BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)             # every key of the settings table and of the wire's `config`, in the form's order: the station's rows, and today's flat keys of radios 1 and 2 (configradios.FLAT_HOMES: a view until the wire names a radio)
-RADIO_STATION_KEYS = ("station/main_radio",)      # the station's settings of the radios, which the wire's `config` tells beside the radios' own keys (`radio_values`), not among the settings the form of before shows
+RADIO_STATION_KEYS = ("email/radio",)      # the station's settings of the radios, which the wire's `config` tells beside the radios' own keys (`radio_values`), not among the settings the form of before shows
 LAST_PORT = radio_state_key(FM_ID, "last_port")   # the row `serial/last_port` is kept in once the radios are stored: radio 1's own state
 STATION_KEYS = tuple(s.key for s in SETTINGS if s.attr not in FLAT_HOMES and s.key != "serial/last_port")       # the settings that are the station's: the rows of the table `settings` under their own key
-BEACON_SENT = "beacon/last_sent_at"          # the rows of before of the two beacons' last sends, which migration 31 renamed radio/1/ and radio/2/beacon_last_sent_at; a Beacon made without the station's maker of frames (tests, until the round's removals) still keeps the first
-HF_BEACON_SENT = "hf/beacon_last_sent_at"
+BEACON_SENT, HF_BEACON_SENT = "beacon/last_sent_at", "hf/beacon_last_sent_at"          # the rows of before of the two beacons' last sends, which migration 31 renamed radio/1/ and radio/2/beacon_last_sent_at; a Beacon made without the station's maker of frames (tests, until the round's removals) still keeps the first
 STATE_BEFORE_31 = (BEACON_SENT, HF_BEACON_SENT)
 RADIO_STATE = ("beacon_last_sent_at", "status_last_sent_at", "last_port")    # a radio's own state rows, radio_state_key(id, name): when its beacon and its status last went out (services/beacon.py, services/rigstatus.py), and radio 1's alone, the port its search found (LAST_PORT: only radio 1 remembers one, wiring._remember_port)
 STATUS_SENT, STATUS_TEXT = "status/last_sent_at", "status/last_text"     # the rows the status report keeps to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
 MAP_AUTO = "map/auto"                        # whether the detailed map begun without a click is still owed: wanted (begun, not finished: tried again at the next start), or done (services/mapauto.py)
 MESSAGE_RADIOS = "messages/radio_by_station"   # the radio the operator chose for messages to a station, by call, as JSON, by the radio's id since migration 31 ({"OH2GAX-2": 2}; neoaprs/radioregistry.py)
-STATE_KEYS = (STATUS_SENT, STATUS_TEXT, MAP_AUTO, MESSAGE_RADIOS)       # the station's state rows; each radio's are RADIO_STATE's
+NEW_OBJECTS, NEW_BULLETINS = "objects/send_on", "bulletins/send_on"      # the radios a new object and a new bulletin start with: those of the one saved last ("1,3"; sendonrule.start_set)
+STATE_KEYS = (STATUS_SENT, STATUS_TEXT, MAP_AUTO, MESSAGE_RADIOS, NEW_OBJECTS, NEW_BULLETINS)       # the station's state rows; each radio's are RADIO_STATE's
 INSTALL_ID = "update/install_id"             # the random number of this installation that the update check sends (services/updatecheck.py); state of the daemon too, but not one of STATE_KEYS, which are the schedule's rows
 HF_DIAL = "update/hf_dial"                   # the HF dial the version page named last ("7.0541 MHz USB"; services/updatecheck.py): the frequency the group meets on moves with the page, not with a release; empty: the built-in one (mercury.DIAL_TEXT)
 
@@ -212,7 +212,7 @@ class Config(FlatFields, RadioViews):
     gps_baud: int = 4800
     beacon_travel: str = TRAVEL[0]
     radios: tuple[RadioSpec, ...] = DEFAULT_RADIOS         # every radio, removed ones too, by id, as they are stored (Store.radios()); settings that say nothing have today's two, the FM radio on and the HF radio off
-    main_choice: RadioId | None = None                    # the radio the operator chose as the main one (station/main_radio); None: the first enabled
+    email_choice: RadioId | None = None                   # the radio the operator chose for email (email/radio); None: none chosen (emailrule.email_radio)
 
     @property
     def mobile(self) -> bool:
@@ -232,7 +232,7 @@ class Config(FlatFields, RadioViews):
     def beacon_interval(self) -> int:
         """How often our position goes out on some radio, in minutes (0: off): the shortest interval in force on a radio the beacon goes out on (beaconrule.station_interval; each radio's own is
         `beaconrule.beacon_interval`, the setting raised to that radio's floor). The one number of the page's status (`beacon_interval_min`, neoaprs/web/api.py) until the wire tells each radio's."""
-        return station_interval(self.beacon_interval_min, self.radios, self.main_radio)
+        return station_interval(self.beacon_interval_min, self.radios)
 
     def radio_refusal(self, key: str = "hf/enabled") -> SettingError | None:
         """Why the radios' tickboxes do not go together, or None when they do: at least one radio that is not removed stays on (the page greys the last one that is on, so this is for the shell). `key`

@@ -6,9 +6,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from neoaprs.beaconrule import interval_words
+from neoaprs.beaconrule import interval_words, send_on_radios
 from neoaprs.config import Config
-from neoaprs.radiospec import RadioSpec, log_name
+from neoaprs.emailrule import email_radio
+from neoaprs.radiospec import RadioId, RadioSpec, in_force_set, log_name
 from neoaprs.versions import InstallInfo
 
 from .radiosettings import is_mercury, reached
@@ -111,7 +112,7 @@ def _position(c: Config) -> str:
 def _beacon(f: Facts, c: Config) -> str:
     if not c.beacon_on:
         return "off (interval 0)" + ("" if c.station_transmit else "; receive only")
-    text = f"on, SmartBeaconing (travelling: {c.beacon_travel})" if c.mobile else f"on, every {interval_words(c.beacon_interval_min, c.radios, c.main_radio)}"
+    text = f"on, SmartBeaconing (travelling: {c.beacon_travel})" if c.mobile else f"on, every {interval_words(c.beacon_interval_min, c.radios)}"
     if not c.station_transmit:
         text += "; receive only: nothing is sent"
     beacon = (f.live or {}).get("beacon")
@@ -120,6 +121,33 @@ def _beacon(f: Facts, c: Config) -> str:
         if beacon.get("problem"):
             text += f"; not sent because: {beacon['problem']}"
     return text
+
+
+SEND_ON_LABELS = (("beacon", "Beacon"), ("status", "Status"), ("ask", "Ask around"), ("local_info", "Local info"))     # the things with a Send on of each radio, as the page names them
+
+
+def _names(ids: Any, specs: list[RadioSpec]) -> str:
+    """The radios of these ids by the names the log gives them, in the order of the boxes; "none" for none."""
+    wanted = set(ids)
+    return ", ".join(log_name(spec, specs) for spec in specs if spec.id in wanted) or "none"
+
+
+def _send_on(f: Facts, c: Config) -> list[tuple[str, str]]:
+    """What goes out on which radio, one line for each thing: the beacon, the status, Ask around, Local info and e-mail from the settings, each object and bulletin of ours from the running daemon (state.json's
+    `send_on`), each as it is in force now (none: ticked nowhere, or no radio that can send is on)."""
+    specs = list(c.radios)
+    rows = [(label, _names(send_on_radios(key, specs), specs)) for key, label in SEND_ON_LABELS]
+    mail = email_radio(specs, c.email_choice)
+    rows.append(("E-mail", _names(() if mail is None else (mail,), specs)))
+    live = (f.live or {}).get("send_on")
+    if not isinstance(live, dict):
+        return [*rows, ("Objects, bulletins", NO_DAEMON)]
+    for kind, label in (("objects", "Object"), ("bulletins", "Bulletin")):
+        sets = live.get(kind)
+        for name, ids in (sets.items() if isinstance(sets, dict) else ()):
+            stored: list[RadioId] = [id for id in ids if isinstance(id, int)] if isinstance(ids, list) else []
+            rows.append((f"{label} {name}", _names(in_force_set(stored, specs), specs)))
+    return rows
 
 
 def _state_rows(tnc: dict[str, Any]) -> list[tuple[str, str]]:
@@ -217,6 +245,8 @@ def sections(f: Facts) -> list[Section]:
             out += [(f"Radio {spec.id}: {log_name(spec, c.radios)}", _radio(f, spec)) for spec in c.live_radios]
         if not c.live_radios and not f.radios_problem:
             out.append(("Radios", [("Radios", "none")]))
+        elif not f.radios_problem:
+            out.append(("Send on", _send_on(f, c)))
         out.append(("GPS", _gps(f, c)))
         out.append(("Web page", [("Listens", _web(f, c))]))
     out.append(("Database", [("File", _database(f.database))]))

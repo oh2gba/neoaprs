@@ -68,7 +68,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.alert.own": "{call} on oma asemamme: hälytys on toista asemaa varten",
   "error.message.control": "tekstissä on ohjausmerkki",
   "error.message.empty": "viesti on tyhjä",
-  "error.message.email_fm_off": "käytössä ei ole radiota, jonka iGatet kuulevat",
   "error.message.forbidden": "tekstissä on {chars}, jota viesti ei voi sisältää ({forbidden} eivät ole sallittuja)",
   "error.message.not_ascii": {
     select: "chars",

@@ -237,10 +237,10 @@ async def qru_ask(ctx: Ctx, cmd: AskQru) -> None:
 
 @command(GeneralQuery)
 async def general_query(ctx: Ctx, cmd: GeneralQuery) -> None:
-    """The stations in radio range are asked a general query (?APRS?, ?IGATE?, ?WX?): one frame, once, by the path given (else beacon/path), RF only unless told otherwise."""
-    radio = sending_radio(ctx, cmd.cmd, cmd.radio)
+    """The stations in radio range are asked a general query (?APRS?, ?IGATE?, ?WX?): one frame on each radio of asking around's Send on, once, by the path given (else each radio's own), RF only unless told otherwise."""
+    sending_radio(ctx, cmd.cmd, None)
     with refused(cmd.cmd):
-        ctx.ctl.generalask.ask(cmd.kind, cmd.path, cmd.rf_only, radio=radio)
+        ctx.ctl.generalask.ask(cmd.kind, cmd.path, cmd.rf_only)
 
 
 @command(MessageRetry)
@@ -360,8 +360,10 @@ async def object_kill(ctx: Ctx, cmd: ObjectKill) -> None:
 
 @command(BulletinPost)
 async def bulletin_post(ctx: Ctx, cmd: BulletinPost) -> None:
+    for id in cmd.radios or ():
+        named_radio(ctx, cmd.cmd, id)
     with refused(cmd.cmd):
-        ctx.ctl.ownbulletins.post(cmd.slot, cmd.text)
+        ctx.ctl.ownbulletins.post(cmd.slot, cmd.text, cmd.radios)
 
 
 @command(BulletinUnpost)

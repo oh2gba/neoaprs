@@ -47,7 +47,7 @@ def migrate(folder: Path) -> sqlite3.Connection:
     fresh = opened(folder / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 30
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][29:] == [(30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][29:] == [(30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34])]
     fresh.close()
     return migrated.db
 

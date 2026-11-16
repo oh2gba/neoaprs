@@ -88,12 +88,25 @@ function stationLines(rows: readonly StationRow[], aging: Aging, now: number): S
   ];
 }
 
-function reachLines(rows: readonly StationRow[], map: MapState | null): StatLine[] {
+/** The radius of each ALOHA circle, "37 km", and where radios are named (several on) each after its radio's name, "FM: 37 km · FM 2: 12 km"; null for none. */
+function alohaText(map: MapState | null, radios: readonly PageRadio[]): string | null {
+  const circles = map?.aloha ?? [];
+  if (circles.length === 0) return null;
+  const named = enabledRadios(radios).length > 1;
+  return circles
+    .map(({ radio, km }) => {
+      const words = t("stats.km", { km: distanceText(km) });
+      const name = radios.find((one) => one.id === radio)?.name;
+      return named && name !== undefined ? t("radio.line", { name, line: words }) : words;
+    })
+    .join(" · ");
+}
+
+function reachLines(rows: readonly StationRow[], map: MapState | null, radios: readonly PageRadio[]): StatLine[] {
   const stations = rows.filter((row) => isStation(row) && onAir(row));
   const repeated = repeatedCounts(rows);
-  const aloha = map?.aloha_km ?? null;
   return [
-    ...line("stats.aloha", aloha === null ? null : t("stats.km", { km: distanceText(aloha) })),
+    ...line("stats.aloha", alohaText(map, radios)),
     ...line("stats.farthest_direct", farthestText(stations.filter((row) => row.heard_direct > 0))),
     ...line("stats.farthest_rf", farthestText(stations.filter((row) => row.heard_rf > 0))),
     ...line("stats.most_used", repeated.size > 0 ? topText(repeated) : null),
@@ -173,7 +186,7 @@ export function mapStats(input: StatsInput): StatSection[] {
   const counted = enabledRadios(radios).map((radio) => radio.row.stats);
   const sections: StatSection[] = [
     { title: "stats.section.stations", lines: stationLines(rows, input.aging, input.now) },
-    { title: "stats.section.reach", lines: reachLines(rows, input.map) },
+    { title: "stats.section.reach", lines: reachLines(rows, input.map, radios) },
     { title: "stats.section.packets", lines: [...packetLines(rows, input.status), ...latestLines(input.packets, radios)] },
     { title: "stats.section.radio", lines: radioLines(input.status, counted, input.igate, input.now) },
   ];

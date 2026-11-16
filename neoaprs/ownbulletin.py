@@ -5,7 +5,9 @@ one to five characters (`BLN3HAMS`) for a group bulletin; the text is at most 67
 We keep one of each slot (the addressee), a new text for a slot replaces the one before and starts its schedule again (neoaprs/decay.py: a few times early, then at a long interval, for a few hours for a
 bulletin and a few days for an announcement); the group messages to `ALL`, `CQ` and `QST` are not posted from here.
 
-`OwnBulletin` holds the text and where the schedule stands: how often it was sent, when it was first and last sent. Every datetime is timezone-aware UTC."""
+`OwnBulletin` holds the text, the radios it goes out on (`radios`, by id, as an object's: migration 34) and where the schedule stands: how often it was sent, when it was first and last sent. Every datetime is
+timezone-aware UTC."""
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Literal
@@ -15,6 +17,8 @@ from neoaprs.bulletin import board_slot
 from neoaprs.coded import CodedError
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN, Plan
 from neoaprs.message import check_text
+from neoaprs.ownobject import radio_set
+from neoaprs.radiotype import FM_ID, RadioId
 
 Kind = Literal["bulletin", "announcement", "group"]
 GROUP_MAX = 5
@@ -35,6 +39,10 @@ class OwnBulletin:
     sent: int = 0                                # how often the text was sent
     first_sent_at: datetime | None = None
     last_sent_at: datetime | None = None
+    radios: tuple[RadioId, ...] = (FM_ID,)       # the ids of the radios it goes out on, ascending, one at least; with one radio that can send it goes on that one, whatever is kept
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "radios", radio_set(self.radios))
 
     @property
     def plan(self) -> Plan:
@@ -53,9 +61,9 @@ def slot_of(slot: str) -> tuple[str, str, Kind]:
     return found.slot, found.group, "group" if found.group else "announcement" if found.kind == "announcement" else "bulletin"
 
 
-def make_bulletin(now: datetime, slot: str, text: str, before: OwnBulletin | None = None) -> OwnBulletin:
-    """The bulletin of this slot and text, or PostError that says what is wrong. With `before` (what the slot held) the time of its last packet is kept, so that the rules of the schedule see it; the schedule
-    starts again."""
+def make_bulletin(now: datetime, slot: str, text: str, before: OwnBulletin | None = None, radios: Iterable[RadioId] = (FM_ID,)) -> OwnBulletin:
+    """The bulletin of this slot and text on these radios (their ids), or PostError that says what is wrong. With `before` (what the slot held) the time of its last packet is kept, so that the rules of the
+    schedule see it; the schedule starts again."""
     name, group, kind = slot_of(slot)
     text = text.strip()
     try:
@@ -63,7 +71,7 @@ def make_bulletin(now: datetime, slot: str, text: str, before: OwnBulletin | Non
         format_message(name, text)
     except MessageError as e:
         raise PostError(str(e), e.code, **e.params) from None
-    made = OwnBulletin(name, group, kind, text, now)
+    made = OwnBulletin(name, group, kind, text, now, radios=tuple(radios))
     return made if before is None else replace(made, last_sent_at=before.last_sent_at)
 
 

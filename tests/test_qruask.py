@@ -151,14 +151,19 @@ async def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away
         rig.qru.ask("INFO")
 
 
-async def test_a_request_goes_on_the_main_radio_by_the_path_that_radio_carries() -> None:
+async def test_a_request_goes_on_the_one_radio_that_can_send_by_the_path_it_carries_and_with_both_on_on_the_ticked_one() -> None:
     rig = Rig(hf_enabled=True, fm_enabled=False)
     hf = with_hf(rig, rig.radios)
-    rig.radios.on = {HF_ID}                                                 # (the HF radio alone: the main radio, which carries no path)
+    rig.radios.on = {HF_ID}                                                 # (the HF radio alone: the one radio that can send, which carries no path)
     rig.qru.ask("INFO")
     assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == []
-    rig.radios.on.add(FM_ID)                                                # (both on: the main radio is the first by position, the FM one)
+    rig.set(fm_enabled=True)
+    rig.radios.on.add(FM_ID)                                                # (both on, no tick stored: ticked nowhere, nothing goes)
     rig.clock.advance(61)
+    with pytest.raises(MessagingError) as refused:
+        rig.qru.ask("INFO")
+    assert refused.value.code == "radio.none"
+    fm_ticked(rig)
     rig.qru.ask("INFO")
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO"] and len(hf.sent) == 1
 
@@ -170,7 +175,7 @@ async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_i
     rig.qru.ask("INFO", radio=HF_ID)
     assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == [], "on the radio named (Mercury: no path)"
     assert rig.paths_asked == [("QRU", None, HF_ID)], "the path of messages to QRU is asked for that radio"
-    assert isinstance(rig.qru.asked, AskedOn) and (rig.qru.asked.text, rig.qru.asked.radio) == ("INFO", HF_ID), "the request records its radio"
+    assert isinstance(rig.qru.asked, AskedOn) and (rig.qru.asked.text, rig.qru.asked.radios) == ("INFO", (HF_ID,)), "the request records its radio"
     assert [r.getMessage() for r in caplog.records] == ["asked QRU: INFO on Mercury"], "with two radios on the log says which"
     rig.radios.on.discard(HF_ID)
     with pytest.raises(MessagingError, match="there is no radio 2"):
@@ -178,11 +183,17 @@ async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_i
     assert len(hf.sent) == 1
 
 
+def fm_ticked(rig: Rig) -> None:
+    """Local info's Send on ticked for the FM radio alone."""
+    rig.set(radios=tuple(replace(spec, settings={**spec.settings, "local_info": "true"}) if spec.id == FM_ID else spec for spec in rig.config.radios))
+
+
 async def test_the_waits_between_requests_are_each_radios_own() -> None:
     rig = Rig(hf_enabled=True)
     hf = with_hf(rig, rig.radios)
+    fm_ticked(rig)
     rig.qru.ask("INFO", radio=HF_ID)
-    rig.qru.ask("INFO")                                                                          # the main radio, the FM one: neither the gap nor the minute of HF holds it
+    rig.qru.ask("INFO")                                                                          # Local info's Send on, the FM radio: neither the gap nor the minute of HF holds it
     assert len(hf.sent) == 1 and len(rig.tnc.sent) == 1
     with pytest.raises(MessagingError) as refused:
         rig.qru.ask("RP70")

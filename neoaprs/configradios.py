@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from .coded import CodedError
 from .packetcodec import parse_stamp
-from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioError, RadioId, RadioSpec, enabled, live, main_radio, senders
+from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioError, RadioId, RadioSpec, enabled, live, senders, unheard_radio
 from .radiotype import KINDS, Kind, stored_text
 from .radiotypes import DEFAULT_TYPE, kind_field, kind_fields, recommended_path as kind_path
 
@@ -205,22 +205,21 @@ def path_text(radios: Iterable[RadioSpec], radio: RadioId) -> str:
         return text
 
 
-def flat_moved(attr: str, radios: Iterable[RadioSpec], main: RadioId | None) -> CodedError | None:
-    """For a flat attribute, the refusal of its key (`serial/port`, `hf/enabled`) in one sentence that names where it is now: a radio's own key, `radio/<id>/<key>`, with the id of the main radio of that kind where
-    the station has one (else of its first radio of the kind, else `<id>`), and for its Enable and type the command `radio_change`; None for any other attribute. The page's `set_config` says it, and `neoaprs db` for a radio's own key (its type and Enable it names by the radio's number, dbcmd.moved)."""
+def flat_moved(attr: str, radios: Iterable[RadioSpec]) -> CodedError | None:
+    """For a flat attribute, the refusal of its key (`serial/port`, `hf/enabled`) in one sentence that names where it is now: a radio's own key, `radio/<id>/<key>`, with the id of the station's live radio of
+    that kind with the lowest id (else `<id>`), and for its Enable and type the command `radio_change`; None for any other attribute. The page's `set_config` says it, and `neoaprs db` for a radio's own key (its type and Enable it names by the radio's number, dbcmd.moved)."""
     if attr not in FLAT_HOMES:
         return None
     field = FLAT_HOMES[attr][1]
     if field in ("type", "enabled"):
         return CodedError(f"no such setting: it is radio_change's {field} now", "setting.unknown")
-    found = flat_now(attr, radios, main)
+    found = flat_now(attr, radios)
     return CodedError(f"no such setting: it is radio/{'<id>' if found is None else found.id}/{field} now", "setting.unknown")
 
 
-def flat_now(attr: str, radios: Iterable[RadioSpec], main: RadioId | None) -> RadioSpec | None:
-    """The radio a flat attribute's value is on now (`flat_moved`): the main radio where it is of the attribute's kind, else the station's first radio of that kind; None when it has none."""
-    ofkind = [spec for spec in live(radios) if spec.kind == FLAT_KINDS[FLAT_HOMES[attr][0]]]
-    return next((spec for spec in ofkind if spec.id == main), ofkind[0] if ofkind else None)
+def flat_now(attr: str, radios: Iterable[RadioSpec]) -> RadioSpec | None:
+    """The radio a flat attribute's value is on now (`flat_moved`): the station's live radio of the attribute's kind with the lowest id; None when it has none."""
+    return min((spec for spec in live(radios) if spec.kind == FLAT_KINDS[FLAT_HOMES[attr][0]]), key=lambda spec: spec.id, default=None)
 
 
 def _view(attr: str) -> property:
@@ -272,7 +271,6 @@ def accepting_flat[C](cls: type[C]) -> type[C]:
 class RadioViews:
     """What is read of the radios of the settings, as `Config` gives it (its base)."""
     radios: tuple[RadioSpec, ...]
-    main_choice: RadioId | None
 
     def radio(self, id: RadioId) -> RadioSpec | None:
         return next((s for s in self.radios if s.id == id), None)
@@ -291,9 +289,9 @@ class RadioViews:
         return bool(self.enabled_radios) and not senders(self.radios)
 
     @property
-    def main_radio(self) -> RadioId | None:
-        """The main radio (radiospec.main_radio): the one chosen while it is enabled and can send, else the first such by position, else none."""
-        return main_radio(self.radios, self.main_choice)
+    def unheard_radio(self) -> RadioId | None:
+        """The radio of a message to a call no radio heard (radiospec.unheard_radio): the first radio that can send, in the order of the boxes; none while none can."""
+        return unheard_radio(self.radios)
 
     @staticmethod
     def check_radio(spec: RadioSpec, key: str, text: str) -> str:

@@ -67,7 +67,6 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.alert.own": "{call} es nuestra: un aviso es para otra estación",
   "error.message.control": "el texto tiene un carácter de control",
   "error.message.empty": "el mensaje está vacío",
-  "error.message.email_fm_off": "no hay activada ninguna radio que oigan las pasarelas de internet",
   "error.message.forbidden": "el texto tiene {chars}, que un mensaje no puede llevar ({forbidden} no están permitidos)",
   "error.message.not_ascii": {
     select: "chars",

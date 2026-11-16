@@ -29,7 +29,7 @@ class OwnObjectRow(_Model):
     path: str | None = Field(description="the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used")
     qru_group: str = Field(description="the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none")
     on_request: bool = Field(description="true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule")
-    radios: list[int] = Field(description="the radios it goes out on (Send on), their ids, ascending: each that is enabled; with none of them enabled, the main radio")
+    radios: list[int] = Field(description="the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere)")
     state: Literal["live", "killing"] = Field(description="`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten")
     created_at: Iso = Field(description="when it was first made")
     updated_at: Iso = Field(description="when it was last changed or killed")
@@ -48,7 +48,8 @@ class OwnBulletinRow(_Model):
     posted_at: Iso = Field(description="when the text was posted")
     sent: int = Field(ge=0, description="how often it was sent")
     last_sent_at: Iso | None = Field(description="when it was last sent; null while it has not been sent")
-    next_at: Iso | None = Field(description="when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first)")
+    next_at: Iso | None = Field(description="when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa, until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first)")
+    radios: list[int] = Field(description="the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere)")
 
 
 class ObjectSet(_Command):
@@ -83,10 +84,12 @@ class ObjectKill(_Command):
 class BulletinPost(_Command):
     """Posts a bulletin, an announcement or a group bulletin of ours: `slot` is `BLN0`..`BLN9`, `BLNA`..`BLNZ` or `BLN`, a number and a group of up to five characters (`BLN3HAMS`), `text` at most 67 characters of
     printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin a few times early and every 20 minutes for 4 hours, an announcement every hour for 72 hours);
-    a text for a slot that holds one replaces it. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the reason."""
+    a text for a slot that holds one replaces it; `radios` the radios it goes out on (their ids). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an
+    `error` that names the reason."""
     cmd: Literal["bulletin_post"]
     slot: str = Field(min_length=SLOT_LENGTH[0], max_length=SLOT_LENGTH[1])
     text: MessageText = Field(min_length=1)
+    radios: list[int] | None = Field(default=None, min_length=1, max_length=64, description="the radios it goes out on, their ids; left out: a text for a slot that holds one on that one's, a new one on `status.new_bulletin_radios`")
 
 
 class BulletinUnpost(_Command):

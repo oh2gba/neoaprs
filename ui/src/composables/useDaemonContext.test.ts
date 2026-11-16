@@ -33,14 +33,14 @@ describe("useDaemonContext", () => {
     FakeSocket.all = [];
     vi.stubGlobal("WebSocket", FakeSocket);
     let ids: number[] = [];
-    let main: number | undefined;
+    let unheard: number | undefined;
     let made: number | undefined;
     const Pane = defineComponent({
       setup() {
-        const { enabled, main: first, added } = useRadios();
+        const { enabled, unheard: first, added } = useRadios();
         return () => {
           ids = enabled.value.map((radio) => radio.id);
-          main = first.value?.id;
+          unheard = first.value?.id;
           made = added.value?.id;
           return h("div");
         };
@@ -64,7 +64,7 @@ describe("useDaemonContext", () => {
     socket.say(hello());
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await nextTick();
-    expect([ids, main]).toEqual([[], undefined]);
+    expect([ids, unheard]).toEqual([[], undefined]);
     socket.say({
       type: "state",
       topic: "radios",
@@ -75,9 +75,9 @@ describe("useDaemonContext", () => {
         "3": radioRow(3, "kiss", { number: 2, position: 3 }),
       },
     });
-    socket.say(status({ main_radio: 3 }));
+    socket.say(status({ unheard_radio: 3 }));
     await nextTick();
-    expect([ids, main]).toEqual([[2, 1, 3], 3]);
+    expect([ids, unheard]).toEqual([[2, 1, 3], 3]);
     socket.say({ type: "radio_added", id: 4 });
     await nextTick();
     expect(made).toBeUndefined();

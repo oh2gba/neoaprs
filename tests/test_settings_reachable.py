@@ -74,7 +74,9 @@ def test_a_setting_that_can_block_a_feature_is_not_left_off_the_page() -> None:
 # The fields of a radio that no flat key shows, each with why its absence from the page blocks nothing.
 NOT_YET_ON_THE_PAGE = {
     "beacon": "a radio's own Send on tick: every radio that is on sends the beacon in this version, whatever it says",
-    "status": "a radio's own tick of the status's Send on (My station, with no flat key): unticked on every radio, the status goes on the main radio, as before it had a choice",
+    "status": "a radio's own tick of the status's Send on (My station, with no flat key): unticked by default, the status goes on the radios ticked",
+    "ask": "a radio's own tick of Ask around's Send on (Nearby, with no flat key): unticked by default, the query goes on the radios ticked",
+    "local_info": "a radio's own tick of Local info's Send on (Objects, with no flat key): unticked by default, the request goes on the radios ticked",
 }
 
 # The fields that stop something the page offers when they are changed: each is on the page (through its flat key until the page names a radio).

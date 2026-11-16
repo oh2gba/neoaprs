@@ -38,7 +38,8 @@ export interface ObjectDraft {
   qru: string;
   /** Send only when a station asks for it. */
   onRequest: boolean;
-  /** The radios it goes out on (Send on), as they are kept with it, ascending; none for a new one, which goes on the main radio. One that is off is kept: it counts again when it is on (`inForce`). */
+  /** The radios it goes out on (Send on), as they are kept with it, ascending; none for a new one not ticked yet, which starts as the object saved last (`status.new_object_radios`). One that is off is kept: it
+   * counts again when it is on (lib/sendon.ts `inForce`). */
   radios: RadioId[];
 }
 
@@ -169,34 +170,21 @@ export function draftReady(draft: ObjectDraft): boolean {
   );
 }
 
-/** The radios an object goes out on now: those of its own that are on, else the main radio (none while there is no radio). With one radio on it is that one, whatever is kept. */
-export function inForce(own: readonly RadioId[], on: readonly RadioId[], main: RadioId | null): RadioId[] {
-  const live = own.filter((id) => on.includes(id));
-  return live.length > 0 ? live : main === null ? [] : [main];
-}
-
-/** The radios kept with an object after a tick of `id` in Send on, from what is in force: a radio that is off stays kept beside the ticks while any of its own is on; the main radio, ticked only because none of its own was on, stands for them. */
-export function ticked(own: readonly RadioId[], on: readonly RadioId[], main: RadioId | null, id: RadioId): RadioId[] {
-  const shown = inForce(own, on, main);
-  const base = own.some((radio) => on.includes(radio)) ? own : shown;
-  const next = base.includes(id) ? base.filter((radio) => radio !== id) : [...base, id];
-  return next.sort((a, b) => a - b);
-}
-
 /** Whether the object goes out on the radios the command asked for. */
 function sameRadios(row: OwnObjectRow, command: ObjectCommand): boolean {
   return row.radios.length === command.radios.length && row.radios.every((id, i) => id === command.radios[i]);
 }
 
-/** The command that makes or changes the object; null while the draft is not ready, and while there is no radio for it. A new object, which has no radios of its own, goes on the main radio (`main`). */
-export function objectCommand(draft: ObjectDraft, main: RadioId | null = null): ObjectCommand | null {
+/** The command that makes or changes the object; null while the draft is not ready, and while there is no radio for it. A new object that has no radios ticked goes on those a new object starts with (`start`: the
+ * daemon's `status.new_object_radios`, those of the object saved last). */
+export function objectCommand(draft: ObjectDraft, start: readonly RadioId[] = []): ObjectCommand | null {
   const lat = parseNumber(draft.lat);
   const lon = parseNumber(draft.lon);
   if (!draftReady(draft) || lat === null || lon === null) return null;
   const setting = parsePathSetting(draft.path);
   const speed = parseNumber(draft.speed);
-  const radios = draft.radios.length > 0 ? [...draft.radios].sort((a, b) => a - b) : main === null ? null : [main];
-  if (radios === null) return null;
+  const radios = [...(draft.radios.length > 0 ? draft.radios : start)].sort((a, b) => a - b);
+  if (radios.length === 0) return null;
   return {
     cmd: "object_set",
     name: draft.name,

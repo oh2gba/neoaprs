@@ -180,21 +180,55 @@ async def test_an_ack_goes_back_on_the_radio_the_message_came_on_and_waits_for_i
     assert hf.lines() == ["OH2GBA>APZNEO::OH2NEAR  :ack7"] and rig.m.acks.waiting == [] and rig.tnc.sent == []
 
 
-async def test_an_email_goes_on_the_email_radio_and_is_refused_while_there_is_none_and_with_no_radio_a_message_is_refused(tmp_path: Path) -> None:
+async def test_an_email_goes_on_the_email_radio_once_and_with_no_radio_a_mail_and_a_message_are_refused(tmp_path: Path) -> None:
     rig = await on_two(tmp_path)
     rig.radios.hf_stations = ("OH2FAR", EMAIL_GATEWAY)
     await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org hello")
-    assert len(rig.tnc.sent) == 1 and rig.radios.lines[HF_ID].sent == [], "on radio 1, whatever the station's choice"
+    assert len(rig.tnc.sent) == 1 and rig.radios.lines[HF_ID].sent == [], "on the email radio and on no other, whatever Route says for the gateway"
     rig.radios.on.discard(FM_ID)                                          # (radio 1 off)
-    with pytest.raises(MessagingError) as refused:
-        await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org again")
-    assert refused.value.code == "message.email_fm_off"
+    await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org again")
+    assert len(rig.tnc.sent) == 1 and [f.info[:9] for f in rig.radios.lines[HF_ID].sent] == [b":EMAIL-2 "], "the one radio that can send carries the mail, of any kind (it was refused before)"
     await rig.m.send("OH2NEAR", "on the one radio there is")
-    assert len(rig.radios.lines[HF_ID].sent) == 1, "the main radio is the Mercury one"
+    assert len(rig.radios.lines[HF_ID].sent) == 2, "the one radio is the Mercury one"
     rig.radios.on.discard(HF_ID)                                          # (no radio at all: what the settings refuse, and a fresh installation of the round)
     with pytest.raises(MessagingError, match="there is no radio"):
         await rig.m.send("OH2NEAR", "nowhere")
+    with pytest.raises(MessagingError, match="there is no radio") as refused:
+        await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org nowhere")
+    assert refused.value.code == "radio.none", "the refusal of every send; no word of gateways"
 
+
+
+async def test_a_mail_goes_out_once_on_the_radio_chosen_in_the_email_tab_and_one_on_its_way_follows_the_choice(tmp_path: Path) -> None:
+    rig = await on_two(tmp_path)
+    hf = rig.radios.lines[HF_ID]
+    rig.radios.chosen[EMAIL_GATEWAY] = HF_ID                               # (a choice Route kept for the gateway in 0.20.1: it says nothing, the E-mail tab's select is the one choice)
+    first = await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org hello")
+    assert (len(rig.tnc.sent), len(hf.sent)) == (1, 0) and radio_ids(rig, first.id) == [FM_ID], "no choice stored: on the radio it went on in 0.20.1, once"
+    rig.config = replace(rig.config, email_choice=HF_ID)                  # (the operator picks the Mercury radio in the E-mail tab)
+    await rig.pass_time(55)
+    assert radio_ids(rig, first.id) == [FM_ID, HF_ID] and (len(rig.tnc.sent), len(hf.sent)) == (1, 1), "its second attempt goes on the radio chosen, and on that one alone"
+    await rig.pass_time(600)
+    assert radio_ids(rig, first.id) == [FM_ID, HF_ID], "two attempts for the gateway, each on one radio"
+    second = await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org again")
+    assert radio_ids(rig, second.id) == [HF_ID] and (len(rig.tnc.sent), len(hf.sent)) == (1, 2), "a new mail goes on the radio chosen, once"
+    rig.radios.on.discard(HF_ID)                                          # (the radio chosen is switched off: the one radio left carries the mail)
+    await rig.pass_time(55)
+    assert radio_ids(rig, second.id) == [HF_ID, FM_ID] and (len(rig.tnc.sent), len(hf.sent)) == (2, 2)
+    rig.radios.on.add(HF_ID)
+    third = await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org back")
+    assert radio_ids(rig, third.id) == [HF_ID], "on again: the choice was kept"
+
+
+async def test_the_ack_of_a_message_that_came_on_a_radio_switched_off_since_goes_on_the_stations_radio(tmp_path: Path) -> None:
+    rig = await on_two(tmp_path)
+    hf = rig.radios.lines[HF_ID]
+    packet = replace(rig.heard("OH2FAR", "OH2GBA", "over hf", "7"), radio_id=HF_ID)
+    rig.radios.on.discard(HF_ID)                                          # (the Mercury radio went off between the packet and its ack)
+    assert rig.radios.for_packet(packet) is None, "no radio answers for the one the packet came on"
+    rig.m.on_packet(packet)
+    await rig.settled()
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2FAR   :ack7"] and hf.sent == [] and rig.m.acks.waiting == [], "one ack, on the radio a message to the station takes now"
 
 
 async def test_with_no_radio_at_all_a_message_that_comes_gets_no_ack_and_an_answer_is_not_given_and_the_log_says_why(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -215,12 +249,12 @@ def test_what_the_services_are_given_until_the_registry_is_read_as_a_radio_pick_
     pick = as_pick(old, lambda: BOTH)
     hf_packet = Packet(T0, "in", b"", "OH2C", "APRS", (), b"", Message("OH2GBA", "over hf", None), None, "rf", HF_ID)
     assert [(r.id, r.kind, r.name) for r in pick.enabled()] == [(FM_ID, "fm", "FM"), (HF_ID, "hf", "Mercury")]
-    assert [r.radio for r in (pick.main, pick.for_station("OH2C"), pick.for_station("OH2B"), pick.for_packet(hf_packet), pick.email(), pick.get(HF_ID))] == [old, old.hf, old.fm, old.hf, old.fm, old.hf]  # type: ignore[union-attr, attr-defined]
+    assert [r.radio for r in (pick.for_station("OH2C"), pick.for_station("OH2B"), pick.for_packet(hf_packet), pick.email(), pick.get(HF_ID))] == [old.hf, old.fm, old.hf, old.fm, old.hf]  # type: ignore[union-attr, attr-defined]
     assert pick.get(HF_ID).limits == HF_LIMITS and not pick.get(HF_ID).allowed.paths and pick.get(FM_ID).allowed.paths and pick.get(3) is None      # type: ignore[union-attr]
     old.enabled = {"hf"}
-    assert pick.email() is None and pick.get(FM_ID) is None and pick.main.id == HF_ID and pick.for_station("OH2B").radio is old.hf, "the FM radio off"     # type: ignore[union-attr, attr-defined]
+    assert pick.email().radio is old.hf and pick.get(FM_ID) is None and [r.id for r in pick.senders()] == [HF_ID] and pick.for_station("OH2B").radio is old.hf, "the FM radio off: the one radio carries the mail too"     # type: ignore[union-attr, attr-defined]
     one = as_pick(old.hf, lambda: BOTH)                                    # (one plain radio, a test's stub: every choice)
-    assert all(r is not None and r.radio is old.hf for r in (one.main, one.for_station("OH2B"), one.get(HF_ID))) and one.get(FM_ID) is None and one.email() is None     # type: ignore[union-attr, attr-defined]
+    assert all(r is not None and r.radio is old.hf for r in (*one.senders(), one.for_station("OH2B"), one.get(HF_ID), one.email())) and one.get(FM_ID) is None     # type: ignore[union-attr, attr-defined]
     assert as_pick(pick, lambda: BOTH) is pick, "a RadioPick is taken as it is"
 
 
@@ -468,8 +502,8 @@ async def test_a_message_the_operator_routed_over_hf_keeps_hf_though_hf_never_he
 
 
 @pytest.mark.parametrize("restart", [False, True], ids=["running", "restarted"])
-async def test_a_message_to_a_station_never_heard_keeps_the_main_radio_when_another_is_switched_on_and_hears_it(tmp_path: Path, restart: bool) -> None:
-    """A station no radio had heard goes on the main radio, which is the rule's choice and kept: the FM radio switched on (the main radio now) and hearing the station after the first attempt does not
+async def test_a_message_to_a_station_never_heard_keeps_its_radio_when_another_is_switched_on_and_hears_it(tmp_path: Path, restart: bool) -> None:
+    """A station no radio had heard goes on the first radio that can send, which is the rule's choice and kept: the FM radio switched on (the first box now) and hearing the station after the first attempt does not
     move it, and after a restart the station's first packet, later than the attempt, tells the same."""
     rig, air = await over_the_registry(tmp_path)
     switch(air, fm=False)

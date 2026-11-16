@@ -1,6 +1,6 @@
 """The radios on the wire (breakdown 1.11, wave 4): the topic `radios` (every radio by id, removed ones too, at most four times a second), the commands that name a radio (`radio_add`, `radio_remove`, `radio_change`,
 `station_radio`, the paths of a station by radio, Ask and Local info on a named radio, an object's radios, `list_ports` and `find_radio` for a radio, the modem's commands), a radio's own settings through
-`set_config` (`radio/<id>/<key>`, `station/main_radio`), and every refusal with its code, the key it is about and the holder's name where a device is held. Over the page's socket of a real daemon."""
+`set_config` (`radio/<id>/<key>`, `email/radio`), and every refusal with its code, the key it is about and the holder's name where a device is held. Over the page's socket of a real daemon."""
 import asyncio
 import json
 from dataclasses import replace
@@ -59,7 +59,7 @@ async def test_the_topic_has_every_radio_and_a_radio_added_changed_and_removed_i
     await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected")
     row = page.topics["radios"][str(id)]
     assert (row["name"], row["kind"], row["type"], row["number"], row["dummy"], row["enabled"], row["removed"], row["problem"]) == ("Shack", "fm", "dummy", 2, True, True, False, None)
-    assert row["choices"] == {"beacon": True, "status": False, "path": "", "digipeat": False} and row["beacon"]["interval_min"] == 0 and row["limits"] == {"max_frame": None, "beacon_min_min": 20}
+    assert row["choices"] == {"beacon": True, "status": False, "ask": False, "local_info": False, "path": "", "digipeat": False} and row["beacon"]["interval_min"] == 0 and row["limits"] == {"max_frame": None, "beacon_min_min": 20}
     await page.send({"cmd": "radio_change", "radio": id, "name": "Mobile", "position": 1})
     await page.until(lambda: page.topics["radios"][str(id)]["name"] == "Mobile" and page.topics["radios"][str(id)]["position"] == 1)
     assert e.ctl.config.radio(id).name == "Mobile", "stored and in force"            # type: ignore[union-attr]
@@ -141,28 +141,27 @@ async def test_a_radios_own_settings_ride_set_config_and_each_refusal_names_its_
     id = await added(page, "kiss-tcp")
     await page.until(lambda: f"radio/{id}/tcp_port" in page.topics["config"]["radio_values"])
     values = page.topics["config"]["radio_values"]
-    assert values[f"radio/{id}/tcp_port"] == "8001" and values["station/main_radio"] == "" and page.topics["config"]["radio_defaults"][f"radio/{id}/tcp_port"] == "8001"
-    assert not [key for key in page.topics["config"]["values"] if key.startswith("radio/") or key == "station/main_radio"], "the form of before is shown none of them"
+    assert values[f"radio/{id}/tcp_port"] == "8001" and values["email/radio"] == str(FM_ID) and "station/main_radio" not in values and page.topics["config"]["radio_defaults"][f"radio/{id}/tcp_port"] == "8001"
+    assert not [key for key in page.topics["config"]["values"] if key.startswith("radio/") or key == "email/radio"], "the form of before is shown none of them"
     await page.send({"cmd": "set_config", "values": {f"radio/{id}/tcp_port": "8002", "station/comment": "both at once"}})
     await page.until(lambda: page.topics["config"]["radio_values"][f"radio/{id}/tcp_port"] == "8002")
     assert page.topics["config"]["values"]["station/comment"] == "both at once" and e.ctl.config.radio(id).settings["tcp_port"] == "8002"      # type: ignore[union-attr]
     assert dict((await e.ctl.store.radios())[-1].settings) == {"tcp_port": "8002"}, "stored in the radio's own rows"
     cases = [({f"radio/{id}/tcp_port": "70000"}, f"radio/{id}/tcp_port", "setting.range"), ({f"radio/{id}/tcp_port": "x"}, f"radio/{id}/tcp_port", "setting.not_whole"),
              ({"radio/9/port": "COM3"}, "radio/9/port", "radio.unknown"), ({f"radio/{id}/frequency": "x"}, f"radio/{id}/frequency", "radio.no_setting"),
-             ({f"radio/{id}/last_port": "x"}, f"radio/{id}/last_port", "radio.no_setting"), ({"station/main_radio": "9"}, "station/main_radio", "radio.unknown"),
-             ({"station/main_radio": "x"}, "station/main_radio", "setting.not_whole")]
+             ({f"radio/{id}/last_port": "x"}, f"radio/{id}/last_port", "radio.no_setting"), ({"email/radio": "9"}, "email/radio", "radio.unknown"),
+             ({"email/radio": "x"}, "email/radio", "setting.not_whole"), ({"station/main_radio": "2"}, "station/main_radio", "setting.unknown")]
     for values_, key, code in cases:
         error = await refused(page, {"cmd": "set_config", "values": {**values_, "station/comment": "not stored"}})
         assert (error["key"], error["code"]) == (key, code), values_
     assert e.ctl.config.station_comment == "both at once", "nothing of a refused save is stored"
-    await page.send({"cmd": "set_config", "values": {"station/main_radio": str(id)}})
-    await page.until(lambda: page.topics["config"]["radio_values"]["station/main_radio"] == str(id))
-    assert e.ctl.config.main_choice == e.ctl.config.main_radio == id
+    await page.send({"cmd": "set_config", "values": {"email/radio": str(id)}})
+    await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(id))
     await page.send({"cmd": "status"})
-    await page.until(lambda: page.of("status")[-1]["main_radio"] == id and page.of("status")[-1]["email_radio"] == id, timeout=8)
+    await page.until(lambda: page.of("status")[-1]["email_radio"] == id, timeout=8)
     await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
     await page.until(lambda: not page.topics["radios"][str(id)]["enabled"])
-    assert e.ctl.config.main_choice == id and e.ctl.config.main_radio == FM_ID, "a main radio chosen while it is off is not the main one"
+    assert e.ctl.config.email_choice == id and e.ctl.config.unheard_radio == FM_ID, "a radio chosen while it is off is kept, and carries nothing"
     await e.stop()
 
 
@@ -200,15 +199,15 @@ def test_every_type_whose_row_carries_its_lines_says_it_has_a_terminal() -> None
     assert [t.key for t in TYPES if not t.can.terminal] == [], "the page draws the Terminal of a type that says it has one"
 
 
-async def test_every_page_is_told_the_new_main_radio_at_once_not_at_the_next_status_of_the_timer(tmp_path: Path) -> None:
+async def test_every_page_is_told_the_new_radio_of_a_call_no_radio_heard_at_once_not_at_the_next_status_of_the_timer(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
     id = await added(page, "kiss", "Mobile")
     other = await e.ws()
     await other.until(lambda: len(other.of("status")) > 0)
-    await page.send({"cmd": "set_config", "values": {"station/main_radio": str(id)}})
-    await other.until(lambda: other.of("status")[-1]["main_radio"] == id, timeout=3)          # (the timer tells the status every 10 s)
+    await page.send({"cmd": "radio_change", "radio": FM_ID, "position": 9})
+    await other.until(lambda: other.of("status")[-1]["unheard_radio"] == id, timeout=3)          # (the timer tells the status every 10 s)
     await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
-    await other.until(lambda: other.of("status")[-1]["main_radio"] == FM_ID, timeout=3)
+    await other.until(lambda: other.of("status")[-1]["unheard_radio"] == FM_ID, timeout=3)
     await e.stop()
 
 
@@ -235,25 +234,34 @@ async def test_a_station_is_given_a_radio_and_a_path_on_it_and_its_row_says_both
     await e.stop()
 
 
-async def test_ask_and_local_info_go_on_the_radio_named_and_a_radio_that_is_off_is_refused_with_its_name(tmp_path: Path) -> None:
+async def test_ask_around_goes_on_its_ticked_radios_and_local_info_on_the_radio_named_and_a_radio_that_is_off_is_refused_with_its_name(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
     id = await added(page, "dummy", "Shack")
     await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected")
     assert page.topics["general"]["by_radio"] == []
-    await page.send({"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True, "radio": id})
-    await page.until(lambda: [a["radio"] for a in page.topics["general"]["asked"]] == [id])
+    error = await refused(page, {"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True})
+    assert (error["code"], error["params"]["radio"]) == ("radio.not_connected", FM_ID), "the radio added took over none of the ticks: Ask around stays on the first box, which is not connected here"
+    await page.send({"cmd": "set_config", "values": {f"radio/{FM_ID}/ask": "false", f"radio/{id}/ask": "true"}})          # (two ticks: one taken away, one given)
+    await page.until(lambda: page.topics["radios"][str(id)]["choices"]["ask"])
+    assert {spec.id: spec.settings.get("ask") for spec in await e.ctl.store.read_radios()} == {FM_ID: "false", id: "true"}, "each tick sent is stored, the one taken away too"
+    await page.send({"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True})
+    await page.until(lambda: [a["radios"] for a in page.topics["general"]["asked"]] == [[id]])
     two = await added(page, "dummy", "Two")
     await page.until(lambda: page.topics["radios"][str(two)]["state"] == "connected")
-    await page.send({"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True, "radio": two})
+    assert (page.topics["radios"][str(two)]["choices"]["ask"], page.topics["radios"][str(two)]["choices"]["local_info"]) == (False, False), "a radio added later starts with its beacon only"
+    error = await refused(page, {"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True, "radio": two})
+    assert error["code"] == "invalid", "Ask around names no radio: its Send on says them"
+    await page.send({"cmd": "set_config", "values": {f"radio/{FM_ID}/ask": "false", f"radio/{id}/ask": "false", f"radio/{two}/ask": "true"}})
+    await page.until(lambda: page.topics["radios"][str(two)]["choices"]["ask"] and not page.topics["radios"][str(id)]["choices"]["ask"])
+    await page.send({"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True})
     await page.until(lambda: [(a["radio"], a["kind"]) for a in page.topics["general"]["by_radio"]] == [(id, "aprs"), (two, "aprs")])
-    assert [a["radio"] for a in page.topics["general"]["asked"]] == [two], "the field of before: the latest of each kind; the wait of each radio is its own"
+    assert [a["radios"] for a in page.topics["general"]["asked"]] == [[two]], "the latest of each kind, with its radios; the wait of each radio is its own"
     await page.send({"cmd": "qru_ask", "text": "INFO", "radio": id})
-    await page.until(lambda: page.topics["qru"]["asked"] is not None and page.topics["qru"]["asked"]["radio"] == id)
+    await page.until(lambda: page.topics["qru"]["asked"] is not None and page.topics["qru"]["asked"]["radios"] == [id])
     await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
     await page.until(lambda: not page.topics["radios"][str(id)]["enabled"])
-    for command in ({"cmd": "general_query", "kind": "wx", "path": None, "rf_only": True, "radio": id}, {"cmd": "qru_ask", "text": "INFO 50", "radio": id}):
-        error = await refused(page, command)
-        assert (error["code"], error["params"]) == ("radio.off", {"name": "Shack", "radio": id}), "a radio switched off is said to be off, not to be unplugged"
+    error = await refused(page, {"cmd": "qru_ask", "text": "INFO 50", "radio": id})
+    assert (error["code"], error["params"]) == ("radio.off", {"name": "Shack", "radio": id}), "a radio switched off is said to be off, not to be unplugged"
     assert (await refused(page, {"cmd": "qru_ask", "text": "INFO", "radio": 9}))["code"] == "radio.unknown"
     await e.stop()
 
@@ -353,22 +361,32 @@ async def test_a_call_the_book_does_not_hold_is_chosen_for_by_call_and_its_row_s
     await e.stop()
 
 
-async def test_a_main_radio_that_is_removed_is_shown_as_none_and_a_form_that_sends_back_what_it_was_given_saves(tmp_path: Path) -> None:
+async def test_the_radio_chosen_for_email_is_told_in_force_by_the_status_and_one_that_is_removed_is_none_chosen(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
-    id = await added(page, "dummy")
-    await page.send({"cmd": "set_config", "values": {"station/main_radio": str(id)}})
-    await page.until(lambda: page.topics["config"]["radio_values"]["station/main_radio"] == str(id))
+
+    async def in_force() -> int | None:
+        before = len(page.of("status"))
+        await page.send({"cmd": "status"})
+        await page.until(lambda: len(page.of("status")) > before)
+        return page.of("status")[-1]["email_radio"]
+
+    assert page.topics["config"]["radio_values"]["email/radio"] == "" and "email/radio" not in page.topics["config"]["values"] and await in_force() == FM_ID
+    id = await added(page, "dummy-hf", "Far")
+    await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(FM_ID))
+    assert await in_force() == FM_ID, "a radio that comes on moves no mail: the radio it went on is written as the choice (sendonrule)"
+    await page.send({"cmd": "set_config", "values": {"email/radio": str(id)}})
+    await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(id))
+    assert e.ctl.config.email_choice == id and await in_force() == id, "any radio that can send, a Mercury one too"
+    await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
+    await page.until(lambda: not page.topics["radios"][str(id)]["enabled"])
+    assert page.topics["config"]["radio_values"]["email/radio"] == str(id) and await in_force() == FM_ID, "off: the choice is kept, and the mail goes on the one radio that is on"
     await page.send({"cmd": "radio_remove", "radio": id})
-    await page.until(lambda: page.topics["config"]["radio_values"]["station/main_radio"] == "")
-    assert e.ctl.config.main_choice == id and e.ctl.config.main_radio == FM_ID, "the row is kept as it was; the first radio that is on is the main one"
-    await page.send({"cmd": "set_config", "values": {"station/main_radio": str(id), "station/comment": "the stored one"}})
-    await page.until(lambda: page.topics["config"]["values"]["station/comment"] == "the stored one")
-    stored = {s.id: dict(s.settings) for s in await e.ctl.store.radios()}
+    await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == "")
+    assert e.ctl.config.email_choice is None and await in_force() == FM_ID, "removed: the choice goes with it"
     await page.send({"cmd": "set_config", "values": {**page.topics["config"]["radio_values"], "station/comment": "what it was given"}})
     await page.until(lambda: page.topics["config"]["values"]["station/comment"] == "what it was given")
-    assert e.ctl.config.main_choice is None and not page.of("error")
-    assert {s.id: dict(s.settings) for s in await e.ctl.store.radios()} == stored, "a radio's values sent back as shown write nothing: a default stays the default"
-    assert (await refused(page, {"cmd": "set_config", "values": {"station/main_radio": str(id)}}))["code"] == "radio.unknown", "choosing the removed radio is refused"
+    assert e.ctl.config.email_choice is None and not page.of("error"), "a form that sends back what it was given saves"
+    assert (await refused(page, {"cmd": "set_config", "values": {"email/radio": str(id)}}))["code"] == "radio.unknown", "choosing the removed radio is refused"
     await e.stop()
 
 
@@ -425,7 +443,7 @@ async def test_an_object_on_a_radio_that_is_removed_is_told_without_it(tmp_path:
     await page.until(lambda: {"BOTH", "ALONE"} <= set(page.topics["own_objects"]))
     await page.send({"cmd": "radio_remove", "radio": id})
     await page.until(lambda: page.topics["own_objects"]["BOTH"]["radios"] == [FM_ID], timeout=3)
-    assert page.topics["own_objects"]["ALONE"]["radios"] == [id], "an object on no other radio keeps it, as its row does (read as the main radio)"
+    assert page.topics["own_objects"]["ALONE"]["radios"] == [id], "an object on no other radio keeps it, as its row does (ticked nowhere: it waits)"
     await e.stop()
 
 
@@ -526,10 +544,10 @@ async def test_a_modems_command_on_a_radio_whose_modem_is_not_running_is_refused
     await e.stop()
 
 
-async def test_with_no_radio_on_a_command_that_sends_on_the_main_radio_is_refused_with_its_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_with_no_radio_that_sends_a_command_that_names_none_is_refused_with_its_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from neoaprs.radioregistry import RadioRegistry
     e, page = await started(tmp_path)
-    monkeypatch.setattr(RadioRegistry, "main", property(lambda self: None))
+    monkeypatch.setattr(RadioRegistry, "senders", lambda self: [])
     for command in ({"cmd": "qru_ask", "text": "INFO"}, {"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True}):
         error = await refused(page, command)
         assert (error["code"], error["params"]) == ("radio.none", {}), command

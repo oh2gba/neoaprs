@@ -15,7 +15,8 @@ from .db import Db
 from .dberror import Connection, DbClosed, Row, SqlError, StoreError as StoreError           # (kept here: the names the rest of the program imports them by)
 from .packetcodec import stamp
 from .radiospec import RadioId, RadioSpec
-from .radiosql import insert_radio, of_removed_radio, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
+from .sendonrule import Kept
+from .radiosql import insert_radio, kept_by_rows, of_removed_radio, put_kept, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
 from .storesql import Settings, delete_setting, read_setting, read_settings, write_setting, write_settings
 
 log = logging.getLogger("neoaprs.store")
@@ -154,11 +155,16 @@ class Store:
         read = await self._read(lambda db: (radio_rows(db), radio_settings(db)), unread, "the radios could not be read")
         return None if read is None else radios_from_rows(*read)
 
-    async def add_radio(self, kind: str, type: str, name: str, enabled: bool, position: int, *, settings: Mapping[str, str] | None = None) -> RadioId | None:
-        """A new radio with its own settings, in one transaction; its id (radiosql.insert_radio: the database's), or None when it was not stored."""
+    async def add_radio(self, kind: str, type: str, name: str, enabled: bool, position: int, *, settings: Mapping[str, str] | None = None, kept: Kept | None = None,
+                        by_rows: bool = False) -> RadioId | None:
+        """A new radio with its own settings, and what its coming keeps in force (`kept`: sendonrule.kept_in_force; `by_rows`: worked out from the rows, for a tool that runs while no daemon does), in one
+        transaction; its id (radiosql.insert_radio: the database's), or None when it was not stored."""
         def add(db: Connection) -> RadioId:
+            before = radios_from_rows(radio_rows(db), radio_settings(db)) if by_rows else ()
             made = insert_radio(db, kind, type, name, enabled, position)
             put_radio_settings(db, made, settings or {})        # (the radio was inserted just now: it takes them)
+            if (found := kept_by_rows(db, before) if by_rows else kept):
+                put_kept(db, found)
             return made
         return await self._stored(add, None, f"the new {kind} radio could not be stored")
 
@@ -175,9 +181,10 @@ class Store:
         at = stamp(self.now())
         return bool(await self._stored(lambda db: remove_radio(db, id, at), 0, f"radio {id} could not be removed"))
 
-    async def put_config(self, data: Settings, radios: Iterable[RadioWrite]) -> bool:
-        """The station's settings (key to text) and what changed of the radios, in one transaction (all of it or none): a save of the settings. False, and nothing stored, when a radio it changes is not
-        there or is removed (a removed radio takes no change), or the database would not take them."""
+    async def put_config(self, data: Settings, radios: Iterable[RadioWrite], kept: Kept | None = None) -> bool:
+        """The station's settings (key to text), what changed of the radios and what that change keeps in force (`kept`: the objects' and the bulletins' sets; the ticks and the e-mail radio are among the
+        writes and the settings already), in one transaction (all of it or none): a save of the settings. False, and nothing stored, when a radio it changes is not there or is removed (a removed radio
+        takes no change), or the database would not take them."""
         writes = list(radios)
 
         def put(db: Connection) -> bool:
@@ -187,6 +194,8 @@ class Store:
                     raise _Refused
                 if values and not put_radio_settings(db, spec.id, values):
                     raise _Refused
+            if kept:
+                put_kept(db, kept)
             return True
         try:
             return await self._stored(put, False, "the settings could not be stored")

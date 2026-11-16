@@ -1,7 +1,7 @@
-"""Our own objects and the email gateway with two radios (services/sender.py, services/ownobjects.py): the sender sees the daemon's radios by id (radio 1 the FM radio, radio 2 the HF radio,
-the main one the FM radio while it is on, else the HF one); an object goes out on the radios its choice names by id (fm 1, hf 2, both) while they are on and on the main radio otherwise; a message to the email
-gateway goes on the FM radio and is refused while the FM radio is off. Then the rules of plan rule 3.5 on stub lines: an object none of whose radios is on goes on the main radio and has its own again once
-one is on, a new object is ticked for the main radio, the pause between our frames is each radio's, a kill goes where the object went, and a removed radio leaves the objects."""
+"""Our own objects and the email gateway with two radios (services/sender.py, services/ownobjects.py): the sender sees the daemon's radios by id (radio 1 the FM radio, radio 2 the HF radio);
+an object goes out on the radios its choice names by id (fm 1, hf 2, both) while they are on, and on the one radio that is on whatever it names; a message to the email
+gateway goes on the FM radio and is refused while the FM radio is off. Then the rules of plan rule 3.5 on stub lines: an object none of whose radios is on goes on the one radio that is on and has its own again once
+one is on, a new object is ticked as the one saved last, the pause between our frames is each radio's, a kill goes where the object went, and a removed radio leaves the objects."""
 from dataclasses import replace
 from pathlib import Path
 
@@ -9,7 +9,7 @@ import pytest
 
 from neoaprs import ax25
 from neoaprs.beaconrule import beacon_radios
-from neoaprs.message import EMAIL_GATEWAY, MessagingError
+from neoaprs.message import EMAIL_GATEWAY
 from neoaprs.ownlog import OwnLog
 from neoaprs.ownobject import OwnObject
 from neoaprs.radiotype import FM_ID, HF_ID
@@ -33,7 +33,7 @@ async def test_an_object_goes_out_on_the_radio_it_was_given_and_on_both_when_ask
     a = await w.add("OH2A", 60.17, 24.94, fm=True, hf=True)
     await w.start()
     radios = a.ctl.sender.radios
-    assert [r.id for r in radios.enabled()] == [FM_ID, HF_ID] and radios.main is not None and radios.main.id == FM_ID
+    assert [r.id for r in radios.enabled()] == [FM_ID, HF_ID] == [r.id for r in radios.senders()]
     assert [r.id for r in a.ctl.sender.radios_for((HF_ID,))] == [HF_ID] and [r.id for r in a.ctl.sender.radios_for((FM_ID, HF_ID))] == [FM_ID, HF_ID]
     a.ctl.ownobjects.set("FMONLY", "object", 60.2, 24.9, "/", ">", "on FM", radios=(FM_ID,))
     a.ctl.ownobjects.set("HFONLY", "object", 60.3, 24.8, "/", "-", "over HF", radios=(HF_ID,))
@@ -54,14 +54,14 @@ async def test_with_one_radio_on_an_object_goes_on_that_radio_whatever_it_was_gi
     c = await w.add("OH2C", 61.5, 23.8, fm=False, hf=True)
     await w.start()
     radios = c.ctl.sender.radios
-    assert [r.id for r in radios.enabled()] == [HF_ID] and radios.main is not None and radios.main.id == HF_ID
-    assert [r.id for r in c.ctl.sender.radios_for((FM_ID,))] == [HF_ID], "radio 1 is off: the main radio takes what was meant for it"
+    assert [r.id for r in radios.enabled()] == [HF_ID] == [r.id for r in radios.senders()]
+    assert [r.id for r in c.ctl.sender.radios_for((FM_ID,))] == [HF_ID], "radio 1 is off: the one radio that sends takes what was meant for it"
     c.ctl.ownobjects.set("FMSAID", "object", 61.5, 23.9, "/", ">", "said fm", radios=(FM_ID,))
     await w.until(lambda: any(f.info.startswith(b";FMSAID") for f in frames_of(c.hf_radio)), 10.0)
     assert c.ctl.ownobjects.get("FMSAID").radios == (FM_ID,), "the choice is kept for the day the FM radio is on"       # type: ignore[union-attr]
 
 
-async def test_the_email_gateway_is_the_fm_radios_and_is_refused_while_it_is_off(tmp_path: Path) -> None:
+async def test_the_email_gateway_is_the_fm_radios_and_the_mercury_radio_alone_carries_a_mail_too(tmp_path: Path) -> None:
     w = World(tmp_path, frame_sec=0.2)
     a = await w.add("OH2A", 60.17, 24.94, fm=True, hf=True)
     c = await w.add("OH2C", 61.5, 23.8, fm=False, hf=True)
@@ -69,9 +69,9 @@ async def test_the_email_gateway_is_the_fm_radios_and_is_refused_while_it_is_off
     await a.ctl.messaging.send(EMAIL_GATEWAY, "john@example.org hello")
     await w.until(lambda: any(b":EMAIL-2" in f.info for f in frames_of(a.radio)), 10.0)
     assert not any(b":EMAIL-2" in f.info for f in frames_of(a.hf_radio)), "a mail never goes over HF"
-    with pytest.raises(MessagingError, match="no radio that internet gateways hear is on") as refused:
-        await c.ctl.messaging.send(EMAIL_GATEWAY, "john@example.org hello")
-    assert refused.value.code == "message.email_fm_off"
+    await c.ctl.messaging.send(EMAIL_GATEWAY, "john@example.org hello")
+    await w.until(lambda: any(b":EMAIL-2" in f.info for f in frames_of(c.hf_radio)), 10.0)
+    assert c.radio is None, "the one radio that can send, of any kind: the mail that was refused before goes on it"
 
 
 # ---- the rules of our objects with two radios (plan rule 3.5), on the station's radios as the registry gives them over stub lines
@@ -125,7 +125,7 @@ def names(line: StubTnc) -> list[str]:
 
 
 @pytest.mark.parametrize(("fm", "hf"), [(False, True), (True, False)])
-async def test_an_object_none_of_whose_radios_is_on_goes_on_the_main_radio_and_has_its_own_again_once_one_is_on(tmp_path: Path, fm: bool, hf: bool) -> None:
+async def test_an_object_none_of_whose_radios_is_on_goes_on_the_one_radio_that_is_and_has_its_own_again_once_one_is_on(tmp_path: Path, fm: bool, hf: bool) -> None:
     rig = await two_at(tmp_path, fm_enabled=fm, hf_enabled=hf)
     on, off = (rig.tnc, rig.hf) if fm else (rig.hf, rig.tnc)
     for name, radios in (("FMOBJ", (FM_ID,)), ("HFOBJ", (HF_ID,)), ("BOTHOBJ", (FM_ID, HF_ID))):
@@ -141,14 +141,15 @@ async def test_an_object_none_of_whose_radios_is_on_goes_on_the_main_radio_and_h
     assert set(names(rig.tnc)) == {"FMOBJ", "BOTHOBJ"} and set(names(rig.hf)) == {"HFOBJ", "BOTHOBJ"}, "with both on, each goes on its own radios again"
 
 
-async def test_a_new_object_is_ticked_for_the_main_radio_and_a_changed_one_keeps_its_own(tmp_path: Path) -> None:
+async def test_a_new_object_is_ticked_as_the_one_saved_last_and_a_changed_one_keeps_its_own(tmp_path: Path) -> None:
     rig = await two_at(tmp_path, fm_enabled=False, hf_enabled=True)
-    assert rig.make("NEW").radios == (HF_ID,), "no radio named: the main radio, here the HF one"
+    assert rig.make("NEW").radios == (HF_ID,), "no radio named: the one radio that can send, here the HF one"
     assert rig.make("SAID", radios=(FM_ID,)).radios == (FM_ID,), "a radio named (the page names one) is kept as named"
     assert rig.make("IDS", radios=(FM_ID, HF_ID)).radios == (FM_ID, HF_ID)
     rig.switch(fm_enabled=True, hf_enabled=True)
     assert rig.make("NEW", comment="moved").radios == (HF_ID,), "a change that names no radio keeps the object's"
-    assert rig.make("NEWER").radios == (FM_ID,), "the main radio is now the first on by position, the FM one"
+    assert rig.make("NEWER").radios == (FM_ID, HF_ID), "both on: as the object saved last with radios named"
+    assert rig.make("ONFM", radios=(FM_ID,)).radios == (FM_ID,) and rig.make("NEWEST").radios == (FM_ID,) and rig.objects.new_radios() == (FM_ID,)
 
 
 async def test_the_pause_between_our_frames_is_each_radios_own(tmp_path: Path) -> None:
@@ -246,7 +247,7 @@ async def test_an_objects_radios_are_in_force_as_the_beacons_are_by_position(tmp
     rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
     rig.set(radios=tuple(replace(spec, position={FM_ID: 1, HF_ID: 0}.get(spec.id, spec.position)) for spec in rig.config.radios))      # the HF radio first by position
     rig.switch()
-    assert [r.id for r in rig.sender.radios_for((FM_ID, HF_ID))] == [HF_ID, FM_ID] == list(beacon_radios(rig.config.radios, rig.config.main_radio)), "radiospec.in_force_set, as the beacon's (before: by id)"
+    assert [r.id for r in rig.sender.radios_for((FM_ID, HF_ID))] == [HF_ID, FM_ID] == list(beacon_radios(rig.config.radios)), "radiospec.in_force_set, as the beacon's (before: by id)"
     rig.make("BOTH", radios=(FM_ID, HF_ID))
     sent = rig.timed(0)
     assert sorted((t, line) for t, line, _ in sent) == [(0, "fm"), (0, "hf")], "the round goes on both in one tick"
@@ -256,5 +257,5 @@ async def test_with_no_radio_on_a_new_object_is_ticked_for_the_first_radio_there
     rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
     rig.set(radios=tuple(replace(spec, removed_at=rig.clock()) if spec.id == FM_ID else replace(spec, enabled=False) for spec in rig.config.radios))     # radio 1 removed, radio 2 off
     rig.switch()
-    assert rig.sender.radios.main is None
+    assert rig.sender.radios.senders() == []
     assert rig.make("NOMAIN").radios == (HF_ID,), "the radio that will be on again (before: radio 1, removed for good)"

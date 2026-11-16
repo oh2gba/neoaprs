@@ -72,7 +72,7 @@ async def add_radio(store: Store, type: str, name: str, on: bool) -> int:
     except ValueError as e:
         say(f"{PROG}: {e}")
         return 2
-    id = await store.add_radio(spec.kind, spec.type, spec.name, spec.enabled, spec.position)
+    id = await store.add_radio(spec.kind, spec.type, spec.name, spec.enabled, spec.position, by_rows=True)       # (what its coming keeps in force, as the daemon's Add: neoaprs/sendonrule.py)
     if id is None:
         say(f"{PROG}: the radio could not be stored")
         return 1

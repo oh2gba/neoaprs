@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { emailRadio, mainRadio, pageRadios, problemText, typeOf } from "@/lib/radios";
+import { emailRadio, pageRadios, problemText, typeOf, unheardRadio } from "@/lib/radios";
 import type { ConfigValues, RadioRow } from "@/protocol/protocol";
 import {
   attemptRow,
@@ -99,10 +99,10 @@ describe("the one source of the radios, on the daemon's topic", () => {
     ]);
   });
 
-  it("finds the main radio and the email radio the status names among them", () => {
+  it("finds the radio of a call no radio heard and the email radio the status names among them", () => {
     const fm = radios.find((radio) => radio.kind === "fm" && radio.enabled);
     expect(fm).toBeDefined();
-    expect(mainRadio(radios, { main_radio: fm?.id ?? null })?.id).toBe(fm?.id);
+    expect(unheardRadio(radios, { unheard_radio: fm?.id ?? null })?.id).toBe(fm?.id);
     expect(emailRadio(radios, { email_radio: fm?.id ?? null })?.id).toBe(fm?.id);
   });
 });

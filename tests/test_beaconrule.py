@@ -1,5 +1,5 @@
 """The beacon with many radios (plan rule 3.1, neoaprs/beaconrule.py): one interval for the station, raised on each radio to that radio's own floor, so that the FM radio at 20 minutes beside a Mercury radio at
-30 is not slowed to 30; each radio's own "beacon" tick (Send on), the last one never leaving the beacon on no radio (the main radio has it then), and with one radio on that one whatever its tick; a radio's
+30 is not slowed to 30; each radio's own "beacon" tick (Send on), ticked nowhere sending on none, and with one radio on that one whatever its tick; a radio's
 beacon whose tick is off sends nothing by its timer and refuses Beacon now, and is planned again at once when ticked; SmartBeaconing on the radio that has it and the timed beacon with the latest fix on the one
 that has not; the raise said once in the log, for the radio it raises, a restart of the radio not saying it again; a stored Send on that is not true or false said once, not at every tick; and a save
 through the controller that unticks the Mercury radio's Send on and ticks it again."""
@@ -44,13 +44,13 @@ OWN = (spec(1), spec(2, "hf"))            # John's: an FM radio and an HF radio,
 def test_the_fm_radio_at_20_minutes_is_not_slowed_by_the_hf_radio_at_30() -> None:
     config = station(20, *OWN)
     assert [beacon_interval(20, s, config.radios) for s in config.radios] == [20, 30], "each radio its own floor"
-    assert station_interval(20, config.radios, config.main_radio) == 20 and config.beacon_interval() == 20, "our position goes out every 20 minutes on some radio"
-    assert interval_words(20, config.radios, config.main_radio) == "20 min on FM, 30 min on Mercury"
+    assert station_interval(20, config.radios) == 20 and config.beacon_interval() == 20, "our position goes out every 20 minutes on some radio"
+    assert interval_words(20, config.radios) == "20 min on FM, 30 min on Mercury"
     assert [beacon_interval(45, s) for s in config.radios] == [45, 45] and [beacon_interval(0, s) for s in config.radios] == [0, 0], "a longer interval stays on both, Off stays Off"
     hf_alone = station(20, spec(1, enabled=False), spec(2, "hf"))
-    assert station_interval(20, hf_alone.radios, hf_alone.main_radio) == 30 and interval_words(20, hf_alone.radios, hf_alone.main_radio) == "30 min", "the Mercury radio alone: raised"
+    assert station_interval(20, hf_alone.radios) == 30 and interval_words(20, hf_alone.radios) == "30 min", "the Mercury radio alone: raised"
     fm_alone = station(20, spec(1), spec(2, "hf", enabled=False))
-    assert interval_words(25, fm_alone.radios, fm_alone.main_radio) == "25 min" and station_interval(25, fm_alone.radios, fm_alone.main_radio) == 25
+    assert interval_words(25, fm_alone.radios) == "25 min" and station_interval(25, fm_alone.radios) == 25
 
 
 def test_each_type_has_its_floor_and_only_a_floor_above_the_settings_own_raises() -> None:
@@ -71,15 +71,15 @@ def test_a_radio_of_a_type_that_is_none_takes_the_longest_floor_of_its_kind_or_o
 
 # ---- the radios it goes out on (Send on)
 
-def test_the_beacon_goes_out_on_the_radios_that_are_ticked_and_on_and_with_every_tick_off_on_the_main_radio() -> None:
-    assert beacon_radios(OWN, None) == (FM_ID, HF_ID), "ticked by default: both, as today"
-    assert beacon_radios((spec(1), spec(2, "hf", beacon="false")), None) == (FM_ID,) and beacon_radios((spec(1, beacon="false"), spec(2, "hf")), None) == (HF_ID,)
+def test_the_beacon_goes_out_on_the_radios_that_are_ticked_and_on_and_with_every_tick_off_on_none() -> None:
+    assert beacon_radios(OWN) == (FM_ID, HF_ID), "ticked by default: both, as today"
+    assert beacon_radios((spec(1), spec(2, "hf", beacon="false"))) == (FM_ID,) and beacon_radios((spec(1, beacon="false"), spec(2, "hf"))) == (HF_ID,)
     untick = (spec(1, beacon="false"), spec(2, "hf", beacon="false"), spec(3, beacon="false"))
-    assert beacon_radios(untick, FM_ID) == (FM_ID,) and beacon_radios(untick, 3) == (3,), "the last tick is never off: with none ticked the main radio has the beacon"
+    assert beacon_radios(untick) == (), "ticked nowhere is not sent: no radio of the station is the beacon's by itself"
     config = station(20, *untick)
-    assert beacon_radios(config.radios, config.main_radio) == (FM_ID,), "the main radio of the settings: the first enabled"
-    assert beacon_radios((spec(1, enabled=False), spec(2, "hf", beacon="false"), spec(3)), 2) == (3,), "a radio that is off is never one, ticked or not"
-    assert beacon_radios((spec(1, enabled=False), spec(2, "hf", enabled=False)), None) == () and station_interval(20, (spec(1, enabled=False),), None) == 20, "no radio on: none, and the setting as it is"
+    assert beacon_radios(config.radios) == () and config.beacon_interval() == 20, "and the setting as it is"
+    assert beacon_radios((spec(1, enabled=False), spec(2, "hf", beacon="false"), spec(3))) == (3,), "a radio that is off is never one, ticked or not"
+    assert beacon_radios((spec(1, enabled=False), spec(2, "hf", enabled=False))) == () and station_interval(20, (spec(1, enabled=False),)) == 20, "no radio on: none, and the setting as it is"
     assert ticked(spec(1)) and not ticked(spec(1, beacon="false")) and ticked(spec(4, "lora", "lora-of-tomorrow")), "a kind with no type yet has the field's default"
     assert not ticked(spec(4, "lora", "lora-of-tomorrow", beacon="false")), "a type that is none is read by its kind's field"
     assert ticked(spec(5, "fm", "tnc-text", beacon="false")) and ticked(spec(6, "lora", "lora-console", beacon="false")), "a type with no Send on (it only receives): what it kept from its former type is not read"
@@ -88,7 +88,7 @@ def test_the_beacon_goes_out_on_the_radios_that_are_ticked_and_on_and_with_every
 def test_with_one_radio_on_the_beacon_goes_out_on_it_whatever_its_tick() -> None:
     for alone in ((spec(1, beacon="false"),), (spec(1, beacon="false"), spec(2, "hf", enabled=False)), (spec(1, enabled=False), spec(2, "hf", beacon="false"))):
         on = next(s.id for s in alone if s.enabled)
-        assert beacon_radios(alone, None) == (on,)
+        assert beacon_radios(alone) == (on,)
         config = station(20, *alone)
         assert Beacon(radio_of(config, on), lambda config=config: config, FixedClock()).goes_out, "one radio: nothing changes"
 
@@ -159,7 +159,7 @@ async def test_a_stored_send_on_that_is_not_true_or_false_is_said_once_and_not_a
             clock.advance(1)
             fm._tick()
             hf._tick()
-        assert hf.goes_out and hf.interval_min == 30 and beacon_radios(config.radios, config.main_radio) == (FM_ID, HF_ID), "the field's default: ticked, as today"
+        assert hf.goes_out and hf.interval_min == 30 and beacon_radios(config.radios) == (FM_ID, HF_ID), "the field's default: ticked, as today"
     finally:
         for b in (fm, hf):
             await b.stop()
@@ -227,8 +227,8 @@ def test_beacon_now_goes_on_the_radios_whose_send_on_is_ticked() -> None:
     rig = registry_of(station(20, spec(1), spec(2, "hf", beacon="false"), spec(3)))
     assert [r.id for r in rig.registry.beaconing()] == [1, 3]
     rig.put(station(20, spec(1, beacon="false"), spec(2, "hf", beacon="false"), spec(3, beacon="false")))
-    assert [r.id for r in rig.registry.beaconing()] == [1], "none ticked: the main radio"
+    assert [r.id for r in rig.registry.beaconing()] == [], "none ticked: none"
     rig.put(station(20, spec(1, enabled=False), spec(2, "hf", beacon="false", enabled=False), spec(3, beacon="false")))
     assert [r.id for r in rig.registry.beaconing()] == [3], "one radio on: that one"
-    assert beaconrule.beacon_radios(DEFAULTS.radios, DEFAULTS.main_radio) == (FM_ID,), "a new station of today's defaults: its FM radio"
+    assert beaconrule.beacon_radios(DEFAULTS.radios) == (FM_ID,), "a new station of today's defaults: its FM radio"
 

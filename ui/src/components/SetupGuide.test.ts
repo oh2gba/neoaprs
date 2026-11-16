@@ -403,7 +403,7 @@ describe("SetupGuide: the symbol", () => {
 });
 
 // The Radio step is live, as the Radio group of the Settings tab is (plan section 6: "The setup guide's Radio step is live, as the Settings group is"): the same boxes, each change saved as it is made, and Finish waiting for
-// "one enabled radio with no field in error"; left out: RX only, the main radio, Tune, the level and the scope. Before the round it had the FM radio's fields as answers saved at Finish, and an HF tickbox with nothing
+// "one enabled radio with no field in error"; left out: RX only, Tune, the level and the scope. Before the round it had the FM radio's fields as answers saved at Finish, and an HF tickbox with nothing
 // behind it (two-radio-ui.md); the tests of that step are these, rewritten to the plan.
 describe("SetupGuide: the radio, on a station of one radio", () => {
   it("is the Radio group's one box as the Settings tab has it: its Enable ticked and greyed, its status line, behind the arrow the type, the port, the speed, Find my radio and the Terminal; then Add radio", async () => {
@@ -589,11 +589,11 @@ describe("SetupGuide: the radio, on a station of an FM and a Mercury radio", () 
   const two = (hf: Partial<RadioRow> = { enabled: false, state: "stopped" }, fm: Partial<RadioRow> = {}) =>
     radiosTopic(radioRow(1, "kenwood-tnc2", fm), radioRow(2, "mercury", hf));
 
-  it("has a box each with Name and Remove, the FM radio's Enable greyed while it is the only one on, and no RX only and no main radio", async () => {
+  it("has a box each with Name and Remove, the FM radio's Enable greyed while it is the only one on, and no RX only", async () => {
     const { wrapper, stand } = make({ radios: two() });
     await stand(3);
     expect(legends(wrapper)).toEqual(["FM radio", "Mercury radio"]);
-    expect(labels(wrapper).filter((l) => ["RX only", "Main radio"].includes(l))).toEqual([]);
+    expect(labels(wrapper).filter((l) => l === "RX only")).toEqual([]);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-1-enabled").element.disabled).toBe(true);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-2-enabled").element.checked).toBe(false);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-1-name").attributes("placeholder")).toBe("FM");

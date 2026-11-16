@@ -81,7 +81,7 @@ _HEARD = re.compile(re.escape(QUERY_TEXT["heard"]) + rf"\s*({INTERNET_NAME.patte
 _NOT_ANSWERED = (QUERY_TEXT["wx"],)                                                # the general query of the specification that we have nothing to answer
 
 
-AnswerRadio = AirRadio | None          # the radio an answer is built for: the one the question came on (the RadioPick's `for_packet`); None, the beacon's own or the main radio
+AnswerRadio = AirRadio | None          # the radio an answer is built for: the one the question came on (the RadioPick's `for_packet`); None, the beacon's own or the first radio that can send
 
 
 class Frames(Protocol):
@@ -272,7 +272,7 @@ class Queries:
             return
         if query == "heard":
             if self._starts_heard(packet, key, argument):
-                self._answers.tasks.spawn(self._heard_answer(packet, key, argument), "query-heard")
+                self._answers.tasks.spawn(self._heard_answer(packet, key, argument, self._came_on(packet)), "query-heard")     # (the radio of now: one switched off while the log is read answers nothing, and no other radio does)
             return
         radio = self._came_on(packet)                              # (the radio the question came on: the answer goes on it and is built for it)
         try:
@@ -282,7 +282,7 @@ class Queries:
             log.warning("the %s query of %s was not answered: %s", key, asker, e)
 
     def _came_on(self, packet: Packet) -> AirRadio | None:
-        """The radio a question came on, which its answer goes back on (RadioPick `for_packet`: the main radio when that one is not enabled; None while there is no radio, and nothing is answered)."""
+        """The radio a question came on, which its answer goes back on (RadioPick `for_packet`; a question whose radio is no longer on was not taken, `answerable`)."""
         return as_pick(self._given, self._config).for_packet(packet)
 
     def _answer(self, packet: Packet, query: str, radio: AirRadio | None) -> Sequence[ax25.Frame | None]:
@@ -314,7 +314,7 @@ class Queries:
         self._answers.note(packet.sender, key, packet.heard_at)
         return True
 
-    async def _heard_answer(self, packet: Packet, key: str, call: str | None) -> None:
+    async def _heard_answer(self, packet: Packet, key: str, call: str | None, radio: AirRadio | None) -> None:
         """The message that tells in which of the last HEARD_HOURS hours the station was heard, from the packet log."""
         assert self._heard is not None and call is not None
         times = await self._heard.heard_since(call, packet.heard_at - timedelta(hours=HEARD_HOURS))
@@ -322,7 +322,7 @@ class Queries:
         found = self._book.get(call)
         known = any(counts) or (found is not None and not found.internet_only)           # (a station known from the internet alone was never heard on the air)
         try:
-            self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False, radio=self._came_on(packet))
+            self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False, radio=radio)
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", key, packet.sender, e)
 

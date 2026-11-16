@@ -52,7 +52,7 @@ describe("the vectors of the daemon", () => {
   it("say which QRU groups an object may be in, and how they are kept", () => {
     for (const { group, ok, kept } of vectors.qru_groups) {
       expect(qruProblem(group) === "", JSON.stringify(group)).toBe(ok);
-      if (ok) expect(objectCommand({ ...emptyDraft(), name: "OBJ", lat: "60.17", lon: "24.94", qru: group }, 1)?.qru_group, JSON.stringify(group)).toBe(kept);
+      if (ok) expect(objectCommand({ ...emptyDraft(), name: "OBJ", lat: "60.17", lon: "24.94", qru: group }, [1])?.qru_group, JSON.stringify(group)).toBe(kept);
     }
   });
 

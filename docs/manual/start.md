@@ -27,7 +27,7 @@ The Radio step shows each radio's status line, so you see at once whether it is 
 
 - **Find my radio**, for a radio on a serial line, tries the ports and, when it finds the radio, fills in the type, the port and the speed (Linux, Windows, macOS).
 - **Terminal**, closed until you open it, shows what the TNC saw and did.
-- A Mercury radio's **Sound card** and **Keying** are chosen for you, with **Test** beside the keying and the **Suggested frequencies**. Tune, the Transmit level and the Spectrum are in the Settings tab only, and so are **RX only** and the main radio.
+- A Mercury radio's **Sound card** and **Keying** are chosen for you, with **Test** beside the keying and the **Suggested frequencies**. Tune, the Transmit level and the Spectrum are in the Settings tab only, and so is **RX only**.
 - The type **Dummy FM radio** needs no port and no speed: pick it to try NeoAPRS without a radio ([radio.md](radio.md#the-dummy-radios)).
 
 A radio you change or add in the guide stays when the guide is closed. **Finish** saves the call, the place and the symbol. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes (the My station tab shows and changes it). Run again on a station that already has a call, the guide leaves the beacon alone.

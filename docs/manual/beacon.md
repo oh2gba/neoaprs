@@ -32,7 +32,7 @@ Choosing an interval, or **On**, turns it all on again. Choosing **On** for a mo
 
 With one radio on, the beacon goes out on it and nothing here applies. With several radios on that can send:
 
-- **Send on**, under the Beacon choice, has a tick for each radio that is on and can send, by its name (a radio that only receives has none, [radio.md](radio.md#what-each-radio-does-and-what-the-station-does-once)). The beacon goes out on every radio that is ticked, and a change applies at once. The last tick that is ticked is greyed, so that the beacon is switched off by the Beacon choice alone. A new radio is ticked.
+- **Send on**, under the Beacon choice, has a tick for each radio that is on and can send, by its name (a radio that only receives has none, [radio.md](radio.md#what-each-radio-does-and-what-the-station-does-once)). The beacon goes out on every radio that is ticked, and a change applies at once. The last tick that is ticked is greyed, so that the beacon is switched off by the Beacon choice alone; a radio switched off or removed can leave the beacon ticked for none of those that are on, and then it goes on none until you tick one. A new radio is ticked.
 - **The interval** is the one you chose, raised for each radio to that radio's own floor. A fixed station's beacon on a Mercury or a LoRa radio goes every 30 minutes at the most often, each with a random pause of up to five minutes; a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval chosen: 20 minutes is 20 minutes on FM, beside a Mercury radio that sends every 30.
 - **The state of the beacon** says the latest and the soonest of the radios, and behind its arrow a line for each radio, by its name, with its last and next beacon and its own interval.
 - **SmartBeaconing** is one plan for the station, the GPS's. It applies on each radio that allows it (FM and LoRa); a Mercury radio sends the timed beacon with the latest fix, at the stored interval (On stores 30 minutes), and nothing without a fresh fix.
@@ -224,7 +224,7 @@ A symbol made to carry a letter or a digit (a digipeater, a car, a gateway) has 
 
 ## The status
 
-A status report is a text line that tells what you are doing. It goes out on the main radio ([radio.md](radio.md#the-main-radio)), or on the radios its Send on ticks, as one packet from your call to the tocall, by the beacon's path: `>`, the day, hour and minute in UTC and a `z`, then the text.
+A status report is a text line that tells what you are doing. It goes out on the radios its Send on ticks ([radio.md](radio.md#what-goes-on-which-radio)), as one packet from your call to the tocall, by the beacon's path: `>`, the day, hour and minute in UTC and a `z`, then the text.
 
 **Where it comes from** is the choice **Status**, the setting `status/source`:
 
@@ -238,7 +238,7 @@ A status report is a text line that tells what you are doing. It goes out on the
 
 The tab shows only the fields the choice needs, with **Every** directly under the choice. For a text: **Every** and **Text**. For the radio: **Every**, **Rigctld** and **Text** (the template). While the choice is off only the choice is shown: **Every**, the fields of the sources and the status line with **Send status now** appear as soon as another choice is made. Left empty, the setting follows the others: the radio while `status/rigctld` is set, else the text while there is one, else off. Choosing the radio without a rigctld address is refused with the reason.
 
-**Send on.** While several radios that can send are on, the Status choice is followed by **Send on**, the beacon's row of ticks: the status goes out on every radio ticked, at the interval raised to that radio's own floor (30 minutes on HF and LoRa), the same text on each, and until you tick one the main radio's tick is the one ticked and greyed, for the status goes on the main radio, as it did before there was a choice; behind the status row's arrow is a line for each radio it goes out on.
+**Send on.** While several radios that can send are on, the Status choice is followed by **Send on**, the beacon's row of ticks: the status goes out on every radio ticked, at the interval raised to that radio's own floor (30 minutes on HF and LoRa), the same text on each, and on none while none is ticked; behind the status row's arrow is a line for each radio it goes out on.
 
 **From the radio.** NeoAPRS connects to `host:port` of the rigctld (Hamlib's default is `127.0.0.1:4532`) every 30 seconds, asks the frequency and the mode, and fills in the template. The default template is `QRV {freq} {mode}`. `{freq}` is megahertz with three decimals (`14.074 MHz`), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM`). No other field in braces, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`): the counter of **Text** counts them so, and it takes no more. With `14074000` Hz and `USB` the frame at 12:00 UTC on the 21st is:
 

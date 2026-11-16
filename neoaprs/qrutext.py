@@ -86,7 +86,7 @@ class Server:
     """A QRU server that answered: `groups` with the number of objects each has near us, the `max_objects` it sends at most and its `range` in `unit` (km or mi; empty until the end of the list came), `at` when it answered last,
     `sent` its last closing line (empty before one) and `sent_at` when. `more` is set while the list ends in `+`. `sent_objects` is the number the closing line says went, `request` the request it answers (what Ask again sends)
     and `since` when that went; `received` (the names of the objects heard from the server between `since` and `settles_at`) and `settles_at` (when the counting ends: ARRIVAL_GRACE_SEC after the closing line) are made when the
-    page is told."""
+    page is told. `radio` is the radio its latest answer came on."""
     call: str
     groups: tuple[tuple[str, int], ...]
     max_objects: int | None
@@ -101,3 +101,4 @@ class Server:
     since: datetime | None = None
     received: tuple[str, ...] = ()
     settles_at: datetime | None = None
+    radio: int | None = None                # the radio its latest answer came on, by its id (None: the packet named none): what a request to this server goes on

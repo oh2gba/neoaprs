@@ -89,7 +89,7 @@ const input = (extra = {}) => ({
   status: status({ packets: 1234, started_at: ago(3 * 3600 + 100) }),
   radios: ONE,
   igate: igateState({ enabled: true, gated: 42 }),
-  map: mapState({ aloha_km: 37.4 }),
+  map: mapState({ aloha: [{ radio: 1, km: 37.4 }] }),
   aging: AGING,
   now: NOW,
   ...extra,
@@ -108,6 +108,18 @@ describe("the statistics of the map", () => {
       "stats.weather=1",
       "stats.devices=APRSdroid (3), Kenwood TH-D74 (1)",
     ]);
+  });
+
+  it("gives the radius of each ALOHA circle, each after its radio's name while several radios are on", () => {
+    const two = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(3, "kiss", { number: 2 }));
+    const map = mapState({
+      aloha: [
+        { radio: 1, km: 37.4 },
+        { radio: 3, km: 12 },
+      ],
+    });
+    expect(lines(mapStats(input({ radios: two, map })), "stats.section.reach")[0]).toBe("stats.aloha=FM: 37 km · FM 2: 12 km");
+    expect(lines(mapStats(input({ map: mapState({ aloha: [] }) })), "stats.section.reach")[0]).not.toMatch(/^stats\.aloha/);
   });
 
   it("says how far we reach: the farthest direct, the farthest on the radio, and the digipeaters most used", () => {

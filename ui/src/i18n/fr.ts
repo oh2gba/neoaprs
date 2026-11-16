@@ -171,7 +171,6 @@ export const fr: Catalogue = {
   "error.alert.own": "{call} est à nous : une alerte est pour une autre station",
   "error.message.control": "le texte contient un caractère de commande",
   "error.message.empty": "le message est vide",
-  "error.message.email_fm_off": "aucune radio entendue par les passerelles internet n'est activée",
   "error.message.forbidden": "le texte contient {chars}, qu'un message ne peut pas porter ({forbidden} ne sont pas autorisés)",
   "error.message.not_ascii": {
     select: "chars",
@@ -478,8 +477,6 @@ export const fr: Catalogue = {
   "email.used_before": "Déjà utilisées",
   "email.forget": "Oublier {address}",
   "email.send": "Envoyer",
-  "email.no_gated_radio": "Aucune radio entendue par les passerelles internet n'est activée",
-  "email.radio_title": "L'e-mail part sur la radio {name}",
 
   "email.state.waiting": "Attend la radio",
   "email.state.sending": "Envoi ({attempt} sur {max})",
@@ -1245,9 +1242,6 @@ export const fr: Catalogue = {
   "radio.new": "Nouvelle radio",
   "radio.remove": "Retirer",
   "radio.remove_sure": "Vraiment retirer ?",
-  "radio.main": "Radio principale",
-  "radio.main.tip_label": "À propos de la radio principale",
-  "radio.main.tip1": "Les bulletins et le statut partent sur cette radio, et c'est le premier choix pour Demander alentour, Infos locales et e-mail.",
   "radio.name": "Nom",
   "radio.name.tip_label": "À propos du nom",
   "radio.name.tip1": "Un nom court pour cette radio : la page la désigne par ce nom partout.",

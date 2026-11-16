@@ -25,6 +25,7 @@ const dpn = (over: Record<string, unknown>) => ({
   request: "TEST 150",
   received: [] as string[],
   settles_at: ago(10),
+  radio: 1,
   ...over,
 });
 const state = (over: Record<string, unknown>, asked = qruAsked("TEST 150", ago(45))) => qruState({ asked, servers: [dpn(over)] });

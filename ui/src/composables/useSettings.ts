@@ -2,7 +2,7 @@
 // as a `set_config` of just the keys that differ, after the page's own check of the text. One save is out at a time (useSettingsQueue); what the person sees of it is useSettingsFeedback. The daemon's reason for a refusal is
 // shown under the key it names. A value the person has not touched follows the daemon when it changes (another device, the radio found); a field being edited, or one the daemon refused, keeps what was typed.
 // One of these is shared by the Settings tab and the My station tab, so that there is one queue; the keys each tab shows are `useSettingsForm`. The radios' own settings (`radio/3/port`) and the station's of the radios
-// (`station/main_radio`), which the daemon tells apart in `config.radio_values`, are settings like the others here: saved, held and refused the same way (`set_config` takes them beside the rest).
+// (`email/radio`), which the daemon tells apart in `config.radio_values`, are settings like the others here: saved, held and refused the same way (`set_config` takes them beside the rest).
 import { computed, getCurrentScope, onScopeDispose, reactive, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { RadioNames } from "@/i18n/errortext";
@@ -41,6 +41,17 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     delete errors[key];
   }
 
+  /** The keys whose draft differs from what they have (or will have), with their texts; the draft of one that does not is put back as it is written. */
+  function differing(keys: readonly string[]): Record<string, string> {
+    const sent: Record<string, string> = {};
+    for (const key of keys) {
+      const text = draft[key] ?? "";
+      if (sameValue(key, text, queue.expected(key))) draft[key] = queue.expected(key);
+      else sent[key] = text;
+    }
+    return sent;
+  }
+
   /** Checks the keys as typed and sends those that differ from what they have, together in one request (`revert`: a refused choice shows the old value again). Nothing is sent when the page finds a problem with any of them. */
   function commit(keys: readonly string[], revert = false): void {
     for (const key of keys) delete errors[key];
@@ -49,12 +60,7 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     const incomplete = problems.length > 0 ? {} : pairProblems(keys, draft);
     Object.assign(errors, incomplete);
     if (problems.length > 0 || Object.keys(incomplete).length > 0) return;
-    const sent: Record<string, string> = {};
-    for (const key of keys) {
-      const text = draft[key] ?? "";
-      if (sameValue(key, text, queue.expected(key))) draft[key] = queue.expected(key);
-      else sent[key] = text;
-    }
+    const sent = differing(keys);
     for (const [key, text] of Object.entries({ ...sent })) Object.assign(sent, linkedValues(key, text, draft));
     const names = Object.keys(sent);
     for (const key of names) draft[key] = sent[key] ?? "";

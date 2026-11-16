@@ -67,7 +67,6 @@ export const errors = {
   "error.alert.own": "{call} is our own: an alert is for another station",
   "error.message.control": "the text has a control character",
   "error.message.empty": "the message is empty",
-  "error.message.email_fm_off": "no radio that internet gateways hear is on",
   "error.message.forbidden": "the text has {chars}, which a message cannot carry ({forbidden} are not allowed)",
   "error.message.not_ascii": {
     select: "chars",

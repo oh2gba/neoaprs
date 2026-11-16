@@ -29,6 +29,7 @@ from .dbopen import open_connection
 from .packetlog import STATION_FLUSH_SEC
 from .radioregistry import is_dummy
 from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioId, RadioSpec, enabled
+from .sendonrule import Kept
 from .store import DB_NAME, Store
 from .tasks import cancel_all, every
 from .tnc import Tnc
@@ -235,8 +236,7 @@ class Controller(Services):
 
     # ---- the settings
     async def save_config(self, config: Config) -> bool:
-        """Stores the settings that differ from the ones in force, puts them all in force, and restarts the radio whose own settings or tickbox changed (its port, speed, type, sound card, keying), and only that one. False when the
-        database would not take them (nothing changed). The settings are a whole: a change made of the settings in force goes through `change_config`, so that two that overlap keep each other's keys."""
+        """Stores the settings that differ from the ones in force, puts them all in force, and restarts the radio whose own settings or tickbox changed (its port, speed, type, sound card, keying), and only that one. False when the database would not take them (nothing changed). The settings are a whole: a change made of the settings in force goes through `change_config`, so that two that overlap keep each other's keys."""
         async with self.config_lock:
             return await self._save(config)
 
@@ -246,18 +246,19 @@ class Controller(Services):
             return await self._save(change(self.config))
 
     async def _save(self, config: Config) -> bool:
-        """The station's rows that this save changes (a key written by `neoaprs db set` in the meantime stays), radio 1's last port in its own row, and what it changes of the radios in theirs, all in one
-        transaction; then put in force."""
+        """The station's rows that this save changes (a key written by `neoaprs db set` in the meantime stays), radio 1's last port in its own row, and what it changes of the radios in theirs, all in one transaction; then put in force."""
+        config, kept = self.kept_change(self.config, config)
         stored, data = set(self.config.changed(config)) | self._implied, config.to_data()
         rows = {key: text for key, text in data.items() if key in stored and key in STATION_KEYS} | ({LAST_PORT: data["serial/last_port"]} if "serial/last_port" in stored else {})
         writes = radioedits.radio_writes(self.config.radios, config.radios)
         if (refused := radioedits.refusal(self.config.radios, config.radios)) is not None:
             log.error("the settings were not stored: %s", refused)
             return False
-        if not await self.store.put_config(rows, writes):
+        if not await self.store.put_config(rows, writes, Kept(objects=kept.objects, bulletins=kept.bulletins)):      # (the ticks and the e-mail radio are among the writes and the rows)
             return False
         self._implied = set()
         self._in_force(config)
+        self.keep(kept)
         return True
 
     def _in_force(self, config: Config) -> None:
@@ -283,17 +284,18 @@ class Controller(Services):
 
     # ---- the radios the operator adds, changes and removes (refusals: radiospec.RadioError, and radiotype.RadioTypeError for a type that is none; False: the database would not take it)
     async def add_radio(self, type: str, name: str = "", *, enabled: bool = True) -> RadioId | None:
-        """A new radio of the type (`kiss`, `mercury`, ...), after the others, with the name typed ("" for none) and the defaults of its kind, stored and started while it is enabled; its id, which no
-        radio had before, or None when it was not stored."""
+        """A new radio of the type (`kiss`, `mercury`, ...), after the others, with the name typed ("" for none) and the defaults of its kind, stored and started while it is enabled; its id, which no radio had before, or None when it was not stored."""
         async with self.config_lock:
             spec = radioedits.new_radio(self.config, type, name, enabled)
             if self.radios_unread:
                 log.warning("the radio is not added: the radios could not be read at the start, and none is added until the next start")
                 return None
-            id = await self.store.add_radio(spec.kind, spec.type, spec.name, spec.enabled, spec.position)
+            _, kept = self.kept_change(self.config, radioedits.put(self.config, replace(spec, id=max((s.id for s in self.config.radios), default=0) + 1)))      # (an id no radio has, until the database gives its own)
+            id = await self.store.add_radio(spec.kind, spec.type, spec.name, spec.enabled, spec.position, kept=kept)
             if id is not None:
                 log.info("radio %d is added: the type %s (%s)%s", id, spec.type, KIND_WORDS[spec.kind], f", named {spec.name}" if spec.name else "")
-                self._in_force(radioedits.put(self.config, replace(spec, id=id)))
+                self._in_force(radioedits.put(radioedits.with_kept(self.config, kept), replace(spec, id=id)))
+                self.keep(kept)
             return id
 
     async def change_radio(self, id: RadioId, **columns: object) -> bool:
@@ -307,15 +309,14 @@ class Controller(Services):
             return await self._save(radioedits.put(self.config, radioedits.with_settings(self.config, id, values)))
 
     async def remove_radio(self, id: RadioId) -> bool:
-        """Removes the radio, and in the same transaction its id from the objects' sets, the stations' paths on it and choices of it, and its own state rows (radiosql.remove_radio); it is stopped for good.
-        Its row stays, so that what came by it still says so. The last enabled radio is not removed."""
+        """Removes the radio, and in the same transaction its id from the objects' sets, the stations' paths on it and choices of it, and its own state rows (radiosql.remove_radio); it is stopped for good. Its row stays, so that what came by it still says so. The last enabled radio is not removed."""
         async with self.config_lock:
             spec = radioedits.removable(self.config, id)
             if not await self.store.remove_radio(id):
                 return False
             log.info("the %s radio (radio %d) is removed", self.radios.name_of(id), id)
             self.forget_radio(id)
-            self._in_force(radioedits.put(self.config, replace(spec, removed_at=self.clock())))
+            self._in_force(radioedits.removed(self.config, spec, self.clock()))
             await self.prefbook.load()                                  # (the stations' paths as the removal left them)
             return True
 

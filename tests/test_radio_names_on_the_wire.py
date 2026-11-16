@@ -17,8 +17,8 @@ async def test_a_removed_radio_is_refused_as_removed_with_its_name_and_a_radio_t
         assert (error["code"], error["params"], error["text"]) == ("radio.unknown", {"radio": gone, "name": "FM 2", "removed": 1}, f"{command['cmd']}: radio FM 2 is removed"), command
     error = await refused(page, {"cmd": "set_config", "values": {f"radio/{gone}/path": "WIDE1-1"}})
     assert (error["key"], error["params"], error["text"]) == (f"radio/{gone}/path", {"radio": gone, "name": "FM 2", "removed": 1}, f"set_config: radio/{gone}/path: radio FM 2 is removed")
-    error = await refused(page, {"cmd": "set_config", "values": {"station/main_radio": str(gone)}})
-    assert (error["key"], error["params"]) == ("station/main_radio", {"radio": gone, "name": "FM 2", "removed": 1})
+    error = await refused(page, {"cmd": "set_config", "values": {"email/radio": str(gone)}})
+    assert (error["key"], error["params"]) == ("email/radio", {"radio": gone, "name": "FM 2", "removed": 1})
     for command in ({"cmd": "radio_change", "radio": 9, "name": "Never"}, {"cmd": "radio_tune", "radio": 9, "on": True}):
         error = await refused(page, command)
         assert (error["params"], error["text"]) == ({"radio": 9}, f"{command['cmd']}: " + ("radio 9: there is no such radio" if command["cmd"] == "radio_change" else "there is no radio 9")), "as before"

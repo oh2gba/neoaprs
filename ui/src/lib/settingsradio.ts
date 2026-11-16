@@ -29,7 +29,7 @@ export function shownByRadios(key: string, radios: readonly PageRadio[]): boolea
   return true;
 }
 
-/** A radio's own setting (`radio/3/port`) or a station setting of the radios (`station/main_radio`): the places of the radios show them (the boxes of the Radio group, the main radio, the Digipeater group), not the groups of the form. */
+/** A radio's own setting (`radio/3/port`) or a station setting of the radios (`email/radio`): the places of the radios show them (the boxes of the Radio group, the Email tab's list, the Digipeater group), not the groups of the form. */
 export const isRadioKey = (key: string): boolean => key.startsWith("radio/") || (RADIO_STATION_KEYS as readonly string[]).includes(key);
 
 /** The radio and the field of a radio's own setting: `radio/3/port` is radio 3's `port`; null for any other key. */
@@ -61,8 +61,11 @@ const KIND_WORDS: Readonly<Partial<Record<PageRadio["kind"], Readonly<Record<str
 export const flatKeyOf = (field: string, kind?: PageRadio["kind"]): string | null =>
   (kind === undefined ? undefined : KIND_WORDS[kind]?.[field]) ?? FIELD_WORDS[field] ?? null;
 
-/** The fields of a radio that are shown elsewhere than behind its status: the beacon's and the status's Send on and its path (My station), its digipeater (the Digipeater group) and the transmit level, which is a row of its own. */
-const ELSEWHERE = ["beacon", "status", "path", "digipeat", "tx_gain_db"];
+/** The ticks of a radio in the Send on of each thing: the beacon's and the status's (My station), Ask around's (Nearby) and Local info's (Objects). */
+const SEND_ON = ["beacon", "status", "ask", "local_info"];
+
+/** The fields of a radio that are shown elsewhere than behind its status: its ticks of each Send on and its path (My station), its digipeater (the Digipeater group) and the transmit level, which is a row of its own. */
+const ELSEWHERE = [...SEND_ON, "path", "digipeat", "tx_gain_db"];
 
 /** The keys behind the status of a radio: its type's fields there (the host and the TCP port for one reached over TCP, the port and the speed for a serial one), each its own `radio/<id>/<field>`. */
 export function boxKeys(radio: Pick<PageRadio, "id" | "type">): string[] {
@@ -75,10 +78,10 @@ export function boxKeys(radio: Pick<PageRadio, "id" | "type">): string[] {
     .map((field) => `radio/${radio.id}/${field}`);
 }
 
-/** The fields of a radio that are not in its box in the Radio group: the beacon's and the status's Send on and the path (My station), the digipeater (the Digipeater group). */
-const NOT_BOXED = ["beacon", "status", "path", "digipeat"];
+/** The fields of a radio that are not in its box in the Radio group: its ticks of each Send on, the path (My station), the digipeater (the Digipeater group). */
+const NOT_BOXED = [...SEND_ON, "path", "digipeat"];
 
-/** Whether a key is of the Radio group's boxes: a radio's own field there (`radio/3/port`, its transmit level) or the main radio. */
+/** Whether a key is of the Radio group's boxes: a radio's own field there (`radio/3/port`, its transmit level). */
 export const boxedKey = (key: string): boolean => isRadioKey(key) && !NOT_BOXED.includes(fieldOfKey(key));
 
 /** The id of the input of a key in the form: every "/" a "-" (`set-radio-3-port`, `set-station-call`). */

@@ -69,15 +69,16 @@ class Api:
         cpu_percent, rss_mb = self.meter.sample()
         return {"type": "status", "version": VERSION, "started_at": iso(self.started_at), "packets": await self.ctl.packetlog.count(), "stations": len(self.ctl.stationbook),
                 "call": c.station_call, "lat": c.station_lat, "lon": c.station_lon,
-                "beacon_interval_min": station_interval(c.beacon_interval_min, c.radios, c.main_radio), "beacon_last_sent": iso(max(sent, default=None)), "beacon_next_due": iso(min(due, default=None)),
-                "main_radio": c.main_radio, "email_radio": None if (email := self.ctl.radios.email()) is None else email.id, "unavailable_types": list(unavailable_types()),
+                "beacon_interval_min": station_interval(c.beacon_interval_min, c.radios), "beacon_last_sent": iso(max(sent, default=None)), "beacon_next_due": iso(min(due, default=None)),
+                "unheard_radio": c.unheard_radio, "email_radio": None if (email := self.ctl.radios.email()) is None else email.id, "unavailable_types": list(unavailable_types()),
+                "new_object_radios": list(self.ctl.ownobjects.new_radios()), "new_bulletin_radios": list(self.ctl.ownbulletins.new_radios()),
                 "station_status": rig.last_text, "station_status_last_sent": iso(rig.last_sent_at), "rig_state": rig.rig_state,
                 "update": None if (latest := self.ctl.updatecheck.latest) is None else {"version": latest.version, "url": latest.url, "message": latest.message},          # (the dial goes to the HF box, not here)
                 "message_key": self.ctl.keyring.fingerprint() if self.ctl.keyring.enabled else "",        # (a key file left by an earlier run with --encryption is nothing while the flag is off)
                 "cpu_percent": cpu_percent, "rss_mb": rss_mb, "uptime_sec": int((self.ctl.clock() - self.started_at).total_seconds())}
 
     def _packet_sent(self) -> None:
-        """A packet of ours went out (the beacon, from the timer or a page), or the settings changed (the main radio): the pages are told the new status now, not at the next ten seconds."""
+        """A packet of ours went out (the beacon, from the timer or a page), or the settings changed (the radios): the pages are told the new status now, not at the next ten seconds."""
         if self.clients:
             self.tasks.spawn(self._tell_all(), "web-status")
 

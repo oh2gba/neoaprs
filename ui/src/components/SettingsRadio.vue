@@ -1,14 +1,12 @@
 <script setup lang="ts">
 // The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then a box for each radio of the station that is not removed, in the daemon's order (RadioBox: its Enable, its Name
-// and Remove while the station has several radios, its status line and behind the arrow its type, its fields and what its type can do), then, while more than one radio that can send is on, the main radio (MainRadio),
-// and Add radio last (RadioAdd). The main radio stands after the last box, so that its coming and going as a radio is ticked or unticked moves nothing above it, the tickbox just clicked least of all; a station with one
-// radio on sees no main radio (plan section 6, decision 4). The Names are there for every box while the station has several radios, not only once a second radio is on, so that ticking a radio moves nothing under the
+// and Remove while the station has several radios, its status line and behind the arrow its type, its fields and what its type can do), then
+// Add radio last (RadioAdd). The Names are there for every box while the station has several radios, not only once a second radio is on, so that ticking a radio moves nothing under the
 // pointer and a radio that is off can be renamed and removed (plan section 6). A station with one radio has its one box as it always had. The Enable of the only radio that is on is greyed, since a station keeps one on: a
 // radio's tick counts at once, before the daemon tells it back. The sound cards and the ports are asked for again for a radio whose type has a sound card when it is ticked (the daemon lists the sound cards only for a
 // radio that is on); the page leads to the box of a radio this group's Add radio has just added once its row comes (lib/attention.ts: the box opens, comes into view and its Enable takes the keyboard),
-// and not to one that another place added (the setup guide's Radio step, which is this group with `guide`: no RX only, no main radio, no Tune, level or scope, and the ids of its place).
+// and not to one that another place added (the setup guide's Radio step, which is this group with `guide`: no RX only, no Tune, level or scope, and the ids of its place).
 import { computed, reactive, ref, watch } from "vue";
-import MainRadio from "@/components/MainRadio.vue";
 import RadioAdd from "@/components/RadioAdd.vue";
 import RadioBox from "@/components/RadioBox.vue";
 import SettingsSwitch from "@/components/SettingsSwitch.vue";
@@ -19,7 +17,7 @@ import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { attend } from "@/lib/attention";
 import { RX_ONLY_KEY } from "@/lib/settings";
 import { boxIds, enableId } from "@/lib/settingsradio";
-import { typeOf, type PageRadio } from "@/lib/radios";
+import type { PageRadio } from "@/lib/radios";
 
 withDefaults(
   defineProps<{
@@ -27,7 +25,7 @@ withDefaults(
     settings: Settings;
     form: SettingsFormState;
     defaults: Record<string, string>;
-    /** the setup guide's Radio step: the boxes and Add radio alone (plan section 6: "Left out of the guide: RX only, the main radio, Tune, the level and the scope") */
+    /** the setup guide's Radio step: the boxes and Add radio alone (plan section 6: "Left out of the guide: RX only, Tune, the level and the scope") */
     guide?: boolean;
   }>(),
   { guide: false },
@@ -43,8 +41,6 @@ const on = (radio: PageRadio): boolean => ticks.get(radio.id) ?? radio.enabled;
 const boxes = computed(() => radios.all.value.filter((radio) => !radio.removed));
 const several = computed(() => boxes.value.length > 1);
 const onCount = computed(() => boxes.value.filter(on).length);
-/** The boxes that are on and whose type can send: the main radio is chosen among them alone (a radio that only listens is never one). */
-const senderCount = computed(() => boxes.value.filter((radio) => on(radio) && typeOf(radio)?.can.transmit !== false).length);
 function pending(radio: PageRadio, enabled: boolean | null): void {
   if (enabled === null) ticks.delete(radio.id);
   else ticks.set(radio.id, enabled);
@@ -85,6 +81,5 @@ watch(lastError, (toast) => {
     :tools="!guide"
     @pending="pending(radio, $event)"
   />
-  <MainRadio v-if="!guide && senderCount > 1" :settings="settings" :form="form" />
   <RadioAdd :id="ids('set-radio-add')" @added="adding = true" />
 </template>

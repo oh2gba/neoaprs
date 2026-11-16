@@ -105,7 +105,7 @@ async def test_a_task_that_fails_is_told_in_the_log_and_the_stop_ends_the_rest(t
 async def test_the_start_reads_the_settings_and_puts_us_in_the_station_book(tmp_path: Path) -> None:
     first = Env(tmp_path, radio=False, operator=False)
     await first.start(connected=False)
-    assert first.ctl.config.to_data() == DEFAULTS.to_data() and first.ctl.config.main_choice is None, "every setting is its default, today's flat keys of the radios too"
+    assert first.ctl.config.to_data() == DEFAULTS.to_data() and first.ctl.config.email_choice is None, "every setting is its default, today's flat keys of the radios too"
     assert [(s.id, s.kind, s.type, s.enabled, s.settings) for s in first.ctl.config.radios] == [(1, "fm", "kiss", True, {})], "radio 1, which the Env added to the new installation, with the defaults of its type"
     await first.ctl.store.put_settings({"station/call": "oh2gba-7", "station/lat": "61.5", "station/lon": "25.5", "map/radius_km": "bad", "web/port": "8080", "web/allowed_hosts": "pi", "log/keep_days": "400", "update/check": "false"})
     await first.stop()

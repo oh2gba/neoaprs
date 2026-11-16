@@ -1,26 +1,28 @@
 """What the services that send share: `ConfigSource` (how they read the settings), `transmit_refusal` and `our_call` (why nothing may be sent, and the call we may send under), and the two shapes of the
-radios. The new one is services/radioset.py's: `RadioPick` (the radios by id, the enabled ones, the main one, the station's, the one a packet came on) and `AirRadio`, and its `fit` makes every frame of the
+radios. The new one is services/radioset.py's: `RadioPick` (the radios by id, the enabled ones, those that send, the station's, the one a packet came on) and `AirRadio`, and its `fit` makes every frame of the
 sender, our objects and bulletins and the digipeater. `as_pick` gives an old shape as the new one (`OldRadios`: an old set of two radios with the choice by station, by packet and by kind, or one plain
-`Radio`, each radio an `OldAir`): app.py gives every service the registry, and the old shapes come only from the tests (tests/support/rig.py, the cases of the old set). The old shapes and their choice of
-a message's radio (`Radio`, `RadioSet`, `radio_to`, `message_radio`) stay while the tests give old shapes (no service calls `radio_to` or `message_radio`: the refusal of the latter is one of the texts of
-`message.email_fm_off` in the page's list of refusals, which this cut does not change); `our_frame` and `fit_frame` (the frame
+`Radio`, each radio an `OldAir`): app.py gives every service the registry, and the old shapes come only from the tests (tests/support/rig.py, the cases of the old set). `our_frame` and `fit_frame` (the frame
 shortened to what a radio with a fixed frame carries: the Mercury HF modem's 123 bytes) are services/radioset.py's, given here under their old names. The rule every service follows: a frame is built for,
 gated by and sent on *its* radio, the one the station is reached on or the one the request came on, never "the radio" of a station that has two."""
+import logging
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol, TypeGuard, cast, runtime_checkable
 
 from neoaprs import ax25
+from neoaprs.beaconrule import send_on_radios
 from neoaprs.coded import CodedError
 from neoaprs.config import Config, can_transmit
-from neoaprs.message import EMAIL_GATEWAY, MessagingError
+from neoaprs.message import MessagingError
 from neoaprs.packet import Packet
 from neoaprs.radiospec import log_name
 from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, RadioType
 from neoaprs.radiotypes import kind_field
-from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick
+from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender
 from neoaprs.services.radioset import FRAME_ERRORS as FRAME_ERRORS, fit_frame as fit_frame, fixed_prefix as fixed_prefix, our_frame as our_frame     # (the parts of the one fit function, under their old names)
 from neoaprs.source import Source
 from neoaprs.tncwatchdog import TncStats
+
+log = logging.getLogger("neoaprs.services")
 
 ConfigSource = Callable[[], Config]
 Paths = Callable[[str, int | None, RadioId], tuple[str, ...]]       # the digipeaters of what we send to a station on a radio (PrefBook.path_for: the call, the attempt, the radio's id)
@@ -49,22 +51,6 @@ class RadioSet(Radio, Protocol):
     def of(self, kind: str) -> Radio | None: ...
     @property
     def on(self) -> list[Radio]: ...
-
-
-def radio_to(radio: Radio, call: str) -> Radio:
-    """The radio a frame of ours to the station goes out on: by the station when the service was given the radios, else the one radio it was given."""
-    return radio.for_station(call) if isinstance(radio, RadioSet) else radio
-
-
-def message_radio(radio: Radio, to: str) -> Radio:
-    """The radio a message of ours to the station goes out on: the station's (`radio_to`); the FM radio for the email gateway, which is a station of the internet reached through the iGates of the VHF network and never
-    over HF, so a mail is refused (MessagingError, the code `message.email_fm_off`) while the FM radio is off."""
-    if to == EMAIL_GATEWAY and isinstance(radio, RadioSet):
-        fm = radio.of("fm")
-        if fm is None:
-            raise MessagingError("email goes out over the FM radio, which is off", "message.email_fm_off")
-        return fm
-    return radio_to(radio, to)
 
 
 # ---- the old shapes as the new one, for the tests that still give one
@@ -135,8 +121,7 @@ class OldAir:
 
 
 class OldRadios:
-    """The old shapes as a RadioPick: an old set of two (its enabled radios, the one of a kind while it is enabled, its default radio as the main one: FM while it is on, else HF, else the FM one
-    stopped, as today), or one plain Radio (a test's stub) that is every choice. Each radio is one OldAir for as long as this lives."""
+    """The old shapes as a RadioPick: an old set of two (its enabled radios, the one of a kind while it is enabled), or one plain Radio (a test's stub) that is every choice. Each radio is one OldAir for as long as this lives."""
 
     def __init__(self, radios: Radio, config: ConfigSource) -> None:
         self._old, self._config = radios, config
@@ -167,10 +152,6 @@ class OldRadios:
     def senders(self) -> Sequence[AirRadio]:
         return self.enabled()                              # (the old shapes know no radio that cannot send)
 
-    @property
-    def main(self) -> AirRadio | None:
-        return self._air(self._old)
-
     def for_station(self, call: str) -> AirRadio | None:
         return self._air(self._old.for_station(call) if isinstance(self._old, RadioSet) else self._old)
 
@@ -178,7 +159,8 @@ class OldRadios:
         return self._air(self._old.for_packet(packet) if isinstance(self._old, RadioSet) else self._old)
 
     def email(self) -> AirRadio | None:
-        return self._of("fm")
+        """The FM radio while it is on (the old shapes have no choice of the email radio), else the radio that is on: a mail goes on a radio of any kind."""
+        return self._of("fm") or next(iter(self.enabled()), None)
 
 
 def is_pick(radios: object) -> TypeGuard[RadioPick]:
@@ -191,27 +173,53 @@ def as_pick(radios: RadioPick | Radio, config: ConfigSource) -> RadioPick:
     return radios if is_pick(radios) else OldRadios(cast(Radio, radios), config)
 
 
-def asked_radio(radios: RadioPick | Radio, config: ConfigSource, radio: RadioId | None = None) -> AirRadio:
-    """The radio a request of the operator's to no station in particular goes on (asking around, asking QRU: plan rule 3.6): the one named, else the main radio. MessagingError while there is none, the one
-    named is not on or only receives (`radio.receive_only`), or it does not take frames now (why not)."""
+def send_on(radios: RadioPick | Radio, config: ConfigSource, key: str) -> list[AirRadio]:
+    """The radios a thing with a Send on of its own goes out on now (`key`: "ask" for asking around, "local_info" for asking QRU), by position, whether they take frames at the moment or not: the radios
+    of beaconrule.send_on_radios that the registry runs; with an old shape of a test's, its one radio. None while there is no radio that can send, or none is ticked."""
+    pick = as_pick(radios, config)
+    if not is_pick(radios):
+        first = first_sender(pick)
+        return [] if first is None else [first]
+    return [found for id in send_on_radios(key, config().radios) if (found := pick.get(id)) is not None]
+
+
+def asked_radios(radios: RadioPick | Radio, config: ConfigSource, key: str, radio: RadioId | None = None) -> list[AirRadio]:
+    """The radios a request of the operator's to no station in particular goes on now (asking around, asking QRU: plan rule 3.6): each radio its Send on is in force on (`send_on`) that takes frames now;
+    or the one named alone (asking QRU: the radio a server answered on). MessagingError while there is none (`radio.none`), none of them takes frames now (why the first does not), or the one named is
+    none, is not on, only receives (`radio.receive_only`) or does not take frames now (why not)."""
     pick = as_pick(radios, config)
     if radio is None:
-        chosen = pick.main
-        if chosen is None:
+        ticked = send_on(radios, config, key)
+        if not ticked:
             raise MessagingError.of(NO_RADIO)
-    else:
-        found = next((r for r in pick.enabled() if r.id == radio), None)
-        if found is None:
-            named = pick.get(radio)
-            if named is None:
-                raise MessagingError(f"there is no radio {radio}", "radio.unknown", radio=radio)
-            raise MessagingError(f"radio {named.name or radio} is off: turn it on first", "radio.off", name=named.name or str(radio), radio=radio)
-        if not any(r.id == radio for r in pick.senders()):
-            raise MessagingError(f"radio {found.name} only receives: nothing can be sent on it", "radio.receive_only", name=found.name, radio=radio)      # (the page offers it for no request)
-        chosen = found
-    if not chosen.usable:
-        raise MessagingError.of(chosen.why_unusable())
-    return chosen
+        usable = [one for one in ticked if one.usable]
+        if not usable:
+            raise MessagingError.of(ticked[0].why_unusable())
+        return usable
+    found = next((r for r in pick.enabled() if r.id == radio), None)
+    if found is None:
+        named = pick.get(radio)
+        if named is None:
+            raise MessagingError(f"there is no radio {radio}", "radio.unknown", radio=radio)
+        raise MessagingError(f"radio {named.name or radio} is off: turn it on first", "radio.off", name=named.name or str(radio), radio=radio)
+    if not any(r.id == radio for r in pick.senders()):
+        raise MessagingError(f"radio {found.name} only receives: nothing can be sent on it", "radio.receive_only", name=found.name, radio=radio)      # (the page offers it for no request)
+    if not found.usable:
+        raise MessagingError.of(found.why_unusable())
+    return [found]
+
+
+def sent_on(frames: Sequence[tuple[AirRadio, ax25.Frame]], what: str) -> list[tuple[AirRadio, ax25.Frame]]:
+    """Gives each radio its frame of a request (asking around, asking QRU) and says which took it; a radio that did not is said in the log. MessagingError (`radio.not_taken`) when none did."""
+    went = []
+    for radio, frame in frames:
+        if radio.send_frame(frame):
+            went.append((radio, frame))
+        else:
+            log.warning("%s: the %s radio did not take the frame", what, radio.name or radio.id)
+    if not went:
+        raise MessagingError("the TNC did not take the frame", "radio.not_taken")
+    return went
 
 
 def on_words(radio: AirRadio, radios: RadioPick | Radio, config: ConfigSource) -> str:

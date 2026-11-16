@@ -1,6 +1,6 @@
 """The status report (neoaprs/services/rigstatus.py) on the station's radios as the registry gives them (`support/seamshapes.py` over stub lines), the station's one maker of frames (services/beaconframe.py),
 a fake rigctld on a free port and a clock the test holds: the first report after the first poll, nothing inside the interval, the same status again at every interval, nothing while the radio is off (and one
-line in the log for that), the static text under the same rule, what ?APRSS answers with; the report on the main radio (the HF one while the FM one is off, none while there is no radio), and the old call."""
+line in the log for that), the static text under the same rule, what ?APRSS answers with; the report on the one radio that is on (the HF one while the FM one is off, none while there is no radio), and the old call."""
 import logging
 import socket
 import sys
@@ -309,7 +309,7 @@ async def test_settings_that_make_no_frame_send_nothing_and_do_not_stop_the_time
 
 # ---- the radio it goes on ------------------------------------------------------------------------------------------------------------------------
 
-async def test_the_status_goes_on_the_main_radio_the_hf_one_while_the_fm_one_is_off_and_by_its_path() -> None:
+async def test_the_status_goes_on_the_one_radio_that_is_on_the_hf_one_while_the_fm_one_is_off_and_by_its_path() -> None:
     rig = Rig(None, station_status="QRV 145.500", fm_enabled=False, hf_enabled=True)
     await rig.status.poll()
     assert rig.tnc.sent == [] and rig.hf.lines() == ["OH2GBA>APZNEO:>211200zQRV 145.500"], "HF carries no path"

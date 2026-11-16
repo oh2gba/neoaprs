@@ -75,8 +75,11 @@ def radio_state(line: Tnc | None) -> str:
 
 
 def _choices(spec: RadioSpec, rtype: RadioType) -> dict[str, Any]:
-    has = {key: rtype.field(key) is not None for key in ("beacon", "status", "path", "digipeat")}            # (the type's fields: a text monitor has no path and does not digipeat, and sends no status)
-    return {"beacon": bool(spec.value("beacon")) if has["beacon"] else True, "status": bool(spec.value("status")) if has["status"] else False, "path": str(spec.value("path")) if has["path"] else None, "digipeat": bool(spec.value("digipeat")) if has["digipeat"] else None}
+    """The radio's own choices as they are in force: a tick of a Send on its type has not (a text monitor's, which sends nothing) is false, the beacon's true; no path, no digipeater where it has none."""
+    def tick(key: str, without: bool = False) -> bool:
+        return bool(spec.value(key)) if rtype.field(key) is not None else without
+    return {"beacon": tick("beacon", True), "status": tick("status"), "ask": tick("ask"), "local_info": tick("local_info"),
+            "path": str(spec.value("path")) if rtype.field("path") is not None else None, "digipeat": bool(spec.value("digipeat")) if rtype.field("digipeat") is not None else None}
 
 
 def _beacon(spec: RadioSpec, beacon: RadioBeacon | None) -> dict[str, Any]:

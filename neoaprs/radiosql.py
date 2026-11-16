@@ -8,10 +8,14 @@ import sqlite3
 from collections.abc import Iterable, Mapping
 
 from .config import MESSAGE_RADIOS as CHOICES          # the state row of the stations' radios, by call, as JSON ({"OH2GAX-2": 2})
-from .configradios import radio_key_of
+from .config import NEW_BULLETINS, NEW_OBJECTS
+from .configradios import radio_key_of, radios_from_rows
 from .dberror import Row, rows
+from .radiospec import RadioSpec
+from .sendonrule import Kept, ids_of, kept_in_force, text_of
 from .storesql import write_setting
 
+EMAIL_CHOICE = "email/radio"                              # the station's setting of the radio an email goes out on
 RADIO_COLUMNS = ("id", "kind", "type", "name", "enabled", "position", "removed_at")
 CHANGEABLE = ("type", "name", "enabled", "position")      # what `update_radio` may set: the kind is the radio's for good, and it is removed by `remove_radio`
 
@@ -59,17 +63,31 @@ def of_removed_radio(db: sqlite3.Connection, keys: Iterable[str]) -> bool:
     return any(db.execute("SELECT 1 FROM radio WHERE id = ? AND removed_at IS NOT NULL", (id,)).fetchone() for id in ids)
 
 
+def _out_of_sets(db: sqlite3.Connection, id: int) -> None:
+    """A removed radio's id out of the objects' and the bulletins' sets (one that goes out on no other radio keeps it: a set is never empty) and out of what a new object and a new bulletin start with."""
+    for table, key in (("own_object", "name"), ("own_bulletin", "slot")):
+        for name, radios in db.execute(f"SELECT {key}, radios FROM {table}").fetchall():
+            kept = [part for part in str(radios).split(",") if part != str(id)]
+            if kept and len(kept) != len(str(radios).split(",")):
+                db.execute(f"UPDATE {table} SET radios = ? WHERE {key} = ?", (",".join(kept), name))
+    for key in (NEW_OBJECTS, NEW_BULLETINS):
+        row = db.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        if row is not None and id in (ids := ids_of(str(row[0]))):
+            if left := tuple(radio for radio in ids if radio != id):
+                write_setting(db, key, text_of(left))
+            else:
+                db.execute("DELETE FROM settings WHERE key = ?", (key,))
+
+
 def remove_radio(db: sqlite3.Connection, id: int, at: str) -> int:
     """Removes a radio, in the transaction of the caller; how many rows it found (0 for a radio that is not there or is removed already, and then nothing is touched). The row stays, with the time
-    in `removed_at`, so that what came by the radio still says so, and its own settings and what it heard of the stations stay with it. What chooses it is taken back: its id out of the objects' sets
-    (an object that goes out on no other radio keeps it: such a set is read as the main radio), the stations' paths on it, the stations' choices of it (the state row messages/radio_by_station), and
-    the rows of its own state (`radio/<id>/*`)."""
+    in `removed_at`, so that what came by the radio still says so, and its own settings and what it heard of the stations stay with it. What chooses it is taken back: its id out of the objects' and the
+    bulletins' sets (one that goes out on no other radio keeps it, for a set is never empty: it is ticked nowhere), out of what a new object and a new bulletin start with, the e-mail radio where it is
+    that one, the stations' paths on it, the stations' choices of it (the state row messages/radio_by_station), and the rows of its own state (`radio/<id>/*`)."""
     if not db.execute("UPDATE radio SET removed_at = ? WHERE id = ? AND removed_at IS NULL", (at, id)).rowcount:
         return 0
-    for name, radios in db.execute("SELECT name, radios FROM own_object").fetchall():
-        kept = [part for part in str(radios).split(",") if part != str(id)]
-        if kept and len(kept) != len(str(radios).split(",")):
-            db.execute("UPDATE own_object SET radios = ? WHERE name = ?", (",".join(kept), name))
+    _out_of_sets(db, id)
+    db.execute("DELETE FROM settings WHERE key = ? AND trim(value) = ?", (EMAIL_CHOICE, str(id)))
     db.execute("DELETE FROM station_path WHERE radio_id = ?", (id,))
     row = db.execute("SELECT value FROM settings WHERE key = ?", (CHOICES,)).fetchone()
     if row is not None:
@@ -78,6 +96,27 @@ def remove_radio(db: sqlite3.Connection, id: int, at: str) -> int:
             write_setting(db, CHOICES, json.dumps({call: radio for call, radio in chosen.items() if radio != id}, sort_keys=True))
     db.execute("DELETE FROM settings WHERE key GLOB ?", (f"radio/{int(id)}/*",))
     return 1
+
+
+def put_kept(db: sqlite3.Connection, kept: Kept) -> None:
+    """What a change of the radios keeps in force (sendonrule.kept_in_force), written in the transaction of that change: the ticks, the e-mail radio, the objects' and the bulletins' sets."""
+    for radio, key in kept.ticks:
+        put_radio_settings(db, radio, {key: "true"})
+    if kept.email is not None:
+        write_setting(db, EMAIL_CHOICE, str(kept.email))
+    for table, column, sets in (("own_object", "name", kept.objects), ("own_bulletin", "slot", kept.bulletins)):
+        for name, radios in sets.items():
+            db.execute(f"UPDATE {table} SET radios = ? WHERE {column} = ?", (text_of(radios), name))
+
+
+def kept_by_rows(db: sqlite3.Connection, before: Iterable[RadioSpec]) -> Kept:
+    """What the change of the radios from `before` to the radios the database holds now keeps in force (sendonrule.kept_in_force), read from the rows (the objects', the bulletins' sets and `email/radio`):
+    for a tool that changes the radios while no daemon runs (`neoaprs db radios add`), whose rows are all there is. Written with `put_kept` in the same transaction."""
+    after = radios_from_rows(radio_rows(db), radio_settings(db))
+    sets = [{str(name): ids_of(str(radios)) for name, radios in db.execute(f"SELECT {key}, radios FROM {table}")} for table, key in (("own_object", "name"), ("own_bulletin", "slot"))]
+    row = db.execute("SELECT value FROM settings WHERE key = ?", (EMAIL_CHOICE,)).fetchone()
+    email = ids_of(str(row[0])) if row is not None else ()
+    return kept_in_force(before, after, sets[0], sets[1], email[0] if len(email) == 1 else None)
 
 
 def _choices(text: str) -> dict[str, object]:

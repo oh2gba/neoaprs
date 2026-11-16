@@ -1,6 +1,6 @@
 """The radios of the station at run time, any number of them (plan §2): a `LiveRadio` for every radio of the settings that is not removed, with the driver of its type (neoaprs/radiodriver.py), the line the
 driver gives the packets on, and its own beacon timer; and the `RadioRegistry`, which makes and drops them as the settings change (`sync`), brings each up and down by the one lifecycle of every type
-(`restart`: stop, take the settings, start while it is enabled), and is the one place that chooses between them: the main radio for what addresses no station, the radio a message to a station goes out on
+(`restart`: stop, take the settings, start while it is enabled), and is the one place that chooses between them: the radio a message to a station goes out on
 (neoaprs/messagerule.py) with the operator's own choice for the station, the radio a packet came on for what answers it, and the radio an email goes out on (neoaprs/emailrule.py). It is what the services
 see as `RadioPick` and its radios as `AirRadio` (neoaprs/services/radioset.py).
 
@@ -242,39 +242,35 @@ class RadioRegistry(StationChoices, Generic[B]):
         return radio.name if radio is not None else f"radio {id}"
 
     # ---- the choice of a radio
-    @property
-    def main(self) -> LiveRadio[B] | None:
-        """The radio of what addresses no station in particular (radiospec.main_radio); None when no radio is enabled."""
-        return self._of(self._config().main_radio)
-
     def for_station(self, call: str) -> LiveRadio[B] | None:
         """The radio a message of ours to the station goes out on (messagerule.message_radio, on what each radio heard of it and the operator's choice for it). A message asks it at its first attempt and keeps
         that radio until it ends, unless the operator's choice for the station in force changes, that radio is switched off, or it only stood in for the station's own (services/messageradio.py)."""
         config, station = self._config(), self._book.get(call)
-        return self._of(messagerule.message_radio(self.choice(call), station.heard_by if station is not None else {}, config.radios, config.main_radio, self._clock()))
+        return self._of(messagerule.message_radio(self.choice(call), station.heard_by if station is not None else {}, config.radios, self._clock()))
 
     def station_of(self, call: str) -> Station | None:
         """The station as the book has it: what each radio heard of it, by which a message tells a radio that only stood in for the station's own (services/messageradio.py)."""
         return self._book.get(call)
 
     def for_packet(self, packet: Packet) -> LiveRadio[B] | None:
-        """The radio to answer a packet on: the one it came on, while it is enabled; else the main radio. A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking is a fault.
-        A receive-only radio it came on is given all the same: it takes no frame (`usable` is false, and why says RX only), so a query heard on it alone is not answered; an ack goes by `radioset.ack_radio`."""
+        """The radio to answer a packet on: the one it came on, while it is enabled; else none (a radio switched off or removed since the packet came answers nothing: a query is then not answered,
+        `radioset.answerable`, and an ack goes on the radio a message to the station takes, `radioset.ack_radio`). A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking
+        is a fault. A receive-only radio it came on is given all the same: it takes no frame (`usable` is false, and why says RX only), so a query heard on it alone is not answered either."""
         if not packet.on_air:
             raise ValueError("a packet from the internet is answered on no radio")
         came = self._of(packet.radio_id)
-        return came if came is not None and came.spec.enabled else self.main
+        return came if came is not None and came.spec.enabled else None
 
     def beaconing(self) -> list[LiveRadio[B]]:
         """The radios the beacon goes out on, by position (beaconrule.beacon_radios: the enabled ones whose Send on is ticked; with one radio on, that one): what Beacon now sends on."""
         config = self._config()
-        on = set(beaconrule.beacon_radios(config.radios, config.main_radio))
+        on = set(beaconrule.beacon_radios(config.radios))
         return [radio for radio in self.enabled() if radio.id in on]
 
     def email(self) -> LiveRadio[B] | None:
-        """The radio an email goes out on (emailrule.email_radio); None when none may carry it."""
+        """The radio an email goes out on (emailrule.email_radio: the operator's choice `email/radio` among the radios that can send); None while no radio that can send is on."""
         config = self._config()
-        return self._of(emailrule.email_radio(config.radios, config.main_radio))
+        return self._of(emailrule.email_radio(config.radios, config.email_choice))
 
     # ---- the lifecycle
     def sync(self, config: Config) -> list[RadioId]:

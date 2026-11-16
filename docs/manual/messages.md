@@ -207,15 +207,16 @@ With one radio on, every message goes on it and nothing here applies. With sever
 1. the radio you chose for the station in Route, while it is on;
 2. else the radio that heard the station in the last six hours, a local one (FM, LoRa) before a Mercury radio when both did;
 3. else the radio that heard it last;
-4. a station never heard goes on the [main radio](radio.md#the-main-radio).
+4. a call no radio heard goes on a radio that can send, by the order of the boxes in Settings → Radio: the topmost one that is on ([radio.md](radio.md#what-goes-on-which-radio)). So does a text to `CQ`, `ALL` or `QST`, which is no station.
 
 A message keeps the radio of its first attempt for all its retries, after a restart too. It moves when you choose another radio in Route, or when its radio is switched off or removed; a message that went on another radio only because its own was off goes back to its own once that is on again. A message that no longer fits the radio it moves to fails with its reason.
 
-- **Route** starts with the row **Radio**: **Automatic**, which names the radio it gives now ("Automatic: Mercury"), then each radio that is on and can send, by its name. A choice applies from the next attempt and is kept for the call across a restart; forgetting the station forgets it too. For a call that was never heard the row is there, greyed on Automatic, until the station is heard.
+- **Route** starts with the row **Radio**: **Automatic**, which names the radio it gives now ("Automatic: Mercury"), then each radio that is on and can send, by its name. A choice applies from the next attempt and is kept for the call across a restart; forgetting the station forgets it too.
 - **Path and RF only** under it belong to the radio in force. On a radio that carries no path (Mercury) they are greyed with their value kept, their hover text says "Mercury: no path", and the line under them says "Automatic: direct". The path you set for a station on one radio is not used on another.
+- **A call that was never heard** has the row Radio greyed on Automatic until the station is heard. It names the radio the message will go on ("Automatic: FM"), so you see it before Send.
 - **The station panel** of the Stations tab has the same Route, and its questions go on the station's radio. **Trace the route** is greyed on a radio that carries no path.
-- **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is. A message heard only on a radio that receives is acked on the radio a message to that station would take; a query heard only there is not answered.
-- **Email** (`EMAIL-2`) goes on the radio that internet gateways hear ([email.md](email.md#the-email-tab)), never a Mercury radio.
+- **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is. A message heard only on a radio that receives, or on one switched off or removed since, is acked on the radio a message to that station would take; a query heard only there is not answered.
+- **Email** (`EMAIL-2`) goes on the one radio chosen in the Email tab ([email.md](email.md#which-radio)). The Route of the gateway shows that radio greyed: it is chosen there and nowhere else.
 - **The length.** Every message of 67 characters fits a Mercury frame. A message that does not fit the frame of its radio fails at once, and its state reads "too long for the radio" in place of the attempts; **Retry** says by how many characters to shorten it.
 
 ## Encrypted messages

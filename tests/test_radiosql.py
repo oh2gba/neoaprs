@@ -115,7 +115,7 @@ def test_the_stored_radios_are_read_with_the_settings_of_their_kind_and_a_wrong_
     assert [r.getMessage() for r in caplog.records] == ["radio/1/baud: 'fast' is not a whole number; the default (empty) is used"]
     assert (found[0].value("baud"), found[0].value("tcp_port"), found[1].value("keying"), found[1].value("beacon")) == (None, 8001, "", True), "what is not stored is the field's default"
     config = Config.from_data({"station/call": "OH2GBA"}, radios=reversed(found))
-    assert config.radios == found and [s.id for s in config.live_radios] == [2, 1] and config.main_radio == 1 and config.radio(3) is found[2], "the settings hold them by id, and read them by position"
+    assert config.radios == found and [s.id for s in config.live_radios] == [2, 1] and config.unheard_radio == 1 and config.radio(3) is found[2], "the settings hold them by id, and read them by position"
     assert radios_from_rows([(4, "am", "kiss", "", 1, 1, None), (5, "lora", "dummy-lora", "", 1, 2, None)], []) == (RadioSpec(5, "lora", "dummy-lora", "", True, 2),), "a row of a kind that is none is left out and told"
 
 
@@ -153,7 +153,7 @@ def test_remove_keeps_the_row_and_takes_the_radio_out_of_the_sets_the_paths_the_
     assert radio_rows(db) == [(1, "fm", "kiss", "", 1, 1, None), (2, "hf", "mercury", "20 m", 1, 2, AT), (3, "fm", "kiss-tcp", "", 1, 3, None)], "the row stays, with when it was removed"
     assert radio_settings(db) == [(2, "sound_card", "plughw:1,0")], "and its own settings with it"
     assert dict(db.execute("SELECT name, radios FROM own_object").fetchall()) == {"BOTH": "1", "ALL": "1,3", "HFONLY": "2", "FMONLY": "1", "TWELVE": "12", "LAST": "3,12"}, \
-        "an object that went out on it alone keeps it (such a set is read as the main radio); radio 12 is not radio 2"
+        "an object that went out on it alone keeps it (ticked nowhere: it waits); radio 12 is not radio 2"
     assert db.execute("SELECT call, radio_id, path FROM station_path ORDER BY call, radio_id").fetchall() == [("OH2RDG", 1, "WIDE1-1"), ("OH6XYZ", 12, "WIDE2-2")]
     rows = {str(key): (str(value), int(rev)) for key, value, rev in db.execute("SELECT key, value, rev FROM settings")}
     assert rows == {"messages/radio_by_station": ('{"OH6XYZ": 1}', 2), "radio/1/last_port": ("/dev/ttyUSB0", 1), "radio/22/last_port": ("/dev/ttyUSB9", 1), "station/call": ("OH2GBA", 1)}

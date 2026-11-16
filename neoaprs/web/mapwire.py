@@ -43,6 +43,12 @@ class MapProblem(_Model):
     params: dict[str, int] = Field(description="the values of the sentence, by name; empty for a code that has none")
 
 
+class AlohaCircle(_Model):
+    """The ALOHA circle of one radio: the distance within which the stations that radio heard would fill its 1200 baud channel (WB4APR's method, worked out again every minute)."""
+    radio: int = Field(description="the radio's id")
+    km: float = Field(ge=0, description="the radius round our position, in km to a tenth")
+
+
 class MapState(_Model):
     """The base map: the files, the area and detail the settings ask for, the size estimated, and the job that is running. The value of the topic `map`, told whole at most four times a second."""
     state: Literal["none", "estimating", "downloading", "ready", "error"] = Field(
@@ -61,8 +67,8 @@ class MapState(_Model):
     detail: MapFileInfo | None = Field(description="`basemap.pmtiles`; null if it is not there")
     world: MapFileInfo | None = Field(description="`basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw)")
     later: bool = Field(description="the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there")
-    aloha_km: float | None = Field(ge=0, description="the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); "
-                                                     "null without a position and while the stations heard do not fill the channel")
+    aloha: list[AlohaCircle] = Field(description="the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of "
+                                                 "the boxes; none without a position")
 
 
 class MapEstimate(_Command):

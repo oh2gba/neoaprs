@@ -1,18 +1,20 @@
-// The radios of the station for a pane (lib/radios.ts): every radio, those that are on, whether there are several, the main and the email radio, whether a radio is named, the radio a station or a message goes
-// on, and the radio this page has just added. Read from the page's context (the topic `radios`, the settings, the status); a pane mounted without the page's context (a test of its own) has no radio. The radios are made once for each page and shared by every pane that asks, and a radio stays the same object while nothing of its own changes, so that a stats-only patch of
+// The radios of the station for a pane (lib/radios.ts): every radio, those that are on, whether there are several, the email radio and the radio of a call no radio heard, whether a radio is named,
+// the radio a station or a message goes on, and the radio this page has just added. Read from the page's context (the topic `radios`, the settings, the status); a pane mounted without the page's context (a test of its own) has no radio. The radios are made once for each page and shared by every pane that asks, and a radio stays the same object while nothing of its own changes, so that a stats-only patch of
 // the topic draws again only what shows the counts.
-import { computed, effectScope, inject, ref, watch, type ComputedRef, type Ref } from "vue";
+import { computed, effectScope, inject, type ComputedRef } from "vue";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import {
   emailRadio,
   enabledRadios,
   isNamed,
-  mainRadio,
+  radioPath,
+  sharedPath,
   messageRadio,
   pageRadios,
   sameRadio,
   senders,
   sendingRadio,
+  unheardRadio,
   type PageRadio,
   type RadioId,
 } from "@/lib/radios";
@@ -31,35 +33,29 @@ export interface Radios {
   senders: ComputedRef<PageRadio[]>;
   /** more than one radio can send: only then is a radio to send on chosen */
   severalSenders: ComputedRef<boolean>;
-  /** the main radio; null while no radio is on */
-  main: ComputedRef<PageRadio | null>;
-  /** the email radio, which the internet gateways hear; null while there is none */
+  /** the radio of a message to a call no radio heard, as the daemon says it (what Route's "Automatic" gives for such a call); null while no radio can send */
+  unheard: ComputedRef<PageRadio | null>;
+  /** the email radio, as the daemon says it (the one chosen in the Email tab while it is on); null while no radio can send */
   email: ComputedRef<PageRadio | null>;
   /** some radio that is on may carry a path */
   allowsPath: ComputedRef<boolean>;
+  /** the path our frames take on the radio, as the daemon gives it (lib/radios.ts `radioPath`): its own, else the path its type recommends, else the station's symbol's; "" for DIRECT */
+  pathOf: (radio: PageRadio) => string;
+  /** the one path these radios share, of those that may carry one; null while their paths differ, and while none carries one (lib/radios.ts `sharedPath`) */
+  sharedPath: (radios: readonly PageRadio[]) => string | null;
   /** the radio this page added last (the answer `radio_added`), once its row is in the topic; null before */
   added: ComputedRef<PageRadio | null>;
   /** the radio of that id, removed or not; undefined for none */
   byId: (id: RadioId) => PageRadio | undefined;
   /** whether something that came or goes by that radio says its name: where several radios are on, and always for a radio that is not on */
   named: (id: RadioId) => boolean;
-  /** the radio a message to the station goes on, as the daemon says it (lib/radios.ts `sendingRadio`; `thread` the conversation's messages; `row` null for a call the book does not hold: the main radio); null for none */
+  /** the radio a message to the station goes on, as the daemon says it (lib/radios.ts `sendingRadio`; `thread` the conversation's messages; `row` null for a call the book does not hold: `unheard`); null for none */
   forStation: (
     row: Partial<Pick<StationRow, "radio_choice" | "radio_now">> | null,
     thread?: readonly Pick<MessageRow, "state" | "radio_now">[],
   ) => PageRadio | null;
   /** the radio of a message: the one its next attempt goes on while it is on its way, else the one it came or went on; null for none */
   forMessage: (row: Pick<MessageRow, "radio_now" | "radio_id">) => PageRadio | null;
-  /** a choice of one radio beside a button that asks (Local info, Ask around: plan rule 3.6), made for the pane that calls it */
-  choose: () => RadioChoice;
-}
-
-/** The radio chosen beside a button: `picked` the operator's (null: the main radio), `radio` the one it goes on (the one picked while it is on, else the main radio), `choices` the radios on that can send, the main radio first. A
- * choice that goes off is forgotten, and does not come back by itself when that radio is on again. */
-interface RadioChoice {
-  picked: Ref<RadioId | null>;
-  radio: ComputedRef<RadioId | null>;
-  choices: ComputedRef<PageRadio[]>;
 }
 
 const NO_RADIOS: ReadonlyMap<string, RadioRow> = new Map();
@@ -77,7 +73,8 @@ function make(context: DaemonContext | null): Radios {
   });
   const enabled = computed(() => enabledRadios(all.value));
   const sending = computed(() => senders(all.value));
-  const main = computed(() => mainRadio(all.value, context?.status.value ?? null));
+  const unheard = computed(() => unheardRadio(all.value, context?.status.value ?? null));
+  const pathOf = (radio: PageRadio): string => radioPath(radio, context?.fallbackPath.value ?? "");
   const ids = new Map<RadioId, ComputedRef<PageRadio | undefined>>();
   const scope = effectScope(true);
   const byId = (id: RadioId): PageRadio | undefined => {
@@ -96,9 +93,11 @@ function make(context: DaemonContext | null): Radios {
     several: computed(() => enabled.value.length > 1),
     senders: sending,
     severalSenders: computed(() => sending.value.length > 1),
-    main,
+    unheard,
     email: computed(() => emailRadio(all.value, context?.status.value ?? null)),
     allowsPath: computed(() => enabled.value.some((radio) => radio.carriesPath)),
+    pathOf,
+    sharedPath: (radios) => sharedPath(radios, pathOf),
     added: computed(() => {
       const id = context?.radioAdded.value?.id;
       return id === undefined ? null : (byId(id) ?? null); // (null until the row of the radio made comes with the topic's next patch)
@@ -106,23 +105,12 @@ function make(context: DaemonContext | null): Radios {
     byId,
     named: (id) => isNamed(all.value, id),
     forStation: (row, thread = []) => {
-      const id = sendingRadio(row, thread, main.value?.id ?? null);
+      const id = sendingRadio(row, thread, unheard.value?.id ?? null);
       return id === null ? null : (byId(id) ?? null);
     },
     forMessage: (row) => {
       const id = messageRadio(row);
       return id === null ? null : (byId(id) ?? null);
-    },
-    choose: () => {
-      const picked = ref<RadioId | null>(null);
-      watch(sending, (on) => {
-        if (picked.value !== null && !on.some((r) => r.id === picked.value)) picked.value = null;
-      }); // (in the scope of the pane that asked: it ends with the pane)
-      return {
-        picked,
-        radio: computed(() => (picked.value !== null && sending.value.some((r) => r.id === picked.value) ? picked.value : (main.value?.id ?? null))),
-        choices: computed(() => [...sending.value].sort((a, b) => Number(b.id === main.value?.id) - Number(a.id === main.value?.id))),
-      };
     },
   };
 }

@@ -172,7 +172,6 @@ export const de: Catalogue = {
   "error.alert.own": "{call} ist unsere eigene Station: eine Benachrichtigung ist für eine andere Station",
   "error.message.control": "der Text enthält ein Steuerzeichen",
   "error.message.empty": "die Nachricht ist leer",
-  "error.message.email_fm_off": "kein Funkgerät ist an, das die Internet-Gateways hören",
   "error.message.forbidden": "der Text enthält {chars}, was eine Nachricht nicht tragen kann ({forbidden} sind nicht erlaubt)",
   "error.message.not_ascii": {
     select: "chars",
@@ -485,8 +484,6 @@ export const de: Catalogue = {
   "email.used_before": "Schon benutzt",
   "email.forget": "{address} vergessen",
   "email.send": "Senden",
-  "email.no_gated_radio": "Kein Funkgerät ist an, das die Internet-Gateways hören",
-  "email.radio_title": "E-Mails gehen über Funkgerät {name}",
 
   "email.state.waiting": "Wartet auf das Funkgerät",
   "email.state.sending": "Sendet ({attempt} von {max})",
@@ -1260,9 +1257,6 @@ export const de: Catalogue = {
   "radio.new": "Neues Funkgerät",
   "radio.remove": "Entfernen",
   "radio.remove_sure": "Wirklich entfernen?",
-  "radio.main": "Hauptfunkgerät",
-  "radio.main.tip_label": "Über das Hauptfunkgerät",
-  "radio.main.tip1": "Bulletins und der Status gehen darüber, und es ist die erste Wahl für Rundfrage, Ortsinfo und E-Mail.",
   "radio.name": "Name",
   "radio.name.tip_label": "Über den Namen",
   "radio.name.tip1": "Ein kurzer Name für dieses Funkgerät: die Seite nennt es überall so.",

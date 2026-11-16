@@ -62,18 +62,18 @@ def test_the_radios_of_the_settings_are_todays_fm_and_hf_radio_made_of_the_flat_
     assert (hf.id, hf.kind, hf.type, hf.enabled, hf.name, hf.removed_at) == (HF_ID, "hf", config.hf_profile, config.hf_enabled, "", None)
     for spec in (fm, hf):
         assert spec.rtype.kind == spec.kind and spec.value("beacon") is True, "the beacon goes out on every radio that is on, as today"
-        assert spec.value("status") is False, "no radio's status is ticked: the status goes on the main radio, as today"
+        assert spec.value("status") is False, "no radio's status is ticked: the field's default is unticked"
         for key, text in spec.settings.items():
             if key != "beacon" and (spec.id, key) in HOMES:
                 assert spec.value(key) == getattr(config, FLAT[key]), key
             elif key != "beacon":                                          # (a field of the kind that no flat key of this radio holds is at its default: radio 1's sound card, keying and gain)
                 assert text == kind_field(spec.kind, key).default, key     # type: ignore[union-attr]
             assert Config.check_radio(spec, key, text) == text, "what is stored reads back as it is"
-    assert set(fm.settings) == {"port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "beacon", "status", "path", "digipeat"} and set(hf.settings) == {"sound_card", "keying", "tx_gain_db", "beacon", "status"}
+    assert set(fm.settings) == {"port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "beacon", "status", "ask", "local_info", "path", "digipeat"} and set(hf.settings) == {"sound_card", "keying", "tx_gain_db", "beacon", "status", "ask", "local_info"}
     today = "fm" if config.fm_enabled else "hf" if config.hf_enabled else None
-    assert config.main_radio == {"fm": FM_ID, "hf": HF_ID, None: None}[today], "the main radio is today's default radio (none for none: today's stopped FM radio)"
+    assert config.unheard_radio == {"fm": FM_ID, "hf": HF_ID, None: None}[today], "the radio of a call no radio heard is today's default radio (none for none: today's stopped FM radio)"
     assert [s.id for s in config.enabled_radios] == [i for i, on in ((FM_ID, config.fm_enabled), (HF_ID, config.hf_enabled)) if on]
-    assert config.live_radios == [fm, hf] and config.radio(FM_ID) is fm and config.radio(HF_ID) is hf and config.radio(3) is None and config.main_choice is None
+    assert config.live_radios == [fm, hf] and config.radio(FM_ID) is fm and config.radio(HF_ID) is hf and config.radio(3) is None and config.email_choice is None
     assert Config.from_data(config.to_data()) == config and Config.from_data(config.to_data()).radios == config.radios
 
 
@@ -110,7 +110,7 @@ def test_the_radio_of_a_message_is_the_one_the_two_radios_chose_before(fm_on: bo
     config = replace(DEFAULTS, fm_enabled=fm_on, hf_enabled=hf_on)
     heard = station(fm, hf).heard_by if known else {}
     chosen = choice if known else None
-    got = message_radio(chosen, heard, config.radios, config.main_radio, T0)
+    got = message_radio(chosen, heard, config.radios, T0)
     assert got == station_before(fm_on, hf_on, fm if known else 0, hf if known else 0, chosen), "no radio enabled: none (the two of before fell to the stopped FM radio, which sends nothing)"
 
 
@@ -120,14 +120,14 @@ def test_the_beacon_interval_is_each_radios_own_and_its_radios_are_todays(interv
     for spec in config.radios:
         own = max(interval, 30) if interval and spec.kind == "hf" else interval
         assert beacon_interval(interval, spec, config.radios) == own, "the station's interval, raised on the Mercury radio alone to its 30 minutes (plan rule 3.1: FM at 20 is no longer slowed by HF)"
-    assert beacon_radios(config.radios, config.main_radio) == tuple(i for i, on in ((FM_ID, fm_on), (HF_ID, hf_on)) if on), "each beacon sends while its radio is on"
+    assert beacon_radios(config.radios) == tuple(i for i, on in ((FM_ID, fm_on), (HF_ID, hf_on)) if on), "each beacon sends while its radio is on"
     assert MESSAGE_RADIO_RECENT_HOURS == 6
 
 
 @pytest.mark.parametrize(("fm_on", "hf_on"), list(itertools.product((True, False), (True, False))))
 def test_the_email_radio_is_the_one_todays_gateway_rule_chooses(fm_on: bool, hf_on: bool) -> None:
     config = replace(DEFAULTS, fm_enabled=fm_on, hf_enabled=hf_on)
-    assert email_radio(config.radios, config.main_radio) == email_before(fm_on, hf_on)
+    assert email_radio(config.radios, config.email_choice) == (email_before(fm_on, hf_on) or (HF_ID if hf_on else None)), "the FM radio while it is on, as before; the Mercury radio alone carries a mail, which was refused before"
 
 
 # ---- the one fit function, against the sender of today
@@ -179,7 +179,7 @@ def test_the_shapes_wave_one_writes_are_what_the_services_take_and_the_frame_par
     lines = {FM_ID: LineOfTest(), HF_ID: LineOfTest(profile=MERCURY)}
     live = [LiveShape(spec, config.radios, lines[spec.id]) for spec in config.radios]
     pick = as_pick(RegistryShape(live))
-    assert [r.id for r in pick.enabled()] == [FM_ID, HF_ID] and pick.main is live[0] and pick.get(HF_ID) is live[1] and pick.get(3) is None
+    assert [r.id for r in pick.enabled()] == [FM_ID, HF_ID] and pick.senders()[0] is live[0] and pick.get(HF_ID) is live[1] and pick.get(3) is None
     assert [(r.name, r.kind, r.max_frame, r.stats is lines[r.id].stats) for r in pick.enabled()] == [("FM", "fm", None, True), ("Mercury", "hf", type_of("mercury").limits.max_frame, True)]
     info = b"!6010.00N/02455.00E-" + b"long comment " * 12
     for spec in config.radios:

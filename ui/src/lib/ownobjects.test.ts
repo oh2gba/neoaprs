@@ -5,7 +5,6 @@ import {
   draftProblems,
   draftReady,
   emptyDraft,
-  inForce,
   isObjectOf,
   moveCommand,
   nameProblem,
@@ -15,7 +14,6 @@ import {
   steppedSpeed,
   sentText,
   stateText,
-  ticked,
   wrapLongitude,
   type ObjectDraft,
 } from "@/lib/ownobjects";
@@ -139,7 +137,7 @@ describe("draftProblems and draftReady", () => {
 
 describe("objectCommand", () => {
   it("is the command that makes the object, every field as the daemon takes it", () => {
-    expect(objectCommand(ready({ kind: "item", symbol: "\\+", comment: " First aid ", course: "90", speed: "12,5", path: "wide2-1" }), 1)).toEqual({
+    expect(objectCommand(ready({ kind: "item", symbol: "\\+", comment: " First aid ", course: "90", speed: "12,5", path: "wide2-1" }), [1])).toEqual({
       cmd: "object_set",
       name: "LEADER",
       kind: "item",
@@ -158,12 +156,12 @@ describe("objectCommand", () => {
   });
 
   it("leaves the course, the speed and the path null when they are empty", () => {
-    expect(objectCommand(ready(), 1)).toMatchObject({ course_deg: null, speed_kmh: null, path: null, comment: "" });
-    expect(objectCommand(ready({ course: "0" }), 1)).toMatchObject({ course_deg: 0 });
+    expect(objectCommand(ready(), [1])).toMatchObject({ course_deg: null, speed_kmh: null, path: null, comment: "" });
+    expect(objectCommand(ready({ course: "0" }), [1])).toMatchObject({ course_deg: 0 });
   });
 
   it("says no digipeaters with the word DIRECT, never with an empty path", () => {
-    expect(objectCommand(ready({ path: " direct " }), 1)).toMatchObject({ path: "DIRECT" });
+    expect(objectCommand(ready({ path: " direct " }), [1])).toMatchObject({ path: "DIRECT" });
   });
 
   it("is none while the draft is not ready", () => {
@@ -171,11 +169,13 @@ describe("objectCommand", () => {
     expect(objectCommand(ready({ lat: "95" }))).toBeNull();
   });
 
-  it("names the radios it goes out on: those of the draft, ascending, else the main radio for a new one; none while there is no radio", () => {
-    expect(objectCommand(ready({ radios: [3, 1] }), 2)).toMatchObject({ radios: [1, 3] });
-    expect(objectCommand(ready({ radios: [3, 1] }), 2)).not.toHaveProperty("radio");
-    expect(objectCommand(ready(), 2)).toMatchObject({ radios: [2] });
+  it("names the radios it goes out on: those of the draft, ascending, else those a new one starts with (the object saved last); none while there are none", () => {
+    expect(objectCommand(ready({ radios: [3, 1] }), [2])).toMatchObject({ radios: [1, 3] });
+    expect(objectCommand(ready({ radios: [3, 1] }), [2])).not.toHaveProperty("radio");
+    expect(objectCommand(ready(), [2])).toMatchObject({ radios: [2] });
+    expect(objectCommand(ready(), [3, 2])).toMatchObject({ radios: [2, 3] });
     expect(objectCommand(ready())).toBeNull();
+    expect(objectCommand(ready(), [])).toBeNull();
   });
 
   it("is what the daemon has when its radios are the ones asked for, in any order the row has them", () => {
@@ -186,24 +186,6 @@ describe("objectCommand", () => {
     expect(isObjectOf(row, asked)).toBe(true);
     expect(isObjectOf({ ...row, radios: [1] }, asked)).toBe(false);
     expect(isObjectOf({ ...row, radios: [1, 2] }, asked)).toBe(false);
-  });
-});
-
-describe("the radios of an object", () => {
-  it("are in force its own that are on, else the main radio, else none", () => {
-    expect(inForce([1, 3], [1, 2, 3], 1)).toEqual([1, 3]);
-    expect(inForce([1, 3], [1, 2], 2)).toEqual([1]); // (radio 3 is off: kept, not in force)
-    expect(inForce([3], [1, 2], 2)).toEqual([2]);
-    expect(inForce([], [1, 2], 1)).toEqual([1]);
-    expect(inForce([3], [], null)).toEqual([]);
-  });
-
-  it("take a tick on or off, keeping a radio that is off beside the ticks, and start from the main radio when none of their own is on", () => {
-    expect(ticked([1], [1, 2, 3], 1, 3)).toEqual([1, 3]);
-    expect(ticked([1, 3], [1, 2, 3], 1, 1)).toEqual([3]);
-    expect(ticked([1, 4], [1, 2], 1, 2)).toEqual([1, 2, 4]); // (radio 4 is off and stays kept)
-    expect(ticked([4], [1, 2], 1, 2)).toEqual([1, 2]); // (radio 4 is off and none of its own is on: the main radio that stood for them is ticked)
-    expect(ticked([], [1, 2, 3], 2, 3)).toEqual([2, 3]); // (a new object: the main radio is ticked)
   });
 });
 
@@ -246,14 +228,14 @@ describe("the QRU group", () => {
   });
 
   it("goes to the daemon in capitals with the choice of sending only when asked, and comes back from a row", () => {
-    expect(objectCommand(ready({ qru: " rp70 ", onRequest: true }), 1)).toMatchObject({ qru_group: "RP70", on_request: true });
-    expect(objectCommand(ready(), 1)).toMatchObject({ qru_group: "", on_request: false });
+    expect(objectCommand(ready({ qru: " rp70 ", onRequest: true }), [1])).toMatchObject({ qru_group: "RP70", on_request: true });
+    expect(objectCommand(ready(), [1])).toMatchObject({ qru_group: "", on_request: false });
     expect(draftOf(ownObject("PUB", { qru_group: "FOOD", on_request: true }))).toMatchObject({ qru: "FOOD", onRequest: true });
     expect(moveCommand(ownObject("PUB", { qru_group: "FOOD", on_request: true }), 60, 24)).toMatchObject({ qru_group: "FOOD", on_request: true });
   });
 
   it("is part of what makes an object the one the command asked for", () => {
-    const command = objectCommand(ready({ qru: "FOOD" }), 1);
+    const command = objectCommand(ready({ qru: "FOOD" }), [1]);
     const row = ownObject("LEADER", { comment: "", lat: 60.17, lon: 24.94, qru_group: "FOOD", symbol_code: "r" });
     expect(command !== null && isObjectOf(row, command)).toBe(true);
     expect(command !== null && isObjectOf({ ...row, on_request: true }, command)).toBe(false);

@@ -97,13 +97,13 @@ def test_what_makes_no_frame_is_a_send_error() -> None:
 
 # ---- the sender builds its frames by it
 
-def test_the_senders_frame_is_the_fit_for_its_radio_and_the_main_radio_when_none_is_named() -> None:
+def test_the_senders_frame_is_the_fit_for_its_radio_and_the_first_that_can_send_when_none_is_named() -> None:
     fm, hf = radio(STATION, FM_ID), radio(STATION, HF_ID)
     sender = Sender(RegistryShape([fm, hf]), lambda: STATION)              # type: ignore[list-item]
     for air in (fm, hf):
         assert sender.frame(LONG, None, air) == fit(air, STATION, LONG, None)
         assert sender.frame(LONG, ("OH2RCH-2",), air) == fit(air, STATION, LONG, ("OH2RCH-2",))
-    assert sender.frame(LONG, None) == fit(fm, STATION, LONG, None), "the main radio: the first enabled, the FM radio"
+    assert sender.frame(LONG, None) == fit(fm, STATION, LONG, None), "the first radio that can send, the FM radio"
     only_hf = replace(STATION, fm_enabled=False)
     assert Sender(RegistryShape([radio(only_hf, FM_ID), radio(only_hf, HF_ID)]), lambda: only_hf).frame(LONG, None).path == ()      # type: ignore[list-item]
 

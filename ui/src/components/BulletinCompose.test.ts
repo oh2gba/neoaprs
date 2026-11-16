@@ -288,39 +288,115 @@ describe("BulletinCompose", () => {
   });
 });
 
-describe("Post and the main radio, which a bulletin goes on", () => {
+describe("Post and Send on, the radios a bulletin goes on", () => {
   /** A station of these radios as the daemon tells them: the topic `radios`. */
   function on(given: Given, ...rows: RadioRow[]) {
     const daemon = fakeDaemon({ ...ofRadios(...rows), ...given });
     const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });
-    return { wrapper, daemon, post: () => wrapper.find<HTMLButtonElement>("button[type='submit']") };
+    const sendOn = () => wrapper.find(".field.send-on");
+    const ticks = () =>
+      sendOn()
+        .findAll("label.check")
+        .map((tick) => {
+          const box = tick.find<HTMLInputElement>("input[type='checkbox']").element;
+          return [tick.text(), box.checked, box.disabled];
+        });
+    const tick = (name: string) =>
+      sendOn()
+        .findAll("label.check")
+        .find((one) => one.text() === name)
+        ?.find("input")
+        .trigger("change");
+    return { wrapper, daemon, sendOn, ticks, tick, post: () => wrapper.find<HTMLButtonElement>("button[type='submit']") };
   }
   const FM = radioRow(1, "kenwood-tnc2");
   const HF = radioRow(2, "mercury");
 
-  it("is off while the main radio is not connected, with the reason Send has, the radio named while several are on; on again once it is", async () => {
-    const one = on({}, { ...FM, state: "waiting" });
+  it("has no row with one radio that can send, and Post is off while that radio is not connected, with the reason Send has; on again once it is", async () => {
+    const one = on({}, { ...FM, state: "waiting" }, radioRow(3, "lora-console"));
+    expect(one.sendOn().exists()).toBe(false);
     await one.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
     expect(one.post().element.disabled).toBe(true);
-    expect(one.post().attributes("title")).toBe("The radio is not connected");
+    expect(one.post().attributes("title")).toBe("FM: not connected");
     await one.wrapper.find("form").trigger("submit");
     expect(one.wrapper.emitted("post")).toBeUndefined();
     await tell(one.daemon, { radios: radiosTopic(FM) });
     expect(one.post().element.disabled).toBe(false);
     expect(one.post().attributes("title")).toBeUndefined();
-    const two = on({ status: status({ main_radio: 2 }) }, FM, { ...HF, state: "connecting" });
+    await one.wrapper.find("form").trigger("submit");
+    expect(one.wrapper.emitted("post")).toEqual([["BLN1", "Net tonight 20 UTC"]]); // (no radios: the daemon puts it on its one radio)
+  });
+
+  it("has a tick for each radio that can send while several are, under the text, ticked as the bulletin posted last; Post goes while one ticked is connected and sends the ticks", async () => {
+    const two = on({ status: status({ new_bulletin_radios: [2] }) }, FM, { ...HF, state: "connecting" });
+    expect(two.sendOn().find(".field-label").text()).toBe("Send on");
+    expect(two.wrapper.findAll(".composebar-fields > .field").at(-1)?.element).toBe(two.sendOn().element);
+    expect(two.ticks()).toEqual([
+      ["FM", false, false],
+      ["Mercury", true, true],
+    ]);
     await two.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
     expect(two.post().element.disabled).toBe(true);
     expect(two.post().attributes("title")).toBe("Mercury: not connected");
-    const fine = on({ status: status({ main_radio: 1 }) }, FM, { ...HF, state: "connecting" });
-    await fine.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
-    expect(fine.post().element.disabled).toBe(false); // (the main radio is FM, which is connected)
-    await fine.wrapper.find("form").trigger("submit");
-    expect(fine.wrapper.emitted("post")).toEqual([["BLN1", "Net tonight 20 UTC"]]);
+    await two.tick("FM");
+    expect(two.ticks()).toEqual([
+      ["FM", true, false],
+      ["Mercury", true, false],
+    ]);
+    expect(two.post().element.disabled).toBe(false);
+    await two.wrapper.find("form").trigger("submit");
+    expect(two.wrapper.emitted("post")).toEqual([["BLN1", "Net tonight 20 UTC", [1, 2]]]);
+    await two.tick("Mercury");
+    await two.wrapper.find("#post-text").setValue("Net moved to 21 UTC");
+    await two.wrapper.find("form").trigger("submit");
+    expect(two.wrapper.emitted("post")?.at(-1)).toEqual(["BLN1", "Net moved to 21 UTC", [1]]);
+  });
+
+  it("replaces the ticks of a slot that holds a text of ours with the draft's, as it replaces the text", async () => {
+    const two = on({ status: status({ new_bulletin_radios: [1] }) }, FM, HF);
+    await two.wrapper.setProps({ ownBulletins: new Map([["BLN1", ownBulletin("BLN1", { radios: [2] })]]) });
+    expect(two.ticks()).toEqual([
+      ["FM", true, true],
+      ["Mercury", false, false],
+    ]);
+    await two.wrapper.find("#post-text").setValue("Road open again");
+    await two.wrapper.find("form").trigger("submit");
+    expect(two.wrapper.emitted("post")).toEqual([["BLN1", "Road open again", [1]]]);
+  });
+
+  it("shows no tick ticked and none greyed while none of the radios it starts with is on, and Post is off until one is ticked", async () => {
+    const three = on({ status: status({ new_bulletin_radios: [3] }) }, FM, HF, radioRow(3, "kiss", { number: 2, enabled: false }));
+    await three.wrapper.find("#post-text").setValue("Net tonight");
+    expect(three.ticks()).toEqual([
+      ["FM", false, false],
+      ["Mercury", false, false],
+    ]);
+    expect(three.post().element.disabled).toBe(true);
+    await three.wrapper.find("form").trigger("submit");
+    expect(three.wrapper.emitted("post")).toBeUndefined();
+    await three.tick("Mercury");
+    expect(three.post().element.disabled).toBe(false);
+    await three.wrapper.find("form").trigger("submit");
+    expect(three.wrapper.emitted("post")).toEqual([["BLN1", "Net tonight", [2]]]);
+  });
+
+  it("keeps its rows, the counter and Post where they were when a second radio comes on (in Settings): the row of ticks is added under the text, inside the fields, and the foot stays the box's last line", async () => {
+    const station = on({ status: status({ new_bulletin_radios: [1] }) }, FM, { ...HF, enabled: false });
+    const fields = () => station.wrapper.findAll(".composebar-fields > .field").map((row) => row.element);
+    const before = fields();
+    const foot = station.wrapper.find(".composebar-foot").element;
+    expect(before).toHaveLength(4);
+    await tell(station.daemon, { radios: radiosTopic(FM, HF) });
+    expect(fields().slice(0, 4)).toEqual(before); // (the very rows, none made again)
+    expect(fields()).toHaveLength(5);
+    expect(station.wrapper.find(".composebar-foot").element).toBe(foot);
+    expect(foot.previousElementSibling?.classList.contains("composebar-fields")).toBe(true);
+    expect(foot.querySelector(".compose-left")).not.toBeNull();
+    expect(foot.lastElementChild).toBe(station.post().element);
   });
 
   it("is off with the daemon's own words while no radio is on, and RX only says its own first", async () => {
-    const none = on({ status: status({ main_radio: null }) }, { ...FM, enabled: false, state: "stopped" });
+    const none = on({ status: status({ unheard_radio: null }) }, { ...FM, enabled: false, state: "stopped" });
     await none.wrapper.find("#post-text").setValue("Net tonight");
     expect(none.post().element.disabled).toBe(true);
     expect(none.post().attributes("title")).toBe("there is no radio: add one, or turn one on");

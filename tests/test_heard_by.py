@@ -270,9 +270,9 @@ def test_the_radio_of_a_message_is_chosen_from_the_field() -> None:
     book = StationBook()
     book.take(packet(HF_ID, 0))
     specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1), RadioSpec(HF_ID, "hf", "mercury", "", True, 2))
-    assert message_radio(None, heard(book).heard_by, specs, FM_ID, T0) == HF_ID, "heard on HF alone"
+    assert message_radio(None, heard(book).heard_by, specs, T0) == HF_ID, "heard on HF alone"
     book.take(packet(FM_ID, 1))
-    assert message_radio(None, heard(book).heard_by, specs, FM_ID, T0) == FM_ID
+    assert message_radio(None, heard(book).heard_by, specs, T0) == FM_ID
 
 
 def test_the_page_is_told_what_each_radio_heard_of_the_station_by_its_id() -> None:

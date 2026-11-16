@@ -1,10 +1,10 @@
 import { mount } from "@vue/test-utils";
-import { shown } from "@/test/shown";
+import { seen, shown } from "@/test/shown";
 import { beforeEach, describe, expect, it } from "vitest";
 import BulletinsPane from "@/components/BulletinsPane.vue";
 import type { BulletinRow, OwnBulletinRow } from "@/protocol/protocol";
-import { fakeDaemon, withDaemon, type FakeDaemon } from "@/test/context";
-import { ago, bulletin, ownBulletin } from "@/test/fixtures";
+import { fakeDaemon, ofRadios, withDaemon, type FakeDaemon, type Given } from "@/test/context";
+import { ago, bulletin, ownBulletin, radioRow, status } from "@/test/fixtures";
 
 const board = (...rows: BulletinRow[]) => new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r]));
 
@@ -122,6 +122,14 @@ describe("BulletinsPane", () => {
     expect(sent("bulletin_post")).toEqual([{ cmd: "bulletin_post", slot: "BLN1", text: "Hello board" }]);
   });
 
+  it("sends the radios ticked in the box with what is posted while several radios can send", async () => {
+    daemon = fakeDaemon({ ...ofRadios(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")), status: status({ new_bulletin_radios: [1, 2] }) });
+    const wrapper = pane(...rows);
+    await wrapper.find("#post-text").setValue("Hello board");
+    await wrapper.find(".bulletin-compose").trigger("submit");
+    expect(sent("bulletin_post")).toEqual([{ cmd: "bulletin_post", slot: "BLN1", text: "Hello board", radios: [1, 2] }]);
+  });
+
   describe("our own bulletins", () => {
     const withOurs = (...own: OwnBulletinRow[]) =>
       mount(BulletinsPane, { props: { bulletins: board(...rows), ownBulletins: posted(...own) }, global: withDaemon(daemon) });
@@ -177,6 +185,27 @@ describe("BulletinsPane", () => {
       expect(wrapper.find(".mine .bulletin-meta").text()).toBe("sent 4 times, next in 18 min");
       await wrapper.setProps({ ownBulletins: posted() });
       expect(wrapper.find(".mine").exists()).toBe(false);
+    });
+
+    it("carry the tags of the radios they go out on while several radios are on, two by name and then +n, and none with one radio on", () => {
+      const tags = (station: Given, own: OwnBulletinRow) =>
+        mount(BulletinsPane, { props: { bulletins: board(), ownBulletins: posted(own) }, global: withDaemon(fakeDaemon(station)) })
+          .findAll(".mine .bulletin-head .own-radio")
+          .map((tag) => [seen(tag), tag.attributes("title")]);
+      const FM = radioRow(1, "kenwood-tnc2");
+      const HF = radioRow(2, "mercury");
+      expect(tags(ofRadios(FM), ownBulletin("BLN2", { radios: [1] }))).toEqual([]);
+      expect(tags(ofRadios(FM, HF), ownBulletin("BLN2", { radios: [2] }))).toEqual([["Mercury", "Sent on radio Mercury"]]);
+      expect(
+        tags(ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })), ownBulletin("BLN2", { radios: [3] })),
+        "ticked nowhere: no tag",
+      ).toEqual([]);
+      const four = ofRadios(FM, HF, radioRow(3, "kiss", { number: 2 }), radioRow(4, "lora-tcp"));
+      expect(tags(four, ownBulletin("BLN2", { radios: [1, 2, 3, 4] }))).toEqual([
+        ["FM", "Sent on radio FM"],
+        ["Mercury", "Sent on radio Mercury"],
+        ["+2", "Sent on radio FM 2; Sent on radio LoRa"],
+      ]);
     });
 
     it("are under a word for our call until the daemon says it", () => {

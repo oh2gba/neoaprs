@@ -178,11 +178,6 @@ for (const locale of LOCALES) {
         [],
       );
     });
-
-    it("refuse an email with no gated radio in the words of the page's own line, from a small letter", () => {
-      const line = say("email.no_gated_radio");
-      expect(say("error.message.email_fm_off")).toBe(line.charAt(0).toLocaleLowerCase(locale.code) + line.slice(1));
-    });
   });
 }
 

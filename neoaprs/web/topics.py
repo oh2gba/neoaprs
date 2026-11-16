@@ -67,8 +67,9 @@ PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")      #
 
 def radios_in_force(config: Config) -> tuple[object, ...]:
     """What of the settings' radios the rows of the stations, the messages and the objects read (the radio a message takes now, a choice in force, an object's radios): each radio's id, kind, type, Enable,
-    place and whether it is removed, and the main radio. A name, a radio's own settings and the paths are none of it (a station's path on a radio is told by PrefBook.path_changed)."""
-    return tuple((s.id, s.kind, s.type, s.enabled, s.position, s.removed) for s in config.radios), config.main_radio
+    place and whether it is removed, and the radio chosen for email (the gateway's row and a mail on its way follow it). A name, a radio's own settings and the paths are none of it (a
+    station's path on a radio is told by PrefBook.path_changed)."""
+    return tuple((s.id, s.kind, s.type, s.enabled, s.position, s.removed) for s in config.radios), config.email_choice
 
 
 class Topics:
@@ -76,7 +77,7 @@ class Topics:
                  tell: Callable[[dict[str, Any]], None] | None = None) -> None:
         self.ctl = ctl
         self.hub = hub
-        self._sent = sent                           # told when a packet of ours went out or the settings changed: the status (the count of packets, the time of the beacon, the main radio) has changed
+        self._sent = sent                           # told when a packet of ours went out or the settings changed: the status (the count of packets, the time of the beacon, the radios) has changed
         self._tell = tell                           # a message to every page that is open, which no topic keeps (an alert set on a station fired)
         self.window = PacketWindow()
         self.scopes = RadioScopes(self._wire_scope)              # the pages that have a radio's scope open (`radio_scope`): the rows are sent to them, not to every page
@@ -94,13 +95,13 @@ class Topics:
         hub.add(Topic("bulletins", lambda: {b.key: bulletin_row(b) for b in ctl.bulletins.records()}, self._bulletin))
         hub.add(Topic("own_objects", lambda: {o.name: self._own_object_row(o) for o in ctl.ownobjects.records()}, self._own_object))
         hub.add(Topic("own_bulletins", lambda: {b.slot: self._own_bulletin_row(b) for b in ctl.ownbulletins.records()}, self._own_bulletin))
-        hub.add(Topic("map", lambda: map_state(ctl.mapfetch.status(), ctl.aloha.radius_km), interval=TNC_EVERY_SEC))
+        hub.add(Topic("map", lambda: map_state(ctl.mapfetch.status(), ctl.aloha.radii), interval=TNC_EVERY_SEC))
         hub.add(Topic("update", lambda: UpdateState.row(ctl.selfupdate.status()), interval=TNC_EVERY_SEC))
         hub.add(Topic("gps", self._gps, interval=GPS_EVERY_SEC))
         hub.add(Topic("igate", lambda: igate_state(ctl.config, ctl.igate), interval=IGATE_EVERY_SEC))
         hub.add(Topic("qru", lambda: qru_state(ctl.qruask)))
         hub.add(Topic("skeds", lambda: skeds_state(ctl.skeds)))
-        hub.add(Topic("general", lambda: general_state(ctl.generalask.asked(), ctl.generalask.asked_by_radio())))
+        hub.add(Topic("general", lambda: general_state(ctl.generalask.asked(), ctl.generalask.sent_on())))
         self.connected = False
 
     def _gps(self) -> dict[str, Any]:
@@ -348,4 +349,4 @@ class Topics:
         if moved:
             self.hub.changed("stations")            # (every row has a new distance and bearing)
         if self._sent is not None:
-            self._sent()                            # (the status says the main radio, the email radio, the beacon's interval, the call and the place: every page is told them now, not at the next ten seconds)
+            self._sent()                            # (the status says the radio of a call no radio heard, the email radio, the beacon's interval, the call and the place: every page is told them now, not at the next ten seconds)

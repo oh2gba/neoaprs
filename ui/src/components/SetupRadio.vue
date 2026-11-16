@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Step 4 of the first-run guide, live as the Radio group of the Settings tab is (plan section 6): the same group (SettingsRadio with `guide`), a box for each radio of the station that is not removed (RadioBox: its Enable, its Name and
 // Remove while the station has several radios, its status line and behind the arrow its type, the type's fields, the frequencies, Find my radio and the Terminal), and Add radio under them. A change applies at once, as in the
-// Settings tab (the same settings, the same queue and Undo), so a radio made or changed here stays when the guide is closed. Left out: RX only, the main radio, Tune, the transmit level and the scope.
+// Settings tab (the same settings, the same queue and Undo), so a radio made or changed here stays when the guide is closed. Left out: RX only, Tune, the transmit level and the scope.
 // A station with no radio (a fresh installation) has one box, the radio it is adding: Add radio, the type from the whole list and its Add; once the new radio's row has come its box takes the place of this one, with the
 // type's fields and its status line at once, and Add radio under it. Before the daemon has told its settings and its radios the step has nothing (before the topic `radios` the radios would be those of the settings of
 // before, two boxes where the station may have one). The ids are the guide's own (`setup-fm-enabled`,

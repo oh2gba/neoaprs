@@ -379,7 +379,7 @@ def test_ctrl_c_on_sim_radios_keep_only_says_stop_and_the_daemon_is_then_stopped
 
 
 def test_the_station_of_the_shots_is_an_fm_an_hf_and_a_lora_radio_of_dummy_types_and_never_a_type_that_starts_a_modem() -> None:
-    """The shots show what the station of 0.20.0 is: three radios, "2 m" (FM, the day's radio 1 and the main one), "40 m" (HF) and a LoRa radio, each of a Dummy type, which opens no device. The Mercury and
+    """The shots show what the station of 0.20.0 is: three radios, "2 m" (FM, the day's radio 1), "40 m" (HF) and a LoRa radio, each of a Dummy type, which opens no device. The Mercury and
     the Direwolf types would start a modem on the machine's sound card: the script names them only to refuse them, and its one way to add a radio refuses them before anything is run."""
     import ast
     shots = load_script("screenshots.py")
@@ -397,9 +397,9 @@ def test_the_station_of_the_shots_is_an_fm_an_hf_and_a_lora_radio_of_dummy_types
     assert "--hf-port" not in (ROOT / "scripts" / "screenshots.py").read_text(encoding="utf-8"), "no modem that something else runs either"
 
 
-def test_the_day_is_played_on_radio_1_and_the_station_is_then_given_its_three_radios_with_the_first_the_main_one(tmp_path: Path) -> None:
+def test_the_day_is_played_on_radio_1_and_the_station_is_then_given_its_three_radios_and_radio_1_keeps_what_it_carried(tmp_path: Path) -> None:
     """give_radios on a data folder with the day's radio 1 (a KISS TNC over TCP, named "2 m"), as prepare leaves it once the day is played: radio 1 becomes the Dummy FM radio and keeps its name, the Dummy HF
-    radio "40 m" is radio 2 and the Dummy LoRa radio with no name radio 3, all on, and the main radio is radio 1."""
+    radio "40 m" is radio 2 and the Dummy LoRa radio with no name radio 3, all on, and radio 1 is ticked for the status, Ask around and Local info (what it carried alone)."""
     import asyncio
     shots = load_script("screenshots.py")
     data = tmp_path / "demo"
@@ -421,7 +421,8 @@ def test_the_day_is_played_on_radio_1_and_the_station_is_then_given_its_three_ra
     ids, radios, settings = asyncio.run(made())
     assert ids == {"fm": 1, "hf": 2, "lora": 3}
     assert [(r.id, r.kind, r.type, r.name, r.enabled, r.removed_at) for r in radios] == [(1, "fm", "dummy", "2 m", True, None), (2, "hf", "dummy-hf", "40 m", True, None), (3, "lora", "dummy-lora", "", True, None)]
-    assert settings["station/main_radio"] == "1"
+    assert "station/main_radio" not in settings and [{key: r.settings.get(key) for key in ("status", "ask", "local_info")} for r in radios] == [dict.fromkeys(("status", "ask", "local_info"), "true"), *[dict.fromkeys(("status", "ask", "local_info"))] * 2]
+    assert "email/radio" in settings and settings["email/radio"] == "1", "the mail where it went"
 
 
 def test_the_hf_tests_shot_is_given_two_tests_to_come_on_40_m_by_two_of_the_days_cast() -> None:

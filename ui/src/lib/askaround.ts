@@ -14,11 +14,11 @@ export const GENERAL_KINDS: readonly GeneralKind[] = ["aprs", "igate", "wx"];
 /** The query a kind sends, as the daemon writes it (`?APRS?`). */
 export const queryOf = (kind: GeneralKind): string => LIMITS.general.queries[kind];
 
-/** The seconds before a query of the kind may go again, 0 when it may: one a minute of each kind, the daemon's rule. */
-export function generalWait(state: GeneralState | null, kind: GeneralKind, nowMs: number): number {
-  const asked = state?.asked.find((a) => a.kind === kind);
-  if (asked === undefined) return 0;
-  return Math.max(0, Math.ceil((Date.parse(asked.at) + LIMITS.general.askEverySec * 1000 - nowMs) / 1000));
+/** The seconds before a query of the kind may go on these radios, 0 when it may: one a minute of each kind on each radio, and a query waits for every radio it would go on (the daemon's rule; no radio given: any). */
+export function generalWait(state: GeneralState | null, kind: GeneralKind, radios: readonly number[], nowMs: number): number {
+  const sent = (state?.by_radio ?? []).filter((one) => one.kind === kind && (radios.length === 0 || radios.includes(one.radio)));
+  const latest = Math.max(0, ...sent.map((one) => Date.parse(one.at)));
+  return sent.length === 0 ? 0 : Math.max(0, Math.ceil((latest + LIMITS.general.askEverySec * 1000 - nowMs) / 1000));
 }
 
 export interface AskLines {
@@ -41,15 +41,15 @@ export function askLines(state: GeneralState | null, refusal: string, nowMs: num
   const latest = state?.asked.at(-1);
   if (refusal !== "") return { line: t("nearby.ask_refused", { reason: refusal }), title: refusal, refused: true, count: "", countTitle: "" };
   if (latest === undefined) return { line: t("nearby.ask_help"), title: "", refused: false, count: "", countTitle: "" };
-  const hops = latest.path.filter((hop) => hop !== RF_ONLY);
-  const path = hops.length > 0 ? hops.join(",") : t("route.direct");
+  const hops = (latest.path ?? []).filter((hop) => hop !== RF_ONLY);
+  const path = latest.path === null ? t("route.default") : hops.length > 0 ? hops.join(",") : t("route.direct"); // (null: each radio by its own path, and those differ)
   const time = hourMinuteText(latest.at);
   const n = latest.new.length;
   const quiet = { n, min: LIMITS.general.quietMin, after: Math.round(LIMITS.general.countSec / 60) };
   const counting = Date.parse(latest.until) > nowMs;
   return {
     line: t(`nearby.ask_sent.${latest.kind}`, { time, path }),
-    title: `${latest.query} ${latest.path.join(",") || t("route.direct")}`,
+    title: `${latest.query} ${latest.path === null ? t("route.default") : latest.path.join(",") || t("route.direct")}`,
     refused: false,
     count: t(counting ? "nearby.ask_new_counting" : "nearby.ask_new", quiet),
     countTitle: n > 0 ? t("nearby.ask_new_title", { calls: latest.new.join(", ") }) : t("nearby.ask_new_note", { min: LIMITS.general.quietMin }),

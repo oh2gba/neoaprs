@@ -3,8 +3,8 @@
 // status row; for a fixed station when the last beacon went and when the next is due, for a moving one the GPS and what SmartBeaconing does) and the row Beacon now (SendRow); under the Status choice, while a status is chosen, the status report as a row (StatusReportRow), and the row Send status now at the end of the Status group.
 // useSendNow says when the buttons are on and asks twice; both are off, with a tip that says why, while the transmitter is off (RX only).
 // While several radios are on, the Beacon choice is followed by Send on, a tick for each radio that is on (`radio/<id>/beacon`, applied at once; the last tick that is ticked is greyed, so that the beacon is switched off by
-// the interval alone; with none ticked the main radio's is, for the beacon goes out on it), and the status row says each radio's beacon behind its arrow. The Status choice is followed by the status's own Send on, the same
-// row (SendOn.vue, `radio/<id>/status`: until one is ticked the main radio's is, ticked and greyed, for the status follows the main radio), and its row says the status on each radio behind its arrow. Beacon now goes on
+// the interval alone; none is ticked while the radios it was ticked for are off), and the status row says each radio's beacon behind its arrow. The Status choice is followed by the status's own Send on, the same
+// row (SendOn.vue, `radio/<id>/status`), and its row says the status on each radio behind its arrow. Beacon now goes on
 // the radios the beacon goes out on and Send status now on those the status goes out on, each on while one of them is connected and off with the radios that are not connected as its title. With one radio on, the tab is as it was.
 import BeaconStatus from "@/components/BeaconStatus.vue";
 import SendOn from "@/components/SendOn.vue";
@@ -33,11 +33,13 @@ const { status, connected, now, config, send, settings, gps, receiveOnly } = use
 const radios = useRadios();
 const several = computed(() => radios.severalSenders.value);
 /** The radios Beacon now and the timer send on; with one radio on, that one. */
-const beaconOn = computed(() => beaconRadios(radios.senders.value, radios.main.value));
+const beaconOn = computed(() => beaconRadios(radios.senders.value));
 /** A radio Beacon now would send on is connected (a radio that only listens is none of them); until the daemon has told the radios, the page's link to any radio says it. */
 const beaconUp = computed(() => (radios.told.value ? beaconOn.value.some((radio) => radio.connected) : connected.value));
 /** The radios Send status now and the timer send the status on; with one radio on, that one. */
-const statusOn = computed(() => statusRadios(radios.senders.value, radios.main.value));
+const statusOn = computed(() => statusRadios(radios.senders.value));
+/** No status goes by the timer: the beacon is Off, or the status is ticked for no radio that is on (its row then says no timed status, as the beacon's says no timed beacon). */
+const statusUntimed = computed(() => beaconOff(config.value?.values ?? {}) || (several.value && statusOn.value.length === 0));
 /** A radio Send status now would send on is connected (the same until the radios are told). */
 const statusUp = computed(() => (radios.told.value ? statusOn.value.some((radio) => radio.connected) : connected.value));
 /** The button that waits for its second press: its radio dropping forgets the press, as the link dropping does. */
@@ -111,7 +113,7 @@ const { ticks: statusTicks, error: statusTickError, tick: statusTick } = useSend
             :last-sent="status?.station_status_last_sent ?? null"
             :minutes="config?.values['status/interval_min'] ?? ''"
             :rig="status?.rig_state ?? 'unused'"
-            :beacon-off="beaconOff(config?.values ?? {})"
+            :beacon-off="statusUntimed"
             :rx-only="receiveOnly"
             :radios="statusLines"
             :now="now"

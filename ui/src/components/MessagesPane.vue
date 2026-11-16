@@ -46,9 +46,9 @@ const emit = defineEmits<{
 const { now, stations } = useDaemonContext();
 const radios = useRadios();
 
-/** Whether the link of the radio each recipient of the group is messaged on is up: the station's radio now (each text is a message of its own), the main radio for a call the book does not hold. */
+/** Whether the link of the radio each recipient of the group is messaged on is up: the station's radio now (each text is a message of its own), for a call the book does not hold the radio of a call no radio heard. */
 const groupConnected = computed(() =>
-  (props.group ?? []).every((call) => (radios.forStation(stations.value.get(call) ?? null) ?? radios.main.value)?.connected === true),
+  (props.group ?? []).every((call) => (radios.forStation(stations.value.get(call) ?? null) ?? radios.unheard.value)?.connected === true),
 );
 
 const root = ref<HTMLElement | null>(null);

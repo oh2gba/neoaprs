@@ -103,7 +103,7 @@ def migrated(tmp_path: Path, rows: dict[str, str] | None = None, *statements: tu
     run_31(db)
     after = stored_config(db)
     assert after.to_data() == before.to_data(), "every setting says what it said"
-    assert [(s.id, s.kind) for s in after.enabled_radios] == [(s.id, s.kind) for s in before.enabled_radios] and after.main_radio == before.main_radio, "the radios that are on, and the main one, are the ones that were"
+    assert [(s.id, s.kind) for s in after.enabled_radios] == [(s.id, s.kind) for s in before.enabled_radios] and after.unheard_radio == before.unheard_radio, "the radios that are on, and the first of them, are the ones that were"
     return db
 
 
@@ -117,7 +117,7 @@ def test_a_database_with_no_rows_at_all_is_a_new_installation_and_gets_no_radio(
     db = old(tmp_path)
     run_31(db)
     assert radios(db) == [] and own(db) == {} and settings(db) == {} and decided(db) == [(0, 0, 0)], "no radio, and the row that says so for the migrations 32 and 33"
-    assert stored_config(db).radios == () and stored_config(db).main_radio is None
+    assert stored_config(db).radios == () and stored_config(db).unheard_radio is None
     assert db.execute("INSERT INTO radio (kind, type, enabled, position) VALUES ('fm', 'kiss', 1, 1)").lastrowid == 1, "the first radio it is given is radio 1"
 
 

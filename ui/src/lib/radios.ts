@@ -1,9 +1,10 @@
-// The radios of the station as the page knows them, in one place: which radios there are, which are on, which is the main radio and the email radio, whether there are several, whether a radio is named, which radio
-// a station or a message goes on, and what a radio's problem says. Plain functions of what the daemon tells in the topic `radios` (a row for each radio, a removed one kept so that what came by it keeps its name),
+// The radios of the station as the page knows them, in one place: which radios there are, which are on, the email radio and the radio of a call no radio heard, whether there are several, whether
+// a radio is named, which radio a station or a message goes on, and what a radio's problem says. Plain functions of what the daemon tells in the topic `radios` (a row for each radio, a removed one kept so that what came by it keeps its name),
 // `config.radio_values` and the status; composables/useRadios.ts is the reactive side.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type RadioNames } from "@/i18n/errortext";
+import { pathCalls } from "@/lib/calls";
 import { RADIO_TYPES } from "@/protocol/lists";
 import type { ConfigValues, ListPortsCommand, MessageRow, RadioProblem, RadioRow, StationRow, StatusMessage } from "@/protocol/protocol";
 
@@ -157,26 +158,47 @@ export function listensOnly(rows: ReadonlyMap<string, RadioRow> | null): boolean
   return on.length > 0 && on.every((row) => !row.can.transmit);
 }
 
+/** The path a radio takes while its own path is empty (what its Recommended choice says): the one its kind's types recommend (`recommended_path`: LoRa WIDE1-1, as neoaprs/radiotypes `recommended_path`), else
+ * `symbolPath`, the recommended path of the station's symbol. */
+export function recommendedFor(radio: Pick<PageRadio, "kind">, symbolPath: string): string {
+  return RADIO_TYPES.find((type) => type.kind === radio.kind && type.recommended_path !== "")?.recommended_path || symbolPath;
+}
+
+/** The path our frames take on a radio, as the daemon gives it (neoaprs/config.py `path_calls`): its own path (`radio/<id>/path`); empty, the path its kind recommends (LoRa WIDE1-1), else `symbolPath`, the
+ * recommended path of the station's symbol; "" for DIRECT. The calls separated by commas: the placeholder of a Path field that belongs to that radio. */
+export function radioPath(radio: Pick<PageRadio, "kind" | "settings">, symbolPath: string): string {
+  const text = radio.settings["path"] ?? "";
+  return (pathCalls(text, recommendedFor(radio, symbolPath)) ?? [text]).join(",");
+}
+
+/** The one path these radios share, of those that may carry one (`pathOf` gives each one's); null while they go by different paths, and while none of them carries a path. */
+export function sharedPath(radios: readonly PageRadio[], pathOf: (radio: PageRadio) => string): string | null {
+  const paths = new Set(radios.filter((radio) => radio.carriesPath).map(pathOf));
+  return paths.size === 1 ? ([...paths][0] ?? null) : null;
+}
+
 /** Whether the radio of that id is there and on. */
 export const isOn = (radios: readonly PageRadio[], id: RadioId): boolean => radios.some((radio) => radio.id === id && radio.enabled);
 
 /** Whether a radio is named where something of it is shown: where more than one radio is on, and always for one that is not on (off, removed, or not known), so that what came by it keeps its name. */
 export const isNamed = (radios: readonly PageRadio[], id: RadioId): boolean => enabledRadios(radios).length > 1 || !isOn(radios, id);
 
-/** The main radio: the one the daemon's status names (`main_radio`, none while no radio is on), else, against a daemon that does not name it or one the page does not know yet, the first radio that is on and can send, as the
- * daemon chooses it (neoaprs/radiospec.py `main_radio`: a radio that only listens is never the main radio). */
-export function mainRadio(radios: readonly PageRadio[], status: Partial<Pick<StatusMessage, "main_radio">> | null): PageRadio | null {
-  const named = status?.main_radio;
+/** The radio of a message to a call no radio heard (and of a text to CQ, ALL, QST): the one the daemon's status names (`unheard_radio`, none while no radio can send), else, before the status has come, the first radio
+ * that is on and can send, in the order of the boxes. Route shows it as what "Automatic" gives. */
+export function unheardRadio(radios: readonly PageRadio[], status: Partial<Pick<StatusMessage, "unheard_radio">> | null): PageRadio | null {
+  const named = status?.unheard_radio;
   if (named === null) return null;
-  return (named === undefined ? undefined : enabledRadios(radios).find((radio) => radio.id === named)) ?? senders(radios)[0] ?? null;
+  const on = senders(radios);
+  return (named === undefined ? undefined : on.find((radio) => radio.id === named)) ?? on[0] ?? null;
 }
 
-/** The email radio, which the internet gateways hear: the one the status names (`email_radio`, none while there is none), else the first radio on whose type an internet gateway hears. */
+/** The email radio, of any kind: the one the daemon's status names (`email_radio`: the operator's choice in the Email tab while it is on; none while no radio can send), else, before the status has come, the first
+ * radio that is on and can send whose type an internet gateway hears, else the first that can send. */
 export function emailRadio(radios: readonly PageRadio[], status: Partial<Pick<StatusMessage, "email_radio">> | null): PageRadio | null {
   const named = status?.email_radio;
   if (named === null) return null;
-  const on = enabledRadios(radios);
-  return (named === undefined ? undefined : on.find((radio) => radio.id === named)) ?? on.find((radio) => radio.row.allowed.gateway_heard) ?? null;
+  const on = senders(radios);
+  return (named === undefined ? undefined : on.find((radio) => radio.id === named)) ?? on.find((radio) => radio.row.allowed.gateway_heard) ?? on[0] ?? null;
 }
 
 type ToStation = Partial<Pick<StationRow, "radio_choice" | "radio_now">>;
@@ -186,12 +208,12 @@ type OnItsWay = Pick<MessageRow, "state"> & Partial<Pick<MessageRow, "radio_now"
  * - the operator's choice for the station while it is in force: it holds also for a message on its way, from its next attempt, and the station's `radio_now` is then the choice;
  * - a message of ours on its way to it (`thread`, the conversation's messages): the one being sent, else one that waits its turn, which keeps the radio of its first attempt;
  * - the station's radio now;
- * - for a call the book does not hold (`row` null), the main radio.
+ * - for a call the book does not hold (`row` null), the radio of a call no radio heard (`unheard`: the daemon's `status.unheard_radio`).
  * Null where the daemon says there is none, and against a daemon that does not say (a row without `radio_now`). */
-export function sendingRadio(row: ToStation | null | undefined, thread: readonly OnItsWay[] = [], main: RadioId | null = null): RadioId | null {
+export function sendingRadio(row: ToStation | null | undefined, thread: readonly OnItsWay[] = [], unheard: RadioId | null = null): RadioId | null {
   if (row?.radio_choice != null && row.radio_now != null) return row.radio_now;
   const ours = (state: MessageRow["state"]) => thread.find((message) => message.state === state && message.radio_now != null)?.radio_now; // (only a message of ours is sending or queued)
-  return ours("sending") ?? ours("queued") ?? (row != null ? (row.radio_now ?? null) : main);
+  return ours("sending") ?? ours("queued") ?? (row != null ? (row.radio_now ?? null) : unheard);
 }
 
 /** The radio of a message: the one its next attempt goes on while it is on its way, else the one it came or went on (`radio_id`); null for none (an internet message, one never sent). */

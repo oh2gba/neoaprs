@@ -282,7 +282,6 @@ describe("App: the first-run guide", () => {
         (part) => wrapper.find(`#setup-radio-3-${part}`).exists() || wrapper.find(`#set-radio-3-${part}`).exists(),
       ),
     ).toEqual([]);
-    expect(wrapper.find("#set-station-main_radio").exists()).toBe(false);
     expect(wrapper.find(".toast").exists()).toBe(false);
     await wrapper.find(".setup-close").trigger("click");
     const beaconNow = wrapper.findAll<HTMLButtonElement>("#pane-beacon button").find((button) => button.text() === "Beacon now");

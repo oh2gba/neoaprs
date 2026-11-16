@@ -60,16 +60,15 @@ async def test_a_flat_key_of_a_radio_is_refused_with_the_radios_own_key_and_noth
     assert settings["station/comment"] == "both" and not set(FLAT) & set(settings) and own[(FM_ID, "baud")] == "4800", "the station's row in the settings, the radio's in its own"
 
 
-def test_the_refusal_of_a_flat_key_names_the_main_radio_of_its_kind_and_no_radio_the_station_has_not() -> None:
-    def said(key: str, *radios: RadioSpec, main: int | None = None) -> str:
-        error = flat_refusal(key, replace(DEFAULTS, radios=radios, main_choice=main))
+def test_the_refusal_of_a_flat_key_names_the_live_radio_of_its_kind_with_the_lowest_id_and_no_radio_the_station_has_not() -> None:
+    def said(key: str, *radios: RadioSpec) -> str:
+        error = flat_refusal(key, replace(DEFAULTS, radios=radios))
         assert error is not None and error.code == "setting.unknown"
         return str(error)
 
-    fm3, fm5, hf4 = RadioSpec(3, "fm", "kiss", "", True, 1), RadioSpec(5, "fm", "kiss", "", True, 2), RadioSpec(4, "hf", "mercury", "", True, 3)
+    fm3, fm5, hf4 = RadioSpec(3, "fm", "kiss", "", True, 2), RadioSpec(5, "fm", "kiss", "", True, 1), RadioSpec(4, "hf", "mercury", "", True, 3)
     assert said("serial/port") == "serial/port: no such setting: it is radio/<id>/port now", "a station with no FM radio: no id to name"
-    assert said("serial/port", fm3, fm5, hf4) == "serial/port: no such setting: it is radio/3/port now", "the first FM radio, the station having no radio 1"
-    assert said("serial/port", fm3, fm5, hf4, main=5) == "serial/port: no such setting: it is radio/5/port now", "the main radio where it is of the kind"
+    assert said("serial/port", fm3, fm5, hf4) == "serial/port: no such setting: it is radio/3/port now", "the FM radio with the lowest id, the station having no radio 1, whatever the order of the boxes"
     assert said("mercury/keying", fm3, hf4) == "mercury/keying: no such setting: it is radio/4/keying now"
     assert said("hf/enabled", fm3) == "hf/enabled: no such setting: it is radio_change's enabled now"
     assert flat_refusal("station/call", DEFAULTS) is None and flat_refusal("radio/1/port", DEFAULTS) is None

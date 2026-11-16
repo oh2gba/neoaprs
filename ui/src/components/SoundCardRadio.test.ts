@@ -45,7 +45,7 @@ function make(unavailable: string[] = []) {
     config: { ...config, radio_values: { ...config.radio_values, ...OWN }, radio_defaults: { ...config.radio_defaults, ...OWN } },
     radios: radios(),
     ports,
-    status: status({ main_radio: 1, unavailable_types: unavailable }),
+    status: status({ unheard_radio: 1, unavailable_types: unavailable }),
   });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
   const box = () => {
@@ -138,7 +138,7 @@ describe("a Sound card radio's box", () => {
       radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "direwolf", { name: "Attic", number: 2, modem: soundCardModem() })),
       ports: hfAnswer,
       portsByRadio: new Map([[2, hfAnswer]]),
-      status: status({ main_radio: 1 }),
+      status: status({ unheard_radio: 1 }),
     });
     const sets = () => daemon.send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
     const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });

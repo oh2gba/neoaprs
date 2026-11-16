@@ -334,8 +334,8 @@ export function skedsState(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}
   };
 }
 
-/** An object of ours: a live object "LEADER" sent twice, the next one in 3 minutes. Its `radios` are those of its `radio` with both radios on; a test with a radio off gives them (the daemon sends the radios on, else the
- * main radio). */
+/** An object of ours: a live object "LEADER" sent twice, the next one in 3 minutes. Its `radios` are those of its `radio` with both radios on; a test with a radio off gives them (the daemon sends those on, none while
+ * none of them is). */
 export function ownObject(name: string, extra: Partial<OwnObjectRow> = {}): OwnObjectRow {
   return {
     name,
@@ -369,6 +369,7 @@ export function ownBulletin(slot: string, extra: Partial<OwnBulletinRow> = {}): 
     kind: "bulletin",
     text: `ours in ${slot}`,
     posted_at: ago(600),
+    radios: [1],
     sent: 2,
     last_sent_at: ago(60),
     next_at: new Date(NOW + 18 * 60_000).toISOString(),
@@ -460,8 +461,8 @@ export function igateState(extra: Partial<IgateState> = {}): IgateState {
 }
 
 /** The topic `qru`: a request for INFO 20 s ago, and the server DF8LS-10 that answered it with two groups and has sent the closing line of one (five objects, all of which arrived); a test gives what it cares about. */
-/** A request for local info that went on the FM radio. */
-export const qruAsked = (text: string, at: string, radio: number | null = 1): QruAsked => ({ text, at, radio });
+/** A request for local info that went on the FM radio, or on the radios given. */
+export const qruAsked = (text: string, at: string, ...radios: number[]): QruAsked => ({ text, at, radios: radios.length > 0 ? radios : [1] });
 
 export function qruState(extra: Partial<QruState> = {}): QruState {
   return {
@@ -483,6 +484,7 @@ export function qruState(extra: Partial<QruState> = {}): QruState {
         request: "RP70 150",
         received: ["RPKUM", "RPOTA", "RPTAP", "RPVAN", "RPESP"],
         settles_at: ago(-22),
+        radio: 1,
       },
     ],
     ...extra,
@@ -561,7 +563,7 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
   };
 }
 
-/** The radios' own settings as the daemon tells them (`radio_values`): radio 1's, an FM radio's (radiosOf), and no main radio chosen. */
+/** The radios' own settings as the daemon tells them (`radio_values`): radio 1's, an FM radio's (radiosOf), and the station's (`RADIO_STATION_KEYS`) unset. */
 function radioValuesOf(): Record<string, string> {
   return {
     "radio/1/port": "",
@@ -606,7 +608,7 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
     detail: null,
     world: null,
     later: false,
-    aloha_km: null,
+    aloha: [],
     ...extra,
   };
 }
@@ -641,9 +643,11 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
     beacon_interval_min: 0,
     beacon_last_sent: null,
     beacon_next_due: null,
-    main_radio: 1,
+    unheard_radio: 1,
     email_radio: 1,
     unavailable_types: [],
+    new_object_radios: [1],
+    new_bulletin_radios: [1],
     station_status: "",
     station_status_last_sent: null,
     rig_state: "unused",
@@ -751,7 +755,14 @@ export function radioRow(id: number, type: string, extra: Partial<RadioRow> = {}
     limits: { ...known.limits },
     allowed: { ...known.allowed },
     can: { ...known.can },
-    choices: { beacon: true, status: false, path: known.allowed.paths ? "" : null, digipeat: known.allowed.digipeat ? false : null },
+    choices: {
+      beacon: true,
+      status: false,
+      ask: false,
+      local_info: false,
+      path: known.allowed.paths ? "" : null,
+      digipeat: known.allowed.digipeat ? false : null,
+    },
     beacon: { last_sent: null, next_due: null, interval_min: 30, problem: null },
     status: { last_sent: null, next_due: null, interval_min: 0 },
     modem: type === "direwolf" ? soundCardModem() : known.kind === "hf" && !type.startsWith("dummy") ? modemState() : null,

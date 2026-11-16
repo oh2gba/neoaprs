@@ -1,7 +1,7 @@
 """Two radios in one station (the registry, neoaprs/radioregistry.py, which every service that sends or answers takes), in a world of three daemons on the suite's two airs (tests/support/mercuryworld.py: the fake Mercury's HF air and an FM air): OH2A has both radios, OH2B the FM
 radio alone, OH2C the HF radio alone. A beacon of OH2A goes out on both radios and each neighbour hears it on its own; a station is tagged with the radio it was heard on; a message of OH2A goes to OH2B on FM
 and to OH2C over HF, and each ack comes back on the radio the message came on; a message to a station heard on both radios goes on FM; with the HF radio off nothing of this is there. The tests of what a radio
-does on its own (the frame cap, the hold, the paths) are tests/test_mercury_world.py; the choice is what is tested here: the registry's (`ctl.radios`: the enabled radios, the main radio, the radio of a station; `lines_on`, `line_to`)."""
+does on its own (the frame cap, the hold, the paths) are tests/test_mercury_world.py; the choice is what is tested here: the registry's (`ctl.radios`: the enabled radios, the radio of a call no radio heard, the radio of a station; `lines_on`, `line_to`)."""
 from dataclasses import replace
 from pathlib import Path
 
@@ -75,7 +75,7 @@ async def test_a_message_goes_out_on_the_radio_the_station_was_heard_on_and_the_
     a, b, c = w["OH2A"], w["OH2B"], w["OH2C"]
     assert b.beacon.send_now() and c.beacon_2.send_now()
     await w.until(lambda: heard_on(a, "OH2B") == (1, 0) and heard_on(a, "OH2C") == (0, 1))
-    assert line_to(a, "OH2B") is a.tnc and line_to(a, "OH2C") is a.hf and line_to(a, "OH2Z") is a.tnc, "a station never heard goes on the main radio"
+    assert line_to(a, "OH2B") is a.tnc and line_to(a, "OH2C") is a.hf and line_to(a, "OH2Z") is a.tnc, "a station never heard goes on the first box that can send"
     await a.ctl.messaging.send("OH2B", "on FM, near")
     await a.ctl.messaging.send("OH2C", "over HF, far")
     await w.until(lambda: {r.state for r in a.ctl.messaging.records() if r.direction == "out"} == {"acked"}, 15.0)
@@ -109,7 +109,7 @@ async def test_with_the_hf_radio_off_every_choice_falls_to_the_fm_radio_and_the_
     try:
         radios = e.ctl.radios
         assert e.ctl.config.fm_enabled and not e.ctl.config.hf_enabled
-        main, hf = radios.main, radios.get(HF_ID)
+        main, hf = next(iter(radios.senders()), None), radios.get(HF_ID)
         assert main is not None and main.id == FM_ID and main.line is e.tnc and line_to(e, "OH2X") is e.tnc and lines_on(e) == [e.tnc] and radios.email() is main
         if set_up:
             assert hf is not None and not hf.spec.enabled and hf.line is e.hf, "the HF radio is there, off, and is never chosen"

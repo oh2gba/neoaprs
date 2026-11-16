@@ -11,9 +11,10 @@
   flex: none;
   white-space: nowrap;
 }
-/* the tag of the radio email goes on, where radios are named, beside Check email */
+/* the radio email goes on, chosen beside Check email while several radios that can send are on: as wide as its longest name, whichever is chosen */
 .mail-radio {
   flex: none;
+  max-width: 100%;
 }
 .mail-address {
   position: relative;

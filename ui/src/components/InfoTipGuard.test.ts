@@ -51,7 +51,7 @@ function objectsForm(rows = [ownObject("LEADER")]) {
     show: vi.fn(),
     tab: ref("objects"),
   } as unknown as Panel);
-  return mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" } });
+  return mount(ObjectForm, { props: { form: view } });
 }
 
 /** The tab with these settings; a radio's own (`radio/1/tcp_host`) makes radio 1 a TNC over TCP, whose box shows those fields. */

@@ -16,7 +16,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | [`start.md`](start.md) | the first start, the setup guide, after an update, the data folder, how settings apply, trying it without a radio |
 | [`page.md`](page.md) | the page: the tabs, the Stations table and its menu, [the Nearby tab](page.md#nearby), the Packets tab, the Settings tab, the map (the range circle, Follow my position), the station cards you can move, the header, the language, a phone, a tablet and a desktop, the base map |
 | [`desktop.md`](desktop.md) | the desktop app: a window and a tray icon |
-| [`radio.md`](radio.md) | the radios: adding, naming and removing them, the main radio, what each radio does; each type (a sound card, a TNC on a serial port, your own Direwolf or soundmodem, the Mercury modem, a LoRa APRS board, a Yaesu FTM that only receives, the Dummy radios); the port, finding the radio, the TNC types, the keep-alive and a silent radio |
+| [`radio.md`](radio.md) | the radios: adding, naming and removing them, what goes on which radio, what each radio does; each type (a sound card, a TNC on a serial port, your own Direwolf or soundmodem, the Mercury modem, a LoRa APRS board, a Yaesu FTM that only receives, the Dummy radios); the port, finding the radio, the TNC types, the keep-alive and a silent radio |
 | [`beacon.md`](beacon.md) | the My station tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, the beacon on several radios (Send on), RX only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater |
 | [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, the radio of a message and Route, encrypted messages, deleting |
 | [`igate.md`](igate.md) | stations from the internet on the map: the tickbox, the radius, the server, and advanced use as an iGate |
@@ -36,7 +36,7 @@ The radios and how to connect each (and a GPS receiver for a moving station) are
 ## Words
 
 - A **setting** is a row of the database that you change on the page or with `neoaprs db set`.
-- A **radio** is what you transmit with, and the station may have several, each a box in Settings → Radio with a name; the **main radio** carries what is addressed to no station. The **TNC** is the box that turns a packet into sound or the other way, built into some radios; the **rig** is a radio that a program such as Hamlib's rigctld can read the frequency of.
+- A **radio** is what you transmit with, and the station may have several, each a box in Settings → Radio with a name; each thing the station sends has its own radios. The **TNC** is the box that turns a packet into sound or the other way, built into some radios; the **rig** is a radio that a program such as Hamlib's rigctld can read the frequency of.
 - A **path** is the list of digipeaters a packet asks to be repeated by. The **route** is what a received packet actually went by, and the **chain** is the same for a message of yours, hop by hop.
 - The **timeout** of a station is how long it stays on the map after its last position: 1, 3, 6, 12 or 24 hours as you choose in the Stations tab (3 by default), the same for every station.
 - The **email gateway** is the APRS-IS station `EMAIL-2`.

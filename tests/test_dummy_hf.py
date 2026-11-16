@@ -160,7 +160,7 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     assert e.hf.is_dummy and e.hf.rtype.kind == "hf" and e.hf.rtype.transport == "dummy" and not e.hf.rtype.can.tune, "the Dummy Mercury radio: no Mercury of its own to tune"
     radio = e.ctl.radios.get(HF_ID)
     assert radio is not None and radio.rtype.dummy and radio.rtype.driver == "mercury" and driver_key(radio.spec) == radio.driver_key == "mercury" and isinstance(radio.driver, MercuryDriver), "the modem's driver runs it: the program is its speaker"
-    assert radio.line is e.hf and radio.driver.modem is e.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.main is radio and (radio.name, radio.max_frame) == ("Mercury", 123)
+    assert radio.line is e.hf and radio.driver.modem is e.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.senders() == [radio] and (radio.name, radio.max_frame) == ("Mercury", 123)
     speaking = hasattr(os, "mkfifo")
     if speaking:
         assert e.mercury.speaker and e.mercury.state in ("starting", "running") and e.mercury.keying.kind == "vox" and e.mercury.sound_card == ""

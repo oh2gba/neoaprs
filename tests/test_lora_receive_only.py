@@ -1,5 +1,5 @@
 """A radio of a type that only receives (`lora-console`, the CA2RXU iGate's log on USB; radiotype `Can.transmit` false) sends NOTHING, whatever is asked of it: the beacon, Beacon now, a message to a
-station heard only on it, its ack, an object on it, the main radio, the email radio, a station's own radio leave it out (radiospec.senders), a query heard on it alone is not answered, Local info and a general
+station heard only on it, its ack, an object on it, the radio of a call no radio heard, the email radio, a station's own radio leave it out (radiospec.senders), a query heard on it alone is not answered, Local info and a general
 query named on it are refused with `radio.receive_only` and its id, its line refuses a frame with its reason and never reports one as sent, and not one byte leaves on its line; while it hears every packet the
 board logs, with its signal. With the FM radio off as well, the station sends nothing at all: RX only (`transmit.off`)."""
 import socket
@@ -63,13 +63,13 @@ async def test_a_radio_that_only_receives_hears_everything_and_sends_nothing_wha
         assert not answerable(e.ctl.radios, packet), "a query heard on it alone is not answered: the copy a radio that sends hears is"
         assert getattr(ack_radio(e.ctl.radios, packet, "OH2ABC-7"), "id", None) == 1, "the ack of a message heard on it goes on a radio that sends"
         assert getattr(e.ctl.radios.email(), "id", None) in (1, None) and [s.id for s in senders(e.ctl.config.radios)] == [1]
-        await page.send({"cmd": "set_config", "values": {"station/main_radio": str(id)}})
-        await page.until(lambda: page.topics["config"]["radio_values"]["station/main_radio"] == str(id))
-        assert getattr(e.ctl.radios.main, "id", None) == 1, "chosen as the main radio, it is none: the main radio sends"
-        assert [r.id for r in e.ctl.sender.radios_for([id])] == [1], "an object set on it alone goes on the main radio"
-        for command in ({"cmd": "qru_ask", "text": "INFO", "radio": id}, {"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True, "radio": id}):
-            error = await refused(page, command)
-            assert (error["code"], error["params"]) == ("radio.receive_only", {"name": "LoRa", "radio": id}), command
+        await page.send({"cmd": "set_config", "values": {"email/radio": str(id)}})
+        await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(id))
+        assert getattr(e.ctl.radios.email(), "id", None) == 1, "chosen for email, it is none: the one radio that sends carries the mail"
+        assert [r.id for r in e.ctl.sender.radios_for([id])] == [1], "an object set on it alone goes on the one radio that sends"
+        error = await refused(page, {"cmd": "qru_ask", "text": "INFO", "radio": id})
+        assert (error["code"], error["params"]) == ("radio.receive_only", {"name": "LoRa", "radio": id})
+        assert page.topics["radios"][str(id)]["choices"]["ask"] is False and page.topics["radios"][str(id)]["choices"]["local_info"] is False, "a radio that only receives is in no Send on"
 
         # its line: refused with its reason, never reported as sent
         frame = frame_of(f"{ME}>APZNEO,WIDE1-1:>tried".encode())
@@ -80,7 +80,7 @@ async def test_a_radio_that_only_receives_hears_everything_and_sends_nothing_wha
         # the FM radio off too: nothing anywhere
         await page.send({"cmd": "radio_change", "radio": 1, "enabled": False})
         await page.until(lambda: not page.topics["radios"]["1"]["enabled"])
-        assert e.ctl.radios.main is None and e.ctl.radios.beaconing() == [] and e.ctl.radios.for_station("OH2ABC-7") is None and e.ctl.radios.email() is None
+        assert e.ctl.radios.senders() == [] and e.ctl.radios.beaconing() == [] and e.ctl.radios.for_station("OH2ABC-7") is None and e.ctl.radios.email() is None
         error = await refused(page, {"cmd": "qru_ask", "text": "INFO"})
         assert error["code"] == "transmit.off", "every radio that is on only receives: RX only"
         board.air(HEARD.replace(b"tracker", b"still heard"))

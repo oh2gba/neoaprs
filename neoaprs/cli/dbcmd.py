@@ -139,12 +139,12 @@ def moved(key: str, config: Config = DEFAULTS) -> str:
     """For a key of before of a radio's setting (`serial/port`, `hf/enabled`), which is no setting of the command line, the sentence that names where it is now with the radios of `config`: the page's
     (configradios.flat_moved) for a radio's own key, and for its type and Enable, which only the page changes, the radio's by its number (`flat_now`); "" for any other key."""
     setting = BY_KEY.get(key)
-    found = None if setting is None else flat_moved(setting.attr, config.radios, config.main_radio)
+    found = None if setting is None else flat_moved(setting.attr, config.radios)
     if setting is None or found is None:
         return ""
     id, field = FLAT_HOMES[setting.attr]
     if field in ("type", "enabled"):
-        radio = flat_now(setting.attr, config.radios, config.main_radio)
+        radio = flat_now(setting.attr, config.radios)
         whose = f"the {KIND_WORDS[FLAT_KINDS[id]]} radio's" if radio is None else f"radio {radio.id}'s"
         return f"{key}: no such setting: it is {whose} {'Enable' if field == 'enabled' else 'type'} (Settings tab, Radio) now"
     return f"{key}: {found}"

@@ -80,9 +80,9 @@ class LineAir:
 
 class StubPick:
     """The station's radios as the services take them (services/radioset.py RadioPick), each a LineAir, the registry's choices by rule: a radio is given while its id is in `on` (all of them by default);
-    the main radio the first of those; a station in `chosen` goes on the radio chosen for it while that is on (the operator's choice), one named in `hf_stations` on radio 2 while it and another are on
-    (today's choice by station), any other on the main radio; a packet is answered on the radio it came on while that is on, else on the main one; email goes on radio 1 while it is on. `lines[id]` is the
-    stub line of each radio."""
+    the radio of a call no radio heard the first of those; a station in `chosen` goes on the radio chosen for it while that is on (the operator's choice), one named in `hf_stations` on radio 2 while it and another are on
+    (today's choice by station), any other on the first; a packet is answered on the radio it came on while that is on, else on none (one a test made without a radio: on the first); email goes on
+    the one radio that is on, else on the one the settings choose (`email/radio`) while it is on, else on radio 1 while it is on, else on the first. `lines[id]` is the stub line of each radio."""
 
     def __init__(self, radios: list[LineAir], hf_stations: tuple[str, ...] = (), chosen: dict[str, RadioId] | None = None) -> None:
         self.radios, self.hf_stations = radios, hf_stations
@@ -117,11 +117,14 @@ class StubPick:
         return hf if hf is not None and len(self.enabled()) > 1 and call in self.hf_stations else self.main
 
     def for_packet(self, packet: Packet) -> LineAir | None:
-        came = self.get(packet.radio_id) if packet.radio_id is not None else None
-        return came or self.main
+        return self.main if packet.radio_id is None else self.get(packet.radio_id)
 
     def email(self) -> LineAir | None:
-        return self.get(FM_ID)
+        on = self.enabled()
+        if len(on) == 1:
+            return on[0]
+        chosen = self.radios[0]._config().email_choice if self.radios else None
+        return (None if chosen is None else self.get(chosen)) or self.get(FM_ID) or self.main
 
 
 def with_hf(rig: ServiceRig, pick: StubPick) -> StubTnc:

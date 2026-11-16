@@ -92,7 +92,7 @@ describe("the path builder of each path field", () => {
 
   it("of an object puts the path built into the form", async () => {
     const view = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-    const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" }, attachTo: document.body, global: withDaemon(fakeDaemon()) });
+    const wrapper = mount(ObjectForm, { props: { form: view }, attachTo: document.body, global: withDaemon(fakeDaemon()) });
     const opener = wrapper.findAll("button.pathbuild-open");
     expect(opener).toHaveLength(1);
     await opener[0]?.trigger("click");

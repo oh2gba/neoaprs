@@ -1,10 +1,11 @@
 """The radios of the settings as the operator changes them (plan §2): what the controller's `add_radio`, `change_radio`, `remove_radio` and `save_radio_settings` check before anything is stored (each
 refusal a `RadioError` of neoaprs/radiospec.py naming the radio, uncoded until the wire names a radio; a type that is none a `RadioTypeError`), the radios of the settings with one of them changed, and what a
-save of the settings writes of the radios (`radio_writes`), and what the start's log says of them (`start_notes`). A new installation has no radio: the operator adds the first (the setup guide, the Radio group, `neoaprs db radios add`), and the database
+save of the settings writes of the radios (`radio_writes`) and keeps in force (`kept_change`, neoaprs/sendonrule.py), and what the start's log says of them (`start_notes`). A new installation has no radio: the operator adds the first (the setup guide, the Radio group, `neoaprs db radios add`), and the database
 gives each radio its id. No I/O."""
 import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import replace
+from datetime import datetime
 
 from .config import Config
 from .radiodriver import RunOverrides
@@ -13,6 +14,7 @@ from .radiosql import CHANGEABLE
 from .radioregistry import unavailable_types
 from .radiotypes import BY_KEY, type_of
 from .radiotype import RadioTypeError
+from .sendonrule import Kept, kept_in_force
 from .store import RadioWrite
 
 
@@ -67,6 +69,32 @@ def refusal(before: Iterable[RadioSpec], after: Iterable[RadioSpec]) -> str | No
 
 # ---- the checks of the operator's changes
 MAX_POSITION = 2**31 - 1        # the last place a radio may be given: the next radio added (one place after the last) still fits the database's integer
+
+
+def kept_change(before: Config, after: Config, objects: Mapping[str, tuple[RadioId, ...]], bulletins: Mapping[str, tuple[RadioId, ...]]) -> tuple[Config, Kept]:
+    """What the change of the radios from `before` to `after` keeps in force (sendonrule.kept_in_force: a radio that comes on never stops anything), and `after` with its ticks and its e-mail radio put in;
+    a save that sets the e-mail radio itself keeps its own."""
+    kept = kept_in_force(before.radios, after.radios, objects, bulletins, before.email_choice)
+    if after.email_choice != before.email_choice:
+        kept = replace(kept, email=None)
+    return with_kept(after, kept), kept
+
+
+def with_kept(config: Config, kept: Kept) -> Config:
+    """The settings with the ticks and the e-mail radio of `kept` put in (the same settings where it has neither)."""
+    if not kept.ticks and kept.email is None:
+        return config
+    ticks: dict[RadioId, dict[str, str]] = {}
+    for id, key in kept.ticks:
+        ticks.setdefault(id, {})[key] = "true"
+    radios = tuple(replace(spec, settings={**spec.settings, **ticks[spec.id]}) if spec.id in ticks else spec for spec in config.radios)
+    return replace(config, radios=radios, email_choice=config.email_choice if kept.email is None else kept.email)
+
+
+def removed(config: Config, spec: RadioSpec, at: datetime) -> Config:
+    """The settings with this radio removed at `at`, and the e-mail radio none where it was this one, as the removal's transaction left them (radiosql.remove_radio). A radio that leaves never stops
+    anything else that is in force (sendonrule.kept_in_force keeps nothing for it)."""
+    return put(replace(config, email_choice=None) if config.email_choice == spec.id else config, replace(spec, removed_at=at))
 
 
 def put(config: Config, spec: RadioSpec) -> Config:

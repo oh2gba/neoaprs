@@ -245,13 +245,12 @@ describe("the radios of the Beacon group", () => {
   const hf = (id: number, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, "mercury", extra));
   const off = (radio: PageRadio, beacon = false) => pageRadio({ ...radio.row, choices: { ...radio.row.choices, beacon } });
 
-  it("send the beacon on the one radio that is on whatever its Send on says, else on the radios ticked, and on the main radio when none is", () => {
-    expect(beaconRadios([off(hf(2))], null).map((r) => r.id)).toEqual([2]);
-    expect(beaconRadios([fm(1), hf(2), fm(3)], fm(1)).map((r) => r.id)).toEqual([1, 2, 3]);
-    expect(beaconRadios([fm(1), off(hf(2)), fm(3)], fm(1)).map((r) => r.id)).toEqual([1, 3]);
-    expect(beaconRadios([off(fm(1)), off(hf(2))], hf(2)).map((r) => r.id)).toEqual([2]);
-    expect(beaconRadios([off(fm(1)), off(hf(2))], null)).toEqual([]);
-    expect(beaconRadios([], null)).toEqual([]);
+  it("send the beacon on the one radio that is on whatever its Send on says, else on the radios ticked, and nowhere when none is", () => {
+    expect(beaconRadios([off(hf(2))]).map((r) => r.id)).toEqual([2]);
+    expect(beaconRadios([fm(1), hf(2), fm(3)]).map((r) => r.id)).toEqual([1, 2, 3]);
+    expect(beaconRadios([fm(1), off(hf(2)), fm(3)]).map((r) => r.id)).toEqual([1, 3]);
+    expect(beaconRadios([off(fm(1)), off(hf(2))])).toEqual([]);
+    expect(beaconRadios([])).toEqual([]);
   });
 
   it("say which of them is not connected, a line for each, and nothing while one is", () => {
@@ -264,44 +263,42 @@ describe("the radios of the Beacon group", () => {
   it("have a tick of Send on for each radio that is on, the last one ticked greyed", () => {
     const radios = [fm(1), hf(2), fm(3, { name: "Mobile12" })];
     const on = new Set(["radio/1/beacon", "radio/3/beacon"]);
-    expect(sendOnTicks(radios, (key) => on.has(key), radios[0] ?? null)).toEqual([
-      { id: 1, key: "radio/1/beacon", name: "FM", on: true, last: false, held: false },
-      { id: 2, key: "radio/2/beacon", name: "Mercury", on: false, last: false, held: false },
-      { id: 3, key: "radio/3/beacon", name: "Mobile12", on: true, last: false, held: false },
+    expect(sendOnTicks(radios, (key) => on.has(key))).toEqual([
+      { id: 1, key: "radio/1/beacon", name: "FM", on: true, last: false },
+      { id: 2, key: "radio/2/beacon", name: "Mercury", on: false, last: false },
+      { id: 3, key: "radio/3/beacon", name: "Mobile12", on: true, last: false },
     ]);
     on.delete("radio/1/beacon");
-    expect(sendOnTicks(radios, (key) => on.has(key), radios[0] ?? null).map((tick) => [tick.on, tick.last, tick.held])).toEqual([
-      [false, false, false],
-      [false, false, false],
-      [true, true, false],
+    expect(sendOnTicks(radios, (key) => on.has(key)).map((tick) => [tick.on, tick.last])).toEqual([
+      [false, false],
+      [false, false],
+      [true, true],
     ]);
-    expect(sendOnTicks(radios, (_key, radio) => radio.row.choices.beacon, radios[0] ?? null).every((tick) => tick.on && !tick.last)).toBe(true);
+    expect(sendOnTicks(radios, (_key, radio) => radio.row.choices.beacon).every((tick) => tick.on && !tick.last)).toBe(true);
   });
 
-  it("show the main radio's tick ticked and greyed while none is ticked, for the beacon goes out on it (plan rule 3.1: a beacon with every radio unticked cannot happen)", () => {
+  it("show no tick ticked and none greyed while none is ticked (the radios it was ticked for are off): every tick is free", () => {
     const radios = [hf(2), fm(3, { name: "Mobile12" })];
-    expect(sendOnTicks(radios, () => false, radios[0] ?? null).map((tick) => [tick.id, tick.on, tick.last, tick.held])).toEqual([
-      [2, true, true, true],
-      [3, false, false, false],
+    expect(sendOnTicks(radios, () => false).map((tick) => [tick.id, tick.on, tick.last])).toEqual([
+      [2, false, false],
+      [3, false, false],
     ]);
-    expect(sendOnTicks(radios, () => false, null).some((tick) => tick.on || tick.last)).toBe(false);
   });
 
-  it("send the status on the one radio that is on whatever its tick says, else on the radios ticked, and on the main radio until one is", () => {
+  it("send the status on the one radio that is on whatever its tick says, else on the radios ticked, and nowhere while none is", () => {
     const status = (radio: PageRadio, on = true) => pageRadio({ ...radio.row, choices: { ...radio.row.choices, status: on } });
-    expect(statusRadios([hf(2)], null).map((r) => r.id)).toEqual([2]);
-    expect(statusRadios([fm(1), hf(2), fm(3)], fm(1)).map((r) => r.id)).toEqual([1]);
-    expect(statusRadios([fm(1), hf(2), fm(3)], hf(2)).map((r) => r.id)).toEqual([2]);
-    expect(statusRadios([fm(1), status(hf(2)), status(fm(3))], fm(1)).map((r) => r.id)).toEqual([2, 3]);
-    expect(statusRadios([fm(1), hf(2)], null)).toEqual([]);
-    expect(statusRadios([], null)).toEqual([]);
+    expect(statusRadios([hf(2)]).map((r) => r.id)).toEqual([2]);
+    expect(statusRadios([fm(1), hf(2), fm(3)])).toEqual([]);
+    expect(statusRadios([status(fm(1)), hf(2), fm(3)]).map((r) => r.id)).toEqual([1]);
+    expect(statusRadios([fm(1), status(hf(2)), status(fm(3))]).map((r) => r.id)).toEqual([2, 3]);
+    expect(statusRadios([])).toEqual([]);
   });
 
-  it("have the status's ticks of its own field, in the beacon's pattern", () => {
+  it("have the status's ticks of its own field, in the beacon's pattern, unticked by default", () => {
     const radios = [fm(1), hf(2)];
-    expect(sendOnTicks(radios, (_key, radio) => radio.row.choices.status, radios[0] ?? null, "status")).toEqual([
-      { id: 1, key: "radio/1/status", name: "FM", on: true, last: true, held: true },
-      { id: 2, key: "radio/2/status", name: "Mercury", on: false, last: false, held: false },
+    expect(sendOnTicks(radios, (_key, radio) => radio.row.choices.status, "status")).toEqual([
+      { id: 1, key: "radio/1/status", name: "FM", on: false, last: false },
+      { id: 2, key: "radio/2/status", name: "Mercury", on: false, last: false },
     ]);
   });
 

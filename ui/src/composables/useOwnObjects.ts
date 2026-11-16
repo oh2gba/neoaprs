@@ -1,5 +1,5 @@
 // The Objects tab as the page runs it: the form under the list, always there, which adds a new object (nothing selected, no place until one is picked) or changes the one that is selected (`editing`: a click on its row, or Edit on its card), the draft as it is typed,
-// the radios it goes out on (Send on: the main radio for a new one), the place on the map that the form asks for (`placing`: a click on the map is the place, which `pin` shows meanwhile while the Objects tab is in front), and the commands that make, move and kill an object. The daemon holds the objects (the topic `own_objects`);
+// the radios it goes out on (Send on: a new one as the object saved last), the place on the map that the form asks for (`placing`: a click on the map is the place, which `pin` shows meanwhile while the Objects tab is in front), and the commands that make, move and kill an object. The daemon holds the objects (the topic `own_objects`);
 // the page only sends what the user did. The form keeps what was typed until the daemon has the object as it was saved (the topic tells it, and the form is blank again): an error of the daemon leaves it for the user to correct. `cancel` (Esc, the Cancel button)
 // leaves the selection and clears the form. The map moves only for a place the user picks or an object that is selected, never for a blank form. A change from a card opens the Objects tab, wherever it is asked for.
 import { computed, reactive, ref, watch } from "vue";
@@ -58,9 +58,10 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (co
     placing.value = false;
   }
 
-  /** Sends the object as the form has it; a new one with no radio ticked goes on the main radio (`main`, which the form knows). The form is blank when the daemon has the object so (at once for one that is there already as the form has it). */
-  function save(main: RadioId | null = null): void {
-    const command = objectCommand(draft, main);
+  /** Sends the object as the form has it; a new one with no radio ticked goes on those a new object starts with (`start`, the daemon's `status.new_object_radios`, which the form knows). The form is blank when the
+   * daemon has the object so (at once for one that is there already as the form has it). */
+  function save(start: readonly RadioId[] = []): void {
+    const command = objectCommand(draft, start);
     if (command === null) return;
     const there = rows.get(command.name);
     if (there !== undefined && isObjectOf(there, command)) cancel();

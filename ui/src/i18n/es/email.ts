@@ -25,8 +25,6 @@ export const email: Readonly<Record<keyof typeof en, Message>> = {
   "email.used_before": "Usadas antes",
   "email.forget": "Olvidar {address}",
   "email.send": "Enviar",
-  "email.no_gated_radio": "No hay activada ninguna radio que oigan las pasarelas de internet",
-  "email.radio_title": "El correo sale por la radio {name}",
 
   "email.state.waiting": "Esperando a la radio",
   "email.state.sending": "Enviando ({attempt} de {max})",

@@ -44,6 +44,7 @@ const {
   choices,
   choice,
   auto,
+  fixed,
   pathShown,
   pathless,
   setPath,
@@ -150,6 +151,7 @@ function onEsc(event: KeyboardEvent): void {
               :radios="choices"
               :choice="choice"
               :auto="auto"
+              :fixed="fixed"
               :path-shown="pathShown"
               :pathless="pathless"
               @path="setPath"
