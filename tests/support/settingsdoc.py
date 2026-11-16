@@ -153,6 +153,7 @@ def fixed() -> str:
 
 RADIO_STATE_WORDS = {           # a radio's own state rows, `radio/<id>/<name>` (config.RADIO_STATE)
     "beacon_last_sent_at": "when the radio's beacon last went out, so that a restart waits out the rest of the interval",
+    "status_last_sent_at": "when the status report last went out on the radio, so that a restart waits out the rest of its interval there",
     "last_port": "the port radio 1's search found (only radio 1 remembers one), which `serial/last_port` reads",
 }
 STATE_WORDS = {
@@ -179,6 +180,7 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "tcp_host": ("Settings tab, TNC", "where a `kiss-tcp` radio connects while its port is empty; a `lora-tcp` radio's is empty until the board's address is typed, and nothing is opened meanwhile"),
     "tcp_port": ("Settings tab, TNC", "the KISS port there ({tcp_port}): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100"),
     "beacon": (DB_ONLY, "`true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says"),
+    "status": ("My station tab, Status (Send on)", "`true`: the status report goes out on this radio. While no radio that is on is ticked (the default), it goes out on the main radio; with one radio that can send, on that one whatever this says"),
     "path": ("My station tab, Beacon, Advanced", "the digipeaters of the beacon on this radio: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path of your station's type, which the symbol decides: `WIDE1-1,WIDE2-1` for a mobile symbol (a car, a bike, a boat, an aircraft ...), `WIDE2-2` for any other; on a LoRa radio it is `WIDE1-1`, the path of the LoRa networks. `DIRECT` is no digipeaters at all. Only a type that may carry a path has it"),
     "digipeat": ("Settings tab, Digipeater", "`true`: this radio repeats a packet that asks for `WIDE1-1`, or for our call: the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater))"),
     "sound_card": ("Settings tab, Radio (Sound card)", "the sound card of the radio's modem (the Mercury HF modem, Direwolf), as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows); one card is one radio's. The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice ([radio.md](radio.md#the-mercury-hf-modem))"),

@@ -96,7 +96,7 @@ def kept_note(key: str) -> str:
     if key == NOT_COUNTED:
         return "whether the update check sends the number 0, so that this run is not counted (set with db set), not a setting"
     if radio_key_of(key) is not None:
-        return "kept by the daemon (a radio's own: when its beacon last sent, the port its search found), not a setting"
+        return "kept by the daemon (a radio's own: when its beacon or its status last sent, the port its search found), not a setting"
     return "kept by the daemon (the number of this installation), not a setting" if key == INSTALL_ID else "stored, not a setting of this NeoAPRS"
 
 

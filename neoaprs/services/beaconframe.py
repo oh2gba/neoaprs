@@ -8,8 +8,8 @@ form, which every receiver reads, rounded to the hundredth of a minute and never
 height, gain and directivity of the antenna) when `beacon/power_w` is set; the comment may then be 36 characters, 43 otherwise (`Config.comment_limit`), and the frame is refused when it is longer. A moving
 station's (`gps/source` is not `off`) is the GPS fix of now on every radio, the ones with SmartBeaconing and the ones that send it by time (services/mobilebeacon.py: a compressed position without PHG); with no
 fix that is fresh (none yet, or none younger than GPS_STALE_SEC) there is no frame at all (`NoFix`), and the home position of the settings is never put in its place.
-The status report (`status`): `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`, by the same tocall and the radio's path. When it is sent is the status
-service's; the beacon sends none after itself.
+The status report (`status`): `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`, by the same tocall and the radio's path; a report longer than the radio
+carries whole is no frame for that radio (its text is never cut, as a message's is not). When it is sent is the status service's; the beacon sends none after itself.
 The position field (`position_info`): the information field of the position for a receive-only iGate, which puts it on APRS-IS: the same bytes a radio would carry, but nothing is transmitted, so the transmit
 interlock is not asked, only that the call is one.
 A frame too long for a radio with a fixed frame (the Mercury HF modem's 123 bytes) has its comment cut to fit, said once in the log for each radio and each cut; the report itself is never cut.
@@ -19,6 +19,7 @@ Until every caller gives the registry's radios (neoaprs/radioregistry.py), a rad
 import logging
 import math
 import re
+from dataclasses import replace
 from typing import Any, TypeIs, cast
 
 from neoaprs import ax25
@@ -35,6 +36,7 @@ from neoaprs.radiotypes import kind_field
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.mobilebeacon import Positions, mobile_info
 from neoaprs.services.radioset import FRAME_ERRORS, AirRadio, fit_frame, fixed_prefix, our_frame, path_on
+from neoaprs.tnc2line import text_of
 from neoaprs.source import Source
 from neoaprs.tncwatchdog import TncStats
 from neoaprs.units import FOOT_M
@@ -223,7 +225,20 @@ class BeaconFrames:
             raise BeaconError(f"the status: {problem}")
         if len(text) > MAX_STATUS:
             raise BeaconError(f"the status is {len(text)} characters, more than the {MAX_STATUS} that fit after its time")
-        return self.frame_for(radio, b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii"))
+        info = b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii")
+        if over := self._over(radio, info):
+            raise BeaconError(f"the status is longer than the radio carries ({over}): it is not cut, and not sent there")
+        return self.frame_for(radio, info)
+
+    def _over(self, radio: AirRadio, info: bytes) -> str:
+        """Why our frame with this information field is longer than the radio carries whole (Limits.too_long, with the radio's own frame cap), as a clause; "" when it fits, and for settings that make no
+        frame (frame_for says what is wrong with them)."""
+        c = self._config()
+        try:
+            frame = our_frame(c, path_on(radio, c, None), info)
+        except FRAME_ERRORS:
+            return ""
+        return replace(radio.limits, max_frame=radio.max_frame).too_long(ax25.encode(frame), text_of(frame)) or ""
 
     # ---- the frame
     def frame_for(self, radio: AirRadio, info: bytes) -> ax25.Frame:

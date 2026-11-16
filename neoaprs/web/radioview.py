@@ -33,6 +33,11 @@ class RadioBeacon(Protocol):
     def problem(self) -> str: ...
 
 
+class RadioStatus(Protocol):
+    """What the topic `radios` reads of the status report on each radio (services/rigstatus.py)."""
+    def on_radio(self, id: RadioId) -> tuple[datetime | None, datetime | None, int]: ...
+
+
 class RadioAtWork(Protocol):
     """What the topic `radios` reads of a radio at run time (radioregistry.LiveRadio): its line and its beacon."""
     @property
@@ -41,8 +46,9 @@ class RadioAtWork(Protocol):
     def beacon(self) -> RadioBeacon: ...
 
 
-def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | None, claims: Claims) -> dict[str, Any] | None:
-    """The page's row of a radio of the settings, a removed one too (`radio` is None for one the registry does not run: its line, beacon and modem say nothing); None for one of a type that is none (a row a newer program wrote)."""
+def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | None, claims: Claims, status: RadioStatus | None = None) -> dict[str, Any] | None:
+    """The page's row of a radio of the settings, a removed one too (`radio` is None for one the registry does not run: its line, beacon and modem say nothing); None for one of a type that is none (a row a newer program wrote).
+    `status` is the status report, whose times on the radio the row says (none without it)."""
     try:
         rtype = spec.rtype
     except RadioTypeError:
@@ -53,6 +59,7 @@ def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | 
         spec, enabled=spec.enabled and not spec.removed, number=number_in_kind(spec, specs), removed=spec.removed, dummy=rtype.dummy, state=radio_state(line),
         problem=radio_problem(spec, specs, line, claims), stats=TncStats.row(LineStats() if line is None else line.stats), lines=lines, limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
         allowed=plain(rtype.allowed), can=plain(rtype.can), choices=_choices(spec, rtype), beacon=_beacon(spec, None if radio is None or spec.removed else radio.beacon),
+        status=_status(spec, status),
         modem=None if line is None else modem_state(line), holds=[{"resource": c.kind, "value": c.value} for c in claims.all() if c.holder == spec.id])
 
 
@@ -68,8 +75,8 @@ def radio_state(line: Tnc | None) -> str:
 
 
 def _choices(spec: RadioSpec, rtype: RadioType) -> dict[str, Any]:
-    has = {key: rtype.field(key) is not None for key in ("beacon", "path", "digipeat")}            # (the type's fields: a text monitor has no path and does not digipeat)
-    return {"beacon": bool(spec.value("beacon")) if has["beacon"] else True, "path": str(spec.value("path")) if has["path"] else None, "digipeat": bool(spec.value("digipeat")) if has["digipeat"] else None}
+    has = {key: rtype.field(key) is not None for key in ("beacon", "status", "path", "digipeat")}            # (the type's fields: a text monitor has no path and does not digipeat, and sends no status)
+    return {"beacon": bool(spec.value("beacon")) if has["beacon"] else True, "status": bool(spec.value("status")) if has["status"] else False, "path": str(spec.value("path")) if has["path"] else None, "digipeat": bool(spec.value("digipeat")) if has["digipeat"] else None}
 
 
 def _beacon(spec: RadioSpec, beacon: RadioBeacon | None) -> dict[str, Any]:
@@ -77,6 +84,11 @@ def _beacon(spec: RadioSpec, beacon: RadioBeacon | None) -> dict[str, Any]:
         return {"last_sent": None, "next_due": None, "interval_min": 0, "problem": None}
     problem = None if not beacon.problem else _problem("transmit.off") if beacon.problem in RX_ONLY_REASONS else _problem("beacon.not_sent", reason=beacon.problem)
     return {"last_sent": iso(beacon.last_sent), "next_due": iso(beacon.next_due), "interval_min": beacon.interval_min if spec.enabled else 0, "problem": problem}
+
+
+def _status(spec: RadioSpec, status: RadioStatus | None) -> dict[str, Any]:
+    last, due, minutes = (None, None, 0) if status is None or spec.removed else status.on_radio(spec.id)
+    return {"last_sent": iso(last), "next_due": iso(due), "interval_min": minutes}
 
 
 def _problem(what: str, **params: str | int) -> dict[str, Any]:

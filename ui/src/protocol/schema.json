@@ -4737,10 +4737,14 @@
     },
     "RadioChoices": {
       "additionalProperties": false,
-      "description": "The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force.",
+      "description": "The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/status`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force.",
       "properties": {
         "beacon": {
           "description": "Send on: the beacon goes out on this radio (with one radio on, it goes on that one whatever this says)",
+          "type": "boolean"
+        },
+        "status": {
+          "description": "the status's Send on: the status report goes out on this radio; false for every radio until the operator ticks one, and while none that is on is ticked it goes on the main radio (with one radio on, on that one whatever this says); false for a radio that only receives",
           "type": "boolean"
         },
         "path": {
@@ -4768,6 +4772,7 @@
       },
       "required": [
         "beacon",
+        "status",
         "path",
         "digipeat"
       ],
@@ -5013,6 +5018,9 @@
         "beacon": {
           "$ref": "#/$defs/RadioBeaconState"
         },
+        "status": {
+          "$ref": "#/$defs/RadioStatusState"
+        },
         "modem": {
           "anyOf": [
             {
@@ -5051,6 +5059,7 @@
         "can",
         "choices",
         "beacon",
+        "status",
         "modem",
         "holds"
       ],
@@ -5157,6 +5166,50 @@
         "radio_type"
       ],
       "title": "RadioSearchMessage",
+      "type": "object"
+    },
+    "RadioStatusState": {
+      "additionalProperties": false,
+      "description": "The status report on the radio (services/rigstatus.py `on_radio`).",
+      "properties": {
+        "last_sent": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when our status report last went out on it; null before one"
+        },
+        "next_due": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the next timed report is due on it: an interval after its last; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet)"
+        },
+        "interval_min": {
+          "description": "the interval in force on it, in minutes: `status/interval_min` raised to the radio's own floor (`limits.beacon_min_min` on HF and LoRa); 0 while the status does not go out on it",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "last_sent",
+        "next_due",
+        "interval_min"
+      ],
+      "title": "RadioStatusState",
       "type": "object"
     },
     "RadioTune": {

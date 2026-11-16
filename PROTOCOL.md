@@ -1814,11 +1814,12 @@ What the radio's type can do (neoaprs/radiotype.py `Can`): the controls of its b
 
 ### RadioChoices
 
-The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force.
+The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/status`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force.
 
 | field | type | | description |
 |---|---|---|---|
 | `beacon` | boolean |  | Send on: the beacon goes out on this radio (with one radio on, it goes on that one whatever this says) |
+| `status` | boolean |  | the status's Send on: the status report goes out on this radio; false for every radio until the operator ticks one, and while none that is on is ticked it goes on the main radio (with one radio on, on that one whatever this says); false for a radio that only receives |
 | `path` | string \| null |  | the digipeaters of its frames as the setting holds them (empty: the recommended path of the station's symbol, `DIRECT`: none); null for a kind that has no path |
 | `digipeat` | boolean \| null |  | its digipeater is on; null for a kind that may not repeat |
 
@@ -1875,8 +1876,19 @@ times a second; a change of the settings tells the topic whole.
 | `can` | RadioCan |  |  |
 | `choices` | RadioChoices |  |  |
 | `beacon` | RadioBeaconState |  |  |
+| `status` | RadioStatusState |  |  |
 | `modem` | ModemState \| null |  | its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio |
 | `holds` | RadioHold[] |  | the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none |
+
+### RadioStatusState
+
+The status report on the radio (services/rigstatus.py `on_radio`).
+
+| field | type | | description |
+|---|---|---|---|
+| `last_sent` | time \| null |  | when our status report last went out on it; null before one |
+| `next_due` | time \| null |  | when the next timed report is due on it: an interval after its last; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet) |
+| `interval_min` | integer |  | the interval in force on it, in minutes: `status/interval_min` raised to the radio's own floor (`limits.beacon_min_min` on HF and LoRa); 0 while the status does not go out on it (>= 0) |
 
 ### ReachValues
 

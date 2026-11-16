@@ -61,8 +61,8 @@ const KIND_WORDS: Readonly<Partial<Record<PageRadio["kind"], Readonly<Record<str
 export const flatKeyOf = (field: string, kind?: PageRadio["kind"]): string | null =>
   (kind === undefined ? undefined : KIND_WORDS[kind]?.[field]) ?? FIELD_WORDS[field] ?? null;
 
-/** The fields of a radio that are shown elsewhere than behind its status: Send on and its path (My station), its digipeater (the Digipeater group) and the transmit level, which is a row of its own. */
-const ELSEWHERE = ["beacon", "path", "digipeat", "tx_gain_db"];
+/** The fields of a radio that are shown elsewhere than behind its status: the beacon's and the status's Send on and its path (My station), its digipeater (the Digipeater group) and the transmit level, which is a row of its own. */
+const ELSEWHERE = ["beacon", "status", "path", "digipeat", "tx_gain_db"];
 
 /** The keys behind the status of a radio: its type's fields there (the host and the TCP port for one reached over TCP, the port and the speed for a serial one), each its own `radio/<id>/<field>`. */
 export function boxKeys(radio: Pick<PageRadio, "id" | "type">): string[] {
@@ -75,8 +75,8 @@ export function boxKeys(radio: Pick<PageRadio, "id" | "type">): string[] {
     .map((field) => `radio/${radio.id}/${field}`);
 }
 
-/** The fields of a radio that are not in its box in the Radio group: Send on and the path (My station), the digipeater (the Digipeater group). */
-const NOT_BOXED = ["beacon", "path", "digipeat"];
+/** The fields of a radio that are not in its box in the Radio group: the beacon's and the status's Send on and the path (My station), the digipeater (the Digipeater group). */
+const NOT_BOXED = ["beacon", "status", "path", "digipeat"];
 
 /** Whether a key is of the Radio group's boxes: a radio's own field there (`radio/3/port`, its transmit level) or the main radio. */
 export const boxedKey = (key: string): boolean => isRadioKey(key) && !NOT_BOXED.includes(fieldOfKey(key));

@@ -59,7 +59,7 @@ async def test_the_topic_has_every_radio_and_a_radio_added_changed_and_removed_i
     await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected")
     row = page.topics["radios"][str(id)]
     assert (row["name"], row["kind"], row["type"], row["number"], row["dummy"], row["enabled"], row["removed"], row["problem"]) == ("Shack", "fm", "dummy", 2, True, True, False, None)
-    assert row["choices"] == {"beacon": True, "path": "", "digipeat": False} and row["beacon"]["interval_min"] == 0 and row["limits"] == {"max_frame": None, "beacon_min_min": 20}
+    assert row["choices"] == {"beacon": True, "status": False, "path": "", "digipeat": False} and row["beacon"]["interval_min"] == 0 and row["limits"] == {"max_frame": None, "beacon_min_min": 20}
     await page.send({"cmd": "radio_change", "radio": id, "name": "Mobile", "position": 1})
     await page.until(lambda: page.topics["radios"][str(id)]["name"] == "Mobile" and page.topics["radios"][str(id)]["position"] == 1)
     assert e.ctl.config.radio(id).name == "Mobile", "stored and in force"            # type: ignore[union-attr]

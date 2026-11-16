@@ -2,6 +2,7 @@
 // (services/rigstatus.py), as "now" once it is due; while the beacon is Off no status goes by the timer. In RX only (nothing is sent) the row is off in the warn colour, as the Digipeater's.
 import { t } from "@/i18n";
 import { agoWords, untilText } from "@/lib/format";
+import type { RadioStatusState } from "@/protocol/protocol";
 
 export interface ReportLook {
   state: string;
@@ -20,4 +21,19 @@ export function reportLook(lastSent: string | null, minutes: string, beaconOff: 
   if (beaconOff || !(every > 0)) return { ...on, line: t("beacon.status.line.untimed", { ago }) };
   const nextAt = new Date(new Date(lastSent).getTime() + every * 60_000).toISOString();
   return { ...on, line: t("beacon.status.line.timed", { ago, when: untilText(nextAt, nowMs), minutes: every }) };
+}
+
+/** The lines behind the arrow while several radios are on: the status on each radio it goes out on, by its name, as the beacon's lines say each radio's ("HF: last sent 2 min ago · next in 28 min (every 30 min)"). */
+export function statusRadioLines(radios: readonly { name: string; status: RadioStatusState }[], nowMs: number): string[] {
+  return radios.map(({ name, status }) => {
+    const { last_sent: last, next_due: next, interval_min: minutes } = status;
+    const ago = agoWords(last, nowMs);
+    const line =
+      last === null
+        ? t("beacon.status.fold.none")
+        : minutes > 0 && next !== null
+          ? t("beacon.status.fold.timed", { ago, when: untilText(next, nowMs), minutes })
+          : t("beacon.status.fold.untimed", { ago });
+    return t("radio.line", { name, line });
+  });
 }

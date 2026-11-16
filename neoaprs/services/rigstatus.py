@@ -7,13 +7,20 @@ and the log says so once for as long as it lasts, not at every poll. With `text`
 One rule for both: a status report goes out when `status/interval_min` has passed since the last one sent (or none was ever sent), whether what it says has changed or not: a static text goes out again at every interval, and a radio's frequency and
 mode are read afresh each time. So nothing goes inside the interval however the dial moves, and nothing while the radio is off. The time and the text of the last report are kept in the rows `status/last_sent_at` and `status/last_text`
 (written after each send) and read at the start, so a restart sends nothing inside the interval. The report is the frame the station's one maker of frames makes (services/beaconframe.py, `BeaconFrames.status`: `>`
-and the time as `DDHHMMz`, then the text, by the beacon's destination and the radio's path) for the main radio, and is sent on it. `last_text` is what `?APRSS` answers with (`status_frame()`, for the radio the
+and the time as `DDHHMMz`, then the text, by the beacon's destination and the radio's path) for each radio it goes on. `last_text` is what `?APRSS` answers with (`status_frame()`, for the radio the
 question came on) and what the page shows as the current status. `send_now()` sends one at once, whatever the interval (the page's "Send status now"), by the same checks of the interlock,
-the length and the radio, and the interval counts from it. No automatic status report goes while the beacon is off (`beacon/interval_min` is 0: quietly, as nothing is due; `send_now` still sends), and one that was held back goes at the first poll after the beacon is on if the
+the length and the radio, on each radio the status goes on that takes it now, and the interval counts from it on each of them.
+
+The radios it goes on are neoaprs/beaconrule.py's `status_radios`, the status's Send on in the beacon's pattern (each radio's own "status" tick; while no radio that is on is ticked, which is how every radio
+is stored until the operator ticks one, the main radio, followed as it changes; with one radio that can send, that one). The text is read once a poll and is the same on every radio (one rigctld for the
+station). On each radio the status goes at `status/interval_min` raised to that radio's own floor (beaconrule.beacon_interval, the beacon's: 30 minutes on HF and LoRa), counted from its last send there:
+one report per interval per radio, kept in the radio's own row `radio/<id>/status_last_sent_at`; a radio with no send of its own yet counts from the station's latest report (`status/last_sent_at`, so
+that the radio of an installation from before the choice keeps its schedule and its row says that report, and a radio ticked later or a new main radio joins at the next interval, also one that was a radio of the status before). A radio that is not connected, silent or would not
+take the frame is waited for (tried at every poll, as the beacon waits), and a report longer than the radio carries whole is not sent there (BeaconFrames.status). A radio that only receives is never one. No automatic status report goes while the beacon is off (`beacon/interval_min` is 0: quietly, as nothing is due; `send_now` still sends), and one that was held back goes at the first poll after the beacon is on if the
 interval has passed. A report that cannot go (there is no radio, it is not connected or it is silent, would not take it, the settings make no frame) is told once for each reason and tried again at the next poll.
 
-The radios come as the registry's (`RadioPick`), or in the old shape of services/common.Radio (the old set of two, a Tnc, a test's stub), which is then the radio the report goes on; the frames as the one maker,
-or as a beacon made the old way, whose maker is then the one (W3 deletes the old shapes).
+The radios come as the registry's (`RadioPick`), or in the old shape of services/common.Radio (the old set of two, a Tnc, a test's stub), which is then the one radio the report goes on, at the interval
+itself; the frames as the one maker, or as a beacon made the old way, whose maker is then the one (W3 deletes the old shapes).
 """
 import logging
 from collections.abc import Awaitable, Callable
@@ -21,11 +28,13 @@ from datetime import datetime, timedelta
 from typing import Literal, TypeIs
 
 from neoaprs import ax25
+from neoaprs.beaconrule import beacon_interval, status_radios
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import STATUS_SENT, STATUS_TEXT, Config
+from neoaprs.config import STATUS_SENT, STATUS_TEXT, Config, radio_state_key
 from neoaprs.configstatus import MAX_STATUS, fill_template
 from neoaprs.configtypes import over_the_air_problem
 from neoaprs.interlock import Interlock
+from neoaprs.radiospec import RadioId, live
 from neoaprs.rigctld import Reading, RigError, read_rig
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.beaconframe import BeaconError, BeaconFrames, air_of
@@ -39,6 +48,11 @@ log = logging.getLogger("neoaprs.status")
 POLL_SEC = 30.0
 RigState = Literal["off", "on", "unused"]
 Reader = Callable[[str, int], Awaitable[Reading]]
+
+
+def memory_key_of(radio: RadioId) -> str:
+    """The row a radio keeps the last status sent on it in (services/memory.py): its own, `radio/<id>/status_last_sent_at`."""
+    return radio_state_key(radio, "status_last_sent_at")
 
 
 def freq_text(hz: int) -> str:
@@ -71,7 +85,9 @@ class RigStatus:
         self.last_sent_at: datetime | None = None               # when the latest status report went out, as the row kept it after a restart
         self.last_text = ""                                     # what it said; empty until one has gone (or was kept)
         self.rig_state: RigState = "unused"
-        self._told = ""                                         # the reason a report was not sent, as last told
+        self.sent_on: dict[RadioId, datetime] = {}              # when the latest report went out on each radio, as its row kept it after a restart
+        self._joined: dict[RadioId, datetime | None] = {}       # for a radio with no send of its own: the station's latest report when it was first a radio of the status, which its interval counts from
+        self._told: dict[RadioId, str] = {}                     # the reason a report was not sent on each radio, as last told (NO_RADIO under 0)
         self._rig_problem = ""                                  # why the radio gave no reading the last time
         self._remembered = Remembered(memory)
         self._tasks = TaskSet(log, "status")
@@ -83,6 +99,13 @@ class RigStatus:
         if self.last_sent_at is None and not self.last_text:               # (nothing sent in this run: what the row kept is the latest)
             self.last_sent_at = await self._remembered.get_time(STATUS_SENT, self.clock())
             self.last_text = await self._remembered.get(STATUS_TEXT) or ""
+        if is_pick(self._radios):
+            for spec in live(self._config().radios):
+                if spec.id not in self.sent_on and (at := await self._remembered.get_time(memory_key_of(spec.id), self.clock())) is not None:
+                    self.sent_on[spec.id] = at
+            c = self._config()
+            if not self.sent_on and self.last_sent_at is not None and len(went := status_radios(c.radios, c.main_radio)) == 1:
+                self.sent_on[went[0]] = self.last_sent_at                  # (a station of before the choice: its latest report went on the main radio, which its row then says)
         self._tasks.spawn(self._run(), "rigstatus")
 
     async def stop(self) -> None:
@@ -98,8 +121,36 @@ class RigStatus:
         return self._frames
 
     def _radio(self) -> AirRadio | None:
-        """The radio the report goes on: the main radio (None while there is none), or the radio of the old shape it was given."""
+        """The radio ?APRSS is answered for when none is named: the main radio (None while there is none), or the radio of the old shape it was given."""
         return self._radios.main if is_pick(self._radios) else air_of(self._radios, self._config, old=True)
+
+    def _targets(self, c: Config) -> list[tuple[RadioId, AirRadio | None, int]]:
+        """The radios the report goes on (beaconrule.status_radios), by position, each with the interval in force on it in minutes: `status/interval_min` raised to its own floor; the registry's radio is
+        None for one it does not run. The radio of the old shape alone, at the interval itself."""
+        if not is_pick(self._radios):
+            radio = air_of(self._radios, self._config, old=True)
+            return [(radio.id, radio, c.status_interval_min)]
+        found, main = [], self._radios.main                       # (the main radio as the registry has it, as the report took it before it had a choice)
+        for id in status_radios(c.radios, None if main is None else main.id):
+            spec = c.radio(id)
+            found.append((id, self._radios.get(id), c.status_interval_min if spec is None else beacon_interval(c.status_interval_min, spec)))
+        return found
+
+    def _counts_from(self, id: RadioId) -> datetime | None:
+        """When the interval on the radio counts from: its own last send; for one that has none, the station's latest report when it first was a radio of the status (None: due now)."""
+        if (own := self.sent_on.get(id)) is not None:
+            return own
+        return self._joined.setdefault(id, self.last_sent_at)
+
+    def on_radio(self, id: RadioId) -> tuple[datetime | None, datetime | None, int]:
+        """The status on one radio, for its row on the wire: when it last went out there (None before one), when the next timed one is due there (None while none is: not a radio of the status, the beacon
+        or the status off, none sent there yet), and the interval in force on it in minutes (0 while the status does not go on it)."""
+        c = self._config()
+        spec = c.radio(id)
+        minutes = next((m for target, _, m in self._targets(c) if target == id), 0) if spec is not None and spec.enabled and not spec.removed else 0
+        last = self.sent_on.get(id)
+        timed = minutes > 0 and c.beacon_on and c.status_choice != "off" and last is not None
+        return last, last + timedelta(minutes=minutes) if timed and last is not None else None, minutes
 
     # ---- one poll
     async def poll(self) -> None:
@@ -107,7 +158,7 @@ class RigStatus:
         c = self._config()
         text = await self._current(c)
         if text:
-            self._offer(text, c.status_interval_min)
+            self._offer(text, c)
 
     async def _current(self, c: Config) -> str | None:
         """What the status says now: the text, the radio's reading filled into the template, or None for no status (off, or a radio that is away)."""
@@ -149,46 +200,59 @@ class RigStatus:
             if words:
                 (log.warning if state == "off" else log.info)("%s", words)
 
-    def _offer(self, text: str, interval_min: int) -> None:
-        if not self._config().beacon_on:
+    def _offer(self, text: str, c: Config) -> None:
+        if not c.beacon_on:
             return                                                   # (the radio's beacon Off is no automatic status; Status now still sends)
-        now = self.clock()
-        if self.last_sent_at is not None and now - self.last_sent_at < timedelta(minutes=interval_min):
-            return
-        self._try(text)
+        now, targets = self.clock(), self._targets(c)
+        for gone in self._joined.keys() - {id for id, _, _ in targets}:
+            del self._joined[gone]                                   # (a radio that is no longer one joins again at the next interval, not at once)
+        due = [(id, radio) for id, radio, minutes in targets if (since := self._counts_from(id)) is None or now - since >= timedelta(minutes=minutes)]
+        if due:
+            self._try(text, due)
 
-    def _try(self, text: str) -> str:
-        """Sends the status on the main radio; "" when it went out, else the reason (told in the log once, as the poll tells it)."""
+    def _try(self, text: str, targets: list[tuple[RadioId, AirRadio | None]] | None = None) -> str:
+        """Sends the status on each of the radios (all the status goes on when none are given); "" when it went out on one, else the reason (told in the log once for each radio, as the poll tells it)."""
         if reason := self._interlock.refused("status"):
             return reason
-        radio = self._radio()
+        if targets is None:
+            targets = [(id, radio) for id, radio, _ in self._targets(self._config())]
+        if not targets:
+            self._tell(0, NO_RADIO)
+            return NO_RADIO
+        reasons = [self._send_on(id, radio, text) for id, radio in targets]
+        return "" if "" in reasons else reasons[0]
+
+    def _send_on(self, id: RadioId, radio: AirRadio | None, text: str) -> str:
+        """Sends the status on one radio; "" when it went out, else the reason (told once)."""
         if radio is None:
-            self._tell(NO_RADIO)
+            self._tell(id, NO_RADIO)
             return NO_RADIO
         try:
-            frame = self._frames.status(text, radio)                       # (for the radio it goes on: no path and the frame cap when that is the HF radio, the FM one being off)
+            frame = self._frames.status(text, radio)                       # (for the radio it goes on: no path and the frame cap on HF; none longer than it carries)
         except BeaconError as e:
             reason = f"the settings make no status: {e}"
-            self._tell(reason, warn=True)
+            self._tell(id, reason, warn=True)
             return reason
         if frame is None:
             return "there is no status text"
         if not radio.usable:
-            self._tell(f"{radio.why_unusable()}: the status waits")
+            self._tell(id, f"{radio.why_unusable()}: the status waits")
             return radio.why_unusable()
         if not radio.send_frame(frame):
             reason = "the TNC did not take the status frame"
-            self._tell(reason, warn=True)
+            self._tell(id, reason, warn=True)
             return reason
         now = self.clock()
-        self.last_sent_at, self.last_text, self._told = now, text, ""
-        self._remembered.put({STATUS_SENT: stamp(now), STATUS_TEXT: text})
+        self.last_sent_at, self.last_text, self.sent_on[id] = now, text, now
+        self._told.pop(id, None)
+        self._told.pop(0, None)
+        self._remembered.put({STATUS_SENT: stamp(now), STATUS_TEXT: text, **({memory_key_of(id): stamp(now)} if is_pick(self._radios) else {})})
         log.info("status sent: %s", frame.tnc2())
         return ""
 
-    def _tell(self, reason: str, warn: bool = False) -> None:
-        if reason != self._told:
-            self._told = reason
+    def _tell(self, id: RadioId, reason: str, warn: bool = False) -> None:
+        if reason != self._told.get(id, ""):
+            self._told[id] = reason
             (log.warning if warn else log.info)("no status sent: %s", reason)
 
     # ---- what ?APRSS answers with

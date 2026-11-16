@@ -78,12 +78,14 @@
     "radio/1/path": "",
     "radio/1/port": "",
     "radio/1/sound_card": "",
+    "radio/1/status": "false",
     "radio/1/tcp_host": "127.0.0.1",
     "radio/1/tcp_port": "8001",
     "radio/1/tx_gain_db": "0",
     "radio/2/beacon": "true",
     "radio/2/keying": "",
     "radio/2/sound_card": "",
+    "radio/2/status": "false",
     "radio/2/tx_gain_db": "0",
     "station/main_radio": ""
    },
@@ -95,12 +97,14 @@
     "radio/1/path": "",
     "radio/1/port": "",
     "radio/1/sound_card": "",
+    "radio/1/status": "false",
     "radio/1/tcp_host": "127.0.0.1",
     "radio/1/tcp_port": "8001",
     "radio/1/tx_gain_db": "0",
     "radio/2/beacon": "true",
     "radio/2/keying": "",
     "radio/2/sound_card": "",
+    "radio/2/status": "false",
     "radio/2/tx_gain_db": "0",
     "station/main_radio": ""
    },
@@ -203,12 +207,14 @@
     "radio/1/path": "",
     "radio/1/port": "",
     "radio/1/sound_card": "",
+    "radio/1/status": "false",
     "radio/1/tcp_host": "127.0.0.1",
     "radio/1/tcp_port": "8001",
     "radio/1/tx_gain_db": "0",
     "radio/2/beacon": "true",
     "radio/2/keying": "",
     "radio/2/sound_card": "",
+    "radio/2/status": "false",
     "radio/2/tx_gain_db": "0",
     "station/main_radio": ""
    },
@@ -220,12 +226,14 @@
     "radio/1/path": "",
     "radio/1/port": "",
     "radio/1/sound_card": "",
+    "radio/1/status": "false",
     "radio/1/tcp_host": "127.0.0.1",
     "radio/1/tcp_port": "8001",
     "radio/1/tx_gain_db": "0",
     "radio/2/beacon": "true",
     "radio/2/keying": "",
     "radio/2/sound_card": "",
+    "radio/2/status": "false",
     "radio/2/tx_gain_db": "0",
     "station/main_radio": ""
    },
@@ -1933,7 +1941,8 @@
    "choices": {
     "beacon": true,
     "digipeat": true,
-    "path": "WIDE1-1"
+    "path": "WIDE1-1",
+    "status": false
    },
    "dummy": false,
    "enabled": true,
@@ -1981,6 +1990,11 @@
     "rejected": 0,
     "watchdog_probes": 2
    },
+   "status": {
+    "interval_min": 0,
+    "last_sent": null,
+    "next_due": null
+   },
    "type": "kiss"
   },
   {
@@ -2014,7 +2028,8 @@
    "choices": {
     "beacon": false,
     "digipeat": null,
-    "path": null
+    "path": null,
+    "status": false
    },
    "dummy": true,
    "enabled": true,
@@ -2053,6 +2068,11 @@
     "rejected": 0,
     "watchdog_probes": 0
    },
+   "status": {
+    "interval_min": 0,
+    "last_sent": null,
+    "next_due": null
+   },
    "type": "dummy-hf"
   },
   {
@@ -2088,7 +2108,8 @@
    "choices": {
     "beacon": true,
     "digipeat": false,
-    "path": ""
+    "path": "",
+    "status": false
    },
    "dummy": false,
    "enabled": true,
@@ -2129,6 +2150,11 @@
     "rejected": 0,
     "watchdog_probes": 0
    },
+   "status": {
+    "interval_min": 0,
+    "last_sent": null,
+    "next_due": null
+   },
    "type": "kiss"
   },
   {
@@ -2159,7 +2185,8 @@
    "choices": {
     "beacon": true,
     "digipeat": false,
-    "path": ""
+    "path": "",
+    "status": false
    },
    "dummy": true,
    "enabled": false,
@@ -2192,6 +2219,11 @@
     "port_reopens": 0,
     "rejected": 0,
     "watchdog_probes": 0
+   },
+   "status": {
+    "interval_min": 0,
+    "last_sent": null,
+    "next_due": null
    },
    "type": "dummy"
   }

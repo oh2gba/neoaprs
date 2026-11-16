@@ -386,6 +386,7 @@ def test_a_key_of_before_of_a_radios_setting_is_refused_with_its_new_key_and_not
 def test_a_radios_own_setting_is_checked_by_its_field_and_stored_with_its_revision(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert db("set", "radio/1/baud", "4800", data=stored) == 0 and capsys.readouterr().out.strip() == "radio/1/baud = 4800"
     assert db("set", "radio/1/beacon", "FALSE", data=stored) == 0 and capsys.readouterr().out.strip() == "radio/1/beacon = false", "the text as the field keeps it"
+    assert db("set", "radio/2/status", "True", data=stored) == 0 and capsys.readouterr().out.strip() == "radio/2/status = true", "the status's Send on, by its key as the beacon's"
     assert db("set", "radio/1/baud", "4801", data=stored) == 0
     assert rows_of(stored, "SELECT key, value, rev FROM radio_setting WHERE radio_id = 1 AND key IN ('baud', 'beacon') ORDER BY key") == [("baud", "4801", 2), ("beacon", "false", 1)]
     capsys.readouterr()
@@ -500,7 +501,7 @@ def test_the_port_the_search_found_is_set_in_radio_1s_own_state_row_once_the_rad
 def test_set_refuses_the_rows_the_daemon_keeps_each_radios_own_and_the_two_of_before_and_writes_none(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
     before = rows_of(stored, "SELECT key, value, rev FROM settings ORDER BY key")
     capsys.readouterr()
-    for key in ("radio/1/beacon_last_sent_at", "radio/2/beacon_last_sent_at", "radio/1/last_port", "beacon/last_sent_at", "hf/beacon_last_sent_at", "status/last_sent_at"):
+    for key in ("radio/1/beacon_last_sent_at", "radio/2/beacon_last_sent_at", "radio/2/status_last_sent_at", "radio/1/last_port", "beacon/last_sent_at", "hf/beacon_last_sent_at", "status/last_sent_at"):
         assert db("set", key, "2026-11-14T10:00:00Z", data=stored) == 2, key
         assert capsys.readouterr().err.strip().startswith(f"neoaprs db: {key}: kept by the daemon ("), key
     assert db("set", "radio/2/last_port", "/dev/ttyUSB9", data=stored) == 2

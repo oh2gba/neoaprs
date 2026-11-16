@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { beaconBlock, beaconRadios, notConnectedWhy, pathKey, pathRows, radioValueOf, sendOnTicks, type BeaconRadio } from "@/lib/beaconstatus";
+import { beaconBlock, beaconRadios, notConnectedWhy, pathKey, pathRows, radioValueOf, sendOnTicks, statusRadios, type BeaconRadio } from "@/lib/beaconstatus";
 import { dateTimeText } from "@/lib/format";
 import { pageRadio, type PageRadio } from "@/lib/radios";
 import type { RadioRow } from "@/protocol/protocol";
@@ -282,6 +282,24 @@ describe("the radios of the Beacon group", () => {
       [3, false, false, false],
     ]);
     expect(sendOnTicks(radios, () => false, null).some((tick) => tick.on || tick.last)).toBe(false);
+  });
+
+  it("send the status on the one radio that is on whatever its tick says, else on the radios ticked, and on the main radio until one is", () => {
+    const status = (radio: PageRadio, on = true) => pageRadio({ ...radio.row, choices: { ...radio.row.choices, status: on } });
+    expect(statusRadios([hf(2)], null).map((r) => r.id)).toEqual([2]);
+    expect(statusRadios([fm(1), hf(2), fm(3)], fm(1)).map((r) => r.id)).toEqual([1]);
+    expect(statusRadios([fm(1), hf(2), fm(3)], hf(2)).map((r) => r.id)).toEqual([2]);
+    expect(statusRadios([fm(1), status(hf(2)), status(fm(3))], fm(1)).map((r) => r.id)).toEqual([2, 3]);
+    expect(statusRadios([fm(1), hf(2)], null)).toEqual([]);
+    expect(statusRadios([], null)).toEqual([]);
+  });
+
+  it("have the status's ticks of its own field, in the beacon's pattern", () => {
+    const radios = [fm(1), hf(2)];
+    expect(sendOnTicks(radios, (_key, radio) => radio.row.choices.status, radios[0] ?? null, "status")).toEqual([
+      { id: 1, key: "radio/1/status", name: "FM", on: true, last: true, held: true },
+      { id: 2, key: "radio/2/status", name: "HF", on: false, last: false, held: false },
+    ]);
   });
 
   it("have a Path row for each radio that is on and may carry a path, named while several are on", () => {

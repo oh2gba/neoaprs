@@ -58,24 +58,24 @@ def test_the_types_that_only_receive_share_one_can_and_one_allowed_and_every_lin
         assert Tnc("", profile={**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF}[t.profile]).rtype.limits.max_text == t.limits.max_text, f"{t.key}: the line refuses what the fit lets through, or the other way round"
 
 
-def test_a_type_has_its_own_fields_then_the_beacon_and_the_path_and_digipeater_where_allowed() -> None:
+def test_a_type_has_its_own_fields_then_the_beacon_and_the_status_and_the_path_and_digipeater_where_allowed() -> None:
     keys = {t.key: [f.key for f in t.fields] for t in TYPES}
     for serial in ("kenwood-tnc2", "kenwood-d710", "kantronics", "kiss"):
-        assert keys[serial] == ["port", "baud", "beacon", "path", "digipeat"]
-    assert keys["kiss-tcp"] == ["port", "tcp_host", "tcp_port", "beacon", "path", "digipeat"]
+        assert keys[serial] == ["port", "baud", "beacon", "status", "path", "digipeat"]
+    assert keys["kiss-tcp"] == ["port", "tcp_host", "tcp_port", "beacon", "status", "path", "digipeat"]
     assert keys["tnc-text"] == ["port", "baud"], "a radio that sends nothing has no beacon tick, no path and no digipeater"
-    assert keys["dummy"] == ["beacon", "path", "digipeat"] and keys["dummy-lora"] == ["beacon", "path"] and keys["dummy-hf"] == ["beacon"]
-    assert keys["mercury"] == ["sound_card", "keying", "tx_gain_db", "beacon"]
-    assert (keys["lora-tcp"], keys["lora-serial"], keys["lora-console"]) == (["tcp_host", "tcp_port", "beacon", "path"], ["port", "baud", "beacon", "path"], ["port", "baud"]), \
+    assert keys["dummy"] == ["beacon", "status", "path", "digipeat"] and keys["dummy-lora"] == ["beacon", "status", "path"] and keys["dummy-hf"] == ["beacon", "status"]
+    assert keys["mercury"] == ["sound_card", "keying", "tx_gain_db", "beacon", "status"]
+    assert (keys["lora-tcp"], keys["lora-serial"], keys["lora-console"]) == (["tcp_host", "tcp_port", "beacon", "status", "path"], ["port", "baud", "beacon", "status", "path"], ["port", "baud"]), \
         "a LoRa board's own fields are where it is reached; no frequency and no modem setting, which no firmware takes from a program"
-    assert [f.key for f in COMMON_FIELDS] == ["beacon", "path", "digipeat"]
+    assert [f.key for f in COMMON_FIELDS] == ["beacon", "status", "path", "digipeat"]
     assert type_of("kiss-tcp").field("tcp_host") is not None and type_of("kiss").field("tcp_host") is None
 
 
 def test_a_radio_of_a_kind_may_store_the_fields_of_every_type_of_it_each_the_same_field_in_every_type() -> None:
-    assert [f.key for f in kind_fields("fm")] == ["port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "beacon", "path", "digipeat"]
-    assert [f.key for f in kind_fields("hf")] == ["sound_card", "keying", "tx_gain_db", "beacon"]
-    assert [f.key for f in kind_fields("lora")] == ["tcp_host", "tcp_port", "port", "baud", "beacon", "path"]
+    assert [f.key for f in kind_fields("fm")] == ["port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "beacon", "status", "path", "digipeat"]
+    assert [f.key for f in kind_fields("hf")] == ["sound_card", "keying", "tx_gain_db", "beacon", "status"]
+    assert [f.key for f in kind_fields("lora")] == ["tcp_host", "tcp_port", "port", "baud", "beacon", "status", "path"]
     for kind in KINDS:
         for t in types_of(kind):
             assert all(replace(f, claims=None) == replace(kind_field(kind, f.key), claims=None) for f in t.fields), f"{t.key}: a key is one field across the kind"   # type: ignore[type-var]
@@ -115,7 +115,7 @@ def test_the_sound_card_type_and_the_dummy_lora_type_stand_side_by_side_in_the_o
     assert sound.systems == {"linux", "win32"} and lora.systems == frozenset(), "the LoRa Dummy carries no program, so every installation offers it"
     assert [unavailable_types(system) for system in ("linux", "win32", "darwin")] == [(), (), ("direwolf",)]
     assert (sound.recommended_path, recommended_path("fm"), recommended_path("lora")) == ("", "", "WIDE1-1"), "the Sound card type's empty path is FM's (the symbol's), LoRa's is its own"
-    assert [f.key for f in sound.fields] == ["sound_card", "keying", "tx_gain_db", "beacon", "path", "digipeat"] == [f.key for f in kind_fields("fm") if sound.field(f.key)], "the Sound card type's own fields, in FM's order"
+    assert [f.key for f in sound.fields] == ["sound_card", "keying", "tx_gain_db", "beacon", "status", "path", "digipeat"] == [f.key for f in kind_fields("fm") if sound.field(f.key)], "the Sound card type's own fields, in FM's order"
     assert [f.key for f in lora.fields] == [f.key for f in kind_fields("lora") if lora.field(f.key)], "the Dummy LoRa type's own fields, in LoRa's order"
 
 

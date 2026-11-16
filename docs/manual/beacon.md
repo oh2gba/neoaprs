@@ -37,7 +37,7 @@ With one radio on, the beacon goes out on it and nothing here applies. With seve
 - **The state of the beacon** says the latest and the soonest of the radios, and behind its arrow a line for each radio, by its name, with its last and next beacon and its own interval.
 - **SmartBeaconing** is one plan for the station, the GPS's. It applies on each radio that allows it (FM and LoRa); an HF radio sends the timed beacon with the latest fix, at the stored interval (On stores 30 minutes), and nothing without a fresh fix.
 - **The path** is each radio's own: under Advanced there is a **Path** row for each radio that may carry one, labelled by its name ("FM: path"). An HF radio has none: every frame on HF goes direct.
-- **Beacon now** goes on every ticked radio and is on while one of them is connected. **Send status now** goes on the main radio ([radio.md](radio.md#the-main-radio)), and so does the timed status.
+- **Beacon now** goes on every ticked radio and is on while one of them is connected. **Send status now** goes on the radios of the status's own Send on ([The status](#the-status)), and so does the timed status.
 
 ## RX only
 
@@ -224,7 +224,7 @@ A symbol made to carry a letter or a digit (a digipeater, a car, a gateway) has 
 
 ## The status
 
-A status report is a text line that tells what you are doing. It goes out on the main radio as one packet from your call to the tocall, by the beacon's path: `>`, the day, hour and minute in UTC and a `z`, then the text.
+A status report is a text line that tells what you are doing. It goes out on the main radio ([radio.md](radio.md#the-main-radio)), or on the radios its Send on ticks, as one packet from your call to the tocall, by the beacon's path: `>`, the day, hour and minute in UTC and a `z`, then the text.
 
 **Where it comes from** is the choice **Status**, the setting `status/source`:
 
@@ -237,6 +237,8 @@ A status report is a text line that tells what you are doing. It goes out on the
 **The frequency.** Start a text of your own with the voice frequency you listen on, written as `145.500MHz` and optionally followed by a tone (` T088`) or an offset (` -060`), so that radios which read APRS can tune to it: `145.500MHz T088 QRV`. When the text has a frequency written another way (`QRV 144.800 MHz FM`) or not at the start, the field says in a quiet line how a radio would read it; nothing is blocked.
 
 The tab shows only the fields the choice needs, with **Every** directly under the choice. For a text: **Every** and **Text**. For the radio: **Every**, **Rigctld** and **Text** (the template). While the choice is off only the choice is shown: **Every**, the fields of the sources and the status line with **Send status now** appear as soon as another choice is made. Left empty, the setting follows the others: the radio while `status/rigctld` is set, else the text while there is one, else off. Choosing the radio without a rigctld address is refused with the reason.
+
+**Send on.** While several radios that can send are on, the Status choice is followed by **Send on**, the beacon's row of ticks: the status goes out on every radio ticked, at the interval raised to that radio's own floor (30 minutes on HF and LoRa), the same text on each, and until you tick one the main radio's tick is the one ticked and greyed, for the status goes on the main radio, as it did before there was a choice; behind the status row's arrow is a line for each radio it goes out on.
 
 **From the radio.** NeoAPRS connects to `host:port` of the rigctld (Hamlib's default is `127.0.0.1:4532`) every 30 seconds, asks the frequency and the mode, and fills in the template. The default template is `QRV {freq} {mode}`. `{freq}` is megahertz with three decimals (`14.074 MHz`), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM`). No other field in braces, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`): the counter of **Text** counts them so, and it takes no more. With `14074000` Hz and `USB` the frame at 12:00 UTC on the 21st is:
 
@@ -257,9 +259,9 @@ OH2GBA>APZNEO,WIDE2-2:>211200zQRV 14.074 MHz USB
 
 The status row says when the last status went and when the next is due (**Last sent 4 min ago · next in 26 min (every 30 min)**, or **Not sent yet**); in RX only it is **off: RX only: nothing is sent**.
 
-**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval. The interval counts from it. It goes out on the main radio, and is disabled, with a tip, only in [RX only](#rx-only) and while that radio is not connected; [Off](#beacon-off) does not stop it.
+**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval. The interval counts from it. It goes out on each radio the status goes out on that takes it then, and is disabled, with a tip, only in [RX only](#rx-only) and while none of them is connected; [Off](#beacon-off) does not stop it.
 
-It is refused when the call is not set, when the main radio is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
+It is refused when the call is not set, when none of its radios is connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
 
 The status line at the top of the group shows the status last sent and, with the radio as the source, whether rigctld answers. The last text sent is also the answer to the query `?APRSS`.
 

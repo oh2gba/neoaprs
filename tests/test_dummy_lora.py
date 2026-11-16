@@ -127,7 +127,7 @@ def test_the_dummy_lora_type_is_of_the_kind_lora_with_the_limits_and_the_choices
         "its timed beacon goes no more often than an HF radio's (a moving station's SmartBeaconing, which HF has not, goes by its own rates)"
     assert t.allowed == Allowed(paths=True, digipeat=False, smart_beacon=True, gateway_heard=True, shared_channel=False), "no digipeating by us: the network's iGates repeat WIDE1-1"
     assert t.can == Can(False, True, False, False, False, False, False), "nothing to find or tune; the Terminal of the made-up traffic, as any radio's"
-    assert [f.key for f in t.fields] == [f.key for f in kind_fields("lora") if f.key in ("beacon", "path", "digipeat")] == ["beacon", "path"], "no digipeater to turn on"
+    assert [f.key for f in t.fields] == [f.key for f in kind_fields("lora") if f.key in ("beacon", "status", "path", "digipeat")] == ["beacon", "status", "path"], "no digipeater to turn on"
     assert t.recommended_path == recommended_path("lora") == "WIDE1-1" and recommended_path("fm") == recommended_path("hf") == "", "FM and HF go by the station's symbol"
     assert PROFILES[t.profile] is DUMMY_LORA and Tnc("", profile=DUMMY_LORA).rtype is t and DUMMY_LORA.readings == ("snr", "rssi") and (t.limits.max_frame, t.limits.max_text) == (250, MAX_TEXT)
 
@@ -276,7 +276,7 @@ async def test_a_dummy_lora_radio_added_from_the_page_runs_hears_its_stations_be
     row = page.topics["radios"][str(id)]
     assert (row["kind"], row["type"], row["dummy"], row["number"], row["enabled"]) == ("lora", "dummy-lora", True, 1, True)
     assert row["limits"] == {"max_frame": 250, "beacon_min_min": 30} and row["can"] == {**dict.fromkeys(row["can"], False), "terminal": True, "transmit": True}
-    assert row["allowed"] == {"paths": True, "digipeat": False, "smart_beacon": True, "gateway_heard": True, "shared_channel": False} and row["choices"] == {"beacon": True, "path": "", "digipeat": None}
+    assert row["allowed"] == {"paths": True, "digipeat": False, "smart_beacon": True, "gateway_heard": True, "shared_channel": False} and row["choices"] == {"beacon": True, "status": False, "path": "", "digipeat": None}
     world = {call_of(call, id) for call in ("Q9LRG-10", "Q9KOT", "Q9TRK-7")}             # (the bike's first beacon may come after the others are in)
     for _ in range(200):
         e.now.advance(5)                                                         # type: ignore[attr-defined]

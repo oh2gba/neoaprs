@@ -171,7 +171,7 @@ class Services:
         self.gps = Gps(self.gps_feed, lambda: self.config, clock, claims=self.radios.claims)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
         self.beacon_frames = BeaconFrames(lambda: self.config, self.gps, clock)      # the one maker of our frames: the position, the status report and the position field for any radio (services/beaconframe.py); each radio's beacon, the status report, the queries and the iGate take theirs from it
         self.radios.sync(self.config)                                   # (no radio until the settings are read: the controller syncs again then, and a radio the database gives an id later is made new)
-        self.rigstatus = RigStatus(self.radios, lambda: self.config, self.beacon_frames, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min, on the main radio; started by the controller after the beacon
+        self.rigstatus = RigStatus(self.radios, lambda: self.config, self.beacon_frames, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min, on the radios of its Send on; started by the controller after the beacon
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
 
     def _make_logs(self, clock: Clock) -> None:

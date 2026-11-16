@@ -111,8 +111,9 @@ class RadioCan(_Model):
 
 
 class RadioChoices(_Model):
-    """The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force."""
+    """The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/status`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force."""
     beacon: bool = Field(description="Send on: the beacon goes out on this radio (with one radio on, it goes on that one whatever this says)")
+    status: bool = Field(description="the status's Send on: the status report goes out on this radio; false for every radio until the operator ticks one, and while none that is on is ticked it goes on the main radio (with one radio on, on that one whatever this says); false for a radio that only receives")
     path: str | None = Field(description="the digipeaters of its frames as the setting holds them (empty: the recommended path of the station's symbol, `DIRECT`: none); null for a kind that has no path")
     digipeat: bool | None = Field(description="its digipeater is on; null for a kind that may not repeat")
 
@@ -123,6 +124,13 @@ class RadioBeaconState(_Model):
     next_due: Iso | None = Field(description="when the next timed beacon is due on it; null while none is planned (off, a moving station, the radio off)")
     interval_min: int = Field(ge=0, description="the interval in force on it, in minutes: `beacon/interval_min` raised to the radio's own floor; 0 while the beacon does not go out on it (off, Send on not ticked, the radio off)")
     problem: RadioProblem | None = Field(description="why the latest beacon due on it did not go out (`transmit.off`, `beacon.not_sent`); null after one that did")
+
+
+class RadioStatusState(_Model):
+    """The status report on the radio (services/rigstatus.py `on_radio`)."""
+    last_sent: Iso | None = Field(description="when our status report last went out on it; null before one")
+    next_due: Iso | None = Field(description="when the next timed report is due on it: an interval after its last; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet)")
+    interval_min: int = Field(ge=0, description="the interval in force on it, in minutes: `status/interval_min` raised to the radio's own floor (`limits.beacon_min_min` on HF and LoRa); 0 while the status does not go out on it")
 
 
 class RadioHold(_Model):
@@ -153,5 +161,6 @@ class RadioRow(_Model):
     can: RadioCan
     choices: RadioChoices
     beacon: RadioBeaconState
+    status: RadioStatusState
     modem: ModemState | None = Field(description="its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio")
     holds: list[RadioHold] = Field(description="the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none")

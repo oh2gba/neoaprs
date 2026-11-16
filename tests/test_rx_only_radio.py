@@ -222,10 +222,10 @@ def test_the_row_of_a_radio_that_only_receives_has_no_path_and_no_digipeat_choic
     for key in (TNC_TEXT.key, "lora-console"):
         spec = RadioSpec(3, type_of(key).kind, key, "", True, 3, settings={"port": "/dev/ttyUSB7"})
         row = radio_row(spec, (spec,), None, Claims())
-        assert row is not None and row["choices"] == {"beacon": True, "path": None, "digipeat": None}, (key, row and row["choices"])
+        assert row is not None and row["choices"] == {"beacon": True, "status": False, "path": None, "digipeat": None}, (key, row and row["choices"])
     tnc = RadioSpec(5, "fm", "kiss", "", True, 5)
     row = radio_row(tnc, (tnc,), None, Claims())
-    assert row is not None and row["choices"] == {"beacon": True, "path": "", "digipeat": False}
+    assert row is not None and row["choices"] == {"beacon": True, "status": False, "path": "", "digipeat": False}
 
 
 def test_a_search_leaves_out_the_ports_the_radios_that_only_listen_are_set_to() -> None:

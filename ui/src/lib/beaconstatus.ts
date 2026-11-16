@@ -3,7 +3,8 @@
 // While the beacon is Off (the interval is 0) a fixed station has the label Beacon, the pill off and the line "no automatic beacon · Beacon now still sends"; a moving station keeps showing the GPS (the pill and the fix line, so that the fix can be watched) and says the same on the line under it, where SmartBeaconing's words would be.
 // In RX only (nothing is sent) the pill is off in the warn colour and the line "RX only: nothing is sent", as the Digipeater's; a moving station keeps the GPS and says it under it.
 // While several radios are on, behind the arrow is a line for each radio the beacon goes out on, by its name, with its own interval ("HF: last beacon 2 min ago · next in 29 min (every 30 min)"). The end of the file is the rest
-// of the Beacon group's radios (BeaconPane.vue, SettingsPath.vue): the radios the beacon goes out on, the ticks of Send on, and a Path row for each radio that may carry a path.
+// of the Beacon group's radios (BeaconPane.vue, SettingsPath.vue): the radios the beacon goes out on, the ticks of Send on, and a Path row for each radio that may carry a path; the status's Send on is the same
+// ticks of its own field (`radio/<id>/status`), and the radios the status goes out on are read as the beacon's (`statusRadios`).
 import { t } from "@/i18n";
 import { dateTimeText, agoWords, untilText } from "@/lib/format";
 import { beaconOff } from "@/lib/beaconoff";
@@ -170,6 +171,14 @@ export function beaconRadios(enabled: readonly PageRadio[], main: PageRadio | nu
   return ticked.length > 0 ? ticked : main === null ? [] : [main];
 }
 
+/** The radios the status report goes out on, as the daemon has them in force (neoaprs/beaconrule.py `status_radios`), in the beacon's pattern: with one radio on, that one; else those whose status Send on is ticked, and
+ * the main radio while none is (no radio is ticked until the operator ticks one: the status follows the main radio). */
+export function statusRadios(enabled: readonly PageRadio[], main: PageRadio | null): PageRadio[] {
+  if (enabled.length <= 1) return [...enabled];
+  const ticked = enabled.filter((radio) => radio.row.choices.status);
+  return ticked.length > 0 ? ticked : main === null ? [] : [main];
+}
+
 /** Why a button that sends on these radios is off while none of them is connected: "FM: not connected", a line for each; undefined while one is. */
 export function notConnectedWhy(radios: readonly PageRadio[]): string | undefined {
   if (radios.some((radio) => radio.connected)) return undefined;
@@ -178,6 +187,9 @@ export function notConnectedWhy(radios: readonly PageRadio[]): string | undefine
 
 /** The key of a radio's own setting (`radio/3/beacon`). */
 const radioKey = (id: RadioId, key: string): string => `radio/${id}/${key}`;
+
+/** The field of a radio a Send on ticks: the beacon's, or the status's. */
+export type SendOnField = "beacon" | "status";
 
 /** One tick of Send on: the radio, its setting, its name, whether it is ticked, whether it is the last tick that is (greyed: the beacon is switched off by the interval alone), and whether it is ticked only because the
  * beacon goes out on it while no radio that is on is ticked (`held`: the main radio's; a tick of another radio keeps it ticked, as it was seen). */
@@ -190,11 +202,16 @@ export interface SendOnTick {
   held: boolean;
 }
 
-/** The ticks of Send on, one for each radio that is on, in the order of the boxes; `ticked` says whether a radio's is ticked as it is being set (`radio/<id>/beacon`). They show what is in force (plan rule 3.1): while none
- * is ticked the beacon goes out on the main radio, so its tick is the one ticked and greyed. */
-export function sendOnTicks(enabled: readonly PageRadio[], ticked: (key: string, radio: PageRadio) => boolean, main: PageRadio | null): SendOnTick[] {
+/** The ticks of Send on, one for each radio that is on, in the order of the boxes; `ticked` says whether a radio's is ticked as it is being set (`radio/<id>/beacon`, or the status's `radio/<id>/status`: `field`). They show what
+ * is in force (plan rule 3.1): while none is ticked the beacon (the status) goes out on the main radio, so its tick is the one ticked and greyed. */
+export function sendOnTicks(
+  enabled: readonly PageRadio[],
+  ticked: (key: string, radio: PageRadio) => boolean,
+  main: PageRadio | null,
+  field: SendOnField = "beacon",
+): SendOnTick[] {
   const ticks = enabled.map((radio) => {
-    const key = radioKey(radio.id, "beacon");
+    const key = radioKey(radio.id, field);
     return { id: radio.id, key, name: radio.name, on: ticked(key, radio), last: false, held: false };
   });
   const none = !ticks.some((tick) => tick.on);

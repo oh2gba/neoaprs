@@ -1186,10 +1186,12 @@ export interface RadioChangeCommand {
   position?: number | null;
 }
 
-/** The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force. */
+/** The operator's own values of the radio where its kind has them (`radio/<id>/beacon`, `radio/<id>/status`, `radio/<id>/path`, `radio/<id>/digipeat`), as they are in force. */
 export interface RadioChoices {
   /** Send on: the beacon goes out on this radio (with one radio on, it goes on that one whatever this says) */
   beacon: boolean;
+  /** the status's Send on: the status report goes out on this radio; false for every radio until the operator ticks one, and while none that is on is ticked it goes on the main radio (with one radio on, on that one whatever this says); false for a radio that only receives */
+  status: boolean;
   /** the digipeaters of its frames as the setting holds them (empty: the recommended path of the station's symbol, `DIRECT`: none); null for a kind that has no path */
   path: string | null;
   /** its digipeater is on; null for a kind that may not repeat */
@@ -1266,6 +1268,7 @@ export interface RadioRow {
   can: RadioCan;
   choices: RadioChoices;
   beacon: RadioBeaconState;
+  status: RadioStatusState;
   /** its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio */
   modem: ModemState | null;
   /** the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none */
@@ -1300,6 +1303,16 @@ export interface RadioSearchMessage {
   radio: number | null;
   /** for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every FM type: 1.11's `type`, which the message's own tag takes); empty otherwise */
   radio_type: string;
+}
+
+/** The status report on the radio (services/rigstatus.py `on_radio`). */
+export interface RadioStatusState {
+  /** when our status report last went out on it; null before one */
+  last_sent: string | null;
+  /** when the next timed report is due on it: an interval after its last; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet) */
+  next_due: string | null;
+  /** the interval in force on it, in minutes: `status/interval_min` raised to the radio's own floor (`limits.beacon_min_min` on HF and LoRa); 0 while the status does not go out on it */
+  interval_min: number;
 }
 
 /** Tune on the radio's modem: with `on`, keys the radio through its keying and sends its modem's tuning tone through its sound card for ten seconds (Mercury a steady 1000 Hz, its own TUNE; Direwolf its two tones by turns), then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"` meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and while a frame is on the air or the channel is busy (`hf.held`). */

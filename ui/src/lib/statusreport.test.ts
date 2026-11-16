@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reportLook } from "@/lib/statusreport";
+import { reportLook, statusRadioLines } from "@/lib/statusreport";
 import { NOW, ago } from "@/test/fixtures";
 
 describe("reportLook", () => {
@@ -27,5 +27,23 @@ describe("reportLook", () => {
   it("is off in the warn colour and says nothing is sent in RX only, whatever was sent before", () => {
     expect(reportLook(ago(240), "30", false, true, NOW)).toEqual({ state: "off", tone: "tnc-waiting", line: "RX only: nothing is sent" });
     expect(reportLook(null, "30", true, true, NOW).line).toBe("RX only: nothing is sent");
+  });
+});
+
+describe("statusRadioLines", () => {
+  const later = (minutes: number) => new Date(NOW + minutes * 60_000).toISOString();
+
+  it("says the status on each radio by its name: the last and the next with that radio's interval, none yet, or no timed status", () => {
+    expect(
+      statusRadioLines(
+        [
+          { name: "FM", status: { last_sent: ago(240), next_due: later(11), interval_min: 15 } },
+          { name: "HF", status: { last_sent: null, next_due: null, interval_min: 30 } },
+          { name: "LoRa", status: { last_sent: ago(120), next_due: null, interval_min: 30 } },
+        ],
+        NOW,
+      ),
+    ).toEqual(["FM: last sent 4 min ago · next in 11 min (every 15 min)", "HF: not sent yet", "LoRa: last sent 2 min ago · no timed status"]);
+    expect(statusRadioLines([], NOW)).toEqual([]);
   });
 });

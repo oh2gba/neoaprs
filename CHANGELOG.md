@@ -5,6 +5,7 @@
 80 m among the suggested frequencies, the Add radio list in groups, and small things put right after 0.20.0.
 
 - **New:** 80 m among the suggested HF frequencies: 3.5850 MHz USB.
+- **New:** with several radios, the status text has its own Send on, as the beacon has.
 - **Changed:** **Add radio** lists the radio types in groups: FM, HF, LoRa, and Without a radio.
 - **Changed:** the (i) buttons show nothing on hover.
 - **Changed:** in Dutch a radio is "radio", no longer "set".

@@ -151,7 +151,7 @@ class Topics:
 
     def _radio_of(self, id: RadioId) -> dict[str, Any] | None:
         spec = self.ctl.config.radio(id)
-        return None if spec is None else radio_row(spec, self.ctl.config.radios, self.ctl.radios.get(id), self.ctl.radios.claims)
+        return None if spec is None else radio_row(spec, self.ctl.config.radios, self.ctl.radios.get(id), self.ctl.radios.claims, self.ctl.rigstatus)
 
     def _station_pref(self, call: str) -> dict[str, Any] | None:
         pref = self.ctl.prefbook.all().get(call)
