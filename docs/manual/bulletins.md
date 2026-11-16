@@ -23,7 +23,7 @@ The board holds one entry for each **sender and slot**. The slot is the addresse
 - A message with no text adds nothing.
 - A restart finds the board as it was.
 
-The tab shows the board newest first in three sections: announcements, bulletins, group messages. It is read from the top; a stream oldest first would open on the weather service. Every entry has its sender, what it is addressed to (the group of a group bulletin, else the slot), the text, how often it was heard and how long ago it was last heard.
+The tab shows the board newest first in four sections: announcements, bulletins, group messages (the group bulletins and the messages to `ALL`, `CQ` and `QST`), weather service. It is read from the top; a stream oldest first would open on the weather service. Every entry has its sender, what it is addressed to (the group of a group bulletin, else the slot), the text, how often it was heard and how long ago it was last heard.
 
 Nothing leaves the board on its own: no ageing, no limit, no daily clean-up. An entry stays until you delete it with the trash can on its row (two presses, the second after "sure?"). The same bulletin heard again afterwards is a new entry, heard once.
 
@@ -31,19 +31,28 @@ A badge on the tab counts the entries whose text was first heard since the tab w
 
 ## Posting
 
-The box has a row for each field, with an (i) after it:
+The box has a row for each field. The **Kind** says in its own words what each of the three does:
 
-- the **kind**: a bulletin, an announcement or a bulletin to a group;
-- the **identifier**;
-- the **group name**, for a bulletin to a group;
-- the **text**, with the characters of the 67 it has left;
-- **Post**, which is on when the post can be sent.
+| Kind | who shows it | how long it is sent | what it is for |
+|---|---|---|---|
+| **Bulletin (sent for 4 hours)** | every station that hears it | at once, twice more in the first minutes, then every 20 minutes, for 4 hours | what matters now: a road closed, a net tonight |
+| **Announcement (sent for 3 days)** | every station that hears it | at once, twice more in the first minutes, then every hour, for 3 days | what stays true for days: a meeting next week, a digipeater off the air |
+| **Group bulletin (to one group, sent for 4 hours)** | every station that hears it, unless its operator has picked other groups to show and not this one; NeoAPRS shows every group's | as a bulletin | news for one group: a club, a weather net |
 
-A small (i) beside the kind says what they are. A bulletin is for everyone and nobody acknowledges it. A bulletin to a group is for the stations that follow that group name. To reach particular stations, with an acknowledgement from each, send them a message instead (Messages tab, Stations).
+Nobody acknowledges any of them, which is why they are sent more than once. To reach particular stations, with an acknowledgement from each, send them a message instead (Messages tab, Stations).
+
+Under the kind:
+
+- the **Number** of a bulletin or a group bulletin, 0 to 9, or the **Letter** of an announcement, A to Z. You can have one post on each: ten bulletins, twenty-six announcements, ten for each group;
+- the **Group**, a name of one to five letters and digits, for a group bulletin. The row is greyed for the other kinds;
+- the **Text**, with the characters of the 67 it has left;
+- **Post**, which is on when the post can be sent. It says **Replace** while the number, the letter or the number and group you chose holds a post of yours: the new text takes its place and is sent from the start again.
+
+What goes on the air:
 
 - A **bulletin** is `BLN0` to `BLN9`.
 - An **announcement** is `BLNA` to `BLNZ`.
-- A **bulletin to a group** is `BLN`, a number and a group name of one to five letters and digits (`BLN3HAMS`).
+- A **group bulletin** is `BLN`, a number and a group name of one to five letters and digits (`BLN3HAMS`).
 - The text is at most 67 characters of printable ASCII without `|`, `~` and `{`.
 - The messages to `ALL`, `CQ` and `QST` and the weather service's are not posted from here.
 
@@ -54,11 +63,13 @@ A bulletin is a message without an id (chapter 14 of the specification), sent on
 Nobody acknowledges a bulletin, so it is sent more than once:
 
 - **a bulletin** (and a group bulletin) at once, after 2 minutes, after 6, and then every 20 minutes until 4 hours after the first: 14 packets;
-- **an announcement** at once, after 2 minutes, after 6, and then every hour until 72 hours after the first: 74 packets.
+- **an announcement** at once, after 2 minutes, after 6, and then every hour until 72 hours (3 days) after the first: 74 packets.
+
+The times are the same on every radio and by every path: the digipeaters of the path do not change them.
 
 A text posted to a slot that holds one replaces it and starts the schedule again, never within a minute of the last packet of the slot. The same text posted again, once the schedule is over, goes out again. You can have at most 36 posted at once.
 
-A bulletin goes on the [main radio](radio.md#the-main-radio), and so do its repeats. **Post** is off while that radio is not connected, with that as its title ("The TNC is not connected", or "FM: not connected" while several radios are on).
+A bulletin goes on the [main radio](radio.md#the-main-radio), and so do its repeats. **Post** is off while that radio is not connected, with that as its title ("The radio is not connected", or "FM: not connected" while several radios are on).
 
 Nothing is posted while the call is not set. What is due waits for the radio, and one packet goes out when it is back. At most one packet of yours of this kind (an object or a bulletin) goes out every 10 seconds, and a restart sends no burst ([objects.md](objects.md#when-it-is-sent)).
 

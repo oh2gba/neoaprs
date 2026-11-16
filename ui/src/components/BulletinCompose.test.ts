@@ -1,53 +1,190 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
+import { LIMITS } from "@/protocol/lists";
 import type { OwnBulletinRow, RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, ofRadios, tell, withDaemon, type Given } from "@/test/context";
+import { cssRule } from "@/test/css";
 import { ownBulletin, radioRow, radiosTopic, status } from "@/test/fixtures";
+import { shown } from "@/test/shown";
 import BulletinCompose from "@/components/BulletinCompose.vue";
+
+/** How long the daemon repeats a bulletin (hours) and an announcement (days): the numbers the page has from it (neoaprs/decay.py, by scripts/gen-protocol.py). */
+const HOURS = LIMITS.bulletin.repeatHours;
+const DAYS = LIMITS.bulletin.announcementRepeatDays;
+const many = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
 
 function compose() {
   const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() } });
   const kind = wrapper.find<HTMLSelectElement>("#post-kind");
   const id = wrapper.find<HTMLSelectElement>("#post-id");
   const text = wrapper.find<HTMLInputElement>("#post-text");
+  const group = wrapper.find<HTMLInputElement>("#post-group");
   const post = wrapper.find<HTMLButtonElement>("button[type='submit']");
-  return { wrapper, kind, id, text, post };
+  return { wrapper, kind, id, group, text, post };
+}
+
+/** The rows of the form as they stand: the label of each, the control it is for, and whether it is greyed. */
+function rows(wrapper: ReturnType<typeof compose>["wrapper"]) {
+  return wrapper.findAll(".composebar-fields > .field").map((row) => ({
+    label: row.find("label").text(),
+    control: row.find("label").attributes("for"),
+    greyed: row.classes().includes("disabled"),
+  }));
 }
 
 describe("BulletinCompose", () => {
-  it("has a kind, an identifier, the text and Post, and no sentence of help", () => {
-    const { wrapper, kind, id, post } = compose();
-    expect(kind.findAll("option").map((o) => o.text())).toEqual(["Bulletin", "Announcement", "Bulletin to a group"]);
+  it("says in each kind's own words what it does: how long it is sent, by the daemon's numbers, and that a group bulletin is to one group", () => {
+    const { kind } = compose();
+    expect(kind.findAll("option").map((o) => [o.element.value, o.text()])).toEqual([
+      ["bulletin", `Bulletin (sent for ${many(HOURS, "hour")})`],
+      ["announcement", `Announcement (sent for ${many(DAYS, "day")})`],
+      ["group", `Group bulletin (to one group, sent for ${many(HOURS, "hour")})`],
+    ]);
+    expect([HOURS, DAYS]).toEqual([4, 3]); // (today's plan: a bulletin for 4 hours, an announcement for 72)
     expect(kind.element.value).toBe("bulletin");
+  });
+
+  it("has a kind, a number, the group, the text and Post, and no sentence of help: no (i), no line under a field", () => {
+    const { wrapper, id, group, post } = compose();
+    expect(rows(wrapper)).toEqual([
+      { label: "Kind", control: "post-kind", greyed: false },
+      { label: "Number", control: "post-id", greyed: false },
+      { label: "Group", control: "post-group", greyed: true },
+      { label: "Text", control: "post-text", greyed: false },
+    ]);
     expect(id.findAll("option").map((o) => o.text())).toEqual([..."0123456789"]);
     expect(id.element.value).toBe("1");
-    expect(wrapper.find("label[for='post-text']").text()).toBe("Text");
-    expect(post.text()).toBe("Post");
-    expect(wrapper.find("#post-group").exists()).toBe(false);
+    expect(group.element.disabled).toBe(true);
+    expect(shown(post)).toBe("Post");
+    expect(wrapper.find(".infotip").exists()).toBe(false);
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
-  it("labels the kind and the number (a letter for an announcement)", async () => {
-    const { wrapper, kind } = compose();
-    expect(wrapper.find("label[for='post-kind']").text()).toBe("Kind");
-    expect(wrapper.find("label[for='post-id']").text()).toBe("Number");
-    await kind.setValue("announcement");
-    expect(wrapper.find("label[for='post-id']").text()).toBe("Letter");
-    await kind.setValue("group");
-    expect(wrapper.find("label[for='post-group']").text()).toBe("Group");
+  it("moves nothing when the kind changes: the same four rows in the same places, the number's row lettered for an announcement, the group's greyed unless it is a group bulletin", async () => {
+    const { wrapper, kind, id, group, text } = compose();
+    const places = () => wrapper.findAll(".composebar-fields > .field").map((row) => row.element);
+    const form = wrapper.element as HTMLElement;
+    const controls = () => [kind.element, id.element, group.element, text.element].map((control) => form.contains(control));
+    const before = places();
+    const seen: Record<string, ReturnType<typeof rows>> = {};
+    for (const value of ["announcement", "group", "bulletin"]) {
+      await kind.setValue(value);
+      expect(
+        places().map((row, at) => row === before[at]),
+        value,
+      ).toEqual([true, true, true, true]); // (the very rows: none added, none taken out, none made again)
+      expect(controls(), value).toEqual([true, true, true, true]);
+      seen[value] = rows(wrapper);
+    }
+    expect(seen["announcement"]?.map((r) => [r.label, r.greyed])).toEqual([
+      ["Kind", false],
+      ["Letter", false],
+      ["Group", true],
+      ["Text", false],
+    ]);
+    expect(seen["group"]?.map((r) => [r.label, r.greyed])).toEqual([
+      ["Kind", false],
+      ["Number", false],
+      ["Group", false],
+      ["Text", false],
+    ]);
+    expect(seen["bulletin"]?.map((r) => [r.label, r.greyed])).toEqual([
+      ["Kind", false],
+      ["Number", false],
+      ["Group", true],
+      ["Text", false],
+    ]);
+    expect(group.element.disabled).toBe(true);
+    // the choice is as wide as its row, whatever its options say, and a greyed row keeps its height: the label and the control are dimmed, not hidden
+    expect(cssRule(".field-control .input")).toMatch(/flex:\s*1/);
+    // and no wider than its row on a phone, in the language with the longest words: the choice, its row and the box may all be narrower than the longest option, which the browser then cuts off in the closed choice (the open list has it whole), as it does the long types of radio
+    for (const selector of [".input", ".field-control", "fieldset.composebox"]) expect(cssRule(selector), selector).toMatch(/min-width:\s*0/);
+    expect(cssRule(".field")).toMatch(/grid-template-columns:\s*minmax\(7em, min\(36%, 15em\)\) 1fr/); // (the label's column is a share of the row, not as wide as the label: "Number" and "Letter" change nothing)
+    expect(cssRule(".input:disabled")).toMatch(/opacity/);
+    expect(cssRule(".input:disabled")).not.toMatch(/display|visibility|height/);
   });
 
-  it("has an (i) that says in a few sentences what a bulletin and a bulletin to a group are, closed until it is pressed", async () => {
-    const { wrapper } = compose();
-    const info = wrapper.find<HTMLButtonElement>(".info-toggle");
-    expect(info.attributes("aria-expanded")).toBe("false");
-    expect(wrapper.find(".info-text").exists()).toBe(false);
-    await info.trigger("click");
-    const note = wrapper.find(".info-text").text();
-    expect(note).toContain("Everyone sees a bulletin and nobody acknowledges it.");
-    expect(note).toContain("A group bulletin is for the stations that follow that name.");
-    await info.trigger("click");
-    expect(wrapper.find(".info-text").exists()).toBe(false);
+  it("keeps what was typed for the group while another kind is chosen, greyed and not sent, and has it back for a group bulletin", async () => {
+    const { wrapper, kind, group, text } = compose();
+    await kind.setValue("group");
+    await group.setValue("hams");
+    await kind.setValue("bulletin");
+    expect(group.element.value).toBe("hams");
+    expect(group.element.disabled).toBe(true);
+    await text.setValue("Road closed");
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("post")).toEqual([["BLN1", "Road closed"]]);
+    await kind.setValue("group");
+    expect(group.element.disabled).toBe(false);
+    expect(group.element.value).toBe("HAMS"); // (in capitals, as a post writes it)
+  });
+
+  it("does not mark the group wrong while it is greyed", async () => {
+    const { wrapper, kind, group } = compose();
+    await kind.setValue("group");
+    await group.setValue("a b");
+    expect(group.classes()).toContain("invalid");
+    await kind.setValue("announcement");
+    expect(group.classes()).not.toContain("invalid");
+    expect(wrapper.find(".field.invalid").exists()).toBe(false);
+  });
+
+  it("says Replace on the button while the number, letter or group chosen holds a post of ours, both words in one place so that the button keeps its width", async () => {
+    const ours = new Map([
+      ["BLN1", ownBulletin("BLN1")],
+      ["BLNQ", ownBulletin("BLNQ", { kind: "announcement" })],
+      ["BLN3HAMS", ownBulletin("BLN3HAMS", { kind: "group", group: "HAMS", next_at: null })],
+    ]);
+    const { wrapper, kind, id, group, post } = compose();
+    const faces = () => post.findAll(".twowords > span").map((face) => [face.text(), face.classes().includes("twowords-off")]);
+    expect(faces()).toEqual([
+      ["Post", false],
+      ["Replace", true],
+    ]);
+    await wrapper.setProps({ ownBulletins: ours });
+    expect(faces()).toEqual([
+      ["Post", true],
+      ["Replace", false],
+    ]);
+    expect(shown(post)).toBe("Replace");
+    await id.setValue("2");
+    expect(shown(post)).toBe("Post");
+    await kind.setValue("announcement");
+    expect(shown(post)).toBe("Post"); // (the letter A holds nothing)
+    await id.setValue("Q");
+    expect(shown(post)).toBe("Replace");
+    await kind.setValue("group");
+    await id.setValue("3");
+    expect(shown(post)).toBe("Post"); // (no group yet)
+    await group.setValue("hams");
+    expect(shown(post)).toBe("Replace"); // (one whose schedule is over is replaced too)
+    await group.setValue("wx");
+    expect(shown(post)).toBe("Post");
+    expect(cssRule(".twowords > .twowords-off")).toMatch(/visibility:\s*hidden/);
+  });
+
+  it("says Post, not Replace, for a group bulletin with no group yet whose number holds a bulletin of ours: a group bulletin never replaces a bulletin", async () => {
+    const { wrapper, kind, id, group, post } = compose();
+    await wrapper.setProps({ ownBulletins: new Map([["BLN3", ownBulletin("BLN3")]]) });
+    await id.setValue("3");
+    expect(shown(post)).toBe("Replace");
+    await kind.setValue("group");
+    expect(id.element.value).toBe("3");
+    expect(shown(post)).toBe("Post"); // (no group: nothing is posted, and BLN3 is not what a group bulletin would replace)
+    await group.setValue("a b");
+    expect(shown(post)).toBe("Post");
+    await group.setValue("hams");
+    expect(shown(post)).toBe("Post"); // (BLN3HAMS holds nothing)
+  });
+
+  it("replaces: the slot and the new text go to the daemon as a post does", async () => {
+    const { wrapper, text, post } = compose();
+    await wrapper.setProps({ ownBulletins: new Map([["BLN1", ownBulletin("BLN1", { text: "Road closed" })]]) });
+    await text.setValue("Road open again");
+    expect(shown(post)).toBe("Replace");
+    expect(post.element.disabled).toBe(false);
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("post")).toEqual([["BLN1", "Road open again"]]);
   });
 
   it("has Post off until there is a text that can be sent, and counts the 67 characters", async () => {
@@ -124,12 +261,12 @@ describe("BulletinCompose", () => {
     expect(wrapper.emitted("post")?.[2]).toEqual(["BLN0", "Back to numbers"]);
   });
 
-  it("asks for the group of a group bulletin, in capitals, one to five characters", async () => {
-    const { wrapper, kind, text, post } = compose();
+  it("asks for the group of a group bulletin, in capitals, one to five characters: the field takes no more and is red while it is none", async () => {
+    const { wrapper, kind, group, text, post } = compose();
     await kind.setValue("group");
-    const group = wrapper.find<HTMLInputElement>("#post-group");
-    expect(group.exists()).toBe(true);
+    expect(group.element.disabled).toBe(false);
     expect(group.attributes("placeholder")).toBe("Name");
+    expect(group.attributes("maxlength")).toBe(String(LIMITS.bulletin.groupMax));
     await text.setValue("Net tonight 20:00");
     expect(post.element.disabled).toBe(true);
     await group.setValue("a b");

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { LOCALES } from "@/i18n/locales";
 import { texts, type Message } from "@/i18n/message";
 
-/** The ids of the lines of a note: `x.tip`, `x.tip1`, `x.tip_moving`, `x.about1`, `x.mode_tip`, `x.kinds_help`, `x.igates_tip` and the like. */
-const NOTE = /\.(tip\d?|tip_moving|about\d|[a-z]+_tip\d?|kinds_help|overheard_help)$/;
+/** The ids of the lines of a note: `x.tip`, `x.tip1`, `x.tip_moving`, `x.about1`, `x.mode_tip`, `x.igates_tip` and the like. */
+const NOTE = /\.(tip\d?|tip_moving|about\d|[a-z]+_tip\d?|overheard_help)$/;
 /** The longest a line of a note is, in characters, for the languages that write words (Japanese is far shorter in characters). */
 const MOST = 145;
 

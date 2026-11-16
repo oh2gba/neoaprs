@@ -48,6 +48,7 @@ from neoaprs.radiotype import HF_BEACON_MIN_MIN, KINDS, RadioType  # noqa: E402
 from neoaprs.radiotypes import DEFAULT_TYPE, type_of, types_of  # noqa: E402
 from neoaprs.versions import MAX_FREQUENCIES  # noqa: E402
 from neoaprs.services import generalask  # noqa: E402
+from neoaprs.decay import ANNOUNCEMENT, BULLETIN  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
 from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, QRU_GROUP_MAX, QRU_RESERVED, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
@@ -253,6 +254,15 @@ def _path_text_max() -> int:
     return int(next(option["maxLength"] for option in path["anyOf"] if "maxLength" in option))
 
 
+def _whole(seconds: int, unit_sec: int, what: str) -> int:
+    """A time of the daemon in the unit the page words it in (the hours a bulletin is repeated for, the days of an announcement). No whole number of them stops the generator: a changed plan (neoaprs/decay.py)
+    then needs the page's text in another unit, and cannot leave it untrue."""
+    count, rest = divmod(seconds, unit_sec)
+    if rest or count < 1:
+        raise ValueError(f"{what} is {seconds} s, no whole number of {unit_sec} s: word the choice of the Bulletins form (ui/src/lib/bulletins.ts) in a unit that fits")
+    return count
+
+
 def limits() -> dict[str, Any]:
     """Every number the page checks a value against, by area: the daemon's own constants, so that the page types none of them again."""
     ranges = {**{key: {"min": low, "max": high} for key, (low, high) in RANGES.items()}, "station/lat": {"min": LATITUDE[0], "max": LATITUDE[1]}, "station/lon": {"min": LONGITUDE[0], "max": LONGITUDE[1]}}
@@ -268,7 +278,8 @@ def limits() -> dict[str, Any]:
         "history": {"maxHours": HISTORY_MAX_HOURS},
         "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
                    "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH), "qruGroupMax": QRU_GROUP_MAX, "qruReserved": list(QRU_RESERVED)},
-        "bulletin": {"groupMax": GROUP_MAX},
+        "bulletin": {"groupMax": GROUP_MAX, "repeatHours": _whole(BULLETIN.lasts, 3600, "how long a bulletin is repeated"),
+                     "announcementRepeatDays": _whole(ANNOUNCEMENT.lasts, 86400, "how long an announcement is repeated")},
         "qru": {"kmMax": ASK_KM_MAX, "askEverySec": ASK_EVERY_SEC, "askGapSec": ASK_GAP_SEC},
         "general": {"askEverySec": generalask.ASK_EVERY_SEC, "countSec": round(generalask.COUNT_FOR.total_seconds()), "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60), "queries": dict(generalask.QUERIES)},
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},

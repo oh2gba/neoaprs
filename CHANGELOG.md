@@ -11,6 +11,7 @@
 - **Changed:** the status text and the beacon comment show how many characters are left, as a message does, and no text takes more than fits.
 - **Changed:** a packet and a station name the radio that heard them (FM, HF, LoRa or the name you gave it), no longer RF.
 - **Fixed:** in the app's own window, Settings → Notifications named the NeoAPRS computer and this browser; it now says this computer and this window.
+- **Changed:** in **Post a bulletin** each kind says what it does: sent for 4 hours, sent for 3 days, to one group.
 
 ## 0.20.0
 

@@ -12,6 +12,7 @@ import type { Panel } from "@/composables/usePanel";
 import type { OwnBulletinRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { ago, bulletin, incoming, message, ownObject } from "@/test/fixtures";
+import { shown } from "@/test/shown";
 
 function bulletins() {
   const rows = [bulletin("BLN1", { text: "Road closed" })];
@@ -49,11 +50,11 @@ function expectTheBar(wrapper: VueWrapper, primary: string, secondary: string | 
   const foot = barOf(wrapper).find(".composebar-foot");
   const buttons = foot.findAll("button");
   const last = buttons.at(-1);
-  expect(last?.text()).toBe(primary);
+  expect(shown(last)).toBe(primary); // (the word shown: Post has a second face, Replace, hidden in the same place)
   expect(last?.classes()).toContain("primary");
   expect(last?.attributes("type")).toBe("submit");
   if (secondary !== null) expect(buttons.at(-2)?.text()).toBe(secondary);
-  expect(buttons.filter((b) => b.classes().includes("primary") && b.text() === primary)).toHaveLength(1);
+  expect(buttons.filter((b) => b.classes().includes("primary") && shown(b) === primary)).toHaveLength(1);
   const counter = foot.find(".compose-left").element;
   expect(counter).not.toBeNull();
   for (const b of foot.findAll("button").filter((x) => !foot.find(".composebar-aside").element.contains(x.element))) {
@@ -160,10 +161,13 @@ describe("every form of fields is a group box, a chat line is not", () => {
     expect(chat.classes()).not.toContain("boxed");
   });
 
-  it("gives every field of the Bulletins and Email boxes the row of the Settings fields: a label, the control and its (i)", () => {
+  it("gives every field of the Bulletins and Email boxes the row of the Settings fields: a label and the control, and in the Email box its (i) (the fields of Bulletins say what they are themselves)", () => {
     const rows = [...barOf(bulletins()).findAll(".field")];
-    expect(rows.map((r) => r.find("label").text())).toEqual(["Kind", "Number", "Text"]);
-    for (const row of rows) expect(row.find(".field-control .infotip").exists()).toBe(true);
+    expect(rows.map((r) => r.find("label").text())).toEqual(["Kind", "Number", "Group", "Text"]);
+    for (const row of rows) {
+      expect(row.find(".field-control > .input").exists()).toBe(true);
+      expect(row.find(".infotip").exists()).toBe(false);
+    }
     const mail = email();
     const mailRows = [...barOf(mail).findAll(".field")];
     expect(mailRows.map((r) => r.find("label").text())).toEqual(["To", "Text"]);

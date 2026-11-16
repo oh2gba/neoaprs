@@ -1000,7 +1000,7 @@ export const LIMITS = {
   alert: { kmMin: 1, kmMax: 1000 },
   history: { maxHours: 168 },
   object: { nameMax: 9, itemNameMin: 3, nameForbidden: "!_|~", commentMax: 43, commentMaxMotion: 36, courseMax: 359, speedMaxKmh: 1850, qruGroupMax: 8, qruReserved: ["INFO", "NEXT"] },
-  bulletin: { groupMax: 5 },
+  bulletin: { groupMax: 5, repeatHours: 4, announcementRepeatDays: 3 },
   qru: { kmMax: 20000, askEverySec: 60, askGapSec: 10 },
   general: {
     askEverySec: 60,

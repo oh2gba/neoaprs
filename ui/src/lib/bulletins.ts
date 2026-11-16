@@ -84,9 +84,16 @@ export const POST_KINDS: { kind: PostKind; ids: string }[] = [
   { kind: "group", ids: "0123456789" },
 ];
 
-/** What a kind of post is called in the choice of the compose box. */
+/** How long a post of each kind is sent, in the unit its words have (hours, and days for an announcement): the daemon's own plan (LIMITS.bulletin, from neoaprs/decay.py). A group bulletin is sent as a bulletin is. */
+const REPEATED: Record<PostKind, number> = {
+  bulletin: LIMITS.bulletin.repeatHours,
+  announcement: LIMITS.bulletin.announcementRepeatDays,
+  group: LIMITS.bulletin.repeatHours,
+};
+
+/** What a kind of post is called in the choice of the compose box, with what it does: "Bulletin (sent for 4 hours)", "Announcement (sent for 3 days)", "Group bulletin (to one group, sent for 4 hours)". */
 export function kindTitle(kind: PostKind): string {
-  return t(`bulletins.kind.${kind}`);
+  return t(`bulletins.kind.${kind}`, { n: REPEATED[kind] });
 }
 export const GROUP_MAX = LIMITS.bulletin.groupMax;
 

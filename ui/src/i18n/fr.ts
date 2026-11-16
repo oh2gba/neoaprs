@@ -471,20 +471,19 @@ export const fr: Catalogue = {
 
   "bulletins.post_label": "Publier un bulletin",
   "bulletins.kind": "Type",
-  "bulletins.kind.bulletin": "Bulletin",
-  "bulletins.kind.announcement": "Annonce",
-  "bulletins.kind.group": "Bulletin à un groupe",
-  "bulletins.kinds_help_label": "Ce que sont les types",
-  "bulletins.kinds_help": "Tout le monde voit un bulletin et personne ne l'acquitte. Un bulletin de groupe s'adresse aux stations qui suivent ce nom.",
+  "bulletins.kind.bulletin": { one: "Bulletin (envoyé pendant {n} heure)", other: "Bulletin (envoyé pendant {n} heures)" },
+  "bulletins.kind.announcement": { one: "Annonce (envoyée pendant {n} jour)", other: "Annonce (envoyée pendant {n} jours)" },
+  "bulletins.kind.group": {
+    one: "Bulletin de groupe (pour un groupe, envoyé pendant {n} heure)",
+    other: "Bulletin de groupe (pour un groupe, envoyé pendant {n} heures)",
+  },
   "bulletins.letter": "Lettre",
   "bulletins.number": "Numéro",
   "bulletins.group": "Groupe",
   "bulletins.group_placeholder": "Nom",
   "bulletins.text": "Texte",
-  "bulletins.slot_tip": "La place sur le tableau. Publier de nouveau à la même place remplace l'ancien message.",
-  "bulletins.group_tip": "Le groupe visé, jusqu'à {max} lettres et chiffres. Les stations qui suivent ce nom l'affichent.",
-  "bulletins.text_tip": "Le texte du bulletin. Le compteur indique combien de caractères restent.",
   "bulletins.post": "Publier",
+  "bulletins.replace": "Remplacer",
 
   // skeds
   "skeds.about_label": "À propos des essais HF",

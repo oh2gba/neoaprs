@@ -478,20 +478,19 @@ export const de: Catalogue = {
 
   "bulletins.post_label": "Bulletin senden",
   "bulletins.kind": "Art",
-  "bulletins.kind.bulletin": "Bulletin",
-  "bulletins.kind.announcement": "Ankündigung",
-  "bulletins.kind.group": "Bulletin an eine Gruppe",
-  "bulletins.kinds_help_label": "Was die Arten sind",
-  "bulletins.kinds_help": "Ein Bulletin sehen alle, und niemand quittiert es. Ein Gruppen-Bulletin gilt den Stationen, die diesem Namen folgen.",
+  "bulletins.kind.bulletin": { one: "Bulletin (wird {n} Stunde lang gesendet)", other: "Bulletin (wird {n} Stunden lang gesendet)" },
+  "bulletins.kind.announcement": { one: "Ankündigung (wird {n} Tag lang gesendet)", other: "Ankündigung (wird {n} Tage lang gesendet)" },
+  "bulletins.kind.group": {
+    one: "Gruppenbulletin (an eine Gruppe, wird {n} Stunde lang gesendet)",
+    other: "Gruppenbulletin (an eine Gruppe, wird {n} Stunden lang gesendet)",
+  },
   "bulletins.letter": "Buchstabe",
   "bulletins.number": "Nummer",
   "bulletins.group": "Gruppe",
   "bulletins.group_placeholder": "Name",
   "bulletins.text": "Text",
-  "bulletins.slot_tip": "Der Platz auf der Tafel. Wer erneut an denselben Platz sendet, ersetzt den alten Eintrag.",
-  "bulletins.group_tip": "Die Gruppe, für die das Bulletin gilt, bis zu {max} Buchstaben und Ziffern. Stationen, die dem Namen folgen, zeigen es an.",
-  "bulletins.text_tip": "Der Text des Bulletins. Der Zähler zeigt, wie viele Zeichen noch frei sind.",
   "bulletins.post": "Senden",
+  "bulletins.replace": "Ersetzen",
 
   // skeds
   "skeds.about_label": "Über KW-Tests",

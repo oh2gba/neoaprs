@@ -20,6 +20,14 @@ const ALLOWED_OBJECTS: Record<string, string> = {
   Longitude: "part of the Location control: a coordinate, in degrees",
   Locator: "part of the Location control: a Maidenhead locator, which the field shows",
 };
+/** The Bulletins box has no (i) at all: each field says what it is itself, and an (i) would have nothing left to say. */
+const ALLOWED_BULLETINS: Record<string, string> = {
+  Kind: "each option says what its kind does: how long it is sent, and that a group bulletin is to one group",
+  Number: "a digit from a list; Post says Replace while the number chosen holds a post of ours",
+  Letter: "a letter from a list; Post says Replace while the letter chosen holds a post of ours",
+  Group: "a name: the field takes five characters and is red while it is no group, and is greyed for the other kinds",
+  Text: "the counter beside Post says how many characters are left",
+};
 // (the Settings tab has none: every field has its (i))
 const ALLOWED_SETTINGS: Record<string, string> = {};
 
@@ -55,11 +63,14 @@ function settingsTab(scope: Scope, extra: Record<string, string>) {
 }
 
 describe("every field has an (i)", () => {
-  it("in the Bulletins box (the group field too) and the Email box", async () => {
+  it("in the Email box; the Bulletins box has none, each field for its reason", async () => {
     const post = mount(BulletinCompose, { props: { ownBulletins: new Map() }, global: withDaemon() });
-    await post.find("#post-kind").setValue("group");
-    expect(post.find("#post-group").exists()).toBe(true);
-    expect(untipped(post.element as HTMLElement)).toEqual([]);
+    const names = new Set(untipped(post.element as HTMLElement));
+    await post.find("#post-kind").setValue("announcement");
+    for (const name of untipped(post.element as HTMLElement)) names.add(name);
+    expect([...names].filter((n) => !(n in ALLOWED_BULLETINS))).toEqual([]);
+    expect(Object.keys(ALLOWED_BULLETINS).filter((n) => !names.has(n))).toEqual([]);
+    expect(post.find(".infotip").exists()).toBe(false);
     const mail = mount(EmailCompose, { props: { connected: true, addresses: [] } });
     expect(untipped(mail.element as HTMLElement)).toEqual([]);
   });
