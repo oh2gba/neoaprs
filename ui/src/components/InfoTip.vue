@@ -61,7 +61,6 @@ onBeforeUnmount(() => {
       :aria-expanded="open"
       :aria-controls="`${id}-note`"
       :aria-label="label"
-      :title="label"
       @click="openTip = open ? null : id"
       v-text="'i'"
     ></button>

@@ -41,6 +41,12 @@ afterEach(() => {
 });
 
 describe("InfoTip", () => {
+  it("has its name for a screen reader and no hover text: the (i) says nothing until it is pressed", () => {
+    const button = tip().get("button.info-toggle");
+    expect(button.attributes("aria-label")).toBe("About DAO");
+    expect(button.attributes("title")).toBeUndefined();
+  });
+
   it("is a small (i) button that names the field it is about, with its note closed", () => {
     const wrapper = tip();
     const button = wrapper.find("button");
