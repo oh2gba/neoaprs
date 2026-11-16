@@ -92,9 +92,19 @@ def test_no_radio_gets_the_column_and_nothing_else(tmp_path: Path) -> None:
 
 def test_every_radio_off_ticks_the_chosen_one_for_when_one_is_on(tmp_path: Path) -> None:
     db = stepped(tmp_path, Old((fm(1, enabled=False), hf(2, enabled=False)), chosen=2, bulletins={"BLN1": "net"}))
-    assert each(db) == dict.fromkeys(KEYS, {2: "true"}) and places(db) == {1: 1, 2: 2} and sets(db, "own_bulletin") == {"BLN1": "2"}
+    assert each(db) == dict.fromkeys(KEYS, {2: "true"}) and places(db) == {2: 1, 1: 2} and sets(db, "own_bulletin") == {"BLN1": "2"}, "the chosen radio's box first: once both are on, it is the first that is on"
     found = settings(db)
-    assert (found["objects/send_on"], found["bulletins/send_on"]) == ("2", "2") and "email/radio" not in found, "a new object and a new bulletin start on the radio chosen, not on the first box"
+    assert (found["objects/send_on"], found["bulletins/send_on"]) == ("2", "2"), "a new object and a new bulletin start on the radio chosen, not on the first box"
+    assert found["email/radio"] == "1", "0.20.0 sent the mail on FM once it was on: internet gateways hear it, not the chosen HF"
+    fm_chosen = stepped(tmp_path / "fm", Old((fm(1, enabled=False), lora(2, enabled=False), fm(3, enabled=False)), chosen=3))
+    assert settings(fm_chosen)["email/radio"] == "3" and places(fm_chosen) == {3: 1, 1: 2, 2: 3}, "the radio chosen, of a kind they hear"
+
+
+def test_hf_on_alone_with_fm_off_stores_fm_for_the_mail_once_it_is_on(tmp_path: Path) -> None:
+    db = stepped(tmp_path, Old((fm(1, enabled=False), hf(2))))
+    found = settings(db)
+    assert found["email/radio"] == "1" and places(db) == {1: 1, 2: 2}, "the mail goes on HF while it is alone, and on FM once FM is on, as 0.20.0 sent it"
+    assert "email/radio" not in settings(stepped(tmp_path / "hf", Old((hf(1), hf(2, enabled=False))))), "no radio of a kind internet gateways hear: no row"
 
 
 def test_three_on_with_every_beacon_tick_off_tick_the_main_radios_beacon(tmp_path: Path) -> None:

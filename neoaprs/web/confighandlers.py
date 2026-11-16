@@ -10,7 +10,7 @@ from dataclasses import replace
 from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.cli.redaction import shown_value
 from neoaprs.coded import CodedError
-from neoaprs.config import BY_KEY, Config, SettingError, radio_key_of
+from neoaprs.config import BY_KEY, EMAIL_RADIO, Config, SettingError, radio_key_of
 from neoaprs.configradios import flat_moved
 from neoaprs.mercurycards import stable_alsa_id
 from neoaprs.mercuryhelper import alsa_card_names
@@ -168,7 +168,7 @@ def _own_value(config: Config, key: str) -> str | None:
     return None if spec is None else spec.settings.get(field, getattr(kind_field(spec.kind, field), "default", None))
 
 
-CHOICES_OF_A_RADIO = {"email/radio": "email_choice"}      # the station's settings that name one radio by its id, each with its field of Config
+CHOICES_OF_A_RADIO = {EMAIL_RADIO: "email_choice"}      # the station's settings that name one radio by its id, each with its field of Config
 
 
 def _name_radios(base: Config, config: Config, keys: Iterable[str]) -> None:

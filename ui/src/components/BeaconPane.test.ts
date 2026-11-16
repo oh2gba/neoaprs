@@ -859,6 +859,16 @@ describe("BeaconPane with several radios", () => {
       expect(row([FM({ choices: { ...FM().choices, status: true } }), HF()])?.text()).toBe("Last sent 4 min ago · next in 26 min (every 30 min)");
     });
 
+    it("shows the status's pill off while it is ticked for no radio that is on, as the beacon's, and on while only the beacon is Off (Send status now still sends)", () => {
+      const sent = { status: status({ station_status_last_sent: ago(240) }) };
+      const pill = (rows: RadioRow[], extra: Record<string, string> = {}) =>
+        statusRow(radiosPane(rows, { ...text, ...extra }, sent).wrapper)
+          ?.find(".statetext")
+          .text();
+      expect(pill([FM(), HF()])).toBe("off");
+      expect(pill([FM({ choices: { ...FM().choices, status: true } }), HF()], { "beacon/interval_min": "0" })).toBe("on");
+    });
+
     it("says not sent yet on a radio the status has not gone out on", () => {
       const { wrapper } = radiosPane([FM({ choices: { ...FM().choices, status: true } }), HF()], text);
       expect(statusFold(wrapper)).toEqual(["Every 30 min", "FM: not sent yet"]);

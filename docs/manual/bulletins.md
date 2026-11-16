@@ -70,7 +70,7 @@ The times are the same on every radio and by every path: the digipeaters of the 
 
 A text posted to a slot that holds one replaces it and starts the schedule again, never within a minute of the last packet of the slot. The same text posted again, once the schedule is over, goes out again. You can have at most 36 posted at once.
 
-A bulletin goes on the radios ticked when it was posted, and so do its repeats, once on each in every round ([radio.md](radio.md#what-goes-on-which-radio)); with one radio that can send, on that one. While a radio it goes on is Mercury or LoRa, its repeats come every 30 minutes on each of its radios, not every 20: their airtime is everyone's. **Post** is off while no radio ticked is connected, with that as its title ("The radio is not connected", or "FM: not connected" while several radios are on), and while no tick is ticked (the radios of the last post were switched off).
+A bulletin goes on the radios ticked when it was posted, and so do its repeats, once on each in every round ([radio.md](radio.md#what-goes-on-which-radio)); with one radio that can send, on that one. While a radio it goes on is Mercury or LoRa, its repeats come every 30 minutes on each of its radios, not every 20. **Post** is off while no radio ticked is connected, with that as its title ("The radio is not connected", or "FM: not connected" while several radios are on), and while no tick is ticked (the radios of the last post were switched off).
 
 Nothing is posted while the call is not set. What is due waits for the radio, and one packet goes out when it is back. At most one packet of yours of this kind (an object or a bulletin) goes out every 10 seconds, and a restart sends no burst ([objects.md](objects.md#when-it-is-sent)).
 

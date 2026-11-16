@@ -3455,7 +3455,7 @@
           "description": "when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa, until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first)"
         },
         "radios": {
-          "description": "the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere)",
+          "description": "the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none)",
           "items": {
             "type": "integer"
           },
@@ -3550,7 +3550,7 @@
           "type": "boolean"
         },
         "radios": {
-          "description": "the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere)",
+          "description": "the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none)",
           "items": {
             "type": "integer"
           },
@@ -4765,7 +4765,7 @@
           "type": "boolean"
         },
         "gateway_heard": {
-          "description": "internet gateways hear its kind: where no radio is chosen for email (`email/radio`), it goes on such a radio while one is on",
+          "description": "internet gateways hear its kind",
           "type": "boolean"
         },
         "shared_channel": {

@@ -852,7 +852,7 @@ export interface OwnBulletinRow {
   last_sent_at: string | null;
   /** when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa, until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first) */
   next_at: string | null;
-  /** the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere) */
+  /** the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none) */
   radios: number[];
 }
 
@@ -878,7 +878,7 @@ export interface OwnObjectRow {
   qru_group: string;
   /** true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule */
   on_request: boolean;
-  /** the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere) */
+  /** the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none) */
   radios: number[];
   /** `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten */
   state: "live" | "killing";
@@ -1171,7 +1171,7 @@ export interface RadioAllowed {
   digipeat: boolean;
   /** a moving station's SmartBeaconing applies on it; elsewhere the timed beacon goes with the latest fix */
   smart_beacon: boolean;
-  /** internet gateways hear its kind: where no radio is chosen for email (`email/radio`), it goes on such a radio while one is on */
+  /** internet gateways hear its kind */
   gateway_heard: boolean;
   /** it is a 1200-baud shared channel: the ALOHA circle is worked out from what it hears */
   shared_channel: boolean;

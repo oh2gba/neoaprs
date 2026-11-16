@@ -13,7 +13,7 @@ from neoaprs.aprsweather import Weather
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import AT_GATE, Attempt
 from neoaprs.clock import iso
-from neoaprs.config import DEFAULTS, KEYS, RADIO_STATION_KEYS, STATION_KEYS, Config
+from neoaprs.config import DEFAULTS, EMAIL_RADIO, KEYS, RADIO_STATION_KEYS, STATION_KEYS, Config
 from neoaprs.geo import Point
 from neoaprs.gpsfix import Fix
 from neoaprs.mercury import MAX_PAYLOAD, MODE
@@ -209,7 +209,7 @@ def config_values(config: Config, urls: list[str], https: dict[str, Any] | None 
     `radio_values`, apart, so that a form that shows every key of `values` shows none of them."""
     values, defaults = config.to_data(), DEFAULTS.to_data()
     values, defaults = {k: v for k, v in values.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS}, {k: v for k, v in defaults.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS}
-    values["email/radio"] = values["email/radio"] if config.radio(config.email_choice or 0) in config.live_radios else ""                  # (an email radio removed is none chosen)
+    values[EMAIL_RADIO] = values[EMAIL_RADIO] if config.radio(config.email_choice or 0) in config.live_radios else ""                  # (an email radio removed is none chosen)
     radio_values = {key: values[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": spec.settings.get(f.key, f.default) for spec in config.live_radios for f in kind_fields(spec.kind)}
     radio_defaults = {key: defaults[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": f.default for spec in config.live_radios for f in kind_fields(spec.kind)}
     return {"values": {k: v for k, v in values.items() if k not in RADIO_STATION_KEYS}, "defaults": {k: v for k, v in defaults.items() if k not in RADIO_STATION_KEYS}, "radio_values": radio_values,

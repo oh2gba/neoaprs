@@ -36,10 +36,11 @@ const left = computed(() => leftOf(draft.text, limit));
 const rxOnly = useReceiveOnly();
 const page = inject(DAEMON_KEY, null);
 const radios = useRadios();
-const { told, named, severalSenders: several } = radios;
+const { told, named, severalSenders: several, all } = radios;
 /** The radios ticked in the draft; null until a tick is pressed: a new draft starts as the bulletin posted last, as the daemon says it. */
 const chosen = ref<RadioId[] | null>(null);
-const own = (): readonly RadioId[] => chosen.value ?? page?.status.value?.new_bulletin_radios ?? [];
+const own = (): readonly RadioId[] =>
+  chosen.value ?? (page?.status.value?.new_bulletin_radios ?? []).filter((id) => all.value.some((radio) => radio.id === id && !radio.removed));
 /** Send on, bound to the draft: the ticks, and the radios the bulletin goes out on as they stand. */
 const { ticks, radios: on, tick } = useDraftSendOn(own, (ids) => (chosen.value = ids), "post", radios);
 /** No tick is ticked (the radios ticked are off): Post is off until one is, with no title (the row of ticks shows it). */

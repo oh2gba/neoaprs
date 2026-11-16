@@ -5,7 +5,7 @@ import ObjectForm from "@/components/ObjectForm.vue";
 import { setLocale, t } from "@/i18n";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
-import type { Command, OwnObjectRow } from "@/protocol/protocol";
+import type { Command, OwnObjectRow, RadioRow } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, ofRadios, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
@@ -598,6 +598,15 @@ describe("Send on, the radios of an object", () => {
     ).toEqual(["Send on", "Path", "Category"]);
     expect(advanced()?.element.open).toBe(false); // (the ticks a new object has)
     expect(sendOn().find(".info-toggle").exists(), "the row of the Beacon group's Send on: no (i) of its own").toBe(false);
+  });
+
+  it("sends nothing while the station has no radio, though the daemon names a radio for a new object", async () => {
+    const none: RadioRow[][] = [[], [{ ...FM, removed: true, enabled: false }]];
+    for (const rows of none) {
+      const { wrapper, sent } = withRadios(ofRadios(...rows));
+      await wrapper.find("form").trigger("submit");
+      expect(sent.filter((command) => command.cmd === "object_set")).toEqual([]);
+    }
   });
 
   it("ticks a new object as the object saved last, which the daemon names, first box or not", () => {

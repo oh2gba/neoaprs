@@ -34,8 +34,8 @@ Email goes on one radio, and a mail goes out once. With one radio on that can se
 
 With several, the list beside **Check email** has every radio that is on and can send, by its name, whatever its kind: FM, Mercury or LoRa. The one you pick carries every mail and Check email from then on, and a mail that is still being sent takes it from its next attempt. The choice is kept across a restart (`email/radio`, [settings.md](settings.md)).
 
-- Until you pick one, email goes on the radio that can send whose box is highest in Settings → Radio ([radio.md](radio.md#what-goes-on-which-radio)). A radio you add or switch on does not move it: the radio it went on is then kept as your pick.
-- While the radio you picked is off, the list shows the radio email goes on meanwhile, chosen as if you had picked none. Your choice is back when that radio is on again.
+- Until you pick one, email goes on the radio that can send whose box is highest in Settings → Radio ([radio.md](radio.md#what-goes-on-which-radio)). A radio you add or switch on does not move it: the radio it went on is then kept as your pick. Only where email went on a Mercury radio and the one that comes on is FM or LoRa, which iGates hear, is that one kept instead.
+- While the radio you picked is off, the list shows the radio email goes on meanwhile, chosen as if you had picked none. Your choice is back when that radio is on again, unless another radio was added or switched on meanwhile: the radio email went on is then kept as your pick.
 - Send and Check email follow that one radio: they are off while it is not connected ("FM: not connected"), though another radio is.
 - A mail arrives only where an iGate hears the radio it goes on.
 

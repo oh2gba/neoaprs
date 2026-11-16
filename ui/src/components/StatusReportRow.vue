@@ -19,13 +19,15 @@ const props = withDefaults(
     rig: "off" | "on" | "unused";
     beaconOff: boolean;
     rxOnly: boolean;
+    /** the status is ticked for no radio that is on: nothing can send it */
+    sentNowhere?: boolean;
     now: number;
     /** the line of each radio the status goes out on while several radios are on; none while one is */
     radios?: readonly string[];
   }>(),
-  { radios: () => [] },
+  { radios: () => [], sentNowhere: false },
 );
-const look = computed(() => reportLook(props.lastSent, props.minutes, props.beaconOff, props.rxOnly, props.now));
+const look = computed(() => reportLook(props.lastSent, props.minutes, props.beaconOff, props.rxOnly, props.sentNowhere, props.now));
 </script>
 
 <template>

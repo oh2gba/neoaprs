@@ -41,10 +41,12 @@ const rxOnly = useReceiveOnly();
 const page = inject(DAEMON_KEY, null);
 /** Send on is there while several radios that can send are on: the one place the choice means anything (a form mounted without the page's context, a test, has one radio). */
 const radios = useRadios();
-const { severalSenders: several, senders, allowsPath, pathOf, sharedPath } = radios;
-/** The radios a new object starts with: with one radio that can send, that one; else those of the object saved last, as the daemon says them. */
+const { severalSenders: several, senders, allowsPath, pathOf, sharedPath, all } = radios;
+/** The radios a new object starts with: with one radio that can send, that one; else those of the object saved last, as the daemon says them, of the radios the station has (none while it has none). */
 const start = computed<readonly RadioId[]>(() =>
-  senders.value.length === 1 ? senders.value.map((radio) => radio.id) : (page?.status.value?.new_object_radios ?? []),
+  senders.value.length === 1
+    ? senders.value.map((radio) => radio.id)
+    : (page?.status.value?.new_object_radios ?? []).filter((id) => all.value.some((radio) => radio.id === id && !radio.removed)),
 );
 /** The object's own radios as the draft has them: a new one not ticked yet starts as the object saved last. */
 const ownRadios = (): readonly RadioId[] => (draft.radios.length > 0 ? draft.radios : start.value);

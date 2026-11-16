@@ -51,7 +51,7 @@ All radios are equal: each thing the station sends of its own has its own radios
 - With one radio that can send on, everything goes on it, whatever is ticked, and no tick is shown.
 - With several, each thing goes on the radios ticked for it that are on, and on none while none of them is.
 - A radio you add or switch on stops nothing: what went on the radios that were on goes on there, and a new radio starts with its beacon alone. A new object or bulletin starts with the radios of the one you saved last.
-- A message to a call no radio heard, and a text to `CQ`, `ALL` or `QST`, go on the radio that can send whose box is highest in this group ([messages.md](messages.md#the-radio-of-a-message)). Move a box to change it.
+- A message to a call no radio heard, and a text to `CQ`, `ALL` or `QST`, go on the radio that can send whose box is highest in this group ([messages.md](messages.md#the-radio-of-a-message)).
 
 ## What each radio does, and what the station does once
 

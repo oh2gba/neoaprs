@@ -39,7 +39,8 @@ const beaconUp = computed(() => (radios.told.value ? beaconOn.value.some((radio)
 /** The radios Send status now and the timer send the status on; with one radio on, that one. */
 const statusOn = computed(() => statusRadios(radios.senders.value));
 /** No status goes by the timer: the beacon is Off, or the status is ticked for no radio that is on (its row then says no timed status, as the beacon's says no timed beacon). */
-const statusUntimed = computed(() => beaconOff(config.value?.values ?? {}) || (several.value && statusOn.value.length === 0));
+const statusNowhere = computed(() => several.value && statusOn.value.length === 0);
+const statusUntimed = computed(() => beaconOff(config.value?.values ?? {}) || statusNowhere.value);
 /** A radio Send status now would send on is connected (the same until the radios are told). */
 const statusUp = computed(() => (radios.told.value ? statusOn.value.some((radio) => radio.connected) : connected.value));
 /** The button that waits for its second press: its radio dropping forgets the press, as the link dropping does. */
@@ -115,6 +116,7 @@ const { ticks: statusTicks, error: statusTickError, tick: statusTick } = useSend
             :rig="status?.rig_state ?? 'unused'"
             :beacon-off="statusUntimed"
             :rx-only="receiveOnly"
+            :sent-nowhere="statusNowhere"
             :radios="statusLines"
             :now="now"
           />

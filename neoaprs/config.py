@@ -95,6 +95,7 @@ def _raised(setting: Setting, text: str) -> int | None:
     return setting.floor if 0 < value < setting.floor else None
 
 
+EMAIL_RADIO = "email/radio"         # the station's setting of the radio an email goes out on (the select of the E-mail tab)
 SETTINGS: tuple[Setting, ...] = (
     Setting("tnc_profile", "tnc/profile", tnc_profile),                         # what kind of TNC the radio is: what is said to it to put it in KISS, whether it can be asked if it is there, and how it is reached
     Setting("serial_port", "serial/port", port_address),                     # empty: find the radio by listening to the ports of serial/pattern (a TCP profile connects to tcp/host and tcp/port instead)
@@ -111,7 +112,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
     Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
     Setting("station_transmit", "station/transmit", boolean),               # false: receive only, nothing is transmitted whatever is asked or due (can_transmit); kept in the database, so it holds after a restart
-    Setting("email_choice", "email/radio", optional_int(1, 2**31 - 1)),              # the radio the operator chose for email, by its id (the select of the E-mail tab); empty, or a radio that is off or gone: the radio emailrule.email_radio gives
+    Setting("email_choice", EMAIL_RADIO, optional_int(1, 2**31 - 1)),              # the radio the operator chose for email, by its id (the select of the E-mail tab); empty, or a radio that is off or gone: the radio emailrule.email_radio gives
     Setting("fm_enabled", "fm/enabled", boolean),                           # true: the FM radio (the KISS TNC of tnc/profile) is there; false: no FM radio, no port searched, no FM beacon (a station with the HF radio alone)
     Setting("station_lat", "station/lat", optional_float(*LATITUDE)),     # empty: no position (no beacon; the map opens on the world)
     Setting("station_lon", "station/lon", optional_float(*LONGITUDE)),
@@ -153,7 +154,7 @@ SETTINGS: tuple[Setting, ...] = (
 )
 BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)             # every key of the settings table and of the wire's `config`, in the form's order: the station's rows, and today's flat keys of radios 1 and 2 (configradios.FLAT_HOMES: a view until the wire names a radio)
-RADIO_STATION_KEYS = ("email/radio",)      # the station's settings of the radios, which the wire's `config` tells beside the radios' own keys (`radio_values`), not among the settings the form of before shows
+RADIO_STATION_KEYS = (EMAIL_RADIO,)      # the station's settings of the radios, which the wire's `config` tells beside the radios' own keys (`radio_values`), not among the settings the form of before shows
 LAST_PORT = radio_state_key(FM_ID, "last_port")   # the row `serial/last_port` is kept in once the radios are stored: radio 1's own state
 STATION_KEYS = tuple(s.key for s in SETTINGS if s.attr not in FLAT_HOMES and s.key != "serial/last_port")       # the settings that are the station's: the rows of the table `settings` under their own key
 BEACON_SENT, HF_BEACON_SENT = "beacon/last_sent_at", "hf/beacon_last_sent_at"          # the rows of before of the two beacons' last sends, which migration 31 renamed radio/1/ and radio/2/beacon_last_sent_at; a Beacon made without the station's maker of frames (tests, until the round's removals) still keeps the first

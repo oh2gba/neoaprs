@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { setLocale } from "@/i18n";
 import { draftTicks, inForce, radiosBlockedReason, radiosNamed, radiosPathless, ticked } from "@/lib/sendon";
 import { pageRadios, type PageRadio, type RadioId } from "@/lib/radios";
 import { radioRow, radiosTopic } from "@/test/fixtures";
@@ -9,6 +10,8 @@ const several = (): boolean => true;
 const alone = (): boolean => false;
 
 describe("what the panes that ask on the radios of a Send on share", () => {
+  afterEach(() => setLocale("en"));
+
   it("says why nothing may go: none of the radios is connected, a line for each of several, or there is none", () => {
     if (fm === undefined || hf === undefined || away === undefined) throw new Error("no radios");
     const waiting = { ...hf, connected: false };
@@ -23,16 +26,18 @@ describe("what the panes that ask on the radios of a Send on share", () => {
   it("names the radios something went on, those that are named and that the page has", () => {
     const all = [fm, hf, away].filter((radio) => radio !== undefined);
     const byId = (id: RadioId) => all.find((radio) => radio.id === id);
-    expect(radiosNamed([1, 2], byId, several)).toBe("FM, Mercury");
+    expect(radiosNamed([1, 2], byId, several)).toBe("FM and Mercury");
     expect(radiosNamed([1, 9], byId, several)).toBe("FM");
     expect(radiosNamed([1, 2], byId, alone)).toBe("");
     expect(radiosNamed([], byId, several)).toBe("");
+    setLocale("ja");
+    expect(radiosNamed([1, 2], byId, several)).toBe("FM、Mercury");
   });
 
   it("says why a path is greyed for radios that carry none, as Route does", () => {
     if (hf === undefined) throw new Error("no radio");
     expect(radiosPathless([hf])).toBe("Mercury: no path");
-    expect(radiosPathless([hf, { ...hf, name: "40m" }])).toBe("Mercury, 40m: no path");
+    expect(radiosPathless([hf, { ...hf, name: "40m" }])).toBe("Mercury and 40m: no path");
     expect(radiosPathless([])).toBeUndefined();
   });
 });

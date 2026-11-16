@@ -361,7 +361,7 @@ describe("the Send on of Ask around", () => {
     const at = ago(20);
     const time = clockText(at).slice(0, 5);
     const { wrapper, daemon } = on({ general: general(askedOf({ at, radios: [1, 2] })) }, ticked(FM), ticked(HF));
-    expect(lines(wrapper)[0]?.text()).toBe(`FM, Mercury: Asked who is around at ${time} by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations`);
+    expect(lines(wrapper)[0]?.text()).toBe(`FM and Mercury: Asked who is around at ${time} by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations`);
     expect(lines(wrapper)[1]?.text()).toBe("Listening for stations that were quiet in the 10 minutes before…");
     await tell(daemon, { general: general(askedOf({ at, radios: [2], path: [] })) });
     expect(lines(wrapper)[0]?.text()).toBe(`Mercury: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`);

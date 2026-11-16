@@ -9,7 +9,7 @@ The day runs as tests/test_six_radios.py's (Dummy radios of every kind, a minute
 import asyncio
 from collections import Counter
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -280,5 +280,30 @@ async def test_a_radio_switched_off_and_on_again_after_the_update_takes_the_mail
         sent = [(int((at - START).total_seconds() // 60), p.radio_id, kind_of(ax25.decode(p.raw))) for at, p in run.out if ax25.decode(p.raw).source.call == ME]
         assert [(minute, radio) for minute, radio, kind in sent if kind == "mail"] == [(91, 1), (92, 1)], "the mail on FM, where 0.20.0 sent it"
         assert [minute for minute, radio, kind in sent if kind == "status" and radio == 2 and minute < 90] == [60], "HF stands in at its next interval: 30 minutes after FM's latest report"
+    finally:
+        await run.e.stop()
+
+
+@pytest.mark.parametrize("day", [Day("HF alone with FM off", Old((fm(1, enabled=False), hf(2)))), Day("every radio off with HF chosen", Old((fm(1, enabled=False), hf(2, enabled=False)), chosen=2))],
+                         ids=lambda day: day.name)
+async def test_once_fm_is_on_after_the_update_the_mail_goes_on_fm_and_a_call_no_radio_heard_on_the_radio_0_20_0_sent_it(tmp_path: Path, quick: None, day: Day) -> None:
+    """The radios that were off at the update switched on the day after: the mail goes on FM, which internet gateways hear (the step stored it, though FM was off), as 0.20.0 sent it once FM was on; a
+    message to a call no radio heard goes on the radio 0.20.0 resolved the main radio to (the one chosen, whose box the step put first; none chosen, the first box)."""
+    version_33(tmp_path / DB_NAME, Old(day.old.radios, day.old.chosen, STATION_ROWS), FixedClock(START))
+    run = Running(tmp_path, day)
+    await run.start()
+    try:
+        ctl = run.e.ctl
+        for radio in day.old.radios:
+            if not radio.enabled:
+                assert await ctl.change_radio(radio.id, enabled=True)
+        await until_started(lambda: all(r.usable and r.beacon.running for r in ctl.radios.senders()))
+        await run.until(START + timedelta(minutes=1))
+        await ctl.messaging.send(MAIL, "jane@example.org hello")
+        await ctl.messaging.send(NEW, "hello")
+        await run.until(START + timedelta(minutes=10))
+        went = {(p.radio_id, kind_of(ax25.decode(p.raw))) for _, p in run.out if ax25.decode(p.raw).source.call == ME and kind_of(ax25.decode(p.raw)) in ("mail", "new")}
+        unheard = main_radio_0_20_0(tuple(replace(r, enabled=True) for r in day.old.radios), day.old.chosen)
+        assert went == {(1, "mail"), (unheard, "new")}, day.name
     finally:
         await run.e.stop()

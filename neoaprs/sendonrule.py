@@ -5,12 +5,13 @@ writes what it gives in the transaction of that change (radiosql.put_kept). No I
 For each thing that has radios of its own (the beacon, the status, Ask around, Local info: each radio's tick, `radio/<id>/<key>`; every object and every bulletin of ours: its set; e-mail: `email/radio`):
 if it was in force on some radios before the change and would be in force on none after it, it is ticked for those of them that can still send. So a station that grows from FM to FM and HF keeps
 everything where it went, and the new radio carries its beacon alone (its other ticks are unticked by default). Ticked nowhere happens only where the operator switches off or removes the radios a thing was
-ticked for while several others stay on. E-mail the same: with no choice stored, when a radio that sends comes on beside the one the mail went on, that one is written, so that the mail stays there."""
+ticked for while several others stay on. E-mail the same: with no choice stored or one that is not on, when a radio that sends comes on beside the one the mail went on, that one is written, so that the mail stays there (unless
+internet gateways do not hear it and do hear the radio that comes on: then that one, as 0.20.0 sent it)."""
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 
 from .beaconrule import SEND_ON_KEYS, send_on_radios
-from .emailrule import email_radio
+from .emailrule import email_radio, gateway_heard
 from .radiospec import RadioId, RadioSpec, in_force_set, live, senders, transmits, unheard_radio
 from .radiotype import FM_ID
 
@@ -40,8 +41,9 @@ def _sets(things: Mapping[str, tuple[RadioId, ...]], before: list[RadioSpec], af
 def kept_in_force(before: Iterable[RadioSpec], after: Iterable[RadioSpec], objects: Mapping[str, tuple[RadioId, ...]], bulletins: Mapping[str, tuple[RadioId, ...]],
                   email_choice: RadioId | None) -> Kept:
     """What the change from `before` to `after` must write so that nothing in force on a radio that can still send stops (`Kept`; empty when nothing). Only a radio that comes on (one that can send now
-    and could not before: added, switched on, given a type that sends) can stop something; the change of the radios is read alone, each radio with the ticks it had before, so that a save that also
-    unticks something is not undone by it, and a save that changes ticks alone keeps nothing."""
+    and could not before: added, switched on, given a type that sends) can stop something; the change of the radios is read alone, each radio with the ticks it had before (a radio the station did not
+    have before counted unticked, so that its default tick does not stand in for what it would stop), so that a save that also unticks something is not undone by it, and a save that changes ticks alone
+    keeps nothing."""
     was, now = list(before), list(after)
     still = {spec.id for spec in senders(now)}
     if not still - {spec.id for spec in senders(was)}:
@@ -51,11 +53,19 @@ def kept_in_force(before: Iterable[RadioSpec], after: Iterable[RadioSpec], objec
     ticks = []
     for key in SEND_ON_KEYS:
         went = send_on_radios(key, was)
-        if went and not send_on_radios(key, now):
+        if went and not send_on_radios(key, [spec if spec.id in had else replace(spec, settings={**spec.settings, key: "false"}) for spec in now]):
             ticks += [(id, key) for id in went if id in still]
-    mail = email_radio(was, email_choice)
-    email = mail if email_choice is None and mail is not None and mail in still else None
-    return Kept(tuple(ticks), _sets(objects, was, now, still), _sets(bulletins, was, now, still), email)
+    return Kept(tuple(ticks), _sets(objects, was, now, still), _sets(bulletins, was, now, still), _mail(was, now, still, email_choice))
+
+
+def _mail(was: list[RadioSpec], now: list[RadioSpec], still: set[RadioId], email_choice: RadioId | None) -> RadioId | None:
+    """The e-mail radio a change writes (None: nothing): while no choice is stored or the one stored is not on, the radio the mail went on, so that it stays there; but where that one is of a type internet
+    gateways do not hear and a radio that comes on is one they hear, the first such radio that comes on, where 0.20.0 sent the mail."""
+    if email_choice in still or (mail := email_radio(was, email_choice)) is None or mail not in still:
+        return None
+    came = [spec.id for spec in senders(now) if spec.id not in {s.id for s in senders(was)} and gateway_heard(spec)]
+    by_id = {spec.id: spec for spec in now}
+    return came[0] if came and not gateway_heard(by_id[mail]) else mail
 
 
 def start_set(stored: Iterable[RadioId], specs: Iterable[RadioSpec]) -> tuple[RadioId, ...]:

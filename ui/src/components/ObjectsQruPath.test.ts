@@ -237,8 +237,8 @@ describe("the Send on of Local info", () => {
 
   it("names on the state word of the status line the radios the request went on", () => {
     const { wrapper } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1, 2) }) }, ticked(FM), ticked(HF));
-    expect(wrapper.find(".qrustatus .statetext").text()).toBe("FM, Mercury: Asked");
-    expect(line(wrapper)).toMatch(/^FM, Mercury: Asked\s*\d\d:\d\d · /);
+    expect(wrapper.find(".qrustatus .statetext").text()).toBe("FM and Mercury: Asked");
+    expect(line(wrapper)).toMatch(/^FM and Mercury: Asked\s*\d\d:\d\d · /);
   });
 
   it("tags a server's row with the radio it answered on, and sends its group's button and Ask again on that radio, whatever is ticked", async () => {

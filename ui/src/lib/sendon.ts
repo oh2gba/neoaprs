@@ -1,6 +1,6 @@
 // What the parts with a Send on share: why nothing may go on its radios, their names in a line, and the title of a path that none of them carries (Ask around in Nearby, Local info in Objects, the Post box of Bulletins);
 // and the Send on bound to a draft, which the thing's own Save or Post applies (an object's, a bulletin's): the radios in force of a stored set, its ticks, and the set after a tick.
-import { t } from "@/i18n";
+import { listText, t } from "@/i18n";
 import { notConnectedWhy, type SendOnTick } from "@/lib/beaconstatus";
 import { radioBlockedReason } from "@/lib/compose";
 import type { PageRadio, RadioId } from "@/lib/radios";
@@ -13,18 +13,19 @@ export function radiosBlockedReason(on: readonly PageRadio[], named: (id: RadioI
   return on.length > 1 ? notConnectedWhy(on) : radioBlockedReason(one, one !== undefined && named(one.id), told);
 }
 
-/** The names of the radios something went on, for the front of its line ("FM, Mercury"): those that are named (several radios on, or a radio that is off); "" while none is, and nothing is named. */
+/** The names of the radios something went on, for the front of its line ("FM and Mercury", in the language's own list): those that are named (several radios on, or a radio that is off); "" while none is,
+ * and nothing is named. */
 export function radiosNamed(ids: readonly RadioId[], byId: (id: RadioId) => PageRadio | undefined, named: (id: RadioId) => boolean): string {
-  return ids
+  const names = ids
     .filter(named)
     .map((id) => byId(id)?.name ?? "")
-    .filter((name) => name !== "")
-    .join(", ");
+    .filter((name) => name !== "");
+  return names.length === 0 ? "" : listText(names);
 }
 
 /** Why the fold of a path is greyed while none of these radios carries one, as Route says it ("Mercury: no path"); undefined for no radio. */
 export function radiosPathless(on: readonly PageRadio[]): string | undefined {
-  return on.length === 0 ? undefined : t("radio.no_path", { name: on.map((radio) => radio.name).join(", ") });
+  return on.length === 0 ? undefined : t("radio.no_path", { name: listText(on.map((radio) => radio.name)) });
 }
 
 /** The radios a thing with its own set goes out on now (an object's, a bulletin's: neoaprs/radiospec.py `in_force_set`), in the order of the boxes (`on`, the radios that are on and can send): with one radio on, that

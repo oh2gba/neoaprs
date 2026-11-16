@@ -8,14 +8,13 @@ import sqlite3
 from collections.abc import Iterable, Mapping
 
 from .config import MESSAGE_RADIOS as CHOICES          # the state row of the stations' radios, by call, as JSON ({"OH2GAX-2": 2})
-from .config import NEW_BULLETINS, NEW_OBJECTS
+from .config import EMAIL_RADIO, NEW_BULLETINS, NEW_OBJECTS
 from .configradios import radio_key_of, radios_from_rows
 from .dberror import Row, rows
 from .radiospec import RadioSpec
 from .sendonrule import Kept, ids_of, kept_in_force, text_of
 from .storesql import write_setting
 
-EMAIL_CHOICE = "email/radio"                              # the station's setting of the radio an email goes out on
 RADIO_COLUMNS = ("id", "kind", "type", "name", "enabled", "position", "removed_at")
 CHANGEABLE = ("type", "name", "enabled", "position")      # what `update_radio` may set: the kind is the radio's for good, and it is removed by `remove_radio`
 
@@ -87,7 +86,7 @@ def remove_radio(db: sqlite3.Connection, id: int, at: str) -> int:
     if not db.execute("UPDATE radio SET removed_at = ? WHERE id = ? AND removed_at IS NULL", (at, id)).rowcount:
         return 0
     _out_of_sets(db, id)
-    db.execute("DELETE FROM settings WHERE key = ? AND trim(value) = ?", (EMAIL_CHOICE, str(id)))
+    db.execute("DELETE FROM settings WHERE key = ? AND trim(value) = ?", (EMAIL_RADIO, str(id)))
     db.execute("DELETE FROM station_path WHERE radio_id = ?", (id,))
     row = db.execute("SELECT value FROM settings WHERE key = ?", (CHOICES,)).fetchone()
     if row is not None:
@@ -103,7 +102,7 @@ def put_kept(db: sqlite3.Connection, kept: Kept) -> None:
     for radio, key in kept.ticks:
         put_radio_settings(db, radio, {key: "true"})
     if kept.email is not None:
-        write_setting(db, EMAIL_CHOICE, str(kept.email))
+        write_setting(db, EMAIL_RADIO, str(kept.email))
     for table, column, sets in (("own_object", "name", kept.objects), ("own_bulletin", "slot", kept.bulletins)):
         for name, radios in sets.items():
             db.execute(f"UPDATE {table} SET radios = ? WHERE {column} = ?", (text_of(radios), name))
@@ -114,7 +113,7 @@ def kept_by_rows(db: sqlite3.Connection, before: Iterable[RadioSpec]) -> Kept:
     for a tool that changes the radios while no daemon runs (`neoaprs db radios add`), whose rows are all there is. Written with `put_kept` in the same transaction."""
     after = radios_from_rows(radio_rows(db), radio_settings(db))
     sets = [{str(name): ids_of(str(radios)) for name, radios in db.execute(f"SELECT {key}, radios FROM {table}")} for table, key in (("own_object", "name"), ("own_bulletin", "slot"))]
-    row = db.execute("SELECT value FROM settings WHERE key = ?", (EMAIL_CHOICE,)).fetchone()
+    row = db.execute("SELECT value FROM settings WHERE key = ?", (EMAIL_RADIO,)).fetchone()
     email = ids_of(str(row[0])) if row is not None else ()
     return kept_in_force(before, after, sets[0], sets[1], email[0] if len(email) == 1 else None)
 

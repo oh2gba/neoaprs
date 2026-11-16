@@ -30,6 +30,28 @@ def test_a_second_radio_beside_the_one_that_carried_everything_ticks_that_one_an
     assert not kept_in_force(before, after, {}, {}, 1).email, "a choice stored is the operator's"
 
 
+def test_the_mail_moves_to_a_radio_internet_gateways_hear_that_comes_on_beside_one_they_do_not() -> None:
+    hf_alone = (radio(1, "hf", **ALL_UNTICKED),)
+    assert kept_in_force(hf_alone, (*hf_alone, radio(2)), {}, {}, None).email == 2, "an HF station that adds FM sends its mail on FM, as 0.20.0 did"
+    assert kept_in_force(hf_alone, (*hf_alone, radio(2, "hf")), {}, {}, None).email == 1, "a second HF radio: the mail stays where it went"
+    assert kept_in_force(hf_alone, (*hf_alone, radio(2)), {}, {}, 1).email is None, "HF chosen by the operator and on: the operator's"
+
+
+def test_a_stale_mail_choice_is_overwritten_with_the_radio_the_mail_went_on_when_a_radio_comes_on() -> None:
+    before = (radio(1, enabled=False), radio(2, "lora"), radio(3, "hf", enabled=False))
+    after = (radio(1), radio(2, "lora"), radio(3, "hf", enabled=False))
+    assert kept_in_force(before, after, {}, {}, 3).email == 2, "the choice names a radio that is off: the mail stays on LoRa, where it went, not on FM's higher box"
+    assert kept_in_force(before, after, {}, {}, 1).email is None, "the choice comes on: the operator's"
+    on_hf = (radio(1, enabled=False), radio(2, "hf"), radio(3, "lora", enabled=False))
+    assert kept_in_force(on_hf, (radio(1), *on_hf[1:]), {}, {}, 3).email == 1, "the mail went on HF, which internet gateways do not hear: FM, which comes on, takes it"
+
+
+def test_a_lone_radio_whose_beacon_tick_is_off_keeps_its_beacon_when_a_radio_is_added() -> None:
+    kept = kept_in_force((radio(1, beacon="false", **ALL_UNTICKED),), (radio(1, beacon="false", **ALL_UNTICKED), radio(2, "lora")), {}, {}, None)
+    assert (1, "beacon") in kept.ticks, "the lone radio beaconed whatever its tick; the new radio's own tick does not stand in for it"
+    assert send_on_radios("beacon", (radio(1, beacon="true"), radio(2, "lora"))) == (1, 2), "the new radio beacons too, by its own tick"
+
+
 def test_a_thing_whose_radios_are_all_off_while_one_carries_it_gets_that_one_when_another_comes_on() -> None:
     before = (radio(1), radio(2, "hf", enabled=False))
     after = (radio(1), radio(2, "hf"), radio(3, "lora"))

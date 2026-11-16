@@ -193,12 +193,12 @@ export function unheardRadio(radios: readonly PageRadio[], status: Partial<Pick<
 }
 
 /** The email radio, of any kind: the one the daemon's status names (`email_radio`: the operator's choice in the Email tab while it is on; none while no radio can send), else, before the status has come, the first
- * radio that is on and can send whose type an internet gateway hears, else the first that can send. */
+ * radio that can send, in the order of the boxes. */
 export function emailRadio(radios: readonly PageRadio[], status: Partial<Pick<StatusMessage, "email_radio">> | null): PageRadio | null {
   const named = status?.email_radio;
   if (named === null) return null;
   const on = senders(radios);
-  return (named === undefined ? undefined : on.find((radio) => radio.id === named)) ?? on.find((radio) => radio.row.allowed.gateway_heard) ?? on[0] ?? null;
+  return (named === undefined ? undefined : on.find((radio) => radio.id === named)) ?? on[0] ?? null;
 }
 
 type ToStation = Partial<Pick<StationRow, "radio_choice" | "radio_now">>;

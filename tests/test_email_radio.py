@@ -16,7 +16,7 @@ from neoaprs.config import DEFAULTS
 from neoaprs.emailrule import email_radio, gateway_heard
 from neoaprs.message import EMAIL_GATEWAY, MessagingError
 from neoaprs.radiospec import RadioSpec, senders
-from neoaprs.radiotype import FM_ID, HF_ID, Kind
+from neoaprs.radiotype import FM_ID, HF_ID, Kind, RadioTypeError
 from neoaprs.services.messageradio import station_radio
 from neoaprs.services.radioset import ack_radio
 from tests.support.clock import FixedClock
@@ -33,10 +33,18 @@ def radio(id: int, kind: Kind = "fm", position: int | None = None, enabled: bool
     return RadioSpec(id, kind, type or {"fm": "kiss", "hf": "mercury", "lora": "dummy-lora"}[kind], "", enabled, id if position is None else position, GONE if removed else None)
 
 
+def heard_0_20_1(spec: RadioSpec) -> bool:
+    """0.20.1's `emailrule.gateway_heard`, copied."""
+    try:
+        return spec.rtype.allowed.gateway_heard
+    except RadioTypeError:
+        return False
+
+
 def as_0_20_1(specs: tuple[RadioSpec, ...], main_choice: int | None) -> int | None:
     """0.20.1's rule, copied: the main radio (the one chosen while it is on and can send, else the first such by position) while internet gateways hear it, else the first enabled radio by position that
     they hear, else none (a mail was refused)."""
-    heard = [spec.id for spec in senders(specs) if gateway_heard(spec)]
+    heard = [spec.id for spec in senders(specs) if heard_0_20_1(spec)]
     on = [spec.id for spec in senders(specs)]
     main = main_choice if main_choice in on else on[0] if on else None
     if main is not None and main in heard:

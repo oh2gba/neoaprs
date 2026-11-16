@@ -121,7 +121,7 @@ The group box **Local info**, the last of this tab, asks the stations round you 
 
 - A request is one message, sent once by radio only (`RFONLY` after your message path), with no id. It is not kept as a message of yours and not sent again.
 - **Send on.** While several radios that can send are on, **Send on** stands under Ask, the beacon's row of ticks, as in the Nearby tab's Ask around. The request goes once on every radio ticked that is connected, and on none while none is ticked. The status row then begins with the names of the radios the request went on.
-- A station that answers has the tag of the radio it answered on. A press on one of its categories, and **Ask again**, go on that radio.
+- While several radios are on, a station that answers has the tag of the radio it answered on. A press on one of its categories, and **Ask again**, go on that radio.
 - Under Send on, closed, is **Advanced**, as in Ask around: the **Path** the request goes by and **RF only**, one for every radio. An empty path is the path of messages to the station `QRU` on each radio (its own path if you gave it one, else the radio's), shown in the field while the radios ticked share it, else "(default)". Type the calls of the digipeaters, `OH2RDK-7,OH2RCH-2`, when your station reaches the others only through a fill-in digipeater that relays it when it is named; `DIRECT` is none. Untick **RF only** to send the request without `RFONLY`.
 - The browser remembers both, apart from Ask around's; a wrong path keeps Ask off. While no ticked radio carries a path (Mercury) they are greyed, their values kept.
   - The button beside the path opens the [path builder](messages.md#the-path-builder).

@@ -1718,7 +1718,7 @@ each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpo
 | `sent` | integer |  | how often it was sent (>= 0) |
 | `last_sent_at` | time \| null |  | when it was last sent; null while it has not been sent |
 | `next_at` | time \| null |  | when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa, until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first) |
-| `radios` | integer[] |  | the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere) |
+| `radios` | integer[] |  | the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none) |
 
 ### OwnObjectRow
 
@@ -1740,7 +1740,7 @@ map shows; a killed one leaves that topic at once and stays here, as `killing`, 
 | `path` | string \| null |  | the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used |
 | `qru_group` | string |  | the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none |
 | `on_request` | boolean |  | true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule |
-| `radios` | integer[] |  | the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere) |
+| `radios` | integer[] |  | the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none) |
 | `state` | "live" \| "killing" |  | `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten |
 | `created_at` | time |  | when it was first made |
 | `updated_at` | time |  | when it was last changed or killed |
@@ -1830,7 +1830,7 @@ What we decided the radio's type may do (neoaprs/radiotype.py `Allowed`): a cont
 | `paths` | boolean |  | our frames on it may carry digipeaters: the path controls are shown for it; false: every frame goes direct |
 | `digipeat` | boolean |  | it may repeat what it hears (its own Digipeater tick, `radio/<id>/digipeat`) |
 | `smart_beacon` | boolean |  | a moving station's SmartBeaconing applies on it; elsewhere the timed beacon goes with the latest fix |
-| `gateway_heard` | boolean |  | internet gateways hear its kind: where no radio is chosen for email (`email/radio`), it goes on such a radio while one is on |
+| `gateway_heard` | boolean |  | internet gateways hear its kind |
 | `shared_channel` | boolean |  | it is a 1200-baud shared channel: the ALOHA circle is worked out from what it hears |
 
 ### RadioBeaconState

@@ -4,7 +4,7 @@ status of the page read it, and the services send on it.
 An email is one message to the gateway EMAIL-2, and it goes out once, on one radio. Only the radios that are enabled and can send count (`radiospec.senders`), of any kind. With one of them, that one,
 whatever is stored (the page then shows no choice). Else the radio chosen while it is one of them. Else (no choice stored, or one that names a radio that is off) the first radio that can send, in the order
 of the boxes (`radiospec.unheard_radio`). None only while no radio that can send is on. Migration 34 stored the radio a mail went on before there was a choice, and a radio that comes on beside it keeps
-it there (neoaprs/sendonrule.py). Whether internet gateways hear a radio's type (`gateway_heard`) the page shows; it chooses nothing. No I/O."""
+it there (neoaprs/sendonrule.py). Whether internet gateways hear a radio's type (`gateway_heard`) decides only what a radio that comes on writes. No I/O."""
 from collections.abc import Iterable
 
 from .radiospec import RadioId, RadioSpec, senders, unheard_radio

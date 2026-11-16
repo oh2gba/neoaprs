@@ -4,7 +4,7 @@ import { NOW, ago } from "@/test/fixtures";
 
 describe("reportLook", () => {
   it("says when the last report went and when the next is due, in the form of the beacon's line", () => {
-    expect(reportLook(ago(240), "30", false, false, NOW)).toEqual({
+    expect(reportLook(ago(240), "30", false, false, false, NOW)).toEqual({
       state: "on",
       tone: "beacon-on",
       line: "Last sent 4 min ago · next in 26 min (every 30 min)",
@@ -12,21 +12,23 @@ describe("reportLook", () => {
   });
 
   it("says the next is due now once the interval has passed", () => {
-    expect(reportLook(ago(31 * 60), "30", false, false, NOW).line).toBe("Last sent 31 min ago · next now (every 30 min)");
+    expect(reportLook(ago(31 * 60), "30", false, false, false, NOW).line).toBe("Last sent 31 min ago · next now (every 30 min)");
   });
 
   it("says not sent yet, and the text of the field is never the line", () => {
-    expect(reportLook(null, "30", false, false, NOW).line).toBe("Not sent yet");
+    expect(reportLook(null, "30", false, false, false, NOW).line).toBe("Not sent yet");
   });
 
   it("says there is no timed status while the beacon is Off or the interval is no number", () => {
-    expect(reportLook(ago(240), "30", true, false, NOW).line).toBe("Last sent 4 min ago · no timed status");
-    expect(reportLook(ago(240), "", false, false, NOW).line).toBe("Last sent 4 min ago · no timed status");
+    expect(reportLook(ago(240), "30", true, false, false, NOW).line).toBe("Last sent 4 min ago · no timed status");
+    expect(reportLook(ago(240), "", false, false, false, NOW).line).toBe("Last sent 4 min ago · no timed status");
+    expect(reportLook(ago(240), "30", true, false, true, NOW)).toEqual({ state: "off", tone: "beacon-off", line: "Last sent 4 min ago · no timed status" });
+    expect(reportLook(null, "30", true, false, true, NOW)).toEqual({ state: "off", tone: "beacon-off", line: "Not sent yet" });
   });
 
   it("is off in the warn colour and says nothing is sent in RX only, whatever was sent before", () => {
-    expect(reportLook(ago(240), "30", false, true, NOW)).toEqual({ state: "off", tone: "tnc-waiting", line: "RX only: nothing is sent" });
-    expect(reportLook(null, "30", true, true, NOW).line).toBe("RX only: nothing is sent");
+    expect(reportLook(ago(240), "30", false, true, false, NOW)).toEqual({ state: "off", tone: "tnc-waiting", line: "RX only: nothing is sent" });
+    expect(reportLook(null, "30", true, true, false, NOW).line).toBe("RX only: nothing is sent");
   });
 });
 

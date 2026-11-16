@@ -29,7 +29,7 @@ class OwnObjectRow(_Model):
     path: str | None = Field(description="the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used")
     qru_group: str = Field(description="the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none")
     on_request: bool = Field(description="true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule")
-    radios: list[int] = Field(description="the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere)")
+    radios: list[int] = Field(description="the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none)")
     state: Literal["live", "killing"] = Field(description="`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten")
     created_at: Iso = Field(description="when it was first made")
     updated_at: Iso = Field(description="when it was last changed or killed")
@@ -49,7 +49,7 @@ class OwnBulletinRow(_Model):
     sent: int = Field(ge=0, description="how often it was sent")
     last_sent_at: Iso | None = Field(description="when it was last sent; null while it has not been sent")
     next_at: Iso | None = Field(description="when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa, until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first)")
-    radios: list[int] = Field(description="the radios it goes out on (Send on), their ids, ascending: each that is enabled and can send; with one radio that can send, that one; with none of them on, none (ticked nowhere)")
+    radios: list[int] = Field(description="the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none)")
 
 
 class ObjectSet(_Command):

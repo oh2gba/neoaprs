@@ -93,7 +93,7 @@ class RadioAllowed(_Model):
     paths: bool = Field(description="our frames on it may carry digipeaters: the path controls are shown for it; false: every frame goes direct")
     digipeat: bool = Field(description="it may repeat what it hears (its own Digipeater tick, `radio/<id>/digipeat`)")
     smart_beacon: bool = Field(description="a moving station's SmartBeaconing applies on it; elsewhere the timed beacon goes with the latest fix")
-    gateway_heard: bool = Field(description="internet gateways hear its kind: where no radio is chosen for email (`email/radio`), it goes on such a radio while one is on")
+    gateway_heard: bool = Field(description="internet gateways hear its kind")
     shared_channel: bool = Field(description="it is a 1200-baud shared channel: the ALOHA circle is worked out from what it hears")
 
 

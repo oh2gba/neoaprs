@@ -182,12 +182,13 @@ describe("the email radio", () => {
     expect([2, 4, 1].map((id) => emailRadio(radios, status({ email_radio: id }))?.id)).toEqual([2, 4, 1]);
   });
 
-  it("is, before the status has come, the first radio on that can send and the internet gateways hear, else the first that can send; never one that only listens", () => {
+  it("is, before the status has come, the first radio that can send in the order of the boxes, of any kind; never one that only listens", () => {
     const radios = pageRadios(
       topic(radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }), radioRow(2, "mercury", { position: 0 }), radioRow(3, "kiss", { number: 1 })),
       null,
     );
-    expect([emailRadio(radios, null)?.id, emailRadio(radios, status({ email_radio: 1 }))?.id]).toEqual([3, 3]);
+    expect([emailRadio(radios, null)?.id, emailRadio(radios, status({ email_radio: 1 }))?.id]).toEqual([2, 2]);
+    expect(emailRadio(pageRadios(topic(radioRow(1, "mercury", { position: 1 }), radioRow(2, "kiss", { position: 2 })), null), null)?.id).toBe(1);
     expect(emailRadio(pageRadios(topic(radioRow(2, "mercury")), null), null)?.id).toBe(2);
     expect(
       emailRadio(pageRadios(topic(radioRow(5, "tnc-text", { position: 0 }), radioRow(2, "mercury"), radioRow(6, "dummy-hf", { number: 2 })), null), null)?.id,
