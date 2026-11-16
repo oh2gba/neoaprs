@@ -248,6 +248,7 @@ def connected(page: Page) -> bool:
 
 
 PORT_KEYS = ("serial/port", "radio/1/port")          # the FM radio's port as the settings name it: the flat key of every version before the round of the radios (kept there as radio 1's), its own key after it
+SIGNATURE_FROM = (0, 20, 0)                          # the first release whose Update now asks for SHA256SUMS.sig; one before it (0.18.2) is updated by the checksum alone
 FIRST_RADIO = ("radios", "add", "kiss")              # radio 1 made on a fresh folder, which has no radio from the round of the radios on: the FM type a version before it had by default
 
 
@@ -524,9 +525,11 @@ async def update(install: Install, data: Path, web_port: int, old_version: str, 
     if "restarting" not in states:
         raise Failure(f"the update went {states}, never to restarting")
     asked = [r for r in release.requests if r.startswith(f"/v{new_version}/")]
-    if asked != [f"/v{new_version}/SHA256SUMS", f"/v{new_version}/SHA256SUMS.sig", f"/v{new_version}/{install.new.name}"]:
-        raise Failure(f"the release server was asked for {asked}, not SHA256SUMS, SHA256SUMS.sig and then {install.new.name}")
-    say(f"the update went {' -> '.join(states)}; SHA256SUMS, its signature and {install.new.name} were fetched from the fake release")
+    signed = tuple(int(n) for n in old_version.split(".")[:3]) >= SIGNATURE_FROM          # (a release before it checks the file by its checksum alone and asks for no signature)
+    wanted = [f"/v{new_version}/SHA256SUMS", *([f"/v{new_version}/SHA256SUMS.sig"] if signed else []), f"/v{new_version}/{install.new.name}"]
+    if asked != wanted:
+        raise Failure(f"the release server was asked for {asked}, not {', '.join(w.rsplit('/', 1)[1] for w in wanted)} in that order")
+    say(f"the update went {' -> '.join(states)}; SHA256SUMS, {'its signature ' if signed else ''}and {install.new.name} were fetched from the fake release")
     install.old_ended(daemon, data)
     return packets
 
