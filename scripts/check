@@ -88,11 +88,9 @@ PATH="$(dirname "$python"):$PATH"
 
 # Node 22.12 or newer, from the PATH, else the newest of ~/.nvm; put first on the PATH, so that every stage (the page test too) runs the same one.
 node_ok() { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }
-node_found=1                           # (asked here, before the traps: the runner starts no program of its own in the foreground, see start_stage)
 if ! node_ok; then
     newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
     [ -n "$newest" ] && PATH="$newest:$PATH"
-    node_ok || node_found=0
 fi
 export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false           # npm asks the registry about nothing but an install itself
 
@@ -107,41 +105,21 @@ uv_cache() {
         export UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache"
     fi
 }
-uv_cache
 
-# The logs of the stages, and what a stage builds only to throw it away. Every stage is the leader of a process group of its own, so that a run that is interrupted can end
-# everything they started before the folder goes. `finish` asks bash for the jobs that still run (`jobs -pr`) rather than keeping a list beside them: a stage is a job from its fork on, so a signal that
-# comes between the fork and any line after it cannot leave one out. It waits for each of them (bash, in a trap, learns that a job has ended only by waiting for it), and a job of its own KILLs
-# them when they have not ended a few seconds after the TERM, so that the run always ends: a stage started while TERM was ignored
-# (a parent that ignores it hands that on, and bash cannot trap or reset a signal ignored on entry) does not end by TERM. While it ends them it ignores further signals, so that a second Ctrl-C cannot cut
-# it off before the folder goes. A signal ignored on entry is ignored by the whole run as its parent asked: a run started by nohup goes on through a HUP.
-# `nap` is a tenth of a second without a program: `read` with a timeout on a pipe nobody writes to. A trap runs between two naps at the latest, whatever bash does with a signal that comes while
-# it waits for a child, which is why the runner below polls instead of waiting for a stage (start_stage and await_stage).
-work="$(mktemp -d)" nap_fd=""
-nap() { read -r -t 0.1 -u "$nap_fd" _ 2>/dev/null || true; }
-GRACE_TENTHS=50                        # how long `finish` lets the stages end after the TERM before it KILLs them
-signal_jobs() { local pid; while IFS= read -r pid; do kill "-$1" -- "-$pid" 2>/dev/null || kill "-$1" "$pid" 2>/dev/null || true; done <"$work/jobs"; }
+# The logs of the stages, and what a stage builds only to throw it away. The stages that run at once are each the leader of a process group of its own (`running`), so that a run that is
+# interrupted can end everything they started before the folder goes.
+work="$(mktemp -d)"
+running=()
 finish() {
-    local pid killer tenth
-    trap '' INT TERM HUP
-    jobs -pr >"$work/jobs"
-    if [ -s "$work/jobs" ]; then
-        signal_jobs TERM
-        { for ((tenth = 0; tenth < GRACE_TENTHS; tenth++)); do nap; done; signal_jobs KILL; } &
-        killer=$!
-        while IFS= read -r pid; do wait "$pid" 2>/dev/null || true; done <"$work/jobs"
-        kill -KILL "$killer" 2>/dev/null || true
-    fi
+    local pid
+    for pid in ${running[@]+"${running[@]}"}; do kill -TERM -- "-$pid" 2>/dev/null || true; done
     wait 2>/dev/null || true
-    [ -z "$nap_fd" ] || exec {nap_fd}<&-
     rm -rf "$work"
 }
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
-mkfifo "$work/nap"
-exec {nap_fd}<>"$work/nap"
 
 # --- the stages: each is a function that returns non-zero on failure ----------------------------------------------------------------------------------------------
 
@@ -242,8 +220,6 @@ if [ -n "${NEOAPRS_CHECK_STAGES:-}" ]; then
     unset -f ui_install
     # shellcheck source=/dev/null
     source "$NEOAPRS_CHECK_STAGES"
-    if [ -d ui ]; then node_found=1; node_ok || node_found=0; fi          # (asked again of the stand-ins' node_ok, which the copy's ui/ is there for)
-    uv_cache                                                            # (and of the uv their PATH puts first)
 fi
 
 # --- the runner ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -266,71 +242,55 @@ run_stage() {
     printf '%-5s %-12s %4d.%ds\n' "$word" "$name" $(( tenths / 10 )) $(( tenths % 10 )) >"$work/$name.line"
 }
 
-# Prints the result line of a stage that has run and, under it, the output of one that failed; false for one that failed. A stage that left no line (its shell was killed) has failed. The output is
-# written by `read`, which also gives the last line when the stage did not end it (a program that was killed in the middle of one): the next result line then begins a line. (No awk: no program in the
-# foreground of the runner, see start_stage.)
+# Prints the result line of a stage that has run and, under it, the output of one that failed; false for one that failed. A stage that left no line (its shell was killed) has failed. awk writes the output
+# because it ends the last line too when the stage did not (a program that was killed in the middle of one): the next result line then begins a line.
 report() {
     local name="$1" line
     { IFS= read -r line <"$work/$name.line"; } 2>/dev/null || printf -v line 'FAIL  %-12s' "$name"
     echo "$line"
     case "$line" in ok*) return 0 ;; esac
-    { while IFS= read -r line || [ -n "$line" ]; do printf '      | %s\n' "$line"; done <"$work/$name.log"; } 2>/dev/null || true
+    awk '{ print "      | " $0 }' "$work/$name.log" 2>/dev/null || true
     return 1
 }
 
 in_list() { local name="$1"; shift; case " $* " in *" $name "*) return 0 ;; esac; return 1; }
 
-# Every stage runs as a job of this shell, the leader of a process group of its own (job control, `set -m`, for the fork only: the stage itself runs without it, so that what it starts stays in its
-# group), which `finish` ends as a whole. The shell never waits for a stage that may still run: bash drops a SIGINT that comes while it waits for a child in the foreground which then exits normally,
-# and does with other signals what its version does, so it polls with `nap` until the stage has left its line or has gone without one (killed), and then collects its exit at once. `started` is the
-# job's pid.
-start_stage() {
-    set -m
-    ( set +m; run_stage "$@" ) </dev/null &
-    started=$!
-    set +m
-}
-await_stage() {
-    until [ -e "$work/$1.line" ] || ! kill -0 "$2" 2>/dev/null; do nap; done
-    wait "$2" || true
-}
-
 total_start=$EPOCHSECONDS
+uv_cache
 if [ "$at_once" = 0 ]; then
     # One stage at a time in the order of the list, stopping at the first failure: --serial, and a stage that was named (an extra stage runs only when named).
     for name in "${ALL_STAGES[@]}"; do
         if [ -n "$only" ] && [ "$name" != "$only" ]; then continue; fi
         if [ -z "$only" ] && in_list "$name" "${EXTRA_STAGES[@]}"; then continue; fi
-        start_stage "$name"
-        await_stage "$name" "$started"
+        run_stage "$name"
         report "$name" || exit 1
     done
 else
     # The three steps of the top of this file. A failure is kept for the end: every stage runs, and the lines come in the order of the list, each as soon as its stage and the ones before it are done.
     failed=()
     for name in "${ALONE_FIRST[@]}"; do
-        start_stage "$name"
-        await_stage "$name" "$started"
+        run_stage "$name"
         report "$name" || failed+=("$name")
     done
-    if [ -d ui ] && [ "$node_found" = 1 ] && ui_modules_missing; then
-        start_stage npm-ci ui_install
-        await_stage npm-ci "$started"
+    if [ -d ui ] && node_ok && ui_modules_missing; then
+        run_stage npm-ci ui_install
         report npm-ci || { failed+=(npm-ci); ui_install_failed=1; }
     fi
-    group=() running=()
+    group=()
+    set -m                             # (job control: each stage started now is the leader of a process group of its own, see `finish`; the stage itself runs without it, so that what it starts stays in its group)
     for name in "${STAGES[@]}"; do
         if in_list "$name" "${ALONE_FIRST[@]}" "${ALONE_LAST[@]}"; then continue; fi
-        start_stage "$name"
-        group+=("$name"); running+=("$started")
+        ( set +m; run_stage "$name" ) </dev/null &
+        group+=("$name"); running+=($!)
     done
+    set +m
     for i in "${!group[@]}"; do
-        await_stage "${group[$i]}" "${running[$i]}"
+        wait "${running[$i]}" || true
         report "${group[$i]}" || failed+=("${group[$i]}")
     done
+    running=()
     for name in "${ALONE_LAST[@]}"; do
-        start_stage "$name"
-        await_stage "$name" "$started"
+        run_stage "$name"
         report "$name" || failed+=("$name")
     done
     if [ ${#failed[@]} -gt 0 ]; then

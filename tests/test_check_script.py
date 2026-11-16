@@ -303,19 +303,6 @@ def test_a_stage_without_a_stand_in_fails_and_the_real_one_does_not_run(gate: Ga
 
 # ---- an interrupted run ----
 
-TRAPPED = (signal.SIGINT, signal.SIGTERM, SIGHUP)
-
-
-def interruptible(gate: Gate, temp: Path, ignored: tuple[signal.Signals, ...] = ()) -> subprocess.Popen[str]:
-    """The copy started with INT, TERM and HUP at their default and not blocked, whatever this process was given or an earlier test of this worker left it (a container's or nohup's parent leaves HUP
-    ignored, and the ignoring and the mask are inherited through every exec), or with those of `ignored` ignored as such a parent leaves them: bash can neither trap nor reset a signal that is ignored
-    when it starts."""
-    dispositions = {int(number): "SIG_IGN" if number in ignored else "SIG_DFL" for number in TRAPPED}
-    start = (f"import os, signal\nfor n, d in {dispositions!r}.items(): signal.signal(n, getattr(signal, d))\nsignal.pthread_sigmask(signal.SIG_UNBLOCK, {sorted(dispositions)!r})\n"
-             "os.execv('scripts/check', ['scripts/check'])")
-    return subprocess.Popen([sys.executable, "-c", start], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-
-
 @pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
 def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_away(gate: Gate, sent: signal.Signals, code: int) -> None:
     """The signal reaches the script alone, as `kill` sends it, while the stages run at once: the stage that is still busy and the program it started (a daemon of the suite, in the real one) are ended, the stage
@@ -323,7 +310,7 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
     pids, temp = gate.folder / "pids", gate.folder / "tmp"
     temp.mkdir()
     gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
-    run = interruptible(gate, temp)
+    run = subprocess.Popen(["scripts/check"], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     started: list[int] = []
     try:
         until(lambda: len((text_if_readable(pids) or "").split()) == 2, "the stage pytest never started")
@@ -340,92 +327,6 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
                 os.kill(pid, SIGKILL)
     assert "start pytest" in gate.events() and "end pytest" not in gate.events() and "start smoke" not in gate.events()
     assert list(temp.iterdir()) == [] and "all green" not in output
-
-
-FORK = '( set +m; run_stage "$@" ) </dev/null &\n'
-
-
-@pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
-def test_a_signal_between_a_stages_start_and_its_pid_written_down_still_ends_that_stage(gate: Gate, sent: signal.Signals, code: int) -> None:
-    """The moment of the flake of the test above, made wide: the copy stops after it has started the stage pytest, before it writes down its pid, until the signal has come. A trap that ended the script
-    there would leave that stage to run on unsignalled, and the run would wait for it (the 300 s of its sleep here; a whole pytest after a Ctrl-C) if `finish` signalled only the stages written down.
-    It signals every job bash has, and a stage is one from its fork on."""
-    pids, temp, signalled = gate.folder / "pids", gate.folder / "tmp", gate.folder / "signalled"
-    temp.mkdir()
-    script = gate.folder / "scripts" / "check"
-    text = script.read_text(encoding="utf-8")
-    assert text.count(FORK) == 1, "the runner starts every stage in one line"
-    script.write_text(text.replace(FORK, f'{FORK}    [ "$1" != pytest ] || until [ -e "{signalled}" ]; do :; done\n'), encoding="utf-8")      # (builtins only: the trap may run at any of them)
-    gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
-    run = interruptible(gate, temp)
-    started: list[int] = []
-    try:
-        until(lambda: len((text_if_readable(pids) or "").split()) == 2, "the stage pytest never started")
-        started = [int(pid) for pid in pids.read_text().split()]
-        run.send_signal(sent)
-        time.sleep(0.2)                    # (the copy spins in its loop meanwhile: a trap that exits runs there)
-        signalled.touch()
-        output, _ = run.communicate(timeout=30)
-        assert run.returncode == code, output
-        until(lambda: not any(alive(pid) for pid in started), "the stage or what it started is still running")
-    finally:
-        run.kill()
-        for pid in started:
-            if alive(pid):
-                os.kill(pid, SIGKILL)
-    assert "end pytest" not in gate.events() and list(temp.iterdir()) == []
-
-
-@pytest.mark.parametrize(("ignored", "sent", "code"), [(SIGHUP, signal.SIGTERM, 143), (signal.SIGTERM, signal.SIGINT, 130)])
-def test_a_signal_ignored_when_the_run_starts_stays_ignored_and_the_others_still_end_everything(gate: Gate, ignored: signal.Signals, sent: signal.Signals, code: int) -> None:
-    """A run whose parent ignores a signal (nohup and a container's shell do it to HUP) cannot trap it: the run goes on through it as it was asked, its stages too, and another signal still ends the
-    run, the stages and what they started, and takes the folder away. A stage started with TERM ignored does not end by the TERM of `finish`: it is KILLed after the grace."""
-    pids, temp = gate.folder / "pids", gate.folder / "tmp"
-    temp.mkdir()
-    gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
-    run = interruptible(gate, temp, ignored=(ignored,))
-    started: list[int] = []
-    try:
-        until(lambda: len((text_if_readable(pids) or "").split()) == 2, "the stage pytest never started")
-        started = [int(pid) for pid in pids.read_text().split()]
-        run.send_signal(ignored)
-        time.sleep(0.5)
-        assert run.poll() is None and all(alive(pid) for pid in started), "the ignored signal ended something"
-        run.send_signal(sent)
-        output, _ = run.communicate(timeout=30)
-        assert run.returncode == code, output
-        until(lambda: not any(alive(pid) for pid in started), "the stage or what it started is still running")
-    finally:
-        run.kill()
-        for pid in started:
-            if alive(pid):
-                os.kill(pid, SIGKILL)
-    assert "end pytest" not in gate.events() and list(temp.iterdir()) == []
-
-
-def runner_lines() -> list[str]:
-    runner = SCRIPT.read_text(encoding="utf-8").split("\n# --- the runner ---", 1)[1]
-    return [line.split("#", 1)[0].strip() for line in runner.splitlines()]
-
-
-def test_the_traps_are_set_once_and_finish_ends_every_job_bash_has() -> None:
-    """The text that holds the tests above where their moments are too narrow to meet. No trap is changed in the runner: a signal is acted on where it comes, as at the top of the file (a trap that was
-    swapped for one that holds the signal, and back, was lost now and then under bash 5.3). `finish` ends the jobs that bash itself knows to run (`jobs -pr`), so that no line between a stage's fork and
-    its pid written down can leave one out, waits for each (bash learns in a trap that a job has ended only by waiting for it), and a job of its own
-    KILLs what the TERM left after the grace. The runner waits for no stage that may still run (bash drops a SIGINT that comes while it waits for a child in the foreground):
-    every stage is started by start_stage and awaited by await_stage, which polls with `nap`, between which a trap runs at the latest; and the runner starts no program of its own (awk,
-    mkdir, node), which are asked before the traps are set."""
-    lines = runner_lines()
-    assert not [line for line in lines if line.startswith("trap ")], "a trap changed in the runner"
-    script = SCRIPT.read_text(encoding="utf-8")
-    body = script[script.index("\nfinish() {"):script.index("\n}\n", script.index("\nfinish() {"))]
-    assert all(part in body for part in ('jobs -pr >"$work/jobs"', "signal_jobs TERM", 'wait "$pid"', "signal_jobs KILL; } &", "trap '' INT TERM HUP")), body
-    assert not [line for line in lines if re.match(r"run_stage\b(?!\(\))", line)], "a stage run in the foreground of the runner"
-    assert not [line for line in lines if re.search(r"\b(awk|uv_cache|node_ok)\b", line)], "a program started in the foreground of the runner"
-    starts = [i for i, line in enumerate(lines) if line.startswith("start_stage ")]
-    assert len(starts) == 5 and all(lines[i + 1].startswith("await_stage ") or lines[i + 1].startswith("group+=") for i in starts), starts
-    waits = [line for line in lines if re.match(r"wait\b", line)]
-    assert waits == ['wait "$2" || true'] and lines[lines.index(waits[0]) - 1] == 'until [ -e "$work/$1.line" ] || ! kill -0 "$2" 2>/dev/null; do nap; done', waits
 
 
 def test_the_runner_has_no_command_substitution_for_a_signal_to_come_in_the_middle_of() -> None:
