@@ -74,12 +74,13 @@ def default_page_dir() -> Path:
 
 
 class WebServer:
-    """`WebServer(controller, config)`; `start()` listens on `web/port` of the config (port 0: a free one), on the loopback or, while `web/network` is on, on every interface, and says whether it could; `settings_changed()` follows a
+    """`WebServer(controller, config)`; `start()` listens on `web/port` of the config (port 0: a free one; `kept_port` first, the port of the page before a restart), on the loopback or, while `web/network` is on, on every interface, and says whether it could; `settings_changed()` follows a
     new switch or key; `stop()`."""
 
-    def __init__(self, controller: Controller, config: Config, page_dir: Path | None = None) -> None:
+    def __init__(self, controller: Controller, config: Config, page_dir: Path | None = None, kept_port: int = 0) -> None:
         self.controller = controller
         self.config = config
+        self.kept_port = kept_port                        # the port the page was on before the daemon started again (0: no restart): tried before web/port (neoaprs/web/listen.py)
         self.page_dir = page_dir or default_page_dir()
         self.page = PageSnapshot.take(self.page_dir)                      # the page as it is now: a rebuild on disk changes nothing until the daemon is started again
         log.info("page %s: %d files, %.1f MB, kept in memory", self.page.build or "(none)", len(self.page.files), self.page.size / 1048576)
@@ -170,7 +171,7 @@ class WebServer:
         await self.api.start()                      # (before the first page can come: the packets the database holds are in the window, the signals are connected)
         server = self._limited(None)
         remove_page(self.controller.data_dir)                       # (what an earlier run left is over, whether this one has a page or not)
-        failure = listen_near(server, self.address, c.web_port)
+        failure = listen_near(server, self.address, c.web_port, self.kept_port)
         if failure is not None:
             log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure,
                       exc_info=failure)                       # (with where it came from: an EINVAL that named the program file, seen once on Windows right after an update, 3 Nov 2026)

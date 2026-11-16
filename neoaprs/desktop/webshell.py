@@ -121,6 +121,12 @@ class WebFrame:
         else:
             log.warning("%s", text)
 
+    def load(self, url: str) -> None:
+        """The daemon's page is at `url` now: the page's script is told its address (the links it hands over are judged against it) and the window loads it."""
+        self.api.page_url = url
+        if self.window is not None and not self.quitting.is_set():
+            load_page(self.window, window_url(url))
+
 
 def tray_menu(pystray: Any, frame: WebFrame) -> Any:
     """The tray menu from the data of `frame.actions.items()`, made again whenever pystray asks for the items; the Open item is the default one (the click on the icon). Until the session is there it is

@@ -1,6 +1,8 @@
 """The daemon the app shows: the one that holds the data folder's lock (a service, a `neoaprs run` in a terminal, an earlier `neoaprs open`), or, when none does, one the app starts. The app attaches to the
 first kind and leaves it running at Quit; the second kind it owns: it starts it the way `neoaprs open` does (the same code: detached from the app, so that the daemon outlives a crash of the window; the app
-stops it at Quit and, while it runs, notices when something else stops it, `neoaprs stop` for one, and ends too). What the app can find out about a daemon is what the commands can (neoaprs/cli/daemonstate.py)."""
+stops it at Quit and, while it runs, notices when something else stops it, `neoaprs stop` for one, and ends too). What the app can find out about a daemon is what the commands can (neoaprs/cli/daemonstate.py).
+The page's address is the one the daemon writes into the data folder (neoaprs/cli/logfile.py): the app reads it when it opens the session and goes on reading it, since a daemon that starts again
+(Update now, a service's restart) may serve the page on another port than before, and the window follows it there."""
 import logging
 import subprocess
 import threading
@@ -10,7 +12,9 @@ from pathlib import Path
 
 from neoaprs.cli import opencmd, stopcmd
 from neoaprs.cli.daemonstate import is_running
+from neoaprs.cli.logfile import read_page
 from neoaprs import stopfile
+from .links import same_host
 
 log = logging.getLogger("neoaprs.desktop")
 
@@ -37,12 +41,14 @@ def _start_detached(data: Path, encryption: bool = False) -> "subprocess.Popen[b
 
 @dataclass
 class Daemon:
-    """What the app does to the daemons, as functions that a test replaces: `running(data)`, `start(data)` (a detached daemon; the process object), `wait(data, child, seconds)` (the page's address once the page answers, else None) and `stop(data, seconds)`."""
+    """What the app does to the daemons, as functions that a test replaces: `running(data)`, `start(data)` (a detached daemon; the process object), `wait(data, child, seconds)` (the page's address once the page answers, else None), `stop(data, seconds)`,
+    `restarting(data)` (it ended to start again) and `address(data)` (where its page is served now: what it wrote into the data folder, None while it serves none)."""
     running: Callable[[Path], bool] = is_running
     start: Callable[[Path], "subprocess.Popen[bytes]"] = _start_detached
     wait: Callable[[Path, "subprocess.Popen[bytes] | None", float], str | None] = opencmd.wait_for_page
     stop: Callable[[Path, float], bool] = stopcmd.stop_daemon
     restarting: Callable[[Path], bool] = stopfile.restarting
+    address: Callable[[Path], str | None] = read_page
 
 
 def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC, encryption: bool = False) -> Session:
@@ -135,18 +141,24 @@ def stop_owned(session: Session, daemon: Daemon | None = None) -> bool:
 
 class DaemonWatch:
     """Calls `gone` once when the daemon the app owns has ended without the app stopping it (`neoaprs stop`, the uninstaller, the Start menu's Stop). It looks every `every` seconds in a thread of its own; `cancel` stops it.
-    A daemon that ends to start again as a new version (Update now of an AppImage: the note of neoaprs/stopfile.py) has not ended."""
+    A daemon that ends to start again as a new version (Update now of an AppImage: the note of neoaprs/stopfile.py) has not ended.
+    Calls `moved(address)` each time the daemon, the app's own or one it attached to, serves its page at another address than the app last knew (it started again and could not have the port it had): the
+    address is read from the file the daemon writes, which is not there while it serves no page, and nothing is asked of the daemon's lock for it. Only the port may be another: an address of
+    another host than the one the session was opened on is not the daemon's page, whatever the file says, and the window is never sent there."""
 
-    def __init__(self, session: Session, gone: Callable[[], None], daemon: Daemon | None = None, every: float = WATCH_SEC) -> None:
+    def __init__(self, session: Session, gone: Callable[[], None], daemon: Daemon | None = None, every: float = WATCH_SEC, moved: Callable[[str], None] | None = None) -> None:
         self.session = session
         self.gone = gone
+        self.moved = moved
+        self.url = session.url                     # where the page is, as the app knows it
+        self.refused: str | None = None            # an address the file named that the app did not follow (said once)
         self.daemon = daemon or Daemon()
         self.every = every
         self._cancelled = threading.Event()
         self.thread = threading.Thread(target=self._run, name="neoaprs-app-watch", daemon=True)
 
     def start(self) -> None:
-        if self.session.owned:
+        if self.session.owned or self.moved is not None:
             self.thread.start()
 
     def cancel(self) -> None:
@@ -155,8 +167,25 @@ class DaemonWatch:
     def _run(self) -> None:
         missing = 0
         while not self._cancelled.wait(self.every):
-            missing = 0 if self.daemon.running(self.session.data) or self.daemon.restarting(self.session.data) else missing + 1      # (a daemon that starts again as a new version is waited for)
-            if missing >= GONE_AFTER:
-                log.info("the daemon on %s has ended: the app ends too", self.session.data)
-                self.gone()
-                return
+            if self.session.owned:
+                missing = 0 if self.daemon.running(self.session.data) or self.daemon.restarting(self.session.data) else missing + 1      # (a daemon that starts again as a new version is waited for)
+                if missing >= GONE_AFTER:
+                    log.info("the daemon on %s has ended: the app ends too", self.session.data)
+                    self.gone()
+                    return
+            self._follow()
+
+    def _follow(self) -> None:
+        if self.moved is None:
+            return
+        url = self.daemon.address(self.session.data)
+        if url is None or url == self.url:
+            return
+        if not same_host(url, self.session.url):
+            if url != self.refused:
+                log.warning("the file of the daemon on %s names %s as its page, which is not on the host of %s: the app stays where it is", self.session.data, url, self.session.url)
+                self.refused = url
+            return
+        log.info("the page of the daemon on %s is at %s now (it was at %s): the app follows", self.session.data, url, self.url)
+        self.url = url
+        self.moved(url)

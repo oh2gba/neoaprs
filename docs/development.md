@@ -381,7 +381,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/build-deb` | builds `dist-deb/neoaprs_<version>_<arch>.deb` for `--arch amd64` or `arm64` (this machine's by default; either can be made on either) from the wheel (`--wheel FILE`, else it builds one; `--out DIR`) and the Mercury tarball of the same architecture (`--mercury FILE`, put in `/opt/neoaprs/tools/mercury`; `--no-mercury`; one of the two is required); the CPython it fetches is pinned by version and SHA-256 per architecture in the script and cached in `~/.cache/neoaprs-build` ([the .deb](#the-deb)) |
 | `scripts/build-macos-app` | builds `dist-macos/NeoAPRS-<version>-arm64.dmg` on a Mac with Apple silicon from the wheel (`--wheel FILE`, else it builds one; `--out DIR`) and the Mercury tarball of `scripts/build-mercury --tar` made on a Mac (`--mercury FILE`, put in `Contents/Resources/tools/mercury` without its `dev/` folder; `--no-mercury` for a developer's app without it, one of the two is required so that a release cannot lack it): the CPython it fetches is pinned by version and SHA-256 in the script and cached in `~/.cache/neoaprs-build`; the launcher is built from `packaging/macos/launcher.c`, the icon by `packaging/macos/make_icns.py`, the pruning is `packaging/appimage/prune.py --macos`, and everything is signed ad hoc ([the macOS app](#the-macos-app)) |
 | `scripts/smoke-macos-app` | the smoke test of such an image on a Mac: the image opened and the app copied out, the signature verified, `--version`, the bundled Mercury (`Contents/Resources/tools/mercury/mercury -V` says the pinned version and loads the system's frameworks alone; `--no-mercury` for an app built without it), the install kind, `smoke.py`, the daemon with no radio, the launchd agent `service install` writes, the app on the offscreen platform; on a home folder of its own |
-| `scripts/update-e2e.py` | the end-to-end test of Update now with the real files of a release (`windows OLD.exe NEW.exe`, `appimage OLD NEW [--extract-and-run]`): installs the old version, updates it from a fake release on the loopback over the page's socket and checks the new daemon, the data and the machine ([Update now end to end](#update-now-end-to-end)); the FM radio and its port are read on the wire each version speaks (`serial/port` of the old release, `radio/1/port` after it); on a CI runner only |
+| `scripts/update-e2e.py` | the end-to-end test of Update now with the real files of a release (`windows OLD.exe NEW.exe`, `appimage OLD NEW [--extract-and-run]`, `--known-old` for an old file of 0.20.1 or before): installs the old version, updates it from a fake release on the loopback over the page's socket and checks the new daemon (its page on the port the old one served it on, an AppImage mounted or unpacked as the old one ran), the data and the machine ([Update now end to end](#update-now-end-to-end)); the FM radio and its port are read on the wire each version speaks (`serial/port` of the old release, `radio/1/port` after it); on a CI runner only |
 | `scripts/smoke-appimage` | the smoke test of such a file: `--version`, the bundled Mercury (`usr/tools/mercury/mercury -V` with its own ALSA configuration says the pinned version; `--no-mercury` for a file built without it), `smoke.py`, the daemon with no radio, the unit `service install` writes, the app on the offscreen platform; without FUSE it extracts the file and runs its `AppRun` |
 | `scripts/smoke-appimage-web` | the smoke test of the trial AppImage of the web window (`scripts/build-appimage --window web`), run in a container by `scripts/check-installs --only appimage-web`: the app on an Xvfb and a session bus of its own, `--expect window` (the web window comes, the page answers, `app --quit` ends it and its daemon) or `--expect tray` (no WebKitGTK: the log names the package and the app goes on with the tray); `--probe` runs `scripts/webkit-probe.py` there too |
 | `scripts/webkit-probe.py` | counts how the map moves in a window of a web engine: one window on the daemon's page (`--url`), the map zoomed and dragged by dispatched events for `--seconds` (20), the frames counted with requestAnimationFrame; prints one line of JSON (frames per second, WebGL2, the user agent, the first paint); `--engine web` (pywebview on WebKitGTK, with the trial AppImage's Python) or `--engine qt` (today's QWebEngineView) |
@@ -566,9 +566,25 @@ names it), since swapping the bundle under a daemon that imports its modules laz
    `packaging/windows/neoaprs.iss` ends the app and the daemon of that folder before it replaces a file and starts again what was running. An AppImage is made
    executable and renamed over the file it runs from (`$APPIMAGE`), the old one kept as `.old` (a hard link, else a copy); the daemon writes
    `neoaprs.restarting` and `neoaprs.stop` into the data folder, ends, and the process runs the file again with its arguments (`neoaprs/selfreplace.py`:
-   `execv`, after the descriptors above stderr are closed, with `APPIMAGE_EXTRACT_AND_RUN=1` when `$APPDIR` is no mount point, an AppImage started with
+   `execv`, with `APPIMAGE_EXTRACT_AND_RUN=1` when `$APPDIR` is no mount point, an AppImage started with
    `--appimage-extract-and-run`, whose runtime takes the flag away; a file that cannot start puts the old one back). The new version deletes the note and the
    `.old` once it runs; the desktop app, which ends with its daemon, waits for it while the note is fresh. A folder the user cannot write offers no Update now.
+   - **Mounted stays mounted.** The mount of an AppImage lives as long as the read end of a pipe that its runtime hands the program (`AppImage/type2-runtime`, `write_pipe_thread`): when the last
+     holder closes it, the process that serves the mount ends, unmounts and removes the folder. So `$APPDIR` is asked while the descriptors are open, and they are marked close-on-exec, not closed: the
+     exec lets go of them, and the mount is there for as long as the old program runs. Up to 0.20.1 they were closed first and the question came after: a mounted image was taken for an unpacked one and the
+     new version ran from some 430 MB in the temporary folder, which is memory where `/tmp` is a tmpfs.
+   - **Unpacked.** The runtime of an unpacked image waits for the program and removes its folder when that ends. The program that starts the new file is its child, so the old version's folder stays in the
+     temporary folder, beside the new one, until NeoAPRS is stopped. The daemon does not remove it: the app's window, started from the same file, runs from the same folder.
+   - **The page's port.** Beside `neoaprs.restarting` the daemon leaves `neoaprs.restart-port`, the port its page is served on, and the daemon that starts while that note is fresh (15 minutes) listens
+     there before it looks at `web/port` or `--web-port` (`neoaprs/daemon.py` `kept_port`, `neoaprs/web/listen.py`): the open pages wait at that address, and the settings' port may have been taken, or
+     come free, since the first start. A port that cannot be had is a warning, and the daemon listens as at any start. Both notes go once the daemon runs. Before it starts the Windows installer the
+     daemon writes the port's note alone (the app there is ended by the installer, and is given no restart to wait for). A note is used, not an argument: the command line is the operator's or the
+     service's and is repeated at every later start, and the installer builds its own. A daemon of 0.20.1 or before left no port; after its AppImage's restart the new daemon reads that run's page line
+     from the log. Neither is believed further than it must be: the note is a small ordinary file of at most five digits (a link, a pipe or a longer file under its name is no note), an installer
+     that could not be started takes it away again, and in the log only a whole line the daemon said itself counts, with the page's address on this computer (the words of a page line inside a
+     packet's text name no port).
+   - **The window.** The desktop app reads the address the daemon writes (`neoaprs-web.url`) every two seconds and loads the page at a new one (`neoaprs/desktop/session.py` `DaemonWatch`), for its own
+     daemon and for one it attached to. Only the port may change: an address on another host than the one the window is on is not followed, whatever the file says. A page in a browser cannot follow to another port. The app's own process is not replaced by an update of the AppImage: it runs on from its mount of the old file.
 5. Still running five minutes later, the update says it did not restart.
 
 **The signature.** Update now believes `SHA256SUMS` only with the project's signature, so that whoever can publish a release on GitHub (a stolen account or token) cannot
@@ -603,22 +619,26 @@ patch number plus one and `-e2e` (`0.6.8-e2e` for 0.6.7): on Windows a second Py
 1. The old version is put in place: the installer of the `windows` job, run silently with no task (no start at sign-in, no desktop shortcut), or the AppImage
    copied into a folder of its own, with a home folder of its own.
 2. Its data folder (a temporary one, with a blank in its name) gets the settings a user would have: `serial/port` is a fake KISS TNC on the loopback (the
-   one of `scripts/smoke.py`), `web/port` a fixed port, `update/url` the fake version page. The daemon is started with `NEOAPRS_UPDATE_TEST=1` and
+   one of `scripts/smoke.py`), `web/port` a port that the test itself holds while the old daemon starts, so that its page is on the next one, `update/url` the fake version page. The daemon is started with `NEOAPRS_UPDATE_TEST=1` and
    `NEOAPRS_UPDATE_FROM` set to the fake release server, which serves `v<version>/<file>`, `v<version>/SHA256SUMS` and `v<version>/SHA256SUMS.sig` like GitHub, the list signed with a key of the test's own, given to the daemon as `NEOAPRS_UPDATE_KEY`.
 3. Over `/ws`, as the page does: the hello names the old version and the install kind, the TNC is connected and packets came, Update now is offered;
-   `update_check` finds the new version, `update_now` names it, and the topic `update` is followed until the daemon closes the socket. It must reach
+   `update_check` finds the new version, the test lets go of the port of the settings, `update_now` names the version, and the topic `update` is followed until the daemon closes the socket. It must reach
    `restarting` and never `error`, and the fake server must have been asked for `SHA256SUMS`, its signature and then the file.
-4. A daemon must come up by itself on the same page port and say the new version in its hello, connect to the same fake TNC (the settings came from the data
-   folder) and have at least the packets the old one had. On Windows the old daemon has ended with exit code 0, the installer's log (`update/install.log` of the
+4. A daemon must come up by itself, with its page on the port the old one served it on (not on the port of the settings, free by then), and say the new version in its hello, connect to the same fake TNC (the settings came from the data
+   folder) and have at least the packets the old one had; the notes of the restart are gone from the data folder by then. On Windows the old daemon has ended with exit code 0, the installer's log (`update/install.log` of the
    data folder) has the silent command line of Update now and `Installation process succeeded`, the installed `neoaprs.exe` and Windows' list of programs say
    the new version, and `update/` holds that installer and its log alone (an earlier installer the test put there is gone). For the AppImage the same process
-   goes on as the new version, the file in the same place is the new one (its SHA-256), executable, and neither `.old` nor `.part` is left beside it.
+   goes on as the new version, the file in the same place is the new one (its SHA-256), executable, and neither `.old` nor `.part` is left beside it; and the new daemon runs the way the old one
+   did, read from its own process (`$APPDIR` of the newest process of the file under the test's child): mounted in the run with FUSE, unpacked in the run with `--extract-and-run`.
 5. After a stop, the log has the start and the end of the old version and then of the new one and ends with `NeoAPRS ended`, every setting is still there,
    and nothing else changed: on Windows the Run key, the Start menu entries, the desktop and `%LOCALAPPDATA%\NeoAPRS`, and no program of NeoAPRS or
    installer is left running; for the AppImage the home folder and the folder of the file.
 
 On a failure the work folder (the logs, the data folder, the installer's log; not the installers and AppImages) is an artifact of the run,
 `update-e2e-windows-logs` or `update-e2e-appimage-logs`.
+
+With a release of 0.20.1 or before as the old file, `--known-old` says what is known of it and does not fail for it: its AppImage starts the new one unpacked though it was mounted, and on Windows it
+leaves no note of the page's port. Without the flag, and for any later old version, each is a failure.
 
 ### The desktop app's tests
 

@@ -309,6 +309,24 @@ def rig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Rig:
     return Rig(tmp_path, monkeypatch)
 
 
+def test_a_page_that_the_daemon_serves_at_another_address_is_loaded_there_and_the_links_are_judged_against_it(rig: Rig) -> None:
+    """The daemon started again on another port (Update now on Windows: the installer starts it; the port it had may be taken by then): the watch tells the actions, the window loads the page there."""
+    thread = launch(rig)
+    window = rig.toolkits.windows[0]
+    assert rig.ctx.watch is not None and rig.ctx.watch.moved is not None
+    rig.ctx.watch.moved("http://127.0.0.1:7310/")
+    assert window.loaded == [PAGE + "#app", "http://127.0.0.1:7310/#app"]
+    api = window.kwargs["js_api"]
+    assert api.page_url == "http://127.0.0.1:7310/" and not api.open_external("http://127.0.0.1:7310/x") and rig.browser == []
+    assert api.open_external(PAGE) and rig.browser == [PAGE], "the old address is another site's now"
+    item = menu_item(rig, "Open in browser")
+    item.action(rig.toolkits.icons[0], item)
+    assert rig.browser == [PAGE, "http://127.0.0.1:7310/"]
+    quit_through_the_menu(rig, thread)
+    rig.ctx.watch.moved(PAGE)
+    assert window.loaded[-1] == "http://127.0.0.1:7310/#app", "a window that Quit destroyed is given nothing to load"
+
+
 def test_the_window_has_the_size_it_had_is_hidden_in_the_tray_and_starts_on_edge_with_its_storage_in_the_data_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     rig = Rig(tmp_path, monkeypatch, hidden=True)
     appstate.save_window(rig.data, kept(False))

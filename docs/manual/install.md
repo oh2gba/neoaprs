@@ -111,7 +111,11 @@ Where NeoAPRS can update itself, the window has an **Update now** button. NeoAPR
 2. checks that the list is signed by the project, so that only a release of the project is ever installed, and that the file's SHA-256 checksum is the one the list gives it. A file that does not match is deleted and nothing is installed;
 3. installs it and starts again:
    - **Windows:** the installer runs without a window. It ends the app and the daemon, replaces the program and starts again what was running (the app, or the daemon alone), on the same data folder. The page says *Installing… NeoAPRS restarts in a moment* and connects again by itself;
-   - **AppImage:** the new file takes the place of the old one, under the old file's name, so that a service or a start at login finds it. The old file is kept beside it as `<name>.old` until the new version has started. NeoAPRS then starts the file again with the same arguments.
+   - **AppImage:** the new file takes the place of the old one, under the old file's name, so that a service or a start at login finds it. The old file is kept beside it as `<name>.old` until the new version has started. NeoAPRS then starts the file again with the same arguments, the way it ran before: a file that was mounted is mounted again, and takes no room in the temporary folder.
+
+**The page stays where it was.** After the restart NeoAPRS serves the page on the port it was on, so a page left open and the app's window find it again by themselves. Only when another program has taken that port in the meantime does the page come back on another one: the app's window follows it there, and a page in a browser has to be opened again (`neoaprs open` shows where).
+
+**The app after an update of the AppImage.** The page in the window is the new version's at once. The window itself and the tray icon stay the program of the old version until you choose **Stop and quit** and start NeoAPRS again.
 
 Nothing is downloaded or installed unless you press the button. When something goes wrong the window says so in plain words, offers **Try again** and shows the steps by hand. An AppImage in a folder you cannot write to has no Update now: the window shows the steps.
 

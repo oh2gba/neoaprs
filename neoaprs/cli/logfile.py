@@ -13,6 +13,10 @@ PAGE_FORMAT = "web page at %s"                              # the page's address
 PAGE_LINE = re.compile(r"web page at (http://\S+?/)(?:\s|$)")
 PAGE_FILE = "neoaprs-web.url"
 PAGE_URL = re.compile(r"http://\S+?/")
+LOG_SCAN_BYTES = 20_000_000                                # the end of the log that is read for the run before: a whole file of it (neoaprs/daemon.py setup_logging)
+_OWN_LINE = rb"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\dZ  INFO  "        # how a line the daemon says at INFO begins (the format of neoaprs/daemon.py setup_logging): words inside another line, a packet's text, are not such a line
+RUN_START = re.compile(_OWN_LINE + rb"\S+ \S+" + re.escape(START_LINE.encode()), re.MULTILINE)
+RUN_PAGE = re.compile(_OWN_LINE + rb"web page at (http://127\.0\.0\.1:\d{1,5}/)\r?$", re.MULTILINE)      # (the page's own address on this computer: neoaprs/web/server.py `url`)
 
 
 def write_page(data_dir: Path, url: str) -> None:
@@ -28,6 +32,27 @@ def remove_page(data_dir: Path) -> None:
         (data_dir / PAGE_FILE).unlink(missing_ok=True)
     except OSError:
         pass
+
+
+def page_of_the_run_before(data_dir: Path) -> str | None:
+    """The page's address of the run before the one that has just written its start line, from the log: the last page line before the last start line, when no other start is between them. None when
+    that run had no page, or the log has been rotated since it said so. (The daemon that starts again in the place of one of 0.20.1 or before finds its port this way: that one's note names none.)
+    Only whole lines the daemon said itself count, and only the page's address on this computer: the words of a page line inside another line (the text of a packet that was logged) name no port."""
+    try:
+        with (data_dir / LOG_NAME).open("rb") as f:
+            f.seek(0, 2)
+            cut = max(0, f.tell() - LOG_SCAN_BYTES)
+            f.seek(cut)
+            text = f.read()
+    except OSError:
+        return None
+    if cut:
+        text = text[text.find(b"\n") + 1:]                   # (the first line of a cut is the end of one)
+    starts = [found.start() for found in RUN_START.finditer(text)]
+    if not starts:
+        return None
+    pages = RUN_PAGE.findall(text, starts[-2] if len(starts) > 1 else 0, starts[-1])
+    return pages[-1].decode("ascii") if pages else None
 
 
 def read_page(data_dir: Path) -> str | None:

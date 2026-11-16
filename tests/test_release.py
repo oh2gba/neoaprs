@@ -1,8 +1,10 @@
 """The release's own files, as far as a test can see them without GitHub or a Windows machine: the notes taken out of the changelog, the install script's template rendered and read by `sh -n`, the workflow's
 pins and permissions, the Windows installer script's promises (per user, the tasks, the uninstaller), that the Windows app carries no pmtiles program (and an update clears the one of an earlier version), the bundled Mercury (the job that builds it, the Windows script that unpacks it, what the Linux jobs prove of it), and the pieces of the end-to-end test of Update now (`scripts/update-e2e.py`) that read the daemon on either wire. The whole of it is run by `.github/workflows/release.yml`."""
 import re
+import socket
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -499,3 +501,101 @@ def test_the_update_test_sets_the_fm_radios_port_on_the_fresh_folder_of_a_versio
     assert e2e.get_port(fresh, Path("d")) == url
     with pytest.raises(e2e.Failure, match="serial/port: .*no such setting.*; radio/1/port: .*no radio 1.*; radios add kiss: .*invalid choice"):
         e2e.set_port(NoRadioYet(can_add=False), Path("d"), url)
+
+
+def update_e2e() -> types.ModuleType:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("update_e2e", ROOT / "scripts" / "update-e2e.py")
+    assert spec and spec.loader
+    e2e = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(e2e)
+    return e2e
+
+
+def test_the_update_test_holds_the_port_of_the_page_and_reads_the_daemons_process(tmp_path: Path) -> None:
+    """scripts/update-e2e.py finds the port the new daemon's page is on, which must be the old one's, and reads from the daemon's own process where its program runs from: the readers on a made-up /proc,
+    the port that is held with a free one after it, and what `--known-old` lets pass for a release of 0.20.1 or before and for no other (the update of a mounted 0.20.0 came back unpacked and on another
+    port, 16 Nov 2026, and the test said ok)."""
+    from neoaprs import stopfile
+    from neoaprs.web import listen
+    e2e = update_e2e()
+    assert e2e.RESTART_NOTES == (stopfile.RESTART_NAME, stopfile.PORT_NAME) and e2e.PORT_TRIES == listen.PORT_TRIES, "the script's copies of the program's names and of the ports it tries"
+    assert e2e.numbers("0.20.1") == (0, 20, 1) and e2e.numbers("0.20.2-e2e") == (0, 20, 2) and e2e.numbers("next") == (0, 0, 0)
+
+    def process(proc: Path, pid: int, parent: int, name: str, **environ: str) -> None:
+        folder = proc / str(pid)
+        folder.mkdir()
+        (folder / "stat").write_text(f"{pid} ({name}) S {parent} {pid} {pid} 0 -1 4194304", encoding="ascii")
+        (folder / "environ").write_bytes(b"\0".join(f"{k}={v}".encode() for k, v in environ.items()))
+
+    image = "/home/ham/Applications/NeoAPRS-0.20.1-x86_64.AppImage"
+    proc = tmp_path / "proc"
+    (proc / "self").mkdir(parents=True)
+    process(proc, 1, 0, "systemd")
+    process(proc, 500, 1, "NeoAPRS-0.20.1-x", HOME="/home/ham")                                                        # the old version's runtime, unpacked: it waits for its child
+    process(proc, 501, 500, "NeoAPRS (new) x", APPIMAGE=image, APPDIR="/tmp/appimage_extracted_old", APPIMAGE_EXTRACT_AND_RUN="1")   # the new runtime, in the place of the old daemon
+    process(proc, 502, 501, "python3.13", APPIMAGE=image, APPDIR="/tmp/appimage_extracted_new", APPIMAGE_EXTRACT_AND_RUN="1")         # the new daemon
+    process(proc, 600, 1, "python3.13", APPIMAGE="/elsewhere/Other.AppImage", APPDIR="/tmp/.mount_Otherxyz")
+    assert e2e.descendants(500, proc) == [500, 501, 502] and e2e.descendants(600, proc) == [600]
+    assert e2e.environ_of(502, proc)["APPDIR"] == "/tmp/appimage_extracted_new" and e2e.environ_of(999, proc) == {}
+    assert e2e.program_folder(500, image, proc) == "/tmp/appimage_extracted_new", "the newest process of the file: the daemon that runs, not the one it took the place of"
+    assert e2e.program_folder(600, image, proc) == "" and e2e.program_folder(1, "/elsewhere/Other.AppImage", proc) == "/tmp/.mount_Otherxyz"
+
+    holder, port = e2e.held_port()
+    try:
+        with socket.socket() as second:
+            with pytest.raises(OSError):
+                second.bind(("127.0.0.1", port))
+        with socket.socket() as after:
+            after.bind(("127.0.0.1", port + 1))
+    finally:
+        holder.close()
+
+    def install(kind: str, old: str, known_old: bool) -> object:
+        """The install of the test without its machine (the Windows one reads the folders of Windows as it is made)."""
+        made = (e2e.WindowsInstall if kind == "windows" else e2e.AppImageInstall).__new__(e2e.WindowsInstall if kind == "windows" else e2e.AppImageInstall)
+        e2e.Install.__init__(made, tmp_path / "work", Path(f"NeoAPRS-Setup-{old}.exe" if kind == "windows" else f"NeoAPRS-{old}-x86_64.AppImage"), Path("new"), known_old)
+        return made
+
+    e2e.check_port(install("appimage", "0.20.1", False), 7303, 7304, 7304, "0.20.2")
+    for kind, old, known_old, new, passes in (("appimage", "0.20.1", False, "0.20.2", False), ("appimage", "0.20.1", True, "0.20.2", False), ("appimage", "0.20.0", True, "0.20.1", True),
+                                              ("appimage", "0.20.0", False, "0.20.1", False), ("windows", "0.20.1", True, "0.20.2", True), ("windows", "0.20.1", False, "0.20.2", False),
+                                              ("windows", "0.20.2", True, "0.20.3-e2e", False), ("appimage", "0.20.2", True, "0.20.3-e2e", False)):
+        made = install(kind, old, known_old)
+        if passes:
+            e2e.check_port(made, 7303, 7304, 7303, new)
+        else:
+            with pytest.raises(e2e.Failure, match="on port 7303, not on 7304"):
+                e2e.check_port(made, 7303, 7304, 7303, new)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the AppImage is Linux's, and so are the mount points that stand in for its mount")
+def test_the_update_test_holds_that_the_new_appimage_runs_mounted_or_unpacked_as_the_old_one_did(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """A folder that is a mount point (the root of this system and /proc stand in for the image's mounts) and one that is not, as the daemon's process names them before and after the update."""
+    e2e = update_e2e()
+    child = types.SimpleNamespace(pid=500)
+    unpacked_old, unpacked_new = tmp_path / "appimage_extracted_old", tmp_path / "appimage_extracted_new"
+    unpacked_old.mkdir()
+    unpacked_new.mkdir()
+
+    def runs(old: str, extract_and_run: bool, known_old: bool, before: str, now: str) -> str:
+        made = e2e.AppImageInstall(tmp_path / "work", Path(f"NeoAPRS-{old}-x86_64.AppImage"), Path("NeoAPRS-9.9.9-x86_64.AppImage"), extract_and_run, known_old)
+        monkeypatch.setattr(e2e, "program_folder", lambda pid, appimage: before)
+        made.old_runs(child)
+        monkeypatch.setattr(e2e, "program_folder", lambda pid, appimage: now)
+        capsys.readouterr()
+        made.check_how_it_runs(child)
+        return str(capsys.readouterr().out)
+
+    assert "the new daemon runs unpacked, as the old one did" in runs("0.20.2", True, False, str(unpacked_old), str(unpacked_new))
+    assert "the new daemon runs mounted, as the old one did" in runs("0.20.2", False, False, "/", "/proc")
+    assert "known of 0.20.1 (--known-old): the new daemon runs unpacked" in runs("0.20.1", False, True, "/", str(unpacked_new))
+    for old, known_old in (("0.20.1", False), ("0.20.2", True)):
+        with pytest.raises(e2e.Failure, match="the new daemon runs unpacked, .* though the old one ran mounted"):
+            runs(old, False, known_old, "/", str(unpacked_new))
+    with pytest.raises(e2e.Failure, match="the new daemon runs mounted, .* though the old one ran unpacked"):
+        runs("0.20.2", True, False, str(unpacked_old), "/")
+    with pytest.raises(e2e.Failure, match="the old daemon runs mounted .* though the test started it with --appimage-extract-and-run"):
+        runs("0.20.2", True, False, "/", "/proc")
+    with pytest.raises(e2e.Failure, match="does not say where it runs from"):
+        runs("0.20.2", False, False, "/", "/")

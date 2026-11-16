@@ -7,6 +7,9 @@ The Sound card radio keeps its line open.
 - **Fixed:** a Sound card radio opened the line to its modem three times a second, for ever; it now keeps it open.
 - **Fixed:** a Sound card radio's Receive level never changed; it now follows the audio and is empty with the radio off.
 - **Fixed:** a sound card or a port stayed greyed out for other radios after its radio changed type, was switched off or removed.
+- **Fixed:** after Update now the page comes back on the port it was on; the app's window follows NeoAPRS if it must take another.
+- **Fixed:** after Update now an AppImage that ran mounted is mounted again, no longer unpacked into the temporary folder.
+- **Fixed:** the update window has lost its closing sentence about settings and open pages, and its restart line is short.
 
 ## 0.20.1
 

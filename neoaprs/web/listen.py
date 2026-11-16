@@ -1,4 +1,4 @@
-"""Where the web server listens: the port of the settings, or the next free one."""
+"""Where the web server listens: the port of the settings, or the next free one; after a restart of the daemon by itself, the port the page was on before it."""
 import errno
 import logging
 
@@ -31,8 +31,15 @@ def listen_first(server: LimitedHTTPServer, address: str, ports: list[int]) -> t
     return None, first
 
 
-def listen_near(server: LimitedHTTPServer, address: str, wanted: int) -> OSError | None:
-    """Listens on `wanted`, or, when it is taken, on the first of the next `PORT_TRIES` that is free. None when it listens, else the error of the first try."""
+def listen_near(server: LimitedHTTPServer, address: str, wanted: int, kept: int = 0) -> OSError | None:
+    """Listens on `wanted`, or, when it is taken, on the first of the next `PORT_TRIES` that is free. None when it listens, else the error of the first try. `kept` is the port the page was on before the
+    daemon started again (0: this is no restart): it is tried before any other, since the pages that are open wait there, and when it cannot be had the daemon listens as it does at any start."""
+    if kept and kept != wanted:
+        port, error = listen_first(server, address, [kept])
+        if port is not None:
+            log.info("the page stays on port %d, where it was before the restart", kept)
+            return None
+        log.warning("port %d, where the page was before the restart, cannot be had (%s): a page that is open there in a browser does not find NeoAPRS again (the app's window follows)", kept, error)
     port, first = listen_first(server, address, ports_near(wanted))
     if port is None:
         return first

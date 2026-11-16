@@ -30,6 +30,12 @@ def _origin(url: str) -> tuple[str, str, int | None] | None:
     return parts.scheme, parts.hostname.lower(), port if port is not None else DEFAULT_PORTS[parts.scheme]
 
 
+def same_host(url: str, page: str) -> bool:
+    """Is `url` an address of the host of `page`, by the same scheme: the daemon's page on another port, which is all a daemon that started again changes of its address?"""
+    here, there = _origin(page), _origin(url)
+    return here is not None and there is not None and here[:2] == there[:2]
+
+
 def route(url: str, page: str) -> Route:
     """`window`: the page itself (same scheme, host and port as `page`), the blank page and a `blob:` address its own scripts made; `browser`: another site (http, https) or a mail address;
     `block`: anything else (`file:`, `javascript:`, `data:`, `ftp:`, an address that cannot be read), which nothing the page does needs."""

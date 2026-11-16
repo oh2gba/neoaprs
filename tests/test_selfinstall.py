@@ -260,3 +260,85 @@ def test_the_note_of_a_restart_is_fresh_for_a_while(tmp_path: Path) -> None:
     assert not stopfile.restarting(tmp_path, now=mtime + stopfile.RESTART_FRESH_SEC + 1)
     stopfile.clear_restart(tmp_path)
     assert not stopfile.restarting(tmp_path)
+
+
+def test_the_note_of_the_port_says_where_the_page_was_for_the_daemon_that_starts_in_its_place(tmp_path: Path) -> None:
+    note = tmp_path / stopfile.PORT_NAME
+    assert stopfile.noted_port(tmp_path) is None, "no note: no restart"
+    stopfile.note_port(tmp_path, 7304)
+    assert note.read_text(encoding="ascii") == "7304\n" and stopfile.noted_port(tmp_path) == 7304
+    assert not stopfile.restarting(tmp_path), "a note of its own: the app's wait for a daemon that starts again is not its business"
+    mtime = note.stat().st_mtime
+    assert stopfile.noted_port(tmp_path, now=mtime + stopfile.RESTART_FRESH_SEC + 1) == 7304, "the Windows installer takes longer than the app waits for an AppImage"
+    assert stopfile.noted_port(tmp_path, now=mtime + stopfile.PORT_FRESH_SEC + 1) is None, "a restart that never came is not the next start's"
+    for text in ("0\n", "70000\n", "seven\n", "-1\n", "port 7304\n", ""):
+        note.write_text(text, encoding="ascii")
+        assert stopfile.noted_port(tmp_path) is None, text
+    note.write_bytes("٧٣٠٣\n".encode())
+    assert stopfile.noted_port(tmp_path) is None, "digits of another script are not a port"
+    stopfile.note_port(tmp_path, 7304)
+    stopfile.note_port(tmp_path, 0)
+    assert not note.exists() and stopfile.noted_port(tmp_path) is None, "a daemon without a page leaves none, and takes an older one away"
+    stopfile.note_port(tmp_path, 7304)
+    stopfile.mark_restart(tmp_path)
+    stopfile.clear_restart(tmp_path)
+    assert not note.exists() and not stopfile.restarting(tmp_path), "the daemon runs: both notes go"
+
+
+def test_the_windows_way_has_the_daemon_note_its_page_before_the_installer_is_started(tmp_path: Path) -> None:
+    order: list[str] = []
+    setup = WindowsSetup(tmp_path, launch=lambda argv: order.append("installer"), app_running=lambda data: False, leaving=lambda: order.append("note"))
+    part = tmp_path / "download.part"
+    part.write_bytes(b"MZ")
+    setup.folder.mkdir()
+    setup.install(part, "NeoAPRS-Setup-0.9.0.exe", "0.9.0")
+    assert order == ["note", "installer"]
+    made = installer_for(InstallInfo("windows-installer"), tmp_path, lambda argv: None, {}, platform="win32", leaving=lambda: order.append("handed on"))
+    assert isinstance(made, WindowsSetup)
+    made._leaving()
+    assert order[-1] == "handed on"
+
+
+def test_a_note_of_the_port_that_is_no_small_file_of_digits_is_no_note_and_ends_no_daemon(tmp_path: Path) -> None:
+    """Whatever lies in the data folder under the note's name: a number Python refuses to read (more than 4300 digits raised ValueError out of the daemon's start), a file of any length, a link, a pipe
+    (which would hold the start up for ever), a folder."""
+    note = tmp_path / stopfile.PORT_NAME
+    for content in (b"9" * 5000, b"7" * 3_000_000, b"7304" + b" " * 20, b"007304\n", b"7304\n7305\n", b"7304\0", b"+7304", b"0x1c88", b"7 304"):
+        note.write_bytes(content)
+        assert stopfile.noted_port(tmp_path) is None, content[:20]
+    note.write_bytes(b"7304\r\n")
+    assert stopfile.noted_port(tmp_path) == 7304, "as Windows writes the line's end"
+    note.write_bytes(b"65535")
+    assert stopfile.noted_port(tmp_path) == 65535
+    note.unlink()
+    note.mkdir()
+    assert stopfile.noted_port(tmp_path) is None
+    note.rmdir()
+    if sys.platform != "win32":
+        real = tmp_path / "elsewhere"
+        real.write_text("7304\n", encoding="ascii")
+        note.symlink_to(real)
+        assert stopfile.noted_port(tmp_path) is None, "a link is not the daemon's note, wherever it leads"
+        note.unlink()
+        os.mkfifo(note)
+        assert stopfile.noted_port(tmp_path) is None, "a pipe is not opened: the daemon would wait for its writer"
+        stopfile.clear_restart(tmp_path)
+        assert not note.exists()
+
+
+def test_an_installer_that_could_not_be_started_leaves_no_note_of_a_port(tmp_path: Path) -> None:
+    """No installer, no restart: the daemon runs on, and the note it wrote a moment before is not for whatever start comes next."""
+    def refused(argv: list[str]) -> None:
+        raise OSError(5, "Access is denied")
+
+    setup = WindowsSetup(tmp_path, launch=refused, app_running=lambda data: False, leaving=lambda: stopfile.note_port(tmp_path, 7304))
+    part = tmp_path / "download.part"
+    part.write_bytes(b"MZ")
+    setup.folder.mkdir()
+    with pytest.raises(InstallError, match="the installer could not be started"):
+        setup.install(part, "NeoAPRS-Setup-0.9.0.exe", "0.9.0")
+    assert not (tmp_path / stopfile.PORT_NAME).exists() and stopfile.noted_port(tmp_path) is None
+    started = WindowsSetup(tmp_path, launch=lambda argv: None, app_running=lambda data: False, leaving=lambda: stopfile.note_port(tmp_path, 7304))
+    part.write_bytes(b"MZ")
+    started.install(part, "NeoAPRS-Setup-0.9.0.exe", "0.9.0")
+    assert stopfile.noted_port(tmp_path) == 7304, "one that started ends the daemon: the note is for the daemon it starts"

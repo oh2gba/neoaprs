@@ -127,7 +127,7 @@ describe("the progress of Update now", () => {
     expect(progressText(job({ state: "installing" }), "appimage", true)).toBe("Installing…");
     expect(progressText(job({ state: "restarting" }), "appimage", true)).toBe("NeoAPRS restarts in a moment");
     expect(progressText(job({ state: "restarting" }), "windows-installer", true)).toBe("Installing… NeoAPRS restarts in a moment");
-    expect(progressText(job({ state: "restarting" }), "windows-installer", false)).toBe("NeoAPRS is restarting. This page reconnects by itself.");
+    expect(progressText(job({ state: "restarting" }), "windows-installer", false)).toBe("NeoAPRS is restarting");
     expect(progressText(job({ state: "error", problem: "checksum" }), "appimage", true)).toBeNull();
   });
 

@@ -42,7 +42,7 @@ describe("UpdateDialog", () => {
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "release_notes", version: "0.4.0" });
     expect(wrapper.find(".updatedialog-news [role=status]").text()).toBe("Fetching what is new…");
     expect(wrapper.find(".updatedialog-news a.btn").exists()).toBe(false);
-    expect(wrapper.text()).toContain("Your settings, messages and map stay. Open pages reload by themselves.");
+    expect(box.element.lastElementChild?.classList.contains("updatedialog-hand")).toBe(true); // (the steps are the end of the dialog: no line under them)
     expect(wrapper.find(".updatedialog-backdrop").exists()).toBe(true);
   });
 
@@ -182,7 +182,7 @@ describe("UpdateDialog", () => {
     await tell(daemon, { selfUpdate: job({ state: "restarting", version: "0.4.0" }) });
     expect(wrapper.find(".updatedialog-progress").text()).toBe("Installing… NeoAPRS restarts in a moment");
     await tell(daemon, { connection: "closed" });
-    expect(wrapper.find(".updatedialog-progress").text()).toBe("NeoAPRS is restarting. This page reconnects by itself.");
+    expect(wrapper.find(".updatedialog-progress").text()).toBe("NeoAPRS is restarting");
   });
 
   it("keeps the progress while the topic says the copy can no longer update itself (the restart is on its way)", () => {

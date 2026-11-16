@@ -227,6 +227,32 @@ def test_the_window_is_raised_by_another_thread(rig: Rig) -> None:
     rig.window.hide()
 
 
+def moved_to(rig: Rig, url: str) -> None:
+    """The watch's thread says that the daemon's page is at `url`; returns when the window shows it there."""
+    loaded: list[bool] = []
+    rig.window.view.loadFinished.connect(loaded.append)
+    thread = threading.Thread(target=rig.built.actions.page_moved, args=(url,))
+    thread.start()
+    spin(lambda: loaded and rig.window.view.url().toString() == url + "#app")
+    thread.join()
+    rig.window.view.loadFinished.disconnect(loaded.append)
+
+
+def test_a_page_that_the_daemon_serves_at_another_address_is_loaded_there_by_another_thread_and_is_the_windows_own_from_then_on(rig: Rig, page_url: str) -> None:
+    """The daemon started again on another port: the watch's thread says so, and the window shows the page there, as its own (the address a navigation is judged against is the new one)."""
+    elsewhere = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Page)
+    serve(elsewhere)
+    moved = f"http://127.0.0.1:{elsewhere.server_address[1]}/"
+    try:
+        moved_to(rig, moved)
+        assert rig.window.url == moved and rig.window.page.page_url == moved and rig.built.actions.session.url == moved
+        assert evaluate(rig.window, "document.title") == "fake page"
+    finally:
+        moved_to(rig, page_url)                               # (and back, for the tests after this one)
+        elsewhere.shutdown()
+    assert rig.window.url == page_url and rig.built.actions.session.url == page_url
+
+
 def test_the_tray_menu_is_made_from_the_actions_and_its_items_run_them(rig: Rig) -> None:
     ran: list[str] = []
     rig.built.actions.run = ran.append                                     # type: ignore[method-assign]

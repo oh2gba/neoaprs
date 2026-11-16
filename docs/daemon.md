@@ -539,7 +539,8 @@ by a build in the middle of the read (the build renames two folders) is read aga
 
 **Update now** (`neoaprs/services/selfupdate.py`) is the update the daemon does itself on the page's `update_now`, for the Windows installer and an AppImage:
 the release's file, `SHA256SUMS` and `SHA256SUMS.sig` of the announced version from GitHub, the list believed only with the project's signature and the SHA-256 checked against it, then the installer of the kind (`neoaprs/services/selfinstall.py`)
-and the restart; the topic `update` tells its steps. The flow and its safety checks are in [development.md](development.md#update-now).
+and the restart; the topic `update` tells its steps. The daemon that starts in the place of the one that ended serves the page on the port that one served it on (the note `neoaprs.restart-port` of the data
+folder names it), where the open pages wait. The flow and its safety checks are in [development.md](development.md#update-now).
 
 ## The log and the support bundle
 

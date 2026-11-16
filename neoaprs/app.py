@@ -83,6 +83,7 @@ class Frontend(Protocol):
     async def start(self) -> bool: ...
     async def stop(self) -> None: ...
     def settings_changed(self, config: Config) -> None: ...
+    def bound_port(self) -> int: ...
 
 
 @dataclass(frozen=True)
@@ -209,7 +210,7 @@ class Services:
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store, developer=install.kind == "source")   # once a day: which version is the latest (update/check); started by the controller
         self.frequencies = Frequencies(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), memory=self.store)       # the frequencies the project suggests: a small file asked a minute after the start and when a page shows the HF radio's box; started by the controller
         self.skeds = Skeds(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), lambda: self.config, lambda: self.suggested_frequencies, memory=self.store)       # the sked board: when people will be on the air, read from the project's server a minute after the start, every six hours and when a page shows the Skeds tab; started by the controller
-        self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into, encryption=self.encryption), self._announced, release_source(), end=self._end_for_restart, key=release_key)      # Update now: on the page's request only; nothing to start
+        self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into, encryption=self.encryption, leaving=self.note_page_port), self._announced, release_source(), end=self._end_for_restart, key=release_key)      # Update now: on the page's request only; nothing to start
         self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
 
     def hear_internet(self, packet: Packet) -> None:
@@ -254,6 +255,15 @@ class Services:
         """Has the process run `argv` in its place once the daemon has ended and everything is let go (neoaprs/daemon.py). Called from a thread of Update now, which ends the daemon after the page is told."""
         self.reexec = argv
         stopfile.mark_restart(self.data_dir)
+        self.note_page_port()
+
+    def note_page_port(self) -> None:
+        """The daemon is about to end and be started again (by itself for an AppImage; by the Windows installer of Update now, which calls this before it starts): the note says on which port the page
+        is, for the daemon that is started (neoaprs/stopfile.py). A note that cannot be written is left to the log: the update goes on, and the page may come back on another port."""
+        try:
+            stopfile.note_port(self.data_dir, self.web.bound_port() if self.web is not None else 0)
+        except OSError as e:
+            log.warning("the port of the page could not be noted for the restart (%s)", e)
 
     def _end_for_restart(self) -> None:
         """Ends the daemon the way `neoaprs stop` does, when Update now has a command line to run in its place."""

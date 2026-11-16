@@ -117,7 +117,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.update.installing": "Installazione…",
   "help.update.restarting": "NeoAPRS si riavvia tra un attimo",
   "help.update.restarting_installer": "Installazione… NeoAPRS si riavvia tra un attimo",
-  "help.update.reconnecting": "NeoAPRS si sta riavviando. Questa pagina si ricollega da sola.",
+  "help.update.reconnecting": "NeoAPRS si sta riavviando",
   "help.update.problem.download": "Non è stato possibile scaricare l’aggiornamento. Riprova, oppure scaricalo dalla pagina del progetto.",
   "help.update.problem.unverified":
     "Non è stato possibile verificare questo aggiornamento, quindi non è stato installato nulla. Scaricalo dalla pagina del progetto.",
@@ -126,7 +126,6 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.update.problem.no_restart": "L’aggiornamento è installato, ma NeoAPRS non si è riavviato. Chiudi NeoAPRS e riaprilo.",
   "help.update.by_hand": "Oppure aggiorna a mano",
   "help.update.steps": "Come aggiornare",
-  "help.update.foot": "Le tue impostazioni, i messaggi e la mappa restano. Le pagine aperte si ricaricano da sole.",
   "help.update.restart_service": "Riavvia il servizio",
   "help.update.restart": "Chiudi NeoAPRS e riaprilo",
   "help.update.win.download": "Scarica il programma di installazione",

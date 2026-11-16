@@ -1,7 +1,7 @@
 """The shell of Linux and macOS: Qt for both the window and the tray icon, so there is one event loop and nothing to marry. QSystemTrayIcon is the tray (the StatusNotifier of KDE and of GNOME with its extension; the
 menu bar on macOS), QWebEngineView in qtwindow.py the window. Without the web engine (no PySide6-WebEngine installed) it is the tray alone and the page goes to the browser. Closing the window hides it;
 with no tray to bring it back from (a desktop that has none), closing it quits, as the menu's Quit would. Other threads (a second app's `show`, the end of the daemon, the quit that runs while the daemon
-stops) reach the toolkit through the signals of `QtFrame`, which Qt queues to the main thread.
+stops, a new address of the daemon's page) reach the toolkit through the signals of `QtFrame`, which Qt queues to the main thread.
 The window is made first, with the loading page in it (loading.py), and the Qt loop runs while the daemon comes up; the tray, the menu and the page come with the session (`Opening`, whose end reaches
 the main thread as a signal). `build(ctx)` makes everything for a session and `run(launch)` runs it; the headless test and the screenshot use `build`."""
 import logging
@@ -36,6 +36,7 @@ class QtFrame(QObject):
     show_requested = Signal()
     quit_requested = Signal()
     tell_requested = Signal(str)
+    load_requested = Signal(str)
 
     def __init__(self, with_window: bool) -> None:
         super().__init__()
@@ -45,6 +46,7 @@ class QtFrame(QObject):
         self.show_requested.connect(self._show)
         self.quit_requested.connect(self._quit)
         self.tell_requested.connect(self._tell)
+        self.load_requested.connect(self._load)
 
     def show_window(self) -> None:
         self.show_requested.emit()
@@ -58,6 +60,9 @@ class QtFrame(QObject):
     def tell(self, text: str) -> None:
         self.tell_requested.emit(text)
 
+    def load(self, url: str) -> None:
+        self.load_requested.emit(url)
+
     @Slot()
     def _show(self) -> None:
         if self.window is not None:
@@ -68,6 +73,11 @@ class QtFrame(QObject):
         if self.window is not None:
             self.window.remember_geometry()
         QApplication.quit()
+
+    @Slot(str)
+    def _load(self, url: str) -> None:
+        if self.window is not None:
+            self.window.load(url)
 
     @Slot(str)
     def _tell(self, text: str) -> None:

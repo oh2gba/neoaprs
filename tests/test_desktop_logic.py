@@ -1,6 +1,7 @@
 """The desktop app's logic, with no window and no tray: which addresses stay in the window, the tray menu as data and what its items do, the decision to attach to a daemon or start one, what the app remembers, which shell
 this computer can run and the fallbacks when none can show a window. The shells themselves are tests/test_desktop_qt.py and tests/test_desktop_webshell.py."""
 import json
+import logging
 import subprocess
 import sys
 import threading
@@ -246,6 +247,118 @@ def test_a_daemon_that_restarts_as_a_new_version_is_waited_for_while_its_note_is
     assert not gone.wait(0.3), "Update now of an AppImage: the daemon ends and the new file starts"
     note[0] = False
     assert gone.wait(5), "a restart that did not come up is an end"
+
+
+MOVED = "http://127.0.0.1:7310/"            # where the daemon serves its page after a restart that could not have the port of PAGE
+
+
+@pytest.mark.parametrize("owned", [True, False])
+def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_and_for_one_it_attached_to(owned: bool) -> None:
+    """The daemon started again and serves its page on another port (the one it had was taken): the file it writes says where, and the app is told once for each new address. The lock of a daemon the app
+    does not own is never asked for it."""
+    moved: list[str] = []
+    told = threading.Event()
+    daemon = FakeDaemon(up=True)
+    asked: list[Path] = []
+    if not owned:
+        daemon.running = lambda data: bool(asked.append(data))
+    where: list[str | None] = [PAGE]
+    looked = threading.Semaphore(0)
+
+    def address(data: Path) -> str | None:
+        looked.release()
+        return where[0]
+
+    def follow(url: str) -> None:
+        moved.append(url)
+        told.set()
+
+    def looks(times: int) -> bool:
+        return all(looked.acquire(timeout=5) for _ in range(times))
+
+    daemon.address = address
+    watch = DaemonWatch(Session(DATA, PAGE, owned=owned), lambda: moved.append("gone"), daemon, every=0.02, moved=follow)
+    watch.start()
+    assert looks(2) and moved == [], "the address the app has: nothing to do"
+    where[0] = None
+    assert looks(2) and moved == [], "the daemon is away (it took its file with it): the window waits where it is"
+    where[0] = MOVED
+    assert told.wait(5) and moved == [MOVED]
+    assert looks(3) and moved == [MOVED], "told once"
+    told.clear()
+    where[0] = PAGE
+    assert told.wait(5) and moved == [MOVED, PAGE], "and back, at a later restart"
+    watch.cancel()
+    watch.thread.join(5)
+    assert asked == []
+
+
+@pytest.mark.parametrize("elsewhere", ["http://example.org/", "http://example.org:7303/", "http://127.0.0.1:7310@example.org/", "https://127.0.0.1:7303/", "http://localhost:7310/", "http://127.0.0.1.example.org:7310/",
+                                       "http://[::1]:7310/", "http://127.0.0.1:notaport/"])
+def test_the_watch_never_sends_the_window_to_another_host_whatever_the_daemons_file_says(elsewhere: str, caplog: pytest.LogCaptureFixture) -> None:
+    """The file in the data folder is read as an address (neoaprs/cli/logfile.py lets any host through); the window only ever follows the page to another port of the host it is on."""
+    moved: list[str] = []
+    told = threading.Event()
+    looked = threading.Semaphore(0)
+    where = [elsewhere]
+
+    def address(data: Path) -> str | None:
+        looked.release()
+        return where[0]
+
+    def follow(url: str) -> None:
+        moved.append(url)
+        told.set()
+
+    daemon = FakeDaemon(up=True)
+    daemon.address = address
+    caplog.set_level(logging.WARNING, logger="neoaprs.desktop")
+    watch = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.02, moved=follow)
+    watch.start()
+    assert all(looked.acquire(timeout=5) for _ in range(3)) and moved == []
+    assert caplog.text.count("the app stays where it is") == 1, "said once"
+    where[0] = MOVED
+    assert told.wait(5)
+    watch.cancel()
+    watch.thread.join(5)
+    assert moved == [MOVED], "and the page on another port of its own host is followed all the same"
+
+
+def test_a_watch_that_is_given_nothing_to_follow_runs_only_for_a_daemon_the_app_owns() -> None:
+    attached = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, FakeDaemon(up=True), every=0.02)
+    attached.start()
+    assert not attached.thread.is_alive()
+    followed = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, FakeDaemon(up=True), every=0.02, moved=lambda url: None)
+    followed.start()
+    assert followed.thread.is_alive()
+    followed.cancel()
+    followed.thread.join(5)
+
+
+def test_a_page_that_moved_is_loaded_in_the_window_and_is_what_open_in_browser_opens() -> None:
+    actions, frame, _, opened = actions_for(owned=True)
+    actions.page_moved(MOVED)
+    assert frame.loaded == [MOVED] and actions.session == Session(Path("data"), MOVED, True)
+    actions.run(BROWSER)
+    assert opened == [MOVED]
+    bare, plain, _, opened = actions_for(owned=False, window=False)
+    bare.page_moved(MOVED)
+    bare.run(OPEN)
+    assert opened == [MOVED], "with no window, Open is the browser's, at the address of now"
+    actions.quitting = True
+    actions.page_moved(PAGE)
+    assert frame.loaded == [MOVED], "a window that is being closed is given nothing to load"
+
+
+def test_the_app_follows_the_page_from_the_moment_it_is_ready(tmp_path: Path) -> None:
+    from neoaprs.desktop.single import SingleApp
+    ctx = shell.ShellContext(Session(tmp_path, PAGE, owned=False), False, True, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    actions = ctx.actions_for(FakeFrame())
+    ctx.ready(actions)
+    try:
+        assert ctx.watch is not None and ctx.watch.moved == actions.page_moved and ctx.watch.thread.is_alive(), "also for a daemon the app attached to: a service restarts too"
+    finally:
+        ctx.close()
 
 
 # ---- what the app remembers

@@ -5,11 +5,18 @@ no one more power. A file that is left (the daemon was not running when it was w
 A daemon that ends to start again as a new version (Update now of an AppImage) leaves `neoaprs.restarting` beside it, which the new one deletes once it runs: the desktop app, which ends when its daemon does,
 waits for the new daemon while the note is fresh.
 
+Beside it the daemon leaves `neoaprs.restart-port`, the port its page is served on, and the daemon that starts while that note is fresh serves the page there again (`noted_port`): the page that is
+open in a browser or in the app's window waits at that address, and the port of the settings may have been taken, or come free, since the first start. A daemon that the Windows installer ends and
+starts again (Update now there) leaves the port's note for the same reason, and no `neoaprs.restarting`: the app there is ended by the installer, and must not wait for a daemon. The port is a note
+and not an argument of the restart: the command line is the operator's or a service manager's and is repeated at every later start, the note is read once and gone; and the installer, which starts the
+daemon on Windows, has no part in it.
+
 While the database is brought up to date (a migration: minutes for a large file on a slow card) `neoaprs.migrating` is beside it, written again every few seconds and deleted at the end: what waits
 for the daemon's page (`neoaprs open`, the desktop app) waits as long as the note is fresh, and a note that a kill left goes stale by itself. The migration also holds the lock `neoaprs.migrate.lock`
 (the kind of instancelock.py, which the system lets go of when its process ends, however it ends): a second NeoAPRS that is to migrate the file waits for it (migrations.py)."""
 import asyncio
 import contextlib
+import stat
 import threading
 import time
 from pathlib import Path
@@ -18,6 +25,9 @@ STOP_NAME = "neoaprs.stop"
 POLL_SEC = 1.0
 RESTART_NAME = "neoaprs.restarting"
 RESTART_FRESH_SEC = 90.0                  # a note older than this is of a restart that did not come up
+PORT_NAME = "neoaprs.restart-port"
+PORT_FRESH_SEC = 900.0                    # how long the port's note is believed: the Windows installer puts every file in place between the daemon's end and its start
+PORT_NOTE_BYTES = 16                      # a note longer than this is not the daemon's (a port and a line end are at most seven)
 
 
 def path_in(data_dir: Path) -> Path:
@@ -62,9 +72,36 @@ def restarting(data_dir: Path, now: float | None = None) -> bool:
     return age < RESTART_FRESH_SEC
 
 
+def note_port(data_dir: Path, port: int) -> None:
+    """The daemon is about to end and be started again (by itself, or by the Windows installer): `port` is where its page is served, for the one that starts in its place. A daemon without a page
+    (`port` 0) leaves no note, and takes away one that was there."""
+    path = data_dir / PORT_NAME
+    if port:
+        path.write_text(f"{port}\n", encoding="ascii")
+    else:
+        path.unlink(missing_ok=True)
+
+
+def noted_port(data_dir: Path, now: float | None = None) -> int | None:
+    """The port the page was served on by the daemon that left the note, while the note is fresh; None when there is no note (no restart, a daemon that had no page, one of 0.20.1 or before), it is
+    old, or it is not a port. Only a small ordinary file is read: whatever else has the name (a link, a pipe, a file of any length) is no note, and neither holds the daemon up nor ends it."""
+    path = data_dir / PORT_NAME
+    try:
+        found = path.lstat()
+        if not stat.S_ISREG(found.st_mode) or found.st_size > PORT_NOTE_BYTES or abs((time.time() if now is None else now) - found.st_mtime) >= PORT_FRESH_SEC:
+            return None
+        with path.open("rb") as f:
+            text = f.read(PORT_NOTE_BYTES).decode("ascii").strip()
+    except (OSError, ValueError):
+        return None
+    return int(text) if text.isdigit() and len(text) <= 5 and 0 < int(text) <= 65535 else None
+
+
 def clear_restart(data_dir: Path) -> None:
-    with contextlib.suppress(OSError):
-        (data_dir / RESTART_NAME).unlink(missing_ok=True)
+    """The restart is over: the daemon runs. Both notes go."""
+    for name in (RESTART_NAME, PORT_NAME):
+        with contextlib.suppress(OSError):
+            (data_dir / name).unlink(missing_ok=True)
 
 
 MIGRATING_NAME = "neoaprs.migrating"

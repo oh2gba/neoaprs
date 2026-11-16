@@ -113,7 +113,6 @@ const cancel = (): boolean => send({ cmd: "update_cancel" });
           <h3>{{ t("help.update.steps") }}</h3>
           <UpdateSteps :steps="steps" />
         </section>
-        <p class="muted updatedialog-foot">{{ t("help.update.foot") }}</p>
       </template>
     </section>
   </div>

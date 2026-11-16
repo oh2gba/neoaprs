@@ -2,7 +2,14 @@
 as `<file>.old` until the new version has started, the old one put back when the new one cannot be started, and the exec of the new file in the place of this process.
 
 An AppImage started with `--appimage-extract-and-run` (a system without FUSE) runs from a folder its runtime unpacked it into, not from a mount; the runtime takes the flag away before the program sees it. The
-file is executed again with `APPIMAGE_EXTRACT_AND_RUN=1` in the environment, which the runtime takes for the flag: without it the new runtime tries to mount the file, cannot, and NeoAPRS is gone."""
+file is executed again with `APPIMAGE_EXTRACT_AND_RUN=1` in the environment, which the runtime takes for the flag: without it the new runtime tries to mount the file, cannot, and NeoAPRS is gone. One that
+was mounted is executed again without it, and is mounted again: unpacked, it is some 430 MB in the temporary folder, which is memory on many systems.
+
+The mount lives as long as a descriptor does: the runtime (AppImage/type2-runtime, src/runtime/runtime.c; the one scripts/build-appimage puts in front of the image) hands the program it starts the read end
+of a pipe, and the process that serves the mount writes into that pipe until the write fails, then ends itself, unmounts and removes the folder. So the question "was this mounted?" is asked while this
+process still holds its descriptors, and they are let go of by the exec itself (close-on-exec), not before it: asked after the close, as it was up to 0.20.1, the answer for a mounted image was "no",
+and the update of a mounted AppImage from 0.20.0 to 0.20.1 came back unpacked (16 Nov 2026)."""
+import contextlib
 import logging
 import os
 import shutil
@@ -43,28 +50,43 @@ def remove_old(appimage: str | None) -> None:
             log.warning("the old AppImage %s could not be deleted: %s", old, e)
 
 
-def close_inherited() -> None:
-    """Closes every descriptor above stderr before an exec: an AppImage's runtime leaves one of its mount open in the program it starts, and the old mount goes with it."""
+FD_FOLDER = "/proc/self/fd"
+
+
+def close_inherited(folder: str = FD_FOLDER) -> None:
+    """Has the exec close every descriptor above stderr: an AppImage's runtime leaves those of its mount open in the program it starts, and the old mount goes with them. They are marked close-on-exec,
+    not closed: the mount, which this program runs from, is there until the new file has taken the place of the process, and still there when it could not be started. Where the descriptors
+    cannot be listed (no /proc) they are closed, as they were up to 0.20.1."""
     if sys.platform != "win32":
-        os.closerange(3, 65536)
+        try:
+            open_now = [int(name) for name in os.listdir(folder)]
+        except (OSError, ValueError):
+            os.closerange(3, 65536)
+            return
+        for fd in open_now:
+            if fd > 2:
+                with contextlib.suppress(OSError):      # (the one the listing itself used is closed again)
+                    os.set_inheritable(fd, False)
 
 
 EXTRACT_AND_RUN = "APPIMAGE_EXTRACT_AND_RUN"
 
 
 def keep_extract_and_run(environ: MutableMapping[str, str], is_mount: Callable[[str], bool] = os.path.ismount) -> None:
-    """Sets `APPIMAGE_EXTRACT_AND_RUN=1` when the AppImage this runs from was unpacked rather than mounted (its `$APPDIR` is no mount point), so that the file executed next runs the same way."""
+    """Sets `APPIMAGE_EXTRACT_AND_RUN=1` when the AppImage this runs from was unpacked rather than mounted (its `$APPDIR` is no mount point), so that the file executed next runs the same way. Asked while
+    the descriptors of the mount are open: without them there is no mount to find."""
     appdir = environ.get("APPDIR")
     if appdir and environ.get("APPIMAGE") and not is_mount(appdir):
         environ[EXTRACT_AND_RUN] = "1"
 
 
-def reexec(argv: list[str], execv: Callable[[str, list[str]], None] = os.execv, close: Callable[[], None] = close_inherited, environ: MutableMapping[str, str] = os.environ) -> None:
+def reexec(argv: list[str], execv: Callable[[str, list[str]], None] = os.execv, close: Callable[[], None] = close_inherited, environ: MutableMapping[str, str] = os.environ,
+           is_mount: Callable[[str], bool] = os.path.ismount) -> None:
     """Runs `argv` (the AppImage file and the arguments this process had) in the place of this process, which has let go of everything already: the log, the database, the lock, the radio, the page's port.
     When the new file cannot be started, the kept old one is put back and started. Returns only when neither could be."""
     logging.shutdown()
+    keep_extract_and_run(environ, is_mount)         # (before the descriptors go: the mount goes with them)
     close()
-    keep_extract_and_run(environ)
     try:
         execv(argv[0], argv)
     except OSError as e:

@@ -161,6 +161,12 @@
   (`support/fakerelease.py`, its SHA256SUMS signed with a key the test makes): the steps, a SHA-256 that is wrong or missing from the signed SHA256SUMS, a cancel, the refusals, no restart; the Windows installer's command
   line (built, never run) and the AppImage renamed over the old one on temporary files, its exec and the old file put back, the simulated kinds; and through the
   daemon's socket the topic `update` and the commands `update_now` and `update_cancel`. No test reaches the network or replaces a file of the machine.
+* `test_restart_port.py`: the page's port across a restart of the daemon, with the daemon's own `run()` in the test's process, ended as Update now of an AppImage ends it and started again with the
+  arguments it had: one on a fallback port starts again there though the port it asked for is free by then; the port of the settings, of `--web-port` and a free port (`--web-port 0`) are each the port of
+  the restart; a start that is no restart listens as always; a port that another program took meanwhile is a warning and the page comes up as at any start; the restart of 0.20.1, which noted no port, sends
+  the daemon to its log; the note's writers (the restart, and the Windows installer's way, which leaves the port's note alone); a note of a restart that never came (old: passed over and taken away; fresh: one start's, no later one's; a port the daemon may not have); a log whose other lines hold the words of a page line; and `scripts/update-e2e.py`'s own search for the page beside the port it holds, against the tree's daemon.
+  `test_selfreplace.py` holds the other half of that restart: the question "mounted?" asked while the mount is there (a stand-in mount that goes when the descriptors do), and the descriptors
+  closed by the exec, in a child process.
 * `test_updatesign.py`: the signature of SHA256SUMS (`neoaprs/updateasset.py`): the project's public key pinned and in one place of the program; a list signed
   for its version gives the file's sum; a list that names only another file or a name twice, a signature over another list, a truncated one, an empty list, a
   line that is no checksum line, a signed list of an older release offered as the newer one and another key are each refused; through Update now each is the
@@ -376,7 +382,7 @@
   page that never comes is reported with the log's path. The detached daemon is stopped by the fixture when a test fails.
 * `test_desktop_logic.py`: the desktop app's logic with no window and no tray: which addresses stay in the window (`neoaprs/desktop/links.py`: the daemon's own
   page stays, other sites go to the browser, `file:` and `javascript:` are dropped), the tray menu as data and what its items do against a fake toolkit
-  (`support/fakeshell.py`), the decision to attach to a daemon or start one (a scripted `Daemon`), what the app remembers, and which shell a computer can run
+  (`support/fakeshell.py`), the decision to attach to a daemon or start one (a scripted `Daemon`), the watch that follows the daemon's page to another address (told once for each, for an attached daemon too, without a look at its lock), what the app remembers, and which shell a computer can run
   (the importer and the WebView2 registry stood in for).
 * `test_desktop_cmd.py`: `neoaprs app` end to end with the shell and the session replaced: the second app, the browser fallbacks, a page that does not come up,
   a shell that cannot start, `--quit`. `test_desktop_session.py` is the same decision against real detached daemons (fixtures of `test_open_stop.py`).

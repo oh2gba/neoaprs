@@ -5,7 +5,9 @@ goes to stderr (warnings, errors and the lines of the migrations; not when stder
 restart would not cure either (the unit does not restart on it).
 The page is served by neoaprs/web/server.py on web/port of the settings (default http://127.0.0.1:7303/; web/network opens it to the network), or on the next free port of the ten after it; the log says where ("web page at ..."), and so does the file neoaprs-web.url of the data folder while the page is served (neoaprs/cli/logfile.py), and
 when none of them is free the daemon runs without the page.
-After Update now of an AppImage the process, once the daemon has ended, runs the new file with the same arguments (neoaprs/selfreplace.py).
+After Update now of an AppImage the process, once the daemon has ended, runs the new file with the same arguments (neoaprs/selfreplace.py). A daemon that starts in the place of another (that restart, and the
+start by the Windows installer after Update now there) serves the page on the port the other served it on, whatever the settings and `--web-port` say, when that port can be had: the pages that are open
+wait there (`kept_port`; the note `neoaprs.restart-port` of neoaprs/stopfile.py).
 """
 import argparse
 import asyncio
@@ -23,6 +25,7 @@ from dataclasses import replace
 from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 from . import PROGRAM, VERSION, selfreplace, stopfile
 from .dberror import SqlError, StoreError
@@ -30,7 +33,7 @@ from .instancelock import AlreadyRunning, InstanceLock
 from .migrationlog import MIGRATION_LOG
 from .paths import default_data_dir
 from .cli import uncaught
-from .cli.logfile import LOG_NAME, START_FORMAT
+from .cli.logfile import LOG_NAME, START_FORMAT, page_of_the_run_before
 
 if TYPE_CHECKING:
     from .controller import Controller
@@ -145,6 +148,19 @@ async def _poll_for_signals(stop: asyncio.Event) -> None:
         await asyncio.sleep(SIGNAL_POLL_SEC)
 
 
+def kept_port(data_dir: Path) -> int:
+    """The port the page is to be served on again, when this daemon starts in the place of one that ended to be started again (the note of its port is in the data folder: neoaprs/stopfile.py); 0 when
+    it does not, or that one had no page. A daemon of 0.20.1 or before left no such note, only the one of its restart (an AppImage's): the log's page line of that run names the port. Asked after the
+    start line of this run is in the log."""
+    port = stopfile.noted_port(data_dir)
+    if port is None and stopfile.restarting(data_dir):
+        try:
+            port = urlsplit(page_of_the_run_before(data_dir) or "").port
+        except ValueError:
+            port = None
+    return port or 0
+
+
 def _take_the_data_folder(data_dir: Path) -> InstanceLock | None:
     """The lock of the data folder, or None, with the reason on stderr, when another NeoAPRS has it (its log is not ours to write to)."""
     lock = InstanceLock(data_dir)
@@ -190,8 +206,10 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     restore = uncaught.install(log)
     asyncio.get_running_loop().set_exception_handler(uncaught.loop_handler(log))
 
+    stay_on = kept_port(data_dir)
+
     def page(ctl: Controller, config: Config) -> WebServer:
-        return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port))
+        return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port), kept_port=stay_on)
 
     controller = Controller(data_dir, busy_ms=3000, port=args.port, hf_port=getattr(args, "hf_port", ""), web=page, install=install, auto_map=True, encryption=args.encryption)         # the daemon must not stand still behind another writer: a few seconds
     controller.debug = args.debug
@@ -243,7 +261,7 @@ def build_parser(prog: str = "neoaprs") -> argparse.ArgumentParser:
     parser.add_argument("--data", default=str(default_data_dir()), help="the data directory: neoaprs.sqlite (everything NeoAPRS keeps) and the log; default %(default)s")
     parser.add_argument("--port", default="", metavar="PATH", help="radio 1's port for this run only (its own port is not changed): /dev/ttyUSB0, COM3, socket://host:port for your own Direwolf or soundmodem (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux), ble://AA:BB:CC:DD:EE:FF for a Bluetooth LE KISS TNC (needs the extra ble), a replay's pseudo-terminal")
     parser.add_argument("--hf-port", default="", metavar="URL", help="the first Mercury radio's modem for this run only, one that something else runs (socket://127.0.0.1:8100: its KISS port, the control port 200 above), instead of the one the daemon starts; the benches' way")
-    parser.add_argument("--web-port", type=_port, default=None, metavar="N", help="the page's port for this run only (the setting web/port is not changed); 0 is a free port, which the log tells")
+    parser.add_argument("--web-port", type=_port, default=None, metavar="N", help="the page's port for this run only (the setting web/port is not changed); 0 is a free port, which the log tells; after Update now the page stays on the port it was on")
     parser.add_argument("--debug", action="store_true", help="log more (also NEOAPRS_DEBUG=1)")
     parser.add_argument("--encryption", action="store_true", help="allow encrypted messages between two stations that have each other's key (the amateur regulations forbid it in ordinary use: for the circumstances that allow it)")
     parser.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")

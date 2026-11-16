@@ -203,10 +203,6 @@
 .updatedialog-hand summary {
   cursor: pointer;
 }
-.updatedialog-foot {
-  margin: 14px 0 0;
-  font-size: 12px;
-}
 .updatesteps {
   margin: 0;
   padding-left: 22px;

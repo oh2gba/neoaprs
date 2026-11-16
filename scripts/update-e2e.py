@@ -4,19 +4,24 @@ its own against a fake KISS TNC, a fake version page announces the new version a
 `NEOAPRS_UPDATE_KEY`, which the daemon takes only together with the fake server. Over the
 page's WebSocket, as the page does it, the test asks the update check, sends `update_now` and follows the topic `update`; then the new daemon must come up by itself on the same data folder.
 
-  scripts/update-e2e.py windows OLD/NeoAPRS-Setup-A.exe NEW/NeoAPRS-Setup-B.exe [--work DIR]
-  scripts/update-e2e.py appimage OLD/NeoAPRS-A-x86_64.AppImage NEW/NeoAPRS-B-x86_64.AppImage [--work DIR] [--extract-and-run]
+  scripts/update-e2e.py windows OLD/NeoAPRS-Setup-A.exe NEW/NeoAPRS-Setup-B.exe [--work DIR] [--known-old]
+  scripts/update-e2e.py appimage OLD/NeoAPRS-A-x86_64.AppImage NEW/NeoAPRS-B-x86_64.AppImage [--work DIR] [--extract-and-run] [--known-old]
 
 The versions are read from the names of the files, and B must be newer than A. The daemon gets `NEOAPRS_UPDATE_TEST=1` and `NEOAPRS_UPDATE_FROM` (the fake server: CONVENTIONS.md), so that it updates for real
 from the loopback; nothing leaves the loopback and no radio or serial device is used. What is asserted:
   both     the hello of A says A and the install kind; the update check finds B; update_now goes through the steps and never to `error`; SHA256SUMS, its signature and then the file of B were fetched; a daemon comes up by
-           itself on the same data folder, says B in its hello, connects to the same fake TNC on the same page port (the settings are read from the data folder), and keeps the packets; the settings are
+           itself on the same data folder, says B in its hello, connects to the same fake TNC (the settings are read from the data folder), and keeps the packets; the settings are
            still there after it is stopped; the log has A's start, A's end and B's start, and ends with `NeoAPRS ended`
+  the port the page of B is served on the port A served it on, where a page that is open waits: not the port of the settings, which the test holds while A starts (A's page is on the next one) and lets
+           go of before the update, so that the settings and the ports that are free would give B another; and the notes of the restart are gone from the data folder once B runs
   windows  the installer of B ran silently (its log in `update/` of the data folder: the command line of Update now, `Installation process succeeded`), A's daemon ended with exit code 0, the installed
            neoaprs.exe is B, Windows' list of programs says B, `update/` holds B's installer and its log alone (an earlier one planted there is deleted), and the update changed nothing else: the start at sign-in, the Start menu entries, the desktop, the default data folder; no NeoAPRS program
            or installer is left running at the end
   appimage the file in the same place is now B (its SHA-256), executable, no `.old` or `.part` is left beside it once B runs, the same process (the test's child) went on as B, and nothing was written to
-           the home folder; with --extract-and-run the file is started the way a system without FUSE starts it
+           the home folder; with --extract-and-run the file is started the way a system without FUSE starts it. B runs the way A ran, read from the daemon's own process (its `$APPDIR`): mounted when A
+           was mounted (never unpacked into the temporary folder, which is memory on many systems), unpacked when A was unpacked. What the temporary folder holds while B runs and after the stop is said
+--known-old: A is a release of 0.20.1 or before, of which this is known and only said, not a failure: its AppImage starts B unpacked though A was mounted, and its restart names no port (B finds the port
+of an AppImage in A's log; on Windows, and when B is such a release too, the page comes back on the port of the settings). It changes nothing for an A of 0.20.2 or later.
 This runs an installer and replaces files: run it on a CI runner, never on a computer of your own (the release workflow runs it; docs/development.md, "Update now"). Run it with a Python that has Tornado.
 Exit code 0: all is well; 1: the first thing that was not, said on stderr; the work folder keeps the logs.
 """
@@ -55,6 +60,8 @@ APP_ID = "{5AE53960-2902-4F1B-99E1-03E486EA7B36}_is1"        # the AppId of pack
 PAGE_SEC = 120.0
 UPDATE_SEC = 300.0
 NEW_DAEMON_SEC = 300.0
+RESTART_NOTES = ("neoaprs.restarting", "neoaprs.restart-port")       # what a daemon that ends to be started again leaves in the data folder, and the one that runs takes away (neoaprs/stopfile.py)
+PORT_TRIES = 10                                      # the ports after the one of its settings that a daemon tries when that one is taken (neoaprs/web/listen.py)
 
 
 def say(text: str) -> None:
@@ -79,12 +86,6 @@ def newer(a: str, b: str) -> bool:
                 return x > y
             return isinstance(x, int)
     return False
-
-
-def free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return int(s.getsockname()[1])
 
 
 def sha256(file: Path) -> str:
@@ -186,23 +187,27 @@ class Page:
         return cls(connection, hello)
 
     @classmethod
-    async def of_version(cls, port: int, version: str, seconds: float) -> "Page":
-        """The page of the daemon of `version` on `port`, waiting for it to come up (a page of another version is closed and asked again)."""
+    async def among(cls, ports: range, version: str, seconds: float, alive: Callable[[], bool] = lambda: True) -> tuple["Page", int]:
+        """The page of the daemon of `version` on one of `ports` (the port of its settings and the ten after it, where a daemon listens when that one is taken: neoaprs/web/listen.py), waiting for it to
+        come up: (the page, its port). A page of another version is closed and asked again, and a port that something else answers on is passed over. Failure at once when `alive` says that the
+        program that was to serve it has ended."""
+        from tornado.httpclient import HTTPClientError
         deadline = time.monotonic() + seconds
-        seen = ""
+        seen = "no page"
         while time.monotonic() < deadline:
-            try:
-                page = await cls.open(port)
-            except (OSError, TimeoutError, Failure) as e:
-                seen = seen or f"no page ({e.__class__.__name__})"
-                await asyncio.sleep(1)
-                continue
-            if page.hello.get("version") == version:
-                return page
-            seen = f"the page of {page.hello.get('version')}"
-            page.close()
+            for port in ports:
+                try:
+                    page = await cls.open(port)
+                except (OSError, TimeoutError, HTTPClientError, Failure):
+                    continue
+                if page.hello.get("version") == version:
+                    return page, port
+                seen = f"the page of {page.hello.get('version')} on port {port}"
+                page.close()
+            if not alive():
+                raise Failure(f"no daemon of {version} on the ports {ports.start} to {ports[-1]}: the program ended ({seen})")
             await asyncio.sleep(1)
-        raise Failure(f"no daemon of {version} on port {port} within {seconds:g} s ({seen})")
+        raise Failure(f"no daemon of {version} on the ports {ports.start} to {ports[-1]} within {seconds:g} s ({seen})")
 
     def send(self, command: dict[str, Any]) -> None:
         self.connection.write_message(json.dumps(command))
@@ -247,6 +252,73 @@ def connected(page: Page) -> bool:
     return state == "connected" and int(page.status.get("packets") or 0) > 0
 
 
+KEPT_FROM = (0, 20, 2)                               # the first release whose daemon starts the new AppImage the way it ran itself (mounted or unpacked) and says, as it ends, where its page is; --known-old is for one before it
+
+
+def numbers(version: str) -> tuple[int, ...]:
+    """The three numbers of a version, whatever follows them (`0.20.2-e2e`); (0, 0, 0) for a text that has none."""
+    found = re.match(r"(\d+)\.(\d+)\.(\d+)", version)
+    return tuple(int(n) for n in found.groups()) if found else (0, 0, 0)
+
+
+def held_port() -> tuple[socket.socket, int]:
+    """A port of the loopback that another program has (this test: the socket, listening) whose next port is free: (the socket, the port)."""
+    for _ in range(50):
+        holder = socket.socket()
+        try:
+            holder.bind(("127.0.0.1", 0))
+            holder.listen()
+            port = int(holder.getsockname()[1])
+            if port + PORT_TRIES > 65535:
+                raise OSError("too near the last port")
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", port + 1))
+        except OSError:
+            holder.close()
+            continue
+        return holder, port
+    raise Failure("no port of the loopback with a free one after it")
+
+
+def descendants(pid: int, proc: Path = Path("/proc")) -> list[int]:
+    """`pid` and every process under it, generation by generation, the newest last (Linux: the parent of each process is read from its `stat`)."""
+    parents: dict[int, int] = {}
+    for entry in proc.iterdir():
+        if entry.name.isdigit():
+            try:
+                parents[int(entry.name)] = int((entry / "stat").read_text(encoding="utf-8", errors="replace").rsplit(")", 1)[1].split()[1])
+            except (OSError, ValueError, IndexError):
+                continue                             # (a process that ended while it was read)
+    found, generation = [pid], [pid]
+    while generation:
+        generation = sorted(child for child, parent in parents.items() if parent in generation and child not in found)
+        found += generation
+    return found
+
+
+def environ_of(pid: int, proc: Path = Path("/proc")) -> dict[str, str]:
+    """The environment a process was started with; empty when it cannot be read (it ended, or it is another user's)."""
+    try:
+        raw = (proc / str(pid) / "environ").read_bytes()
+    except OSError:
+        return {}
+    return dict(item.split("=", 1) for item in raw.decode("utf-8", errors="replace").split("\0") if "=" in item)
+
+
+def program_folder(pid: int, appimage: str, proc: Path = Path("/proc")) -> str:
+    """The folder the program of the AppImage runs from (`$APPDIR`: the mount, or the folder it was unpacked into), read from the newest process under `pid` that was started from the file; empty when
+    there is none. After an update the processes of the old version above it still name the old folder: the newest is the daemon that runs."""
+    for one in reversed(descendants(pid, proc)):
+        env = environ_of(one, proc)
+        if env.get("APPIMAGE") == appimage and env.get("APPDIR"):
+            return env["APPDIR"]
+    return ""
+
+
+def how(mounted: bool) -> str:
+    return "mounted" if mounted else "unpacked"
+
+
 PORT_KEYS = ("serial/port", "radio/1/port")          # the FM radio's port as the settings name it: the flat key of every version before the round of the radios (kept there as radio 1's), its own key after it
 SIGNATURE_FROM = (0, 20, 0)                          # the first release whose Update now asks for SHA256SUMS.sig; one before it (0.18.2) is updated by the checksum alone
 FIRST_RADIO = ("radios", "add", "kiss")              # radio 1 made on a fresh folder, which has no radio from the round of the radios on: the FM type a version before it had by default
@@ -285,14 +357,16 @@ class Install:
     """The kind of install the test updates: how the old version is put in place, how its commands and its daemon are run, and what is checked of the machine around it."""
     kind = ""
 
-    def __init__(self, work: Path, old: Path, new: Path) -> None:
+    def __init__(self, work: Path, old: Path, new: Path, known_old: bool = False) -> None:
         self.work, self.old, self.new = work, old, new
+        self.known_old = known_old and numbers(version_of(self.kind, old)) < KEPT_FROM       # --known-old, for an old version it is known of
 
     def put_old(self) -> None: ...
     def before_update(self, data: Path) -> None: ...
     def command(self) -> list[str]: return []
     def start(self, data: Path, env: dict[str, str]) -> subprocess.Popen[bytes]: raise NotImplementedError
     def check_hello(self, hello: dict[str, Any]) -> None: ...
+    def old_runs(self, daemon: subprocess.Popen[bytes]) -> None: ...
     def outside(self) -> dict[str, Any]: return {}
     def old_ended(self, daemon: subprocess.Popen[bytes], data: Path) -> None: ...
     def check_new(self, daemon: subprocess.Popen[bytes], data: Path, new_version: str) -> None: ...
@@ -310,8 +384,8 @@ class Install:
 class WindowsInstall(Install):
     kind = "windows"
 
-    def __init__(self, work: Path, old: Path, new: Path) -> None:
-        super().__init__(work, old, new)
+    def __init__(self, work: Path, old: Path, new: Path, known_old: bool = False) -> None:
+        super().__init__(work, old, new, known_old)
         local = Path(os.environ["LOCALAPPDATA"])
         self.app = local / "Programs" / "NeoAPRS"
         self.default_data = local / "NeoAPRS"
@@ -413,13 +487,31 @@ class WindowsInstall(Install):
 class AppImageInstall(Install):
     kind = "appimage"
 
-    def __init__(self, work: Path, old: Path, new: Path, extract_and_run: bool) -> None:
-        super().__init__(work, old, new)
+    def __init__(self, work: Path, old: Path, new: Path, extract_and_run: bool, known_old: bool = False) -> None:
+        super().__init__(work, old, new, known_old)
         self.extract_and_run = extract_and_run
         self.folder = work / "Applications"
         self.file = self.folder / old.name                        # (it keeps its name after the update: the user's file is replaced where it is)
         self.home = work / "home"
         self.pid = 0
+        self.old_folder = ""                                      # where the old version's program ran from: its mount, or the folder it was unpacked into
+
+    def temporary(self) -> list[str]:
+        """What the temporary folder of the test holds: the mounts and the unpacked folders of the AppImage's runtime are made there."""
+        try:
+            return sorted(p.name for p in (self.work / "tmp").iterdir())
+        except OSError:
+            return []
+
+    def old_runs(self, daemon: subprocess.Popen[bytes]) -> None:
+        """The old daemon is up: where its program runs from, which must be the way the test started it."""
+        self.old_folder = program_folder(daemon.pid, str(self.file))
+        if not self.old_folder:
+            raise Failure(f"no process under the test's child {daemon.pid} says it was started from {self.file} (its APPIMAGE and APPDIR)")
+        mounted = os.path.ismount(self.old_folder)
+        if mounted == self.extract_and_run:
+            raise Failure(f"the old daemon runs {how(mounted)} from {self.old_folder}, though the test started it {'with' if self.extract_and_run else 'without'} --appimage-extract-and-run")
+        say(f"the old daemon runs {how(mounted)}, from {self.old_folder}")
 
     def env(self, env: dict[str, str]) -> dict[str, str]:
         tmp = self.work / "tmp"
@@ -471,6 +563,21 @@ class AppImageInstall(Install):
         if (left := sorted(p.name for p in self.folder.iterdir())) != [self.file.name]:
             raise Failure(f"the folder of the AppImage holds {left}, not the AppImage alone")
         say(f"{self.file.name} is now the AppImage of {new_version} ({stat.filemode(mode)}), the .old is gone, and the same process {daemon.pid} runs it")
+        self.check_how_it_runs(daemon)
+
+    def check_how_it_runs(self, daemon: subprocess.Popen[bytes]) -> None:
+        """The new daemon runs the way the old one did: mounted when that one was mounted, unpacked when it was unpacked (read from the newest process of the AppImage under the test's child)."""
+        folder = program_folder(daemon.pid, str(self.file))
+        if not folder or folder == self.old_folder:
+            raise Failure(f"the new daemon's process does not say where it runs from (its APPDIR is {folder!r}; the old one's was {self.old_folder!r})")
+        mounted, wanted = os.path.ismount(folder), not self.extract_and_run
+        if mounted == wanted:
+            say(f"the new daemon runs {how(mounted)}, as the old one did, from {folder}")
+        elif self.known_old and wanted:
+            say(f"known of {version_of('appimage', self.old)} (--known-old): the new daemon runs unpacked, from {folder}, though the old one was mounted")
+        else:
+            raise Failure(f"the new daemon runs {how(mounted)}, from {folder}, though the old one ran {how(wanted)}, from {self.old_folder}")
+        say(f"the temporary folder holds {self.temporary() or 'nothing'} while the new daemon runs; the old version's {Path(self.old_folder).name} is {'still there' if Path(self.old_folder).exists() else 'gone'}")
 
     def stop(self, daemon: subprocess.Popen[bytes], data: Path) -> None:
         (data / "neoaprs.stop").write_text("stop\n", encoding="ascii")          # (neoaprs/stopfile.py: what `neoaprs stop` writes; a second run of the file would unpack it again beside the daemon's)
@@ -480,6 +587,7 @@ class AppImageInstall(Install):
             raise Failure("the new daemon did not end within 60 s of the stop") from None
         if code != 0:
             raise Failure(f"the process ended with exit code {code}, not 0")
+        say(f"the temporary folder holds {self.temporary() or 'nothing'} after the stop")
         version = self.run("--version").stdout.strip()
         if version != f"NeoAPRS {version_of('appimage', self.new)}":
             raise Failure(f"{self.file.name} --version says {version!r}")
@@ -491,11 +599,13 @@ def daemon_env(release: Release) -> dict[str, str]:
     return env
 
 
-async def update(install: Install, data: Path, web_port: int, old_version: str, new_version: str, release: Release, daemon: subprocess.Popen[bytes]) -> int:
-    """The old daemon's page up, the update check, update_now and its steps until the daemon lets go of the socket; the number of packets it had."""
-    page = await Page.of_version(web_port, old_version, PAGE_SEC)
+async def update(install: Install, data: Path, web_port: int, holder: socket.socket, old_version: str, new_version: str, release: Release, daemon: subprocess.Popen[bytes]) -> tuple[int, int]:
+    """The old daemon's page up, the update check, update_now and its steps until the daemon lets go of the socket; (the number of packets it had, the port its page was on). `holder` has the port of
+    the settings while the old daemon starts, so that its page is on a later one, and is closed before the update, so that the port of the settings is free when the new daemon starts."""
+    page, served = await Page.among(range(web_port + 1, web_port + PORT_TRIES + 1), old_version, PAGE_SEC, lambda: daemon.poll() is None)      # (not the port the test holds: nothing answers there)
     install.check_hello(page.hello)
-    say(f"the daemon of {old_version} is up: {page.hello['install']}")
+    install.old_runs(daemon)
+    say(f"the daemon of {old_version} is up: {page.hello['install']}; its page is on port {served}, the port of its settings, {web_port}, being taken")
     await page.until(lambda p: connected(p) and bool((p.topics.get("update") or {}).get("supported")), PAGE_SEC, "the fake TNC connected, a packet, and Update now offered")
     packets = int(page.status["packets"])
     say(f"the fake TNC is connected, {packets} packets, Update now is offered")
@@ -517,6 +627,8 @@ async def update(install: Install, data: Path, web_port: int, old_version: str, 
             raise Failure(f"Update now failed: {p.topics['update']['problem']}: {p.topics['update']['detail']}")
         if p.errors():
             raise Failure(f"the daemon refused: {p.errors()[0]}")
+    holder.close()
+    say(f"port {web_port} is free again")
     page.send({"cmd": "update_now", "version": new_version})
     try:
         await page.until(lambda p: p.closed, UPDATE_SEC, "the update and the old daemon's end", follow)
@@ -531,18 +643,31 @@ async def update(install: Install, data: Path, web_port: int, old_version: str, 
         raise Failure(f"the release server was asked for {asked}, not {', '.join(w.rsplit('/', 1)[1] for w in wanted)} in that order")
     say(f"the update went {' -> '.join(states)}; SHA256SUMS, {'its signature ' if signed else ''}and {install.new.name} were fetched from the fake release")
     install.old_ended(daemon, data)
-    return packets
+    return packets, served
 
 
-async def after(install: Install, data: Path, web_port: int, new_version: str, packets: int, daemon: subprocess.Popen[bytes]) -> None:
-    page = await Page.of_version(web_port, new_version, NEW_DAEMON_SEC)
+def check_port(install: Install, web_port: int, served: int, now: int, new_version: str) -> None:
+    """The new daemon serves the page where the old one served it. --known-old: a new version of before the fix comes back on the port of the settings, and so does any on Windows after an old one that
+    left no note of its port; that is said."""
+    if now == served:
+        say(f"a daemon of {new_version} is up, its page on port {served} as before, though the port of the settings, {web_port}, is free")
+    elif install.known_old and (install.kind == "windows" or numbers(new_version) < KEPT_FROM):
+        say(f"known of {version_of(install.kind, install.old)} (--known-old): the page of {new_version} is on port {now}, not on {served} where the old daemon served it")
+    else:
+        raise Failure(f"the page of the new daemon is on port {now}, not on {served} where the old one served it: a page that was open does not find NeoAPRS again")
+
+
+async def after(install: Install, data: Path, web_port: int, served: int, new_version: str, packets: int, daemon: subprocess.Popen[bytes]) -> None:
+    page, now = await Page.among(range(web_port, web_port + PORT_TRIES + 1), new_version, NEW_DAEMON_SEC)
     try:
         install.check_hello(page.hello)
-        say(f"a daemon of {new_version} is up on the same page port")
+        check_port(install, web_port, served, now, new_version)
         await page.until(connected, PAGE_SEC, "the new daemon connected to the fake TNC of the settings")
         if int(page.status["packets"]) < packets:
             raise Failure(f"the new daemon has {page.status['packets']} packets, fewer than the {packets} of the old one")
         say(f"the new daemon is connected to the fake TNC and has {page.status['packets']} packets")
+        if left := [name for name in RESTART_NOTES if (data / name).exists()]:
+            raise Failure(f"the data folder still holds {', '.join(left)} though the new daemon runs: the notes of a restart are read once")
         install.check_new(daemon, data, new_version)
     finally:
         page.close()
@@ -558,15 +683,16 @@ def run(args: argparse.Namespace) -> None:
         raise Failure(f"the work folder {work} is not empty")
     work.mkdir(parents=True, exist_ok=True)
     data = work / "data folder"                              # (a blank in the path, as a user's may have)
-    install: Install = WindowsInstall(work, old, new) if args.kind == "windows" else AppImageInstall(work, old, new, args.extract_and_run)
+    install: Install = WindowsInstall(work, old, new, args.known_old) if args.kind == "windows" else AppImageInstall(work, old, new, args.extract_and_run, args.known_old)
     tnc = FakeTnc(FIXTURE.read_bytes())
     release = Release(new_version, new)
     daemon: subprocess.Popen[bytes] | None = None
+    holder: socket.socket | None = None
     try:
         say(f"{args.kind}: {old.name} -> {new.name}")
         install.put_old()
         say(f"the old version is in place: {' '.join(install.command())}")
-        web_port = free_port()
+        holder, web_port = held_port()                       # the port of the settings, which another program (the test) has while the old daemon starts
         port_key = set_port(install, data, tnc.url)
         settings = {"web/port": str(web_port), "update/url": f"{release.url}/version.php", "station/comment": "update e2e", "map/radius_km": "42"}
         for key, value in settings.items():
@@ -576,8 +702,8 @@ def run(args: argparse.Namespace) -> None:
         install.before_update(data)
         before = install.outside()
         daemon = install.start(data, daemon_env(release))
-        packets = asyncio.run(update(install, data, web_port, old_version, new_version, release, daemon))
-        asyncio.run(after(install, data, web_port, new_version, packets, daemon))
+        packets, served = asyncio.run(update(install, data, web_port, holder, old_version, new_version, release, daemon))
+        asyncio.run(after(install, data, web_port, served, new_version, packets, daemon))
         install.stop(daemon, data)
         wait_until(lambda: read_log(data).rstrip().endswith("NeoAPRS ended"), 60, "'NeoAPRS ended' as the last line of the log after the stop")
         log = read_log(data)
@@ -615,6 +741,8 @@ def run(args: argparse.Namespace) -> None:
                 daemon.wait(30)
             except subprocess.TimeoutExpired:
                 daemon.kill()
+        if holder is not None:
+            holder.close()
         tnc.close()
         release.close()
 
@@ -626,6 +754,7 @@ def main() -> int:
     parser.add_argument("new", help="the one of the newer version, which the fake release serves")
     parser.add_argument("--work", default="update-e2e", help="an empty folder for the data folder, the AppImage, the home and the logs; default %(default)s")
     parser.add_argument("--extract-and-run", action="store_true", help="AppImage: start it with --appimage-extract-and-run, as a system without FUSE does")
+    parser.add_argument("--known-old", action="store_true", help="the old file is a release of 0.20.1 or before: what is known of its restart (the new AppImage unpacked though the old one was mounted; no note of the page's port) is said and is not a failure")
     args = parser.parse_args()
     if args.kind == "windows" and not WINDOWS:
         parser.error("windows runs on Windows only")

@@ -1,15 +1,18 @@
 """How Update now puts a file of the release in place once its SHA-256 has been checked (neoaprs/services/selfupdate.py does the download and the check), for the kinds where the daemon can do it itself:
 
     windows-installer   the installer is run silently and detached from the daemon (`installer_argv`), from `update/` of the data folder, where the installer of an earlier update is deleted first. Like any update over a running NeoAPRS it ends the app and the daemon first; its `[Run]` entries for a silent update
-                        start again what was running (the app when one held the data folder, else the daemon alone) on the same data folder (packaging/windows/neoaprs.iss)
+                        start again what was running (the app when one held the data folder, else the daemon alone) on the same data folder (packaging/windows/neoaprs.iss). The daemon notes the port of its page before
+                        the installer starts, and the daemon the installer starts serves it there again (neoaprs/stopfile.py)
     appimage            the new file is made executable and renamed over the file this runs from, the old one kept beside it as `<file>.old` (a hard link, else a copy) until the new version has started; then the
-                        daemon ends and starts the file again with the arguments it had (neoaprs/selfreplace.py, after the daemon has let go of everything; the process stays the same, so a service manager sees no end)
+                        daemon ends and starts the file again with the arguments it had (neoaprs/selfreplace.py, after the daemon has let go of everything; the process stays the same, so a service manager sees no end),
+                        on the port its page was on (the same note)
 
 Anything else gets no installer and the page shows the steps instead. The macOS app (`macos-app`) is among them for now: its .dmg is named (neoaprs/updateasset.py) and offered as a download, but swapping the running
 app bundle under a daemon that imports its modules lazily from it, and restarting the app through launchd, has not been tried on a Mac, so the page says to quit, drag the new app over the old one and start it again. `NEOAPRS_INSTALL_KIND` (a simulated kind, for development: neoaprs/cli/installkind.py) gets a rehearsal: every step but the last, the file
 deleted instead of installed. `NEOAPRS_UPDATE_FROM` (the release folder of a fake server on the loopback) is used instead of GitHub only together with a simulated kind, or with `NEOAPRS_UPDATE_TEST=1`, the switch of the
 end-to-end test of the release workflow, which updates a real install from it (scripts/update-e2e.py); an address that is not http(s) on 127.0.0.1 or localhost is never used. With that fake server, and only then, `NEOAPRS_UPDATE_KEY` (the base64 of a
 public key the test made) stands in for the project's key, since a test cannot sign with it; from GitHub only the project's key is believed (`release_key`)."""
+import contextlib
 import logging
 import os
 import subprocess
@@ -19,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 from urllib.parse import urlsplit
 
+from neoaprs import stopfile
 from neoaprs.instancelock import APP_LOCK_NAME, is_held
 from neoaprs.selfreplace import keep_old
 from neoaprs.updateasset import RELEASES, SELF_UPDATING, public_key, url_allowed
@@ -77,9 +81,11 @@ def launch_detached(argv: list[str]) -> None:
 
 
 class WindowsSetup:
-    def __init__(self, data_dir: Path, launch: Callable[[list[str]], None] = launch_detached, app_running: Callable[[Path], bool] | None = None, encryption: bool = False) -> None:
+    def __init__(self, data_dir: Path, launch: Callable[[list[str]], None] = launch_detached, app_running: Callable[[Path], bool] | None = None, encryption: bool = False,
+                 leaving: Callable[[], None] | None = None) -> None:
         self.data_dir = data_dir
         self.encryption = encryption                                 # the daemon runs with --encryption: so does the one the installer starts again
+        self._leaving = leaving or (lambda: None)                    # called before the installer is started: the daemon notes the port of its page, for the one the installer starts (neoaprs/stopfile.py)
         self._folder = data_dir / UPDATE_FOLDER
         self._launch = launch
         self._app_running = app_running or (lambda data: is_held(data, APP_LOCK_NAME))
@@ -111,7 +117,13 @@ class WindowsSetup:
             os.replace(file, installer)
             argv = self.command(installer)
             log.info("Update now: starting the installer of %s: %s", version, subprocess.list2cmdline(argv))
-            self._launch(argv)
+            self._leaving()
+            try:
+                self._launch(argv)
+            except OSError:
+                with contextlib.suppress(OSError):
+                    stopfile.note_port(self.data_dir, 0)         # (no installer, so no restart: the daemon runs on, and the port's note is not for whatever start comes next)
+                raise
         except OSError as e:
             raise InstallError(f"the installer could not be started: {e}") from None
 
@@ -161,13 +173,13 @@ class Rehearsal:
 
 
 def installer_for(install: InstallInfo, data_dir: Path, restart: Restart, environ: Mapping[str, str] = os.environ, argv: list[str] | None = None, platform: str = sys.platform,
-                  encryption: bool = False) -> Installer | None:
+                  encryption: bool = False, leaving: Callable[[], None] | None = None) -> Installer | None:
     """The installer of this copy, None where the page shows the steps instead. `encryption`: the daemon runs with `--encryption`, which the Windows installer keeps (the AppImage starts again with its own
-    command line, which has it)."""
+    command line, which has it). `leaving`: what the Windows installer's way calls before the installer is started, which ends the daemon (`restart` is called by the AppImage's way)."""
     if environ.get(ENV_KIND):
         return Rehearsal(data_dir) if install.kind in SELF_UPDATING else None
     if install.kind == "windows-installer" and platform == "win32":
-        return WindowsSetup(data_dir, encryption=encryption)
+        return WindowsSetup(data_dir, encryption=encryption, leaving=leaving)
     if install.kind == "appimage" and install.appimage and platform.startswith("linux"):
         return AppImageSwap(Path(install.appimage), sys.argv[1:] if argv is None else argv, restart)
     return None

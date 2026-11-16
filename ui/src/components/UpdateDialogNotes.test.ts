@@ -34,7 +34,7 @@ describe("UpdateDialog, the notes form", () => {
     expect(wrapper.find(".updatedialog-news [role=status]").text()).toBe("Fetching what is new…");
     expect(wrapper.text()).not.toContain("Fixes the map download");
     expect(wrapper.find(".updatedialog-news h3").exists()).toBe(false);
-    for (const gone of [".updatedialog-go", ".updatedialog-now", ".updatedialog-hand", ".updatedialog-foot"]) expect(wrapper.find(gone).exists()).toBe(false);
+    for (const gone of [".updatedialog-go", ".updatedialog-now", ".updatedialog-hand"]) expect(wrapper.find(gone).exists()).toBe(false);
     await vi.waitFor(() => expect(document.activeElement).toBe(wrapper.find("[role=dialog]").element));
   });
 

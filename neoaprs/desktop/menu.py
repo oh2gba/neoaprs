@@ -11,7 +11,7 @@ import logging
 import threading
 import webbrowser
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
@@ -43,6 +43,7 @@ class Frame(Protocol):
     def quit(self) -> None: ...
     def refresh(self) -> None: ...
     def tell(self, text: str) -> None: ...
+    def load(self, url: str) -> None: ...          # the daemon's page is at `url` now: the window shows it there (nothing with no window)
 
 
 class AppActions:
@@ -124,6 +125,12 @@ class AppActions:
         elif not stop_owned(self.session, self.daemon):
             self.frame.tell("The NeoAPRS daemon did not stop; see neoaprs.log")
         self.frame.quit()
+
+    def page_moved(self, url: str) -> None:
+        """The daemon serves its page at another address than before (it started again and could not have the port it had): the window shows it there, and Open in browser opens it there."""
+        self.session = replace(self.session, url=url)
+        if not self.quitting:
+            self.frame.load(url)
 
     def daemon_gone(self) -> None:
         """The daemon the app owns ended by itself: nothing is left to stop, the app ends."""

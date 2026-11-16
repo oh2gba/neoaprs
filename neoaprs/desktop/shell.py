@@ -161,7 +161,7 @@ def choose(platform: str | None = None, importer: Importer = importlib.import_mo
 @dataclass
 class ShellContext:
     """What a shell is given to run: the daemon's session, whether to start with the window hidden, the start at sign-in of this system, and the app's one-app lock. `ready(actions)` is the shell telling the app that its
-    window and tray exist: from then on a second app's `show` and `quit` and the end of the daemon reach the actions."""
+    window and tray exist: from then on a second app's `show` and `quit`, the end of the daemon and a new address of its page reach the actions."""
     session: Session
     hidden: bool
     window: bool
@@ -175,7 +175,7 @@ class ShellContext:
 
     def ready(self, actions: AppActions) -> None:
         self.single.handle(lambda command: actions.show() if command == "show" else actions.run(QUIT))
-        self.watch = DaemonWatch(self.session, actions.daemon_gone, self.daemon)
+        self.watch = DaemonWatch(self.session, actions.daemon_gone, self.daemon, moved=actions.page_moved)
         self.watch.start()
 
     def close(self) -> None:

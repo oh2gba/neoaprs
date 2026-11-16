@@ -108,7 +108,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.installing": "インストール中…",
   "help.update.restarting": "NeoAPRS はまもなく再起動します",
   "help.update.restarting_installer": "インストール中… NeoAPRS はまもなく再起動します",
-  "help.update.reconnecting": "NeoAPRS を再起動しています。このページは自動で再接続します。",
+  "help.update.reconnecting": "NeoAPRS を再起動しています",
   "help.update.problem.download": "更新をダウンロードできませんでした。もう一度試すか、プロジェクトのページからダウンロードしてください。",
   "help.update.problem.unverified": "この更新を確認できなかったため、何もインストールしませんでした。プロジェクトのページからダウンロードしてください。",
   "help.update.problem.checksum":
@@ -117,7 +117,6 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.problem.no_restart": "更新はインストールされましたが、NeoAPRS が再起動しませんでした。NeoAPRS を終了して、もう一度起動してください。",
   "help.update.by_hand": "または手動で更新",
   "help.update.steps": "更新の手順",
-  "help.update.foot": "設定、メッセージ、地図はそのまま残ります。開いているページは自動で再読み込みされます。",
   "help.update.restart_service": "サービスを再起動する",
   "help.update.restart": "NeoAPRS を終了して、もう一度起動する",
   "help.update.win.download": "インストーラーをダウンロード",
