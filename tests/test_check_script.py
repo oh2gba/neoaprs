@@ -423,7 +423,7 @@ def test_a_signal_the_parent_ignores_or_blocks_leaves_the_run_going_and_the_othe
             signal.signal(SIGHUP, signal.SIG_IGN)
             signal.signal(signal.SIGTERM, signal.SIG_IGN)
         else:
-            signal.pthread_sigmask(signal.SIG_BLOCK, [SIGHUP, signal.SIGTERM])
+            getattr(signal, "pthread_sigmask")(getattr(signal, "SIG_BLOCK"), [SIGHUP, signal.SIGTERM])    # noqa: B009 (POSIX only, as this whole file: by name, for the type check of Windows)
 
     run = subprocess.Popen(["scripts/check"], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, preexec_fn=as_the_parent_has_it)
     started: list[int] = []
