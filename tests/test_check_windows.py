@@ -1282,3 +1282,446 @@ def test_installers_that_are_not_two_in_order_are_said_before_the_machine_is_tou
     assert done.returncode == 2 and "not older than" in done.stderr and bench.vbox_calls() == [] and bench.ssh_calls() == []
     done = run_check(tree, bench, "--upgrade", str(old), str(installer(bench.folder, "something.exe")), "--snapshot", "clean")
     assert done.returncode == 2 and "NeoAPRS-Setup-VERSION.exe" in done.stderr and bench.vbox_calls() == []
+
+
+# ---- the upgrade proof from a release that has radios (0.20.0 on) ----
+
+# What the machine says in the steps the proof reads, as 0.20.0 (its source at the tag v0.20.0) and this tree said it in a rehearsal of the same commands on Linux (16 November 2026), cut short. The old release
+# calls the radio without a name HF and this one Mercury; this one lists a setting 0.20.0 does not have (radio/<number>/status); both keep the database at version 33, so nothing migrates and no copy is taken.
+OLD_RADIOS_SAYS = """radio 1  Proof  fm  dummy  on  (position 1)
+  radio/1/beacon    true                default
+  radio/1/path      WIDE1-1             stored
+  radio/1/digipeat  false               default
+radio 2  HF  hf  dummy-hf  on  (position 2)
+  radio/2/beacon    true                stored
+"""
+NEW_RADIOS_SAYS = """radio 1  Proof  fm  dummy  on  (position 1)
+  radio/1/beacon    true                default
+  radio/1/status    false               default
+  radio/1/path      WIDE1-1             stored
+  radio/1/digipeat  false               default
+radio 2  Mercury  hf  dummy-hf  on  (position 2)
+  radio/2/beacon    true                stored
+  radio/2/status    false               default
+"""
+SETTINGS_SAY = """serial/last_port                              default
+station/call              OH2GBA-9            stored
+station/transmit          true                default
+station/main_radio                            default
+station/lat               60.1699             stored
+station/lon               24.9384             stored
+station/comment           NeoAPRS upgrade proof  stored
+station/status                                default
+beacon/power_w            5                   stored
+web/port                  7303                default
+beacon/interval_min       30                  stored
+status/template           QRV {freq} {mode}   default
+update/url                https://neo.oh2gba.eu/version.php  default
+"""
+OLD_KEPT_SAYS = """radio/1/beacon_last_sent_at  2026-11-16T10:35:10Z  kept by the daemon (a radio's own: when its beacon last sent, the port its search found), not a setting
+radio/2/beacon_last_sent_at  2026-11-16T10:35:10Z  kept by the daemon (a radio's own: when its beacon last sent, the port its search found), not a setting
+"""
+NEW_KEPT_SAYS = """radio/1/beacon_last_sent_at  2026-11-16T10:35:51Z  kept by the daemon (a radio's own: when its beacon or its status last sent, the port its search found), not a setting
+radio/2/beacon_last_sent_at  2026-11-16T10:35:51Z  kept by the daemon (a radio's own: when its beacon or its status last sent, the port its search found), not a setting
+"""
+OLD_DOCTOR_SAYS = """NeoAPRS 0.20.0 on Windows 11 (AMD64)
+ok    database neoaprs.sqlite, version 33 (0.2 MB)
+ok    call OH2GBA-9
+ok    radio Proof (dummy): traffic made up: nothing goes on the air
+ok    radio HF (dummy-hf): traffic made up: nothing goes on the air
+warn  no serial port is listed by the system
+      fix: plug in the TNC's USB cable (or use a TCP TNC such as Direwolf: the port is then socket://127.0.0.1:8001)
+0 to fix, 1 to look at
+"""
+NEW_DOCTOR_SAYS = """NeoAPRS 0.20.1 on Windows 11 (AMD64)
+ok    database neoaprs.sqlite, version 33 (0.2 MB)
+ok    call OH2GBA-9
+ok    radio Proof (dummy): traffic made up: nothing goes on the air
+ok    radio Mercury (dummy-hf): traffic made up: nothing goes on the air
+warn  no serial port is listed by the system
+      fix: plug in the TNC's USB cable (a radio of the type Sound card, or your own Direwolf, needs no serial port)
+0 to fix, 1 to look at
+"""
+RADIO_STATION_SAYS = ("""station/call = OH2GBA-9
+radio 1  Proof  fm  dummy  on  (position 1)
+radio 2  HF  hf  dummy-hf  on  (position 2)
+radio/1/path = WIDE1-1
+radio/2/beacon = true
+the page http://127.0.0.1:43525/ answered 200, 1 s after the start
+### old db radios
+""" + OLD_RADIOS_SAYS + "### old db list\n" + SETTINGS_SAY + OLD_KEPT_SAYS + """### old db stations
+neoaprs db: 5 stations
+call       kind     last heard            position           packets
+OH2GBA-9   station  2026-11-16 10:35:12Z  60.1699 24.9384          0
+Q1CLB      station  2026-11-16 10:35:08Z  60.1753 24.9058          4
+Q1KUO      station  2026-11-16 10:35:06Z  62.8923 27.6770          1
+PARKING    object   2026-11-16 10:35:03Z  60.1717 24.9023          1
+Q3TKU      station  2026-11-16 10:34:48Z  60.4518 22.2667          1
+### old doctor
+""" + OLD_DOCTOR_SAYS)
+NO_COPY_SAYS = "neoaprs db: no copy of the database in C:\\Users\\John\\neoaprs-check\\RUN-20261116T101010\\data-upgrade\\backup\n"
+RADIO_DATA_SAYS = ("### db radios\n" + NEW_RADIOS_SAYS + "### db list\n" + SETTINGS_SAY + NEW_KEPT_SAYS + "### db restore\n" + NO_COPY_SAYS + """### db stations
+neoaprs db: 5 stations
+call       kind     last heard            position           packets
+Q1CLB      station  2026-11-16 10:35:49Z  60.1753 24.9058          8
+Q1KUO      station  2026-11-16 10:35:47Z  62.8923 27.6770          2
+PARKING    object   2026-11-16 10:35:44Z  60.1717 24.9023          2
+Q3TKU      station  2026-11-16 10:35:29Z  60.4518 22.2667          2
+OH2GBA-9   station  2026-11-16 10:35:12Z  60.1699 24.9384          0
+### doctor
+""" + NEW_DOCTOR_SAYS)
+RADIO_MIGRATE_SAYS = "the page http://127.0.0.1:44451/ answered 200, 1 s after the start\nthe daemon ran 41 s and wrote 43 lines to its log\n### migrated\n"
+# The lines of a start that migrates, as neoaprs/migrations.py logs them, for a new release whose database is one version on, and the copy `db restore` then lists.
+MIGRATED_SAYS = """2026-11-16 10:35:21Z  INFO  the database C:\\x\\neoaprs.sqlite is of version 33, this NeoAPRS needs 34: it is brought up to date now (a large file takes minutes)
+2026-11-16 10:35:21Z  INFO  the database C:\\x\\neoaprs.sqlite: a copy of it is in C:\\x\\backup\\premigrate-v33-to-v34-20261116-103521.sqlite
+2026-11-16 10:35:21Z  INFO  the database C:\\x\\neoaprs.sqlite is now version 34 (was 33)
+"""
+COPY_33_SAYS = "premigrate-v33-to-v34-20261116-103521.sqlite  2026-11-16 10:35 UTC  version 33        0.2 MB  (taken before the update to version 34: the NeoAPRS you had before opens it)\n"
+RADIO_DAEMON_SAYS = "the page http://127.0.0.1:37383/ answered 200, 1 s after the start\n### heard\nQ1ABC\nQ1CLB\nQ3TKU\nthe second start migrated nothing\n"
+RADIOS_AFTER = "the radios after the update: radio 1 Proof (fm, dummy, on), radio 2 Mercury (hf, dummy-hf, on)"
+ANOTHER_WORD = "radio 2 has no name of its own: the release before called it 'HF', this one calls it 'Mercury'"
+NOTHING_TO_MIGRATE = "the database is of version 33 before and after the update: nothing to migrate, and no copy premigrate-v... was taken"
+
+
+def radio_outputs(**changed: str) -> dict[str, str]:
+    return {"station": RADIO_STATION_SAYS, "migrate": RADIO_MIGRATE_SAYS, "data": RADIO_DATA_SAYS, "daemon": RADIO_DAEMON_SAYS, **changed}
+
+
+def one_version_on(**changed: str) -> dict[str, str]:
+    """What the machine says when the new release's database is one version on from the old one's: the migration in the log of the first start, its copy in `db restore`, the new doctor's version."""
+    data = RADIO_DATA_SAYS.replace(NO_COPY_SAYS, COPY_33_SAYS).replace(NEW_DOCTOR_SAYS, NEW_DOCTOR_SAYS.replace("version 33", "version 34"))
+    return {**radio_outputs(migrate=RADIO_MIGRATE_SAYS + MIGRATED_SAYS, data=data), **changed}
+
+
+def radio_bench(bench: Bench, **answers: str) -> tuple[Path, Path, Path]:
+    tree = make_tree(bench.folder)
+    for name, text in radio_outputs(**answers).items():
+        bench.flag(f"answer-{name}", text)
+    return tree, installer(bench.folder / "old", "NeoAPRS-Setup-0.20.0.exe"), installer(bench.folder, "NeoAPRS-Setup-0.20.1.exe")
+
+
+def radio_scripts(script: ModuleType, old_version: str = "0.20.0") -> dict[str, tuple[str, ...]]:
+    paths = script.windows_paths("John", "RUN-20261116T101010")
+    return {name: parts for name, parts, _ in script.upgrade_steps(paths, f"NeoAPRS-Setup-{old_version}.exe", old_version, "NeoAPRS-Setup-0.20.1.exe", "0.20.1")}
+
+
+def radio_data_problems(script: ModuleType, old: str, new: str, **changed: str) -> list[str]:
+    """What the data check finds when `old` in what the new release says (or, by name, in a step's output) is `new`."""
+    found: list[str] = script.check_radio_data(radio_outputs(data=RADIO_DATA_SAYS.replace(old, new), **changed))[0]
+    return found
+
+
+def test_the_version_of_the_old_installer_says_whether_its_station_has_flat_keys_or_radios(script: ModuleType) -> None:
+    assert script.RADIOS_FROM == (0, 20, 0)
+    assert [script.has_radios(version) for version in ("0.9.1", "0.18.2", "0.19.9", "0.20.0-rc1", "0.20.0", "0.20.1", "0.21.0", "1.0.0")] == [False, False, False, True, True, True, True, True], "by number, not by letter"
+    for version, checks in (("0.18.2", script.UPGRADE_CHECKS), ("0.20.0", script.RADIO_CHECKS)):
+        assert script.upgrade_checks(version) is checks
+    assert script.UPGRADE_CHECKS == {"station": script.check_station, "data": script.check_data, "daemon": script.check_daemon}, "from a release with flat keys nothing is read that was not read before"
+    assert script.RADIO_CHECKS == {"station": script.check_radio_station, "migrate": script.check_migrate, "data": script.check_radio_data, "daemon": script.check_daemon}
+    flat, with_radios = "\n".join(radio_scripts(script, "0.19.9")["station"]), "\n".join(radio_scripts(script, "0.20.0")["station"])
+    assert "@('tnc/profile', 'dummy')" in flat and "'radios'" not in flat
+    assert "'radios' 'add'" in with_radios and not any(key in with_radios for key in ("beacon/path", "tnc/profile", "hf/profile", "hf/enabled", "fm/enabled")), "0.20.0 refuses a flat key of a radio"
+    split = script.load_script("check-in-container").split_command
+    args, _ = script.parse(["--upgrade", "NeoAPRS-Setup-0.20.0.exe", "NeoAPRS-Setup-0.20.1.exe", "--snapshot", "clean"], split)
+    assert sorted(name for name, value in vars(args).items() if value) == ["snapshot", "upgrade"], "the two installers and the snapshot are all there is to give: the kind of the old release is no option"
+
+
+def test_the_steps_from_a_release_with_radios_are_in_order_each_named_and_short_enough_for_cmd(script: ModuleType) -> None:
+    by_name = radio_scripts(script)
+    assert list(by_name) == UPGRADE_STEPS
+    for name, parts in by_name.items():
+        for text in parts:
+            assert text.startswith(f"# step: {name}\n") and text.endswith("exit 0") and "$app = Join-Path $env:LOCALAPPDATA 'Programs\\NeoAPRS'" in text
+            assert len(script.powershell_line(text)) <= script.REMOTE_LINE_MAX, name
+            assert "uv" not in text.split() and "neotest" not in text, "the machine has nothing but Windows and the app"
+    assert [len(parts) for parts in by_name.values()] == [1, 3, 1, 1, 1, 1, 1]
+    flat = upgrade_scripts(script)
+    assert by_name["data"] == tuple(text.replace("RUN-20261115T101010", "RUN-20261116T101010") for text in flat["data"]), "the new release is asked the same of both stations"
+    assert "-eq 'NeoAPRS 0.20.0'" in by_name["old"][0] and "-eq 'NeoAPRS 0.20.1'" in by_name["update"][0]
+    every = "\n".join(text for parts in by_name.values() for text in parts)
+    assert every.count("unins000.exe') -ArgumentList") == 1 and "unins000.exe') -ArgumentList" in by_name["uninstall"][0], "the update goes over the old release: the only uninstall is the last step"
+
+
+def test_the_station_of_a_release_with_radios_is_made_with_its_own_commands_and_its_daemon(script: ModuleType) -> None:
+    make, run, record = radio_scripts(script)["station"]
+    for key, value in script.STATION_OWN:
+        assert f"@('{key}', '{value}')" in make
+    assert "& $exe db --data $data set $kv[0] $kv[1]" in make and "the old release's command line refused" in make
+    commands = [line.split(" 2>&1")[0] for line in make.splitlines() if line.startswith("& $exe ")]
+    assert commands == ["& $exe db --data $data 'radios' 'add' 'dummy' 'Proof'", "& $exe db --data $data 'radios' 'add' 'dummy-hf'", "& $exe db --data $data 'set' 'radio/1/path' 'WIDE1-1'",
+                        "& $exe db --data $data 'set' 'radio/2/beacon' 'true'"], "the radios in the order of their numbers, a radio without a name with no argument for one, then their own settings"
+    assert make.index("foreach ($kv in $pairs)") < make.index("'radios' 'add'"), "the station's own keys first: they make the database"
+    assert make.count("if (-not ($LASTEXITCODE -eq 0)) { 'the old release''s command line refused db ") == len(commands) and "refused db radios add dummy-hf'; exit 1 }" in make
+    assert "neoaprsw.exe" not in make and "neoaprsw.exe" not in record
+    assert "'run', '--data', $data, '--web-port', '0'" in run and run.index("'run', '--data'") < run.index("& $exe stop --data $data")
+    assert "$env:NEOAPRS_UPDATE_CHECK = '0'" in run and "$env:NEOAPRS_NO_DEVICES = '1'" in run, "0.20.0 has the switch: its Dummy Mercury radio plays no audio and starts no modem"
+    assert all("$data = 'C:\\Users\\John\\neoaprs-check\\RUN-20261116T101010\\data-upgrade'" in text for text in (make, run, record))
+    assert [line for line in record.splitlines() if line.startswith("'### ")] == ["'### old db radios'", "'### old db list'", "'### old db stations'", "'### old doctor'"]
+    for command, file in (("db --data $data radios", "old-db-radios.txt"), ("db --data $data list", "old-db-list.txt"), ("db --data $data stations", "old-db-stations.txt"), ("doctor --data $data", "old-doctor.txt")):
+        assert f"& $exe {command} 2>&1" in record and f"Set-Content -LiteralPath 'C:\\Users\\John\\neoaprs-check\\RUN-20261116T101010\\{file}'" in record
+    assert record.count("exit 1") == 3 and "doctor" not in "".join(line for line in record.splitlines() if "exit 1" in line), "the old doctor is read for the version of the database: its exit code is not held"
+
+
+def test_the_radios_of_the_station_are_types_names_and_settings_a_release_takes(script: ModuleType) -> None:
+    from neoaprs.config import BY_KEY
+    from neoaprs.radiospec import KIND_WORDS, MAX_NAME
+    from neoaprs.radiotypes import BY_KEY as TYPES
+    assert [key for key, _ in script.STATION] == [*(key for key, _ in script.STATION_OWN), "beacon/path", "tnc/profile", "hf/profile", "hf/enabled"] and script.STATION[:len(script.STATION_OWN)] == script.STATION_OWN
+    assert all(key in BY_KEY and key not in script.MOVED for key, _ in script.STATION_OWN), "the station's own keys are no radio's in either kind of release"
+    words = {word.casefold() for word in (*KIND_WORDS.values(), "HF")}          # (what this tree and 0.20.0 call a radio without a name: 0.20.1 takes a stored name that is such a word as none)
+    for added in script.RADIOS:
+        rtype = TYPES[added.type]
+        assert rtype.kind == added.kind and rtype.dummy, f"{added.type}: no device and no sound card is opened"
+        assert all(key in {field.key for field in rtype.fields} for key, _ in added.settings), added.type
+        assert len(added.name) <= MAX_NAME and added.name.isascii() and added.name.casefold() not in words
+    assert [added.kind for added in script.RADIOS] == ["fm", "hf"], "radio 1 an FM radio and radio 2 one of the Mercury kind, as the flat station's"
+    assert [bool(added.name) for added in script.RADIOS] == [True, False], "one name that must come through, and one radio called by the release's own word for its kind"
+    assert dict(script.RADIOS[0].settings)["path"] == dict(script.STATION)["beacon/path"], "the path the flat station has"
+
+
+def test_what_this_tree_says_of_a_station_with_radios_is_what_the_proof_reads(script: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from neoaprs.cli import dbcmd, doctor
+    from neoaprs.cli.radiosettings import SHOWN_KEYS
+    from neoaprs.migrations import SCHEMA_VERSION
+    from neoaprs.radiospec import KIND_WORDS
+    data = tmp_path / "data"
+
+    def db(*args: str) -> list[str]:
+        assert dbcmd.main(["--data", str(data), *args]) == 0, args
+        return capsys.readouterr().out.splitlines()
+
+    for key, value in script.STATION_OWN:
+        assert db("set", key, value) == [f"{key} = {value}"]
+    for number, added in enumerate(script.RADIOS, 1):
+        said = db("radios", "add", added.type, *([added.name] if added.name else []))
+        assert script.radios(said) == {number: script.Radio(added.kind, added.type, "on", {}, added.name or KIND_WORDS[added.kind], number)}, "the database numbers a fresh folder's radios 1 and up"
+        for key, value in added.settings:
+            assert db("set", f"radio/{number}/{key}", value) == [f"radio/{number}/{key} = {value}"]
+    said = db("radios")
+    found, own = script.radios(said), script.settings_listed(said)
+    assert [(number, radio.name, radio.kind, radio.type, radio.state, radio.position) for number, radio in found.items()] == [(1, "Proof", "fm", "dummy", "on", 1), (2, "Mercury", "hf", "dummy-hf", "on", 2)]
+    assert len(found) + len(own) == len(said), "every line of db radios is a radio or a setting of one"
+    assert own["radio/1/path"] == ("WIDE1-1", "stored") and own["radio/2/beacon"] == ("true", "stored") and own["radio/1/beacon"] == ("true", "default")
+    assert {key: value for key, (value, _) in own.items()} == {key: value for radio in found.values() for key, value in radio.settings.items()}
+    said = db("list")
+    listed = script.settings_listed(said)
+    assert list(listed) == [key for key in SHOWN_KEYS] and len(said) == len(listed), "every setting db list shows is read, whatever its value holds"
+    assert all(listed[key] == (value, "stored") for key, value in script.STATION_OWN) and listed["station/status"] == ("", "default")
+    finding, config, unread, older = doctor.check_database(data)
+    lines = doctor.format_findings([finding, *doctor.check_radios(config, data / "neoaprs.sqlite", unread, older)])
+    assert script.database_version(lines) == SCHEMA_VERSION
+    assert [(matched.group(1), matched.group(2)) for line in lines if (matched := script.DOCTOR_RADIO.match(line))] == [("Proof", "dummy"), ("Mercury", "dummy-hf")]
+
+
+def test_the_first_start_after_a_release_with_radios_is_asked_for_no_migration_on_the_machine(script: ModuleType) -> None:
+    by_name = radio_scripts(script)
+    migrate, daemon = by_name["migrate"][0], by_name["daemon"][0]
+    for text in (migrate, daemon):
+        assert "$env:NEOAPRS_NO_DEVICES = '1'" in text and "$env:NEOAPRS_UPDATE_CHECK = '0'" in text and "'run', '--data', $data, '--web-port', '0'" in text
+        assert "$code -eq 200" in text and "'Z  (ERROR|CRITICAL)  |Traceback'" in text and "-like '*NeoAPRS ended'" in text
+    assert migrate.endswith("'### migrated'\n$moved\nexit 0") and "Count -eq 1" not in migrate, "0.20.0 and 0.20.1 keep the same version of the database: whether a migration is due is the versions' to say"
+    assert "brought up to date now' }).Count -eq 1" in upgrade_scripts(script)["migrate"][0], "a release with flat keys is always migrated"
+    assert "$moved.Count -eq 0" in daemon and "'### heard'" in daemon
+    assert script.migration_lines(radio_outputs()) == [] and script.migration_lines(one_version_on()) == MIGRATED_SAYS.splitlines()
+
+
+def test_the_radio_checks_pass_what_the_rehearsal_said(script: ModuleType) -> None:
+    outputs = radio_outputs()
+    assert script.check_radio_station(outputs) == ([], ["the station of the release before: radio 1 Proof (fm, dummy, on), radio 2 HF (hf, dummy-hf, on); 13 settings in its db list and 4 of its radios; "
+                                                        "its database of version 33; 4 stations heard besides its own"])
+    assert script.check_migrate(outputs) == ([], ["the first start of the new release migrated nothing"])
+    assert script.check_radio_data(outputs) == ([], [RADIOS_AFTER, ANOTHER_WORD, NOTHING_TO_MIGRATE])
+    assert script.check_daemon(outputs) == ([], ["heard again after the update: Q1CLB Q3TKU"])
+    three_times = {name: text * 3 for name, text in outputs.items()}        # (the station's three scripts are one log)
+    assert script.check_radio_station(three_times)[0] == [] and script.check_radio_data(three_times) == script.check_radio_data(outputs)
+
+
+def test_the_radio_station_check_refuses_a_station_the_old_release_did_not_make(script: ModuleType) -> None:
+    def problems(old: str, new: str) -> list[str]:
+        found: list[str] = script.check_radio_station(radio_outputs(station=RADIO_STATION_SAYS.replace(old, new)))[0]
+        return found
+
+    assert problems("station/lat               60.1699             stored", "station/lat               60.1699             default") == ["the old release's db list has station/lat as '60.1699' (default), not '60.1699' (stored)"]
+    assert problems("station/comment           NeoAPRS upgrade proof  stored\n", "") == ["the old release's db list has station/comment as not listed, not 'NeoAPRS upgrade proof' (stored)"]
+    radio_2 = "radio 2  HF  hf  dummy-hf  on  (position 2)\n  radio/2/beacon    true                stored\n"
+    assert problems(radio_2, "") == ["the old release's db radios has no radio 2 of the type dummy-hf (kind hf) that is on"]
+    assert problems("hf  dummy-hf  on", "hf  mercury  on") == ["the old release's db radios has no radio 2 of the type dummy-hf (kind hf) that is on: it has HF (hf, mercury, on)"]
+    assert problems("fm  dummy  on", "fm  dummy  off") == ["the old release's db radios has no radio 1 of the type dummy (kind fm) that is on: it has Proof (fm, dummy, off)"]
+    assert problems("### old db radios\nradio 1  Proof  fm", "### old db radios\nradio 1  FM  fm") == ["the old release's db radios calls radio 1 'FM', and it was added with the name 'Proof'"]
+    assert problems("radio 2  HF  hf", "radio 2  HF 2  hf") == [], "what a radio without a name is called is the release's own"
+    assert problems("  radio/1/path      WIDE1-1             stored", "  radio/1/path                          default") == ["the old release's db radios has radio/1/path as '' (default), not 'WIDE1-1' (stored)"]
+    assert problems("  radio/2/beacon    true                stored\n", "") == ["the old release's db radios has radio/2/beacon as not listed, not 'true' (stored)"]
+    assert problems(radio_2, radio_2 + "radio 3  LoRa  lora  dummy-lora  on  (position 3)\n") == ["the old release's db radios lists radio 3 too, which nothing added"]
+    assert any("doctor names no version of the database" in p for p in problems("ok    database neoaprs.sqlite, version 33 (0.2 MB)", "warn  database version 30, this NeoAPRS uses 33"))
+    assert any("heard no station" in p for p in script.check_radio_station(radio_outputs(station=RADIO_STATION_SAYS.split("Q1CLB")[0] + "### old doctor\n" + OLD_DOCTOR_SAYS))[0])
+
+
+def test_the_radio_data_check_holds_the_keys_of_a_radio_and_the_name_that_was_typed_never_a_word_of_the_release(script: ModuleType) -> None:
+    assert script.check_radio_data(radio_outputs(data=RADIO_DATA_SAYS.replace("Mercury", "Shortwave")))[1] == [
+        RADIOS_AFTER.replace("Mercury", "Shortwave"), ANOTHER_WORD.replace("'Mercury'", "'Shortwave'"), NOTHING_TO_MIGRATE], "whatever a release calls a radio without a name"
+    same_word = script.check_radio_data(radio_outputs(data=RADIO_DATA_SAYS.replace("Mercury", "HF")))
+    assert same_word == ([], [RADIOS_AFTER.replace("Mercury", "HF"), NOTHING_TO_MIGRATE]), "and nothing is said when it calls it the same"
+    assert radio_data_problems(script, "Proof", "FM") == ["radio 1 had the name 'Proof' and has 'FM' after the update"], "in db radios and in the doctor's line alike: the doctor is held to db radios"
+    assert radio_data_problems(script, "radio 1  Proof", "radio 1  Other") == ["radio 1 had the name 'Proof' and has 'Other' after the update", "doctor has no line `ok    radio Other (dummy): ...` for radio 1"]
+    assert radio_data_problems(script, "hf  dummy-hf  on", "fm  dummy-hf  on") == ["radio 2 had the kind 'hf' and has 'fm' after the update"]
+    assert radio_data_problems(script, "hf  dummy-hf  on", "hf  mercury  on") == ["radio 2 had the type 'dummy-hf' and has 'mercury' after the update", "doctor has no line `ok    radio Mercury (mercury): ...` for radio 2"]
+    assert radio_data_problems(script, "dummy-hf  on  (position 2)", "dummy-hf  off  (position 2)") == ["radio 2 had the state 'on' and has 'off' after the update"]
+    assert radio_data_problems(script, "dummy-hf  on  (position 2)", "dummy-hf  removed 2026-11-16 10:35:21Z  (position 2)") == ["radio 2 had the state 'on' and has 'removed 2026-11-16 10:35:21Z' after the update"]
+    assert radio_data_problems(script, "dummy  on  (position 1)", "dummy  on  (position 3)") == ["radio 1 had the position 1 and has 3 after the update"]
+    radio_2 = NEW_RADIOS_SAYS[NEW_RADIOS_SAYS.index("radio 2"):]
+    assert radio_data_problems(script, radio_2, "") == ["db radios has lost radio 2, HF (hf, dummy-hf, on)", "radio/2/beacon was 'true' (stored) and is not listed after the update"]
+    assert radio_data_problems(script, radio_2, radio_2 + "radio 3  FM 2  fm  kiss  on  (position 3)\n") == [
+        "db radios has a radio 3, FM 2 (fm, kiss, on), that the old release did not list", "doctor has no line `ok    radio FM 2 (kiss): ...` for radio 3"]
+    assert radio_data_problems(script, "ok    radio Mercury (dummy-hf): traffic made up: nothing goes on the air\n", "") == ["doctor has no line `ok    radio Mercury (dummy-hf): ...` for radio 2"]
+    assert radio_data_problems(script, "ok    radio Mercury (dummy-hf)", "ok    radio HF (dummy-hf)") == ["doctor has no line `ok    radio Mercury (dummy-hf): ...` for radio 2"], "the doctor and db radios of one release say one name"
+
+
+def test_the_radio_data_check_refuses_a_changed_setting_a_lost_station_and_a_failed_doctor(script: ModuleType) -> None:
+    assert radio_data_problems(script, "station/lat               60.1699", "station/lat               60.17  ") == ["station/lat was '60.1699' (stored) and is '60.17' (stored) after the update"]
+    assert radio_data_problems(script, "beacon/power_w            5                   stored", "beacon/power_w            5                   default") == [
+        "beacon/power_w was '5' (stored) and is '5' (default) after the update"], "a value that is the default by chance is not the operator's any more"
+    assert radio_data_problems(script, "web/port                  7303                default", "web/port                  7304                default") == ["web/port was '7303' (default) and is '7304' (default) after the update"]
+    assert radio_data_problems(script, "web/port                  7303                default", "web/port                  7303                stored ") == [], "a default the new release stores as it was is the same setting"
+    assert radio_data_problems(script, "status/template           QRV {freq} {mode}   default\n", "") == ["status/template was 'QRV {freq} {mode}' (default) and is not listed after the update"]
+    assert radio_data_problems(script, "  radio/1/path      WIDE1-1             stored", "  radio/1/path      WIDE2-2             stored") == ["radio/1/path was 'WIDE1-1' (stored) and is 'WIDE2-2' (stored) after the update"]
+    assert radio_data_problems(script, "  radio/2/beacon    true                stored", "  radio/2/beacon    true                default") == ["radio/2/beacon was 'true' (stored) and is 'true' (default) after the update"]
+    assert radio_data_problems(script, "  radio/1/digipeat  false               default\n", "") == ["radio/1/digipeat was 'false' (default) and is not listed after the update"]
+    assert radio_data_problems(script, "  radio/1/status    false               default\n  radio/1/path", "  radio/1/status    true                stored\n  radio/1/path") == [], "a setting 0.20.0 did not list is the new release's own"
+    assert radio_data_problems(script, "2026-11-16T10:35:51Z", "2026-11-16T11:00:00Z") == [], "when a beacon last went out is the daemon's row, not a setting"
+    assert radio_data_problems(script, "Q1KUO      station  2026-11-16 10:35:47Z  62.8923 27.6770          2\n", "") == ["db stations has lost 1 of the stations the old release knew: Q1KUO"]
+    assert radio_data_problems(script, "ok    call OH2GBA-9", "FAIL  the radios in C:\\x\\neoaprs.sqlite cannot be read: no such table: radio") == ["doctor: FAIL  the radios in C:\\x\\neoaprs.sqlite cannot be read: no such table: radio"]
+
+
+def test_a_copy_from_before_the_update_is_due_only_when_the_version_of_the_database_changed(script: ModuleType) -> None:
+    assert radio_data_problems(script, NO_COPY_SAYS, COPY_SAYS.replace("v26-to-v33", "v32-to-v33")) == [
+        "db restore lists premigrate-v32-to-v33-20261115-181211.sqlite, and the database is of version 33 as it was before the update: nothing was to migrate"]
+    assert radio_data_problems(script, "", "", migrate=RADIO_MIGRATE_SAYS + MIGRATED_SAYS) == ["the first start of the new release said it migrated, and the database is of version 33 as it was before the update"]
+    assert script.check_migrate(one_version_on()) == ([], ["the first start of the new release migrated the database from version 33 to 34"])
+    assert script.check_radio_data(one_version_on()) == ([], [RADIOS_AFTER, ANOTHER_WORD, "the copy taken before the update: premigrate-v33-to-v34-20261116-103521.sqlite (schema version 33 of the release before)"])
+    moved = one_version_on()
+    assert script.check_radio_data({**moved, "data": moved["data"].replace(COPY_33_SAYS, NO_COPY_SAYS)})[0] == ["db restore lists no copy premigrate-v...: the migration left no copy of the database from before it"]
+    assert script.check_radio_data({**moved, "data": moved["data"].replace(COPY_33_SAYS, COPY_33_SAYS.split("  (taken")[0] + "\n")})[0] == ["db restore does not mark premigrate-v33-to-v34-20261116-103521.sqlite as taken before the update"]
+    assert script.check_radio_data({**moved, "data": moved["data"].replace(COPY_33_SAYS, COPY_33_SAYS + COPY_33_SAYS.replace("103521", "103522"))})[0] == [
+        "db restore lists 2 copies premigrate-v...: one is kept, the latest (premigrate-v33-to-v34-20261116-103521.sqlite; premigrate-v33-to-v34-20261116-103522.sqlite)"]
+    assert script.check_radio_data({**moved, "data": moved["data"].replace("premigrate-v33-to-v34", "premigrate-v32-to-v34")})[0] == [
+        "db restore lists premigrate-v32-to-v34-20261116-103521.sqlite, and the database of the release before was of version 33"]
+    assert script.check_radio_data(one_version_on(migrate=RADIO_MIGRATE_SAYS))[0] == ["the database went from version 33 to 34, and the log of the new release's first start says nothing of a migration"]
+    assert radio_data_problems(script, "ok    database neoaprs.sqlite, version 33 (0.2 MB)", "ok    database neoaprs.sqlite, version 32 (0.2 MB)") == ["the database is of version 32 after the update and was of version 33 before it"]
+    assert radio_data_problems(script, "ok    database neoaprs.sqlite, version 33 (0.2 MB)", "warn  database version 33, this NeoAPRS uses 34") == [
+        "doctor names no version of the database (the old release's: 33, the new one's: none): whether a copy is due cannot be told"]
+    lines = MIGRATED_SAYS.splitlines(keepends=True)
+    assert script.check_migrate(one_version_on(migrate=RADIO_MIGRATE_SAYS + MIGRATED_SAYS.replace("is of version 33", "is of version 32")))[0] == [
+        "the first start of the new release migrated a database of version 32, and the old release's doctor named version 33"]
+    assert script.check_migrate(one_version_on(migrate=RADIO_MIGRATE_SAYS + lines[0] + lines[2]))[0] == ["the migration took no copy of the database before it"]
+    assert script.check_migrate(one_version_on(migrate=RADIO_MIGRATE_SAYS + MIGRATED_SAYS + MIGRATED_SAYS))[0] == [
+        "the first start of the new release says 2 times that it brings the database up to date, not once", "the migration says 2 times that it took a copy of the database, not once"]
+
+
+def test_the_upgrade_proof_from_a_release_with_radios_runs_on_the_clean_snapshot_with_its_station_in_three_scripts(bench: Bench) -> None:
+    tree, old, new = radio_bench(bench)
+    done = run_check(tree, bench, "--upgrade", str(old), str(new), "--snapshot", "clean")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert [re.sub(r" +\d+\.\ds$", "", line).split()[1] for line in result_lines(done.stdout)] == UPGRADE_STEPS
+    assert re.search(r"all green in \d+s$", done.stdout.strip())
+    assert "the release before, 0.20.0, has radios: its station is made with `db radios add`" in done.stderr
+    for note in ("radio 1 Proof (fm, dummy, on), radio 2 HF (hf, dummy-hf, on)", "the first start of the new release migrated nothing", RADIOS_AFTER, ANOTHER_WORD, NOTHING_TO_MIGRATE, "heard again after the update: Q1CLB Q3TKU"):
+        assert note in done.stderr, note
+    assert [call for call in bench.vbox_calls() if not call.startswith("showvminfo")][:2] == ["snapshot Windows 11 restore clean", "startvm Windows 11 --type headless"]
+    assert (bench.folder / "state").read_text(encoding="utf-8") == "poweroff", "shut down again"
+    copies = [json.loads(line)[-1] for line in (bench.folder / "scp-calls").read_text(encoding="utf-8").splitlines()]
+    assert [copy.rsplit("/", 1)[1] for copy in copies] == ["NeoAPRS-Setup-0.20.0.exe", "NeoAPRS-Setup-0.20.1.exe"], "the two installers and nothing else: no tree, no uv"
+    sent = [call["script"] for call in bench.ssh_calls() if call["script"].startswith("# step: ")]
+    assert [text.split("\n", 1)[0][len("# step: "):] for text in sent] == ["old", "station", "station", "station", "update", "migrate", "data", "daemon", "uninstall"]
+    assert "'radios' 'add' 'dummy' 'Proof'" in sent[1] and "neoaprsw.exe" in sent[2] and "'### old doctor'" in sent[3] and not any("tnc/profile" in text or "beacon/path" in text for text in sent)
+    logs = re.search(r"the logs are in (\S+)", done.stderr)
+    assert logs is not None and sorted(path.name for path in Path(logs.group(1)).iterdir()) == sorted(f"{name}.log" for name in UPGRADE_STEPS)
+    assert (Path(logs.group(1)) / "station.log").read_text(encoding="utf-8").count("### old db radios") == 3, "the three parts of the station in one log"
+
+
+def test_the_proof_from_a_release_with_flat_keys_says_so_and_sends_no_command_of_a_release_with_radios(bench: Bench) -> None:
+    tree, old, new = upgrade_bench(bench)
+    done = run_check(tree, bench, "--upgrade", str(old), str(new), "--snapshot", "clean")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "the release before, 0.18.2, keeps a radio's settings in flat keys" in done.stderr
+    sent = [call["script"] for call in bench.ssh_calls() if call["script"].startswith("# step: ")]
+    assert not any("'radios' 'add'" in text or "old doctor" in text or "'### migrated'" in text for text in sent)
+
+
+def test_a_radio_that_did_not_come_through_fails_the_data_step_with_its_problems_and_stops_the_proof(bench: Bench) -> None:
+    tree, old, new = radio_bench(bench, data=RADIO_DATA_SAYS.replace("hf  dummy-hf  on", "hf  dummy-hf  off").replace("  radio/1/path      WIDE1-1             stored", "  radio/1/path                          default"))
+    done = run_check(tree, bench, "--upgrade", str(old), str(new), "--snapshot", "clean")
+    assert done.returncode == 1 and [line.split()[:2] for line in result_lines(done.stdout)] == [["ok", "old"], ["ok", "station"], ["ok", "update"], ["ok", "migrate"], ["FAIL", "data"]]
+    assert "      | radio 2 had the state 'on' and has 'off' after the update" in done.stdout and "      | radio/1/path was 'WIDE1-1' (stored) and is '' (default) after the update" in done.stdout
+    assert not bench.scripts("# step: daemon") and (bench.folder / "state").read_text(encoding="utf-8") == "poweroff"
+    logs = re.search(r"the logs are in (\S+)", done.stderr)
+    assert logs is not None and "radio 2 had the state 'on'" in (Path(logs.group(1)) / "data.log").read_text(encoding="utf-8")
+
+
+def test_a_migration_the_versions_do_not_explain_fails_the_migrate_step_of_a_release_with_radios(bench: Bench) -> None:
+    tree, old, new = radio_bench(bench, migrate=RADIO_MIGRATE_SAYS + MIGRATED_SAYS.replace("is of version 33", "is of version 31"))
+    done = run_check(tree, bench, "--upgrade", str(old), str(new), "--snapshot", "clean")
+    assert done.returncode == 1 and [line.split()[:2] for line in result_lines(done.stdout)] == [["ok", "old"], ["ok", "station"], ["ok", "update"], ["FAIL", "migrate"]]
+    assert "      | the first start of the new release migrated a database of version 31, and the old release's doctor named version 33" in done.stdout
+    assert not bench.scripts("# step: data") and (bench.folder / "state").read_text(encoding="utf-8") == "poweroff"
+
+
+def test_every_command_the_station_with_radios_is_sent_is_one_the_command_line_takes_as_it_is_meant(script: ModuleType) -> None:
+    """The commands as the three scripts write them, each cut into the arguments the program gets and given to the parsers of the command line: this tree's, which are 0.20.0's (since the tag v0.20.0,
+    neoaprs/cli/dbcmd.py parse, neoaprs/cli/stopcmd.py parser and the options of neoaprs/daemon.py build_parser have changed in a help text only; the same lines were given to the source at the tag on
+    16 November 2026). A parser that does not take a line ends the test, as it would end the step on the machine."""
+    from neoaprs.cli import HANDLERS, dbcmd, stopcmd
+    from neoaprs.daemon import build_parser
+    make, run, record = radio_scripts(script)["station"]
+    folder = "C:\\Users\\John\\neoaprs-check\\RUN-20261116T101010\\data-upgrade"
+
+    def words(text: str) -> list[str]:
+        """The arguments of a command as a script writes them: a string in single quotes, $data or a bare word (none of these has white space in it)."""
+        return [folder if word == "$data" else word[1:-1] if word.startswith("'") else word for word in text.split()]
+
+    def sent(text: str) -> list[list[str]]:
+        return [words(line.split("& $exe ", 1)[1].split(" 2>&1")[0]) for line in text.splitlines() if line.startswith(("& $exe ", "$out = @(& $exe "))]
+
+    def db(arguments: list[str]) -> dict[str, Any]:
+        assert arguments[0] == "db" and arguments[0] in HANDLERS
+        return vars(dbcmd.parse(arguments[1:]))
+
+    assert "foreach ($kv in $pairs) { & $exe db --data $data set $kv[0] $kv[1] 2>&1" in make
+    for key, value in script.STATION_OWN:
+        assert db(["db", "--data", folder, "set", key, value]) == {"data": folder, "command": "set", "key": key, "value": value}
+    assert [db(arguments) for arguments in sent(make)] == [
+        {"data": folder, "command": "radios", "add": "add", "type": "dummy", "name": "Proof", "off": False},
+        {"data": folder, "command": "radios", "add": "add", "type": "dummy-hf", "name": "", "off": False},
+        {"data": folder, "command": "set", "key": "radio/1/path", "value": "WIDE1-1"},
+        {"data": folder, "command": "set", "key": "radio/2/beacon", "value": "true"}]
+    *asked, doctor = sent(record)
+    assert [db(arguments) for arguments in asked] == [{"data": folder, "command": "radios", "add": None, "type": "", "name": "", "off": False}, {"data": folder, "command": "list"},
+                                                      {"data": folder, "command": "stations"}]
+    assert doctor == ["doctor", "--data", folder] and doctor[0] in HANDLERS, "the doctor's one option (its parser is made in its main)"
+    (stop,) = sent(run)
+    assert stop[0] == "stop" and stop[0] in HANDLERS and stopcmd.parser().parse_args(stop[1:]).data == folder
+    started = re.search(r"'neoaprsw\.exe'\) -ArgumentList (.+) -PassThru", run)
+    assert started is not None
+    command, *flags = words(started.group(1).replace(",", " "))        # (Start-Process joins its list with spaces and quotes nothing: the folder of a run has no space)
+    daemon = build_parser().parse_args(flags)
+    assert command == "run" and command in HANDLERS and (daemon.data, daemon.web_port, daemon.port, daemon.hf_port) == (folder, 0, "", "") and " " not in folder
+
+
+def test_what_the_old_release_is_given_is_nothing_windows_powershell_hands_over_changed(script: ModuleType) -> None:
+    """Windows PowerShell 5.1 hands a program an argument with white space in double quotes and escapes nothing in it: an empty argument is dropped, a double quote is lost, and a backslash at the end of an
+    argument with white space takes the closing quote. A value of two words or with a comma goes through as it is written (0.20.0 on the machine answered `station/comment = NeoAPRS upgrade proof`)."""
+    given = [text for pair in script.STATION for text in pair]
+    given += [text for added in script.RADIOS for text in (added.type, *([added.name] if added.name else []), *(part for pair in added.settings for part in pair))]
+    for text in given:
+        assert text and '"' not in text and not (re.search(r"\s", text) and text.endswith("\\")), text
+    assert sum(" " in text for text in given) == 1 and dict(script.STATION_OWN)["station/comment"].count(" ") == 2, "one value of more than one word is among them, as an operator's comment is"
+    make = radio_scripts(script)["station"][0]
+    assert "'radios' 'add' 'dummy-hf' 2>&1" in make and " '' " not in make, "a radio without a name is added with no argument for one: an empty one would not arrive"
+
+
+def test_the_doctors_line_of_a_radio_is_read_up_to_its_type_whatever_follows_it(script: ModuleType) -> None:
+    for line, name, key in (("ok    radio Proof (dummy): traffic made up: nothing goes on the air", "Proof", "dummy"), ("ok    radio Mercury 2 (dummy-hf): off", "Mercury 2", "dummy-hf"),
+                            ("ok    radio FM (kiss): port (found by searching), speed 9600 baud", "FM", "kiss"), ("ok    radio IC (705) (kiss-tcp): port 127.0.0.1:8001", "IC (705)", "kiss-tcp"),
+                            ("ok    radio HF (mercury): sound card Line (USB): Front, keying (the daemon's choice)", "HF", "mercury")):        # (a sound card is named by the system, brackets and colons too)
+        matched = script.DOCTOR_RADIO.match(line)
+        assert matched is not None and matched.groups() == (name, key), line
+    assert script.DOCTOR_RADIO.match("warn  no radio is on: nothing is heard and nothing is sent") is None and script.DOCTOR_RADIO.match("ok    call OH2GBA-9") is None

@@ -52,14 +52,32 @@ folder gone, nothing left in it, the start at sign-in and the processes gone, th
 only then. Nothing follows a failed install.
 
 The upgrade proof (--upgrade OLD NEW) is the one test, before a release is public, that a station of the release before comes through the update on Windows. Its steps, each needing the one before (the first that
-fails ends it; the machine is shut down all the same): old (OLD installed silently as above, its files, `neoaprs.exe --version` the version of its file name), station (with that release's own command line only:
-`neoaprs.exe db --data FOLDER set KEY VALUE` for the flat keys of STATION, the Dummy radio as the FM radio and the Dummy HF radio as the HF one, so that no device is needed; then its daemon `neoaprsw.exe run --data
-FOLDER --web-port 0` for RUN_SEC with NEOAPRS_UPDATE_CHECK=0, its page, `neoaprs.exe stop --data FOLDER`; then its `db list` and `db stations`, printed and kept in files of the run's folder), update (NEW installed
-silently over it, no uninstall; its files, its version, the Apps list), migrate (the new daemon's first start on the folder with NEOAPRS_NO_DEVICES=1 too: the migration and its copy in the log, nothing ERROR),
-data (`db radios`, `db list`, `db restore`, `db stations` and `doctor` of the new release, held here to what the old one said: the settings that kept their names, radio 1 and radio 2 made of the flat keys,
-exactly one copy premigrate-v<the old schema version> marked as taken before the update, every station kept, no FAIL), daemon (a second start: page, no ERROR or Traceback, stations of the old run heard again,
-nothing migrated) and uninstall (as the install proof's). The data folder is the run's own (data-upgrade), never the default one. The commands of old and station are those of 0.18.2 (v0.18.2:neoaprs/cli/dbcmd.py,
-neoaprs/daemon.py build_parser, neoaprs/cli/stopcmd.py); a release before that is older than 0.18.2 may take other ones.
+fails ends it; the machine is shut down all the same): old (OLD installed silently as above, its files, `neoaprs.exe --version` the version of its file name), station (a station made with that release's own command
+line only, run by its own daemon, and what that release says of it afterwards), update (NEW installed silently over it, no uninstall; its files, its version, the Apps list), migrate (the new daemon's first start on
+the folder with NEOAPRS_NO_DEVICES=1: its page, nothing ERROR, and what its log says of a migration), data (`db radios`, `db list`, `db restore`, `db stations` and `doctor` of the new release, held here to what the
+old one said), daemon (a second start: page, no ERROR or Traceback, stations of the old run heard again, nothing migrated) and uninstall (as the install proof's). The data folder is the run's own (data-upgrade),
+never the default one.
+
+What the release before is decides how its station is made and what is held after the update, and the version in OLD's file name says which of the two it is (RADIOS_FROM): there is no option for it, so none to forget.
+
+  A release before 0.20.0 keeps a radio's settings in flat keys. station: `neoaprs.exe db --data FOLDER set KEY VALUE` for the flat keys of STATION, the Dummy radio as the FM radio and the Dummy HF radio as the HF
+  one, so that no device is needed; then its daemon `neoaprsw.exe run --data FOLDER --web-port 0` for RUN_SEC with NEOAPRS_UPDATE_CHECK=0 (it has no NEOAPRS_NO_DEVICES), its page, `neoaprs.exe stop --data FOLDER`;
+  then its `db list` and `db stations`, printed and kept in files of the run's folder. migrate: the migration and its copy must be in the log. data: the settings that kept their names (KEPT_KEYS), radio 1 and radio 2
+  made of the flat keys (MOVED), exactly one copy premigrate-v<the old schema version> marked as taken before the update, every station kept, no FAIL of the doctor.
+
+  A release from 0.20.0 on has radios, and no flat key of one (`db set beacon/path` is refused there). station: `db --data FOLDER set KEY VALUE` for the station's and the beacon's keys (STATION_OWN), then
+  `db --data FOLDER radios add TYPE [NAME]` for each radio of RADIOS (an FM Dummy with a name, a Dummy of the Mercury kind with none) and `db --data FOLDER set radio/<number>/<key> VALUE` for their own settings (a
+  path on radio 1), the database giving a fresh folder's radios the numbers 1 and 2; then its daemon as above, with NEOAPRS_NO_DEVICES=1, which it has; then its `db radios`, `db list`, `db stations` and `doctor`,
+  kept in files as well. migrate: nothing is asked of the log on the machine; here its lines of a migration are held to the version of the database the old doctor named (one migration from that version with its
+  copy, or none). data: the same radios as the old release listed, by number, each with its kind, its type, on or off and its position (the keys the release prints, never a type's English name); the name of a radio
+  that was given one, and for a radio without a name nothing, since what it is called then is the release's word for its kind (0.20.0 says HF where 0.20.1 says Mercury), which the script says when it differs;
+  every setting the old release listed for a radio and for the station (its value, and stored where it was stored: a setting the new release adds is its own); a line of the doctor for each radio by the name and the
+  type `db radios` gives it, and no FAIL; every station kept; and of `db restore` what the two doctors' versions of the database ask: the same version means that nothing was to migrate, no copy premigrate-v... is
+  there and the log said nothing (0.20.0 and 0.20.1 both keep version 33), a higher one means exactly one copy premigrate-v<the old version>, marked as taken before the update, and the migration in the log.
+
+The commands of old and station are those of 0.18.2 (v0.18.2:neoaprs/cli/dbcmd.py, neoaprs/daemon.py build_parser, neoaprs/cli/stopcmd.py) and of 0.20.0 (v0.20.0:neoaprs/cli/dbcmd.py parse, neoaprs/cli/dbradios.py
+add_radio and show_radios, neoaprs/cli/doctor.py, neoaprs/nodevices.py); a release before that is older than 0.18.2 may take other ones. No release's command line makes an object or sends a message: the stations,
+the objects and the bulletins in the database are those the Dummy radios made up for the old daemon.
 
 What only a person can see (the wizard, the tray at each display scaling, the pages of the app, Update now from the previous release) is in docs/development.md.
 
@@ -1036,17 +1054,35 @@ def execute_install(settings: Settings, installer: Path, version: str, tornado: 
 
 # The one test, before a release is public, that a station of the release before comes through the update on Windows: the old installer on the clean machine, a station made with that release's own command line and
 # run by its own daemon (its database at its own schema version, made-up stations heard), the new installer over it as an update is, then the new release on the same data folder: the radios made of the flat settings,
-# the copy taken before the migration, the daemon twice (the second start migrates nothing), and the uninstall. Each step needs the one before: the first that fails ends the proof.
+# the copy taken before the migration, the daemon twice (the second start migrates nothing), and the uninstall. Each step needs the one before: the first that fails ends the proof. From a release that has radios
+# already the station is made with its radios, and the new release must say the same radios and settings (the module's docstring says what is held from each kind of release).
 UPGRADE_STEP_NAMES = ("old", "station", "update", "migrate", "data", "daemon", "uninstall")
 OLD_FILES = ("neoaprs.exe", "neoaprsw.exe", "neoaprs-app.exe", "unins000.exe")     # what every release before has in its program folder
-# The station, by the flat keys of the release before (0.18.2: neoaprs/config.py SETTINGS; `neoaprs db set KEY VALUE`, neoaprs/cli/dbcmd.py), in an order that every step of it is a station that release takes:
-# the Dummy radio as the FM radio (tncprofile.py DUMMY, "dummy") and the Dummy HF radio as the HF radio (DUMMY_HF, "dummy-hf"), so that no device and no sound card is needed.
-STATION = (("station/call", "OH2GBA-9"), ("station/lat", "60.1699"), ("station/lon", "24.9384"), ("station/comment", "NeoAPRS upgrade proof"), ("beacon/interval_min", "30"), ("beacon/power_w", "5"),
-           ("beacon/path", "WIDE1-1"), ("tnc/profile", "dummy"), ("hf/profile", "dummy-hf"), ("hf/enabled", "true"))
-KEPT_KEYS = ("station/call", "station/lat", "station/lon", "station/comment", "beacon/interval_min", "beacon/power_w")     # the keys of the station that keep their names
+# The first release whose station has radios (`neoaprs db radios add TYPE`, `radio/<id>/<key>`) and no flat key of a radio: a release before it is given STATION, one from it on STATION_OWN and RADIOS.
+RADIOS_FROM = (0, 20, 0)
+# The station's and the beacon's own values, by keys that every release has (neoaprs/config.py SETTINGS; `neoaprs db set KEY VALUE`, neoaprs/cli/dbcmd.py).
+STATION_OWN = (("station/call", "OH2GBA-9"), ("station/lat", "60.1699"), ("station/lon", "24.9384"), ("station/comment", "NeoAPRS upgrade proof"), ("beacon/interval_min", "30"), ("beacon/power_w", "5"))
+# The station, by the flat keys of a release before RADIOS_FROM (0.18.2), in an order that every step of it is a station that release takes: the Dummy radio as the FM radio (tncprofile.py DUMMY, "dummy") and the
+# Dummy HF radio as the HF radio (DUMMY_HF, "dummy-hf"), so that no device and no sound card is needed.
+STATION = (*STATION_OWN, ("beacon/path", "WIDE1-1"), ("tnc/profile", "dummy"), ("hf/profile", "dummy-hf"), ("hf/enabled", "true"))
+KEPT_KEYS = tuple(key for key, _ in STATION_OWN)             # the keys of the station that keep their names
 # The flat keys that became a radio's (neoaprs/configradios.py FLAT_HOMES): the radio, and its column in `db radios` (type, on) or its own key there.
 MOVED = {"tnc/profile": (1, "type"), "fm/enabled": (1, "on"), "beacon/path": (1, "radio/1/path"), "hf/profile": (2, "type"), "hf/enabled": (2, "on")}
 RADIO_KINDS = {1: "fm", 2: "hf"}
+
+
+class Added(NamedTuple):
+    """A radio the station of a release with radios is given: `db radios add TYPE [NAME]`, then `db set radio/<number>/<key> VALUE` for each of its own settings."""
+    type: str                               # the type's key
+    kind: str                               # the kind's key that the release gives a radio of the type (what `db radios` prints after the name)
+    name: str                               # the name typed, at most 8 characters and no kind's word (0.20.1 takes "FM", "Mercury" and "LoRa" as no name); "" for none
+    settings: tuple[tuple[str, str], ...]   # its own settings, by their own keys
+
+
+# The radios of that station, in the order they are added: a fresh folder's database numbers them 1 and 2 (radiosql.insert_radio, AUTOINCREMENT), and those numbers are in the commands. The two Dummy types
+# (v0.20.0:neoaprs/radiotypes/dummy.py), so that no device and no sound card is needed: the FM one with a name and the path the flat station has, the one of the Mercury kind without a name (the release's word for
+# its kind is then what it is called, the word 0.20.1 changed) and with its beacon's tick stored as it stands, so that each radio has a stored setting of its own to bring through.
+RADIOS = (Added("dummy", "fm", "Proof", (("path", "WIDE1-1"),)), Added("dummy-hf", "hf", "", (("beacon", "true"),)))
 RUN_SEC = 40                                                   # how long each daemon runs: the Dummy radios make a station heard every few seconds
 APP_ID = "{5AE53960-2902-4F1B-99E1-03E486EA7B36}"             # packaging/windows/neoaprs.iss: AppId, the one Apps entry of every release
 UNINSTALL_KEY = f"HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{APP_ID}_is1"
@@ -1063,16 +1099,23 @@ class UpgradePaths(NamedTuple):
     data: str            # the station's data folder, the proof's own
     old_list: str        # what the old release's command line said of it
     old_stations: str
+    old_radios: str      # (a release with radios only)
+    old_doctor: str
 
 
 def upgrade_paths(paths: Paths, old_name: str, new_name: str) -> UpgradePaths:
     run = paths.run
     return UpgradePaths(f"{run}\\{old_name}", f"{run}\\{new_name}", f"{run}\\install-old.log", f"{run}\\install-new.log", f"{run}\\uninstall.log", f"{run}\\data-upgrade",
-                        f"{run}\\old-db-list.txt", f"{run}\\old-db-stations.txt")
+                        f"{run}\\old-db-list.txt", f"{run}\\old-db-stations.txt", f"{run}\\old-db-radios.txt", f"{run}\\old-doctor.txt")
 
 
 def version_key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in version.split("-")[0].split("."))
+
+
+def has_radios(old_version: str) -> bool:
+    """Whether the release before is one whose station has radios: by its version, the one its installer's name says (a candidate of 0.20.0 is of 0.20.0)."""
+    return version_key(old_version) >= RADIOS_FROM
 
 
 def upgrade_versions(old: Path, new: Path) -> tuple[str, str]:
@@ -1084,11 +1127,33 @@ def upgrade_versions(old: Path, new: Path) -> tuple[str, str]:
 
 
 def section(title: str, command: str, why: str, keep: str = "") -> list[str]:
-    """A command of the installed neoaprs.exe under a line `### TITLE` (the proof reads its output by these titles), its output kept in the file `keep` too; a failure ends the step and says why."""
+    """A command of the installed neoaprs.exe under a line `### TITLE` (the proof reads its output by these titles), its output kept in the file `keep` too; a failure ends the step and says why (no `why`: the
+    command's exit code is not held, what it printed is read all the same)."""
     lines = [f"'### {title}'", f"$out = @(& $exe {command} 2>&1 | ForEach-Object {{ \"$_\" }}); $code = $LASTEXITCODE", "$out"]
     if keep:
         lines.append(f"$out | Set-Content -LiteralPath {ps_quote(keep)} -Encoding UTF8")
-    return [*lines, fail_unless("$code -eq 0", why, '"it ended with $code"')]
+    return [*lines, *([fail_unless("$code -eq 0", why, '"it ended with $code"')] if why else [])]
+
+
+def old_db(*arguments: str) -> list[str]:
+    """One `db` command of the release before on the station's folder, each argument a string of its own, its output passed on; a refusal ends the step and names the command."""
+    words = " ".join(ps_quote(argument) for argument in arguments)
+    return [f"& $exe db --data $data {words} 2>&1 | ForEach-Object {{ \"$_\" }}", fail_unless(NATIVE_OK, f"the old release's command line refused db {' '.join(arguments)}")]
+
+
+def set_lines(pairs: Sequence[tuple[str, str]]) -> list[str]:
+    """`db set KEY VALUE` of the release before for each pair, in order; the first it refuses ends the step and is named."""
+    listed = ", ".join(f"@({ps_quote(key)}, {ps_quote(value)})" for key, value in pairs)
+    return [f"$pairs = @({listed})",
+            "foreach ($kv in $pairs) { & $exe db --data $data set $kv[0] $kv[1] 2>&1 | ForEach-Object { \"$_\" }; if ($LASTEXITCODE -ne 0) { \"the old release's command line refused $($kv[0]) $($kv[1])\"; exit 1 } }"]
+
+
+def radio_lines(added: Sequence[Added]) -> list[str]:
+    """The radios of a release that has them, by its own command line: each added (`db radios add TYPE [NAME]`), then each one's own settings (`db set radio/<number>/<key> VALUE`), the numbers those a fresh
+    folder's database gives, 1 and up in the order of the adding."""
+    adds = [line for radio in added for line in old_db("radios", "add", radio.type, *([radio.name] if radio.name else []))]
+    sets = [line for number, radio in enumerate(added, 1) for key, value in radio.settings for line in old_db("set", f"radio/{number}/{key}", value)]
+    return [*adds, *sets]
 
 
 def daemon_lines(no_devices: bool) -> list[str]:
@@ -1128,17 +1193,25 @@ def clean_log_lines() -> list[str]:
 
 def upgrade_steps(paths: Paths, old_name: str, old_version: str, new_name: str, new_version: str) -> list[tuple[str, tuple[str, ...], float]]:
     """The steps of the upgrade proof in order, each its name, its scripts (one after the other on the machine: a command line holds only so much) and its time. Every command of `old` and `station` is one the
-    release before takes (the module's docstring names the source)."""
+    release before takes (the module's docstring names the source): which ones, and what the first start of the new release must say of a migration, follows from the old version (has_radios)."""
     up = upgrade_paths(paths, old_name, new_name)
+    with_radios = has_radios(old_version)
     station_folder = [f"$data = {ps_quote(up.data)}", "$exe = Join-Path $app 'neoaprs.exe'"]
     old = install_script("old", *setup_lines(up.old_setup, up.old_log), *files_lines(OLD_FILES), *version_lines(old_version))
-    pairs = ", ".join(f"@({ps_quote(key)}, {ps_quote(value)})" for key, value in STATION)
-    sets = [f"$pairs = @({pairs})",
-            "foreach ($kv in $pairs) { & $exe db --data $data set $kv[0] $kv[1] 2>&1 | ForEach-Object { \"$_\" }; if ($LASTEXITCODE -ne 0) { \"the old release's command line refused $($kv[0]) $($kv[1])\"; exit 1 } }"]
-    station = (install_script("station", *station_folder, *sets, *daemon_lines(no_devices=False)),
-               install_script("station", *station_folder,
-                              *section("old db list", "db --data $data list", "the old release's db list failed", up.old_list),
-                              *section("old db stations", "db --data $data stations", "the old release's db stations failed", up.old_stations)))
+    listed = [*section("old db list", "db --data $data list", "the old release's db list failed", up.old_list),
+              *section("old db stations", "db --data $data stations", "the old release's db stations failed", up.old_stations)]
+    station: tuple[str, ...]
+    if with_radios:                 # (the station, its daemon and what the release says of it are a script each: together they are more than one command line holds)
+        station = (install_script("station", *station_folder, *set_lines(STATION_OWN), *radio_lines(RADIOS)),
+                   install_script("station", *station_folder, *daemon_lines(no_devices=True)),
+                   install_script("station", *station_folder, *section("old db radios", "db --data $data radios", "the old release's db radios failed", up.old_radios), *listed,
+                                  *section("old doctor", "doctor --data $data", "", up.old_doctor)))      # (the doctor is read for the version of the database: what else it finds on that release is not this proof's)
+    else:
+        station = (install_script("station", *station_folder, *set_lines(STATION), *daemon_lines(no_devices=False)), install_script("station", *station_folder, *listed))
+    moved = f"$moved = @($new | Where-Object {{ $_ -match {ps_quote(MIGRATED)} }})"
+    migration = (["'### migrated'", "$moved"] if with_radios else           # (whether a migration was due is the versions' to say: check_migrate and check_radio_data read these lines)
+                 ["$moved", fail_unless("@($moved | Where-Object { $_ -match 'brought up to date now' }).Count -eq 1", "the first start of the new release did not migrate the database"),
+                  fail_unless("@($moved | Where-Object { $_ -match 'a copy of it is in .*premigrate-v[0-9]+' }).Count -eq 1", "the migration took no copy of the database before it")])
     update = install_script(
         "update", *setup_lines(up.new_setup, up.new_log), *files_lines(INSTALLED_FILES), *version_lines(new_version),
         fail_unless("-not (Test-Path -LiteralPath (Join-Path $app 'bin\\pmtiles.exe'))", "the update left bin\\pmtiles.exe of an earlier release"),
@@ -1146,12 +1219,7 @@ def upgrade_steps(paths: Paths, old_name: str, old_version: str, new_name: str, 
         "\"the Apps list: $($entry.DisplayName) $($entry.DisplayVersion)\"",
         fail_unless(f"$entry.DisplayVersion -eq {ps_quote(new_version)}", f"the Apps list does not say NeoAPRS {new_version}"),
     )
-    migrate = install_script(
-        "migrate", *station_folder, *daemon_lines(no_devices=True), *clean_log_lines(),
-        f"$moved = @($new | Where-Object {{ $_ -match {ps_quote(MIGRATED)} }})", "$moved",
-        fail_unless("@($moved | Where-Object { $_ -match 'brought up to date now' }).Count -eq 1", "the first start of the new release did not migrate the database"),
-        fail_unless("@($moved | Where-Object { $_ -match 'a copy of it is in .*premigrate-v[0-9]+' }).Count -eq 1", "the migration took no copy of the database before it"),
-    )
+    migrate = install_script("migrate", *station_folder, *daemon_lines(no_devices=True), *clean_log_lines(), moved, *migration)
     data = install_script(
         "data", *station_folder,
         *section("db radios", "db --data $data radios", "neoaprs.exe db radios failed on the updated station"),
@@ -1161,8 +1229,7 @@ def upgrade_steps(paths: Paths, old_name: str, old_version: str, new_name: str, 
         *section("doctor", "doctor --data $data", "neoaprs.exe doctor found something to fix on the updated station"),
     )
     daemon = install_script(
-        "daemon", *station_folder, *daemon_lines(no_devices=True), *clean_log_lines(), *HEARD_LINES,
-        f"$moved = @($new | Where-Object {{ $_ -match {ps_quote(MIGRATED)} }})",
+        "daemon", *station_folder, *daemon_lines(no_devices=True), *clean_log_lines(), *HEARD_LINES, moved,
         fail_unless("$moved.Count -eq 0", "the second start of the new release migrated again", "$moved"),
         "'the second start migrated nothing'",
     )
@@ -1184,11 +1251,15 @@ def sections(text: str) -> dict[str, list[str]]:
 
 
 LISTED = re.compile(r"(\S+) +(.*?) {2,}(\S.*)$")         # a line of `db list`: the key, the value, and whether it is stored (columns two spaces apart; the value has none)
-RADIO = re.compile(r"radio (\d+)  (.+?)  (\S+)  (\S+)  (on|off|removed .+?)  \(position \d+\)$")      # a radio of `db radios`: number, name, kind, type, state
+SETTING = re.compile(r"(\S+) +(.*?) {2,}(stored|default)$")      # such a line of a setting, in `db list` or under a radio in `db radios`: the last column says stored or default (a row the daemon keeps says what it is there)
+RADIO = re.compile(r"radio (\d+)  (.+?)  (\S+)  (\S+)  (on|off|removed .+?)  \(position (\d+)\)$")      # a radio of `db radios`: number, name, kind, type, state, position
 STATION_ROW = re.compile(r"(\S+) +\S+ +\d{4}-\d\d-\d\d \d\d:\d\d:\d\dZ ")          # a row of `db stations`: the call first
 # The copy of the database the first start of the new release takes, named by the schema version of the release before: 26 for 0.18.2 (v0.18.2:neoaprs/migrations.py, MIGRATIONS is _v1 to _v26 and
 # SCHEMA_VERSION = len(MIGRATIONS)). Any number is taken, and said: the proof is of the update, whichever release is the one before.
 COPY = re.compile(r"premigrate-v(\d+)\S*")
+DATABASE = re.compile(r"ok +database \S+, version (\d+) ")            # the doctor's line of a database it can use (neoaprs/cli/doctor.py check_database): the version of its schema
+DOCTOR_RADIO = re.compile(r"ok +radio (.+?) \((\S+)\): ")              # the doctor's line of a radio (check_radios): the name the log gives it, its type's key (the first word in brackets before a colon: how the radio is reached comes after it, and may have brackets of its own)
+MIGRATES = re.compile(r"is of version (\d+), this NeoAPRS needs (\d+): it is brought up to date now")      # the log's line when a start migrates (neoaprs/migrations.py): from which version, to which
 
 
 def listing(lines: Sequence[str]) -> dict[str, str]:
@@ -1201,12 +1272,25 @@ def listing(lines: Sequence[str]) -> dict[str, str]:
     return found
 
 
+def settings_listed(lines: Sequence[str]) -> dict[str, tuple[str, str]]:
+    """The settings among the lines of `db list` or of `db radios`: each key with its value as it is shown and whether it is stored or the default. A row the daemon keeps is none (when a beacon last
+    went out is not the same after the new daemon ran)."""
+    found = {}
+    for line in lines:
+        matched = SETTING.match(line.strip())
+        if matched and "/" in matched.group(1):
+            found[matched.group(1)] = (matched.group(2), matched.group(3))
+    return found
+
+
 @dataclass(frozen=True)
 class Radio:
     kind: str
     type: str
     state: str
     settings: dict[str, str]
+    name: str = ""                # what the release calls it: the name typed, else its own word for the kind
+    position: int = 0
 
 
 def radios(lines: Sequence[str]) -> dict[int, Radio]:
@@ -1215,10 +1299,15 @@ def radios(lines: Sequence[str]) -> dict[int, Radio]:
     for line in lines:
         matched = RADIO.match(line)
         if matched:
-            current = found[int(matched.group(1))] = Radio(matched.group(3), matched.group(4), matched.group(5), {})
+            current = found[int(matched.group(1))] = Radio(matched.group(3), matched.group(4), matched.group(5), {}, matched.group(2), int(matched.group(6)))
         elif current is not None and line.startswith("  "):
             current.settings.update(listing([line]))
     return found
+
+
+def database_version(doctor: Sequence[str]) -> int | None:
+    """The version of the database as a release's doctor names it, None when it names none (no file, one it cannot read, one of another version than its own)."""
+    return next((int(matched.group(1)) for line in doctor if (matched := DATABASE.match(line))), None)
 
 
 def station_calls(lines: Sequence[str]) -> list[str]:
@@ -1259,23 +1348,164 @@ def check_data(outputs: Mapping[str, str]) -> Checked:
             shown = radio.type if column == "type" else ("true" if radio.state == "on" else "false") if column == "on" else radio.settings.get(column)
             if shown != was.get(key):
                 problems.append(f"radio {number} has {column} {shown!r}, and the old {key} was {was.get(key)!r}")
-    copies = [line for line in new.get("db restore", []) if COPY.match(line)]
-    notes = []
-    if not copies:
-        problems.append("db restore lists no copy premigrate-v...: the migration left no copy of the database from before it")
-    elif len(copies) > 1:
-        problems.append(f"db restore lists {len(copies)} copies premigrate-v...: one is kept, the latest ({'; '.join(copy.split()[0] for copy in copies)})")
-    elif "taken before the update" not in copies[0]:
-        problems.append(f"db restore does not mark {copies[0].split()[0]} as taken before the update")
-    else:
-        name = copies[0].split()[0]
-        notes.append(f"the copy taken before the update: {name} (schema version {name.removeprefix('premigrate-v').split('-')[0]} of the release before)")
-    problems += [f"doctor: {line.strip()}" for line in new.get("doctor", []) if line.startswith("FAIL")]
-    calls = set(station_calls(new.get("db stations", [])))
-    lost = [c for c in station_calls(old.get("old db stations", [])) if c not in calls]
-    if lost:
-        problems.append(f"db stations has lost {len(lost)} of the stations the old release knew: {' '.join(lost[:10])}")
+    copy_problems, notes = check_copy(new.get("db restore", []))
+    problems += [*copy_problems, *doctor_fails(new.get("doctor", [])), *lost_stations(old, new)]
     return problems, notes if not problems else []
+
+
+def check_copy(restore: Sequence[str]) -> Checked:
+    """What `db restore` lists after an update that migrated: exactly one copy premigrate-v..., marked as taken before the update."""
+    copies = [line for line in restore if COPY.match(line)]
+    if not copies:
+        return ["db restore lists no copy premigrate-v...: the migration left no copy of the database from before it"], []
+    if len(copies) > 1:
+        return [f"db restore lists {len(copies)} copies premigrate-v...: one is kept, the latest ({'; '.join(copy.split()[0] for copy in copies)})"], []
+    name = copies[0].split()[0]
+    if "taken before the update" not in copies[0]:
+        return [f"db restore does not mark {name} as taken before the update"], []
+    return [], [f"the copy taken before the update: {name} (schema version {name.removeprefix('premigrate-v').split('-')[0]} of the release before)"]
+
+
+def doctor_fails(doctor: Sequence[str]) -> list[str]:
+    return [f"doctor: {line.strip()}" for line in doctor if line.startswith("FAIL")]
+
+
+def lost_stations(old: Mapping[str, list[str]], new: Mapping[str, list[str]]) -> list[str]:
+    """The stations the old release's `db stations` listed that the new one's does not, as the one problem they are."""
+    calls = set(station_calls(new.get("db stations", [])))
+    lost = list(dict.fromkeys(c for c in station_calls(old.get("old db stations", [])) if c not in calls))
+    return [f"db stations has lost {len(lost)} of the stations the old release knew: {' '.join(lost[:10])}"] if lost else []
+
+
+def shown(setting: tuple[str, str] | None) -> str:
+    """A setting as a problem names it: its value and whether it is stored, or that it is not listed."""
+    return "not listed" if setting is None else f"{setting[0]!r} ({setting[1]})"
+
+
+def named(radio: Radio) -> str:
+    return f"{radio.name} ({radio.kind}, {radio.type}, {radio.state})"
+
+
+def check_radio_station(outputs: Mapping[str, str]) -> Checked:
+    """The station as a release with radios keeps it: every value it was given stored, the radios it was told to add and no other, each with its name and its own settings, the version of its database, and stations
+    its daemon heard."""
+    old = sections(outputs.get("station", ""))
+    kept = settings_listed(old.get("old db list", []))
+    problems = [f"the old release's db list has {key} as {shown(kept.get(key))}, not {value!r} (stored)" for key, value in STATION_OWN if kept.get(key) != (value, "stored")]
+    found, own = radios(old.get("old db radios", [])), settings_listed(old.get("old db radios", []))
+    for number, added in enumerate(RADIOS, 1):
+        radio = found.get(number)
+        if radio is None or (radio.kind, radio.type, radio.state) != (added.kind, added.type, "on"):
+            problems.append(f"the old release's db radios has no radio {number} of the type {added.type} (kind {added.kind}) that is on" + (f": it has {named(radio)}" if radio is not None else ""))
+            continue
+        if added.name and radio.name != added.name:
+            problems.append(f"the old release's db radios calls radio {number} {radio.name!r}, and it was added with the name {added.name!r}")
+        for key, value in added.settings:
+            if own.get(f"radio/{number}/{key}") != (value, "stored"):
+                problems.append(f"the old release's db radios has radio/{number}/{key} as {shown(own.get(f'radio/{number}/{key}'))}, not {value!r} (stored)")
+    if others := sorted(set(found) - set(range(1, len(RADIOS) + 1))):
+        problems.append(f"the old release's db radios lists radio {', '.join(str(number) for number in others)} too, which nothing added")
+    version = database_version(old.get("old doctor", []))
+    if version is None:
+        problems.append("the old release's doctor names no version of the database (its line `ok    database neoaprs.sqlite, version N`): whether the update has anything to migrate cannot be told")
+    call = dict(STATION_OWN)["station/call"]
+    heard = list(dict.fromkeys(c for c in station_calls(old.get("old db stations", [])) if c != call))
+    if not heard:
+        problems.append("the old release's daemon heard no station of its Dummy radios (db stations lists none)")
+    if problems:
+        return problems, []
+    return [], [f"the station of the release before: {', '.join(f'radio {number} {named(radio)}' for number, radio in sorted(found.items()))}; {len(kept)} settings in its db list and {len(own)} of its radios; "
+                f"its database of version {version}; {len(heard)} stations heard besides its own"]
+
+
+def migration_lines(outputs: Mapping[str, str]) -> list[str]:
+    """What the log of the new release's first start says of a migration (the migrate step prints those lines under its title `migrated`)."""
+    return [line for line in sections(outputs.get("migrate", "")).get("migrated", []) if re.search(MIGRATED, line)]
+
+
+def check_migrate(outputs: Mapping[str, str]) -> Checked:
+    """The first start of the new release on a station that has radios already, by its own lines of the log: nothing of a migration (the data step holds that to the versions), or one migration, from the version
+    the old doctor named, with one copy taken before it."""
+    said = migration_lines(outputs)
+    if not said:
+        return [], ["the first start of the new release migrated nothing"]
+    was = database_version(sections(outputs.get("station", "")).get("old doctor", []))
+    begun = [matched for line in said if (matched := MIGRATES.search(line))]
+    copies = [line for line in said if re.search(r"a copy of it is in .*premigrate-v[0-9]+", line)]
+    problems = []
+    if len(begun) != 1:
+        problems.append(f"the first start of the new release says {len(begun)} times that it brings the database up to date, not once")
+    elif int(begun[0].group(1)) != was:
+        problems.append(f"the first start of the new release migrated a database of version {begun[0].group(1)}, and the old release's doctor named version {was}")
+    if len(copies) != 1:
+        problems.append("the migration took no copy of the database before it" if not copies else f"the migration says {len(copies)} times that it took a copy of the database, not once")
+    return problems, [f"the first start of the new release migrated the database from version {begun[0].group(1)} to {begun[0].group(2)}"] if not problems else []
+
+
+def same_settings(was: Mapping[str, tuple[str, str]], now: Mapping[str, tuple[str, str]]) -> list[str]:
+    """What is not the same of the settings the old release listed: one that is gone, one whose value changed, one that was stored and is the default now. A setting only the new release lists is its own."""
+    problems = []
+    for key, (value, mark) in was.items():
+        after = now.get(key)
+        if after is None or after[0] != value or (mark == "stored" and after[1] != "stored"):
+            problems.append(f"{key} was {shown((value, mark))} and is {shown(after)} after the update")
+    return problems
+
+
+def check_radio_data(outputs: Mapping[str, str]) -> Checked:
+    """The updated station against what a release with radios said of it: the same radios, by the keys the release prints (number, kind, type, on or off, position) and the names that were typed, every setting of
+    the station and of each radio, the doctor's line for each radio and no FAIL, the stations, and of the copies what the versions of the database before and after ask."""
+    old, new = sections(outputs.get("station", "")), sections(outputs.get("data", ""))
+    problems = same_settings(settings_listed(old.get("old db list", [])), settings_listed(new.get("db list", [])))
+    before, after = radios(old.get("old db radios", [])), radios(new.get("db radios", []))
+    typed = {number for number, added in enumerate(RADIOS, 1) if added.name}
+    notes = []
+    for number in sorted(set(before) | set(after)):
+        was, now = before.get(number), after.get(number)
+        if now is None:
+            problems.append(f"db radios has lost radio {number}, {named(before[number])}")
+            continue
+        if was is None:
+            problems.append(f"db radios has a radio {number}, {named(now)}, that the old release did not list")
+            continue
+        for what, one, other in (("kind", was.kind, now.kind), ("type", was.type, now.type), ("state", was.state, now.state), ("position", was.position, now.position)):
+            if one != other:
+                problems.append(f"radio {number} had the {what} {one!r} and has {other!r} after the update")
+        if was.name != now.name and number in typed:
+            problems.append(f"radio {number} had the name {was.name!r} and has {now.name!r} after the update")
+        elif was.name != now.name:        # (no name was typed: each release calls it by its own word for the kind, and a word is the release's to change)
+            notes.append(f"radio {number} has no name of its own: the release before called it {was.name!r}, this one calls it {now.name!r}")
+    problems += same_settings(settings_listed(old.get("old db radios", [])), settings_listed(new.get("db radios", [])))
+    doctor = new.get("doctor", [])
+    lines = {(matched.group(1), matched.group(2)) for line in doctor if (matched := DOCTOR_RADIO.match(line))}
+    problems += [f"doctor has no line `ok    radio {radio.name} ({radio.type}): ...` for radio {number}" for number, radio in sorted(after.items())
+                 if not radio.state.startswith("removed") and (radio.name, radio.type) not in lines]
+    problems += doctor_fails(doctor)
+    was_version, version = database_version(old.get("old doctor", [])), database_version(doctor)
+    copies = [line.split()[0] for line in new.get("db restore", []) if COPY.match(line)]
+    migrated = migration_lines(outputs)
+    if was_version is None or version is None:
+        problems.append(f"doctor names no version of the database (the old release's: {was_version or 'none'}, the new one's: {version or 'none'}): whether a copy is due cannot be told")
+    elif version < was_version:
+        problems.append(f"the database is of version {version} after the update and was of version {was_version} before it")
+    elif version == was_version:
+        if copies:
+            problems.append(f"db restore lists {' '.join(copies)}, and the database is of version {version} as it was before the update: nothing was to migrate")
+        if migrated:
+            problems.append(f"the first start of the new release said it migrated, and the database is of version {version} as it was before the update")
+        notes.append(f"the database is of version {version} before and after the update: nothing to migrate, and no copy premigrate-v... was taken")
+    else:
+        copy_problems, copy_notes = check_copy(new.get("db restore", []))
+        problems += copy_problems
+        notes += copy_notes
+        if len(copies) == 1 and not copies[0].startswith(f"premigrate-v{was_version}-"):
+            problems.append(f"db restore lists {copies[0]}, and the database of the release before was of version {was_version}")
+        if not migrated:
+            problems.append(f"the database went from version {was_version} to {version}, and the log of the new release's first start says nothing of a migration")
+    problems += lost_stations(old, new)
+    if problems:
+        return problems, []
+    return [], [f"the radios after the update: {', '.join(f'radio {number} {named(radio)}' for number, radio in sorted(after.items()))}", *notes]
 
 
 def check_daemon(outputs: Mapping[str, str]) -> Checked:
@@ -1289,12 +1519,19 @@ def check_daemon(outputs: Mapping[str, str]) -> Checked:
     return [], [f"heard again after the update: {' '.join(again[:8])}{' ...' if len(again) > 8 else ''}"]
 
 
-UPGRADE_CHECKS: dict[str, Callable[[Mapping[str, str]], Checked]] = {"station": check_station, "data": check_data, "daemon": check_daemon}
+Checks = Mapping[str, Callable[[Mapping[str, str]], Checked]]
+UPGRADE_CHECKS: Checks = {"station": check_station, "data": check_data, "daemon": check_daemon}                                           # from a release with flat keys
+RADIO_CHECKS: Checks = {"station": check_radio_station, "migrate": check_migrate, "data": check_radio_data, "daemon": check_daemon}      # from a release with radios
 
 
-def checked(result: StepResult, outputs: Mapping[str, str]) -> StepResult:
+def upgrade_checks(old_version: str) -> Checks:
+    """What the proof reads from the steps' output, for the kind of release the old one is."""
+    return RADIO_CHECKS if has_radios(old_version) else UPGRADE_CHECKS
+
+
+def checked(result: StepResult, outputs: Mapping[str, str], checks: Checks = UPGRADE_CHECKS) -> StepResult:
     """A step that passed on the machine, held to what the proof reads from its output (and from the steps before): a problem fails it, with the problems under its line and at the end of its log."""
-    check = UPGRADE_CHECKS.get(result.name)
+    check = checks.get(result.name)
     if result.code != 0 or check is None:
         return result
     problems, notes = check(outputs)
@@ -1330,6 +1567,9 @@ def execute_upgrade(settings: Settings, old: Path, old_version: str, new: Path, 
     up = upgrade_paths(paths, old.name, new.name)
     log_dir = Path(tempfile.mkdtemp(prefix="neoaprs-check-windows-upgrade-"))
     say(f"the logs are in {log_dir}")
+    checks = upgrade_checks(old_version)
+    say(f"the release before, {old_version}, " + ("has radios: its station is made with `db radios add`, and the new release must list the same radios" if has_radios(old_version) else
+                                                  "keeps a radio's settings in flat keys: its station is made with them, and the new release must have made radios of them"))
     make_root(settings, paths)
     remote_must(settings, f"$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path {ps_quote(paths.run)} | Out-Null; exit 0", "the folder of the run could not be made")
     for installer, target in ((old, up.old_setup), (new, up.new_setup)):
@@ -1342,7 +1582,7 @@ def execute_upgrade(settings: Settings, old: Path, old_version: str, new: Path, 
         for name, parts, timeout_sec in upgrade_steps(paths, old.name, old_version, new.name, new_version):
             result = run_parts(settings, paths, name, parts, timeout_sec, log_dir)
             outputs[name] = result.log.read_text(encoding="utf-8", errors="replace")
-            result = checked(result, outputs)
+            result = checked(result, outputs, checks)
             results.append(result)
             print("\n".join(report_lines(result)), flush=True)
             if result.code != 0:
