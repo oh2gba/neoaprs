@@ -373,7 +373,12 @@ describe("the HF radio's box in the Radio group", () => {
   it("has the suggested frequencies the daemon says as a row to read, in the HF box of the Mercury modem only", () => {
     const { group } = make({ ports: cards() }, BOTH, on);
     const row = hfFold(group).find("#hf-frequencies-2");
-    expect(row.findAll(".freq").map((line) => line.text())).toEqual(["40 m 7.0541 MHz USB", "20 m 14.1070 MHz USB"]);
+    expect(row.findAll(".freq").map((line) => line.text())).toEqual([
+      "80 m 3.5850 MHz USB",
+      "40 m 7.0541 MHz USB",
+      "20 m 14.1070 MHz USB",
+      "6 m 50.6200 MHz USB",
+    ]);
     expect(row.element.tagName).toBe("OUTPUT"); // (text to read, not an input box that takes no typing)
     expect(row.element.closest(".field")?.querySelector("label")?.textContent).toBe("Suggested frequencies");
     expect(fm(group).find("[id^='hf-frequencies']").exists()).toBe(false);

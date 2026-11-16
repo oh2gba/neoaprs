@@ -62,10 +62,12 @@ describe("App: the Skeds tab", () => {
     await wrapper.find("#sked-note").setValue("Mercury");
     await wrapper.find("#pane-skeds .sked-compose").trigger("submit");
     expect(cmds(socket, "sked_post")).toEqual([
-      { cmd: "sked_post", from: "2026-10-21T12:00:00Z", to: "2026-10-21T13:00:00Z", dial: "7.0541 MHz USB", note: "Mercury" },
+      { cmd: "sked_post", from: "2026-10-21T12:00:00Z", to: "2026-10-21T13:00:00Z", dial: "3.5850 MHz USB", note: "Mercury" },
     ]);
     expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("Mercury");
-    await sayBoard(socket, [sked("m", { call: "OH2GBA", ours: true, from: "2026-10-21T12:00:00Z", to: "2026-10-21T13:00:00Z", note: "Mercury" })]);
+    await sayBoard(socket, [
+      sked("m", { call: "OH2GBA", ours: true, from: "2026-10-21T12:00:00Z", to: "2026-10-21T13:00:00Z", dial: "3.5850 MHz USB", note: "Mercury" }),
+    ]);
     expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("");
     const mine = wrapper.find("#pane-skeds .sked.mine");
     expect(mine.find(".sked-call").text()).toContain("OH2GBA");

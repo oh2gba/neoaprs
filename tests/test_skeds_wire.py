@@ -12,7 +12,7 @@ from tests.support.env import Env
 from tests.support.fakeskeds import FakeSkeds, skeds_server
 from tests.support.wsclient import WsClient
 
-BUILT_IN = [{"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}]
+BUILT_IN = [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}]
 
 
 def when(hours: float) -> str:

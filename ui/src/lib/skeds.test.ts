@@ -105,7 +105,7 @@ describe("the days of the form", () => {
 
 describe("the form as it opens", () => {
   it("starts at the next half hour for an hour, on the first dial the project suggests", () => {
-    expect(startDraft(NOW, FREQUENCIES)).toEqual({ day: "2026-10-21", from: "12:00", to: "13:00", dial: "7.0541 MHz USB", typed: false, note: "" });
+    expect(startDraft(NOW, FREQUENCIES)).toEqual({ day: "2026-10-21", from: "12:00", to: "13:00", dial: "3.5850 MHz USB", typed: false, note: "" });
     expect(startDraft(NOW + 60_000, FREQUENCIES)).toMatchObject({ from: "12:30", to: "13:30" });
   });
 

@@ -53,7 +53,7 @@ class ModemState(_Model):
     max_frame: int | None = Field(ge=1, description="the longest packet the modem carries whole, in bytes (Mercury 123): a longer message is refused, a longer beacon has its comment cut; null for AX.25's own (Direwolf)")
     sound_card: str = Field(description="the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device")
     frequencies: list[FrequencyRow] = Field(max_length=MAX_FREQUENCIES, description="the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in "
-                                                                       "two; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio")
+                                                                       "four; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio")
     keying: str = Field(description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`")
     scope: bool = Field(description="the daemon reads the modem's UI interface: the spectrum scope can be shown (`radio_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem)")
     tx_gain_db: int = Field(ge=-20, le=20, description="the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it")

@@ -193,12 +193,13 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 
 **Trying it with no radio.** The radio type *Dummy HF radio* (**Add radio**, as above) makes up six fixed stations hundreds of kilometres away (Turku, Kuopio, Oulu, Stockholm, Hamburg, Warsaw; calls on the Q prefix, which is nobody's), beaconing every half hour to an hour with the HF pause, the first within two minutes; the nearest answers a message with an ack after a frame's time each way and a reply. Nothing is keyed and nothing goes on the air; your own frames are played through the computer's speakers as Mercury's real audio (the bundled Mercury: on Linux and macOS its transmit audio is handed to the system's player, `pw-play`, `paplay` or `aplay`; on Windows, which has no named pipes for Mercury's audio, nothing is played and the Dummy HF radio runs without the sound), so you hear what the modem sounds like ([radio.md](manual/radio.md#the-dummy-hf-radio)).
 
-**Where to find each other.** An HF radio's box shows the suggested frequencies of the project page (<https://neo.oh2gba.eu/frequencies.json>), updated when the box is opened, so a move reaches every copy without a new release; until that has answered, it shows the version page's dial or, before that, the three built in for 40 m, 20 m and 6 m. They are suggestions, not read from the radio: tune the radio to one, upper sideband (USB). These are dial frequencies; the signal sits 1.2 to 1.8 kHz above them.
+**Where to find each other.** An HF radio's box shows the suggested frequencies of the project page (<https://neo.oh2gba.eu/frequencies.json>), updated when the box is opened, so a move reaches every copy without a new release; until that has answered, it shows the version page's dial or, before that, the four built in for 80 m, 40 m, 20 m and 6 m. They are suggestions, not read from the radio: tune the radio to one, upper sideband (USB). These are dial frequencies; the signal sits 1.2 to 1.8 kHz above them.
 
 | Band | Dial (USB) |
 |---|---|
-| 30 m | 10.1462 MHz |
+| 80 m | 3.5850 MHz |
 | 40 m | 7.0541 MHz |
+| 30 m | 10.1462 MHz |
 | 20 m | 14.1070 MHz |
 | 6 m | 50.6200 MHz |
 
@@ -206,7 +207,7 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 
 **The rules to keep**
 
-- **Stay in the right part of the band.** These frequencies follow the IARU Region 1 band plan. The signal is about 500 Hz wide: on 40 m and 20 m it belongs in the digital segments of 2700 Hz (7050-7060 kHz, 14101-14112 kHz); on 30 m the only digital part is 10130-10150 kHz, which is 500 Hz wide, so measure the signal's width on a spectrum display before settling on 30 m. Outside Region 1, use your own band plan.
+- **Stay in the right part of the band.** These frequencies follow the IARU Region 1 band plan. The signal is about 500 Hz wide: on 40 m and 20 m it belongs in the digital segments of 2700 Hz (7050-7060 kHz, 14101-14112 kHz); on 80 m it belongs in 3580-3590 kHz and on 30 m in 10130-10150 kHz, the only digital part there, both for signals of 500 Hz at most, so measure the signal's width on a spectrum display before settling on 80 m or 30 m. Outside Region 1, use your own band plan.
 - **Listen first.** NeoAPRS holds its frames while a signal as wide as a frame is on the channel, which is no substitute for a look at the waterfall. A signal narrower than about 450 Hz (RTTY, PSK31, FT8) is not seen, and a station on one of those can be talked over. A Mercury you run yourself (`--hf-port`) uses Mercury's own detector: it wants the radio's normal SSB filter (1.8 kHz or wider), and a step in the band noise holds the frames for up to 20 seconds.
 - **Use little power.** The signal is continuous, like a carrier. Set the drive so the radio's ALC does not move, turn off speech processing and noise reduction, and run far below the radio's rated power.
 - **Your call sign.** Every packet carries it. Make sure the call in Settings is your own.

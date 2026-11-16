@@ -739,7 +739,7 @@ export interface ModemState {
   max_frame: number | null;
   /** the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device */
   sound_card: string;
-  /** the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio */
+  /** the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in four; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio */
   frequencies: FrequencyRow[];
   /** how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` */
   keying: string;

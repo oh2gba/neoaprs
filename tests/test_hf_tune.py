@@ -132,7 +132,7 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     page = await e.ws()
     modem = lambda: page.topics.get("radios", {}).get("2", {}).get("modem") or {}        # noqa: E731
     await page.until(lambda: modem().get("state") == "running", START_SEC)
-    assert modem()["frequencies"][0] == {"band": "40 m", "dial": "7.0541 MHz USB"}, "the daemon owns the frequencies the page shows"
+    assert modem()["frequencies"][0] == {"band": "80 m", "dial": "3.5850 MHz USB"}, "the daemon owns the frequencies the page shows"
     await page.send({"cmd": "radio_tune", "radio": 2, "on": True})
     await page.until(lambda: modem()["test"] == "tune" and modem()["keyed"])
     await page.send({"cmd": "radio_tune", "radio": 2, "on": False})

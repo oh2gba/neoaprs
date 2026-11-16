@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The suggested frequencies in an HF radio's box: the project's list (the daemon says it in the radio's `modem.frequencies`, from a small file on the project's server, else the version page's dial, else the built-in two), one line for each, the band and the dial in
+// The suggested frequencies in an HF radio's box: the project's list (the daemon says it in the radio's `modem.frequencies`, from a small file on the project's server, else the version page's dial, else the built-in four), one line for each, the band and the dial in
 // the monospace font, as plain text to read: not an input box, and the label says "suggested", since nothing here is read from the radio. The room of four lines (the most the list has: MAX_FREQUENCIES) is kept, so that nothing moves when the list changes length. When the row comes into view (the
 // tab opened, the fold unfolded) the daemon is asked to look at the project's file again (`frequencies`), which it does at most every fifteen minutes; a row that came into view before the socket was open asks when it opens,
 // as the HF tests tab does. The list is the station's.
@@ -47,6 +47,8 @@ watch(connection, (now) => {
 }
 .freq {
   display: block;
+  height: 1.5em; /* (one line exactly, whatever the two fonts' heights: four of them are the 6em kept) */
+  white-space: nowrap;
 }
 .band {
   display: inline-block;

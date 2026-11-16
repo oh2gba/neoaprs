@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+80 m joins the suggested HF frequencies.
+
+- **New:** 80 m among the suggested HF frequencies: 3.5850 MHz USB.
+
 ## 0.20.0
 
 As many radios as you have, FM, HF and LoRa side by side, a new look, HF tests and the page in Dutch.

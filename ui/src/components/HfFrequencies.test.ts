@@ -13,7 +13,7 @@ import { hfRow } from "@/test/fixtures";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const asked = (send: { mock: { calls: unknown[][] } }) => send.mock.calls.map(([c]) => c).filter((c) => (c as { cmd: string }).cmd === "frequencies");
 
-/** Radio 2, the Mercury modem, with this list (the fixtures' two where none is given). */
+/** Radio 2, the Mercury modem, with this list (the fixtures' four where none is given). */
 const radioWith = (frequencies?: { band: string; dial: string }[]) => pageRadio(hfRow({}, frequencies === undefined ? {} : { frequencies }));
 
 describe("the suggested frequencies row", () => {
@@ -25,9 +25,9 @@ describe("the suggested frequencies row", () => {
     expect(output.exists()).toBe(true);
     expect(wrapper.find("input, select, textarea").exists()).toBe(false);
     const lines = output.findAll(".freq");
-    expect(lines.map((line) => line.text())).toEqual(["40 m 7.0541 MHz USB", "20 m 14.1070 MHz USB"]);
-    expect(lines.map((line) => line.find(".dial").classes())).toEqual([expect.arrayContaining(["mono"]), expect.arrayContaining(["mono"])]);
-    expect(lines.map((line) => line.find(".band").text())).toEqual(["40 m", "20 m"]);
+    expect(lines.map((line) => line.text())).toEqual(["80 m 3.5850 MHz USB", "40 m 7.0541 MHz USB", "20 m 14.1070 MHz USB", "6 m 50.6200 MHz USB"]);
+    expect(lines.map((line) => line.find(".dial").classes())).toEqual(Array.from({ length: 4 }, (): unknown => expect.arrayContaining(["mono"])));
+    expect(lines.map((line) => line.find(".band").text())).toEqual(["80 m", "40 m", "20 m", "6 m"]);
   });
 
   it("follows the list the daemon says: one entry, four, none", async () => {
@@ -51,7 +51,7 @@ describe("the suggested frequencies row", () => {
   it("keeps the room of four lines, the most the list has, so that nothing moves when it changes", () => {
     const source = readFileSync(join(HERE, "HfFrequencies.vue"), "utf-8");
     expect(source).toMatch(/\.freqs \{[^}]*display: block;[^}]*min-height: 6em;[^}]*line-height: 1\.5;/);
-    expect(source).toMatch(/\.freq \{\s*display: block;/);
+    expect(source).toMatch(/\.freq \{\s*display: block;\s*height: 1\.5em;[^}]*white-space: nowrap;/);
   });
 });
 

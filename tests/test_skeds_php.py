@@ -164,6 +164,17 @@ def test_the_same_sked_posted_again_is_answered_with_its_id(endpoint: Endpoint) 
     assert endpoint.add(token())[1]["id"] != first, "another installation's is a sked of its own"
 
 
+def test_every_suggested_dial_is_taken_since_the_board_takes_any_dial_of_the_form(endpoint: Endpoint) -> None:
+    """The board keeps no list of bands: a dial of the form is taken, so the project's list (site/frequencies.json) needs nothing here, 80 m's dial with its one digit before the point among them."""
+    endpoint.start()
+    dials = [entry["dial"] for entry in json.loads((ROOT / "site" / "frequencies.json").read_text(encoding="utf-8"))["frequencies"]]
+    assert "3.5850 MHz USB" in dials
+    for dial in dials:
+        code, answer = endpoint.add(token(), dial=dial)
+        assert code == 200 and answer["ok"] is True, dial
+    assert sorted(row["dial"] for row in endpoint.served()["skeds"]) == sorted(dials)
+
+
 def test_only_the_token_that_posted_removes_and_a_wrong_one_is_counted(endpoint: Endpoint) -> None:
     endpoint.start()
     key = token()

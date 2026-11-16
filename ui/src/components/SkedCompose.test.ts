@@ -6,7 +6,7 @@ import { configValues } from "@/test/fixtures";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
 import { NOW, sked, skedsState } from "@/test/fixtures";
 
-// The fixtures' time is Wednesday 21 October 2026, 12:00 UTC: the form opens on that day, from 12:00 to 13:00, on 7.0541 MHz USB.
+// The fixtures' time is Wednesday 21 October 2026, 12:00 UTC: the form opens on that day, from 12:00 to 13:00, on 3.5850 MHz USB (80 m, the first of the list).
 let daemon: FakeDaemon;
 beforeEach(() => (daemon = fakeDaemon({ skeds: skedsState() })));
 const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
@@ -59,13 +59,19 @@ describe("SkedCompose", () => {
     expect(select(wrapper, "sked-day").element.value).toBe("2026-10-21");
     expect(select(wrapper, "sked-from").element.value).toBe("12:00");
     expect(select(wrapper, "sked-to").element.value).toBe("13:00");
-    expect(select(wrapper, "sked-frequency").element.value).toBe("7.0541 MHz USB");
+    expect(select(wrapper, "sked-frequency").element.value).toBe("3.5850 MHz USB");
     expect(post(wrapper).attributes("disabled")).toBeUndefined();
   });
 
   it("offers the suggested frequencies with their bands, and Other", () => {
     const options = select(form(), "sked-frequency").findAll("option");
-    expect(options.map((o) => o.text())).toEqual(["7.0541 MHz USB (40 m)", "14.1070 MHz USB (20 m)", "50.6200 MHz USB (6 m)", "Other"]);
+    expect(options.map((o) => o.text())).toEqual([
+      "3.5850 MHz USB (80 m)",
+      "7.0541 MHz USB (40 m)",
+      "14.1070 MHz USB (20 m)",
+      "50.6200 MHz USB (6 m)",
+      "Other",
+    ]);
   });
 
   it("posts what is chosen with one command, and never the call", async () => {
@@ -110,7 +116,7 @@ describe("SkedCompose", () => {
       expect(wrapper.find("#sked-dial").exists()).toBe(false);
       await select(wrapper, "sked-frequency").setValue("other");
       expect(wrapper.find("#sked-dial").exists()).toBe(true);
-      expect(wrapper.find<HTMLInputElement>("#sked-dial").attributes("placeholder")).toBe("7.0541 MHz USB");
+      expect(wrapper.find<HTMLInputElement>("#sked-dial").attributes("placeholder")).toBe("3.5850 MHz USB");
       expect(post(wrapper).attributes("disabled")).toBeDefined(); // (nothing typed yet)
       expect(wrapper.find("#sked-dial").classes()).not.toContain("invalid");
       await select(wrapper, "sked-frequency").setValue("14.1070 MHz USB");
@@ -155,7 +161,7 @@ describe("SkedCompose", () => {
       const wrapper = mount(SkedCompose, { global: withDaemon(daemon) });
       expect(post(wrapper).attributes("disabled")).toBeDefined();
       await tell(daemon, { skeds: skedsState() });
-      expect(select(wrapper, "sked-frequency").element.value).toBe("7.0541 MHz USB");
+      expect(select(wrapper, "sked-frequency").element.value).toBe("3.5850 MHz USB");
       expect(post(wrapper).attributes("disabled")).toBeUndefined();
     });
   });

@@ -321,12 +321,13 @@ export function sked(id: string, extra: Partial<SkedRow> = {}): SkedRow {
   };
 }
 
-/** The topic `skeds` as the daemon tells it: the board read, the three suggested dials, the rows given. */
+/** The topic `skeds` as the daemon tells it: the board read, the four suggested dials, the rows given. */
 export function skedsState(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}): SkedsState {
   return {
     state: "ok",
     fetched_at: ago(60),
     frequencies: [
+      { band: "80 m", dial: "3.5850 MHz USB" },
       { band: "40 m", dial: "7.0541 MHz USB" },
       { band: "20 m", dial: "14.1070 MHz USB" },
       { band: "6 m", dial: "50.6200 MHz USB" },
@@ -412,8 +413,10 @@ export function modemState(extra: Partial<ModemState> = {}): ModemState {
     frames_keyed: 0,
     max_frame: 123,
     frequencies: [
+      { band: "80 m", dial: "3.5850 MHz USB" },
       { band: "40 m", dial: "7.0541 MHz USB" },
       { band: "20 m", dial: "14.1070 MHz USB" },
+      { band: "6 m", dial: "50.6200 MHz USB" },
     ],
     sound_card: "plughw:1,0",
     keying: "rts:/dev/ttyUSB0",
