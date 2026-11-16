@@ -78,6 +78,40 @@ async def test_the_driver_starts_direwolf_then_its_line_and_a_frame_of_ours_goes
     assert driver.line.state is Source.State.STOPPED and driver.modem.state == "stopped" and claims.all() == ()
 
 
+async def test_the_line_is_opened_once_though_direwolf_says_ready_again_at_every_client_that_attaches(tmp_path: Path) -> None:
+    """Direwolf says "Ready to accept KISS TCP client application N" not only when it starts: again after every client that attaches, and when one leaves (kissnet.c; the made-up one speaks the same). Taken as a
+    start, each of them pointed the line at the port again (wiring.py ties the modem's `ports_changed` to the registry's repoint), which made Direwolf say it again: the line was opened three times a second for ever
+    (0.20.0 and 0.20.1, on every station with a Sound card radio)."""
+    driver = driver_of(tmp_path)
+    told: list[int] = []
+    tasks: set[asyncio.Task[None]] = set()
+
+    async def repoint() -> None:                                     # (radioregistry.repoint: the line alone is stopped, takes the modem's port again and is started)
+        await driver.line.stop()
+        driver.configure(spec(), DEFAULTS, RunOverrides(check_sec=0.0))
+        await driver.line.start()
+
+    def follow() -> None:
+        told.append(driver.modem.kiss_port)
+        task = asyncio.ensure_future(repoint())
+        tasks.add(task)
+        task.add_done_callback(tasks.discard)
+
+    driver.modem.ports_changed.connect(follow)
+    await driver.start()
+    try:
+        await until_started(lambda: driver.line.state is Source.State.CONNECTED and not tasks)
+        await asyncio.sleep(1.5)                                     # (the loop made three more a second)
+        assert told == [driver.modem.kiss_port], "the line is pointed at the port once: when Direwolf has started"
+        assert driver.line.state is Source.State.CONNECTED and driver.modem.state == "running"
+        heard: list[str] = []
+        driver.line.packet.connect(lambda packet: heard.append(packet.direction))
+        assert driver.line.send_frame(ui_frame())
+        await until(lambda: "in" in heard)
+    finally:
+        await driver.stop()
+
+
 async def test_two_sound_card_radios_side_by_side_each_run_their_own_direwolf_from_their_own_folder_and_neither_ends_the_other(tmp_path: Path) -> None:
     claims = Claims()
     attic, shack = driver_of(tmp_path, claims, spec(3)), driver_of(tmp_path, claims, spec(4, sound_card="plughw:2,0"))

@@ -48,7 +48,7 @@ def test_a_keying_device_that_would_add_a_line_or_a_word_to_the_configuration_is
 
 
 def test_the_command_lines_of_the_run_of_tune_and_of_the_keying_test() -> None:
-    assert command(["direwolf"], "r/direwolf.conf") == ["direwolf", "-c", "r/direwolf.conf", "-t", "0", "-q", "d", "-a", "60", "-d", "on", "-Q", "-G", "100"]
+    assert command(["direwolf"], "r/direwolf.conf") == ["direwolf", "-c", "r/direwolf.conf", "-t", "0", "-q", "d", "-a", "2", "-d", "on", "-Q", "-G", "100"]
     assert command(["direwolf"], "c", -6)[-2:] == ["-G", "50"], "the transmit level as Direwolf's percentage"
     tune = command(["direwolf"], "c", 0, "tune")
     assert tune == ["direwolf", "-c", "c", "-t", "0", "-d", "on", "-Q", "-G", "100", "-x", "a"]
@@ -95,6 +95,8 @@ def test_the_lines_the_daemon_reads_of_direwolf() -> None:
     assert direwolf.wrong_device('"3" doesn\'t match any of the input devices.') and direwolf.wrong_device("Invalid output (transmit) audio device number 7.")
     assert direwolf.several_cm108("There are multiple USB Audio Devices with GPIO capability.")
     assert direwolf.level_of("OH2XYZ audio level = 48(12/9)   [NONE]   ___|||___") == 48
+    assert direwolf.level_of("ADEVICE0: Sample rate approx. 44.1 k, 0 errors, receive audio level CH0 43") == 43, "the level as it is now, which Direwolf says every STATS_SEC (audio_stats.c)"
+    assert direwolf.level_of("ADEVICE0: Sample rate approx. 44.1 k, 0 errors") is None and direwolf.level_of("Audio input level is too high.  Reduce so most stations are around 50.") is None
     assert direwolf.level_of("Digipeater WIDE2 (probably N3LEE-4) audio level = 28(10/6)   [NONE]   __|||||||") == 28        # ax25_pad.c:925, direwolf.c:1308
     assert direwolf.level_of("[0.4] OH2XYZ>APDW18,WIDE1-1:!6010.00N/02450.00E-") is None
     assert (direwolf.ptt_of("PTT 0 = 1"), direwolf.ptt_of("PTT 0 = 0"), direwolf.ptt_of("DCD 0 = 1")) == (True, False, None)       # ptt.c:1341

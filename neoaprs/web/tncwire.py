@@ -57,7 +57,7 @@ class ModemState(_Model):
     scope: bool = Field(description="the daemon reads the modem's UI interface: the spectrum scope can be shown (`radio_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem)")
     tx_gain_db: int = Field(ge=-20, le=20, description="the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it")
     tx_peak_dbfs: int | None = Field(description="the peak of the latest transmission (a frame, or the tune tone) in whole dBFS, as the modem says it; 0 or more clips in the sound card; null before one, and while the interface is not read")
-    rx_level: int | None = Field(ge=0, description="the level of the latest packet heard, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones); null before one, and for a modem that says none (Mercury)")
+    rx_level: int | None = Field(ge=0, description="the receive level as it is now, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones): said every two seconds and at each packet heard; null while its Direwolf does not run, and for a modem that has none")
 
 
 class Frequencies(_Command):
@@ -107,7 +107,7 @@ class RadioCan(_Model):
     tx_gain: bool = Field(description="the transmit gain (`radio/<id>/tx_gain_db`)")
     frequencies: bool = Field(description="the station's suggested frequencies are shown in its box")
     transmit: bool = Field(description="it can send: false for a receive-only type, which is never the main radio, a message's, the beacon's, an object's or the email radio, and whose line is never written to")
-    rx_level: bool = Field(description="the level of the packets it hears is shown in its box (its modem's `rx_level`)")
+    rx_level: bool = Field(description="its receive level is shown in its box (its modem's `rx_level`)")
 
 
 class RadioChoices(_Model):

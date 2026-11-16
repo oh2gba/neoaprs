@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The receive level of a Sound card radio, a row of its box: the level of the latest packet Direwolf heard (its modem's `rx_level`, on Direwolf's own scale, lib/soundcardlevel.ts), on the bar of components/LevelBar.vue.
-// The row is there before the first packet, with its room kept, so that nothing moves when one comes; the bar is dimmed while the radio transmits (or is tuned), when the level is the last one heard. Its (i) is
+// The receive level of a Sound card radio, a row of its box: the level Direwolf hears now (its modem's `rx_level`, every two seconds and at each packet, on Direwolf's own scale, lib/soundcardlevel.ts), on the bar of components/LevelBar.vue.
+// The row is there while Direwolf does not run, with its room kept, so that nothing moves when the level comes; the bar is dimmed while the radio transmits (or is tuned), when the level is the last one heard. Its (i) is
 // the receive level's of the HF box: the same words hold for both.
 import { computed, useId } from "vue";
 import InfoTip from "@/components/InfoTip.vue";

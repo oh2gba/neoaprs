@@ -3,11 +3,11 @@ import { GOOD_PERCENT, levelPercent, levelText, levelZone } from "@/lib/soundcar
 import { LIMITS } from "@/protocol/lists";
 
 describe("the receive level of a Sound card radio", () => {
-  it("is red where Direwolf itself says too low or too high, good round its 50, and between them neither", () => {
+  it("is red where Direwolf itself says too high, good round its 50, low under it (between packets, or with the radio off), and between good and red neither", () => {
     expect(LIMITS.soundCard).toMatchObject({ levelMax: 200, levelLow: 5, levelHigh: 110, levelGood: [30, 70] });
     expect([0, 4, 5, 29, 30, 50, 70, 71, 110, 111, 199].map(levelZone)).toEqual([
-      "clip",
-      "clip",
+      "low",
+      "low",
       "low",
       "low",
       "good",

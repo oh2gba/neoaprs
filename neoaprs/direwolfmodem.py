@@ -8,7 +8,7 @@ that died, as the Mercury modem's pair is). The settings name the card and the k
 WinMM numbers are found first (winmm.py), and a Direwolf that says it chose another device is ended at once, before its KISS port exists.
 
 Direwolf says what it does: `Ready to accept KISS TCP client` (running), `Bind failed` (its port taken: another is chosen), a sound card or a keying device that cannot be opened (waiting, with the reason the page
-puts in its words), `PTT 0 = 1/0` (keyed), `DCD 0 = 1/0` (busy) and the level of every packet heard (`rx_level`). Tune and the keying test are Direwolf's own calibration runs (`-x`): the radio's Direwolf is stopped
+puts in its words), `PTT 0 = 1/0` (keyed), `DCD 0 = 1/0` (busy) and the receive level, every two seconds and at every packet heard (`rx_level`). Tune and the keying test are Direwolf's own calibration runs (`-x`): the radio's Direwolf is stopped
 cleanly, the run keys the radio for TUNE_SEC or KEY_TEST_SEC, and the radio's Direwolf is started again on the same port; meanwhile the hold is on, so the services wait as they wait for any radio that is not free."""
 import asyncio
 import logging
@@ -65,7 +65,7 @@ class DirewolfModem(Tuning):
         self.kiss_port = FIRST_PORT
         self.test = ""                                               # "tune" or "key" while that calibration run is on
         self.keyed = self.busy = False
-        self.rx_level: int | None = None                             # the level of the latest packet heard, on Direwolf's scale
+        self.rx_level: int | None = None                             # the receive level as Direwolf said it last (every STATS_SEC, and at each packet heard), on its scale; none while it does not run
         self.frames_keyed = self.starts = 0
         self.sound_card, self.keying, self.tx_gain_db = "", Keying("vox"), 0
         self.snr: float | None = None                                # (the HF modem's readings, which Direwolf has none of)
@@ -78,6 +78,7 @@ class DirewolfModem(Tuning):
         self._settings: tuple[str, str, tuple[str, ...]] = ("", "", ())        # the sound card and the keying the settings name ("" for the daemon's choice), and the ports that key no radio
         self._numbers: tuple[int, int] | None = None
         self._lists, self._ending, self._after_test = DeviceLists(), "", False
+        self._listens = False                                            # this run of the program has said that it listens on its KISS port
         self._tasks = TaskSet(log, "direwolf")
         self._test_task: asyncio.Task[None] | None = None
         self._generation = self._waits = 0
@@ -182,7 +183,7 @@ class DirewolfModem(Tuning):
             return self._failed(f"Direwolf's configuration could not be written in the data folder: {os_error_text(e)}", "not_started")
         except ValueError as e:
             return self._failed(str(e), "not_started")
-        self._lists, self._ending = DeviceLists(), ""
+        self._lists, self._ending, self._listens = DeviceLists(), "", False
         self._handed = self._keyed_upto = 0
         try:
             self._program.start(command(program, str(conf), self.tx_gain_db, test, self.keying.kind == "vox"), direwolfprogram.working_folder(program, self.home), self.home / PID_FILE)
@@ -248,7 +249,7 @@ class DirewolfModem(Tuning):
         elif (busy := dcd_of(line)) is not None:
             self.busy = busy
             self.changed.emit()
-        elif (level := level_of(line)) is not None:
+        elif (level := level_of(line)) is not None and level != self.rx_level:
             self.rx_level = level
             self.changed.emit()
 
@@ -262,7 +263,12 @@ class DirewolfModem(Tuning):
         return bool(self._ending)
 
     def _ready(self, port: int) -> None:
-        """Direwolf listens on its KISS port: running, unless the kernel's table says it listens on another address than the loopback (then it is ended and not run again)."""
+        """Direwolf listens on its KISS port: running, unless the kernel's table says it listens on another address than the loopback (then it is ended and not run again). Only the first such line of a run is
+        news: Direwolf says "Ready to accept KISS TCP client application N" again each time a client attaches and each time one leaves, and taking those as a start pointed the line at the port again, which made
+        Direwolf say it again: three opens a second, for ever."""
+        if self._listens:
+            return
+        self._listens = True
         if found := foreign_listeners([port]):
             log.warning("Direwolf listens on the network (%s): it is ended and not run", ", ".join(found))
             self._generation += 1
@@ -335,6 +341,7 @@ class DirewolfModem(Tuning):
 
     def _clear(self) -> None:
         self.keyed = self.busy = False
+        self.rx_level = None                                             # (a program that does not run hears nothing: the page's bar is empty, not at the last level)
 
     def _set(self, state: str, problem: str, reason: str = "") -> None:
         if (state, problem, reason) != (self.state, self.problem, self.reason):

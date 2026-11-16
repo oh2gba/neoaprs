@@ -3120,7 +3120,7 @@
               "type": "null"
             }
           ],
-          "description": "the level of the latest packet heard, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones); null before one, and for a modem that says none (Mercury)"
+          "description": "the receive level as it is now, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones): said every two seconds and at each packet heard; null while its Direwolf does not run, and for a modem that has none"
         }
       },
       "required": [
@@ -4807,7 +4807,7 @@
           "type": "boolean"
         },
         "rx_level": {
-          "description": "the level of the packets it hears is shown in its box (its modem's `rx_level`)",
+          "description": "its receive level is shown in its box (its modem's `rx_level`)",
           "type": "boolean"
         }
       },

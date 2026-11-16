@@ -770,7 +770,7 @@ export interface ModemState {
   tx_gain_db: number;
   /** the peak of the latest transmission (a frame, or the tune tone) in whole dBFS, as the modem says it; 0 or more clips in the sound card; null before one, and while the interface is not read */
   tx_peak_dbfs: number | null;
-  /** the level of the latest packet heard, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones); null before one, and for a modem that says none (Mercury) */
+  /** the receive level as it is now, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones): said every two seconds and at each packet heard; null while its Direwolf does not run, and for a modem that has none */
   rx_level: number | null;
 }
 
@@ -1186,7 +1186,7 @@ export interface RadioCan {
   frequencies: boolean;
   /** it can send: false for a receive-only type, which is never the main radio, a message's, the beacon's, an object's or the email radio, and whose line is never written to */
   transmit: boolean;
-  /** the level of the packets it hears is shown in its box (its modem's `rx_level`) */
+  /** its receive level is shown in its box (its modem's `rx_level`) */
   rx_level: boolean;
 }
 

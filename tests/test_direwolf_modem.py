@@ -56,8 +56,9 @@ def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
     own_ports(monkeypatch)
 
 
-def modem(tmp_path: Path, *modes: str, claims: Claims | None = None, holder: int = 3, die_after_sec: float | None = None, level: int | None = None, busy_sec: float | None = None) -> DirewolfModem:
-    m = DirewolfModem(radio_folder(tmp_path, holder), finder=lambda: fakedirewolf.program(*modes, die_after_sec=die_after_sec, level=level, busy_sec=busy_sec), backoff=QUICK,
+def modem(tmp_path: Path, *modes: str, claims: Claims | None = None, holder: int = 3, die_after_sec: float | None = None, level: int | None = None, busy_sec: float | None = None,
+          idle_level: int | None = None) -> DirewolfModem:
+    m = DirewolfModem(radio_folder(tmp_path, holder), finder=lambda: fakedirewolf.program(*modes, die_after_sec=die_after_sec, level=level, busy_sec=busy_sec, idle_level=idle_level), backoff=QUICK,
                       claims=claims if claims is not None else Claims(), holder=holder, lister=fakemercury.program)
     m.ports = lambda: []
     return m
@@ -90,7 +91,7 @@ async def test_direwolf_is_started_in_the_radios_folder_with_its_configuration_h
     home = radio_folder(tmp_path, 3)
     assert (home / CONF_FILE).read_text(encoding="utf-8") == (f"# written by NeoAPRS at every start\nADEVICE {adevice(CARD, m._numbers)}\nACHANNELS 1\nCHANNEL 0\nMODEM 1200\nPTT /dev/ttyUSB7 RTS\n"
                                                               f"KISSPORT 0\nKISSPORT {m.kiss_port}\nAGWPORT 0\nDNSSD 0\n")
-    assert fakedirewolf.runs(home)[-1][-12:] == ["-c", str(home / CONF_FILE), "-t", "0", "-q", "d", "-a", "60", "-d", "on", "-Q", "-G", "50"][-12:]
+    assert fakedirewolf.runs(home)[-1][-12:] == ["-c", str(home / CONF_FILE), "-t", "0", "-q", "d", "-a", "2", "-d", "on", "-Q", "-G", "50"][-12:]
     assert set(m.held()) == {Claim("sound_card", CARD, 3), Claim("keying", port("/dev/ttyUSB7"), 3), Claim("modem_ports", str(m.kiss_port), 3)}
     assert (home / PID_FILE).read_text(encoding="ascii") == str(m.pid) and m.describe() == "Direwolf AFSK1200, listening" and m.starts == 1
     pid = m.pid
@@ -111,6 +112,48 @@ async def test_a_frame_given_to_its_kiss_port_keys_the_radio_and_a_frame_heard_t
     wire = m.wire()
     assert (wire["mode"], wire["max_frame"], wire["rx_level"], wire["keying"], wire["sound_card"], wire["scope"], wire["frequencies"]) == ("AFSK1200", None, 72, "vox", CARD, False, [])
     await m.stop()
+
+
+async def test_the_receive_level_is_the_level_now_not_the_last_packets_and_none_while_direwolf_does_not_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The page's bar follows what Direwolf says every STATS_SEC (`-a`): with the radio switched off the level falls, though no packet comes to say so. Before, the level of the last packet heard stood on the
+    bar for ever (the owner, 16 November 2026: "whatever I do, the signal level shows signal, constantly, doesn't change, even when switching radio off")."""
+    monkeypatch.setattr("neoaprs.direwolf.STATS_SEC", 0.2)
+    m = modem(tmp_path, level=72, idle_level=7)
+    told: list[int | None] = []
+    m.changed.connect(lambda: told.append(m.rx_level) if not told or told[-1] != m.rx_level else None)
+    await m.start(CARD, "vox", 0)
+    try:
+        await running(m)
+        asked = fakedirewolf.runs(m.home)[-1]
+        assert asked[asked.index("-a") + 1] == "0.2", "Direwolf is asked for its statistics line at that pace"
+        await until(lambda: m.rx_level == 7)
+        assert await kiss_send(m.kiss_port, b"\xc0\x00frame\xc0") == b"\xc0\x00frame\xc0"
+        await until(lambda: 72 in told and m.rx_level == 7)        # (the packet's level for a moment, then the level between the packets again)
+        assert m.wire()["rx_level"] == 7
+        before = len(told)
+        await asyncio.sleep(0.7)
+        assert len(told) == before, "a level that did not change is not told again"
+    finally:
+        await m.stop()
+    assert m.rx_level is None and m.wire()["rx_level"] is None, "a Direwolf that does not run hears nothing"
+
+
+async def test_only_the_first_ready_line_of_a_start_tells_the_line_to_come(tmp_path: Path) -> None:
+    """Direwolf offers the next place ("Ready to accept KISS TCP client application 1 ...") as soon as a client has attached, and a place again when its client has left: the modem is running already, and nobody is
+    told that its ports changed."""
+    m = modem(tmp_path)
+    told: list[str] = []
+    m.ports_changed.connect(lambda: told.append(m.state))
+    await m.start(CARD, "vox", 0)
+    try:
+        await running(m)
+        for _ in range(3):
+            assert await kiss_send(m.kiss_port, b"\xc0\x00frame\xc0") == b"\xc0\x00frame\xc0"
+        await until(lambda: m.frames_keyed == 3)
+        assert told == ["running"] and m.state == "running"
+    finally:
+        await m.stop()
+
 
 
 @pytest.mark.parametrize(("mode", "problem", "reason"), [("--fail-card", SOUND_CARD_FAILED, "sound_card"), ("--fail-keying", KEYING_FAILED, "keying")])

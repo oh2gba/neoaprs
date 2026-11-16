@@ -174,14 +174,27 @@ function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<
   return { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays };
 }
 
-/** The ports the system lists, for the Settings tab and the setup guide: asked once each time the daemon is connected (not before: a command then is refused with a toast), and only once the topic `radios` is told,
- * so that a radio with sound cards is asked for by its id (the connection opens with the hello, before the radios come; on a reconnect the radios kept are told already). */
+/** What the radios hold now, and which of them there are, as one text: the list of ports and sound cards says who holds each, so it is asked again when this changes. */
+const holdsOf = (rows: Iterable<RadioRow>): string =>
+  [...rows]
+    .map((row) => `${row.id}:${row.type}:${row.enabled}:${row.removed}:${row.holds.map((held) => `${held.resource}=${held.value}`).join(",")}`)
+    .sort()
+    .join(";");
+
+/** The ports the system lists, for the Settings tab and the setup guide: asked each time the daemon is connected (not before: a command then is refused with a toast), and only once the topic `radios` is told,
+ * so that a radio with sound cards is asked for by its id (the connection opens with the hello, before the radios come; on a reconnect the radios kept are told already). And asked again whenever what the radios
+ * hold changes (a radio let go of its sound card or its port: its type changed, it was switched off or removed): the list says who holds each device, and a card shown as held by a radio that let it go
+ * could not be chosen for another. */
 function askPortsOnOpen(daemon: ReturnType<typeof useDaemon>): void {
   const { connection, radios, send } = daemon;
   let owed = false;
+  let asked: string | null = null;
   const ask = (): void => {
-    if (!owed || connection.value !== "open" || radios.value === null) return;
+    if (connection.value !== "open" || radios.value === null) return;
+    const holds = holdsOf(radios.value.values());
+    if (!owed && holds === asked) return;
     owed = false;
+    asked = holds;
     for (const one of portsAsks(radios.value.values())) send(one);
   };
   watch(connection, (state) => {

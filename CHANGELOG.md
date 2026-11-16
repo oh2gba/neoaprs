@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+The Sound card radio keeps its line open.
+
+- **Fixed:** a Sound card radio opened the line to its modem three times a second, for ever; it now keeps it open.
+- **Fixed:** a Sound card radio's Receive level never changed; it now follows the audio and is empty with the radio off.
+- **Fixed:** a sound card or a port stayed greyed out for other radios after its radio changed type, was switched off or removed.
+
 ## 0.20.1
 
 Simpler names for the radio types, a Send on for the status text, and small things put right after 0.20.0.

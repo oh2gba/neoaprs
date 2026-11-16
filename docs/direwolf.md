@@ -49,7 +49,7 @@ DEBUG); `-d o` prints `PTT 0 = 1/0` at each key and unkey, VOX too (`ptt.c:1341-
 | the keying test | 1 s | the PTT alone (`-x p`); the mark tone (`-x m`) on VOX, which silence does not key |
 | the stop | 3 s, then SIGINT, 3 s, then the kill | its cleanup sleeps one second (`direwolf.c:1695-1699`) |
 
-The level shown is the level of the latest packet decoded, null before one: between packets the audio statistics measure the squelch, not a station, and would read low most of the time.
+The level shown is the level as it is now: Direwolf's audio statistics every two seconds (`-a 2`), and each packet's own level when one is heard; null while Direwolf does not run. Between packets it is the channel's noise, or nothing with the radio's squelch closed or the radio off, which is what the bar is for: it shows that audio arrives. (Until 0.20.1 it was the latest packet's level, which stood on the bar for ever.)
 
 ## Running it
 

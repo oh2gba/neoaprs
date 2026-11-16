@@ -27,10 +27,11 @@ BANNER = "Dire Wolf Release 1.8.1, November 2025 (fake, tests/support/fakedirewo
 WINMM_INPUTS = ("Microphone (Realtek(R) Audio)", "Microphone (USB Audio CODEC)")
 WINMM_OUTPUTS = ("Speakers (Realtek(R) Audio)", "Speakers (USB Audio CODEC)")
 HEARD_FROM = "OH2XYZ"
+MAX_CLIENTS = 3                         # kissnet.c MAX_NET_CLIENTS
 MODES = ("--fail-card", "--wrong-star", "--fail-keying", "--cm108-unknown", "--hidraw-denied", "--several-cm108", "--port-taken", "--ignore-stdin", "--ignore-sigint", "--listen-any")
 
 
-def program(*modes: str, die_after_sec: float | None = None, level: int | None = None, busy_sec: float | None = None) -> list[str]:
+def program(*modes: str, die_after_sec: float | None = None, level: int | None = None, busy_sec: float | None = None, idle_level: int | None = None) -> list[str]:
     """The command that runs this module as the Direwolf program, whatever the working directory, with its modes (MODES) after it."""
     assert all(mode in MODES for mode in modes), modes
     command = [sys.executable, "-c", f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakedirewolf', run_name='__main__')", *modes]
@@ -38,6 +39,8 @@ def program(*modes: str, die_after_sec: float | None = None, level: int | None =
         command += ["--die-after", str(die_after_sec)]
     if busy_sec is not None:
         command += ["--busy-sec", str(busy_sec)]
+    if idle_level is not None:
+        command += ["--idle-level", str(idle_level)]                # (its `-a` line, with this as the receive level between the packets; not said without it)
     return command + (["--level", str(level)] if level is not None else [])
 
 
@@ -87,6 +90,7 @@ class Fake:
         self.argv = argv
         self.conf = _conf(_option(argv, "-c"))
         self.keyed = False
+        self.clients: set[int] = set()          # the places of the KISS clients attached now
         self.level = int(_option(argv, "--level") or 48)
         self.done: asyncio.Event | None = None
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -112,6 +116,29 @@ class Fake:
             self.quit()
 
     async def kiss(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        port, slot = self.conf["KISSPORT"], min(set(range(MAX_CLIENTS + 1)) - self.clients)
+        if slot == MAX_CLIENTS:                                          # (kissnet.c MAX_NET_CLIENTS: a fourth client is not taken)
+            writer.close()
+            return
+        self.clients.add(slot)
+        say(f"Attached to KISS TCP client application {slot} on port {port} ...")            # kissnet.c: said at every client, and then the next free place is offered
+        if len(self.clients) < MAX_CLIENTS:
+            say(f"Ready to accept KISS TCP client application {min(set(range(MAX_CLIENTS)) - self.clients)} on port {port} ...")
+        try:
+            await self.frames(reader, writer)
+        finally:
+            self.clients.discard(slot)
+            say(f"KISS client application {slot} on TCP port {port} has gone away.")
+            if len(self.clients) == MAX_CLIENTS - 1:                     # (every place was taken: the one that is free again is offered)
+                say(f"Ready to accept KISS TCP client application {slot} on port {port} ...")
+
+    async def statistics(self, every: float, level: int) -> None:
+        """Direwolf's `-a`: the sample rate, the audio errors and the receive level as it is now, every so many seconds (audio_stats.c)."""
+        while True:
+            await asyncio.sleep(every)
+            say(f"ADEVICE0: Sample rate approx. 44.1 k, 0 errors, receive audio level CH0 {level}")
+
+    async def frames(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         while data := await reader.read(4096):
             if "n" in _option(self.argv, "-d"):
                 say("")
@@ -158,6 +185,9 @@ class Fake:
         else:
             server = await asyncio.start_server(self.kiss, "0.0.0.0" if "--listen-any" in self.argv else "127.0.0.1", int(self.conf["KISSPORT"]))
             say(f"Ready to accept KISS TCP client application 0 on port {self.conf['KISSPORT']} ...")
+            if "--idle-level" in self.argv:
+                stats = asyncio.ensure_future(self.statistics(float(_option(self.argv, "-a") or 60), int(_option(self.argv, "--idle-level"))))
+                stats.add_done_callback(lambda _: None)
         die_after = float(_option(self.argv, "--die-after")) if "--die-after" in self.argv else None
         try:
             await asyncio.wait_for(self.done.wait(), die_after)

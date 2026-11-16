@@ -2,7 +2,7 @@ import "@/test/mockmap";
 import { describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeSocket } from "@/test/fakesocket";
-import { configValues, fmRow, hello, hfRow, radiosValue } from "@/test/fixtures";
+import { configValues, fmRow, hello, hfRow, radioRow, radiosValue } from "@/test/fixtures";
 import { mountApp, open, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
@@ -99,6 +99,32 @@ describe("App", () => {
     again.say(hello());
     await flushPromises();
     expect(asks(again)).toEqual([{ cmd: "list_ports", radio: 2 }]);
+    wrapper.unmount();
+  });
+
+  it("asks for the ports again when a radio lets go of what it held, so that its sound card is free for another radio", async () => {
+    // (the owner, 16 November 2026: radio 1 on a sound card, then made a Dummy; the card stayed greyed for a second radio, "even though we are not using it")
+    const wrapper = mountApp();
+    await flushPromises();
+    const socket = FakeSocket.last();
+    const asks = () => socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports");
+    const card = [{ resource: "sound_card" as const, value: "plughw:CARD=Device,DEV=0" }];
+    socket.say(hello());
+    await flushPromises();
+    socket.say({ type: "state", topic: "radios", rev: 0, value: radiosValue(radioRow(1, "direwolf", { holds: card }), radioRow(2, "direwolf")) });
+    await flushPromises();
+    expect(asks()).toHaveLength(2); // (each radio with sound cards, by its id)
+    socket.say({
+      type: "state",
+      topic: "radios",
+      rev: 1,
+      value: radiosValue(radioRow(1, "direwolf", { holds: card, state: "silent" }), radioRow(2, "direwolf")),
+    });
+    await flushPromises();
+    expect(asks()).toHaveLength(2); // (a change that lets go of nothing asks nothing)
+    socket.say({ type: "state", topic: "radios", rev: 2, value: radiosValue(radioRow(1, "dummy"), radioRow(2, "direwolf")) });
+    await flushPromises();
+    expect(asks().slice(2)).toEqual([{ cmd: "list_ports", radio: 2 }]);
     wrapper.unmount();
   });
 

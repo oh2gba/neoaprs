@@ -26,7 +26,7 @@ FIRST_PORT = 8002                      # the first KISS port tried: 8001 is Dire
 PORT_TRIES = 50                        # how many ports are tried from FIRST_PORT up (below Mercury's 8100)
 CONF_FILE = "direwolf.conf"
 PID_FILE = "direwolf.pid"
-STATS_SEC = 60                         # `-a`: one line a minute with the sample rate and the audio errors, to the log at DEBUG
+STATS_SEC = 2                          # `-a`: a line every two seconds with the sample rate, the audio errors and the receive level as it is now (the page's bar follows it), to the log at DEBUG
 
 # The level of a packet heard, on Direwolf's own scale (direwolf.c:1329-1349): about 50 for most stations, "too high" over 110, "too low" under 5, 199 with the input cranked all the way up. The good band is a choice
 # round Direwolf's 50, not a measurement, as Mercury's good range is (docs/direwolf.md).
@@ -130,7 +130,7 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort], tied: Sequence[st
 
 _READY = re.compile(r"^Ready to accept KISS TCP client application \d+ on port (\d+)")
 _PORT_TAKEN = re.compile(r"^Some other application is probably already using port (\d+)")
-_LEVEL = re.compile(r" audio level = (\d+)\(")
+_LEVEL = re.compile(r" audio level = (\d+)\(|receive audio level CH0 (\d+)")
 _PTT = re.compile(r"^PTT (\d+) = ([01])$")
 _DCD = re.compile(r"^DCD (\d+) = ([01])$")
 _DEVICE = re.compile(r"^ ([* ])  (\d+): (.*?)(?:   \(channels? [\d &]+\))?$")
@@ -192,9 +192,10 @@ def several_cm108(line: str) -> bool:
 
 
 def level_of(line: str) -> int | None:
-    """The level of the packet heard, on Direwolf's scale ("OH2XYZ audio level = 48(12/9)   [NONE]   ___|||___"); None for any other line."""
+    """The receive level a line tells, on Direwolf's scale: the level as it is now, said every STATS_SEC ("ADEVICE0: Sample rate approx. 44.1 k, 0 errors, receive audio level CH0 43", audio_stats.c), or that of a
+    packet just heard ("OH2XYZ audio level = 48(12/9)   [NONE]   ___|||___"); None for any other line."""
     m = _LEVEL.search(line)
-    return int(m.group(1)) if m else None
+    return int(m.group(1) or m.group(2)) if m else None
 
 
 def ptt_of(line: str) -> bool | None:

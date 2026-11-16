@@ -1665,7 +1665,7 @@ it hears a signal.
 | `scope` | boolean |  | the daemon reads the modem's UI interface: the spectrum scope can be shown (`radio_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem) |
 | `tx_gain_db` | integer |  | the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it (>= -20, <= 20) |
 | `tx_peak_dbfs` | integer \| null |  | the peak of the latest transmission (a frame, or the tune tone) in whole dBFS, as the modem says it; 0 or more clips in the sound card; null before one, and while the interface is not read |
-| `rx_level` | integer \| null |  | the level of the latest packet heard, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones); null before one, and for a modem that says none (Mercury) (>= 0) |
+| `rx_level` | integer \| null |  | the receive level as it is now, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones): said every two seconds and at each packet heard; null while its Direwolf does not run, and for a modem that has none (>= 0) |
 
 ### NoteSection
 
@@ -1829,7 +1829,7 @@ What the radio's type can do (neoaprs/radiotype.py `Can`): the controls of its b
 | `tx_gain` | boolean |  | the transmit gain (`radio/<id>/tx_gain_db`) |
 | `frequencies` | boolean |  | the station's suggested frequencies are shown in its box |
 | `transmit` | boolean |  | it can send: false for a receive-only type, which is never the main radio, a message's, the beacon's, an object's or the email radio, and whose line is never written to |
-| `rx_level` | boolean |  | the level of the packets it hears is shown in its box (its modem's `rx_level`) |
+| `rx_level` | boolean |  | its receive level is shown in its box (its modem's `rx_level`) |
 
 ### RadioChoices
 
