@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.20.0
+
 As many radios as you have, FM, HF and LoRa side by side, a new look, HF tests and the page in Dutch.
 
 - **New:** as many radios as you have, of any type: add, name and remove them in Settings → Radio, and choose the main radio.
