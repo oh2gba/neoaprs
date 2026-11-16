@@ -17,7 +17,7 @@ const NOUN: Record<string, string> = {
   fr: "radio",
   it: "radio",
   ja: "無線機",
-  nl: "set",
+  nl: "radio",
   "pt-BR": "rádio",
 };
 /** The values that are a radio's name (or, for `radio`, its number after the noun). */

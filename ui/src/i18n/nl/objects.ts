@@ -102,7 +102,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.category": "Geef een object een categorie om het aan te bieden aan stations die om lokale info vragen.",
   "objects.tip.category_code": "Je eigen categorie: maximaal {max} letters of cijfers, niet INFO of NEXT. Met dit woord vragen stations erom.",
   "objects.tip.on_request": "Niet als baken verzonden, alleen naar een station dat om lokale info vraagt.",
-  "objects.sent_on": "Verzonden via set {name}",
+  "objects.sent_on": "Verzonden via radio {name}",
 
   "objects.problem.name_chars": "Geen spatie aan begin of eind, geen ! _ | ~",
   "objects.problem.at_most": "Maximaal {max} tekens",

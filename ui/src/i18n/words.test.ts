@@ -13,7 +13,7 @@ const RADIO: Record<string, string> = {
   fr: "Radio",
   it: "Radio",
   ja: "無線機",
-  nl: "Set",
+  nl: "Radio",
   "pt-BR": "Rádio",
 };
 /** The texts that mean whichever radio the station has, of any type. */

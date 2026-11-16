@@ -36,7 +36,7 @@ export const stats: Record<keyof typeof source, Message> = {
 
   "stats.section.radio": "Sinds NeoAPRS gestart is",
   "stats.running": "Draait al",
-  "stats.frames": "Frames van de sets",
+  "stats.frames": "Frames van de radio's",
   "stats.bytes": "Bytes in · uit",
   "stats.digipeated": "Herhaald voor anderen",
   "stats.gated": "Op internet gezet",

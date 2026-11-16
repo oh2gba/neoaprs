@@ -36,7 +36,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.scope":
     "Een station ver weg zendt; de waterval toont zijn frame als een blok in de gemarkeerde band, het nieuwste bovenaan, en de balk van het ontvangstniveau eronder staat in het goede gebied.",
   "help.picture.tworadios":
-    "Je station met twee sets: de FM-set bereikt de auto en de digipeater in de buurt langs de grond, de HF-set bereikt een station ver weg via het signaal dat opstijgt en weer neerkomt.",
+    "Je station met twee radio's: die op FM bereikt de auto en de digipeater in de buurt langs de grond, die op HF bereikt een station ver weg via het signaal dat opstijgt en weer neerkomt.",
   "help.picture.dummy":
     "Verzonnen stations in een onderbroken kader geven je station antwoord, en wat je station verzendt, gaat de lucht niet in: de golven zijn doorgestreept.",
   "help.picture.notifications":
