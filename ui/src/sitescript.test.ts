@@ -1,4 +1,4 @@
-// The project page's script (site/site.js) as far as it shows the sked board: the section under the HF band is hidden in the page and shown only when a sked to come was read, with the call, the time and the dial and never the note, every
+// The project page's script (site/site.js) as far as it shows the board of HF tests: the page's own table says no test is planned, and when a sked to come was read its rows are the call, the time (now, for one that has begun) and the dial, each
 // value written as text. The script is run on a made-up page with a fetch of its own.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { NOW } from "@/test/fixtures";
 
-const SCRIPT = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "site", "site.js"), "utf-8");
+const SITE = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "site");
+const SCRIPT = readFileSync(join(SITE, "site.js"), "utf-8");
 const hours = (n: number) => `${new Date(NOW + n * 3_600_000).toISOString().slice(0, 19)}Z`;
 const row = (call: string, extra: Record<string, unknown> = {}) => ({
   id: "7f3a9c21d4e0",
@@ -21,7 +22,7 @@ const row = (call: string, extra: Record<string, unknown> = {}) => ({
 });
 
 async function run(body: unknown, status = 200): Promise<HTMLElement> {
-  document.body.innerHTML = `<section id="skeds" hidden><table><tbody><tr><td>placeholder</td></tr></tbody></table></section>`;
+  document.body.innerHTML = `<section id="skeds"><table><tbody><tr><td>No tests planned.</td></tr></tbody></table></section>`;
   const asked: string[] = [];
   vi.stubGlobal("fetch", (url: string) => {
     asked.push(url);
@@ -62,12 +63,19 @@ describe("the sked board on the project page", () => {
     expect(cells(section)).toEqual([["OH2GBA", "Wed 21 Oct 22:00 to Thu 22 Oct 02:00", "7.0541 MHz USB"]]);
   });
 
+  it("says now for a sked that has begun, with its end, and the end's day when that is another day", async () => {
+    const section = await run({ v: 1, skeds: [row("OH2GBA", { from: hours(-1), to: hours(1) }), row("OH2LAT", { from: hours(-1), to: hours(20) })] });
+    const whens = cells(section).map((c) => c[1]);
+    expect(whens[0]).toMatch(/^now to \d\d:\d\d$/);
+    expect(whens[1]).toMatch(/^now to (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2} \d\d:\d\d$/);
+  });
+
   it("makes skeds with the same times and dial one row that lists the calls", async () => {
     const section = await run({ v: 1, skeds: [row("OH2AAA"), row("OH2BBB"), row("OH2AAA")] });
     expect(cells(section)).toEqual([["OH2AAA, OH2BBB", "Wed 21 Oct 14:00 to 16:00", "7.0541 MHz USB"]]);
   });
 
-  it("stays hidden, with the page's own table, when no sked to come was read", async () => {
+  it("keeps the page's own row, No tests planned, when no sked to come was read", async () => {
     for (const body of [
       { v: 1, skeds: [] },
       { v: 1, skeds: [row("OH2OLD", { from: hours(-4), to: hours(-2) })] },
@@ -79,19 +87,29 @@ describe("the sked board on the project page", () => {
       [],
     ]) {
       const section = await run(body);
-      expect(section.hidden, JSON.stringify(body)).toBe(true);
-      expect(section.querySelector("tbody")?.textContent).toBe("placeholder");
+      expect(section.hidden, JSON.stringify(body)).toBe(false);
+      expect(section.querySelector("tbody")?.textContent, JSON.stringify(body)).toBe("No tests planned.");
     }
   });
 
-  it("stays hidden when the file cannot be read: not found, not JSON, no network", async () => {
-    expect((await run({ v: 1, skeds: [row("OH2GBA")] }, 404)).hidden).toBe(true);
-    expect((await run(new Error("not json"))).hidden).toBe(true);
-    document.body.innerHTML = `<section id="skeds" hidden><table><tbody></tbody></table></section>`;
+  it("keeps the page's own row when the file cannot be read: not found, not JSON, no network", async () => {
+    const own = (section: HTMLElement | null) => section?.querySelector("tbody")?.textContent;
+    expect(own(await run({ v: 1, skeds: [row("OH2GBA")] }, 404))).toBe("No tests planned.");
+    expect(own(await run(new Error("not json")))).toBe("No tests planned.");
+    document.body.innerHTML = `<section id="skeds"><table><tbody><tr><td>No tests planned.</td></tr></tbody></table></section>`;
     vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
     runInThisContext(SCRIPT);
     await flushPromises();
-    expect(document.getElementById("skeds")?.hidden).toBe(true);
+    expect(own(document.getElementById("skeds"))).toBe("No tests planned.");
+  });
+
+  it("is the page's own section: shown without the script, with the row that says no test is planned, and reached from the menu of every page", () => {
+    const page = readFileSync(join(SITE, "index.html"), "utf-8");
+    expect(page).toContain('<section class="sec" id="skeds">');
+    expect(page).toContain('<tbody><tr><td colspan="3">No tests planned.</td></tr></tbody>');
+    expect(page).toContain('<a href="#skeds">HF tests</a>');
+    for (const other of ["faq.html", "first-test.html", "aprs-below-the-noise.html", "aprs-over-hf-mercury.html", "aprs-over-hf-one-page.html"])
+      expect(readFileSync(join(SITE, other), "utf-8"), other).toContain('<a href="./#skeds">HF tests</a>');
   });
 
   it("drops a row that is not right alone, and writes what is left as text: a call with markup, a time that is no time, a dial of no form, an end before the start", async () => {

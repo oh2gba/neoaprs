@@ -1,4 +1,4 @@
-// The project page's only script: the copy buttons, the Download chooser's first choice, the lightbox of the screenshots, the board of stations that will be on the air, and one line to say the page was opened. Without it the page reads the same: the buttons stay hidden and a screenshot opens as a file.
+// The project page's only script: the copy buttons, the Download chooser's first choice, the lightbox of the screenshots, the board of HF tests (who is on the air and when), and one line to say the page was opened. Without it the page reads the same: the buttons stay hidden and a screenshot opens as a file.
 (() => {
   "use strict";
 
@@ -100,8 +100,8 @@
       .catch(() => {});
   }
 
-  // The sked board under the HF band: the stations that said when they will be on the air, from the file the board of NeoAPRS writes (skeds.json beside this page). The section is hidden in the page and shown only when a sked to come was
-  // read: the call, the time and the dial of each, never the note (free text from strangers does not go on this page). Every value is checked again here and written as text, never as HTML; skeds with the same times and dial are one row.
+  // The sked board under the HF band: the stations that said when they will be on the air, from the file the board of NeoAPRS writes (skeds.json beside this page). The page's own table has one row that says no test is planned, and it stays when no sked to come was
+  // read; else the rows are: the call, the time (now, for one that has begun) and the dial of each, never the note (free text from strangers does not go on this page). Every value is checked again here and written as text, never as HTML; skeds with the same times and dial are one row.
   const board = document.getElementById("skeds");
   if (board && window.fetch) {
     fetch("skeds.json", { cache: "no-cache" })
@@ -143,7 +143,13 @@
           call.scope = "row";
           call.textContent = row.calls.join(", ");
           const when = document.createElement("td");
-          when.textContent = `${day(start)} ${clock(start)} to ${day(start) === day(end) ? "" : day(end) + " "}${clock(end)}`;
+          const running = start.getTime() <= now; // a test that has begun is on the air now: the row says so in place of its start
+          const until = ` to ${day(running ? new Date(now) : start) === day(end) ? "" : day(end) + " "}${clock(end)}`;
+          if (running) {
+            const mark = document.createElement("strong");
+            mark.textContent = "now";
+            when.append(mark, until);
+          } else when.textContent = `${day(start)} ${clock(start)}${until}`;
           const dial = document.createElement("td");
           dial.className = "dial";
           dial.textContent = row.dial;
