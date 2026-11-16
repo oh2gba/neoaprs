@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-All radios are equal: each thing goes on the radios you tick and email on the radio you choose; the Sound card radio and Update now put right.
+All radios are equal: each thing goes on the radios you tick; the Sound card radio and Update now put right.
 
 - **New:** with several radios, Ask around and Local info have their own Send on and send one request on each radio ticked.
 - **New:** with several radios, **Post a bulletin** has its own Send on, and a bulletin of yours on the board shows its radios.
