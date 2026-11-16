@@ -10,9 +10,9 @@ A radio is one box in **Settings → Radio**: the radio with its TNC or modem, t
 
 - **Its kind** is FM, HF or LoRa. The kind says what the radio may carry: a path of digipeaters, the fill-in digipeater, SmartBeaconing, a beacon at short intervals. It is fixed when the radio is added.
 - **Its type** is the line of the list that matches the device, such as *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)* or *Mercury HF modem (sound card, SSB radio)*. It can be changed within the kind. A radio keeps the values of a type it leaves.
-- **Its name** is a short word the page calls it by everywhere: on its tags, in Route, in the Send on ticks. A radio with no name of its own is called by its kind: "FM", "HF", "RF" for a LoRa radio, and "FM 2" for the second of a kind.
+- **Its name** is a short word the page calls it by everywhere: on its tags, in Route, in the Send on ticks. A radio with no name of its own is called by its kind: "FM", "HF", "LoRa", and "FM 2" for the second of a kind.
 
-With one radio, no radio is named anywhere: Settings → Radio has its one box and **Add radio** under it. With several radios on, every tag, message, object and Monitor says which radio it belongs to.
+With one radio, only the tags of how a packet or a station came name it ("FM", or the name you gave it): Settings → Radio has its one box and **Add radio** under it. With several radios on, every tag, message, object and Monitor says which radio it belongs to.
 
 ## The Radio group
 

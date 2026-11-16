@@ -117,13 +117,13 @@ describe("the objects that arrived, in the Stations tab", () => {
       global: withDaemon(fakeDaemon({ qru, stations: table(station("TESTOBJ", { kind: "object", heard_rf: 1 }), station("OH2RF", { heard_rf: 3 })) })),
     });
 
-  it("carry a Local info tag in the tag column, beside RF, with the server's call in its hover; a station that is no answer has none", () => {
+  it("carry a Local info tag in the tag column, beside the radio that heard it (FM), with the server's call in its hover; a station that is no answer has none", () => {
     const wrapper = make();
     const tags = (call: string) => wrapper.find(`tr[data-call='${call}']`).findAll(".via");
-    expect(tags("TESTOBJ").map((tag) => tag.text())).toEqual(["RF", "Local info"]);
+    expect(tags("TESTOBJ").map((tag) => tag.text())).toEqual(["FM", "Local info"]);
     expect(tags("TESTOBJ")[1]?.attributes("title")).toBe("Sent to us by OH2DPN when we asked for local info");
     expect(tags("TESTOBJ")[1]?.classes()).toContain("tag-neutral");
-    expect(tags("OH2RF").map((tag) => tag.text())).toEqual(["RF"]);
+    expect(tags("OH2RF").map((tag) => tag.text())).toEqual(["FM"]);
   });
 
   it("have a row that the link can bring into view: its id is the one lib/stations gives", () => {
@@ -136,6 +136,6 @@ describe("the objects that arrived, in the Stations tab", () => {
         .find("tr[data-call='TESTOBJ']")
         .findAll(".via")
         .map((tag) => tag.text()),
-    ).toEqual(["RF"]);
+    ).toEqual(["FM"]);
   });
 });

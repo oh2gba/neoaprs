@@ -29,7 +29,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.beaconoff": "Kun majakka on pois, kello ei lähetä mitään, aikajanan majakat ovat tyhjiä; napin painallus lähettää silti yhden.",
   "help.picture.internet": "Asemat, jotka APRS-IS:llä on kartan säteen sisällä, tulevat pilvestä kartallesi vain yhteen suuntaan; mitään ei lähde takaisin.",
   "help.picture.channels":
-    "Radiolla, radioaalloilla, kuultu asema on merkitty RF; pilvestä, APRS-IS:stä, tullut asema on pisteviivareunainen ja sillä on oma merkintänsä.",
+    "Radiolla, radioaalloilla, kuultu asema saa sen kuulleen radion merkinnän, FM; pilvestä, APRS-IS:stä, tullut asema on pisteviivareunainen ja sillä on oma merkintänsä.",
   "help.picture.mercury":
     "Oma asemasi ja kaukainen asema, kauas toisistaan; signaali nousee ylös ja tulee alas niiden välissä: vain samaa modeemia käyttävä asema kuulee sen.",
   "help.picture.scope":

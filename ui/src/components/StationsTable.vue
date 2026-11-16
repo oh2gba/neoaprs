@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The stations heard, as a short table that fits the panel: the symbol, the call (a check mark after it for a station heard direct on any radio), how it was heard (a tag each: RF, iGate, Internet; with several
-// radios the two radios that heard it last by their names, one in a table as narrow as a phone's, and "+n" for the rest, whose title says them with their times; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the
+// The stations heard, as a short table that fits the panel: the symbol, the call (a check mark after it for a station heard direct on any radio), how it was heard (a tag each: the radio that heard it by
+// its name, "FM", "HF", "20 m", iGate, Internet; the two radios that heard it last, one in a table as narrow as a phone's, and "+n" for the rest, whose title says them with their times; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the
 // hover title). A column is sorted by a click on its head (again to reverse), the group box over it (StationsFilters: a filter box and the toggles "direct only", "heard on RF only" and "hide timed out", and "On map for")
 // narrows it, our own station is always on top, the selected row is marked and a click on a row selects the station (the map flies to it; with Ctrl it adds a card). The click (or Enter, or Up, Down, Home and End, which
 // select the next row: useRowKeys) also shows the station in the station panel fixed at the bottom of the tab, as the box of every tab is (StationPanel: its actions, its traffic as the lines of the Packets tab, the route
@@ -35,7 +35,7 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
-import { HEARD_ON_RADIOS, heardParts, heardTags, internetOnly } from "@/lib/channels";
+import { heardTags, internetOnly } from "@/lib/channels";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { receivedFrom } from "@/lib/qru";
@@ -57,10 +57,8 @@ const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
 /** The table is narrower than STATIONS_TWO_RADIOS (lib/layout.ts; 0 until it is measured: not narrow). */
 const narrow = computed(() => width.value > 0 && width.value < STATIONS_TWO_RADIOS);
-/** How many radios "Heard on" shows by their tags: two, and one in a narrow table where several radios are on or the station has more radio tags than two (radios off or removed with one on, or a Dummy part
- * beside them): the row stays in the width with one tag and "+n". A station with one radio on keeps the two tags of today (that radio and one that is off). */
-const radioRoom = (row: StationRow): number | undefined =>
-  narrow.value && (radios.several.value || heardParts(row, radios.all.value).filter((part) => part.radio).length > HEARD_ON_RADIOS) ? 1 : undefined;
+/** How many radios "Heard on" shows by their tags: two, and one in a narrow table (a radio's tag is its name, which may be long): the row stays in the width with one tag and "+n". */
+const radioRoom = computed(() => (narrow.value ? 1 : undefined));
 /** The objects that came in answer to a request for local info, with the server that sent each (the Local info tag). */
 const localInfo = computed(() => receivedFrom(qru.value?.servers ?? []));
 const emit = defineEmits<{
@@ -203,7 +201,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
               ><AlertBell :alert="prefs.alerts.value.get(row.call)" /><DirectMark v-if="heardDirect(row)" />
             </td>
             <td class="heard">
-              <TagMark v-for="tag in heardTags(row, radios.all.value, now, radioRoom(row))" :key="tag.key" :tone="tag.tone" class="via" :title="tag.title"
+              <TagMark v-for="tag in heardTags(row, radios.all.value, now, radioRoom)" :key="tag.key" :tone="tag.tone" class="via" :title="tag.title"
                 >{{ tag.label }}<span v-if="tag.key === 'more'" class="sr-only"> {{ tag.title }}</span></TagMark
               >
               <TagMark

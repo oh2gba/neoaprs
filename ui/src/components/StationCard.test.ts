@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import StationCard from "@/components/StationCard.vue";
 import type { Aging } from "@/lib/aging";
 import { cssRule } from "@/test/css";
+import { fakeDaemon, withDaemon } from "@/test/context";
 import { NOW, ago, series, station, weatherStation } from "@/test/fixtures";
 
 const row = station("OH2PU-9", {
@@ -30,7 +31,7 @@ const fieldsOf = (wrapper: ReturnType<typeof mount>) =>
 
 describe("StationCard", () => {
   it("shows the main facts of the row, and the rest under Details", () => {
-    const wrapper = mount(StationCard, { props: { row, now: NOW } });
+    const wrapper = mount(StationCard, { props: { row, now: NOW }, global: withDaemon(fakeDaemon()) });
     const text = wrapper.text();
     for (const wanted of [
       "OH2PU-9",
@@ -39,7 +40,7 @@ describe("StationCard", () => {
       "16 km, 282° WNW",
       "42 km/h, course 356° N",
       "31 m",
-      "RF 2 min ago",
+      "FM 2 min ago",
       "on air",
       "QRV D-STAR",
     ]) {
@@ -61,10 +62,10 @@ describe("StationCard", () => {
     expect(wrapper.text()).not.toContain("Car />");
   });
 
-  it("says when it was heard as a time ago, the full time on hover", () => {
-    const wrapper = mount(StationCard, { props: { row, now: NOW } });
+  it("says when it was heard as a time ago, by the radio that heard it, the full time on hover", () => {
+    const wrapper = mount(StationCard, { props: { row, now: NOW }, global: withDaemon(fakeDaemon()) });
     const heard = wrapper.findAll("dt").find((dt) => dt.text() === "Last heard")?.element.nextElementSibling;
-    expect(heard?.textContent?.trim()).toBe("RF 2 min ago");
+    expect(heard?.textContent?.trim()).toBe("FM 2 min ago");
     expect(heard?.getAttribute("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
   });
   it("shows the data extensions, the locator and the telemetry of a station, a line each, and nothing for one that has none", () => {

@@ -100,8 +100,8 @@ function reachLines(rows: readonly StationRow[], map: MapState | null): StatLine
   ];
 }
 
-/** The latest packets as the page has them (the daemon keeps 200): the ones heard, not those we sent. "By channel" counts them by their tag, said by its word: by radio (its name where the radios are named, HF for the
- * HF radio), iGate and Internet; two radios are never added together, even where their words are the same (a removed radio beside a live one). */
+/** The latest packets as the page has them (the daemon keeps 200): the ones heard, not those we sent. "By channel" counts them by their tag (lib/channels.ts `packetTag`), said by its word: by the radio that heard
+ * them (its name, "FM", "HF", "20 m", with one radio on as with several), iGate and Internet; two radios are never added together, even where their words are the same (a removed radio beside a live one). */
 function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly PageRadio[]): StatLine[] {
   const rows = [...packets.values()].filter((row) => row.direction === "in");
   if (rows.length === 0) return [];
@@ -109,7 +109,9 @@ function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly P
   const channels = new Map<string, { label: string; n: number }>(); // (by the tag's key: a radio's is its id's)
   for (const row of rows) {
     kinds.set(row.kind, (kinds.get(row.kind) ?? 0) + 1);
-    const { key, label } = packetTag(row, radios);
+    const tag = packetTag(row, radios);
+    if (tag === null) continue; // (a radio the page does not know yet: no tag, so not counted under one)
+    const { key, label } = tag;
     const counted = channels.get(key);
     if (counted === undefined) channels.set(key, { label, n: 1 });
     else counted.n++;

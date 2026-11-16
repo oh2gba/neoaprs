@@ -29,7 +29,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Con la baliza apagada el reloj no envía nada, las balizas de la línea de tiempo están vacías; pulsar el botón envía una de todos modos.",
   "help.picture.internet": "Las estaciones que APRS-IS tiene dentro del radio del mapa llegan de la nube a tu mapa, en un solo sentido; nada vuelve.",
   "help.picture.channels":
-    "Una estación oída por radio, con ondas, lleva RF; una que llegó de la nube, APRS-IS, tiene un contorno punteado y su propia etiqueta.",
+    "Una estación oída por radio, con ondas, lleva la etiqueta de la radio que la oyó, FM; una que llegó de la nube, APRS-IS, tiene un contorno punteado y su propia etiqueta.",
   "help.picture.mercury": "Tu estación y otra lejana, muy separadas; la señal sube y vuelve a bajar entre ellas: solo una estación con el mismo módem la oye.",
   "help.picture.scope":
     "Una estación lejana transmite; la cascada muestra su trama como un bloque en la banda marcada, lo más reciente arriba, y la barra del nivel de recepción queda en su rango bueno.",

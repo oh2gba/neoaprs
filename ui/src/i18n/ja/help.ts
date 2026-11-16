@@ -26,7 +26,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.transmit": "自局は他局を受信しますが(入る矢印)、送るはずのものは出ていきません。破線の矢印に×が付いています。",
   "help.picture.beaconoff": "ビーコンがオフだと時計は何も送らず、時間軸のビーコンは空です。ボタンを押せば、それでも1つ送ります。",
   "help.picture.internet": "APRS-ISにある地図の半径内の局が、雲からあなたの地図へ、一方向にだけ届きます。何も戻りません。",
-  "help.picture.channels": "無線で受信した局は電波で表され、RFの札が付きます。雲(APRS-IS)から来た局は点線の輪郭と専用の札が付きます。",
+  "help.picture.channels": "無線で受信した局は電波で表され、受信した無線機の札（FM）が付きます。雲(APRS-IS)から来た局は点線の輪郭と専用の札が付きます。",
   "help.picture.mercury": "自局と遠くの局が離れていて、その間を信号が上がって下りてきます。同じモデムを使う局だけがそれを聞きます。",
   "help.picture.scope":
     "遠くの局が送信し、ウォーターフォールにはそのフレームが印の付いた帯域のブロックとして新しいものが上に現れ、下の受信レベルのバーは適正範囲にあります。",

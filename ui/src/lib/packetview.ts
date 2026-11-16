@@ -109,17 +109,16 @@ function contentFacts(row: PacketRow): Fact[] {
   }
 }
 
-/** The facts of a packet, in the order they are told: from, kind, what it says, how it travelled ("Came by": its tag and what it means, "HF - heard on the HF radio", "20 m - heard on radio 20 m"), when. `radios`
+/** The facts of a packet, in the order they are told: from, kind, what it says, how it travelled ("Came by": its tag and what it means, "FM - heard on radio FM", "20 m - heard on radio 20 m"), when. `radios`
  * every radio in the order of the boxes. */
 export function packetFacts(row: PacketRow, radios: readonly PageRadio[] = []): Fact[] {
   const known = radios;
   const facts: Fact[] = [{ label: t("packets.fact.from"), text: row.source }, { label: t("packets.fact.kind"), text: kindWords(row) }, ...contentFacts(row)];
   if (row.direction === "out") facts.push({ label: t("packets.fact.sent_via"), text: row.path.length === 0 ? t("route.direct") : row.path.join(",") });
   else {
-    facts.push({
-      label: t("packets.fact.came"),
-      text: t("packets.fact.came_value", { channel: packetTag(row, known).label, what: packetCameBy(row, known) }),
-    });
+    const tag = packetTag(row, known);
+    const what = packetCameBy(row, known);
+    if (tag !== null && what !== null) facts.push({ label: t("packets.fact.came"), text: t("packets.fact.came_value", { channel: tag.label, what }) });
     if (row.route !== "") facts.push({ label: t("station.field.reached"), text: routeWords(row.route), route: true });
     else if (row.via === "is" && row.path.length > 0) facts.push({ label: t("station.field.path"), text: row.path.join(",") });
   }

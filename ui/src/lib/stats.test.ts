@@ -125,7 +125,7 @@ describe("the statistics of the map", () => {
       "stats.packets_hour=26",
       "stats.busiest=OH2PU-9, 12 in the last hour",
       "stats.by_kind=3 positions · 1 messages · 1 status",
-      "stats.by_channel=4 RF · 1 Internet",
+      "stats.by_channel=4 FM · 1 Internet",
       "stats.direct_share=50 % of those on the radio",
       "stats.rate=0.5 a minute", // 5 heard over 10 minutes
     ]);
@@ -194,7 +194,7 @@ describe("the statistics of the map", () => {
     expect(found.some((l) => l.startsWith("stats.direct_share"))).toBe(false);
   });
 
-  it("counts the HF radio's packets as HF, not under RF (plan section 9: they were counted under RF), also for the HF radio alone", () => {
+  it("counts the HF radio's packets as HF, apart from the FM radio's (plan section 9: they were counted together), also for the HF radio alone", () => {
     const heard = new Map(
       [packet(1, { radio_id: 1, heard_at: ago(60) }), packet(2, { radio_id: 2, heard_at: ago(30) }), packet(3, { radio_id: 2, heard_at: ago(0) })].map(
         (row) => [String(row.id), row] as const,
@@ -202,7 +202,7 @@ describe("the statistics of the map", () => {
     );
     const byChannel = (extra: object) =>
       lines(mapStats(input({ packets: heard, ...extra })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
-    expect(byChannel({})).toBe("stats.by_channel=1 RF · 2 HF");
+    expect(byChannel({})).toBe("stats.by_channel=1 FM · 2 HF");
     expect(byChannel({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")) })).toBe(
       "stats.by_channel=1 FM · 2 HF",
     );
@@ -257,10 +257,13 @@ describe("the statistics of the map with several radios", () => {
     expect(found).toBe("stats.by_channel=1 FM · 1 FM");
   });
 
-  it("counts as RF the one radio of a station with one radio, as it always did", () => {
+  it("counts the one radio of a station with one radio by its name too, as its tag says it, and leaves out a radio the page does not know (it has no tag)", () => {
     const one = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
-    const found = lines(mapStats(input({ packets: packets(), radios: one })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
-    expect(found).toBe("stats.by_channel=4 RF · 1 Internet");
+    const byChannel = (radios: typeof one) =>
+      lines(mapStats(input({ packets: packets(), radios })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+    expect(byChannel(one)).toBe("stats.by_channel=4 FM · 1 Internet");
+    expect(byChannel(radiosOf(radioRow(1, "lora-tcp", { name: "70 cm" })))).toBe("stats.by_channel=4 70 cm · 1 Internet");
+    expect(byChannel([])).toBe("stats.by_channel=1 Internet");
   });
 });
 

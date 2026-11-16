@@ -9,6 +9,7 @@
 - **Changed:** the (i) buttons show nothing on hover.
 - **Changed:** in Dutch a radio is "radio", no longer "set".
 - **Changed:** the status text and the beacon comment show how many characters are left, as a message does, and no text takes more than fits.
+- **Changed:** a packet and a station name the radio that heard them (FM, HF, LoRa or the name you gave it), no longer RF.
 
 ## 0.20.0
 

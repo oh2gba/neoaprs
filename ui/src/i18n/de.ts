@@ -829,7 +829,6 @@ export const de: Catalogue = {
   "route.best.send_direct": "{route}; direkt senden",
   "route.best.unknown_send_by": "{route}; unbekannter Repeater, senden über {path}",
   "route.best.unknown_send_direct": "{route}; unbekannter Repeater, direkt senden",
-  "channel.rf": "RF",
   "channel.fm": "FM",
   "channel.hf": "KW",
   "channel.lora": "LoRa",
@@ -837,8 +836,6 @@ export const de: Catalogue = {
   "channel.is": "Internet",
   "channel.dummy": "Dummy",
   "channel.join": "{first} · {second}",
-  "channel.title.rf": "Über Funk gehört",
-  "channel.title.hf": "Über das KW-Funkgerät gehört",
   "channel.title.gated": "Über Funk von einem iGate gehört, der es aus dem Internet geholt hat",
   "channel.title.is": "Über das Internet empfangen (APRS-IS), nicht über Funk",
   "channel.title.local_info": "Von {server} auf unsere Anfrage nach Ortsinfo gesendet",
@@ -954,8 +951,8 @@ export const de: Catalogue = {
   "packets.signal.rssi": "RSSI {value} dBm",
   "packets.fact.came": "Gekommen über",
   "packets.fact.came_value": "{channel} - {what}",
-  "packets.came_by.hf": "über das KW-Funkgerät gehört",
   "packets.came_by.radio": "über Funkgerät {name} gehört",
+  "packets.sent_on": "Über Funkgerät {name} gesendet",
   "packets.fact.time_in_packet": "Zeit im Paket",
 
   "packets.position_approximate": "{position} (ungefähr)",
@@ -1829,7 +1826,7 @@ export const de: Catalogue = {
     "Bei ausgeschalteter Bake sendet die Uhr nichts, die Baken auf der Zeitleiste sind leer; ein Druck auf die Taste sendet trotzdem eine.",
   "help.picture.internet": "Stationen, die APRS-IS im Radius der Karte hat, kommen aus der Wolke auf deine Karte, nur in eine Richtung; nichts geht zurück.",
   "help.picture.channels":
-    "Eine über Funk gehörte Station, mit Wellen, trägt RF; eine aus der Wolke, APRS-IS, hat einen gepunkteten Rand und ein eigenes Schild.",
+    "Eine über Funk gehörte Station, mit Wellen, trägt das Schild des Funkgeräts, das sie gehört hat, FM; eine aus der Wolke, APRS-IS, hat einen gepunkteten Rand und ein eigenes Schild.",
   "help.picture.mercury":
     "Deine Station und eine ferne, weit auseinander; das Signal steigt auf und kommt zwischen ihnen wieder herunter: nur eine Station mit demselben Modem hört es.",
   "help.picture.scope":

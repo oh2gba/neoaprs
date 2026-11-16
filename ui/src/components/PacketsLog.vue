@@ -22,12 +22,12 @@ const stacked = computed(() => width.value > 0 && width.value < PACKETS_TABLE);
 const filter = ref("");
 
 const radios = useRadios();
-/** The packets that have the text, by lib/packets.ts, or in the word of their Via (the radio's name). */
+/** The packets that have the text, by lib/packets.ts, or in the word of their Via tag (the radio's name, iGate, Internet). */
 const rows = computed(() => {
   const all = newestFirst(props.packets.values());
   const needle = filter.value.trim().toLowerCase();
   const found = new Set(filterPackets(all, filter.value));
-  return needle === "" ? all : all.filter((row) => found.has(row) || packetTag(row, radios.all.value).label.toLowerCase().includes(needle));
+  return needle === "" ? all : all.filter((row) => found.has(row) || (packetTag(row, radios.all.value)?.label.toLowerCase().includes(needle) ?? false));
 });
 </script>
 

@@ -43,9 +43,11 @@ describe("packetFacts", () => {
     expect(packetFacts(row).find((x) => x.label === "Reached us")?.route).toBe(true);
   });
 
-  it("says the channel a packet that was heard came by: RF, iGate or Internet, with what it means, and for the internet the path of the line", () => {
-    const radio = facts(withDecoded({}, { type: "position", ...position }));
-    expect(radio["Came by"]).toBe("RF - Heard on the radio");
+  it("says how a packet that was heard came: its radio (FM, also the one radio on), iGate or Internet, with what it means, and for the internet the path of the line", () => {
+    const radio = Object.fromEntries(
+      packetFacts(withDecoded({}, { type: "position", ...position }), pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2")), null)).map((f) => [f.label, f.text]),
+    );
+    expect(radio["Came by"]).toBe("FM - heard on radio FM");
     const gated = facts(withDecoded({ via: "rf-gated", gate: "OH7JHF-1", route: "via OH7JHF-1 (internet) → OH2RCH-3" }, { type: "position", ...position }));
     expect(gated["Came by"]).toBe("iGate - Heard on the radio from an iGate, which took it from the internet");
     const net = facts(withDecoded({ via: "is", route: "", path: ["TCPIP*", "qAC", "T2FINLAND"], source: "OH2ABC" }, { type: "position", ...position }));
@@ -54,13 +56,13 @@ describe("packetFacts", () => {
     expect(net).not.toHaveProperty("Reached us");
   });
 
-  it("says which radio a packet came by: the HF radio in the words of today, and with several radios on the radio's name", () => {
+  it("says which radio a packet came by, by its name: the HF radio alone as with several radios on", () => {
     const hf = withDecoded({ radio_id: 2 }, { type: "position", ...position });
     const hfAlone = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")), null);
-    expect(Object.fromEntries(packetFacts(hf, hfAlone).map((f) => [f.label, f.text]))["Came by"]).toBe("HF - heard on the HF radio");
+    expect(Object.fromEntries(packetFacts(hf, hfAlone).map((f) => [f.label, f.text]))["Came by"]).toBe("HF - heard on radio HF");
     const hfOff = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })), null);
     expect(Object.fromEntries(packetFacts(hf, hfOff).map((f) => [f.label, f.text]))["Came by"]).toBe("HF - heard on radio HF"); // (the HF radio off: what came by it carries its name, plan section 6)
-    expect(facts(hf)["Came by"]).toBe("RF - Heard on the radio"); // (before the radios are told)
+    expect(facts(hf)).not.toHaveProperty("Came by"); // (before the radios are told: no word that names no radio)
     const six = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { name: "Shack", number: 2 })), null);
     const came = (row: PacketRow) => Object.fromEntries(packetFacts(row, six).map((f) => [f.label, f.text]))["Came by"];
     expect(came(withDecoded({ radio_id: 3 }, { type: "position", ...position }))).toBe("Shack - heard on radio Shack");

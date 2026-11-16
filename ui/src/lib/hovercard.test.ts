@@ -14,10 +14,14 @@ describe("hoverRows", () => {
     ]);
   });
 
-  it("says how a station was heard when that is more than the radio alone: the internet, an iGate, or both", () => {
-    const labelled = (extra: Parameters<typeof station>[1]) => hoverRows(station("OH2PU-9", extra), NOW).find((r) => r.label === "Heard on")?.text;
+  it("says how a station was heard when that is more than the one radio alone: the internet, an iGate, or both, the radio by its name", () => {
+    const one = (row: RadioRow) => ({ all: { value: pageRadios(radiosTopic(row), null) } });
+    const labelled = (extra: Parameters<typeof station>[1], radio = radioRow(1, "kenwood-tnc2")) =>
+      hoverRows(station("OH2PU-9", extra), NOW, one(radio)).find((r) => r.label === "Heard on")?.text;
     expect(labelled({})).toBeUndefined();
-    expect(labelled({ heard_is: 2 })).toBe("RF · Internet");
+    expect(labelled({}, radioRow(1, "mercury"))).toBeUndefined(); // (an HF radio alone as an FM one: every station was heard on it)
+    expect(labelled({ heard_is: 2 })).toBe("FM · Internet");
+    expect(labelled({ heard_is: 2 }, radioRow(1, "kenwood-tnc2", { name: "2 m" }))).toBe("2 m · Internet");
     expect(labelled({ heard_rf: 0, heard_rf_gated: 1 })).toBe("iGate");
     expect(labelled({ heard_rf: 0, heard_is: 2, last_rf_at: null })).toBe("Received over the internet (APRS-IS), not on the radio");
   });

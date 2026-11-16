@@ -26,7 +26,8 @@ export const help = {
   "help.picture.transmit": "Our station hears the others (the arrow in) while what it would send goes nowhere: the dashed arrow is crossed out.",
   "help.picture.beaconoff": "With the beacon off the clock sends nothing, the beacons on the time line are empty; a press of the button still sends one.",
   "help.picture.internet": "Stations that APRS-IS has within the map's radius come from the cloud to your map, one way only; nothing goes back.",
-  "help.picture.channels": "A station heard on the radio, by waves, is tagged RF; one that came from the cloud, APRS-IS, has a dotted outline and its own tag.",
+  "help.picture.channels":
+    "A station heard on the radio, by waves, is tagged with the radio that heard it, FM; one that came from the cloud, APRS-IS, has a dotted outline and its own tag.",
   "help.picture.mercury":
     "Your station and a distant one, far apart, with the signal going up and coming down between them: only a station with the same modem hears it.",
   "help.picture.scope":

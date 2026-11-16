@@ -30,7 +30,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.beaconoff": "Met het baken uit verzendt de klok niets, de bakens op de tijdlijn zijn leeg; een druk op de knop verzendt er toch een.",
   "help.picture.internet": "Stations die APRS-IS binnen de kaartstraal heeft, komen uit de cloud naar je kaart, maar één kant op; er gaat niets terug.",
   "help.picture.channels":
-    "Een station dat via de radio is gehoord, met golven, krijgt het label RF; een station uit de cloud, APRS-IS, heeft een gestippelde rand en een eigen label.",
+    "Een station dat via de radio is gehoord, met golven, krijgt het label van de radio die het hoorde, FM; een station uit de cloud, APRS-IS, heeft een gestippelde rand en een eigen label.",
   "help.picture.mercury":
     "Je station en een station ver weg, met het signaal dat tussen hen opstijgt en weer neerkomt: alleen een station met hetzelfde modem hoort het.",
   "help.picture.scope":

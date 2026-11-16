@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// How a station was heard: on the radio (waves, RF), or over the internet (the cloud, APRS-IS, with the dotted outline of a station of the internet).
+// How a station was heard: on the radio (waves, the tag of the radio, FM), or over the internet (the cloud, APRS-IS, with the dotted outline of a station of the internet).
 import { CALLS } from "@/help/calls";
 import { arrow, waves } from "@/help/draw";
 import { t } from "@/i18n";
@@ -15,7 +15,7 @@ import HelpStation from "@/help/HelpStation.vue";
     <path class="hp-flow" :d="arrow(100, 38, 150, 38)" />
     <HelpStation table="/" code="-" :x="176" :y="38" :size="28" :label="t('help.me')" />
     <rect class="hp-card" x="214" y="28" width="38" height="20" rx="10" />
-    <HelpLabel :x="233" :y="42" text="RF" />
+    <HelpLabel :x="233" :y="42" :text="t('channel.fm')" />
     <path class="hp-card" d="M20 124a11 11 0 0 1-2-21 14 14 0 0 1 27-3 12 12 0 0 1 17 10 10 10 0 0 1-2 14z" />
     <HelpLabel :x="42" :y="118" text="IS" />
     <path class="hp-flow" :d="arrow(82, 108, 150, 108)" />

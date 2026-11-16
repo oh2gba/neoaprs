@@ -52,8 +52,9 @@ describe("PacketsLog", () => {
     expect(wrapper.findAll("tbody tr").map((tr) => tr.findAll("td")[4]?.text())).toEqual(["", "via OH7JHF-1 (internet) → OH2RCH-3", "via OH2RCH-2"]);
   });
 
-  it("has a Via column with the channel of every packet: RF for the radio and for ours, iGate, Internet; with what it means as the title", () => {
+  it("has a Via column with how every packet came: the radio's name for the radio's and for ours (FM, also with one radio on), iGate, Internet; with what it means as the title (ours: sent on it)", () => {
     const wrapper = mount(PacketsLog, {
+      global: withDaemon(fakeDaemon()),
       props: {
         packets: new Map([
           ["1", packet(1)],
@@ -65,20 +66,20 @@ describe("PacketsLog", () => {
       },
     });
     const cells = wrapper.findAll("tbody tr").map((tr) => tr.find("td.via"));
-    expect(cells.map((td) => td.text())).toEqual(["Dummy", "RF", "Internet", "iGate", "RF"]);
+    expect(cells.map((td) => td.text())).toEqual(["Dummy", "FM", "Internet", "iGate", "FM"]);
     expect(cells.map((td) => td.attributes("title"))).toEqual([
       "Made up by the Dummy radio, which is no real radio",
-      "Heard on the radio",
+      "Sent on radio FM",
       "Received over the internet (APRS-IS), not on the radio",
-      "Heard on the radio from an iGate, which took it from the internet",
-      "Heard on the radio",
+      "Heard on the radio from an iGate, which took it from the internet; Heard on radio FM",
+      "Heard on radio FM",
     ]);
     expect(cells.map((td) => td.classes().includes("internet"))).toEqual([false, false, true, false, false]);
     expect(cssRule(".grid.packets td.via.internet .tag")).toMatch(/font-style:\s*italic/);
     expect(wrapper.findAll("td.via .tag").map((t) => t.classes()[1])).toEqual(["tag-dummy", "tag-neutral", "tag-info", "tag-neutral", "tag-neutral"]);
   });
 
-  it("marks a packet heard on the HF radio with a tag of its own, apart from the FM radio's, the words RF and HF staying", () => {
+  it("marks a packet heard on the HF radio with a tag of its own, apart from the FM radio's: FM and HF", () => {
     const today = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
     const wrapper = mount(PacketsLog, {
       global: withDaemon(fakeDaemon({ radios: today })),
@@ -90,12 +91,13 @@ describe("PacketsLog", () => {
       },
     });
     const tags = wrapper.findAll("td.via .tag");
-    expect(tags.map((t) => t.text())).toEqual(["HF", "RF"]);
+    expect(tags.map((t) => t.text())).toEqual(["HF", "FM"]);
     expect(tags.map((t) => t.classes()[1])).toEqual(["tag-hf", "tag-neutral"]);
   });
 
-  it("filters by the channel too: Internet finds the packets of the internet", async () => {
+  it("filters by the channel too: Internet finds the packets of the internet, FM the radio's, RF no longer anything", async () => {
     const wrapper = mount(PacketsLog, {
+      global: withDaemon(fakeDaemon()),
       props: {
         packets: new Map([
           ["1", packet(1)],
@@ -106,6 +108,10 @@ describe("PacketsLog", () => {
     await wrapper.find("input[type='search']").setValue("Internet");
     expect(wrapper.findAll("tbody tr.packet-row")).toHaveLength(1);
     await wrapper.find("input[type='search']").setValue("igate");
+    expect(wrapper.findAll("tbody tr.packet-row")).toHaveLength(0);
+    await wrapper.find("input[type='search']").setValue("fm");
+    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["FM"]);
+    await wrapper.find("input[type='search']").setValue("rf");
     expect(wrapper.findAll("tbody tr.packet-row")).toHaveLength(0);
   });
 
@@ -314,8 +320,62 @@ describe("PacketsLog with several radios", () => {
     expect(came).toBe("Portable - heard on radio Portable");
   });
 
-  it("keeps the words of today for a station with one radio", () => {
+  it("names the radio for a station with one radio on too (FM, not RF), the HF radio that is off by its name, and gives no tag to a radio the page does not know", () => {
     const wrapper = log([SIX[0], { ...SIX[1], enabled: false, state: "stopped" }]);
-    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "RF", "Dummy", "RF", "HF", "RF"]); // (radios 3 to 6 are not of this station: their packets keep their channel)
+    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "", "Dummy", "", "HF", "FM"]); // (radios 3 to 6 are not of this station: no tag but the Dummy's mark)
+    expect(wrapper.findAll("td.via")[2]?.find(".tag").exists()).toBe(false);
+  });
+});
+
+describe("PacketsLog with one radio", () => {
+  const packets = new Map([
+    ["1", packet(1, { radio_id: 1 })],
+    ["2", packet(2, { radio_id: 1, direction: "out", route: "" })],
+    ["3", packet(3, { radio_id: 1, via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1" })],
+    ["4", packet(4, { radio_id: null, via: "is", route: "" })],
+  ]);
+  const log = (...rows: RadioRow[]) => mount(PacketsLog, { props: { packets }, global: withDaemon(fakeDaemon({ radios: radiosTopic(...rows) })) });
+  const via = (wrapper: ReturnType<typeof log>) =>
+    wrapper.findAll("td.via").map((cell) => [cell.text(), cell.find(".tag").classes()[1], cell.attributes("title")]);
+  const NET = ["Internet", "tag-info", "Received over the internet (APRS-IS), not on the radio"];
+  const gate = (name: string) => ["iGate", "tag-neutral", `Heard on the radio from an iGate, which took it from the internet; Heard on radio ${name}`];
+
+  it("names an FM radio with no name of its own FM, a packet of ours as the one heard (its title: sent on it)", () => {
+    expect(via(log(radioRow(1, "kenwood-tnc2")))).toEqual([
+      NET,
+      gate("FM"),
+      ["FM", "tag-neutral", "Sent on radio FM"],
+      ["FM", "tag-neutral", "Heard on radio FM"],
+    ]);
+  });
+
+  it("names a radio by the name the operator gave it", () => {
+    expect(via(log(radioRow(1, "kenwood-tnc2", { name: "2 m" })))).toEqual([
+      NET,
+      gate("2 m"),
+      ["2 m", "tag-neutral", "Sent on radio 2 m"],
+      ["2 m", "tag-neutral", "Heard on radio 2 m"],
+    ]);
+  });
+
+  it("names an HF radio alone HF, in its own tone, and a LoRa radio alone LoRa, in its sage", () => {
+    expect(via(log(radioRow(1, "mercury"))).slice(2)).toEqual([
+      ["HF", "tag-hf", "Sent on radio HF"],
+      ["HF", "tag-hf", "Heard on radio HF"],
+    ]);
+    expect(via(log(radioRow(1, "lora-tcp"))).slice(2)).toEqual([
+      ["LoRa", "tag-lora", "Sent on radio LoRa"],
+      ["LoRa", "tag-lora", "Heard on radio LoRa"],
+    ]);
+  });
+
+  it("says in the detail that a packet came on that radio, by its name", async () => {
+    const wrapper = log(radioRow(1, "kenwood-tnc2"));
+    await wrapper.findAll("tr.packet-row")[3]?.trigger("click");
+    const came = wrapper
+      .findAll(".packet-detail dt")
+      .find((dt) => dt.text() === "Came by")
+      ?.element.nextElementSibling?.textContent?.trim();
+    expect(came).toBe("FM - heard on radio FM");
   });
 });

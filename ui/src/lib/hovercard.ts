@@ -25,8 +25,8 @@ export type HoverRadios = Readonly<{ all: Readonly<{ value: readonly PageRadio[]
 
 const NO_RADIOS: HoverRadios = { all: { value: [] } };
 
-/** The rows the card has for a station: only those that have something to say. "Heard on" says every radio that heard it with its time where radios are named, iGate and Internet; nothing for a station heard on the one
- * radio alone. */
+/** The rows the card has for a station: only those that have something to say. "Heard on" says the radios that heard it by their names (with their times while several are on), iGate and Internet; nothing for a
+ * station heard on the one radio alone. */
 export function hoverRows(row: StationRow, nowMs: number, radios: HoverRadios = NO_RADIOS): HoverRow[] {
   const rows: HoverRow[] = [{ label: t("station.hover.heard"), text: agoWords(row.last_heard, nowMs) }];
   const heard = heardWords(row, radios.all.value, nowMs);

@@ -30,30 +30,30 @@ const net = station("OH2NET", {
 });
 
 describe("the card of a station heard on the HF radio", () => {
-  it("says when each radio last heard it: RF for the FM radio, HF for the HF radio", () => {
+  it("says when each radio last heard it: FM for the FM radio, HF for the HF radio", () => {
     const both = station("OH2FMHF", {
       heard_rf: 5,
       heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]),
       last_rf_at: ago(60),
       last_heard: ago(60),
     });
-    expect(fieldsOf(card(both))["Last heard"]).toBe("RF 3 min ago · HF 1 min ago");
+    expect(fieldsOf(card(both))["Last heard"]).toBe("FM 3 min ago · HF 1 min ago");
     const hf = station("OH2HF", { heard_rf: 2, heard: heardBy([2, 2, ago(60)]), last_rf_at: ago(60), last_heard: ago(60) });
     expect(fieldsOf(card(hf))["Last heard"]).toBe("HF 1 min ago");
   });
 });
 
 describe("the card of a station, by channel", () => {
-  it("says when it was last heard for each channel it was heard by: RF 3 min ago · Internet 40 s ago", () => {
+  it("says when it was last heard for each way it was heard by: FM 3 min ago · Internet 40 s ago", () => {
     const wrapper = card(both);
     const fields = fieldsOf(wrapper);
-    expect(fields["Last heard"]).toBe("RF 3 min ago · Internet 40 s ago");
+    expect(fields["Last heard"]).toBe("FM 3 min ago · Internet 40 s ago");
     const heard = wrapper.findAll("dt").find((dt) => dt.text() === "Last heard")?.element.nextElementSibling;
     expect(heard?.getAttribute("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
   });
 
-  it("names the channel even for a station heard on the radio alone, and the iGate's", () => {
-    expect(fieldsOf(card(station("OH2RF", { last_heard: ago(60) })))["Last heard"]).toBe("RF 1 min ago");
+  it("names the radio even for a station heard on the one radio alone, and the iGate's", () => {
+    expect(fieldsOf(card(station("OH2RF", { last_heard: ago(60) })))["Last heard"]).toBe("FM 1 min ago");
     const gated = station("OH2GATED", { heard_rf: 0, heard_rf_gated: 2, last_rf_at: null, last_rf_gated_at: ago(300) });
     expect(fieldsOf(card(gated))["Last heard"]).toBe("iGate 5 min ago");
   });

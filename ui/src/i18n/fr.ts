@@ -815,7 +815,6 @@ export const fr: Catalogue = {
   "route.best.send_direct": "{route} ; envoyer en direct",
   "route.best.unknown_send_by": "{route} ; relais inconnu, envoyer par {path}",
   "route.best.unknown_send_direct": "{route} ; relais inconnu, envoyer en direct",
-  "channel.rf": "RF",
   "channel.fm": "FM",
   "channel.hf": "HF",
   "channel.lora": "LoRa",
@@ -823,8 +822,6 @@ export const fr: Catalogue = {
   "channel.is": "Internet",
   "channel.dummy": "Factice",
   "channel.join": "{first} · {second}",
-  "channel.title.rf": "Entendue sur la radio",
-  "channel.title.hf": "Entendue sur la radio HF",
   "channel.title.gated": "Entendue sur la radio depuis une iGate, qui l'a prise sur internet",
   "channel.title.is": "Reçue par internet (APRS-IS), pas sur la radio",
   "channel.title.local_info": "Envoyé par {server} quand nous avons demandé les infos locales",
@@ -940,8 +937,8 @@ export const fr: Catalogue = {
   "packets.signal.rssi": "RSSI {value} dBm",
   "packets.fact.came": "Arrivée par",
   "packets.fact.came_value": "{channel} - {what}",
-  "packets.came_by.hf": "entendue sur la radio HF",
   "packets.came_by.radio": "entendue sur la radio {name}",
+  "packets.sent_on": "Envoyé sur la radio {name}",
   "packets.fact.time_in_packet": "Heure dans le paquet",
 
   "packets.position_approximate": "{position} (approximative)",
@@ -1813,7 +1810,7 @@ export const fr: Catalogue = {
     "Balise coupée, l'horloge n'envoie rien, les balises de la ligne de temps sont vides ; un appui sur le bouton en envoie quand même une.",
   "help.picture.internet": "Les stations qu'APRS-IS a dans le rayon de la carte viennent du nuage sur votre carte, dans un seul sens ; rien ne revient.",
   "help.picture.channels":
-    "Une station entendue à la radio, par des ondes, porte RF ; une venue du nuage, APRS-IS, a un contour en pointillés et sa propre étiquette.",
+    "Une station entendue à la radio, par des ondes, porte l'étiquette de la radio qui l'a entendue, FM ; une venue du nuage, APRS-IS, a un contour en pointillés et sa propre étiquette.",
   "help.picture.mercury":
     "Votre station et une station lointaine, très éloignées ; le signal monte et redescend entre elles : seule une station avec le même modem l'entend.",
   "help.picture.scope":
