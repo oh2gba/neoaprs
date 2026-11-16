@@ -1,6 +1,6 @@
 # Getting help
 
-When something does not work, or you have an idea or any other feedback, NeoAPRS sends your words to the project with one button, and the logs with them, so that the developer sees what happened. Or you can save the file and e-mail it yourself. The file is made on your computer and goes nowhere by itself: nothing is sent unless you press Send, and you can save the file and read every part of it first.
+When something does not work, or you have an idea or any other feedback, NeoAPRS sends your words to the project with one button, and the logs with them, so that the developer sees what happened. Or you can save the file and e-mail it yourself. The file is made on your computer, and you can open it and read every part of it before you send it, or send your words without it.
 
 It helps most to say:
 
@@ -11,11 +11,11 @@ It helps most to say:
 
 ## Send feedback / logs
 
-Open the **Settings** tab and scroll down to the group **Help**, above About. Press **Send feedback / logs**. A small window opens with one text, "What happened?", for your words, and under it the logs file it sends with them, shown attached. The (i) beside the button says what the file holds.
+Open the **Settings** tab and scroll down to the group **Help**, above About. Press **Send feedback / logs**. A small window opens with one text, **Your message**, and under it the logs file that goes with your words, by its name. Press the name to download the file and look inside: while the window stays open, what you downloaded is what **Send** sends (for an hour). The **×** beside the name takes the file off, so that only your message goes (write something first); **Attach** puts it back. The (i) beside the button says what the file holds.
 
-**Send** makes the file and sends it, with your words, your call, the version and the kind of system, over a secure connection to the project's server. The server keeps the file for the developer and tells him that a new one has come; it does not keep your network address. Nothing is sent before you press Send, and **Cancel** closes the window and sends nothing.
+**Send** sends your words, and the file unless you took it off, with your call, the version and the kind of system, over a secure connection to the project's server. The server keeps them for the developer and tells him that something has come; it does not keep your network address. **Cancel** closes the window and keeps what you wrote for the next time.
 
-While the file is sent the button reads "Sending…". Then the page says "Sent" with a short reference such as NEO-20261103-1015-7F3A; quote it if you write about the problem. If it could not be sent, the page says why: there is no internet connection, the server refused it, or too many files came from your connection in the last hour (five at most). Saving the file and e-mailing it still works then.
+While it is sent the button reads "Sending…". Then the page says "Sent" with a short reference such as NEO-20261103-1015-7F3A; quote it if you write about the problem. If it could not be sent, the page says why: there is no internet connection, the server refused it, or too many came from your connection in the last hour (five at most, with or without the file). Saving the file and e-mailing it still works then.
 
 ## Saving the file
 

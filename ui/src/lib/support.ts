@@ -1,5 +1,6 @@
 // What the Help group of the Settings tab needs to ask the daemon for the support file: the facts of this page that the daemon cannot know (`pageInfo`), the request (`requestBundle`: `POST support/bundle` with the same cookie as the page), the name of
-// the file it answers with, the saving of it as a download and the e-mail that goes with it; and Send logs, the same bundle posted to the project by the daemon with a few words of the person (`requestSend`: `POST support/send`, answered with a reference to quote). The daemon makes the zip (the log, the settings without the access key, the packets); the page adds page.json and page-errors.json to it by sending `page`.
+// the file it answers with, the saving of it as a download and the e-mail that goes with it; and Send logs, the same bundle posted to the project by the daemon with a few words of the person (`requestSend`: `POST support/send`, answered with a reference to quote), or the words alone
+// when the person took the file off (`SentFile`). The daemon makes the zip (the log, the settings without the access key, the packets); the page adds page.json and page-errors.json to it by sending `page`.
 import { endpoint } from "@/lib/access";
 import { pageBuild } from "@/lib/build";
 import { pad2 } from "@/lib/format";
@@ -12,6 +13,9 @@ export const SUPPORT_ADDRESS = "neoaprs@oh2gba.eu";
 export const BODY_MAX_BYTES = 240_000;
 /** The longest note of Send logs; the daemon and the server cut at the same number of characters. */
 export const NOTE_MAX = 2000;
+
+/** The file that goes with the words of Send feedback / logs: `true` one the daemon makes at the send, the full name of the one the person downloaded from the dialog (the daemon sends that very file), `false` none. */
+export type SentFile = boolean | string;
 
 export interface PageInfo {
   build: string;
@@ -78,10 +82,10 @@ export function pageInfo(given: InfoGiven, host: InfoHost = window, now: number 
   };
 }
 
-/** The request body: when it is over the daemon's limit the stacks of the errors are cut short, then the oldest errors go. The note of Send logs goes beside the page. */
-export function bodyOf(info: PageInfo, note?: string): string {
+/** The request body: when it is over the daemon's limit the stacks of the errors are cut short, then the oldest errors go. The note of Send logs goes beside the page, and `file` when it is not a new one (the daemon's default). */
+export function bodyOf(info: PageInfo, note?: string, file: SentFile = true): string {
   const size = (text: string): number => new TextEncoder().encode(text).length;
-  const body = (page: PageInfo): string => JSON.stringify(note === undefined ? { page } : { page, note });
+  const body = (page: PageInfo): string => JSON.stringify(note === undefined ? { page } : file === true ? { page, note } : { page, note, file });
   let text = body(info);
   if (size(text) <= BODY_MAX_BYTES) return text;
   let errors = info.errors.map((entry) => ({ ...entry, stack: entry.stack.slice(0, 500) }));
@@ -145,14 +149,14 @@ export type Sent = { ok: true; ref: string } | { ok: false; problem: SendProblem
 
 const SERVER_REASONS: ReadonlySet<string> = new Set(["offline", "rate", "too_large", "refused"]);
 
-/** Asks the daemon to send the support file to the project with the person's note. The daemon answers 200 with `{ ok, ref }` or `{ ok: false, reason }` (no internet connection, too many sends, too large, refused); its 401 and 403 are no access, its 429 is another file being made. */
-export async function requestSend(info: PageInfo, note: string, fetcher: typeof fetch = fetch): Promise<Sent> {
+/** Asks the daemon to send the person's note to the project, with the support file unless `file` is false. The daemon answers 200 with `{ ok, ref }` or `{ ok: false, reason }` (no internet connection, too many sends, too large, refused); its 401 and 403 are no access, its 429 is another file being made. */
+export async function requestSend(info: PageInfo, note: string, file: SentFile, fetcher: typeof fetch = fetch): Promise<Sent> {
   let response: Response;
   try {
     response = await fetcher(endpoint("support/send"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: bodyOf(info, note.slice(0, NOTE_MAX)),
+      body: bodyOf(info, note.slice(0, NOTE_MAX), file),
       credentials: "same-origin",
       cache: "no-store",
     });

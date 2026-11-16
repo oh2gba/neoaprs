@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // The Help group, the last of the Settings tab but About: the one way to reach the project, **Send feedback / logs**, as the group's primary button with a line above it. It opens a dialog for a few words
-// with the logs file shown attached, and then has the daemon send both to the project, which answers with a reference (composables/useSupportLogs.ts); the (i) beside it says what goes. The group says the
-// outcome in one quiet line: the reference, or why not. Saving the logs as a file is About's last line (SettingsAbout); nothing is sent before Send in the dialog.
-import { computed, ref } from "vue";
+// with the logs file shown attached (its name downloads it, its × takes it off), and then has the daemon send both, or the words alone, to the project, which answers with a reference (composables/useSupportLogs.ts); the (i) beside it says what the file holds. The group says the
+// outcome in one quiet line: the reference, or why not. Saving the logs as a file is About's last line (SettingsAbout) too. What the dialog holds until a send worked is kept here: the words and whether the file is on. The file that was downloaded from it is kept from the download
+// to the Send of that opening, and for the next try of a send that failed; a dialog that was closed without sending forgets it, so that a later Send sends the logs as they are then, not the ones of an hour ago.
+import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
 import SettingsGroup from "@/components/SettingsGroup.vue";
 import ActionRow from "@/components/ActionRow.vue";
@@ -12,17 +13,47 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSupportLogs } from "@/composables/useSupportLogs";
 
 const { call, connection, version, panel } = useDaemonContext();
-const logs = useSupportLogs({ call, connection, daemonVersion: version, panelWidth: panel.width });
+const given = { call, connection, daemonVersion: version, panelWidth: panel.width };
+const logs = useSupportLogs(given);
+/** The download of the dialog's file and what the dialog says of it: held here, so that it is the same one at the next opening while it runs, and after a send that failed. */
+const download = useSupportLogs(given);
 const sendLabel = computed(() => (logs.sending.value ? t("settings.help.sending") : t("settings.help.send")));
 const asking = ref(false);
 /** The words of the dialog, kept until they were sent: a send that failed does not take them. */
 const draft = ref("");
+/** Whether the file goes with the words: off when the person took it off in the dialog, kept with the words. */
+const attached = ref(true);
+/** The file the daemon made for the latest download from the open dialog, by its full name: Send names it, and the daemon sends that very one. A download that ends while the dialog is closed is saved and not named. */
+const made = ref<string | null>(null);
+watch(
+  download.saved,
+  (saved) => {
+    if (asking.value) made.value = saved ?? made.value;
+  },
+  { flush: "sync" },
+);
 const sendButton = ref<HTMLElement | null>(null);
 
-async function send(note: string): Promise<void> {
+/** Opens the dialog. It says Saved only of the file that Send will name; why an earlier download failed, and a download that ended while it was closed, are not said again. */
+function ask(): void {
+  if (!download.running.value && (made.value === null || download.problem.value !== "")) download.clear();
+  asking.value = true;
+}
+
+/** Closes the dialog with nothing sent: the words and whether the file is on stay for the next opening, the file that was downloaded does not. */
+function close(): void {
   asking.value = false;
-  await logs.send(note);
-  if (logs.sentRef.value !== null) draft.value = "";
+  made.value = null;
+}
+
+async function send(note: string, withFile: boolean): Promise<void> {
+  asking.value = false;
+  await logs.send(note, withFile ? (made.value ?? true) : false);
+  if (logs.sentRef.value === null) return;
+  draft.value = "";
+  attached.value = true;
+  made.value = null;
+  download.clear();
 }
 </script>
 
@@ -30,12 +61,11 @@ async function send(note: string): Promise<void> {
   <SettingsGroup id="help" class="help-logs" :title="t('settings.help.group')">
     <p>{{ t("settings.help.text") }}</p>
     <ActionRow id="set-help-send" :label="t('settings.help.label')" :tip-label="t('settings.help.tip_label')" picture="logs">
-      <button id="set-help-send" ref="sendButton" class="btn primary" type="button" :disabled="logs.sending.value || logs.running.value" @click="asking = true">
+      <button id="set-help-send" ref="sendButton" class="btn primary" type="button" :disabled="logs.sending.value || logs.running.value" @click="ask">
         {{ sendLabel }}
       </button>
       <template #tip
-        ><span class="info-line">{{ t("settings.help.tip") }}</span
-        ><span class="info-line">{{ t("settings.help.tip2") }}</span></template
+        ><span class="info-line">{{ t("settings.help.tip") }}</span></template
       >
       <template #notes>
         <div class="help-result" role="status">
@@ -51,7 +81,17 @@ async function send(note: string): Promise<void> {
       </template>
     </ActionRow>
     <Teleport v-if="asking" to="body">
-      <SendLogsDialog :draft="draft" :opener="sendButton" :call="call" @draft="draft = $event" @send="send" @close="asking = false" />
+      <SendLogsDialog
+        :draft="draft"
+        :attached="attached"
+        :download="download"
+        :call="call"
+        :opener="sendButton"
+        @draft="draft = $event"
+        @attached="attached = $event"
+        @send="send"
+        @close="close"
+      />
     </Teleport>
   </SettingsGroup>
 </template>

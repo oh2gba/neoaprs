@@ -168,39 +168,54 @@ describe("requestSend", () => {
 
   it("posts the page's info and the note as JSON to support/send beside the page, with the page's credentials, and gives the reference", async () => {
     const fetcher = says(200, { ok: true, ref: "NEO-20261103-1015-7F3A" });
-    expect(await requestSend(info, "It stopped.", fetcher)).toEqual({ ok: true, ref: "NEO-20261103-1015-7F3A" });
+    expect(await requestSend(info, "It stopped.", true, fetcher)).toEqual({ ok: true, ref: "NEO-20261103-1015-7F3A" });
     const [url, init] = fetcher.mock.calls[0] ?? [];
     expect(url).toBe("http://127.0.0.1:7303/support/send");
     expect(init).toMatchObject({ method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" } });
     expect(JSON.parse(typeof init?.body === "string" ? init.body : "")).toEqual({ page: JSON.parse(JSON.stringify(info)) as unknown, note: "It stopped." });
   });
 
+  it("says which file goes only when it is not a new one: the name of the downloaded one, or false for the words alone", async () => {
+    const fetcher = says(200, { ok: true, ref: "r" });
+    await requestSend(info, "x", "neoaprs-support-OH2GBA-20261021-123456Z.zip", fetcher);
+    await requestSend(info, "x", false, fetcher);
+    await requestSend(info, "x", true, fetcher);
+    const bodies = fetcher.mock.calls.map((call) => JSON.parse(typeof call[1]?.body === "string" ? call[1].body : "") as { file?: unknown; note: string });
+    expect(bodies.map((body) => [Object.keys(body).sort(), body.file])).toEqual([
+      [["file", "note", "page"], "neoaprs-support-OH2GBA-20261021-123456Z.zip"],
+      [["file", "note", "page"], false],
+      [["note", "page"], undefined],
+    ]);
+    expect(JSON.parse(bodyOf(info, undefined, false))).toEqual({ page: JSON.parse(JSON.stringify(info)) as unknown }); // (the request of a download has no file to choose)
+  });
+
   it("cuts a note to the limit", async () => {
     const fetcher = says(200, { ok: true, ref: "r" });
-    await requestSend(info, "x".repeat(NOTE_MAX + 50), fetcher);
+    await requestSend(info, "x".repeat(NOTE_MAX + 50), true, fetcher);
     const sent = fetcher.mock.calls[0]?.[1]?.body;
     expect((JSON.parse(typeof sent === "string" ? sent : "") as { note: string }).note).toHaveLength(NOTE_MAX);
   });
 
   it.each(["offline", "rate", "too_large", "refused"])("names the reason %s that the daemon gives", async (reason) => {
-    expect(await requestSend(info, "", says(200, { ok: false, reason }))).toEqual({ ok: false, problem: reason, status: 200 });
+    expect(await requestSend(info, "", true, says(200, { ok: false, reason }))).toEqual({ ok: false, problem: reason, status: 200 });
   });
 
   it("takes a reason it does not know, an answer that is not the protocol's and an ok without a reference as the server refusing", async () => {
     for (const body of [{ ok: false, reason: "storage" }, { ok: false }, { ok: true }, { ok: true, ref: "" }, [1], null, 5])
-      expect(await requestSend(info, "", says(200, body))).toEqual({ ok: false, problem: "refused", status: 200 });
-    expect(await requestSend(info, "", says(200, "<html>"))).toEqual({ ok: false, problem: "failed", status: 200 });
+      expect(await requestSend(info, "", true, says(200, body))).toEqual({ ok: false, problem: "refused", status: 200 });
+    expect(await requestSend(info, "", true, says(200, "<html>"))).toEqual({ ok: false, problem: "failed", status: 200 });
   });
 
   it("names the problem of the daemon: no access (401, 403), busy (429), not reachable, and any other answer", async () => {
-    expect(await requestSend(info, "", says(401, ""))).toEqual({ ok: false, problem: "access", status: 401 });
-    expect(await requestSend(info, "", says(403, ""))).toEqual({ ok: false, problem: "access", status: 403 });
-    expect(await requestSend(info, "", says(429, ""))).toEqual({ ok: false, problem: "busy", status: 429 });
-    expect(await requestSend(info, "", says(500, ""))).toEqual({ ok: false, problem: "failed", status: 500 });
+    expect(await requestSend(info, "", true, says(401, ""))).toEqual({ ok: false, problem: "access", status: 401 });
+    expect(await requestSend(info, "", true, says(403, ""))).toEqual({ ok: false, problem: "access", status: 403 });
+    expect(await requestSend(info, "", true, says(429, ""))).toEqual({ ok: false, problem: "busy", status: 429 });
+    expect(await requestSend(info, "", true, says(500, ""))).toEqual({ ok: false, problem: "failed", status: 500 });
     expect(
       await requestSend(
         info,
         "",
+        true,
         vi.fn(() => Promise.reject(new TypeError("network"))),
       ),
     ).toEqual({ ok: false, problem: "unreachable", status: 0 });

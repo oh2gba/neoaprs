@@ -45,7 +45,7 @@ A GPS through gpsd or a serial port. [The radio guide](docs/RADIOS.md) has the s
 
 ## Getting help
 
-In the page, *Settings*, *Help*, **Send feedback / logs** sends your words and the logs to the project with one press ([Getting help](docs/manual/support.md)). Nothing is sent before you press Send.
+In the page, *Settings*, *Help*, **Send feedback / logs** sends your words and the logs to the project with one press ([Getting help](docs/manual/support.md)).
 
 Feedback and ideas: [GitHub issues](https://github.com/oh2gba/neoaprs/issues) (preferred) or [neoaprs@oh2gba.eu](mailto:neoaprs@oh2gba.eu).
 

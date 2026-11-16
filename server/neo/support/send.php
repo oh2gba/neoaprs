@@ -3,16 +3,19 @@
  *
  *   multipart/form-data: bundle (the support zip), note (what the person wrote), call, version, platform
  *
+ * A form with no file at all and no `bundle` is the note alone (the person took the file off in the dialog): the note must have words then, REF.json is kept without a zip (`"file": false`, size 0), and the mail says in its
+ * first line that no file came. It is counted and bounded as a file is. A form with a file under any other name, and a note in a body that is not multipart/form-data, are refused as before.
+ *
  * The answer is JSON, {"ok": true, "ref": "NEO-20261103-1015-7F3A"} or {"ok": false, "reason": CODE} with a status that says it too (405 method, 413 too_large, 429 rate, 400 bad_request or
  * not_a_bundle, 500 storage). The file is kept in private/support/ of this site (see PRIVATE below) as REF.zip with REF.json beside it (time, call, version, platform, size, note), and one plain e-mail
  * goes to the project with the reference, the call, the version, the platform, the size and the note; the zip itself is not mailed. server/support-fetch.sh brings new ones to the developer's computer.
  *
  * What is kept: the zip, and the call, version, platform and note as cleaned here (a call is letters, digits and dashes, 12 at most; the note is text, 2000 characters at most). The sender's address is
  * never written down: it is hashed under a salt that only this folder knows, for the rate limits, and the hash is forgotten after the hour. Only a request that stores a file is counted against the limit that is shared (5 files an hour
- * from one address, 60 an hour in all); a request that is refused as no bundle is counted against its own address alone (20 an hour), so that nobody can use up the share of the others with requests that store nothing.
+ * from one address, 60 an hour in all, a note alone counted as a file); a request that is refused as no bundle is counted against its own address alone (20 an hour), so that nobody can use up the share of the others with requests that store nothing.
  *
  * What the folder holds is bounded: a file is 10 MB at the most (a bundle of a real station is a megabyte or two: the logs are cut to 12 MB of text before they are zipped, and 12 MB of the least compressible log lines
- * weigh 7 MB zipped), the folder 200 MB and 300 bundles, and what is older than 30 days is removed at each upload that is accepted. When the folder is full the answer is `rate` (the program has a word for it: try again later),
+ * weigh 7 MB zipped), the folder 200 MB and 300 references (a bundle with its json, or the json of a note alone), and what is older than 30 days is removed at each upload that is accepted. When the folder is full the answer is `rate` (the program has a word for it: try again later),
  * the log says why, and one mail tells the project the first time it happens (until a file is stored again). The count and the storing of a file are one step under a lock, so that uploads at the same moment cannot pass the cap together.
  *
  * The rules every application on the account keeps (oh2gba/SHARED-HOST.md): a body over 10 MB is refused before anything is read, the work is a few file operations, and a failure of the mail is
@@ -29,7 +32,7 @@ const SUPPORT_FROM     = 'NeoAPRS <noreply@oh2gba.eu>';          // the apex, wh
 const MAX_FILE         = 10 * 1024 * 1024;                        // of the bundle
 const MAX_BODY         = MAX_FILE + 64 * 1024;                    // of the request: the file and the few small fields beside it
 const FOLDER_MAX_BYTES = 200 * 1024 * 1024;                       // of the stored files together
-const FOLDER_MAX_FILES = 300;                                     // bundles
+const FOLDER_MAX_FILES = 300;                                     // references: a bundle with its json, or the json of a note alone
 const KEEP_DAYS        = 30;
 const MAX_NOTE         = 2000;
 const MAX_MEMBERS      = 100;
@@ -175,11 +178,11 @@ function support_store_lock(string $dir): mixed
     return $h;
 }
 
-/** Removes the stored files that are older than 30 days; what the folder holds afterwards is {bytes, bundles}. Only files of the form of a reference are touched. */
+/** Removes the stored files that are older than 30 days; what the folder holds afterwards is {bytes, kept} (kept: the references, one json each). Only files of the form of a reference are touched. */
 function support_tidy(string $dir, int $now): array
 {
     $bytes = 0;
-    $bundles = 0;
+    $kept = 0;
     foreach (@scandir($dir) ?: [] as $name) {
         if (!preg_match('~^NEO-\d{8}-\d{4}-[0-9A-F]+\.(zip|json|json\.part)$~', $name)) continue;
         $path = "$dir/$name";
@@ -189,9 +192,9 @@ function support_tidy(string $dir, int $now): array
             continue;
         }
         $bytes += (int) @filesize($path);
-        if (str_ends_with($name, '.zip')) $bundles++;
+        if (str_ends_with($name, '.json')) $kept++;
     }
-    return ['bytes' => $bytes, 'bundles' => $bundles];
+    return ['bytes' => $bytes, 'kept' => $kept];
 }
 
 /** One mail to the project when the folder first has no room for a file (full.flag says it has been told; it is taken away when a file is stored again): whoever fills the folder switches the logs off for the rest of the month, and the developer should know. */
@@ -200,7 +203,7 @@ function support_full_notice(string $dir, int $now): void
     if (is_file("$dir/full.flag")) return;
     @file_put_contents("$dir/full.flag", gmdate('Y-m-d\TH:i:s\Z', $now) . "\n");
     try {
-        $mailed = support_send_mail('NeoAPRS logs: the folder is full', "The folder of the sent logs is full (" . FOLDER_MAX_FILES . " bundles or " . intdiv(FOLDER_MAX_BYTES, 1048576) . " MB), and new files are refused until older ones are fetched and removed or are 30 days old.\n\nserver/support-fetch.sh brings them.\n");
+        $mailed = support_send_mail('NeoAPRS logs: the folder is full', "The folder of the sent logs is full (" . FOLDER_MAX_FILES . " references or " . intdiv(FOLDER_MAX_BYTES, 1048576) . " MB), and new ones are refused until older ones are fetched and removed or are 30 days old.\n\nserver/support-fetch.sh brings them.\n");
     } catch (Throwable $e) {
         $mailed = false;
     }
@@ -309,9 +312,14 @@ function support_receive(): never
     if (!support_bad_allowed($dir, $key, $now)) support_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
 
     $file = $_FILES['bundle'] ?? null;
+    $note = support_note($_POST['note'] ?? '');
+    $form = strtolower(trim(explode(';', (string) ($_SERVER['CONTENT_TYPE'] ?? ''))[0])) === 'multipart/form-data';       // (the form the program posts: a note in any other body is refused, as everything without a file was)
+    $alone = $form && $_FILES === [] && !array_key_exists('bundle', $_POST);       // no file at all in the form: the note alone, which has words
     $names = null;
     $size = 0;
-    if (!is_array($file) || !is_string($file['tmp_name'] ?? null)) {
+    if ($alone) {
+        $refusal = $note === '' ? [400, 'bad_request'] : null;
+    } elseif (!is_array($file) || !is_string($file['tmp_name'] ?? null)) {
         $refusal = [400, 'bad_request'];
     } elseif (in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
         $refusal = [413, 'too_large'];
@@ -331,8 +339,8 @@ function support_receive(): never
 
     $lock = support_store_lock($dir);
     $held = support_tidy($dir, $now);
-    if ($held['bundles'] >= FOLDER_MAX_FILES || $held['bytes'] + $size > FOLDER_MAX_BYTES) {
-        support_log($dir, 'the folder is full (' . $held['bundles'] . ' bundles, ' . intdiv($held['bytes'], 1024) . ' KB): a file was refused');
+    if ($held['kept'] >= FOLDER_MAX_FILES || $held['bytes'] + $size > FOLDER_MAX_BYTES) {
+        support_log($dir, 'the folder is full (' . $held['kept'] . ' kept, ' . intdiv($held['bytes'], 1024) . ' KB): a ' . ($alone ? 'note' : 'file') . ' was refused');
         support_full_notice($dir, $now);
         support_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
     }
@@ -342,27 +350,28 @@ function support_receive(): never
     $call     = support_clean($_POST['call'] ?? '', 'A-Za-z0-9-', 12);
     $version  = support_clean($_POST['version'] ?? '', '0-9A-Za-z._+-', 20);
     $platform = support_clean($_POST['platform'] ?? '', '0-9A-Za-z._-', 40);
-    $note     = support_note($_POST['note'] ?? '');
 
     $ref = support_reference($dir, $now);
-    if (!@move_uploaded_file($file['tmp_name'], "$dir/$ref.zip")) support_refuse(500, 'storage');
-    @chmod("$dir/$ref.zip", 0600);
-    $meta = ['ref' => $ref, 'time' => gmdate('Y-m-d\TH:i:s\Z', $now), 'call' => $call, 'version' => $version, 'platform' => $platform, 'size' => $size, 'note' => $note];
+    if (!$alone) {
+        if (!@move_uploaded_file($file['tmp_name'], "$dir/$ref.zip")) support_refuse(500, 'storage');
+        @chmod("$dir/$ref.zip", 0600);
+    }
+    $meta = ['ref' => $ref, 'time' => gmdate('Y-m-d\TH:i:s\Z', $now), 'call' => $call, 'version' => $version, 'platform' => $platform, 'file' => !$alone, 'size' => $size, 'note' => $note];
     $json = json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
     if ($json === false || @file_put_contents("$dir/$ref.json.part", $json . "\n") === false || !@rename("$dir/$ref.json.part", "$dir/$ref.json")) {
-        @unlink("$dir/$ref.zip");
+        if (!$alone) @unlink("$dir/$ref.zip");
         support_refuse(500, 'storage');
     }
     @chmod("$dir/$ref.json", 0600);
     flock($lock, LOCK_UN);
     fclose($lock);
 
-    $subject = 'NeoAPRS logs ' . $ref . ($call !== '' ? ' from ' . $call : '');
-    $body = "A NeoAPRS support file was sent.\n\n"
+    $subject = ($alone ? 'NeoAPRS message ' : 'NeoAPRS logs ') . $ref . ($call !== '' ? ' from ' . $call : '');
+    $body = ($alone ? "A NeoAPRS message was sent, without the support file.\n\n" : "A NeoAPRS support file was sent.\n\n")
           . "Reference: $ref\nCall:      " . ($call ?: '-') . "\nVersion:   " . ($version ?: '-') . "\nPlatform:  " . ($platform ?: '-') . "\n"
-          . 'Size:      ' . max(1, intdiv($size, 1024)) . " KB\nTime:      " . gmdate('Y-m-d H:i', $now) . " UTC\n\n"
-          . "Note:\n" . ($note !== '' ? $note : '(none)') . "\n\n"
-          . "The file is on the server; server/support-fetch.sh brings it.\n";
+          . ($alone ? '' : 'Size:      ' . max(1, intdiv($size, 1024)) . " KB\n") . 'Time:      ' . gmdate('Y-m-d H:i', $now) . " UTC\n\n"
+          . "Note:\n" . ($note !== '' ? $note : '(none)') . "\n"
+          . ($alone ? '' : "\nThe file is on the server; server/support-fetch.sh brings it.\n");
     try {
         $mailed = support_send_mail($subject, $body);
     } catch (Throwable $e) {

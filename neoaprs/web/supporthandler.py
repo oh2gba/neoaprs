@@ -2,7 +2,10 @@
 `application/zip`, as a download.
 
 It is protected as the page's socket is: only for a Host name of ours, never over plain http when the secure page is served, and from another device only with the session of the access key; a request of another site's script (an
-`Origin` that is not the `Host`) is refused. One bundle is made at a time (a second request is answered `429`), in a thread, so that the loop goes on with the radio while the logs are read."""
+`Origin` that is not the `Host`) is refused. One bundle is made at a time (a second request is answered `429`), in a thread, so that the loop goes on with the radio while the logs are read.
+
+The latest bundle made here is kept for an hour (`Bundler.keep`): Send feedback / logs names it when the person downloaded it from the dialog, and the daemon then sends that very file, the one they looked into
+(neoaprs/web/supportsend.py)."""
 import asyncio
 import json
 import logging
@@ -23,6 +26,7 @@ log = logging.getLogger("neoaprs.web")
 
 MAX_BODY = 256 * 1024
 RETRY_AFTER_SEC = 10
+KEEP_SEC = 3600                                              # how long the latest bundle of a download waits for a Send that names it
 
 
 class BundleHost(HostGate, Protocol):
@@ -37,6 +41,19 @@ class Bundler:
         self.server = server
         self.busy = False                                    # a bundle is being made
         self.sending = False                                 # a bundle is being made and sent (neoaprs/web/supportsend.py)
+        self.kept: tuple[str, bytes] | None = None           # (the name, the zip) of the latest download, for a Send that names it
+        self.forgetting: asyncio.TimerHandle | None = None
+
+    def keep(self, name: str, data: bytes) -> None:
+        """The bundle a download got is kept for an hour, in the place of the one before it."""
+        self.forget()
+        self.kept = (name, data)
+        self.forgetting = asyncio.get_running_loop().call_later(KEEP_SEC, self.forget)
+
+    def forget(self) -> None:
+        if self.forgetting is not None:
+            self.forgetting.cancel()
+        self.kept, self.forgetting = None, None
 
     async def make(self, page: dict[str, Any]) -> tuple[str, bytes]:
         """(the name of the file, the zip). The state is read here, on the loop; the files are read and the zip is written in a thread."""
@@ -112,6 +129,7 @@ class SupportBundle(SecurityHeaders):
             self.too_busy()
             return
         name, data = await self.made(page)
+        bundler.keep(name, data)
         log.info("support bundle made for the page: %s, %d KB", name, max(1, len(data) // 1024))
         self.set_header("Content-Type", "application/zip")
         self.set_header("Content-Disposition", f'attachment; filename="{name}"')

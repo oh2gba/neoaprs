@@ -13,6 +13,7 @@
 - **Changed:** a packet and a station name the radio that heard them (FM, HF, LoRa or the name you gave it), no longer RF.
 - **Fixed:** in the app's own window, Settings → Notifications named the NeoAPRS computer and this browser; it now says this computer and this window.
 - **Changed:** in **Post a bulletin** each kind says what it does: sent for 4 hours, sent for 3 days, to one group.
+- **Changed:** Send feedback shows its log file by name: download it to look inside, or remove it to send your message alone.
 
 ## 0.20.0
 

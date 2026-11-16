@@ -1,6 +1,8 @@
-"""`POST /support/send`: Send feedback / logs of the Help group. The body is `{"page": {...}, "note": "..."}` (the page's facts as for `/support/bundle`, and what the person wrote, at most 2000 characters); the daemon makes the support bundle exactly as Download logs does and posts it with the
-note, the call, the version and the platform to the project's server (`SUPPORT_URL`, `neoaprs/versions.py`), over https, in a thread. The answer is JSON, `{"ok": true, "ref": "NEO-20261103-1015-7F3A"}` (the reference the person can quote) or `{"ok": false, "reason": CODE}`.
-Nothing is sent but by this request, which the page makes only when the person presses Send in its dialog; the route is behind the same login and Host gate as the bundle's.
+"""`POST /support/send`: Send feedback / logs of the Help group. The body is `{"page": {...}, "note": "...", "file": ...}` (the page's facts as for `/support/bundle`; what the person wrote, at most 2000 characters; and which file goes with it).
+Without `file` (or with `true`) the daemon makes the support bundle exactly as Download logs does; with the name of the bundle the person downloaded from the dialog it sends that very one, the file they looked into, while it still has it
+(`Bundler.kept`, an hour; a new one is made after that); with `false` no file goes, only the note, which then must have words. It posts the bundle and the note, the call, the version and the platform to the project's server
+(`SUPPORT_URL`, `neoaprs/versions.py`), over https, in a thread. The answer is JSON, `{"ok": true, "ref": "NEO-20261103-1015-7F3A"}` (the reference the person can quote) or `{"ok": false, "reason": CODE}`.
+The page makes this request when the person presses Send in its dialog; the route is behind the same login and Host gate as the bundle's.
 
 The server answers the same JSON, `{"ok": true, "ref": ...}` or `{"ok": false, "reason": ...}` with a status that says it too; the reason it names is kept to the few the page has words for (`offline`, `rate`, `too_large`, `refused`)."""
 import json
@@ -72,11 +74,24 @@ def answer_of(status: int, body: bytes) -> Sent:
     return Sent(False, reason=reason if reason in REASONS else "refused", detail=f"status {status}, {str(reason)[:40]!r}")
 
 
-async def send_bundle(url: str, name: str, data: bytes, note: str, call: str, version: str, platform: str) -> Sent:
-    """Posts the bundle with the note, the call, the version and the platform; `offline` when the server could not be reached."""
-    if len(data) > MAX_SEND_BYTES:
+def told(sent: Sent, bundle: tuple[str, bytes] | None, chars: int) -> None:
+    """The line of the log for a send: what went or why not, the size, the reference, and how long the note was; never its text."""
+    size = "" if bundle is None else f"{max(1, len(bundle[1]) // 1024)} KB"
+    if bundle is None and sent.ok:
+        log.info("feedback sent without the logs: reference %s, a note of %d characters", sent.ref, chars)
+    elif bundle is None:
+        log.warning("feedback without the logs not sent: %s (%s), a note of %d characters", sent.reason, sent.detail, chars)
+    elif sent.ok:
+        log.info("support logs sent: %s, %s, reference %s, a note of %d characters", bundle[0], size, sent.ref, chars)
+    else:
+        log.warning("support logs not sent: %s (%s), %s, a note of %d characters", sent.reason, sent.detail, size, chars)
+
+
+async def send_bundle(url: str, bundle: tuple[str, bytes] | None, note: str, call: str, version: str, platform: str) -> Sent:
+    """Posts the note, the call, the version and the platform, with the bundle (its name, the zip) unless the note goes alone; `offline` when the server could not be reached."""
+    if bundle is not None and len(bundle[1]) > MAX_SEND_BYTES:
         return Sent(False, reason="too_large", detail="over the limit, not sent")
-    got = await post(url, {"note": note, "call": call, "version": version, "platform": platform}, {"bundle": (name, data)}, version, platform)
+    got = await post(url, {"note": note, "call": call, "version": version, "platform": platform}, {} if bundle is None else {"bundle": bundle}, version, platform)
     if got is None:
         return Sent(False, reason="offline", detail="no connection")
     return answer_of(*got)
@@ -84,14 +99,23 @@ async def send_bundle(url: str, name: str, data: bytes, note: str, call: str, ve
 
 @tornado.web.stream_request_body
 class SupportSend(SupportBundle):
-    """The same protection and the same body as the bundle's route (`page`, 256 KB at the most), with the note beside the page."""
+    """The same protection and the same body as the bundle's route (`page`, 256 KB at the most), with the note and the choice of the file beside the page."""
+
+    def words(self, body: dict[str, Any]) -> tuple[str, bool | str]:
+        """(the note, the file: `False` for none, the name of a downloaded bundle, `True` for a new one); a `400` for what is neither, and for no file and no words."""
+        note, file = body.get("note", ""), body.get("file", True)
+        if not isinstance(note, str):
+            raise tornado.web.HTTPError(400, reason="Bad Request: the note is text")
+        if not isinstance(file, (bool, str)):
+            raise tornado.web.HTTPError(400, reason="Bad Request: the file is true, false or the name of a downloaded one")
+        note = note.strip()[:MAX_NOTE].encode("utf-8", "replace").decode("utf-8")       # (JSON lets a lone surrogate through, a half of an emoji, which no form can carry: it is a "?")
+        if file is False and note == "":
+            raise tornado.web.HTTPError(400, reason="Bad Request: a note without the file has words")
+        return note, file
 
     async def post(self) -> None:
         body = self.json_body()
-        note = body.get("note", "")
-        if not isinstance(note, str):
-            raise tornado.web.HTTPError(400, reason="Bad Request: the note is text")
-        note = note.strip()[:MAX_NOTE].encode("utf-8", "replace").decode("utf-8")       # (JSON lets a lone surrogate through, a half of an emoji, which no form can carry: it is a "?")
+        note, file = self.words(body)
         bundler = self.server.bundles
         if bundler.busy or bundler.sending:
             self.too_busy()
@@ -99,15 +123,13 @@ class SupportSend(SupportBundle):
         ctl = bundler.server.controller
         bundler.sending = True
         try:
-            name, data = await self.made(body["page"])
-            sent = await send_bundle(support_url(), name, data, note, ctl.config.station_call, ctl.updatecheck.version, ctl.updatecheck.platform)
+            bundle = None if file is False else bundler.kept if bundler.kept is not None and bundler.kept[0] == file else await self.made(body["page"])
+            sent = await send_bundle(support_url(), bundle, note, ctl.config.station_call, ctl.updatecheck.version, ctl.updatecheck.platform)
         finally:
             bundler.sending = False
-        size = f"{max(1, len(data) // 1024)} KB"
         if sent.ok:
-            log.info("support logs sent: %s, %s, reference %s, a note of %d characters", name, size, sent.ref, len(note))
-        else:
-            log.warning("support logs not sent: %s (%s), %s, a note of %d characters", sent.reason, sent.detail, size, len(note))
+            bundler.forget()
+        told(sent, bundle, len(note))
         self.set_header("Content-Type", "application/json")
         self.set_header("Cache-Control", "no-store")
         self.finish(json.dumps(sent.wire()))

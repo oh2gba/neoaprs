@@ -32,8 +32,7 @@ describe("the Help group", () => {
     const wrapper = make();
     await wrapper.get(".infotip button").trigger("click");
     expect(wrapper.findAll(".info-line").map((line) => line.text())).toEqual([
-      "The log, the settings without the access key, the packets heard and sent. They can be saved as a file or sent to the project.",
-      "NeoAPRS sends nothing by itself.",
+      "The log, the settings, the packets heard and sent. They can be saved as a file or sent to the project.",
     ]);
   });
 });

@@ -1,6 +1,6 @@
 """Send logs (`POST /support/send`, neoaprs/web/supportsend.py): the daemon makes the support bundle exactly as Download logs does and posts it with the note to the project's server, here a fake one on the loopback
 (tests/support/fakesupportserver.py). The multipart body, the answers of the server (ok, refused, too many, no answer, no connection), what the log says, who may ask, one at a time, and the address that cannot be changed to another
-computer's."""
+computer's; the note alone (`file` false: no bundle is made or sent, and the note has words), and the bundle the person downloaded sent as it is when the request names it."""
 import asyncio
 import io
 import json
@@ -256,3 +256,111 @@ async def test_a_note_with_half_of_an_emoji_is_sent(tmp_path: Path, monkeypatch:
     e, fake = await served(tmp_path, monkeypatch)
     code, answer = await send(e, body='{"page": %s, "note": "hi \\ud83d"}' % json.dumps(PAGE))
     assert code == 200 and answer["ok"] and fake.requests, f"{answer}: it reached the server, and the operator is not told there is no internet"
+
+
+# ---- the note alone, and the file that was downloaded
+
+async def test_a_note_alone_goes_without_a_file_and_no_bundle_is_made(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    from neoaprs.cli import supportmake
+    e, fake = await served(tmp_path, monkeypatch)
+
+    def never(*args: object, **kwargs: object) -> object:
+        raise AssertionError("no bundle is made for a note alone")
+    monkeypatch.setattr(supportmake, "make_bundle", never)
+    with caplog.at_level(logging.INFO, logger="neoaprs.web"):
+        assert await send(e, body=json.dumps({"page": PAGE, "note": "  Thanks for the HF mode.  ", "file": False})) == (200, {"ok": True, "ref": REF})
+    (got,) = fake.requests
+    assert got.files == {} and got.fields == {"note": "Thanks for the HF mode.", "call": "OH2GBA", "version": VERSION, "platform": e.ctl.updatecheck.platform}
+    lines = [r.getMessage() for r in caplog.records if "feedback" in r.getMessage()]
+    assert lines == [f"feedback sent without the logs: reference {REF}, a note of 23 characters"] and not any("Thanks" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.parametrize("note", ["", "  \n\t ", None])
+async def test_a_note_alone_has_words(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, note: str | None) -> None:
+    e, fake = await served(tmp_path, monkeypatch)
+    body = {"page": PAGE, "file": False} if note is None else {"page": PAGE, "note": note, "file": False}
+    assert (await send(e, body=json.dumps(body)))[0] == 400 and fake.requests == []
+    assert e.server is not None and not e.server.bundles.sending
+
+
+@pytest.mark.parametrize("file", [5, None, ["a.zip"], {"name": "a.zip"}])
+async def test_a_file_that_is_neither_yes_no_nor_a_name_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, file: object) -> None:
+    e, fake = await served(tmp_path, monkeypatch)
+    assert (await send(e, body=json.dumps({"page": PAGE, "note": "x", "file": file})))[0] == 400 and fake.requests == []
+
+
+async def test_a_note_alone_that_is_refused_or_finds_no_server_is_told_as_a_file_is(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    fake = await support_server({"ok": False, "reason": "rate"})
+    fake.status = 429
+    e, _ = await served(tmp_path, monkeypatch, fake)
+    alone = json.dumps({"page": PAGE, "note": "words", "file": False})
+    with caplog.at_level(logging.INFO, logger="neoaprs.web"):
+        assert await send(e, body=alone) == (200, {"ok": False, "reason": "rate"})
+    assert [r.getMessage() for r in caplog.records if "feedback" in r.getMessage()] == ["feedback without the logs not sent: rate (status 429, 'rate'), a note of 5 characters"]
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        monkeypatch.setenv(supportsend.ENV_URL, f"http://127.0.0.1:{probe.getsockname()[1]}/support/send.php")
+    assert await send(e, body=alone) == (200, {"ok": False, "reason": "offline"})
+
+
+async def downloaded(e: Env) -> tuple[str, bytes]:
+    """(the name, the zip) of a bundle as the page's download gets it."""
+    answer = await e.fetch("/support/bundle", method="POST", body=json.dumps({"page": {**PAGE, "downloaded": True}}))
+    assert answer.code == 200
+    return answer.headers["Content-Disposition"].split('filename="')[1].rstrip('"'), answer.body
+
+
+async def test_the_file_that_was_downloaded_is_the_file_that_is_sent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from neoaprs.cli import supportmake
+    e, fake = await served(tmp_path, monkeypatch)
+    name, data = await downloaded(e)
+    assert e.server is not None and e.server.bundles.kept == (name, data)
+
+    def never(*args: object, **kwargs: object) -> object:
+        raise AssertionError("the file of the download is sent, not a new one")
+    monkeypatch.setattr(supportmake, "make_bundle", never)
+    assert await send(e, body=json.dumps({"page": PAGE, "note": "I looked inside.", "file": name})) == (200, {"ok": True, "ref": REF})
+    assert fake.requests[0].files["bundle"] == (name, data), "byte for byte"
+    with zipfile.ZipFile(io.BytesIO(fake.requests[0].files["bundle"][1])) as z:
+        assert json.loads(z.read("page.json"))["downloaded"] is True
+    assert e.server.bundles.kept is None and e.server.bundles.forgetting is None, "sent: it is kept no longer"
+
+
+async def test_a_file_that_was_not_sent_is_kept_for_the_next_try_and_a_name_the_daemon_does_not_hold_gets_a_new_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = await support_server({"ok": False, "reason": "rate"})
+    fake.status = 429
+    e, _ = await served(tmp_path, monkeypatch, fake)
+    name, data = await downloaded(e)
+    assert (await send(e, body=json.dumps({"page": PAGE, "note": "", "file": name})))[1] == {"ok": False, "reason": "rate"}
+    assert e.server is not None and e.server.bundles.kept == (name, data)
+    fake.status, fake.answer = 200, {"ok": True, "ref": REF}
+    assert (await send(e, body=json.dumps({"page": PAGE, "note": "", "file": name})))[1] == {"ok": True, "ref": REF}
+    assert [r.files["bundle"] for r in fake.requests] == [(name, data)] * 2 and e.server.bundles.kept is None
+    assert (await send(e, body=json.dumps({"page": PAGE, "note": "", "file": "neoaprs-support-OH2GBA-20200101-000000Z.zip"})))[1] == {"ok": True, "ref": REF}
+    with zipfile.ZipFile(io.BytesIO(fake.requests[2].files["bundle"][1])) as z:
+        assert json.loads(z.read("page.json")) == PAGE, "made at the send, from this request's page"
+
+
+async def test_the_downloaded_file_is_kept_for_an_hour_and_a_later_download_takes_its_place(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from neoaprs.web.supporthandler import KEEP_SEC
+    e, fake = await served(tmp_path, monkeypatch)
+    first = await downloaded(e)
+    assert e.server is not None
+    bundles = e.server.bundles
+    timer = bundles.forgetting
+    assert KEEP_SEC == 3600 and timer is not None and 3500 < timer.when() - asyncio.get_running_loop().time() <= 3600
+    second = await downloaded(e)
+    assert bundles.kept == second and timer.cancelled() and bundles.forgetting is not None and bundles.forgetting is not timer
+    assert first[0] == second[0], "(the clock of the test stands still: the name is the same, the file is the later one)"
+    bundles.forgetting._run()                              # the hour is over
+    assert bundles.kept is None
+    assert (await send(e, body=json.dumps({"page": PAGE, "note": "late", "file": second[0]})))[1] == {"ok": True, "ref": REF} and fake.requests[0].files["bundle"][0] == second[0]
+
+
+async def test_a_downloaded_file_over_the_limit_is_not_sent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    e, fake = await served(tmp_path, monkeypatch)
+    name, _ = await downloaded(e)
+    monkeypatch.setattr(supportsend, "MAX_SEND_BYTES", 100)
+    assert await send(e, body=json.dumps({"page": PAGE, "note": "x", "file": name})) == (200, {"ok": False, "reason": "too_large"})
+    assert await send(e, body=json.dumps({"page": PAGE, "note": "x", "file": False})) == (200, {"ok": True, "ref": REF}), "the note alone has no file to be too large"
+    assert len(fake.requests) == 1 and fake.requests[0].files == {}
