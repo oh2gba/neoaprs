@@ -1167,6 +1167,7 @@ export const fr: Catalogue = {
   // radio
   "radio.add": "Ajouter une radio",
   "radio.add_button": "Ajouter",
+  "radio.add.without_radio": "Sans radio",
   "radio.new": "Nouvelle radio",
   "radio.remove": "Retirer",
   "radio.remove_sure": "Vraiment retirer ?",

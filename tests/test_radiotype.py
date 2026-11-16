@@ -110,6 +110,7 @@ def test_each_field_is_todays_setting_its_default_range_parser_and_claim() -> No
 def test_the_sound_card_type_and_the_dummy_lora_type_stand_side_by_side_in_the_one_registry_each_in_its_kind() -> None:
     sound, lora = type_of("direwolf"), type_of("dummy-lora")
     assert (sound.kind, sound.driver, sound.dummy, lora.kind, lora.driver, lora.dummy) == ("fm", "direwolf", False, "lora", "tnc", True)
+    assert [t.key for t in TYPES if t.dummy] == ["dummy", "dummy-hf", "dummy-lora"], "one Dummy of each kind, the types that open no device (Add radio lists them apart)"
     assert [t.key for t in types_of("fm")][-2:] == ["direwolf", "dummy"] and [t.key for t in types_of("lora")][-1] == "dummy-lora", "the Sound card type among FM's real ones, the Dummy LoRa type last in its kind"
     assert sound.systems == {"linux", "win32"} and lora.systems == frozenset(), "the LoRa Dummy carries no program, so every installation offers it"
     assert [unavailable_types(system) for system in ("linux", "win32", "darwin")] == [(), (), ("direwolf",)]

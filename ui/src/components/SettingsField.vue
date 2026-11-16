@@ -35,6 +35,16 @@ const options = computed<Choice[]>(() => {
     : [...listed, { value: props.modelValue, label: props.info.other?.(props.modelValue) ?? props.modelValue }];
 });
 
+/** The options as the list draws them: each run of options of one group under its heading (an `optgroup`), those of no group by themselves. */
+const sections = computed<{ group: string | undefined; choices: Choice[] }[]>(() =>
+  options.value.reduce<{ group: string | undefined; choices: Choice[] }[]>((runs, choice) => {
+    const last = runs.at(-1);
+    if (last !== undefined && last.group === choice.group) last.choices.push(choice);
+    else runs.push({ group: choice.group, choices: [choice] });
+    return runs;
+  }, []),
+);
+
 function onInput(event: Event): void {
   const target = event.target;
   const choice = target instanceof HTMLSelectElement || (target instanceof HTMLInputElement && target.type === "checkbox");
@@ -87,9 +97,18 @@ function onEscape(event: KeyboardEvent): void {
         :aria-describedby="describedBy"
         @change="onInput"
       >
-        <option v-for="choice in options" :key="choice.value" :value="choice.value" :title="choice.title" :disabled="choice.disabled">
-          {{ choice.label }}
-        </option>
+        <template v-for="section in sections" :key="section.choices[0]?.value">
+          <optgroup v-if="section.group !== undefined" :label="section.group">
+            <option v-for="choice in section.choices" :key="choice.value" :value="choice.value" :title="choice.title" :disabled="choice.disabled">
+              {{ choice.label }}
+            </option>
+          </optgroup>
+          <template v-else>
+            <option v-for="choice in section.choices" :key="choice.value" :value="choice.value" :title="choice.title" :disabled="choice.disabled">
+              {{ choice.label }}
+            </option>
+          </template>
+        </template>
       </select>
       <CallInput
         v-else-if="info.kind === 'call'"

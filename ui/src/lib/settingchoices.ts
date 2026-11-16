@@ -9,6 +9,8 @@ export interface Choice {
   title?: string;
   /** offered greyed: a device another radio holds (lib/portchoice.ts) */
   disabled?: boolean;
+  /** the heading of the group the option stands under in the list (Add radio's FM, HF, LoRa, Without a radio); the options of one group follow each other */
+  group?: string;
 }
 
 /** What On stores for a moving station that was Off: the interval a fixed station is offered first (the daemon does not use it there). */

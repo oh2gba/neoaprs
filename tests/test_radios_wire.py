@@ -308,6 +308,7 @@ def test_a_radio_of_a_type_that_is_none_has_no_row_and_the_types_are_the_pages_l
     lists = generator().LISTS.read_text(encoding="utf-8")
     listed = json.loads(lists.split("export const RADIO_TYPES = ", 1)[1].split(" as const;", 1)[0].replace(",\n  ]", "\n  ]").replace(",\n    ]", "\n    ]").replace(",\n      }", "\n      }").replace(",\n  }", "\n  }").replace(",\n]", "\n]"))
     assert sorted(t["key"] for t in listed) == sorted(t.key for t in TYPES) and all(t["fields"] for t in listed)
+    assert {t["key"]: t["dummy"] for t in listed} == {t.key: t.dummy for t in TYPES}, "the page tells a Dummy from a real type by the type's own fact (Add radio's Without a radio)"
 
 
 async def test_a_message_on_its_way_says_the_radio_it_takes_next_as_the_choice_and_the_radios_change(tmp_path: Path) -> None:

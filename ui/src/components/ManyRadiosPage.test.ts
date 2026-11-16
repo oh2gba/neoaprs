@@ -590,7 +590,7 @@ describe("a radio that is off, removed or the only one on", () => {
 });
 
 describe("Add radio", () => {
-  it("offers every type from the one list, adds nothing when a type is chosen, adds it with Add, and is ready for the next", async () => {
+  it("offers every type from the one list in its groups, adds nothing when a type is chosen, adds it with Add, and is ready for the next", async () => {
     const { group, send } = make();
     const select = () => group().find<HTMLSelectElement>("#set-radio-add");
     const add = () => group().find<HTMLButtonElement>("#set-radio-add-button");
@@ -601,16 +601,21 @@ describe("Add radio", () => {
       "Kantronics KPC-3+",
       "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
       "KISS over TCP (Direwolf, soundmodem)",
-      "RX only: Yaesu FTM, TNC text (no KISS)",
       "Sound card (Direwolf)",
-      "Dummy (no radio, made-up traffic)",
+      "RX only: Yaesu FTM, TNC text (no KISS)",
       "Mercury HF modem (sound card, SSB radio)",
-      "Dummy HF radio (no radio, made-up distant stations)",
       "LoRa APRS board on the network",
       "LoRa APRS board on USB or Bluetooth",
       "LoRa APRS iGate's log on USB (RX only)",
+      "Dummy (no radio, made-up traffic)",
+      "Dummy HF radio (no radio, made-up distant stations)",
       "Dummy LoRa radio (no radio, made-up stations)",
     ]);
+    expect(
+      select()
+        .findAll("optgroup")
+        .map((g) => g.attributes("label")),
+    ).toEqual(["FM", "HF", "LoRa", "Without a radio"]); // (the groups of the list: RadioAdd.test.ts)
     expect([add().text(), add().element.disabled]).toEqual(["Add", true]);
     for (const type of ["kiss", "kiss-tcp", "dummy-hf"]) await select().setValue(type); // (as the arrow keys of a closed list choose each line they pass)
     expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ cmd: "radio_add" }));

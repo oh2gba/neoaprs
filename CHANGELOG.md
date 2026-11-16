@@ -2,9 +2,12 @@
 
 ## Unreleased
 
-80 m joins the suggested HF frequencies.
+80 m among the suggested frequencies, the Add radio list in groups, and small things put right after 0.20.0.
 
 - **New:** 80 m among the suggested HF frequencies: 3.5850 MHz USB.
+- **Changed:** **Add radio** lists the radio types in groups: FM, HF, LoRa, and Without a radio.
+- **Changed:** the (i) buttons show nothing on hover.
+- **Changed:** in Dutch a radio is "radio", no longer "set".
 
 ## 0.20.0
 

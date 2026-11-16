@@ -29,7 +29,7 @@ The box is called after its kind ("FM radio", "HF radio", "LoRa radio", and "FM 
 
 ### Adding a radio
 
-**Add radio** is a choice of the type and an **Add** button beside it. The list has every type there is, of every kind. Choosing a type adds nothing; **Add** adds the radio, and the page opens its box, brings it into view and puts the keyboard on its Enable. Fill in what its type asks for (a port, a sound card, an address) and watch its status line.
+**Add radio** is a choice of the type and an **Add** button beside it. The list has every type there is, in four groups: **FM**, **HF**, **LoRa**, and **Without a radio**, the [Dummy radios](#the-dummy-radios) for trying NeoAPRS out. In a group, the types that only receive come last. Choosing a type adds nothing; **Add** adds the radio, and the page opens its box, brings it into view and puts the keyboard on its Enable. Fill in what its type asks for (a port, a sound card, an address) and watch its status line.
 
 A new radio is on. To change a radio's kind, add a radio of the other kind and remove the old one.
 

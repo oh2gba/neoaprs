@@ -125,7 +125,7 @@ class RadioType:
     limits: Limits
     allowed: Allowed
     can: Can
-    dummy: bool                       # made-up traffic: the dashed tag
+    dummy: bool                       # it reaches no radio (no port, no radio's sound card) and makes its traffic up: the dashed tag, and Add radio's group of the types for trying the program out (Without a radio)
     recommended_path: str = ""        # the path of our frames on it when its own "path" is empty (LoRa WIDE1-1, as its networks repeat); "": the recommended path of the station's symbol (FM's)
     systems: frozenset[str] = frozenset()     # the systems (sys.platform) whose installations carry the type's program; empty: every system. A type is offered only where its program is
 

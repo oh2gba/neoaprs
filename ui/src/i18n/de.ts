@@ -1181,6 +1181,7 @@ export const de: Catalogue = {
   // radio
   "radio.add": "Funkgerät hinzufügen",
   "radio.add_button": "Hinzufügen",
+  "radio.add.without_radio": "Ohne Funkgerät",
   "radio.new": "Neues Funkgerät",
   "radio.remove": "Entfernen",
   "radio.remove_sure": "Wirklich entfernen?",

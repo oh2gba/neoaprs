@@ -213,13 +213,13 @@ def _profiles() -> str:
 
 def _radio_type(t: RadioType) -> dict[str, Any]:
     fields = [{"key": f.key, "kind": f.kind, "range": None if f.range is None else list(f.range), "choices": list(f.choices), "default": f.default, "together": f.together, "text": f.text} for f in t.fields]
-    return {"key": t.key, "kind": t.kind, "transport": t.transport, "text": t.text.replace("-", "_"), "can": vars(t.can), "allowed": vars(t.allowed), "limits": {"max_frame": t.limits.max_frame, "beacon_min_min": t.limits.beacon_min_min}, "fields": fields}
+    return {"key": t.key, "kind": t.kind, "transport": t.transport, "dummy": t.dummy, "text": t.text.replace("-", "_"), "can": vars(t.can), "allowed": vars(t.allowed), "limits": {"max_frame": t.limits.max_frame, "beacon_min_min": t.limits.beacon_min_min}, "fields": fields}
 
 
 def _radio_types() -> str:
     """The types of radio the page adds and changes a radio to, by kind and in the order it lists them (neoaprs/radiotypes), each with what it can do, what it may do, its limits and its own settings."""
     rows = [_radio_type(t) for kind in KINDS for t in types_of(kind)]
-    return ("/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), "
+    return ("/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), "
             "its limits, and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */\n"
             f"export const RADIO_TYPES = {_literal(rows)} as const;\n")
 

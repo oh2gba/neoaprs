@@ -11,7 +11,7 @@ import { useFindRadio } from "@/composables/useFindRadio";
 import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { SYMBOL_CHOICES } from "@/lib/setup";
-import { typeChoices } from "@/lib/settingsradio";
+import { addTypeChoices, typeChoices } from "@/lib/settingsradio";
 import { RADIO_TYPES } from "@/protocol/lists";
 import type { Command, ConfigValues, MapState, PortsMessage, RadioRow, RadioSearchMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
@@ -728,7 +728,13 @@ describe("SetupGuide: the radio, on a station with no radio (a fresh installatio
     const { wrapper, finish, sent, stand } = make({ radios: radiosTopic() });
     await stand(3);
     expect(legends(wrapper)).toEqual(["New radio"]);
-    expect(wrapper.findAll("#setup-radio-add option").map((o) => o.attributes("value"))).toEqual(["", ...RADIO_TYPES.map((type) => type.key)]);
+    expect(wrapper.findAll("#setup-radio-add option").map((o) => o.attributes("value"))).toEqual(["", ...addTypeChoices().map((choice) => choice.value)]); // (Settings' list, in its groups)
+    expect(wrapper.findAll("#setup-radio-add optgroup").map((g) => g.attributes("label"))).toEqual(["FM", "HF", "LoRa", "Without a radio"]);
+    expect(
+      addTypeChoices()
+        .map((choice) => choice.value)
+        .sort(),
+    ).toEqual(RADIO_TYPES.map((type) => type.key).sort()); // (every type, once)
     expect(wrapper.find<HTMLButtonElement>("#setup-radio-add-button").element.disabled).toBe(true);
     expect(labels(wrapper)).toEqual(["Add radio"]);
     expect(finish().element.disabled).toBe(true);

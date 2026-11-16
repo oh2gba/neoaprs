@@ -3,6 +3,7 @@
 export const radio = {
   "radio.add": "Add radio",
   "radio.add_button": "Add",
+  "radio.add.without_radio": "Without a radio",
   "radio.new": "New radio",
   "radio.remove": "Remove",
   "radio.remove_sure": "Really remove?",

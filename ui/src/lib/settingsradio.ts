@@ -3,7 +3,7 @@
 import { inject, shallowRef, type InjectionKey, type ShallowRef } from "vue";
 import { hasMessage, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { enabledRadios, fieldId, radioLabel, typeOf, type PageRadio } from "@/lib/radios";
+import { enabledRadios, fieldId, KIND_WORDS as KIND_NAMES, radioLabel, typeOf, type PageRadio, type RadioType } from "@/lib/radios";
 import type { Choice } from "@/lib/settingchoices";
 import type { PortsMessage, RadioRow } from "@/protocol/protocol";
 import { RADIO_STATION_KEYS, RADIO_TYPES } from "@/protocol/lists";
@@ -144,6 +144,24 @@ export const typeChoices = (kind?: PageRadio["kind"], unavailable: readonly stri
     value: type.key,
     label: typeText(type.key),
   }));
+
+/** The groups of Add radio's list, in their order: each kind's real types (by the kind's word), then the Dummy types of every kind, for trying the program out. */
+const ADD_GROUPS: readonly { word: MessageId; holds: (type: RadioType) => boolean }[] = [
+  ...Object.entries(KIND_NAMES).map(([kind, word]) => ({ word, holds: (type: RadioType) => !type.dummy && type.kind === kind })),
+  { word: "radio.add.without_radio", holds: (type: RadioType) => type.dummy },
+];
+
+/** Add radio's list of every type, in groups under their headings (ADD_GROUPS): within a group in the order of the daemon's list, the types that only receive last; without the types this installation does not carry
+ * (`unavailable`). A group with no type in it has no heading either, as its options are none. */
+export const addTypeChoices = (unavailable: readonly string[] = []): Choice[] =>
+  ADD_GROUPS.flatMap(({ word, holds }) => {
+    const types = RADIO_TYPES.filter((type) => holds(type) && !unavailable.includes(type.key));
+    return [...types.filter((type) => type.can.transmit), ...types.filter((type) => !type.can.transmit)].map((type) => ({
+      value: type.key,
+      label: typeText(type.key),
+      group: t(word),
+    }));
+  });
 
 /** The words of a box's legend by the kind of its radio. */
 const BOX_WORDS: Record<PageRadio["kind"], MessageId> = { fm: "settings.group.fm_radio", hf: "settings.group.hf_radio", lora: "settings.group.lora_radio" };

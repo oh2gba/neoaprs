@@ -4,6 +4,7 @@ import type { Message } from "@/i18n/message";
 export const radio: Readonly<Record<keyof typeof en, Message>> = {
   "radio.add": "Radio toevoegen",
   "radio.add_button": "Toevoegen",
+  "radio.add.without_radio": "Zonder radio",
   "radio.new": "Nieuwe radio",
   "radio.remove": "Verwijderen",
   "radio.remove_sure": "Echt verwijderen?",
