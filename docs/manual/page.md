@@ -123,7 +123,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group
 - **Internet stations**: the one tickbox **Enable**, which shows the stations of APRS-IS within the map's radius, and its status row under it ([igate.md](igate.md)); without a call it says **Set your call first**;
 - **Digipeater**: the tickbox **Enable** of the fill-in digipeater, one for each FM radio that is on, each in a box named after its radio while several radios are on ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the code a phone opens the page from once it is on, and the secure connection ([network.md](network.md));
-- **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));
+- **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser**, in the app's own window **On this computer** and **In this window** ([notifications.md](notifications.md));
 - **Map**: the **Radius**, and on the row under it **Detailed map** with the **Download map** button ([The base map](#the-base-map));
 - **Update check**: **Check now** ([install.md](install.md#the-update-check));
 - **Help**: one line, and the row **Feedback** with **Send feedback / logs** and an (i) beside it, which sends your words and the logs to the project ([support.md](support.md));

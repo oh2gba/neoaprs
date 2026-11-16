@@ -3,12 +3,13 @@ import { effectScope } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
-import { FakeAudioContext, FakeNotification, openedAt, resetSeen, setSeen, stubBrowser } from "@/test/fakealert";
+import { listenForInstall } from "@/composables/useInstall";
+import { APP_WINDOWS, FakeAudioContext, FakeNotification, openedAt, openedInApp, resetSeen, setSeen, stubBrowser } from "@/test/fakealert";
 
 const scope = effectScope();
 
-function make(host = "192.168.1.20") {
-  openedAt(host);
+function make(host: string | null = "192.168.1.20") {
+  if (host !== null) openedAt(host);
   const alerts = scope.run(() => useBrowserAlerts(vi.fn()));
   if (alerts === undefined) throw new Error("no scope");
   const say = vi.fn<(text: string) => void>();
@@ -209,5 +210,87 @@ describe("the browser's part of the Notifications group", () => {
     expect(wrapper.find("fieldset.subbox > legend").text()).toBe("In this browser");
     await box(wrapper, "alert-mode").setValue(true);
     expect(tests()).toEqual(["Test sound", "Test pop-up"]);
+  });
+});
+
+describe("the same box in the desktop app's own window", () => {
+  /** The box as the app's window shows it, in the web engine of `userAgent`. */
+  const inApp = (userAgent?: string) => {
+    openedInApp(userAgent);
+    return make(null);
+  };
+
+  it("is In this window, with the sound alone: the same rows as a browser's, the Pop-up row left out, in the window of every system", async () => {
+    for (const [name, agent] of Object.entries(APP_WINDOWS)) {
+      localStorage.clear();
+      stubBrowser({ notifications: !name.includes("WKWebView") });
+      const { wrapper } = inApp(agent);
+      expect(wrapper.find("fieldset.subbox > legend").text(), name).toBe("In this window");
+      expect(box(wrapper, "alert-mode").element.checked, name).toBe(false); // (the loopback: off until it is ticked)
+      await box(wrapper, "alert-mode").setValue(true);
+      await flushPromises();
+      expect(
+        wrapper.findAll("label").map((l) => l.text()),
+        name,
+      ).toEqual(["Alert", "Sound"]);
+      expect(
+        wrapper.findAll("button:not(.info-toggle)").map((b) => b.text()),
+        name,
+      ).toEqual(["Test sound"]);
+      expect([box(wrapper, "alert-sound").element.checked, box(wrapper, "alert-sound").element.disabled], name).toEqual([true, true]);
+      expect(wrapper.find("#alert-popup").exists() || wrapper.find("#alert-enable-popups").exists(), name).toBe(false);
+      expect(localStorage.getItem("NeoAPRS.alert.mode"), name).toBe("sound");
+      expect(FakeNotification.asked, name).toBe(0);
+    }
+  });
+
+  it("offers no Install app: the window is the app", () => {
+    const stop = listenForInstall();
+    window.dispatchEvent(
+      Object.assign(new Event("beforeinstallprompt"), { prompt: () => Promise.resolve(), userChoice: Promise.resolve({ outcome: "dismissed" }) }),
+    );
+    expect(make("192.168.1.20").wrapper.find("#install-app").exists()).toBe(true);
+    expect(inApp(APP_WINDOWS["Windows, WebView2"]).wrapper.find("#install-app").exists()).toBe(false);
+    stop();
+  });
+
+  it("says window where a browser's says browser, and names no pop-up", async () => {
+    const { wrapper } = inApp(APP_WINDOWS["Linux, Qt"]);
+    await wrapper.find(".info-toggle").trigger("click");
+    const tip = wrapper.find(".info-text .info-line").text();
+    expect(tip).toBe("Tells you of a new message in this window, with a sound. Each device chooses for itself.");
+    expect(wrapper.text()).not.toMatch(/browser|pop-up/i);
+  });
+
+  it("reads a kept choice with a pop-up without it: sound and pop-up is the sound, pop-up only is off", () => {
+    for (const [stored, shown] of [
+      ["off", [false]],
+      ["sound", [true, true]],
+      ["both", [true, true]],
+      ["popup", [false]],
+    ] as const) {
+      localStorage.setItem("NeoAPRS.alert.mode", stored);
+      const { wrapper } = inApp(APP_WINDOWS["Windows, WebView2"]);
+      expect(
+        wrapper.findAll<HTMLInputElement>("input[type=checkbox]").map((i) => i.element.checked),
+        stored,
+      ).toEqual(shown);
+      expect(wrapper.find("[role='status']").exists(), stored).toBe(false); // (no line about pop-ups not allowed)
+    }
+  });
+
+  it("plays the chime from Test sound as a browser's does", async () => {
+    localStorage.setItem("NeoAPRS.alert.mode", "sound");
+    const { wrapper, say } = inApp(APP_WINDOWS["macOS, Qt"]);
+    await wrapper.find("#alert-test-sound").trigger("click");
+    await flushPromises();
+    expect(FakeAudioContext.played()).toBe(2);
+    expect(say).toHaveBeenCalledExactlyOnceWith("played");
+  });
+
+  it("is a browser's box again for the same computer's browser, which has no mark of the app", () => {
+    inApp(APP_WINDOWS["Linux, Qt"]);
+    const { wrapper } = make("127.0.0.1");
+    expect(wrapper.find("fieldset.subbox > legend").text()).toBe("In this browser");
   });
 });

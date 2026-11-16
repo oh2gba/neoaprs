@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { defaultMode, modeOf, popupWhy, storedMode, wantsPopup, wantsSound } from "@/lib/alertmode";
+import { defaultMode, modeOf, popupWhy, storedMode, wantsPopup, wantsSound, withoutPopup } from "@/lib/alertmode";
 import { readStored, writeStored } from "@/lib/storage";
 
 beforeEach(() => localStorage.clear());
@@ -13,6 +13,12 @@ describe("the choices", () => {
       [false, true],
     ]);
     expect([modeOf(true, true), modeOf(true, false), modeOf(false, true), modeOf(false, false)]).toEqual(["both", "sound", "popup", "sound"]);
+  });
+});
+
+describe("a choice without its pop-up", () => {
+  it("is the sound for sound and pop-up, off for pop-up only, and the same choice for the others", () => {
+    expect((["off", "sound", "both", "popup"] as const).map(withoutPopup)).toEqual(["off", "sound", "sound", "off"]);
   });
 });
 

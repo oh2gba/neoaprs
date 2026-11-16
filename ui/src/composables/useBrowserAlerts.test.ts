@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick } from "vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
-import { FakeAudioContext, FakeNotification, openedAt, resetSeen, setSeen, stubBrowser } from "@/test/fakealert";
+import { APP_WINDOWS, FakeAudioContext, FakeNotification, openedAt, openedInApp, resetSeen, setSeen, stubBrowser } from "@/test/fakealert";
 import { incoming } from "@/test/fixtures";
 
 const scopes: { stop: () => void }[] = [];
@@ -402,5 +402,48 @@ describe("Test pop-up", () => {
     const tags = FakeNotification.shown.map((n) => n.options.tag);
     expect(tags).toHaveLength(2);
     expect(new Set(tags).size).toBe(2);
+  });
+});
+
+describe("the alert of the desktop app's own window", () => {
+  it("is off by default, as on the loopback, and is never a pop-up: the window cannot show one, so none is asked for", async () => {
+    for (const [name, agent] of Object.entries(APP_WINDOWS)) {
+      localStorage.clear();
+      stubBrowser();
+      FakeNotification.permission = "granted"; // (even an engine that would say yes is not asked)
+      openedInApp(agent);
+      const alerts = make();
+      expect([alerts.app, alerts.possible, alerts.mode.value], name).toEqual([true, false, "off"]);
+      await alerts.choose("both");
+      expect(FakeNotification.asked, name).toBe(0);
+      await alerts.testPopup();
+      expect(FakeNotification.shown, name).toEqual([]);
+    }
+  });
+
+  it("is the chime for a message to us, where a kept choice had the sound and a pop-up", async () => {
+    localStorage.setItem("NeoAPRS.alert.mode", "both");
+    FakeNotification.permission = "granted";
+    openedInApp(APP_WINDOWS["Windows, WebView2"]);
+    const alerts = make();
+    expect(alerts.mode.value).toBe("sound");
+    expect(alerts.note.value).toBe("");
+    await click();
+    alerts.announce([incoming(5, "OH2DPN")]);
+    expect(FakeNotification.shown).toEqual([]);
+    expect(FakeAudioContext.played()).toBe(2);
+  });
+
+  it("is nothing where a kept choice was the pop-up alone", () => {
+    localStorage.setItem("NeoAPRS.alert.mode", "popup");
+    openedInApp(APP_WINDOWS["Linux, Qt"]);
+    expect(make().mode.value).toBe("off");
+  });
+
+  it("is a browser's again for a page of the same computer opened in a browser", () => {
+    openedInApp(APP_WINDOWS["Linux, Qt"]);
+    make();
+    openedAt("127.0.0.1");
+    expect(make().app).toBe(false);
   });
 });

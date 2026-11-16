@@ -233,16 +233,20 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.fold.named": "{name} ({server})",
 
   "settings.alert.label": "Alerta",
-  "settings.alert.tip1": "Com o alerta ligado, este computador executa o comando quando chega uma mensagem.",
+  "settings.alert.tip1": "Com o alerta ligado, o comando é executado quando chega uma mensagem.",
   "settings.alert_command.name": "Comando de alerta",
   "settings.alert_command.label": "Comando",
   "settings.alert_command.tip1": "Executado a cada mensagem nova e aviso de estação; NEOAPRS_TITLE e NEOAPRS_TEXT trazem o título e o texto.",
   "settings.alert_test": "Testar",
   "settings.alerts.text": "No computador do NeoAPRS",
+  "settings.alerts.text_app": "Neste computador",
   "settings.alerts.title": "O alerta do próprio NeoAPRS: o comando executado no computador do NeoAPRS",
+  "settings.alerts.title_app": "O alerta do próprio NeoAPRS: o comando executado neste computador",
   "settings.alerts.tip_label": "Sobre os alertas",
-  "settings.alerts.tip1": "O alerta deste computador: executa o comando a cada mensagem nova, por padrão um som e uma notificação.",
+  "settings.alerts.tip1": "O alerta do computador do NeoAPRS: executa o comando a cada mensagem nova, por padrão um som e uma notificação.",
+  "settings.alerts.tip1_app": "O alerta deste computador: executa o comando a cada mensagem nova, por padrão um som e uma notificação.",
   "settings.alerts.tip2": "O grupo seguinte é este navegador. Use um dos dois, ou os dois para ser avisado duas vezes.",
+  "settings.alerts.tip2_app": "O grupo seguinte é esta janela. Use um dos dois, ou os dois para ser avisado duas vezes.",
 
   "settings.encrypt.tip_label": "Sobre as mensagens criptografadas",
   "settings.encrypt.tip1":
@@ -251,8 +255,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.encrypt.key_label": "Sua chave",
 
   "settings.browser.heading": "Neste navegador",
+  "settings.browser.heading_app": "Nesta janela",
   "settings.browser.mode": "Alerta",
   "settings.browser.mode_tip": "Avisa de uma mensagem nova neste navegador, com som ou pop-up. Cada dispositivo escolhe o seu.",
+  "settings.browser.mode_tip_app": "Avisa de uma mensagem nova nesta janela, com som. Cada dispositivo escolhe o seu.",
   "settings.browser.enable_popups": "Ativar pop-ups…",
   "settings.browser.sound": "Som",
   "settings.browser.test_sound": "Testar som",

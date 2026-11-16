@@ -10,6 +10,7 @@ import { ANTENNA, beaconOff } from "@/lib/beaconoff";
 import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
+import { inApp } from "@/lib/shell";
 import { GROUP_ORDER, rank } from "@/lib/settingsorder";
 import type { PageRadio } from "@/lib/radios";
 import { flatKeyOf, isRadioKey, radioFieldOf, typeText } from "@/lib/settingsradio";
@@ -331,23 +332,24 @@ export const igateOn = (values: Readonly<Record<string, string>>): boolean => va
 const shownBySwitch = (key: string, values: Readonly<Record<string, string>>): boolean =>
   key !== "messages/alert_command" || values["messages/alert"] !== "false";
 
-/** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
+/** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. In the desktop app's
+ *  own window that computer is the one the person is at, and the next box is the window (lib/shell.ts): the legend and its (i) say so. */
 export const SUBGROUPS: Record<
   string,
   { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[]; readonly picture?: PictureName }
 > = {
   "messages/alert": {
     get text() {
-      return t("settings.alerts.text");
+      return t(inApp() ? "settings.alerts.text_app" : "settings.alerts.text");
     },
     get title() {
-      return t("settings.alerts.title");
+      return t(inApp() ? "settings.alerts.title_app" : "settings.alerts.title");
     },
     get tipLabel() {
       return t("settings.alerts.tip_label");
     },
     get tip() {
-      return [t("settings.alerts.tip1"), t("settings.alerts.tip2")];
+      return inApp() ? [t("settings.alerts.tip1_app"), t("settings.alerts.tip2_app")] : [t("settings.alerts.tip1"), t("settings.alerts.tip2")];
     },
     picture: "notifications",
   },

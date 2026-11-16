@@ -235,16 +235,21 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.fold.named": "{name} ({server})",
 
   "settings.alert.label": "Melding",
-  "settings.alert.tip1": "Met Melding aan voert deze computer de Opdracht uit als er een bericht binnenkomt.",
+  "settings.alert.tip1": "Met Melding aan wordt de Opdracht uitgevoerd als er een bericht binnenkomt.",
   "settings.alert_command.name": "Meldingsopdracht",
   "settings.alert_command.label": "Opdracht",
   "settings.alert_command.tip1": "Wordt uitgevoerd bij elk nieuw bericht en elke stationsmelding; NEOAPRS_TITLE en NEOAPRS_TEXT bevatten de titel en de tekst.",
   "settings.alert_test": "Testen",
   "settings.alerts.text": "Op de NeoAPRS-computer",
+  "settings.alerts.text_app": "Op deze computer",
   "settings.alerts.title": "De eigen melding van NeoAPRS: de opdracht die op de NeoAPRS-computer draait",
+  "settings.alerts.title_app": "De eigen melding van NeoAPRS: de opdracht die op deze computer draait",
   "settings.alerts.tip_label": "Over de meldingen",
-  "settings.alerts.tip1": "De melding op deze computer: bij elk nieuw bericht wordt de Opdracht uitgevoerd, standaard een geluid en een bureaubladmelding.",
+  "settings.alerts.tip1":
+    "De melding op de NeoAPRS-computer: bij elk nieuw bericht wordt de Opdracht uitgevoerd, standaard een geluid en een bureaubladmelding.",
+  "settings.alerts.tip1_app": "De melding op deze computer: bij elk nieuw bericht wordt de Opdracht uitgevoerd, standaard een geluid en een bureaubladmelding.",
   "settings.alerts.tip2": "De volgende groep is deze browser. Gebruik een van beide, of allebei: dan krijg je elke melding twee keer.",
+  "settings.alerts.tip2_app": "De volgende groep is dit venster. Gebruik een van beide, of allebei: dan krijg je elke melding twee keer.",
 
   "settings.encrypt.tip_label": "Over versleutelde berichten",
   "settings.encrypt.tip1":
@@ -254,8 +259,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.encrypt.key_label": "Jouw sleutel",
 
   "settings.browser.heading": "In deze browser",
+  "settings.browser.heading_app": "In dit venster",
   "settings.browser.mode": "Melding",
   "settings.browser.mode_tip": "Meldt een nieuw bericht in deze browser, met een geluid of een pop-up. Elk apparaat kiest dat zelf.",
+  "settings.browser.mode_tip_app": "Meldt een nieuw bericht in dit venster, met een geluid. Elk apparaat kiest dat zelf.",
   "settings.browser.enable_popups": "Pop-ups inschakelen…",
   "settings.browser.sound": "Geluid",
   "settings.browser.test_sound": "Geluid testen",

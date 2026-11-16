@@ -2,7 +2,7 @@ import "@/test/mockmap";
 import { describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeSocket } from "@/test/fakesocket";
-import { FakeAudioContext, FakeNotification, openedAt, setSeen, stubBrowser } from "@/test/fakealert";
+import { APP_WINDOWS, FakeAudioContext, FakeNotification, openedAt, openedInApp, setSeen, stubBrowser } from "@/test/fakealert";
 import { MODE_KEY } from "@/lib/alertmode";
 import { clockText } from "@/lib/format";
 import { hello, incoming, message } from "@/test/fixtures";
@@ -31,6 +31,49 @@ describe("App: the alert of this browser", () => {
     expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Sound", "Pop-up"]);
     expect(boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
     expect(groups[0]?.findAll("h3")).toHaveLength(0);
+  });
+
+  it("in the desktop app's own window names this computer and this window, and offers the window's sound with no pop-up, on every system", async () => {
+    for (const [name, agent] of Object.entries(APP_WINDOWS)) {
+      localStorage.clear();
+      stubBrowser();
+      openedInApp(agent);
+      const { wrapper, socket } = await open();
+      await tabButton(wrapper, "Settings")?.trigger("click");
+      const group = wrapper.findAll("#pane-settings fieldset").find((g) => g.find("legend").text() === "Notifications");
+      const boxes = group?.findAll("fieldset.subbox") ?? [];
+      expect(
+        boxes.map((b) => b.find("legend").text().replace(/ i$/, "")),
+        name,
+      ).toEqual(["On this computer", "In this window"]);
+      expect(boxes[0]?.find("legend").attributes("title"), name).toBe("NeoAPRS's own alert: the command run on this computer");
+      expect(
+        boxes[0]?.findAll("label").map((l) => l.text()),
+        name,
+      ).toEqual(["Alert", "Command"]);
+      await boxes[1]?.find("#alert-mode").setValue(true);
+      await flushPromises();
+      expect(
+        boxes[1]?.findAll("label").map((l) => l.text()),
+        name,
+      ).toEqual(["Alert", "Sound"]);
+      expect(
+        boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text()),
+        name,
+      ).toEqual(["Test sound"]);
+      await boxes[0]?.find("legend .info-toggle").trigger("click");
+      expect(
+        boxes[0]?.findAll(".info-text .info-line").map((l) => l.text()),
+        name,
+      ).toEqual([
+        "The alert of this computer: it runs the Command for each new message, by default a sound and a notification.",
+        "The next group is this window. Use one of the two, or both to be told twice.",
+      ]);
+      expect(group?.text(), name).not.toMatch(/browser|server|pop-up/i);
+      expect(FakeNotification.asked, name).toBe(0);
+      socket.hangUp();
+      wrapper.unmount();
+    }
   });
 
   it("is off on the loopback: a message to us makes no sound there", async () => {

@@ -86,10 +86,30 @@ export function stubBrowser(options: { secure?: boolean; notifications?: boolean
   if (options.notifications ?? true) vi.stubGlobal("Notification", FakeNotification);
 }
 
-/** The page is opened at this address (a host name or an address). */
+/** The page is opened in a browser at this address (a host name or an address): the mark of the app's window that a test before may have left (lib/shell.ts) is gone. */
 export function openedAt(host: string): void {
+  sessionStorage.removeItem(IN_APP);
   (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL(`http://${host}:7303/`);
 }
+
+/** What lib/shell.ts keeps in the window's own store once it has seen the mark. */
+const IN_APP = "neoaprs-in-app";
+
+/** The page is the desktop app's own window: the daemon's page on the loopback with the fragment the window adds (neoaprs/desktop/links.py `window_url`), in the web engine of `userAgent`. */
+export function openedInApp(userAgent?: string): void {
+  sessionStorage.removeItem(IN_APP);
+  (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL("http://127.0.0.1:7303/#app");
+  if (userAgent !== undefined) vi.stubGlobal("navigator", { userAgent });
+}
+
+/** The user agents of the app's windows: Qt's web engine on Linux and macOS, WebView2 on Windows, and the system's own engine of the window's trial on Linux and macOS (NEOAPRS_WINDOW=web). */
+export const APP_WINDOWS = {
+  "Linux, Qt": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.140.0 Chrome/140.0.0.0 Safari/537.36",
+  "macOS, Qt": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.140.0 Chrome/140.0.0.0 Safari/537.36",
+  "Windows, WebView2": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0",
+  "Linux, WebKitGTK": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+  "macOS, WKWebView": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+} as const;
 
 /** Whether the page is in front of the person: visible and in focus. */
 export function setSeen(seen: boolean): void {

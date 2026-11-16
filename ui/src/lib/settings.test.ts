@@ -119,6 +119,22 @@ describe("groupKeys", () => {
     expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert"]);
     expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Alert", "Command"]);
   });
+  it("names the NeoAPRS computer in the (i) of the daemon's alert in a browser and this computer in the app's own window, after a reload too; the (i) of Alert names neither", () => {
+    const tips = () => [...(SUBGROUPS["messages/alert"]?.tip ?? []), ...(FIELDS["messages/alert"]?.tip ?? [])];
+    sessionStorage.clear();
+    expect(FIELDS["messages/alert"]?.tip).toEqual(["With Alert on, the Command is run when a message arrives."]);
+    expect(tips().filter((line) => line.includes("NeoAPRS computer"))).toHaveLength(1);
+    expect(tips().join(" ")).not.toMatch(/this computer|window/);
+    const browser = location.href;
+    const at = (url: string) => (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL(url);
+    at("http://127.0.0.1:7303/#app");
+    expect(tips().filter((line) => line.includes("this computer"))).toHaveLength(1);
+    at("http://127.0.0.1:7303/"); // (the window's reload, without the fragment: the window still knows)
+    expect(tips().join(" ")).toMatch(/this window/);
+    expect(tips().join(" ")).not.toMatch(/NeoAPRS computer|browser/);
+    sessionStorage.clear();
+    at(browser);
+  });
   it("keeps the radius of the map in a group of its own, and leaves off the page the detail and the source, which stay settings for neoaprs db set", () => {
     expect(groupKeys(["web/network", "map/radius_km"]).map((g) => g.id)).toEqual(["digi", "web", "map"]);
     const keys = groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys);

@@ -2,6 +2,8 @@
 // default on the machine the daemon runs on (the page on the loopback, the desktop app: the daemon's own alert command notifies there), and elsewhere sound and pop-up where the browser can show one, else sound. The sound is
 // the chime (the first click or key press unlocks the audio); a pop-up is a notification of the browser, shown where it allows one (a secure context, permission given), and where none is shown, or the browser fails to show it, the
 // browser tab alerts (useTabAlert). The permission is asked only in a click: on choosing a pop-up, and on the Test pop-up button. Test sound and Test pop-up each say, for a few seconds, what happened.
+// In the desktop app's own window (`app`, lib/shell.ts) there is no pop-up: nothing in the app answers a page that asks for one (Qt's window leaves the question unanswered, pywebview's WebView2 has no handler for it), and
+// the daemon's own alert shows the notification on that same computer; so the window's alert is the chime alone, a kept choice with a pop-up is read without it, and the permission is never asked.
 import { computed, onScopeDispose, getCurrentScope, ref } from "vue";
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
@@ -9,6 +11,7 @@ import { useTabAlert } from "@/composables/useTabAlert";
 import { Chime } from "@/lib/chime";
 import { storedMode, popupWhy, wantsPopup, wantsSound, MODE_KEY, type AlertMode } from "@/lib/alertmode";
 import { isLoopbackHost, notificationTitle } from "@/lib/pagealert";
+import { inApp } from "@/lib/shell";
 import { writeStored } from "@/lib/storage";
 import { firedText } from "@/lib/stationalert";
 import type { MessageRow, StationAlertMessage } from "@/protocol/protocol";
@@ -89,16 +92,16 @@ function useAudioUnlock(chime: Chime): void {
 export function useBrowserAlerts(openConversation: (call: string) => void) {
   const chime = new Chime();
   const tab = useTabAlert();
-  const here = isLoopbackHost(location.hostname);
+  const app = inApp(); // the desktop app's own window, not a browser
 
   /** The page is a secure context; where it is not, the way to make it one is shown (PopupHelp). */
   const secure = window.isSecureContext === true;
-  /** The browser can show pop-ups here: a secure context (localhost, https, an address the browser was told to trust) with the API. */
-  const possible = typeof Notification !== "undefined" && secure;
+  /** The browser can show pop-ups here: a secure context (localhost, https, an address the browser was told to trust) with the API, and not the app's window. */
+  const possible = !app && typeof Notification !== "undefined" && secure;
   const permission = ref<NotificationPermission>(permissionNow(possible));
   /** why a pop-up cannot be chosen, else undefined */
   const why = computed(() => popupWhy(possible, permission.value));
-  const mode = ref<AlertMode>(storedMode(here, popupWhy(possible, permission.value)));
+  const mode = ref<AlertMode>(storedMode(isLoopbackHost(location.hostname), popupWhy(possible, permission.value), app)); // (off by default on the loopback)
   /** the permission was refused for the pop-up that was chosen: said next to the choice, until the next choice */
   const refused = ref(false);
   const popupOn = computed(() => possible && wantsPopup(mode.value) && permission.value === "granted");
@@ -170,6 +173,7 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
   }
 
   return {
+    app,
     mode,
     why,
     note,

@@ -27,6 +27,7 @@ const PROGRAM = [
   "settings.not_sent",
   "settings.no_word",
   "settings.alerts.title",
+  "settings.alerts.title_app",
   "settings.help.problem.unreachable",
   "stats.section.radio",
   "error.lock.off",
@@ -58,6 +59,8 @@ const DUMMY_IDS = [
 /** The texts the phone's code, the Sound card type and the modem-neutral words of a radio brought: the program in them is NeoAPRS, written one way, and never the server. */
 const BROUGHT = (id: string): boolean =>
   id.startsWith("phone.") || ["radio.type.direwolf", "settings.tnc.hf.keying", "settings.tnc.hf.not_installed"].includes(id);
+/** The texts of the two boxes of the Notifications group, in a browser and in the app's own window: the computer NeoAPRS runs on is a computer, never a server. */
+const ALERT_BOXES = (id: string): boolean => id.startsWith("settings.alerts.") || id.startsWith("settings.browser.") || id === "settings.alert.tip1";
 /** The lines of the list of types that only receive. */
 const RECEIVE_ONLY_TYPES = ["radio.type.tnc_text", "radio.type.lora_console"];
 
@@ -87,6 +90,13 @@ for (const locale of LOCALES) {
       expect(brought.length).toBeGreaterThanOrEqual(7);
       expect(brought.flatMap((id) => [...say(id).matchAll(/neo[\s-]*aprs/giu)].map((m) => m[0])).filter((name) => name !== "NeoAPRS")).toEqual([]);
       expect(brought.filter((id) => /daemon|démon|デーモン|server|serveur|servidor|palvelin|サーバ/iu.test(say(id)))).toEqual([]);
+    });
+
+    it("call the computer of the alert boxes a computer, never the server, in a browser and in the app's window", () => {
+      const boxes = Object.keys(messages).filter(ALERT_BOXES);
+      expect(boxes.length).toBeGreaterThanOrEqual(18);
+      expect(boxes.filter((id) => /daemon|démon|デーモン|server|serveur|servidor|palvelin|サーバ/iu.test(say(id)))).toEqual([]);
+      expect(boxes.filter((id) => id.endsWith("_app") && /browser|navigateur|navegador|selain|ブラウザ/iu.test(say(id)))).toEqual([]);
     });
 
     it("say receive-only with the word of the RX only switch, in the list of types too", () => {

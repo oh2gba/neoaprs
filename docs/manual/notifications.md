@@ -5,6 +5,8 @@ A new message can alert you in two places, and both are in the **Notifications**
 - **On the NeoAPRS computer:** the daemon runs a command of yours.
 - **In this browser:** the page alerts by itself, in whatever browser has it open.
 
+In the desktop app's own window the two are on the computer you are at, and the boxes say so: **On this computer** and **In this window** ([below](#in-the-apps-window)).
+
 Both alert for the same messages: a message to you, the first copy only. Not a bulletin or a group message, an ack, a reject, a query that NeoAPRS answers, a message you only overheard, or one of your own. A repeat of a retry or another digipeater's copy does not alert again.
 
 Both also alert for an alert you set on a station (**Alert me when…** in the Stations table, [page.md](page.md#alerts-on-a-station)): it comes on the air, comes near, or is heard direct. It has a title of its own, "APRS alert: OH2XYZ", and is not counted as a message.
@@ -71,6 +73,14 @@ Each test beside the choice says what happened in the toast at the bottom of the
 | **Test sound** | plays the chime now | `played`; `sound locked: click the page once` when the browser will not let the audio run yet |
 | **Test pop-up** | shows a pop-up now, "APRS message from NEOAPRS", asking for the permission first if the browser has not been asked. Where none can be shown it flashes the browser tab for a few seconds | `pop-up sent`; `pop-up blocked` when the permission is refused or the browser will not show it; `pop-ups are off for this address` with **Enable pop-ups…** beside it |
 | **Test** (on the NeoAPRS computer) | runs the alert command as it is saved | the command's result |
+
+### In the app's window
+
+The desktop app (the AppImage, the .deb, the Windows and the macOS app) shows the page in a window of its own, on the computer NeoAPRS runs on. There the first box is **On this computer** and the second **In this window**:
+
+- **On this computer** is the command above, unchanged: by default a notification and a sound of the system, on Linux and on Windows.
+- **In this window** is the chime alone. The window cannot show a pop-up, so the row **Pop-up** and its test are not there, and a choice kept with a pop-up plays the chime (**sound and pop-up**) or nothing (**pop-up only**). It starts at **off**, since the command already tells you on this computer; tick **Alert** for the chime as well.
+- A browser opened on the same computer, or on a phone, has the boxes of a browser, with its own choice.
 
 ### Pop-ups need a secure address
 
