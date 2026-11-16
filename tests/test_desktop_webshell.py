@@ -896,7 +896,7 @@ def test_a_window_without_a_tray_icon_is_a_window_whose_close_button_quits(tmp_p
     rig.tray = False
     thread = threading.Thread(target=rig.run, daemon=True)
     thread.start()
-    until(lambda: rig.ctx.watch is not None)
+    until(lambda: rig.ctx.watch is not None and bool(rig.toolkits.windows) and bool(rig.toolkits.windows[0].loaded))     # (the watch is there a moment before the window has loaded the page: under a full load the test was there first)
     window = rig.toolkits.windows[0]
     assert rig.toolkits.icons == [] and window.loaded == [PAGE + "#app"]
     assert handler(window.events.closing)() is False

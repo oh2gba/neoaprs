@@ -1576,6 +1576,18 @@ def test_the_radio_data_check_holds_the_keys_of_a_radio_and_the_name_that_was_ty
     assert radio_data_problems(script, "ok    radio Mercury (dummy-hf)", "ok    radio HF (dummy-hf)") == ["doctor has no line `ok    radio Mercury (dummy-hf): ...` for radio 2"], "the doctor and db radios of one release say one name"
 
 
+def test_what_the_update_to_no_main_radio_does_on_purpose_is_no_fault_of_the_settings_and_nothing_else_passes_for_it(script: ModuleType) -> None:
+    """0.20.2 has no main radio: step 34 deletes the setting and ticks the status for the one radio the main radio was. The proof from 0.20.1 holds every other setting as before."""
+    was = {"station/main_radio": ("", "default"), "radio/1/status": ("false", "default"), "radio/2/status": ("false", "default"), "radio/1/path": ("WIDE1-1", "stored"), "station/call": ("OH2GBA-9", "stored")}
+    now = {"radio/1/status": ("true", "stored"), "radio/2/status": ("false", "default"), "radio/1/path": ("WIDE1-1", "stored"), "station/call": ("OH2GBA-9", "stored"), "radio/1/ask": ("true", "stored")}
+    assert script.same_settings(was, now) == []
+    both = script.same_settings(was, {**now, "radio/2/status": ("true", "stored")})
+    assert len(both) == 1 and "more than one radio" in both[0]
+    assert len(script.same_settings(was, {key: value for key, value in now.items() if key != "radio/1/path"})) == 1, "a setting that is lost is still a fault"
+    assert len(script.same_settings({**was, "radio/1/status": ("true", "stored")}, {**now, "radio/1/status": ("false", "default")})) == 1, "a tick the operator set and the update took away is a fault"
+    assert len(script.same_settings(was, {**now, "station/call": ("N0CALL", "stored")})) == 1
+
+
 def test_the_radio_data_check_refuses_a_changed_setting_a_lost_station_and_a_failed_doctor(script: ModuleType) -> None:
     assert radio_data_problems(script, "station/lat               60.1699", "station/lat               60.17  ") == ["station/lat was '60.1699' (stored) and is '60.17' (stored) after the update"]
     assert radio_data_problems(script, "beacon/power_w            5                   stored", "beacon/power_w            5                   default") == [

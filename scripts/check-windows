@@ -1442,13 +1442,25 @@ def check_migrate(outputs: Mapping[str, str]) -> Checked:
     return problems, [f"the first start of the new release migrated the database from version {begun[0].group(1)} to {begun[0].group(2)}"] if not problems else []
 
 
+DROPPED = frozenset({"station/main_radio"})             # settings a later release took away: 0.20.2 has no main radio (step 34 deletes the setting)
+STATUS_TICK = re.compile(r"radio/\d+/status$")           # step 34 ticks the status for the one radio the main radio was: unticked by default before, ticked and stored after
+
+
 def same_settings(was: Mapping[str, tuple[str, str]], now: Mapping[str, tuple[str, str]]) -> list[str]:
-    """What is not the same of the settings the old release listed: one that is gone, one whose value changed, one that was stored and is the default now. A setting only the new release lists is its own."""
-    problems = []
+    """What is not the same of the settings the old release listed: one that is gone, one whose value changed, one that was stored and is the default now. A setting only the new release lists is its own. Two
+    things an update to 0.20.2 does on purpose are no fault: the setting of the main radio is gone, and the status is ticked for ONE radio, the one the main radio was (for more than one it is said)."""
+    problems, ticked = [], []
     for key, (value, mark) in was.items():
         after = now.get(key)
+        if after is None and key in DROPPED:
+            continue
+        if STATUS_TICK.match(key) and (value, mark) == ("false", "default") and after == ("true", "stored"):
+            ticked.append(key)
+            continue
         if after is None or after[0] != value or (mark == "stored" and after[1] != "stored"):
             problems.append(f"{key} was {shown((value, mark))} and is {shown(after)} after the update")
+    if len(ticked) > 1:
+        problems.append(f"the update ticked the status for more than one radio ({', '.join(ticked)}): it stands for the one radio the main radio was")
     return problems
 
 
