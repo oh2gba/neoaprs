@@ -2,21 +2,20 @@
 
 ## Unreleased
 
-80 m among the suggested frequencies, the Add radio list in groups, and small things put right after 0.20.0.
+Simpler names for the radio types, a Send on for the status text, and small things put right after 0.20.0.
 
 - **New:** 80 m among the suggested HF frequencies: 3.5850 MHz USB.
 - **New:** with several radios, the status text has its own Send on, as the beacon has.
-- **Changed:** **Add radio** lists the radio types in groups: FM, HF, LoRa, and Without a radio.
-- **Changed:** **Add radio** lists the radio types in groups: FM, Mercury, LoRa, and Without a radio.
 - **Changed:** simpler names for the radio types: Sound card instead of Sound card (Direwolf), and the list says what you have, not what runs inside.
+- **Changed:** **Add radio** lists the radio types in groups: FM, Mercury, LoRa, and Without a radio.
 - **Changed:** a radio on the Mercury modem is called Mercury, no longer HF, on its tags and its box: the modem works on any band.
-- **Changed:** the (i) buttons show nothing on hover.
-- **Changed:** in Dutch a radio is "radio", no longer "set".
+- **Changed:** a packet and a station name the radio that heard them (FM, Mercury, LoRa or the name you gave it), no longer RF.
 - **Changed:** the status text and the beacon comment show how many characters are left, as a message does, and no text takes more than fits.
-- **Changed:** a packet and a station name the radio that heard them (FM, HF, LoRa or the name you gave it), no longer RF.
-- **Fixed:** in the app's own window, Settings → Notifications named the NeoAPRS computer and this browser; it now says this computer and this window.
 - **Changed:** in **Post a bulletin** each kind says what it does: sent for 4 hours, sent for 3 days, to one group.
 - **Changed:** Send feedback shows its log file by name: download it to look inside, or remove it to send your message alone.
+- **Changed:** the (i) buttons show nothing on hover.
+- **Changed:** in Dutch a radio is "radio", no longer "set".
+- **Fixed:** in the app's own window, Settings → Notifications named the NeoAPRS computer and this browser; it now says this computer and this window.
 - **Fixed:** in the eight other languages some reasons, status lines and labels were still in English.
 
 ## 0.20.0
