@@ -1,4 +1,4 @@
-"""What NeoAPRS knows of the Mercury HF modem without running it (neoaprs/mercury.py, the profile, the settings): the one mode and its frame, the frame cap on what the daemon sends (the beacon's comment cut, a message refused with
+"""What NeoAPRS knows of the Mercury modem without running it (neoaprs/mercury.py, the profile, the settings): the one mode and its frame, the frame cap on what the daemon sends (the beacon's comment cut, a message refused with
 a reason, the Tnc's last guard), the keying as the setting keeps it, the command line and the configuration the daemon writes, what `mercury -z` and the control port print, and the moving station's floor. The
 beacon's frames and pause are those of radio 2 of the settings as the registry gives it (`support/seamshapes.py`), made by the station's one maker (services/beaconframe.py)."""
 import logging
@@ -40,7 +40,7 @@ def test_the_one_mode_is_datac3_and_its_frame_carries_123_bytes_of_a_packet_in_u
     assert (mercury.MODE, mercury.MODE_INDEX, mercury.FRAME_BYTES, mercury.HEADER_BYTES, mercury.MAX_PAYLOAD) == ("DATAC3", 1, 126, 3, 123)
     assert 3.5 < mercury.FRAME_SEC < 4.5 and mercury.DELIVERY_SEC >= 3.78, "the slowest delivery scripts/mercury-measure frame saw"
     assert type_of(MERCURY.key).limits.max_frame == 123 and MERCURY.transport == "modem" and MERCURY.enter == () and not MERCURY.can_probe
-    assert MERCURY not in PROFILES and all(type_of(p.key).kind == "fm" for p in PROFILES) and type_of(MERCURY.key).kind == "hf", "the Mercury profile is the HF radio's, never a type of the FM radio"
+    assert MERCURY not in PROFILES and all(type_of(p.key).kind == "fm" for p in PROFILES) and type_of(MERCURY.key).kind == "hf", "the Mercury profile is the Mercury radio's, never a type of the FM radio"
     with pytest.raises(ValueError):
         profile_of("mercury")
 
@@ -214,8 +214,8 @@ def test_the_settings_keep_the_sound_card_and_the_keying_and_refuse_a_keying_tha
         Config.check("mercury/keying", "ptt")
     assert Config.from_data({"mercury/keying": "nonsense"}).mercury_keying == "", "a row edited by hand falls back to the default: the daemon's choice"
     hf = Config.checked(replace(DEFAULTS, serial_port="/dev/ttyUSB0"), {"hf/enabled": "true"})
-    assert hf.hf_enabled and hf.fm_enabled and hf.serial_port == "/dev/ttyUSB0", "the HF radio is a tickbox beside the FM radio, whatever the FM radio's port"
-    with pytest.raises(ValueError, match="not a TNC profile"):
+    assert hf.hf_enabled and hf.fm_enabled and hf.serial_port == "/dev/ttyUSB0", "the Mercury radio is a tickbox beside the FM radio, whatever the FM radio's port"
+    with pytest.raises(ValueError, match="not a type of radio"):
         Config.checked(DEFAULTS, {"tnc/profile": "mercury"})
 
 
@@ -441,17 +441,17 @@ def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the
 def test_the_one_beacon_interval_is_raised_to_30_minutes_on_the_hf_radio_alone_and_the_fm_radio_keeps_what_was_set() -> None:
     assert DEFAULTS.beacon_interval_min == 0 and not hasattr(DEFAULTS, "hf_" "beacon_interval_min"), "one setting for both radios"
     fm_only = replace(DEFAULTS, beacon_interval_min=20)
-    assert fm_only.beacon_interval() == 20, "with HF off, today's floor of 20"
+    assert fm_only.beacon_interval() == 20, "with Mercury off, today's floor of 20"
     both = replace(fm_only, hf_enabled=True)
     clock = FixedClock()
     fm_beacon, on_hf = (Beacon(radio_of(both, id), lambda: both, clock, frames=BeaconFrames(lambda: both, None, clock)) for id in (FM_ID, HF_ID))
-    assert (fm_beacon.interval_min, on_hf.interval_min) == (20, 30), "with HF on, 30 at the least on the HF radio; the FM radio at 20 is not slowed by it (plan rule 3.1)"
-    assert replace(both, fm_enabled=False).beacon_interval() == 30, "the HF radio alone: 30 at the least"
+    assert (fm_beacon.interval_min, on_hf.interval_min) == (20, 30), "with Mercury on, 30 at the least on the Mercury radio; the FM radio at 20 is not slowed by it (plan rule 3.1)"
+    assert replace(both, fm_enabled=False).beacon_interval() == 30, "the Mercury radio alone: 30 at the least"
     longer, off = replace(both, beacon_interval_min=60), replace(both, beacon_interval_min=0)
     assert [Beacon(radio_of(c, id), lambda c=c: c, clock).interval_min for c in (longer, off) for id in (FM_ID, HF_ID)] == [60, 60, 0, 0], "a longer interval stays on both, Off stays Off"
     with pytest.raises(ValueError, match="no_radio|at least one radio"):
         Config.checked(DEFAULTS, {"fm/enabled": "false"})
-    assert Config.checked(replace(DEFAULTS, hf_enabled=True), {"fm/enabled": "false"}).hf_enabled, "the FM radio may go when the HF one is on"
+    assert Config.checked(replace(DEFAULTS, hf_enabled=True), {"fm/enabled": "false"}).hf_enabled, "the FM radio may go when the Mercury one is on"
 
 
 def test_the_random_pause_keeps_stations_with_the_same_interval_apart_on_the_simulated_hour() -> None:

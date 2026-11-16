@@ -47,7 +47,7 @@ describe("StatsCard", () => {
     const packets = new Map([packet(1, { radio_id: 1 }), packet(2, { radio_id: 2 }), packet(3, { radio_id: 3 })].map((row) => [String(row.id), row] as const));
     const wrapper = mount(StatsCard, { props: { packets }, global: withDaemon(daemon) });
     const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
-    expect(rows["By channel"]).toBe("1 FM · 1 HF · 1 Shack");
+    expect(rows["By channel"]).toBe("1 FM · 1 Mercury · 1 Shack");
     expect(rows["Frames from the radios"]).toMatch(/^123\b/);
   });
 

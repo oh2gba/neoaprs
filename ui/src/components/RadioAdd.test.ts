@@ -1,4 +1,4 @@
-// Add radio's list of every type, in groups under their headings: FM, HF, LoRa (each kind's real types, those that only receive last), and Without a radio (the Dummy types, by the type's own fact `dummy`); the
+// Add radio's list of every type, in groups under their headings: FM, Mercury, LoRa (each kind's word, which is the tag of an unnamed radio too; each kind's real types in the order of the daemon's list, those that only receive last), and Without a radio (the Dummy types, by the type's own fact `dummy`); the
 // placeholder first, outside the groups; a type this installation does not carry left out, and a group with nothing in it not drawn; choosing a type and Add still add that type.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
@@ -23,30 +23,30 @@ const drawn = (wrapper: VueWrapper) =>
   );
 
 const FM = [
-  "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+  "Sound card",
+  "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)",
   "Kenwood TM-D710 / TH-D72",
+  "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
   "Kantronics KPC-3+",
-  "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
-  "KISS over TCP (Direwolf, soundmodem)",
-  "Sound card (Direwolf)",
-  "RX only: Yaesu FTM, TNC text (no KISS)",
+  "Your own Direwolf or soundmodem",
+  "Yaesu FTM, TNC in monitor mode (RX only)",
 ];
-const HF = ["Mercury HF modem (sound card, SSB radio)"];
-const LORA = ["LoRa APRS board on the network", "LoRa APRS board on USB or Bluetooth", "LoRa APRS iGate's log on USB (RX only)"];
-const WITHOUT = ["Dummy (no radio, made-up traffic)", "Dummy HF radio (no radio, made-up distant stations)", "Dummy LoRa radio (no radio, made-up stations)"];
+const MERCURY = ["Mercury modem (sound card)"];
+const LORA = ["LoRa APRS board on the network", "LoRa APRS board on USB or Bluetooth", "LoRa APRS iGate on USB (RX only)"];
+const WITHOUT = ["Dummy FM radio", "Dummy Mercury radio", "Dummy LoRa radio"];
 
 describe("Add radio's list", () => {
   it("has the placeholder first, then the four groups in order with their types, those that only receive last in their group", () => {
     const { wrapper } = make();
-    expect(drawn(wrapper)).toEqual(["Radio type", { FM }, { HF }, { LoRa: LORA }, { "Without a radio": WITHOUT }]);
+    expect(drawn(wrapper)).toEqual(["Radio type", { FM }, { Mercury: MERCURY }, { LoRa: LORA }, { "Without a radio": WITHOUT }]);
   });
 
   it("leaves out a type this installation does not carry (Direwolf), its group stays", () => {
     const { wrapper } = make(["direwolf"]);
     expect(drawn(wrapper)).toEqual([
       "Radio type",
-      { FM: FM.filter((words) => words !== "Sound card (Direwolf)") },
-      { HF },
+      { FM: FM.filter((words) => words !== "Sound card") },
+      { Mercury: MERCURY },
       { LoRa: LORA },
       { "Without a radio": WITHOUT },
     ]);
@@ -55,13 +55,13 @@ describe("Add radio's list", () => {
   it("draws no heading for a group with nothing in it", () => {
     const { wrapper } = make(["mercury"]);
     expect(drawn(wrapper)).toEqual(["Radio type", { FM }, { LoRa: LORA }, { "Without a radio": WITHOUT }]);
-    expect(addTypeChoices(["mercury"]).map((choice) => choice.group)).not.toContain("HF");
+    expect(addTypeChoices(["mercury"]).map((choice) => choice.group)).not.toContain("Mercury");
   });
 
   it("names its groups in the page's language: the kind words, and Without a radio", () => {
     setLocale("de");
     const { wrapper } = make();
-    expect(wrapper.findAll("optgroup").map((group) => group.attributes("label"))).toEqual(["FM", "KW", "LoRa", "Ohne Funkgerät"]);
+    expect(wrapper.findAll("optgroup").map((group) => group.attributes("label"))).toEqual(["FM", "Mercury", "LoRa", "Ohne Funkgerät"]);
   });
 
   it("adds the type chosen in a group, as before", async () => {

@@ -1,5 +1,5 @@
 """Asking QRU for local info (neoaprs/services/qruask.py, the words in neoaprs/qrutext.py, the command `qru_ask` and the topic `qru`): the request on the air (to QRU, no id, RFONLY, once, not kept), the refusals, the
-servers that answer and what is made of their lists and closing lines, and the whole through the daemon and the socket, on the station's radios as the registry gives them (tests/test_messaging.py `pick_of`: a stub Tnc, an HF one beside it) or the fake radio of an `Env`."""
+servers that answer and what is made of their lists and closing lines, and the whole through the daemon and the socket, on the station's radios as the registry gives them (tests/test_messaging.py `pick_of`: a stub Tnc, a Mercury one beside it) or the fake radio of an `Env`."""
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -168,10 +168,10 @@ async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_i
     rig = Rig(hf_enabled=True)
     hf = with_hf(rig, rig.radios)
     rig.qru.ask("INFO", radio=HF_ID)
-    assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == [], "on the radio named (HF: no path)"
+    assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == [], "on the radio named (Mercury: no path)"
     assert rig.paths_asked == [("QRU", None, HF_ID)], "the path of messages to QRU is asked for that radio"
     assert isinstance(rig.qru.asked, AskedOn) and (rig.qru.asked.text, rig.qru.asked.radio) == ("INFO", HF_ID), "the request records its radio"
-    assert [r.getMessage() for r in caplog.records] == ["asked QRU: INFO on HF"], "with two radios on the log says which"
+    assert [r.getMessage() for r in caplog.records] == ["asked QRU: INFO on Mercury"], "with two radios on the log says which"
     rig.radios.on.discard(HF_ID)
     with pytest.raises(MessagingError, match="no such radio"):
         rig.qru.ask("RP70", radio=HF_ID)
@@ -190,7 +190,7 @@ async def test_the_waits_between_requests_are_each_radios_own() -> None:
     rig.clock.advance(ASK_GAP_SEC)
     with pytest.raises(MessagingError) as refused:
         rig.qru.ask("INFO", radio=HF_ID)
-    assert refused.value.params == {"seconds": ASK_EVERY_SEC - ASK_GAP_SEC}, "the same text on HF within its minute"
+    assert refused.value.params == {"seconds": ASK_EVERY_SEC - ASK_GAP_SEC}, "the same text on Mercury within its minute"
     rig.qru.ask("RP70", radio=HF_ID)
     assert len(hf.sent) == 2 and len(rig.tnc.sent) == 1
 

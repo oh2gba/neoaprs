@@ -1,5 +1,5 @@
 """The seams of the radio round (work/par/round/breakdown.md, section 1) as views of today's values, so that nothing behaves differently while they are new: the radios of the settings are today's FM radio
-(radio 1) and HF radio (radio 2) made of the flat keys (`radios_from_flat`, every shape of today's settings); today's rules written with ids (neoaprs/messagerule.py, neoaprs/emailrule.py) choose what
+(radio 1) and Mercury radio (radio 2) made of the flat keys (`radios_from_flat`, every shape of today's settings); today's rules written with ids (neoaprs/messagerule.py, neoaprs/emailrule.py) choose what
 the two radios of before chose for a station and for the email gateway (tests/support/tworadios.py), over a table of cases, and the beacon rule
 (neoaprs/beaconrule.py, plan rule 3.1, tests/test_beaconrule.py) keeps today's two beacons on today's radios with each radio's own floor; the one fit function makes the frame the sender makes today; the shapes wave 1 writes (tests/support/seamshapes.py, which mypy holds to the Protocols) work as the
 services take them; and the constructors that gained keywords keep their old call."""
@@ -119,7 +119,7 @@ def test_the_beacon_interval_is_each_radios_own_and_its_radios_are_todays(interv
     config = replace(DEFAULTS, beacon_interval_min=interval, fm_enabled=fm_on, hf_enabled=hf_on)
     for spec in config.radios:
         own = max(interval, 30) if interval and spec.kind == "hf" else interval
-        assert beacon_interval(interval, spec, config.radios) == own, "the station's interval, raised on the HF radio alone to its 30 minutes (plan rule 3.1: FM at 20 is no longer slowed by HF)"
+        assert beacon_interval(interval, spec, config.radios) == own, "the station's interval, raised on the Mercury radio alone to its 30 minutes (plan rule 3.1: FM at 20 is no longer slowed by HF)"
     assert beacon_radios(config.radios, config.main_radio) == tuple(i for i, on in ((FM_ID, fm_on), (HF_ID, hf_on)) if on), "each beacon sends while its radio is on"
     assert MESSAGE_RADIO_RECENT_HOURS == 6
 
@@ -180,7 +180,7 @@ def test_the_shapes_wave_one_writes_are_what_the_services_take_and_the_frame_par
     live = [LiveShape(spec, config.radios, lines[spec.id]) for spec in config.radios]
     pick = as_pick(RegistryShape(live))
     assert [r.id for r in pick.enabled()] == [FM_ID, HF_ID] and pick.main is live[0] and pick.get(HF_ID) is live[1] and pick.get(3) is None
-    assert [(r.name, r.kind, r.max_frame, r.stats is lines[r.id].stats) for r in pick.enabled()] == [("FM", "fm", None, True), ("HF", "hf", type_of("mercury").limits.max_frame, True)]
+    assert [(r.name, r.kind, r.max_frame, r.stats is lines[r.id].stats) for r in pick.enabled()] == [("FM", "fm", None, True), ("Mercury", "hf", type_of("mercury").limits.max_frame, True)]
     info = b"!6010.00N/02455.00E-" + b"long comment " * 12
     for spec in config.radios:
         assert fit(as_air(frozen_air(spec)), config, info, None) == fit(as_air(live[spec.id - 1]), config, info, None), "a frozen value and a radio of the registry are the same radio to fit"

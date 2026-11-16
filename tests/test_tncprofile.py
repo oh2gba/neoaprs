@@ -37,7 +37,7 @@ def test_the_table_has_the_profiles_the_page_offers_in_its_order_and_the_default
     assert [p.transport for p in PROFILES] == ["serial", "serial", "serial", "serial", "tcp", "serial", "dummy"]
     assert KISS_TCP.baud is None and DUMMY.baud is None and MERCURY.baud is None and all(p.baud == 9600 for p in PROFILES if p.transport == "serial")
     assert all(type_of(p.key).limits.max_frame is None for p in PROFILES), "no FM type cuts a packet"
-    assert MERCURY not in PROFILES and MERCURY.transport == "modem" and type_of(MERCURY.key).limits.max_frame == 123 and type_of(MERCURY.key).kind == "hf", "the Mercury profile is the HF radio's one profile, not a type of the FM radio"
+    assert MERCURY not in PROFILES and MERCURY.transport == "modem" and type_of(MERCURY.key).limits.max_frame == 123 and type_of(MERCURY.key).kind == "hf", "the Mercury profile is the Mercury radio's one profile, not a type of the FM radio"
 
 
 def test_every_profile_is_named_by_its_types_key_so_a_line_of_it_knows_its_kind_and_its_limits() -> None:

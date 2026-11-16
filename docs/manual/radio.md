@@ -1,6 +1,6 @@
 # The radios
 
-Plug in your radio, tell NeoAPRS what it is, and the map fills with the stations it hears. A station may have one radio or several: a handheld's TNC for the local FM network, an SSB radio on HF for stations a thousand kilometres away, a LoRa board on the roof. Every station any of them hears is on the same map and in the same station book, and each message goes out on the radio that reaches its station.
+Plug in your radio, tell NeoAPRS what it is, and the map fills with the stations it hears. A station may have one radio or several: a handheld's TNC for the local FM network, an SSB radio with the Mercury modem for stations a thousand kilometres away, a LoRa board on the roof. Every station any of them hears is on the same map and in the same station book, and each message goes out on the radio that reaches its station.
 
 This chapter says what a radio is in NeoAPRS, how to add one, and what to choose for each kind of radio. How to wire each radio and TNC is in [`docs/RADIOS.md`](../RADIOS.md).
 
@@ -8,9 +8,9 @@ This chapter says what a radio is in NeoAPRS, how to add one, and what to choose
 
 A radio is one box in **Settings → Radio**: the radio with its TNC or modem, the way NeoAPRS reaches it, and what it may do on the air.
 
-- **Its kind** is FM, HF or LoRa. The kind says what the radio may carry: a path of digipeaters, the fill-in digipeater, SmartBeaconing, a beacon at short intervals. It is fixed when the radio is added.
-- **Its type** is the line of the list that matches the device, such as *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)* or *Mercury HF modem (sound card, SSB radio)*. It can be changed within the kind. A radio keeps the values of a type it leaves.
-- **Its name** is a short word the page calls it by everywhere: on its tags, in Route, in the Send on ticks. A radio with no name of its own is called by its kind: "FM", "HF", "LoRa", and "FM 2" for the second of a kind.
+- **Its kind** is FM, Mercury or LoRa: the kind of signal, which says who can hear it. An FM radio is heard by every packet station, a Mercury radio only by stations that run the Mercury modem on the same frequency, a LoRa radio only by LoRa APRS stations. The kind also says what the radio may carry: a path of digipeaters, the fill-in digipeater, SmartBeaconing, a beacon at short intervals. It is fixed when the radio is added.
+- **Its type** is the line of the list that matches the device, such as *KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)* or *Mercury modem (sound card)*. It says what you have in hand: a radio or a TNC by its model, a sound card, a LoRa board. It can be changed within the kind. A radio keeps the values of a type it leaves.
+- **Its name** is a short word the page calls it by everywhere: on its tags, in Route, in the Send on ticks. A radio with no name of its own is called by its kind: "FM", "Mercury", "LoRa", and "FM 2" for the second of a kind.
 
 With one radio, only the tags of how a packet or a station came name it ("FM", or the name you gave it): Settings → Radio has its one box and **Add radio** under it. With several radios on, every tag, message, object and Monitor says which radio it belongs to.
 
@@ -25,18 +25,18 @@ The Radio group of the Settings tab has, from the top:
 
 The box of a radio that is on has its **Enable** tickbox, its status line and, behind the arrow of the status line, its **Radio type**, the fields of that type and what the type can do (Find my radio, Tune, the Spectrum, the Terminal). The box of a radio that is off is its Enable alone (with its Name and Remove, below). A box folds by the arrow in front of its name, and the page remembers in this browser which ones you folded. A box opens by itself while its radio is on and not connected, when the daemon refuses one of its settings, and when the page leads you to it.
 
-The box is called after its kind ("FM radio", "HF radio", "LoRa radio", and "FM radio 2" for the second of a kind). With several boxes, a radio you gave a name is called by it. The setup guide's Radio step shows the same boxes ([start.md](start.md#the-setup-guide)).
+The box is called after its kind ("FM radio", "Mercury radio", "LoRa radio", and "FM radio 2" for the second of a kind). With several boxes, a radio you gave a name is called by it. The setup guide's Radio step shows the same boxes ([start.md](start.md#the-setup-guide)).
 
 ### Adding a radio
 
-**Add radio** is a choice of the type and an **Add** button beside it. The list has every type there is, in four groups: **FM**, **HF**, **LoRa**, and **Without a radio**, the [Dummy radios](#the-dummy-radios) for trying NeoAPRS out. In a group, the types that only receive come last. Choosing a type adds nothing; **Add** adds the radio, and the page opens its box, brings it into view and puts the keyboard on its Enable. Fill in what its type asks for (a port, a sound card, an address) and watch its status line.
+**Add radio** is a choice of the type and an **Add** button beside it. The list has every type there is, in four groups: **FM**, **Mercury**, **LoRa**, and **Without a radio**, the [Dummy radios](#the-dummy-radios) for trying NeoAPRS out. In a group, what most stations have comes first and the types that only receive come last. Choosing a type adds nothing; **Add** adds the radio, and the page opens its box, brings it into view and puts the keyboard on its Enable. Fill in what its type asks for (a port, a sound card, an address) and watch its status line.
 
 A new radio is on. To change a radio's kind, add a radio of the other kind and remove the old one.
 
 ### Name, enable, remove
 
 - **Enable** switches the radio on and off. Its settings are kept while it is off. A station keeps one radio on: the Enable of the only radio that is on is greyed, with the hover text "The station's only radio that is on".
-- **Name** and **Remove** are in every box once the station has more than one. The name is at most 8 characters, such as `20 m` or `Mobile`, and is saved when you leave the field or press Enter. Its placeholder is what the radio is called without one. A name another radio has, or the name of a kind ("FM", "HF 2"), is refused under the field.
+- **Name** and **Remove** are in every box once the station has more than one. The name is at most 8 characters, such as `20 m` or `Mobile`, and is saved when you leave the field or press Enter. Its placeholder is what the radio is called without one. A name another radio has, or the name of a kind ("FM", "LoRa 2"), is refused under the field.
 - **Remove** asks twice: it reads **Really remove?** after the first press. It is off for the only radio that is on. A removed radio's packets and messages keep its name, and its box is gone.
 
 ### The main radio
@@ -48,16 +48,16 @@ A new radio is on. To change a radio's kind, add a radio of the other kind and r
 Each radio has its own:
 
 - **beacon tick.** While several radios are on, **Send on** in the Beacon group of the My station tab has a tick for each of them ([beacon.md](beacon.md#the-beacon-on-several-radios)). The beacon goes out on every radio that is ticked.
-- **beacon interval in force.** The station has one interval; a radio that has a floor raises it to that floor. A fixed station's beacon on an HF or a LoRa radio goes every 30 minutes at the most often, with a random pause of up to five minutes; a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval you chose.
-- **path.** A radio that may carry a path has its own **Path** row in the My station tab, under Advanced. Every frame on HF goes direct, with no path.
-- **digipeater tick.** The Digipeater group of the Settings tab has an **Enable** for each FM radio that is on. HF and LoRa radios repeat nothing.
+- **beacon interval in force.** The station has one interval; a radio that has a floor raises it to that floor. A fixed station's beacon on a Mercury or a LoRa radio goes every 30 minutes at the most often, with a random pause of up to five minutes; a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval you chose.
+- **path.** A radio that may carry a path has its own **Path** row in the My station tab, under Advanced. Every frame of a Mercury radio goes direct, with no path.
+- **digipeater tick.** The Digipeater group of the Settings tab has an **Enable** for each FM radio that is on. Mercury and LoRa radios repeat nothing.
 - **status line, statistics and Terminal**, and what it heard of each station: when, by which route, and the path that reaches it.
 
 The station has once: the call, the position and the symbol, the comment, the beacon interval, the GPS and SmartBeaconing, the status text and its interval, **RX only**, Internet stations (which hear what every radio hears) and the alerts.
 
 A message goes on one radio: the one you choose in Route, else the radio that heard the station lately ([messages.md](messages.md#the-radio-of-a-message)). An ack or an answer goes back on the radio the message came in on.
 
-A radio that only receives (a Yaesu FTM, the LoRa iGate's log) is left out wherever the page offers a choice of radio. Beside one other radio there is no **Main radio**, no **Send on** and no radio to choose in Route or beside **Ask**. A message heard only on it is acked on the radio a message to that station would take; a query heard only on it is not answered.
+A radio that only receives (a Yaesu FTM, the LoRa iGate on USB) is left out wherever the page offers a choice of radio. Beside one other radio there is no **Main radio**, no **Send on** and no radio to choose in Route or beside **Ask**. A message heard only on it is acked on the radio a message to that station would take; a query heard only on it is not answered.
 
 ## The types
 
@@ -69,43 +69,43 @@ A new installation has no radio. Each radio is added with its type: in **Add rad
 
 **Choose:** the type of the TNC, a radio of the kind FM:
 
-- *KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)* for a TNC that is in KISS when it is switched on;
-- *Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2*, *Kenwood TM-D710 / TH-D72* or *Kantronics KPC-3+* for a TNC that NeoAPRS puts into KISS itself ([The TNC type](#the-tnc-type)).
+- *KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)* for a TNC that is in KISS when it is switched on;
+- *Kenwood TM-D710 / TH-D72*, *Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2* or *Kantronics KPC-3+* for a TNC that NeoAPRS puts into KISS itself ([The TNC type](#the-tnc-type)).
 
 Then **Port** and, only when the TNC's manual says so, **Speed** (a NinoTNC needs 57600). On Linux the Port may stay *find automatically*. On Windows and macOS pick the port from the list, or press **Find my radio** ([below](#find-my-radio)).
 
 **When it works:** the status line says *connected* and "Last packet 2 min ago". A TNC in KISS says nothing until it hears a packet, so on a quiet channel the first packet may take a while.
 
-### KISS over TCP
+### Your own Direwolf or soundmodem
 
-**For:** a program that speaks KISS on the network: Direwolf, UZ7HO SoundModem or QtSoundModem, a serial server such as `ser2net`.
+**For:** a program you run yourself that speaks KISS on the network: Direwolf, UZ7HO SoundModem or QtSoundModem, a serial server such as `ser2net`.
 
-**Choose:** *KISS over TCP (Direwolf, soundmodem)*, then **TCP host** (the computer it runs on, `127.0.0.1` for this one) and **TCP port**: Direwolf listens on 8001, the sound modems on 8100 (their KISS port, not their AGW port).
+**Choose:** *Your own Direwolf or soundmodem*, a radio of the kind FM, then **Address** (the computer it runs on, `127.0.0.1` for this one) and **Port**: Direwolf listens on 8001, the sound modems on 8100 (their KISS port, not their AGW port).
 
 **When it works:** the status line says *connected* as soon as the program answers. NeoAPRS writes nothing but KISS frames to it, and opens the line again whenever it drops.
 
-### A sound card with Direwolf
+### Sound card
 
-**For:** an FM radio on a sound-card interface (a Digirig, an AIOC, a SignaLink, a USB sound card) with no TNC of its own. On Windows and Linux NeoAPRS carries Direwolf and starts it for the radio: nothing else to install. The sound card is not a TNC: opening its serial port as one would key the transmitter.
+**For:** an FM radio on a sound-card interface (a Digirig, an AIOC, a SignaLink, a USB sound card, the radio's own USB audio) with no TNC of its own. On Windows and Linux NeoAPRS carries Direwolf and starts it for the radio: nothing else to install. The sound card is not a TNC: opening its serial port as one would key the transmitter.
 
-**Choose:** *Sound card (Direwolf)*, a radio of the kind FM. Its box has:
+**Choose:** *Sound card*, a radio of the kind FM. Its box has:
 
-- **Sound card**, the interface's card, proposed for you. When no card could be the radio's, the radio waits for one rather than play to the computer's speakers. One sound card is one radio's: a card the HF radio holds is refused, and the other way round.
+- **Sound card**, the interface's card, proposed for you. When no card could be the radio's, the radio waits for one rather than play to the computer's speakers. One sound card is one radio's: a card a Mercury radio holds is refused, and the other way round.
 - **Keying**, proposed from what is plugged in: the CM108 pin of an AIOC, RTS of the interface's own serial port (a Digirig), else VOX. **Test** beside it keys the radio for a second.
 - **Tune**, ten seconds of Direwolf's two tones, for the audio level or finding the radio's sound card, and **Transmit level**, from -20 to 0 dB.
 - **Receive level**, the level of the latest packet heard, on a bar with its good range in green.
 
 **When it works:** the status line says *connected*, and a packet Direwolf decodes is on the map a moment later.
 
-On a Mac there is no *Sound card (Direwolf)* type: run Direwolf yourself ([`docs/RADIOS.md`](../RADIOS.md#your-own-direwolf) has its few lines of setup) and add a radio of the type *KISS over TCP (Direwolf, soundmodem)* with **TCP port** 8001. The same holds for a Direwolf of your own on any computer.
+On a Mac there is no *Sound card* type: run Direwolf yourself ([`docs/RADIOS.md`](../RADIOS.md#your-own-direwolf) has its few lines of setup) and add a radio of the type *Your own Direwolf or soundmodem* with **Port** 8001. The same holds for a Direwolf of your own on any computer.
 
-### The Mercury HF modem
+### The Mercury modem
 
-**For:** an SSB radio on HF with a sound card or an interface (a Digirig, a SignaLink, the radio's own USB audio). The Mercury modem comes inside NeoAPRS, which starts and stops it.
+**For:** a radio with a sound card or an interface (a Digirig, a SignaLink, the radio's own USB audio), to reach stations that run the same modem: most often an SSB radio on shortwave. The Mercury modem comes inside NeoAPRS, which starts and stops it. It works through any radio's audio, on any band: an SSB radio on 6 m or on 2 m, an FM radio too.
 
-**Choose:** *Mercury HF modem (sound card, SSB radio)*, a radio of the kind HF. **Sound card** and **Keying** are chosen for you; check that they are the radio's. Tune the radio to a dial of **Suggested frequencies**. Only stations on the same modem and the same frequency hear each other.
+**Choose:** *Mercury modem (sound card)*, a radio of the kind Mercury. **Sound card** and **Keying** are chosen for you; check that they are the radio's. Tune the radio to a dial of **Suggested frequencies**. Only stations on the same modem and the same frequency hear each other.
 
-**When it works:** the status line says *Listening*, then the signal-to-noise ratio of each frame heard: "DATAC3 · Listening · SNR 3 dB · Last packet 2 min ago". The details are below ([The HF radio's box](#the-hf-radios-box)).
+**When it works:** the status line says *Listening*, then the signal-to-noise ratio of each frame heard: "DATAC3 · Listening · SNR 3 dB · Last packet 2 min ago". The details are below ([The Mercury radio's box](#the-mercury-radios-box)).
 
 ### A LoRa APRS board
 
@@ -115,22 +115,22 @@ On a Mac there is no *Sound card (Direwolf)* type: run Direwolf yourself ([`docs
 
 | type | for | what to fill in |
 |---|---|---|
-| *LoRa APRS board on the network* | the CA2RXU iGate on WiFi, its TNC server set to KISS | **TCP host**: the board's address, which you type (nothing is opened until then); **TCP port** 8001 |
+| *LoRa APRS board on the network* | the CA2RXU iGate on WiFi, its TNC server set to KISS | **Address**: the board's address, which you type (nothing is opened until then); **Port** 8001 |
 | *LoRa APRS board on USB or Bluetooth* | the CA2RXU Tracker's TNC image, the CA2RXU iGate's TNC on USB, DL9SAU's tracker, esp32_loraprs | **Port**: the serial port, or a `bt://` or `ble://` address |
-| *LoRa APRS iGate's log on USB (RX only)* | the CA2RXU iGate on USB as it comes, its TNC off | **Port**. This radio only receives: nothing is ever sent on it, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)) |
+| *LoRa APRS iGate on USB (RX only)* | the CA2RXU iGate on USB as it comes, its TNC off | **Port**. This radio only receives: nothing is ever sent on it, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)) |
 
 - **Set the board to KISS.** A board left in TNC2 text is heard and sends nothing; its status says "the board sends text lines: set it to KISS". A CA2RXU Tracker on classic Bluetooth is turned to KISS by NeoAPRS itself.
 - **On the CA2RXU iGate:** *LoRa Tx* on, or what you send goes nowhere; a callsign of its own, or *Accept own frames*; the *APRS bridge* off.
 - **The frequency and the LoRa settings** (433.775 MHz, SF12, 125 kHz in Europe) are set on the board, not here.
 - **What goes out:** our frames go by WIDE1-1 when the radio has no path of its own; a fixed station's beacon at most every 30 minutes, with a random pause of up to five minutes. A frame over 250 bytes, 252 bytes of text or 256 bytes of KISS (its escapes counted) has its comment shortened, or is not sent. NeoAPRS repeats nothing on LoRa: the network's iGates do. A board on USB is never searched for: choose its port.
 
-**When it works:** the status line says *connected*, and packets come with their signal where the board gives it: the CA2RXU iGate on the network, DL9SAU's tracker, esp32_loraprs and the iGate's log; the CA2RXU Tracker gives none. [`docs/RADIOS.md`](../RADIOS.md) has each firmware's settings.
+**When it works:** the status line says *connected*, and packets come with their signal where the board gives it: the CA2RXU iGate on the network, DL9SAU's tracker, esp32_loraprs and the iGate on USB; the CA2RXU Tracker gives none. [`docs/RADIOS.md`](../RADIOS.md) has each firmware's settings.
 
 ### A Yaesu FTM, or a TNC that has no KISS
 
 **For:** a Yaesu FTM-100, FTM-400 or FTM-500 on the data cable that comes with it (the FTM-300 has not been tried), or a TAPR TNC-2 (or clone), a Kantronics or an AEA PK-232 left in its own monitor mode. They print what they hear as text, and they cannot be sent through.
 
-**Choose:** *RX only: Yaesu FTM, TNC text (no KISS)*, then **Port** and **Speed** (9600 for an FTM). On the FTM set Setup → DATA → COM PORT SETTING to OUTPUT PACKET at 9600. What to set on each TNC is in [`docs/RADIOS.md`](../RADIOS.md).
+**Choose:** *Yaesu FTM, TNC in monitor mode (RX only)*, a radio of the kind FM, then **Port** and **Speed** (9600 for an FTM). On the FTM set Setup → DATA → COM PORT SETTING to OUTPUT PACKET at 9600. What to set on each TNC is in [`docs/RADIOS.md`](../RADIOS.md).
 
 **When it works:** what the radio hears is on the map, and with Internet stations on the station is a receive-only iGate. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never the main radio, a message's, the beacon's or an object's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the header says **RX only**.
 
@@ -140,9 +140,9 @@ A Dummy is a radio that is not there: NeoAPRS makes up the traffic itself, aroun
 
 Every call is made up on the prefix Q (`Q1ABC`, `Q3TKU`), which the ITU gives to no country, so none of them is anybody's. What you send to a Dummy is swallowed. Its status line says so in a muted pill, its stations have the tag **Dummy**, and the header's radio mark is dashed while every radio is a Dummy.
 
-#### The Dummy radio
+#### The Dummy FM radio
 
-*Dummy (no radio, made-up traffic)* is the FM Dummy.
+*Dummy FM radio* is the FM Dummy.
 
 - A few stations that stay (a house, a club, a cottage), three cars and a walker on routes round the position, a weather station that reports every 5 minutes, two digipeaters that repeat the others, two objects, a bulletin now and then and a status. Something is on the air within half a minute, then a few packets a minute.
 - **The stations that take messages answer.** A message to one of them is acked after a moment and answered with "Hello from the dummy radio".
@@ -150,18 +150,18 @@ Every call is made up on the prefix Q (`Q1ABC`, `Q3TKU`), which the ITU gives to
 - A digipeater is heard repeating a beacon of yours now and then, as if it had been on the air.
 - The status line says **Dummy radio: made-up traffic, nothing goes on the air**.
 
-#### The Dummy HF radio
+#### The Dummy Mercury radio
 
-*Dummy HF radio (no radio, made-up distant stations)* is the HF Dummy: APRS over HF with no radio and no other station on the air.
+*Dummy Mercury radio* is the Mercury Dummy: APRS over HF with no radio and no other station on the air.
 
 - Six fixed stations hundreds of kilometres away (Turku, Kuopio, Oulu, Stockholm, Hamburg, Warsaw), each beaconing every half hour to an hour, every frame direct. The first beacons come within two minutes, so the map fills while you watch.
-- **Q3TKU in Turku answers a message**: an ack about eight seconds later and "Hello from the dummy HF radio" after it. The others take messages and stay quiet, as most do.
-- **You hear what the modem sounds like.** On Linux your own frames are played through the computer's speakers as the modem's real audio; nothing is keyed. On Windows the Dummy HF radio runs without the sound.
-- The status line says **Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air**.
+- **Q3TKU in Turku answers a message**: an ack about eight seconds later and "Hello from the dummy Mercury radio" after it. The others take messages and stay quiet, as most do.
+- **You hear what the modem sounds like.** On Linux your own frames are played through the computer's speakers as the modem's real audio; nothing is keyed. On Windows the Dummy Mercury radio runs without the sound.
+- The status line says **Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air**.
 
 #### The Dummy LoRa radio
 
-*Dummy LoRa radio (no radio, made-up stations)* is the LoRa Dummy: a few made-up LoRa APRS stations round your station, among them an iGate that repeats your beacon. Your frames go by WIDE1-1, as on a real LoRa radio. Switch it off and its made-up stations are forgotten.
+*Dummy LoRa radio* is the LoRa Dummy: a few made-up LoRa APRS stations round your station, among them an iGate that repeats your beacon. Your frames go by WIDE1-1, as on a real LoRa radio. Switch it off and its made-up stations are forgotten.
 
 ## The port
 
@@ -176,7 +176,7 @@ A radio on a serial line has one choice, **Port**, behind the arrow of its statu
 
 The Port choice offers *find automatically* on Linux (*not set* on Windows and macOS, and for a LoRa board), the ports the system lists, on Linux the paired Bluetooth devices that have a serial port (by name), and *Other...* for a path or a `socket://` or `ble://` address typed (a Bluetooth LE device is not listed: it is typed). **Refresh** asks again. Beside an automatic port it says `found: PORT` when NeoAPRS has found the radio before. A port another radio of the station is set to is refused, with that radio's name.
 
-- **A TCP port** has no speed and is never searched for. Nothing is sent to it that is not a KISS frame, so there is no keep-alive check. A connection that closes is a line that dropped, and it is opened again after the back-off.
+- **A port on the network** (`socket://`, or a type that takes an Address and a Port) has no speed and is never searched for. Nothing is sent to it that is not a KISS frame, so there is no keep-alive check. A connection that closes is a line that dropped, and it is opened again after the back-off.
 - **A Bluetooth port** has no speed and is never searched for or opened to list it. A link that drops (the radio is switched off or out of range) is opened again like any other. On Windows the paired device's COM port is the way, on macOS its `/dev/cu.*` port ([`docs/RADIOS.md`](../RADIOS.md#bluetooth)).
 - **A Bluetooth LE port** is not paired the way a classic device is: NeoAPRS looks for the device by its address when the port is opened and uses the KISS service it finds. A device that another program or a phone is connected to cannot be reached: LE allows one connection at a time.
 - **A serial port** has a speed in baud, 8N1. Empty means the type's own, which is 9600 for every serial type. The NinoTNC needs 57600; the Mobilinkd and the TH-D74/D75 ignore it.
@@ -215,7 +215,7 @@ Each box of a radio that is on has one line, the radio status, with an arrow in 
 - **Terminal**, behind the arrow and closed until you open it, shows the latest 100 lines of what the TNC saw and did, in your browser's time.
 - When the radio's digipeater is on and has repeated something, the status says "digipeated N".
 
-## The HF radio's box
+## The Mercury radio's box
 
 The box of a Mercury radio has, behind the arrow of its status line, no port, speed or host:
 
@@ -230,8 +230,8 @@ The box of a Mercury radio has, behind the arrow of its status line, no port, sp
 
 The status line says what you can act on: the mode, *Listening*, *Transmitting…*, *Channel busy, waiting* while another station's signal is on the channel, *Tuning…* or *Keyed*, the SNR of the latest frame and the last packet. When the modem cannot open the sound card, it says *Sound card could not be opened: choose another*, and the modem is tried again after a while with the card chosen then.
 
-- Every frame on HF goes direct: there are no digipeaters on HF, so no path is sent. Where a path is chosen beside an HF radio (Route, Ask around, Local info, an object), it is greyed, its value kept.
-- The beacon on HF goes every 30 minutes at the most often, with a random pause of up to five minutes, and is a timed one: SmartBeaconing is for the radios that allow it, and a moving station's HF beacon says where it is now.
+- Every frame of a Mercury radio goes direct: no digipeater repeats it, so no path is sent. Where a path is chosen beside a Mercury radio (Route, Ask around, Local info, an object), it is greyed, its value kept.
+- The beacon of a Mercury radio goes every 30 minutes at the most often, with a random pause of up to five minutes, and is a timed one: SmartBeaconing is for the radios that allow it, and a moving station's Mercury beacon says where it is now.
 - A beacon's comment is cut to the modem's frame (123 bytes) when it would not fit; the longest message always fits.
 - On macOS the system asks once whether NeoAPRS may use the microphone, which is what a sound input is to it. Allow it, or the radio hears nothing.
 
@@ -242,14 +242,14 @@ The type of an FM radio (its key in brackets, as `neoaprs db radios` shows it) s
 | type | for | to enter KISS (the wait after each step) | to leave | asked if it is there |
 |---|---|---|---|---|
 | *KISS TNC* (`kiss`) | Mobilinkd TNC3 and TNC4, NinoTNC (speed 57600), TNC-Pi, TNC-X, the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio (`[F]` then `[LIST]` on the D75), any TNC that is in KISS when it is switched on | nothing | nothing | no |
-| *KISS over TCP* (`kiss-tcp`) | Direwolf (8001), UZ7HO SoundModem and QtSoundModem (8100) | nothing | nothing | no |
-| *Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2* (`kenwood-tnc2`) | Kenwood TH-D7, TM-D700, TS-2000; TAPR TNC-2 and the MFJ-1270B/1274/1278 and PacComm clones | `\rKISS ON\rRESTART\r` (3 s) | `C0 FF C0` | yes |
 | *Kenwood TM-D710 / TH-D72* (`kenwood-d710`) | Kenwood TM-D710A/E/G/GA/GE, TH-D72A/E | `TC 1` (1 s), `TN 2,0` (3 s), `HBAUD 1200` (1 s), `KISS ON` (1 s), `RESTART` (1 s), each ended by a carriage return | `C0 FF C0` | yes, and the check enters again with the whole sequence |
+| *Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2* (`kenwood-tnc2`) | Kenwood TH-D7, TM-D700, TS-2000; TAPR TNC-2 and the MFJ-1270B/1274/1278 and PacComm clones | `\rKISS ON\rRESTART\r` (3 s) | `C0 FF C0` | yes |
 | *Kantronics KPC-3+* (`kantronics`) | Kantronics KPC-3+, KPC-3, KAM | `\rINTFACE KISS\rRESET\r` (3 s) | `C0 FF C0` | yes |
-| *RX only: Yaesu FTM, TNC text (no KISS)* (`tnc-text`) | a Yaesu FTM-100, -300, -400 or -500 with its data port on Output PACKET, a TAPR TNC-2, Kantronics or PK-232 left in its own monitor mode | nothing, ever | nothing | no |
+| *Your own Direwolf or soundmodem* (`kiss-tcp`) | Direwolf (8001), UZ7HO SoundModem and QtSoundModem (8100) | nothing | nothing | no |
+| *Yaesu FTM, TNC in monitor mode (RX only)* (`tnc-text`) | a Yaesu FTM-100, -300, -400 or -500 with its data port on Output PACKET, a TAPR TNC-2, Kantronics or PK-232 left in its own monitor mode | nothing, ever | nothing | no |
 
-- **RX only** (*RX only: Yaesu FTM, TNC text (no KISS)*): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never the main radio, a message's, the beacon's or an object's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the header says RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#rx-only-yaesu-ftm-tnc-text).
-- **A TNC that is not asked** (*KISS TNC*, *KISS over TCP*): nothing is written to it but KISS frames. There is no keep-alive check and no silent state. The open line is all NeoAPRS can know of the radio.
+- **RX only** (*Yaesu FTM, TNC in monitor mode (RX only)*): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never the main radio, a message's, the beacon's or an object's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the header says RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only).
+- **A TNC that is not asked** (*KISS TNC*, *Your own Direwolf or soundmodem*): nothing is written to it but KISS frames. There is no keep-alive check and no silent state. The open line is all NeoAPRS can know of the radio.
 - A TNC in command mode that sends text is told in the radio status; it is not answered. The Kenwood TH-D74 and TH-D75 have no command mode and cannot be asked: put them in KISS at the radio.
 - **The wait after the last step** is the settle time. What the TNC says meanwhile is thrown away and no frame is sent.
 - The Kenwood TNC-2 sequence is the one the Kenwood TNC-2 takes, the TM-D710 one that of the tmd710_tncsetup project (Debian), copied as it is and not tried on a radio. The Kantronics entry is from the KPC-3+ manual; a reset has been reported to change the host speed on some units.
@@ -264,6 +264,6 @@ A radio that is switched off leaves its USB adapter and port in place. A radio t
 - **A silent radio.** If nothing comes within 2 seconds of the check, the radio is *silent*, and the header says so. Nothing is sent on it: the beacon that is due waits, and messages wait without using up an attempt.
 - **Coming back.** While silent, NeoAPRS probes every 30 seconds, and every fifth probe also closes the port and opens it again. The first byte that arrives ends the silence: KISS is entered again, and a beacon that fell due in the night goes out then.
 - **A port that goes away and comes back** (the USB adapter pulled out and plugged in again) is tried again every 5 to 30 seconds. Where NeoAPRS does not look for the radio by itself (Windows, macOS), an adapter that comes back as another COM port is found by its serial number, or as the only adapter of its kind. If two look alike, choose the port in its box.
-- These checks exist only for the types that can be asked. *KISS TNC* and *KISS over TCP* are usable as soon as the line is open.
+- These checks exist only for the types that can be asked. *KISS TNC* and *Your own Direwolf or soundmodem* are usable as soon as the line is open.
 
 The log says `the radio is silent: nothing heard since 18:43 UTC, no answer to a check; probing every 30 s` once when the silence begins, and `the radio answers again after 17 min; entering KISS` when it ends.

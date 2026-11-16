@@ -267,7 +267,7 @@ function observing() {
 }
 
 describe("SkedCompose's dials", () => {
-  it("asks the daemon to look at the project's list of dials again when the Frequency row comes on show, as an HF radio's box does", () => {
+  it("asks the daemon to look at the project's list of dials again when the Frequency row comes on show, as a Mercury radio's box does", () => {
     const { observer, restore } = observing();
     try {
       form();

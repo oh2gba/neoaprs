@@ -24,7 +24,7 @@ from .radiotype import HF_BEACON_JITTER_SEC
 from .reading import Reading
 
 DIRECT = ""                                    # the path of every frame on HF
-HELLO = "Hello from the dummy HF radio"
+HELLO = "Hello from the dummy Mercury radio"
 ACK_AFTER_SEC = 2 * DELIVERY_SEC               # a message reaches the station a frame's time after it is handed in, and its ack takes as long back (the bench measured about 10 s from send to ack)
 ANSWER_AFTER_SEC = (ACK_AFTER_SEC + 6.0, ACK_AFTER_SEC + 14.0)       # the text of the answer: a second frame of the station's, after the pace a station keeps between two frames of its own
 FIRST_BEACONS_SEC = (8.0, 26.0, 47.0, 71.0, 94.0, 118.0)              # when each station's first beacon comes: within two minutes, spread so that no two key together

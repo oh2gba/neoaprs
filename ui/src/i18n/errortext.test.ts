@@ -33,18 +33,18 @@ afterEach(() => setLocale("en"));
 
 describe("a refusal that names a radio", () => {
   it("says the radio by the page's name for it, from its id", () => {
-    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }), names())).toBe("radio HF 2 has no modem running");
+    expect(errorReason(refusal("radio.no_modem", { name: "Mercury 2", radio: 3 }), names())).toBe("radio Mercury 2 has no modem running");
     expect(errorReason(refusal("radio.off", { name: "Shack", radio: 4 }, "qru_ask"), names())).toBe("radio Shack is off: turn it on first");
-    expect(errorLine(refusal("radio.no_scope", { name: "HF", radio: 2 }, "radio_scope"), names())).toBe("radio HF has no scope");
+    expect(errorLine(refusal("radio.no_scope", { name: "Mercury", radio: 2 }, "radio_scope"), names())).toBe("radio Mercury has no scope");
   });
 
   it("says it in the page's language, the radio's name with the sentence around it", () => {
     setLocale("de");
-    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }), names())).toBe("beim Funkgerät KW 2 läuft kein Modem");
-    expect(errorReason(refusal("radio.resource_held", { resource: "serial", holder: "HF", held_by: 2 }, "set_config"), names())).toBe(
-      "das Gerät ist vom Funkgerät KW belegt: wähle ein anderes",
+    expect(errorReason(refusal("radio.no_modem", { name: "Mercury 2", radio: 3 }), names())).toBe("beim Funkgerät Mercury 2 läuft kein Modem");
+    expect(errorReason(refusal("radio.resource_held", { resource: "serial", holder: "Mercury", held_by: 2 }, "set_config"), names())).toBe(
+      "das Gerät ist vom Funkgerät Mercury belegt: wähle ein anderes",
     );
-    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }))).toBe("beim Funkgerät HF 2 läuft kein Modem");
+    expect(errorReason(refusal("radio.no_modem", { name: "Mercury 2", radio: 3 }))).toBe("beim Funkgerät Mercury 2 läuft kein Modem");
   });
 
   it("names the holder of a device by its id, and the GPS receiver by its own words", () => {
@@ -67,16 +67,18 @@ describe("a refusal that names a radio", () => {
     expect(errorReason(refusal("radio.unknown", { radio: 5, name: "FM 3", removed: 1 }, "radio_change"), names())).toBe("radio FM 3 is removed");
     expect(errorReason(refusal("radio.unknown", { radio: 9 }, "radio_change"), names())).toBe("there is no radio 9");
     setLocale("de");
-    expect(errorReason(refusal("radio.unknown", { radio: 3, name: "HF 2", removed: 1 }, "radio_change"), names())).toBe("das Funkgerät KW 2 wurde entfernt");
+    expect(errorReason(refusal("radio.unknown", { radio: 3, name: "Mercury 2", removed: 1 }, "radio_change"), names())).toBe(
+      "das Funkgerät Mercury 2 wurde entfernt",
+    );
   });
 
   it("says the kind of a radio that takes only a type of its own kind by the page's word for it", () => {
     setLocale("de");
-    expect(errorReason(refusal("radio.type_kind", { type: "kiss", kind: "HF", name: "HF 2", radio: 3 }, "radio_change"), names())).toBe(
-      "das Funkgerät KW 2 nimmt nur einen Typ seiner Art (KW)",
+    expect(errorReason(refusal("radio.type_kind", { type: "kiss", kind: "Mercury", name: "Mercury 2", radio: 3 }, "radio_change"), names())).toBe(
+      "das Funkgerät Mercury 2 nimmt nur einen Typ seiner Art (Mercury)",
     );
-    expect(errorReason(refusal("radio.type_kind", { type: "kiss", kind: "HF", name: "HF 2", radio: 3 }, "radio_change"))).toBe(
-      "das Funkgerät HF 2 nimmt nur einen Typ seiner Art (HF)",
+    expect(errorReason(refusal("radio.type_kind", { type: "kiss", kind: "Mercury", name: "Mercury 2", radio: 3 }, "radio_change"))).toBe(
+      "das Funkgerät Mercury 2 nimmt nur einen Typ seiner Art (Mercury)",
     );
     const sentence = {
       en: (word: string) => `radio Mast takes only a type of its own kind (${word})`,

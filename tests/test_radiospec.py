@@ -27,19 +27,19 @@ def test_the_live_radios_are_the_ones_not_removed_and_the_enabled_ones_are_also_
 
 def test_a_radio_is_numbered_within_its_kind_by_id_and_a_removed_one_after_the_live_ones() -> None:
     assert [number_in_kind(s, SIX) for s in SIX] == [1, 1, 2, 2, 1, 3]
-    assert [log_name(s, SIX) for s in SIX] == ["FM", "HF", "HF 2", "FM 2", "LoRa", "20m"]
+    assert [log_name(s, SIX) for s in SIX] == ["FM", "Mercury", "Mercury 2", "FM 2", "LoRa", "20m"]
     one = [radio(4, removed=True), radio(7)]
     assert [log_name(s, one) for s in one] == ["FM 2", "FM"], "the live one is the first FM radio once the other is removed"
     two_gone = [radio(1, removed=True), radio(3, removed=True), radio(5)]
     assert [log_name(s, two_gone) for s in two_gone] == ["FM 2", "FM 3", "FM"], "a live radio among the live ones of its kind, a removed one after them, by id among the removed"
     hf = [radio(1), radio(2, "hf", removed=True), radio(5, "hf")]
-    assert log_name(hf[1], hf) != log_name(hf[2], hf), "a removed HF radio 2 and a live HF radio 5 are not both called HF"
+    assert log_name(hf[1], hf) != log_name(hf[2], hf), "a removed Mercury radio 2 and a live Mercury radio 5 are not both called Mercury"
 
 
 def test_the_main_radio_is_the_chosen_one_while_it_is_enabled_else_the_first_enabled_by_position() -> None:
     assert main_radio(SIX, 6) == 6
     assert main_radio(SIX, 3) == 1 and main_radio(SIX, 4) == 1 and main_radio(SIX, None) == 1 and main_radio(SIX, 99) == 1
-    assert main_radio([radio(1, enabled=False), radio(2, "hf")], None) == 2, "today's default radio: FM while it is on, else HF"
+    assert main_radio([radio(1, enabled=False), radio(2, "hf")], None) == 2, "today's default radio: FM while it is on, else Mercury"
     assert main_radio([radio(1, enabled=False)], 1) is None and main_radio([], None) is None
 
 

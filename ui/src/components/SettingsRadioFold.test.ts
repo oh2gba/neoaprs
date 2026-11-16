@@ -32,7 +32,7 @@ function make(more: Given = {}) {
     if (!found) throw new Error(`no ${legend} box`);
     return found;
   };
-  return { wrapper, daemon, group, fm: () => box("FM radio"), hf: () => box("HF radio") };
+  return { wrapper, daemon, group, fm: () => box("FM radio"), hf: () => box("Mercury radio") };
 }
 type Box = ReturnType<ReturnType<typeof make>["fm"]>;
 const arrow = (box: Box) => box.get("legend button.groupfold");
@@ -44,7 +44,7 @@ describe("the boxes of the two radios", () => {
     const { fm, hf } = make();
     for (const [box, name] of [
       [fm(), "FM radio"],
-      [hf(), "HF radio"],
+      [hf(), "Mercury radio"],
     ] as const) {
       expect(box.get("legend").text()).toBe(name);
       expect(arrow(box).attributes("type")).toBe("button");

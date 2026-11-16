@@ -173,7 +173,7 @@ describe("the header with any number of radios", () => {
     const radios = wrapper.findAll(".headpill").filter((mark) => mark.classes().some((c) => c.startsWith("pill-radio")));
     expect(radios.map((mark) => [mark.text(), mark.classes()])).toEqual([["20 m: not connected", ["tag", "tag-warn", "headpill", "pill-radios"]]]);
     expect(radios[0]?.attributes("title")).toBe(
-      "FM: connected; HF: connected; Shack: connected; 20 m: not connected; Portable: connected; Bench: connected. Settings → Radio",
+      "FM: connected; Mercury: connected; Shack: connected; 20 m: not connected; Portable: connected; Bench: connected. Settings → Radio",
     );
     await radios[0]?.trigger("click");
     expect(wrapper.emitted("open")).toEqual([["settings", "set-radio-4-enabled"]]);
@@ -181,7 +181,7 @@ describe("the header with any number of radios", () => {
 
   it("has two marks by name for two radios, and the one Radio mark of today for one", () => {
     const two = header({ pills: marksOf(SIX.slice(0, 2)) });
-    expect(two.findAll(".headpill").map((mark) => mark.text())).toEqual(["FM", "HF"]);
+    expect(two.findAll(".headpill").map((mark) => mark.text())).toEqual(["FM", "Mercury"]);
     const named = header({ pills: marksOf([SIX[2], SIX[4]]) });
     expect(named.findAll(".headpill").map((mark) => [mark.text(), mark.attributes("title")])).toEqual([
       ["Shack", "Shack: connected. Settings → Radio"],

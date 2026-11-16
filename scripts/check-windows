@@ -957,7 +957,7 @@ def install_steps(paths: Paths, installer_name: str, version: str, tornado: str,
     sound_card = install_script(                            # (a type whose program the installation does not find is not offered, and `db radios add` refuses it with 2; the banner proves the program runs here, its DLLs with it)
         "direwolf",
         f"& (Join-Path $app 'neoaprs.exe') db --data {ps_quote(ip.data_direwolf)} radios add direwolf 2>&1 | ForEach-Object {{ \"$_\" }}",
-        fail_unless(native_ok, "the installed app does not find its own Direwolf: the type Sound card (Direwolf) is not offered"),
+        fail_unless(native_ok, "the installed app does not find its own Direwolf: the type Sound card is not offered"),
         "$said = (& (Join-Path $app 'bin\\direwolf\\direwolf.exe') -h 2>&1 | ForEach-Object { \"$_\" } | Out-String)",
         "$said",
         fail_unless(f"$said.Contains({ps_quote(direwolf)})", "the installed direwolf.exe does not run as the Direwolf NeoAPRS ships"),

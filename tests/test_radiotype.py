@@ -1,11 +1,13 @@
 """The types of radio (neoaprs/radiotype.py, the registry neoaprs/radiotypes/): each type is a TNC profile, of the kind of the list it is in, with the limits and the rules of its kind field by field, the
 fields are today's flat settings with their defaults, ranges and parsers, the page's order of each kind is today's, a radio of a kind may store the fields of all its types, and an unknown type is refused."""
+import re
 from dataclasses import replace
 
 import pytest
 
 from neoaprs.config import DEFAULTS, RANGES, Config
 from neoaprs.direwolf import PROFILE as DIREWOLF
+from neoaprs.radiospec import KIND_WORDS
 from neoaprs.radiotype import FM_ID, HF_ID, KINDS, LOCAL_KINDS, Can, Limits, RadioTypeError, radio_id_of, stored_text
 from neoaprs.radiotypes import BY_KEY, COMMON_FIELDS, DEFAULT_TYPE, TYPES, kind_field, kind_fields, recommended_path, type_of, types_of, unavailable_types
 from neoaprs.radiotypes.common import LISTENS, NOTHING_ALLOWED, TERMINAL_ONLY
@@ -32,8 +34,33 @@ def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field()
         assert t.driver == ("direwolf" if p is DIREWOLF else "mercury" if p.transport == "modem" or p is DUMMY_HF else "tnc") and t.dummy == (p.transport == "dummy")
 
 
-def test_each_kind_lists_its_types_in_todays_order_and_a_new_radio_gets_todays_default() -> None:
-    assert [t.key for t in types_of("fm")] == [*(p.key for p in PROFILES[:-1]), "direwolf", PROFILES[-1].key], "today's list, the Sound card type before the Dummy"
+NAMES = {       # each type's English name, as `neoaprs db radios` and the log say it and the page's catalogue has it (ui/src/i18n/en/radio.ts), by the kind's list
+    "fm": ["Sound card", "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)", "Kenwood TM-D710 / TH-D72", "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2", "Kantronics KPC-3+", "Your own Direwolf or soundmodem",
+           "Yaesu FTM, TNC in monitor mode (RX only)", "Dummy FM radio"],
+    "hf": ["Mercury modem (sound card)", "Dummy Mercury radio"],
+    "lora": ["LoRa APRS board on the network", "LoRa APRS board on USB or Bluetooth", "LoRa APRS iGate on USB (RX only)", "Dummy LoRa radio"],
+}
+
+
+def test_a_types_name_says_what_the_operator_has_in_hand_and_names_a_program_only_where_he_acts_on_it() -> None:
+    """The names of 16 November 2026 (John: "instead of calling it 'direwolf soundcard' or something, let's just use 'sound card', so people don't get confused whether to still install direwolf"). A type is named by
+    what the operator holds: a model, a sound card, a LoRa board. A program is in a name only where he acts on it: Mercury, which the other station must run too, and the Direwolf or soundmodem he runs himself.
+    No name says a band, a mode the radio may not be on, or how the program reaches it; a type that only receives ends with "(RX only)", a Dummy starts with "Dummy" and says its kind by the kind's word."""
+    assert {kind: [t.name for t in types_of(kind)] for kind in KINDS} == NAMES
+    names = {t.key: t.name for t in TYPES}
+    assert [key for key, name in names.items() if "direwolf" in name.casefold() or "dire wolf" in name.casefold()] == ["kiss-tcp"], "the operator's own alone: the Sound card type's is carried and started by NeoAPRS"
+    assert sorted(key for key, name in names.items() if "Mercury" in name) == ["dummy-hf", "mercury"], "the modem's name where the other station must run it too"
+    assert [name for name in names.values() if re.search(r"\b(HF|VHF|UHF|SSB|TCP)\b", name)] == [], "no band, no mode, no link"
+    assert [t.key for t in TYPES if not t.can.transmit] == [t.key for t in TYPES if t.name.endswith("(RX only)")] == ["tnc-text", "lora-console"]
+    assert [t.name for t in TYPES if t.dummy] == [f"Dummy {KIND_WORDS[t.kind]} radio" for t in TYPES if t.dummy], "Dummy, the kind's word (radiospec.KIND_WORDS: the log's name of a radio with none), radio"
+    assert KIND_WORDS == {"fm": "FM", "hf": "Mercury", "lora": "LoRa"}, "a kind is called by its signal, who can hear it, never by a band: a Mercury radio may be on 2 m"
+    assert max(len(name) for name in names.values()) == 41 and len(set(names.values())) == len(names), "the list is as wide as its widest line"
+
+
+def test_each_kind_lists_its_types_in_the_order_of_the_pages_list_and_a_new_radio_gets_todays_default() -> None:
+    assert [t.key for t in types_of("fm")] == ["direwolf", "kiss", "kenwood-d710", "kenwood-tnc2", "kantronics", "kiss-tcp", "tnc-text", "dummy"], \
+        "what most stations have first: the sound card, the KISS TNC (whose name has the TH-D74) above the two Kenwood lines, the operator's own program, the type that only receives, the Dummy"
+    assert {t.key for t in types_of("fm")} == {p.key for p in PROFILES} | {"direwolf"}, "the types of before's flat list, and the Sound card type"
     assert [t.key for t in types_of("hf")] == [p.key for p in HF_PROFILES]
     assert [t.key for t in types_of("lora")] == [p.key for p in LORA_PROFILES] == ["lora-tcp", "lora-serial", "lora-console", "dummy-lora"]
     assert (DEFAULT_TYPE["fm"], DEFAULT_TYPE["hf"], DEFAULT_TYPE["lora"]) == (DEFAULT.key, HF_DEFAULT.key, "lora-tcp"), "a new LoRa radio is the iGate at home on the network"
@@ -73,7 +100,7 @@ def test_a_type_has_its_own_fields_then_the_beacon_and_the_status_and_the_path_a
 
 
 def test_a_radio_of_a_kind_may_store_the_fields_of_every_type_of_it_each_the_same_field_in_every_type() -> None:
-    assert [f.key for f in kind_fields("fm")] == ["port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "beacon", "status", "path", "digipeat"]
+    assert [f.key for f in kind_fields("fm")] == ["sound_card", "keying", "tx_gain_db", "port", "baud", "tcp_host", "tcp_port", "beacon", "status", "path", "digipeat"], "by the kind's list of types, the Sound card's first"
     assert [f.key for f in kind_fields("hf")] == ["sound_card", "keying", "tx_gain_db", "beacon", "status"]
     assert [f.key for f in kind_fields("lora")] == ["tcp_host", "tcp_port", "port", "baud", "beacon", "status", "path"]
     for kind in KINDS:
@@ -111,7 +138,7 @@ def test_the_sound_card_type_and_the_dummy_lora_type_stand_side_by_side_in_the_o
     sound, lora = type_of("direwolf"), type_of("dummy-lora")
     assert (sound.kind, sound.driver, sound.dummy, lora.kind, lora.driver, lora.dummy) == ("fm", "direwolf", False, "lora", "tnc", True)
     assert [t.key for t in TYPES if t.dummy] == ["dummy", "dummy-hf", "dummy-lora"], "one Dummy of each kind, the types that open no device (Add radio lists them apart)"
-    assert [t.key for t in types_of("fm")][-2:] == ["direwolf", "dummy"] and [t.key for t in types_of("lora")][-1] == "dummy-lora", "the Sound card type among FM's real ones, the Dummy LoRa type last in its kind"
+    assert [t.key for t in types_of("fm")][0] == "direwolf" and [t.key for t in types_of("fm")][-1] == "dummy" and [t.key for t in types_of("lora")][-1] == "dummy-lora", "the Sound card type first among FM's real ones, each kind's Dummy last in its kind"
     assert sound.systems == {"linux", "win32"} and lora.systems == frozenset(), "the LoRa Dummy carries no program, so every installation offers it"
     assert [unavailable_types(system) for system in ("linux", "win32", "darwin")] == [(), (), ("direwolf",)]
     assert (sound.recommended_path, recommended_path("fm"), recommended_path("lora")) == ("", "", "WIDE1-1"), "the Sound card type's empty path is FM's (the symbol's), LoRa's is its own"

@@ -45,7 +45,7 @@ def third(path: str = "WIDE2-1", kind: str = "fm", type: str = "kiss", enabled: 
 
 
 def capped_with_paths(spec: RadioSpec) -> FrozenAir:
-    """A radio with a frame cap that carries paths (no type has both: over HF itself no path goes)."""
+    """A radio with a frame cap that carries paths (no type has both: over Mercury itself no path goes)."""
     air = frozen_air(spec)
     return replace(air, limits=replace(air.limits, max_frame=123), allowed=replace(air.allowed, paths=True))
 
@@ -56,7 +56,7 @@ def test_the_position_is_the_same_on_every_radio_but_the_path_which_the_radio_de
     frames = BeaconFrames(lambda: BOTH, None, FixedClock())
     fm, hf = frames.position(radio_of(BOTH, FM_ID)), frames.position(radio_of(BOTH, HF_ID))
     assert fm.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:" + POSITION.decode()
-    assert hf.tnc2() == "OH2GBA>APZNEO:" + POSITION.decode(), "HF carries no path, whatever beacon/path says"
+    assert hf.tnc2() == "OH2GBA>APZNEO:" + POSITION.decode(), "Mercury carries no path, whatever beacon/path says"
     assert fm.info == hf.info and fm.source == hf.source and fm.destination == hf.destination
 
 
@@ -131,7 +131,7 @@ def test_a_moving_stations_frame_is_the_fix_on_every_radio_and_nothing_without_o
     gps = FakeFixes(fix_at(clock(), speed_kmh=54.0, course_deg=270))
     frames = BeaconFrames(lambda: moving, gps, clock)
     fm, hf = frames.position_and_fix(radio_of(moving, FM_ID)), frames.position_and_fix(radio_of(moving, HF_ID))
-    assert fm[0].info == hf[0].info == frames.position_info() == b"=//w5#TW?M>eM[/A=000103NeoAPRS" and fm[1] is hf[1] is gps.fix, "the HF radio, with no SmartBeaconing, sends the same fix by time"
+    assert fm[0].info == hf[0].info == frames.position_info() == b"=//w5#TW?M>eM[/A=000103NeoAPRS" and fm[1] is hf[1] is gps.fix, "the Mercury radio, with no SmartBeaconing, sends the same fix by time"
     gps.fix = None
     with pytest.raises(NoFix, match="no position fix"):
         frames.position(radio_of(moving, HF_ID))
@@ -144,8 +144,8 @@ def test_a_moving_stations_frame_is_the_fix_on_every_radio_and_nothing_without_o
 def test_a_radio_of_the_old_shape_is_read_as_the_registrys_radio_of_its_kind() -> None:
     fm, hf, capped = (air_of(line, lambda: BOTH, old=True) for line in (StubTnc(), StubTnc(max_frame=123), StubTnc(max_frame=123, rtype=HF_WITH_PATHS)))
     assert isinstance(fm, OldLine) and (fm.id, fm.kind, fm.name, fm.max_frame, fm.allowed, fm.limits) == (FM_ID, "fm", "FM", None, BOTH.radios[0].rtype.allowed, BOTH.radios[0].rtype.limits)
-    assert (hf.id, hf.kind, hf.name, hf.max_frame, hf.allowed.paths, hf.limits.beacon_jitter_sec) == (HF_ID, "hf", "HF", 123, False, 300)
-    assert capped.allowed.paths and capped.choice("path") == "WIDE1-1,WIDE2-1", "an HF radio that carries paths has radio 1's, for its kind has none"
+    assert (hf.id, hf.kind, hf.name, hf.max_frame, hf.allowed.paths, hf.limits.beacon_jitter_sec) == (HF_ID, "hf", "Mercury", 123, False, 300)
+    assert capped.allowed.paths and capped.choice("path") == "WIDE1-1,WIDE2-1", "a Mercury radio that carries paths has radio 1's, for its kind has none"
     live = radio_of(BOTH, HF_ID)
     assert air_of(live, lambda: BOTH) is live and air_of(live, lambda: BOTH, old=True) is live, "a radio of the registry is itself"
 
@@ -224,8 +224,8 @@ def test_the_interval_of_a_radios_beacon_is_the_beacon_rule_s_for_that_radio() -
     with_hf = with_radios(replace(BOTH, beacon_interval_min=20), *BOTH.radios, third())
     off = with_radios(replace(BOTH, beacon_interval_min=0), *BOTH.radios, third())
     assert Beacon(radio_of(fm_only, 3), lambda: fm_only, clock).interval_min == 20
-    assert Beacon(radio_of(with_hf, 3), lambda: with_hf, clock).interval_min == Beacon(radio_of(with_hf, FM_ID), lambda: with_hf, clock).interval_min == 20, "an FM radio is not slowed by an HF radio that is on (plan rule 3.1)"
-    assert Beacon(radio_of(with_hf, HF_ID), lambda: with_hf, clock).interval_min == HF_LIMITS.beacon_min_min == 30, "the HF radio is raised to its own floor"
+    assert Beacon(radio_of(with_hf, 3), lambda: with_hf, clock).interval_min == Beacon(radio_of(with_hf, FM_ID), lambda: with_hf, clock).interval_min == 20, "an FM radio is not slowed by a Mercury radio that is on (plan rule 3.1)"
+    assert Beacon(radio_of(with_hf, HF_ID), lambda: with_hf, clock).interval_min == HF_LIMITS.beacon_min_min == 30, "the Mercury radio is raised to its own floor"
     assert Beacon(radio_of(off, 3), lambda: off, clock).interval_min == 0, "Off stays Off"
     gone, without = radio_of(with_hf, 3), replace(BOTH, beacon_interval_min=20)
     assert Beacon(gone, lambda: without, clock).interval_min == 0, "a radio the settings do not have sends no timed beacon"
@@ -264,4 +264,4 @@ async def test_a_third_radios_beacon_sends_on_its_radio_by_its_path_and_remember
     finally:
         await beacon.stop()
     assert datetime.fromisoformat(rows.rows["radio/3/beacon_last_sent_at"]) == clock() and rows.rows[memory_key_of(FM_ID)] == "2000-01-01T00:00:00Z"
-    assert not [r for r in caplog.records if "raised" in r.getMessage()], "no HF radio on: nothing is raised"
+    assert not [r for r in caplog.records if "raised" in r.getMessage()], "no Mercury radio on: nothing is raised"

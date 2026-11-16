@@ -195,7 +195,7 @@ export const stations = {
   "route.best.unknown_send_by": "{route}; unknown repeater, send by {path}",
   "route.best.unknown_send_direct": "{route}; unknown repeater, send direct",
   "channel.fm": "FM",
-  "channel.hf": "HF",
+  "channel.hf": "Mercury",
   "channel.lora": "LoRa",
   "channel.gated": "iGate",
   "channel.is": "Internet",

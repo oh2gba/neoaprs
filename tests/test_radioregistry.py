@@ -57,7 +57,7 @@ def test_a_radio_is_made_for_every_radio_of_the_settings_that_is_not_removed_wit
     assert rig.registry.sync(rig.config) == [1, 2, 3] and rig.registry.why == {1: "it is new", 2: "it is new", 3: "it is new"}
     radios = rig.registry.all()
     assert [r.id for r in radios] == [1, 2, 3] and rig.registry.get(4) is None and rig.registry.get(3) is radios[2], "a removed radio has none"
-    assert [(r.name, r.kind, r.spec, r.driver, r.beacon, r.line.radio_id) for r in radios] == [(name, s.kind, s, rig.drivers[s.id], rig.beacons[s.id], s.id) for name, s in zip(("FM", "HF", "FM 2"), THREE, strict=True)]
+    assert [(r.name, r.kind, r.spec, r.driver, r.beacon, r.line.radio_id) for r in radios] == [(name, s.kind, s, rig.drivers[s.id], rig.beacons[s.id], s.id) for name, s in zip(("FM", "Mercury", "FM 2"), THREE, strict=True)]
     assert [r.line.radio_name for r in radios] == ["", "", "FM 2"], "the line of radio 1 and of radio 2 says today's words in its own log lines (`tnc`, `hf radio`: Tnc.label by its kind), any other its radio's name"
     assert rig.made == [(1, "kiss"), (2, "mercury"), (3, "kiss")] and rig.wired == [1, 2, 3], "one driver for each, and each handed to the wiring once"
     assert rig.registry.enabled() == [radios[0], radios[2]] and rig.registry.main is radios[0]
@@ -126,7 +126,7 @@ async def test_a_restart_stops_the_radio_gives_it_the_settings_and_starts_it_whi
     assert third is not None and first is not None and third.state is Source.State.CONNECTED and third.usable and first.state is Source.State.STOPPED
     await rig.registry.restart(2)
     assert rig.calls() == {1: [], 2: ["stop", "configure"], 3: []}, "a radio whose tickbox is off takes the settings and stays stopped"
-    assert said()[-1] == "the HF radio is off in the settings"
+    assert said()[-1] == "the Mercury radio is off in the settings"
     await rig.registry.restart(1)
     assert rig.put(with_radios(ON_AIR, three(enabled=False))) == [3]
     await rig.registry.restart(3)
@@ -204,7 +204,7 @@ async def test_a_radio_whose_type_has_another_driver_gets_it_at_its_restart_on_t
     await rig.registry.restart(3)
     old, radio = rig.drivers[3], rig.registry.get(3)
     assert radio is not None and radio.driver is old and radio.driver_key == "serial"
-    assert rig.put(with_radios(ON_AIR, three(type="kiss-tcp"))) == [3] and rig.registry.why == {3: "type KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…) -> KISS over TCP (Direwolf, soundmodem)"}
+    assert rig.put(with_radios(ON_AIR, three(type="kiss-tcp"))) == [3] and rig.registry.why == {3: "type KISS TNC (Kenwood TH-D74/D75, Mobilinkd…) -> Your own Direwolf or soundmodem"}
     assert radio.driver is old and rig.wired == [1, 2, 3], "the driver in force until the restart"
     old.calls.clear()
     await rig.registry.restart(3)
@@ -220,7 +220,7 @@ def test_the_driver_of_a_type_is_its_own_and_the_modems_for_the_dummy_hf_radio(t
         made_for = replace(fm, type=key)
         assert driver_key(made_for) == type_of(key).driver == "tnc" and isinstance(make_driver(made_for, claims, FixedClock(), tmp_path), TncDriver)
     assert driver_key(replace(hf, type="mercury")) == type_of("mercury").driver == "mercury"
-    assert driver_key(replace(hf, type="dummy-hf")) == type_of("dummy-hf").driver == "mercury", "the Dummy HF radio's speaker is the modem program: the modem's driver starts and stops it"
+    assert driver_key(replace(hf, type="dummy-hf")) == type_of("dummy-hf").driver == "mercury", "the Dummy Mercury radio's speaker is the modem program: the modem's driver starts and stops it"
     driver = make_driver(replace(hf, id=5), claims, FixedClock(), tmp_path)
     assert isinstance(driver, MercuryDriver) and driver.line.radio_id == 5 and driver.modem.holder == 5 and driver.modem.folder == tmp_path / "radios" / "5" and driver.modem.claims is claims
     with pytest.raises(RadioTypeError):
@@ -384,7 +384,7 @@ def searching(url: str, finder: RadioFinder, radio: RadioId | None = None) -> "a
 
 
 async def test_find_my_radio_of_the_daemon_lets_go_of_the_fm_radio_alone_and_starts_it_again_while_hf_runs(tmp_path: Path) -> None:
-    """The daemon's own finder, asked as the page asks it with no radio named (the handler gives it radio 1: tests/test_radiofinder_wire.py): the FM radio lets go of its line for the search, the HF radio
+    """The daemon's own finder, asked as the page asks it with no radio named (the handler gives it radio 1: tests/test_radiofinder_wire.py): the FM radio lets go of its line for the search, the Mercury radio
     and its modem keep running, and the FM radio takes its line again after it, with its beacon."""
     silent = await FakeTncServer("silent").start()
     e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
@@ -395,10 +395,10 @@ async def test_find_my_radio_of_the_daemon_lets_go_of_the_fm_radio_alone_and_sta
     hf_line = e.hf._generation
     search = searching(silent.url, e.ctl.radiofinder, FM_ID)
     await until(lambda: silent.connections == 1)
-    assert fm.state is Source.State.STOPPED and hf.state is Source.State.CONNECTED, "the FM radio let go of its line for the search, the HF radio did not"
+    assert fm.state is Source.State.STOPPED and hf.state is Source.State.CONNECTED, "the FM radio let go of its line for the search, the Mercury radio did not"
     assert e.ctl.radiofinder.cancel() and await search is None
     await until(lambda: fm.state is Source.State.CONNECTED)
-    assert e.hf._generation == hf_line and fm.beacon.running and hf.beacon.running, "the FM radio started again with its beacon, and the HF radio ran all the while"
+    assert e.hf._generation == hf_line and fm.beacon.running and hf.beacon.running, "the FM radio started again with its beacon, and the Mercury radio ran all the while"
     await e.stop()
     await silent.aclose()
 
@@ -437,7 +437,7 @@ async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_sto
     third = e.ctl.radios.get(3)
     assert third is not None and isinstance(third.driver, TncDriver) and third.line not in (e.tnc, e.hf) and (third.name, third.line.radio_id, third.line.interlock) == ("FM 2", 3, e.tnc.interlock)
     await until(lambda: third.state is Source.State.CONNECTED and third.beacon.running)
-    assert "the FM 2 radio is restarted because its settings changed: it is new" in caplog.text and f"the FM 2 radio is started: KISS over TCP (Direwolf, soundmodem),{other.url}" in caplog.text
+    assert "the FM 2 radio is restarted because its settings changed: it is new" in caplog.text and f"the FM 2 radio is started: Your own Direwolf or soundmodem,{other.url}" in caplog.text
     assert e.tnc.state is Source.State.CONNECTED and e.tnc._generation == fm_line and [r.id for r in e.ctl.radios.enabled()] == [1, 3], "radio 1 kept its line"
     other.feed(kiss.encode(ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2TRD"), (), info=b"!6010.00N/02456.00E>on the third radio"))))
     await until(lambda: e.ctl.stationbook.get("OH2TRD") is not None)
@@ -467,7 +467,7 @@ def test_the_stub_registry_of_the_services_tests_chooses_as_the_stub_radios_do_a
         tuple(same[id(radio)] for radio in (before.default, before.for_station("OH2C"), before.for_station("OH2B"), before.for_packet(on_fm), before.for_packet(on_hf)))
     fm, hf = stub_air(pick.fm), stub_air(pick.hf)
     assert (fm.id, fm.kind, fm.name, fm.limits, fm.allowed, fm.max_frame) == (FM_ID, "fm", "FM", type_of("kiss").limits, type_of("kiss").allowed, None)
-    assert (hf.id, hf.kind, hf.name, hf.limits, hf.allowed, hf.max_frame) == (HF_ID, "hf", "HF", type_of("mercury").limits, type_of("mercury").allowed, 123)
+    assert (hf.id, hf.kind, hf.name, hf.limits, hf.allowed, hf.max_frame) == (HF_ID, "hf", "Mercury", type_of("mercury").limits, type_of("mercury").allowed, 123)
     assert (fm.choice("beacon"), fm.choice("path"), fm.choice("digipeat")) == (True, "", False) and fm.stats.packets == 0 and StubTnc(id=3).id == 3
 
 

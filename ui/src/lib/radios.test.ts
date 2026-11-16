@@ -109,8 +109,8 @@ describe("what the page calls a radio", () => {
       radioLabel({ name: "", kind: "fm", number: 1 }),
       radioLabel({ name: "", kind: "hf", number: 1 }),
       radioLabel({ name: "", kind: "hf", number: 2 }),
-    ]).toEqual(["FM", "HF", "HF 2"]);
-    expect(pageRadios(topic(radioRow(5, "dummy-hf", { number: 3 })), null)[0]?.name).toBe("HF 3");
+    ]).toEqual(["FM", "Mercury", "Mercury 2"]);
+    expect(pageRadios(topic(radioRow(5, "dummy-hf", { number: 3 })), null)[0]?.name).toBe("Mercury 3");
   });
 
   it("makes an element's id of a setting's key", () => {
@@ -166,8 +166,8 @@ describe("what a radio's problem says", () => {
   });
 
   it("is the sentence of a device another holds where the catalogue has it, else not connected", () => {
-    const text = said("radio.resource_held", { resource: "serial", holder: "HF" });
-    expect(["the device is in use by radio HF: choose another", "Not connected"]).toContain(text);
+    const text = said("radio.resource_held", { resource: "serial", holder: "Mercury" });
+    expect(["the device is in use by radio Mercury: choose another", "Not connected"]).toContain(text);
   });
 });
 

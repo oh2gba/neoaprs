@@ -33,7 +33,9 @@ describe("RadioStatus", () => {
   });
 
   it("says why it is not connected in the line, in the page's words of the daemon's code", () => {
-    const wrapper = radio(fmRow({ state: "waiting", problem: { code: "radio.resource_held", params: { resource: "serial", holder: "HF 2", held_by: 2 } } }));
+    const wrapper = radio(
+      fmRow({ state: "waiting", problem: { code: "radio.resource_held", params: { resource: "serial", holder: "Mercury 2", held_by: 2 } } }),
+    );
     expect(wrapper.find(".statetext").classes()).toContain("tnc-waiting");
     expect(wrapper.find(".tncstatus").text()).not.toBe("");
     expect(wrapper.find(".problem").exists()).toBe(false);

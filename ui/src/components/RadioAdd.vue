@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Add radio, the last row of the Radio group (and of the setup guide's Radio step): a choice of the type of the new radio, from the one list of every type in groups (FM, HF, LoRa, Without a radio: lib/settingsradio.ts;
+// Add radio, the last row of the Radio group (and of the setup guide's Radio step): a choice of the type of the new radio, from the one list of every type in groups (FM, Mercury, LoRa, Without a radio: lib/settingsradio.ts;
 // the radio's kind follows its type and stays), with the Add button
 // beside it, as a button that belongs to a field stands beside it. Choosing a type adds nothing: a type looked at with the arrow keys of a closed list is chosen too. Add adds the radio (`radio_add`, with no name: the
 // daemon calls it by its kind and its number, "FM 2"), and the choice is ready for the next; the new radio's box comes with its row (SettingsRadio.vue leads to it). Add is greyed while no type is chosen. The (i) is the

@@ -1,6 +1,6 @@
-"""The Dummy HF radio (neoaprs/dummyhfscene.py, dummyline.py, the profile `dummy-hf` of tncprofile.py): a handful of distant fixed stations whose beacons come every half hour to an hour with the HF pause, the first within
-two minutes, every frame direct, the nearest answering a message at the pace of HF, calls that can be nobody's; the Tnc on it marks every packet `dummy` on the radio `hf` and opens nothing; the daemon with the
-HF radio as the Dummy starts no modem for a radio but the speaker, which is handed our frames to be heard, and nothing of it goes on any air (the HF world: a dummy station beside two real ones). In the
+"""The Dummy Mercury radio (neoaprs/dummyhfscene.py, dummyline.py, the profile `dummy-hf` of tncprofile.py): a handful of distant fixed stations whose beacons come every half hour to an hour with the Mercury pause, the first within
+two minutes, every frame direct, the nearest answering a message at the pace of Mercury, calls that can be nobody's; the Tnc on it marks every packet `dummy` on the radio `hf` and opens nothing; the daemon with the
+Mercury radio as the Dummy starts no modem for a radio but the speaker, which is handed our frames to be heard, and nothing of it goes on any air (the Mercury world: a dummy station beside two real ones). In the
 registry (neoaprs/radioregistry.py) it is radio 2 with a type that is a Dummy, driven by the modem's driver because the program is its speaker; a Dummy radio that stops being one (another type, or switched
 off) takes what it made up under calls of its own along (Controller._leave_dummy)."""
 import asyncio
@@ -56,7 +56,7 @@ def play(scene: HfScene, seconds: int, step: int = 5) -> list[tuple[int, ax25.Fr
 def test_the_profile_is_the_hf_radios_second_type_with_the_rules_of_hf_and_no_line() -> None:
     assert HF_PROFILES == (MERCURY, DUMMY_HF) and hf_profile_of("dummy-hf") is DUMMY_HF and hf_profile_of(" mercury ") is MERCURY
     assert DUMMY_HF.transport == "dummy" and type_of(DUMMY_HF.key).kind == "hf" and type_of(DUMMY_HF.key).limits.max_frame == 123 and not DUMMY_HF.can_probe and DUMMY_HF.baud is None
-    with pytest.raises(Exception, match="not a type of the HF radio") as refused:
+    with pytest.raises(Exception, match="not a type of a Mercury radio") as refused:
         hf_profile_of("dummy")
     assert getattr(refused.value, "code", "") == "setting.not_hf_profile"
 
@@ -87,7 +87,7 @@ def test_the_first_beacons_come_within_two_minutes_and_then_every_half_hour_to_a
         gaps = [b - a for a, b in zip(times, times[1:])]
         assert gaps and all(station.every_sec <= gap <= station.every_sec + HF_BEACON_JITTER_SEC + 1 for gap in gaps), (station.call, gaps)
         assert 1800 <= station.every_sec <= 3600
-    assert len({str(f.source) for _, f in later}) == len(STATIONS) and len(later) < 60, "an HF channel is a quiet one"
+    assert len({str(f.source) for _, f in later}) == len(STATIONS) and len(later) < 60, "a Mercury channel is a quiet one"
 
 
 def from_us(info: bytes) -> ax25.Frame:
@@ -105,7 +105,7 @@ def test_the_nearest_station_acks_a_message_a_frame_each_way_later_and_answers_o
     texts = [(t, f) for t, f in heard if parse_message(f.info[1:]).text == HELLO]
     assert len(acks) == 1 and len(texts) == 1 and str(acks[0][1].source) == talker.call and str(texts[0][1].source) == talker.call
     assert abs(acks[0][0] - ACK_AFTER_SEC) < 1 and ACK_AFTER_SEC == 2 * DELIVERY_SEC and texts[0][0] > acks[0][0], "the ack a frame's time each way later, the text after it"
-    assert all(str(f.source) != ME for _, f in heard), "no digipeater on HF: nothing of ours comes back"
+    assert all(str(f.source) != ME for _, f in heard), "no digipeater on Mercury: nothing of ours comes back"
     scene.react(from_us(b":" + talker.call.ljust(9).encode() + b":Hello{7"), START + timedelta(seconds=300))       # (a retry: acked again, not answered again)
     again = [f for t, f in play(scene, 400, step=1) if t > 300]
     assert [parse_message(f.info[1:]).ack_id for f in again] == ["7"]
@@ -146,21 +146,21 @@ async def test_the_tnc_with_the_dummy_hf_profile_hears_the_stations_on_the_radio
     assert len(spoken.frames) == 1 and spoken.frames[0].startswith(b"\xc0"), "what we sent went to the speaker as KISS bytes"
     assert {s for d, s, _, _ in heard if d == "in"} >= {"Q3TKU", "Q5OUL"} and all(v == "dummy" and r == HF_ID for _, _, v, r in heard)
     assert any(d == "in" and s == "Q3TKU" for d, s, _, _ in heard) and tnc.stats.rejected == 0
-    assert tried == [] and "dummy HF radio" in tnc.describe() and "nothing goes on the air" in tnc.describe()
+    assert tried == [] and "dummy Mercury radio" in tnc.describe() and "nothing goes on the air" in tnc.describe()
 
 
 async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_hf_starts_mercury_as_the_speaker_and_plays_the_beacon(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture) -> None:
     """Where there are named pipes (Linux, macOS) the bundled Mercury is started on its fifo backend as the speaker and the beacon goes to it; on Windows the speaker is not started (the modem on the default sound devices
-    would be heard, and hear, for real) and the Dummy HF radio runs without the sound: the made-up stations are heard all the same."""
+    would be heard, and hear, for real) and the Dummy Mercury radio runs without the sound: the made-up stations are heard all the same."""
     caplog.set_level(logging.INFO, logger="neoaprs.mercury")
     e = Env(tmp_path, radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30"})
     e.mercury._finder = fakemercury.program                                 # (the program that stands in for Mercury: it keeps what its KISS port is given)
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
-    assert e.hf.is_dummy and e.hf.rtype.kind == "hf" and e.hf.rtype.transport == "dummy" and not e.hf.rtype.can.tune, "the Dummy HF radio: no Mercury of its own to tune"
+    assert e.hf.is_dummy and e.hf.rtype.kind == "hf" and e.hf.rtype.transport == "dummy" and not e.hf.rtype.can.tune, "the Dummy Mercury radio: no Mercury of its own to tune"
     radio = e.ctl.radios.get(HF_ID)
     assert radio is not None and radio.rtype.dummy and radio.rtype.driver == "mercury" and driver_key(radio.spec) == radio.driver_key == "mercury" and isinstance(radio.driver, MercuryDriver), "the modem's driver runs it: the program is its speaker"
-    assert radio.line is e.hf and radio.driver.modem is e.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.main is radio and (radio.name, radio.max_frame) == ("HF", 123)
+    assert radio.line is e.hf and radio.driver.modem is e.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.main is radio and (radio.name, radio.max_frame) == ("Mercury", 123)
     speaking = hasattr(os, "mkfifo")
     if speaking:
         assert e.mercury.speaker and e.mercury.state in ("starting", "running") and e.mercury.keying.kind == "vox" and e.mercury.sound_card == ""
@@ -195,7 +195,7 @@ async def test_in_the_hf_world_a_dummy_station_hears_the_made_up_stations_and_no
     await w.start()
     await d.start()
     await until_started(lambda: d.hf.state is Source.State.CONNECTED)
-    assert d.mercury.state == "waiting" and d.hf.usable, "no Mercury: nothing to hear, the Dummy HF radio runs all the same"
+    assert d.mercury.state == "waiting" and d.hf.usable, "no Mercury: nothing to hear, the Dummy Mercury radio runs all the same"
     assert d.beacon_2.send_now("request")
     for _ in range(30):
         d.now.advance(5)                                                         # type: ignore[attr-defined]
@@ -245,7 +245,7 @@ def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_w
 
 
 def test_no_daemon_of_the_tests_finds_a_player_and_the_players_are_looked_for_where_neoaprs_player_path_says(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A daemon of the tests on the Dummy HF radio played its beacons out of John's speakers (4 Nov 2026): tests/conftest.py points NEOAPRS_PLAYER_PATH at a folder that is not there."""
+    """A daemon of the tests on the Dummy Mercury radio played its beacons out of John's speakers (4 Nov 2026): tests/conftest.py points NEOAPRS_PLAYER_PATH at a folder that is not there."""
     assert player_command() is None
     aplay = tmp_path / ("aplay.exe" if sys.platform == "win32" else "aplay")
     aplay.write_text("")
@@ -279,7 +279,7 @@ def test_the_speakers_audio_says_once_when_there_is_no_player_and_plays_nothing(
             time.sleep(0.02)
     finally:
         audio.stop()
-    assert audio.bytes_played == 0 and caplog.text.count("no player for the Dummy HF radio's audio") == 1
+    assert audio.bytes_played == 0 and caplog.text.count("no player for the Dummy Mercury radio's audio") == 1
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="named pipes: POSIX")
@@ -330,20 +330,20 @@ async def test_our_position_is_withheld_from_the_internet_while_any_radio_that_i
     dummy = Env(tmp_path / "dummy", radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf"})
     dummy.mercury._finder = lambda: None
     await dummy.start()
-    assert dummy.ctl.igate.made_up(), "the Dummy HF radio, with the FM radio off"
+    assert dummy.ctl.igate.made_up(), "the Dummy Mercury radio, with the FM radio off"
     await dummy.stop()
     air = fakemercury.Air(frame_sec=0.2)
     await air.start()
     real = Env(tmp_path / "real", radio=False, hf=air.station(), settings={"tnc/profile": "dummy"})       # (a leftover Dummy profile of the FM radio, which is off)
     await real.start()
-    assert not real.ctl.igate.made_up(), "the real HF radio alone"
+    assert not real.ctl.igate.made_up(), "the real Mercury radio alone"
     await real.stop()
     await air.aclose()
 
 
 @pytest.mark.parametrize("leave", [{"hf_profile": "mercury"}, {"hf_enabled": False, "fm_enabled": True}])
 async def test_a_dummy_hf_radio_that_stops_being_one_cancels_what_was_being_sent_to_its_stations_and_forgets_them(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture, leave: dict[str, object]) -> None:
-    """John, 3 Nov 2026: message 490 to Q1KUO kept being retried on the real HF radio and held the channel. Nothing made up stays once a real radio is on: the radio got another type, or was switched off."""
+    """John, 3 Nov 2026: message 490 to Q1KUO kept being retried on the real Mercury radio and held the channel. Nothing made up stays once a real radio is on: the radio got another type, or was switched off."""
     caplog.set_level(logging.INFO, logger="neoaprs")
     e = Env(tmp_path, radio=False, settings={"station/call": ME, "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
     e.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
@@ -366,7 +366,7 @@ async def test_a_dummy_hf_radio_that_stops_being_one_cancels_what_was_being_sent
     assert getattr(e.ctl.messaging.get(kuopio.id), "state", "") == "cancelled"
     assert getattr(e.ctl.messaging.get(real.id), "state", "") == "sending", "a message to a real station is the operator's to cancel"
     assert [s.call for s in e.ctl.stationbook.stations() if s.call.startswith("Q")] == [], "the made-up stations are gone"
-    assert "cancelled: the Dummy HF radio that makes Q1KUO up is left" in caplog.text and "forgot the made-up stations of the Dummy HF radio: " in caplog.text
+    assert "cancelled: the Dummy Mercury radio that makes Q1KUO up is left" in caplog.text and "forgot the made-up stations of the Dummy Mercury radio: " in caplog.text
     radio = e.ctl.radios.get(HF_ID)
     assert radio is not None and not (radio.spec.enabled and radio.rtype.dummy) and radio.line is e.hf, "the same radio and the same line, a Dummy no longer"
     await e.stop()

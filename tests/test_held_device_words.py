@@ -46,7 +46,7 @@ def test_a_sound_card_named_by_its_number_is_the_card_another_radio_names_or_hol
     monkeypatch.setenv("NEOAPRS_ALSA_ROOT", str(tmp_path / "asound"))
     before = Config(radios=(mercury(2, "plughw:CARD=CODEC,DEV=0"), mercury(5, "")))
     text, params = held_text(Claims(), before, Config(radios=(mercury(2, "plughw:CARD=CODEC,DEV=0"), mercury(5, "plughw:1,0"))))
-    assert params["held_by"] == 2 and text.endswith("radio/5/sound_card: the device is in use by radio HF: choose another"), text
+    assert params["held_by"] == 2 and text.endswith("radio/5/sound_card: the device is in use by radio Mercury: choose another"), text
     claims = Claims()
     claims.hold(Claim("sound_card", "plughw:CARD=CODEC,DEV=0", 2))
     before = Config(radios=(mercury(2, ""), mercury(5, "")))

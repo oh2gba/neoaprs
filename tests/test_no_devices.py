@@ -478,7 +478,7 @@ async def test_the_mercury_program_is_not_started_and_lists_no_sound_card(under_
     assert (modem.state, modem.reason) == ("waiting", "not_installed") and modem.sound_cards() == []
     await modem.start(ON_AIR, speaker=True)
     assert modem.state == "waiting" and not (tmp_path / "mercury.ini").exists() and (tmp_path / "mercury.pid").read_text(encoding="utf-8") == "4242\n"
-    assert asked == [] and doors.started == [], "the program was not looked for, the Mercury the data folder names was left alone and nothing was started, as the modem or as the Dummy HF radio's speaker"
+    assert asked == [] and doors.started == [], "the program was not looked for, the Mercury the data folder names was left alone and nothing was started, as the modem or as the Dummy Mercury radio's speaker"
     logged = [r.getMessage() for r in caplog.records]
     assert logged[0] == "NEOAPRS_NO_DEVICES is set: the Mercury modem program is not started and its sound cards are not listed" and logged.count(logged[0]) == 1
     assert not [line for line in logged if line.startswith("no Mercury program at")], "the log names no place where the program is missing: nobody looked for it"
@@ -501,7 +501,7 @@ def test_a_mercury_a_copy_of_the_data_folder_names_is_left_alone_at_the_daemons_
 
 
 def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
-    """The daemon starts no Mercury under the switch, so whatever listens where one of ours would have been (the operator's own modem, on this computer's port 8100) is not ours: the HF radio's line is given no port
+    """The daemon starts no Mercury under the switch, so whatever listens where one of ours would have been (the operator's own modem, on this computer's port 8100) is not ours: the Mercury radio's line is given no port
     at all, by its driver (neoaprs/mercurydriver.py), and nothing to search."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     off, on = replace(ON_AIR, hf_enabled=False), replace(ON_AIR, hf_enabled=True)
@@ -514,13 +514,13 @@ def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_
         driver.configure(spec, config, run)
         return driver.line.port, driver.line.pattern, driver.line.fallback_probe
 
-    assert hf_line(off).port == "" and pointed(off) == ("", "", False) and said(caplog) == [], "no port, and nothing said while there is no HF radio"
+    assert hf_line(off).port == "" and pointed(off) == ("", "", False) and said(caplog) == [], "no port, and nothing said while there is no Mercury radio"
     assert (hf_line(on).port, hf_line(on, modem_port=18100).port) == ("", "") and pointed(on) == ("", "", False)
-    assert said(caplog) == [(logging.INFO, "NEOAPRS_NO_DEVICES is set: the HF radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)")]
-    assert hf_line(on, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a Mercury given for this run (the benches') is the HF radio's"
+    assert said(caplog) == [(logging.INFO, "NEOAPRS_NO_DEVICES is set: the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)")]
+    assert hf_line(on, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a Mercury given for this run (the benches') is the Mercury radio's"
     assert pointed(on, RunOverrides(hf_port="socket://127.0.0.1:18100")) == ("socket://127.0.0.1:18100", "", False)
     assert hf_line(replace(on, hf_profile="dummy-hf")).port == dummyline.DUMMY_PATH
-    assert hf_said(on, "") == "the Mercury modem, which is not started" and hf_said(replace(on, hf_profile="dummy-hf"), "") == "the Dummy HF radio, made-up stations", "the start line claims no modem and no speaker"
+    assert hf_said(on, "") == "the Mercury modem, which is not started" and hf_said(replace(on, hf_profile="dummy-hf"), "") == "the Dummy Mercury radio, made-up stations", "the start line claims no modem and no speaker"
     assert hf_said(on, "socket://127.0.0.1:18100") == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
     monkeypatch.delenv(nodevices.ENV)
     assert hf_line(on).port == "socket://127.0.0.1:8100" and hf_line(on, modem_port=18100).port == "socket://127.0.0.1:18100", "the same with the switch off"
@@ -562,7 +562,7 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     await until(lambda: e.tnc.state is Source.State.WAITING and e.tnc.stats.opens == 0 and "trying again" in lines_of(e.tnc) and "no port" in lines_of(e.tnc))
     assert f"{port['radio']}: No such file or directory" in lines_of(e.tnc)
     await until(lambda: e.mercury.state == "waiting" and e.hf.state is Source.State.WAITING)
-    assert e.mercury.reason == "not_installed" and looked_for == [] and e.hf.port == "" and e.hf.stats.opens == 0, "no Mercury was started, so the HF radio has no port to try"
+    assert e.mercury.reason == "not_installed" and looked_for == [] and e.hf.port == "" and e.hf.stats.opens == 0, "no Mercury was started, so the Mercury radio has no port to try"
     mercury_ports = {e.mercury.broadcast_port, e.mercury.control_port}                # where a Mercury of ours would have been: on the operator's computer his own modem may listen there
     await until(lambda: e.ctl.aprsis.state is Source.State.WAITING)
     assert (e.ctl.igate.state, e.ctl.igate.problem) == ("connecting", f"rotate.aprs2.net:14580: {REFUSED}")
@@ -593,7 +593,7 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     assert lines[0].startswith("NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened") and lines[0].endswith(SAYS_THE_VALUE.format("true")) and len(lines) == len(set(lines))
     assert set(lines[1:]) == {f"NEOAPRS_NO_DEVICES is set: {door}" for door in (
         f"the serial port {port['radio']} is not opened", f"the serial port {port['gps']} is not opened", "the serial ports and the paired Bluetooth devices are not listed or searched",
-        "the Mercury modem program is not started and its sound cards are not listed", "the HF radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)",
+        "the Mercury modem program is not started and its sound cards are not listed", "the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)",
         "no connection to rotate.aprs2.net (APRS-IS)", f"no connection to {ELSEWHERE} (rigctld)", f"no connection to {ELSEWHERE}")}
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR], "nothing of this is an error"
 

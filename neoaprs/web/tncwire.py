@@ -39,7 +39,7 @@ class FrequencyRow(_Model):
 
 
 class ModemState(_Model):
-    """The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury HF modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether
+    """The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether
     it hears a signal."""
     state: Literal["stopped", "starting", "running", "waiting"] = Field(description="`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why")
     problem: str = Field(description="why the modem is not running (not installed, stopped); empty while it runs")
@@ -53,7 +53,7 @@ class ModemState(_Model):
     max_frame: int | None = Field(ge=1, description="the longest packet the modem carries whole, in bytes (Mercury 123): a longer message is refused, a longer beacon has its comment cut; null for AX.25's own (Direwolf)")
     sound_card: str = Field(description="the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device")
     frequencies: list[FrequencyRow] = Field(max_length=MAX_FREQUENCIES, description="the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in "
-                                                                       "four; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio")
+                                                                       "four; the page shows them in the Mercury radio's box as they are, with the words \"suggested\": they are not read from the radio")
     keying: str = Field(description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`")
     scope: bool = Field(description="the daemon reads the modem's UI interface: the spectrum scope can be shown (`radio_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem)")
     tx_gain_db: int = Field(ge=-20, le=20, description="the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it")
@@ -85,7 +85,7 @@ class RadioProblem(_Model):
 class RadioLimits(_Model):
     """What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of the type."""
     max_frame: int | None = Field(description="the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own")
-    beacon_min_min: int = Field(ge=1, description="the shortest beacon interval the radio takes, in minutes (FM 20, HF 30): the station's interval is raised to it on this radio")
+    beacon_min_min: int = Field(ge=1, description="the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio")
 
 
 class RadioAllowed(_Model):
@@ -146,8 +146,8 @@ class RadioRow(_Model):
     id: int = Field(ge=1, description="the radio's id (an integer the database gave it, never given again): what every other row and command names it by")
     kind: Literal["fm", "hf", "lora"] = Field(description="the kind of radio, fixed when it was added: its tag's colour and the defaults follow it")
     type: str = Field(description="its type, a `key` of `RADIO_TYPES` (ui/src/protocol/lists.ts), of its kind; it may change within the kind (`radio_change`)")
-    name: str = Field(description="the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `HF 2`) in its own words")
-    number: int = Field(ge=1, description="its number within its kind: 1 for the first of the kind by id among the radios not removed (`HF 2` is 2); a removed radio keeps its own")
+    name: str = Field(description="the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `Mercury 2`) in its own words")
+    number: int = Field(ge=1, description="its number within its kind: 1 for the first of the kind by id among the radios not removed (`Mercury 2` is 2); a removed radio keeps its own")
     enabled: bool = Field(description="its Enable is ticked (`radio_change` with `enabled`); false for a removed radio")
     position: int = Field(ge=1, description="its place in the list of boxes (and of the first enabled, the main radio's default): the lowest first, then by id")
     removed: bool = Field(description="it was removed: its row stays so that what came by it keeps its name; it is no longer started, chosen or offered")

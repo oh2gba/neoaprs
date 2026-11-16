@@ -63,6 +63,15 @@ const BROUGHT = (id: string): boolean =>
 const ALERT_BOXES = (id: string): boolean => id.startsWith("settings.alerts.") || id.startsWith("settings.browser.") || id === "settings.alert.tip1";
 /** The lines of the list of types that only receive. */
 const RECEIVE_ONLY_TYPES = ["radio.type.tnc_text", "radio.type.lora_console"];
+/** The one type whose name says Direwolf: the operator's own, which he runs himself and NeoAPRS reaches over the network. The Sound card type, whose Dire Wolf NeoAPRS carries and starts, is named by what the operator
+ * has in hand (John, 16 Nov 2026: "so people don't get confused whether to still install direwolf"). */
+const OWN_PROGRAM = "radio.type.kiss_tcp";
+/** The types of the Mercury kind: Mercury is in their names, because the other station must run the same modem to be heard, and in no other type's. */
+const MERCURY_TYPES = ["radio.type.mercury", "radio.type.dummy_hf"];
+/** What no type's name says: a band or a mode the radio may not be on (a Mercury radio works on 2 m and through an FM radio's audio too), nor how the program reaches it. */
+const BAND_OR_LINK = /(?<![\p{L}\p{N}])(HF|KW|VHF|UHF|SSB|TCP)(?![\p{L}\p{N}])/u;
+/** The longest a type's name is, in characters: the list of Add radio is as wide as its widest line, on a phone too (the longest English line is the KISS TNC's, 41). */
+const WIDEST_TYPE = 43;
 
 const all = (m: Message | undefined): string => (m === undefined ? "" : texts(m).join(" | "));
 
@@ -110,6 +119,49 @@ for (const locale of LOCALES) {
       expect(DUMMY_IDS.filter((id) => !has(id, word))).toEqual([]);
       expect(has("tab.skeds", word)).toBe(false);
       if (locale.code === "fi") expect(DUMMY_IDS.filter((id) => has(id, "testi"))).toEqual([]);
+    });
+
+    it("name a type of radio by what the operator has in hand: Direwolf only in his own, Mercury only in the Mercury kind's, no band, mode or link, and no line wider than the list has room for", () => {
+      const types = Object.keys(messages).filter((id) => id.startsWith("radio.type."));
+      expect(types.length).toBeGreaterThanOrEqual(14);
+      expect(types.filter((id) => /dire\s*wolf/iu.test(say(id)))).toEqual([OWN_PROGRAM]);
+      expect(say(OWN_PROGRAM)).toContain("soundmodem");
+      expect(types.filter((id) => say(id).includes("Mercury")).sort()).toEqual([...MERCURY_TYPES].sort());
+      expect(types.filter((id) => BAND_OR_LINK.test(say(id)))).toEqual([]);
+      expect(types.filter((id) => say(id).length > WIDEST_TYPE)).toEqual([]);
+      expect(new Set(types.map(say)).size).toBe(types.length);
+    });
+
+    it("call the Sound card type by the word of the Sound card field, and nothing else by it", () => {
+      expect(say("radio.type.direwolf")).toBe(say("settings.sound_card.label"));
+    });
+
+    it("have one word for each kind of signal, the same in every language: the heading of its group in Add radio, the tag of a radio with no name, and in its box and its Dummy", () => {
+      expect([say("channel.fm"), say("channel.hf"), say("channel.lora")]).toEqual(["FM", "Mercury", "LoRa"]);
+      for (const [word, ids] of [
+        ["FM", ["settings.group.fm_radio", "radio.type.dummy"]],
+        ["Mercury", ["settings.group.hf_radio", "settings.hf_enabled.name", "radio.type.dummy_hf", "settings.tnc.dummy_hf"]],
+        ["LoRa", ["settings.group.lora_radio", "radio.type.dummy_lora"]],
+      ] as const)
+        expect(
+          ids.filter((id) => !say(id).includes(word)),
+          word,
+        ).toEqual([]);
+    });
+
+    it("end the name of a type that only receives with the words of RX only, and start or end a Dummy's with the Dummy's", () => {
+      const rx = say("pill.rx").toLocaleLowerCase(locale.code);
+      expect(RECEIVE_ONLY_TYPES.filter((id) => !say(id).toLocaleLowerCase(locale.code).endsWith(`(${rx})`))).toEqual([]);
+      const dummy = DUMMY[locale.code] ?? "";
+      const edge = (id: string) =>
+        say(id)
+          .toLocaleLowerCase(locale.code)
+          .split(/[\s-]+/);
+      expect(
+        ["radio.type.dummy", "radio.type.dummy_hf", "radio.type.dummy_lora"].filter(
+          (id) => !(edge(id)[0]?.startsWith(dummy) || edge(id).at(-1)?.startsWith(dummy)),
+        ),
+      ).toEqual([]);
     });
 
     it("refuse an email with no gated radio in the words of the page's own line, from a small letter", () => {

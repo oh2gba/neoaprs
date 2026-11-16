@@ -47,7 +47,7 @@ const escape = async (): Promise<void> => {
 };
 
 describe("App: the monitor card", () => {
-  it("is in the map's menu only while the HF radio has a scope, opens the card, asks for the rows, closes with Esc and is remembered", async () => {
+  it("is in the map's menu only while the Mercury radio has a scope, opens the card, asks for the rows, closes with Esc and is remembered", async () => {
     const { wrapper, socket } = await open();
     await rightClick();
     expect(item()).toBeNull();
@@ -81,7 +81,7 @@ describe("App: the monitor card", () => {
     expect(card()).toBeNull();
   });
 
-  it("is not forgotten by an Esc while it is hidden because the HF radio has no scope", async () => {
+  it("is not forgotten by an Esc while it is hidden because the Mercury radio has no scope", async () => {
     localStorage.setItem("NeoAPRS.monitor", "open");
     localStorage.setItem("NeoAPRS.stats", "open");
     const { socket } = await open();

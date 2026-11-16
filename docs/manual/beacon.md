@@ -33,10 +33,10 @@ Choosing an interval, or **On**, turns it all on again. Choosing **On** for a mo
 With one radio on, the beacon goes out on it and nothing here applies. With several radios on that can send:
 
 - **Send on**, under the Beacon choice, has a tick for each radio that is on and can send, by its name (a radio that only receives has none, [radio.md](radio.md#what-each-radio-does-and-what-the-station-does-once)). The beacon goes out on every radio that is ticked, and a change applies at once. The last tick that is ticked is greyed, so that the beacon is switched off by the Beacon choice alone. A new radio is ticked.
-- **The interval** is the one you chose, raised for each radio to that radio's own floor. A fixed station's beacon on an HF or a LoRa radio goes every 30 minutes at the most often, each with a random pause of up to five minutes; a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval chosen: 20 minutes is 20 minutes on FM, beside an HF radio that sends every 30.
+- **The interval** is the one you chose, raised for each radio to that radio's own floor. A fixed station's beacon on a Mercury or a LoRa radio goes every 30 minutes at the most often, each with a random pause of up to five minutes; a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval chosen: 20 minutes is 20 minutes on FM, beside a Mercury radio that sends every 30.
 - **The state of the beacon** says the latest and the soonest of the radios, and behind its arrow a line for each radio, by its name, with its last and next beacon and its own interval.
-- **SmartBeaconing** is one plan for the station, the GPS's. It applies on each radio that allows it (FM and LoRa); an HF radio sends the timed beacon with the latest fix, at the stored interval (On stores 30 minutes), and nothing without a fresh fix.
-- **The path** is each radio's own: under Advanced there is a **Path** row for each radio that may carry one, labelled by its name ("FM: path"). An HF radio has none: every frame on HF goes direct.
+- **SmartBeaconing** is one plan for the station, the GPS's. It applies on each radio that allows it (FM and LoRa); a Mercury radio sends the timed beacon with the latest fix, at the stored interval (On stores 30 minutes), and nothing without a fresh fix.
+- **The path** is each radio's own: under Advanced there is a **Path** row for each radio that may carry one, labelled by its name ("FM: path"). A Mercury radio has none: every frame of it goes direct.
 - **Beacon now** goes on every ticked radio and is on while one of them is connected. **Send status now** goes on the radios of the status's own Send on ([The status](#the-status)), and so does the timed status.
 
 ## RX only
@@ -267,13 +267,13 @@ The status line at the top of the group shows the status last sent and, with the
 
 ## Answers to queries
 
-A message to your call whose text is one of these queries is answered by NeoAPRS. The text is read without regard to case or blanks. The answers are packets of their own, not messages: none is kept as a message, retried or waited for. They go back on the radio the query came in on, by the path of the station that asked on that radio (its own path, else the beacon's; for a packet an iGate wrapped, the sender inside). Over HF that is no path.
+A message to your call whose text is one of these queries is answered by NeoAPRS. The text is read without regard to case or blanks. The answers are packets of their own, not messages: none is kept as a message, retried or waited for. They go back on the radio the query came in on, by the path of the station that asked on that radio (its own path, else the beacon's; for a packet an iGate wrapped, the sender inside). On a Mercury radio that is no path.
 
 | query | the answer |
 |---|---|
 | `?APRSP` | your position packet, the beacon's own frame (a moving station's with the position as it is now, and nothing while it has no GPS fix) |
 | `?APRSS` | your status report as it was last sent, with the time of the answer; nothing while none has been sent |
-| `?APRSD` | a message to the asker with the calls the radio it was asked on heard direct in the last hour (over HF every call it heard, since every frame on HF comes direct), the one heard last first: `Directs= OH2RCH-2 OH2PU-9`, or `Directs= none`. At most 67 bytes; if the calls do not fit it is two messages, each starting `Directs=`, and what does not fit in two is left out |
+| `?APRSD` | a message to the asker with the calls the radio it was asked on heard direct in the last hour (on a Mercury radio every call it heard, since every frame comes direct there), the one heard last first: `Directs= OH2RCH-2 OH2PU-9`, or `Directs= none`. At most 67 bytes; if the calls do not fit it is two messages, each starting `Directs=`, and what does not fit in two is left out |
 | `?APRST`, `?PING?` | a message to the asker with the header of the query as you heard it, with the digipeaters it went by and their stars, as the specification's example writes it: `OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:`. The last digipeaters go when it would be over 67 bytes |
 | `?APRSH N0QBF` | a message to the asker that tells in which of the last 8 hours that station was heard, as the specification's example has it: `N0QBF HEARD: 1 3 2 . . 4 5 6`. The numbers are the packets heard from it, the last 60 minutes first, then the 60 before them, and so on; a dot is an hour with none. A station you never heard is answered `N0QBF NOT HEARD`. The call may follow the query with or without a blank. The specification also has the answer carry the station's position as an object; NeoAPRS leaves that out, because an object named like a station is the one thing it never makes |
 | `?APRSO` | your live objects and items, each once as it is now, at most 5, 10 seconds apart; also those you keep to send only when asked ([Objects](objects.md#objects-sent-only-when-asked)) |
@@ -302,7 +302,7 @@ A request for local info is not a query to you; if you keep objects in a categor
 
 The digipeater is off until you tick its **Enable** in the Settings tab, group Digipeater (with an (i)): the radio's own `radio/<id>/digipeat`. It is a fill-in digipeater for a spot with poor coverage, where nearby stations cannot reach a digipeater of their own. There is nothing else to set.
 
-Each FM radio that is on and can send has its own Enable and its own counts; with several radios on, each is in a box named after its radio. A radio repeats only what it heard, on itself. An HF or a LoRa radio repeats nothing.
+Each FM radio that is on and can send has its own Enable and its own counts; with several radios on, each is in a box named after its radio. A radio repeats only what it heard, on itself. A Mercury or a LoRa radio repeats nothing.
 
 When it is on, NeoAPRS sends a packet that radio heard again, once, when the first digipeater of the packet's path that is not yet marked as used is:
 

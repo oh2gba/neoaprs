@@ -110,7 +110,7 @@ describe("the Radio mark", () => {
   });
 });
 
-describe("the radio marks with the HF radio", () => {
+describe("the radio marks with the Mercury radio", () => {
   const radios = (rows: RadioRow[], extra: Partial<Link> = {}) => marks({ radios: radiosOf(...rows), ...extra }).filter((p) => p.id.startsWith("radio"));
   const said = (p: HeaderPill) => t(p.text, p.textValues);
   const HF_OFF = hfRow({ enabled: false, state: "stopped" });
@@ -121,7 +121,7 @@ describe("the radio marks with the HF radio", () => {
     expect(radios([fmRow()]).map((p) => p.id)).toEqual(["radio"]);
   });
 
-  it("is the one Radio mark too for a station with the HF radio alone, in the state of the HF radio and leading to its box", () => {
+  it("is the one Radio mark too for a station with the Mercury radio alone, in the state of the Mercury radio and leading to its box", () => {
     const hfDown = radios([FM_OFF, hfRow({ state: "waiting", problem: problem("modem.not_installed") }, { state: "waiting", reason: "not_installed" })]);
     expect(hfDown.map((p) => [p.id, said(p), String(p.tone), p.focus])).toEqual([["radio", "Radio: not connected", "warn", "set-radio-2-enabled"]]);
     expect(hfDown.map((p) => t(p.title, p.titleValues))).toEqual(["This installation does not carry this radio's modem. Settings → Radio"]);
@@ -133,18 +133,18 @@ describe("the radio marks with the HF radio", () => {
     const two = radios([fmRow(), hfRow()]);
     expect(two.map((p) => [p.id, said(p), String(p.tone), p.target, p.focus])).toEqual([
       ["radio-1", "FM", "ok", "settings", "set-radio-1-enabled"],
-      ["radio-2", "HF", "ok", "settings", "set-radio-2-enabled"],
+      ["radio-2", "Mercury", "ok", "settings", "set-radio-2-enabled"],
     ]);
-    expect(two.map((p) => t(p.title, p.titleValues))).toEqual(["FM: connected. Settings → Radio", "HF: connected. Settings → Radio"]); // (plan section 6 "Texts": a name stands before a colon)
+    expect(two.map((p) => t(p.title, p.titleValues))).toEqual(["FM: connected. Settings → Radio", "Mercury: connected. Settings → Radio"]); // (plan section 6 "Texts": a name stands before a colon)
     const fmDown = radios([fmRow({ state: "waiting", problem: problem("radio.not_connected") }), hfRow()]);
     expect(fmDown.map((p) => [said(p), String(p.tone)])).toEqual([
       ["FM: not connected", "warn"],
-      ["HF", "ok"],
+      ["Mercury", "ok"],
     ]);
     const hfDown = radios([fmRow(), hfRow({ state: "silent", problem: problem("radio.silent", { since: ago(7 * 60) }) })]);
     expect(hfDown.map((p) => [said(p), String(p.tone)])).toEqual([
       ["FM", "ok"],
-      ["HF: silent", "warn"],
+      ["Mercury: silent", "warn"],
     ]);
   });
 
@@ -156,14 +156,14 @@ describe("the radio marks with the HF radio", () => {
       hfRow({ state: "waiting", problem: problem("modem.not_installed") }, { state: "waiting", reason: "not_installed" }),
     ]);
     expect([said(down), t(down.title, down.titleValues)]).toEqual([
-      "HF: not connected",
+      "Mercury: not connected",
       "This installation does not carry this radio's modem. Settings → Radio",
     ]);
-    expect(said(mark("radio-2", [fmRow(), hfRow({ state: "silent", problem: problem("radio.silent", { since: ago(300) }) })]))).toBe("HF: silent");
+    expect(said(mark("radio-2", [fmRow(), hfRow({ state: "silent", problem: problem("radio.silent", { since: ago(300) }) })]))).toBe("Mercury: silent");
     for (const connection of ["connecting", "closed"] as const) {
       const waiting = mark("radio-2", [fmRow(), hfRow()], { connection });
       expect([said(waiting), String(waiting.tone), t(waiting.title, waiting.titleValues)]).toEqual([
-        "HF: waiting…",
+        "Mercury: waiting…",
         "warn",
         connection === "connecting" ? "The page is opening its connection to NeoAPRS" : "NeoAPRS does not answer. The page connects again by itself",
       ]);
@@ -206,7 +206,7 @@ describe("the radio marks with any number of radios", () => {
       "set-radio-1-enabled",
     ]);
     expect(mark && t(mark.title, mark.titleValues)).toBe(
-      "FM: connected; HF: connected; Shack: connected; 20 m: connected; FM 3: connected; FM 4: connected. Settings → Radio",
+      "FM: connected; Mercury: connected; Shack: connected; 20 m: connected; FM 3: connected; FM 4: connected. Settings → Radio",
     );
   });
 
@@ -255,7 +255,7 @@ describe("the radio marks with any number of radios", () => {
     const two = [SIX[0], SIX[1], off(SIX[2]), { ...off(SIX[3]), removed: true }];
     expect(ofRadios(two).map((p) => [p.id, said(p)])).toEqual([
       ["radio-1", "FM"],
-      ["radio-2", "HF"],
+      ["radio-2", "Mercury"],
     ]);
     const named = [SIX[2], SIX[3]];
     expect(ofRadios(named).map((p) => [p.id, said(p), p.focus])).toEqual([

@@ -38,7 +38,7 @@ describe("the About group", () => {
   it("says what NeoAPRS is with the daemon's version, who made it, and has one control: Download logs, a link on the last line", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("About");
-    expect(wrapper.findAll("p")[0]?.text()).toBe("NeoAPRS 0.9.1, an APRS client for your radios: FM, HF and LoRa. Made by OH2GBA, 2026.");
+    expect(wrapper.findAll("p")[0]?.text()).toBe("NeoAPRS 0.9.1, an APRS client for your radios: FM, Mercury and LoRa. Made by OH2GBA, 2026.");
     const controls = wrapper.findAll("button:not(.groupfold), input, select");
     expect(controls.map((c) => [c.text(), c.classes()])).toEqual([["Download logs", ["linkbtn"]]]);
     const paragraphs = wrapper.findAll("p");
@@ -70,10 +70,10 @@ describe("the About group", () => {
     }
   });
 
-  it("names the HF modem and the version of it that is built in, its name a link to its source that opens in a new tab", () => {
+  it("names the Mercury modem and the version of it that is built in, its name a link to its source that opens in a new tab", () => {
     const wrapper = make();
     const line = wrapper.findAll("p")[3];
-    expect(line?.text()).toBe(`The HF modem is Mercury ${LIMITS.mercury.version} by Rhizomatica.`);
+    expect(line?.text()).toBe(`The modem of a Mercury radio is Mercury ${LIMITS.mercury.version} by Rhizomatica.`);
     expect(LIMITS.mercury.version).toMatch(/^\d+\.\d+\.\d+$/);
     const link = line?.get("a");
     expect(link?.text()).toBe(`Mercury ${LIMITS.mercury.version}`);
@@ -82,17 +82,17 @@ describe("the About group", () => {
     expect(link?.attributes("rel")).toContain("noopener");
   });
 
-  it("names the sound card modem and its pinned version on its own line after the HF modem's, where this installation carries it, its name a link to its source", () => {
+  it("names the modem of a Sound card radio and its pinned version on its own line after the Mercury modem's, where this installation carries it: the one place the page names Dire Wolf; its name a link to its source", () => {
     const wrapper = makeWith({ status: status({ unavailable_types: [] }) });
     const line = wrapper.findAll("p")[4];
-    expect(line?.text()).toBe(`The sound card modem is Dire Wolf ${LIMITS.soundCard.version} by John Langner, WB2OSZ.`);
+    expect(line?.text()).toBe(`The modem of a Sound card radio is Dire Wolf ${LIMITS.soundCard.version} by John Langner, WB2OSZ.`);
     expect(LIMITS.soundCard.version).toMatch(/^\d+\.\d+\.\d+$/);
     const link = line?.get("a");
     expect(link?.text()).toBe(`Dire Wolf ${LIMITS.soundCard.version}`);
     expect(link?.attributes("href")).toBe("https://github.com/wb2osz/direwolf");
     expect(link?.attributes("target")).toBe("_blank");
     expect(link?.attributes("rel")).toContain("noopener");
-    expect(wrapper.findAll("p")[3]?.text()).toContain("The HF modem is Mercury");
+    expect(wrapper.findAll("p")[3]?.text()).toContain("The modem of a Mercury radio is Mercury");
     expect(wrapper.findAll("a")).toHaveLength(6);
   });
 

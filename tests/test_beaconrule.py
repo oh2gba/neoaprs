@@ -1,8 +1,8 @@
-"""The beacon with many radios (plan rule 3.1, neoaprs/beaconrule.py): one interval for the station, raised on each radio to that radio's own floor, so that the FM radio at 20 minutes beside an HF radio at
+"""The beacon with many radios (plan rule 3.1, neoaprs/beaconrule.py): one interval for the station, raised on each radio to that radio's own floor, so that the FM radio at 20 minutes beside a Mercury radio at
 30 is not slowed to 30; each radio's own "beacon" tick (Send on), the last one never leaving the beacon on no radio (the main radio has it then), and with one radio on that one whatever its tick; a radio's
 beacon whose tick is off sends nothing by its timer and refuses Beacon now, and is planned again at once when ticked; SmartBeaconing on the radio that has it and the timed beacon with the latest fix on the one
 that has not; the raise said once in the log, for the radio it raises, a restart of the radio not saying it again; a stored Send on that is not true or false said once, not at every tick; and a save
-through the controller that unticks the HF radio's Send on and ticks it again."""
+through the controller that unticks the Mercury radio's Send on and ticks it again."""
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -45,10 +45,10 @@ def test_the_fm_radio_at_20_minutes_is_not_slowed_by_the_hf_radio_at_30() -> Non
     config = station(20, *OWN)
     assert [beacon_interval(20, s, config.radios) for s in config.radios] == [20, 30], "each radio its own floor"
     assert station_interval(20, config.radios, config.main_radio) == 20 and config.beacon_interval() == 20, "our position goes out every 20 minutes on some radio"
-    assert interval_words(20, config.radios, config.main_radio) == "20 min on FM, 30 min on HF"
+    assert interval_words(20, config.radios, config.main_radio) == "20 min on FM, 30 min on Mercury"
     assert [beacon_interval(45, s) for s in config.radios] == [45, 45] and [beacon_interval(0, s) for s in config.radios] == [0, 0], "a longer interval stays on both, Off stays Off"
     hf_alone = station(20, spec(1, enabled=False), spec(2, "hf"))
-    assert station_interval(20, hf_alone.radios, hf_alone.main_radio) == 30 and interval_words(20, hf_alone.radios, hf_alone.main_radio) == "30 min", "the HF radio alone: raised"
+    assert station_interval(20, hf_alone.radios, hf_alone.main_radio) == 30 and interval_words(20, hf_alone.radios, hf_alone.main_radio) == "30 min", "the Mercury radio alone: raised"
     fm_alone = station(20, spec(1), spec(2, "hf", enabled=False))
     assert interval_words(25, fm_alone.radios, fm_alone.main_radio) == "25 min" and station_interval(25, fm_alone.radios, fm_alone.main_radio) == 25
 
@@ -111,7 +111,7 @@ async def test_a_radio_whose_send_on_is_not_ticked_sends_nothing_refuses_beacon_
         settings["now"] = station(20, spec(1), spec(2, "hf"))
         hf.settings_changed()
         assert hf.interval_min == 30 and hf.next_due == hf._started + timedelta(seconds=hf.first_delay_sec), "ticked again: planned at once, as a changed interval is"     # type: ignore[operator]
-        assert hf.send_now() and hf.radio.line.lines() == ["OH2GBA>APZNEO:" + POSITION], "the HF radio direct"   # type: ignore[attr-defined]
+        assert hf.send_now() and hf.radio.line.lines() == ["OH2GBA>APZNEO:" + POSITION], "the Mercury radio direct"   # type: ignore[attr-defined]
     finally:
         for b in (fm, hf):
             await b.stop()
@@ -123,8 +123,8 @@ def test_smartbeaconing_goes_on_the_radio_that_has_it_and_the_other_sends_the_la
     gps = FakeFixes(fix_at(clock(), speed_kmh=54.0, course_deg=270))
     frames = BeaconFrames(lambda: moving, gps, clock)
     fm, hf = (Beacon(radio_of(moving, id), lambda: moving, clock, frames=frames) for id in (FM_ID, HF_ID))
-    assert fm._mobile(moving) and not hf._mobile(moving) and hf.interval_min == 30, "one plan for the station's GPS, on the radio where SmartBeaconing is allowed; the HF radio's timed beacon at its floor"
-    assert hf.send_now() and hf.radio.line.lines() == ["OH2GBA>APZNEO:=//w5#TW?M>eM[/A=000103NeoAPRS"], "the HF beacon by time carries the fix of now"    # type: ignore[attr-defined]
+    assert fm._mobile(moving) and not hf._mobile(moving) and hf.interval_min == 30, "one plan for the station's GPS, on the radio where SmartBeaconing is allowed; the Mercury radio's timed beacon at its floor"
+    assert hf.send_now() and hf.radio.line.lines() == ["OH2GBA>APZNEO:=//w5#TW?M>eM[/A=000103NeoAPRS"], "the Mercury beacon by time carries the fix of now"    # type: ignore[attr-defined]
     assert hf.next_due is None and hf.mobile.last is None, "planned as a fixed station's (it is not started), not by SmartBeaconing"
 
 
@@ -143,7 +143,7 @@ async def test_the_raise_is_said_once_in_the_log_for_the_radio_it_raises(caplog:
     for b in beacons:
         await b.stop()
     raised = [r.getMessage() for r in caplog.records if "raised" in r.getMessage()]
-    assert raised == ["the beacon interval 20 min is raised to 30 on the HF radio: 30 minutes is the shortest its type takes"], "once, for the HF radio alone, and not again when it restarts"
+    assert raised == ["the beacon interval 20 min is raised to 30 on the Mercury radio: 30 minutes is the shortest its type takes"], "once, for the Mercury radio alone, and not again when it restarts"
 
 
 async def test_a_stored_send_on_that_is_not_true_or_false_is_said_once_and_not_at_every_tick(caplog: pytest.LogCaptureFixture) -> None:
@@ -188,7 +188,7 @@ async def test_a_save_that_unticks_the_hf_radios_send_on_stops_its_beacon_and_on
         assert e.beacon.interval_min == 20 and e.beacon.next_due is not None, "the FM radio's goes on"
         e.now.advance(60)                                                       # type: ignore[attr-defined]
         await idle_for(0.15)
-        assert hf.last_sent is None, "nothing on the HF radio"
+        assert hf.last_sent is None, "nothing on the Mercury radio"
         assert await e.ctl.save_config(send_on("true"))
         assert hf._started == started and hf.interval_min == 30, "ticked again by the save, the radio not restarted"
         await until(lambda: hf.last_sent is not None)                           # (planned at once: the first beacon was due a minute ago)

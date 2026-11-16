@@ -715,7 +715,7 @@ export interface MessageRow {
   seal: "" | "key" | "key_other" | "open" | "shut";
 }
 
-/** The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury HF modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether it hears a signal. */
+/** The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether it hears a signal. */
 export interface ModemState {
   /** `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why */
   state: "stopped" | "starting" | "running" | "waiting";
@@ -739,7 +739,7 @@ export interface ModemState {
   max_frame: number | null;
   /** the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device */
   sound_card: string;
-  /** the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in four; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio */
+  /** the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in four; the page shows them in the Mercury radio's box as they are, with the words "suggested": they are not read from the radio */
   frequencies: FrequencyRow[];
   /** how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` */
   keying: string;
@@ -850,7 +850,7 @@ export interface OwnObjectRow {
   sent: number;
   /** when it was last sent; null while it has not been sent (the call is not set, or the radio is away) */
   last_sent_at: string | null;
-  /** when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on HF and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request` */
+  /** when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request` */
   next_at: string | null;
 }
 
@@ -897,7 +897,7 @@ export interface PacketRow {
   route: string;
   /** the radio the packet came on or went out on, its id (a row of the topic `radios`, a removed one too); null for a packet from the internet */
   radio_id: number | null;
-  /** the signal-to-noise ratio the radio measured of the frame, dB, tied to the frame where it was read (the Mercury modem and the Dummy HF radio give it); null for a packet of ours, one from the internet and one of a radio that gives none (a KISS TNC) */
+  /** the signal-to-noise ratio the radio measured of the frame, dB, tied to the frame where it was read (the Mercury modem and the Dummy Mercury radio give it); null for a packet of ours, one from the internet and one of a radio that gives none (a KISS TNC) */
   snr: number | null;
   /** the received strength the radio measured of the frame, dBm; null as `snr` is, and for the Mercury modem, which gives none */
   rssi: number | null;
@@ -1217,7 +1217,7 @@ export interface RadioKeyTestCommand {
 export interface RadioLimits {
   /** the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own */
   max_frame: number | null;
-  /** the shortest beacon interval the radio takes, in minutes (FM 20, HF 30): the station's interval is raised to it on this radio */
+  /** the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio */
   beacon_min_min: number;
 }
 
@@ -1244,9 +1244,9 @@ export interface RadioRow {
   id: number;
   /** the kind of radio, fixed when it was added: its tag's colour and the defaults follow it */
   kind: "fm" | "hf" | "lora";
-  /** the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `HF 2`) in its own words */
+  /** the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `Mercury 2`) in its own words */
   name: string;
-  /** its number within its kind: 1 for the first of the kind by id among the radios not removed (`HF 2` is 2); a removed radio keeps its own */
+  /** its number within its kind: 1 for the first of the kind by id among the radios not removed (`Mercury 2` is 2); a removed radio keeps its own */
   number: number;
   /** its Enable is ticked (`radio_change` with `enabled`); false for a removed radio */
   enabled: boolean;
@@ -1502,7 +1502,7 @@ export interface SkedsState {
   state: "ok" | "offline" | "off" | "closed";
   /** when the board was last read from the server (or when the one kept from the last run was); null before the first */
   fetched_at: string | null;
-  /** the dials the project suggests for the HF radio, one to four, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state) */
+  /** the dials the project suggests for a Mercury radio, one to four, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state) */
   frequencies: SkedFrequency[];
   /** the skeds to come by the daemon's clock, the nearest start first; empty when there are none */
   rows: SkedRow[];
@@ -1647,7 +1647,7 @@ export interface StationRow {
   last_dummy_at: string | null;
   /** what each radio heard of the station, by the radio's id as text: how many packets of the air came on it and when the latest did; a radio that heard nothing of it has no entry */
   heard: { [key: string]: HeardOn };
-  /** the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy HF radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was */
+  /** the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy Mercury radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was */
   snr: number | null;
   /** the received strength of that packet, dBm; null when its radio gave none (Mercury gives none) */
   rssi: number | null;
@@ -1661,7 +1661,7 @@ export interface StationRow {
   device: string;
   /** the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`: the packet the radio that heard the station last (`last_path_radio`) heard last */
   last_path: string[];
-  /** the radio whose latest packet `last_path` is (the radio that heard the station last, radio 1 on a tie), its id; null for a station no radio heard. After a restart a station HF heard last shows HF's path, direct */
+  /** the radio whose latest packet `last_path` is (the radio that heard the station last, radio 1 on a tie), its id; null for a station no radio heard. After a restart a station a Mercury radio heard last shows that radio's path, direct */
   last_path_radio: number | null;
   /** how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in) */
   last_route: string;
@@ -1669,7 +1669,7 @@ export interface StationRow {
   heard_direct: number;
   /** when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`, on the radios that may carry a path; null for a station never heard direct */
   last_direct_at: string | null;
-  /** when a packet of the station was last heard direct on any radio, HF too (plan 6b: the green check, the map's ring and the "direct only" filter count any radio); null for a station never heard direct */
+  /** when a packet of the station was last heard direct on any radio, a Mercury radio too (plan 6b: the green check, the map's ring and the "direct only" filter count any radio); null for a station never heard direct */
   last_direct_any_at: string | null;
   /** [the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted */
   heard_via: [string, number][];
@@ -1719,7 +1719,7 @@ export interface StationRow {
   may_not_message: boolean;
   /** the radio the operator chose for messages to the station (`station_radio`), its id, while that radio is enabled; null for the daemon's choice (plan rule 3.2), and while the radio chosen is off */
   radio_choice: number | null;
-  /** the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before HF, else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio */
+  /** the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before Mercury, else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio */
   radio_now: number | null;
   /** the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too) */
   paths: { [key: string]: string };
@@ -1784,7 +1784,7 @@ export interface StatusMessage {
   beacon_next_due: string | null;
   /** the main radio (its id): the one chosen (`station/main_radio`) while it is enabled, else the first enabled by position; it carries the bulletins, the status, and Ask around, Local info and email unless they name another. Null while no radio is enabled */
   main_radio: number | null;
-  /** the radio an email to the gateway goes out on (its id): the main radio when internet gateways hear its kind, else the first enabled radio of such a kind (FM, LoRa; never HF); null while there is none, and Send of an email is off */
+  /** the radio an email to the gateway goes out on (its id): the main radio when internet gateways hear its kind, else the first enabled radio of such a kind (FM, LoRa; never Mercury); null while there is none, and Send of an email is off */
   email_radio: number | null;
   /** the types of radio (keys of `RADIO_TYPES`) whose program this kind of installation does not carry (a Mac carries no Direwolf): the page does not offer them, and `radio_add` refuses them (`radio.unknown_type`) */
   unavailable_types: string[];

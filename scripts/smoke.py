@@ -266,7 +266,7 @@ class PageSocket:
             left = deadline - loop.time()
             if left <= 0:
                 refused = [m.get("text") for m in self.messages if m.get("type") == "error"]
-                raise Failure(f"{what}: not within {seconds:g} s (the FM radio {radio_state(self.topics, 'fm')!r}, the HF radio {radio_state(self.topics, 'hf')!r}, refusals {refused})")
+                raise Failure(f"{what}: not within {seconds:g} s (the FM radio {radio_state(self.topics, 'fm')!r}, the Mercury radio {radio_state(self.topics, 'hf')!r}, refusals {refused})")
             try:
                 raw = await asyncio.wait_for(self.connection.read_message(), min(left, 1.0))
             except TimeoutError:

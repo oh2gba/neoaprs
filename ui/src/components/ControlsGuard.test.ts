@@ -74,7 +74,7 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
     }
   });
 
-  it("have a tickbox first in the group of every feature that can be switched on or off, labelled with its name: RX only, Enable (the FM radio, the HF radio, Internet stations, Digipeater), Alert", () => {
+  it("have a tickbox first in the group of every feature that can be switched on or off, labelled with its name: RX only, Enable (the FM radio, the Mercury radio, Internet stations, Digipeater), Alert", () => {
     const groups = (root: Element) =>
       [...root.querySelectorAll("fieldset")].map((f) => ({
         legend: f.querySelector("legend")?.textContent?.replace(/\s*i$/, "").trim() ?? "",
@@ -85,7 +85,7 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
     for (const [legend, label] of [
       ["Radio", "RX only"],
       ["FM radio", "Enable"],
-      ["HF radio", "Enable"],
+      ["Mercury radio", "Enable"],
       ["Internet stations", "Enable"],
       ["Digipeater", "Enable"],
       ["On the NeoAPRS computer", "Alert"],

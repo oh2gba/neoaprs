@@ -163,28 +163,31 @@ describe("beaconBlock with several radios", () => {
   const two = (extra = {}) => status({ beacon_interval_min: 20, beacon_last_sent: ago(240), beacon_next_due: later(16 * 60), ...extra });
   const radios = (hf = beacon(ago(120), later(29 * 60))): BeaconRadio[] => [
     { name: "FM", beacon: beacon(ago(240), later(16 * 60), 20), smart: true },
-    { name: "HF", beacon: hf, smart: false },
+    { name: "Mercury", beacon: hf, smart: false },
   ];
 
   it("takes the latest beacon of any radio and the next due of any radio for the row's line, and a line for each radio behind its arrow with its own interval", () => {
     const block = beaconBlock(two(), gpsOff(), {}, NOW, radios());
     expect(block.line).toBe("Last beacon 2 min ago · next in 16 min (every 20 min)");
-    expect(block.radios).toEqual(["FM: last beacon 4 min ago · next in 16 min (every 20 min)", "HF: last beacon 2 min ago · next in 29 min (every 30 min)"]);
+    expect(block.radios).toEqual([
+      "FM: last beacon 4 min ago · next in 16 min (every 20 min)",
+      "Mercury: last beacon 2 min ago · next in 29 min (every 30 min)",
+    ]);
     expect(block.hover).toBe(dateTimeText(ago(120)));
   });
 
   it("says a radio that has sent nothing yet, and one with no timed beacon, in its own line, by the name the radio has", () => {
     expect(beaconBlock(two(), gpsOff(), {}, NOW, radios(beacon(null, null, 0))).radios).toEqual([
       "FM: last beacon 4 min ago · next in 16 min (every 20 min)",
-      "HF: no beacon sent yet · no timed beacon",
+      "Mercury: no beacon sent yet · no timed beacon",
     ]);
-    expect(beaconBlock(two(), gpsOff(), {}, NOW, radios(beacon(ago(600), null, 30))).radios[1]).toBe("HF: last beacon 10 min ago · no timed beacon");
+    expect(beaconBlock(two(), gpsOff(), {}, NOW, radios(beacon(ago(600), null, 30))).radios[1]).toBe("Mercury: last beacon 10 min ago · no timed beacon");
     const named = [{ name: "20 m", beacon: beacon(null, later(5 * 60), 30), smart: false }, ...radios()];
     expect(beaconBlock(two(), gpsOff(), {}, NOW, named).radios[0]).toBe("20 m: no beacon sent yet · next in 5 min (every 30 min)");
   });
 
   it("goes by the radios' timers and not by the status's, for any number of radios", () => {
-    const six = ["FM", "HF", "LoRa", "Mobile12", "20 m", "FM 2"].map((name, i) => ({
+    const six = ["FM", "Mercury", "LoRa", "Mobile12", "20 m", "FM 2"].map((name, i) => ({
       name,
       beacon: beacon(ago(60 * (i + 3)), later(60 * (i + 10)), 30),
       smart: i !== 1,
@@ -207,7 +210,7 @@ describe("beaconBlock with several radios", () => {
     });
   });
 
-  it("has no lines of radios while one radio is on, and the row as it was: the FM beacon alone, or the HF beacon alone", () => {
+  it("has no lines of radios while one radio is on, and the row as it was: the FM beacon alone, or the Mercury beacon alone", () => {
     const fm = beaconBlock(timed(), gpsOff(), {}, NOW);
     expect([fm.radios, fm.line]).toEqual([[], "Last beacon 4 min ago · next in 56 min (every 60 min)"]);
     const hf = beaconBlock(
@@ -223,7 +226,7 @@ describe("beaconBlock with several radios", () => {
     const moving = beaconBlock(two(), gpsState(), GPSD, NOW, radios());
     expect(moving).toMatchObject({ moving: true, label: "GPS" });
     expect(moving.smart).not.toBeNull();
-    expect(moving.radios).toEqual(["FM: last beacon 4 min ago · next in 16 min", "HF: last beacon 2 min ago · next in 29 min (every 30 min)"]);
+    expect(moving.radios).toEqual(["FM: last beacon 4 min ago · next in 16 min", "Mercury: last beacon 2 min ago · next in 29 min (every 30 min)"]);
     expect(beaconBlock(two(), gpsOff(), {}, NOW, radios()).radios[0]).toBe("FM: last beacon 4 min ago · next in 16 min (every 20 min)"); // (a fixed station's FM keeps its interval)
   });
 
@@ -263,7 +266,7 @@ describe("the radios of the Beacon group", () => {
     const on = new Set(["radio/1/beacon", "radio/3/beacon"]);
     expect(sendOnTicks(radios, (key) => on.has(key), radios[0] ?? null)).toEqual([
       { id: 1, key: "radio/1/beacon", name: "FM", on: true, last: false, held: false },
-      { id: 2, key: "radio/2/beacon", name: "HF", on: false, last: false, held: false },
+      { id: 2, key: "radio/2/beacon", name: "Mercury", on: false, last: false, held: false },
       { id: 3, key: "radio/3/beacon", name: "Mobile12", on: true, last: false, held: false },
     ]);
     on.delete("radio/1/beacon");
@@ -298,7 +301,7 @@ describe("the radios of the Beacon group", () => {
     const radios = [fm(1), hf(2)];
     expect(sendOnTicks(radios, (_key, radio) => radio.row.choices.status, radios[0] ?? null, "status")).toEqual([
       { id: 1, key: "radio/1/status", name: "FM", on: true, last: true, held: true },
-      { id: 2, key: "radio/2/status", name: "HF", on: false, last: false, held: false },
+      { id: 2, key: "radio/2/status", name: "Mercury", on: false, last: false, held: false },
     ]);
   });
 

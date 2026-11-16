@@ -68,7 +68,7 @@ def test_list_says_where_the_value_of_a_row_of_a_key_of_before_goes_now_and_that
     lines = capsys.readouterr().out.splitlines()
     assert any(line.startswith("serial/port") and "/dev/ttyUSB7" in line and line.endswith("a key of before, not read: it is radio/<id>/port now (add the radio first: neoaprs db radios add TYPE)")
                for line in lines), lines
-    assert any(line.startswith("hf/enabled") and line.endswith("a key of before, not read: it is the HF radio's Enable (Settings tab, Radio) now (add the radio first: neoaprs db radios add TYPE)") for line in lines)
+    assert any(line.startswith("hf/enabled") and line.endswith("a key of before, not read: it is the Mercury radio's Enable (Settings tab, Radio) now (add the radio first: neoaprs db radios add TYPE)") for line in lines)
     assert db("radios", "add", "kiss", data=data) == 0
     capsys.readouterr()
     assert db("list", data=data) == 0
@@ -311,7 +311,7 @@ def test_radios_lists_each_radio_by_its_name_with_its_own_settings_and_whether_e
     assert db("radios", data=stored) == 0
     lines = capsys.readouterr().out.splitlines()
     heads = [line for line in lines if line.startswith("radio ")]
-    assert heads == ["radio 1  FM  fm  kenwood-tnc2  on  (position 1)", "radio 2  HF  hf  mercury  on  (position 2)", f"radio {third}  Base  fm  kiss-tcp  off  (position 3)"]
+    assert heads == ["radio 1  FM  fm  kenwood-tnc2  on  (position 1)", "radio 2  Mercury  hf  mercury  on  (position 2)", f"radio {third}  Base  fm  kiss-tcp  off  (position 3)"]
     own = {line.split()[0]: line.split()[1:] for line in lines if line.startswith("  radio/")}
     assert own["radio/1/port"] == ["/dev/ttyUSB0", "stored"] and own["radio/1/baud"] == ["default"] and own["radio/2/keying"] == ["vox", "stored"]
     assert own[f"radio/{third}/tcp_host"] == ["10.0.0.9", "stored"] and own[f"radio/{third}/tcp_port"] == ["8001", "default"]
@@ -350,7 +350,7 @@ def test_radios_add_makes_a_fresh_folder_and_adds_each_radio_after_the_others_wi
     connection = sqlite3.connect(folder / DB_NAME, isolation_level=None)
     remove_radio(connection, 2, "2026-11-14T10:00:00.000000Z")
     connection.close()
-    assert db("radios", "add", "dummy-hf", data=folder) == 0 and capsys.readouterr().out.splitlines()[-1] == "radio 3  HF  hf  dummy-hf  on  (position 2)", "a removed radio's number is not given again"
+    assert db("radios", "add", "dummy-hf", data=folder) == 0 and capsys.readouterr().out.splitlines()[-1] == "radio 3  Mercury  hf  dummy-hf  on  (position 2)", "a removed radio's number is not given again"
 
 
 def test_radios_add_refuses_a_type_that_is_none_and_a_name_another_radio_has_and_adds_nothing(stored: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

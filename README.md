@@ -16,14 +16,14 @@ NeoAPRS is an APRS station program for radio amateurs. It runs on Windows, macOS
 - Linux: [NeoAPRS-x86_64.AppImage](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage): make it executable and run it
 - Raspberry Pi, Debian, Ubuntu: the `.deb` of the [latest release](https://github.com/oh2gba/neoaprs/releases/latest): `sudo apt install ./neoaprs_<version>_arm64.deb` (amd64 for a PC), then `neoaprs service install --linger`
 
-Each carries its own Python and the Mercury HF modem, and on Windows and Linux Direwolf for an FM radio on a sound card: nothing else to install.
+Each carries its own Python and the Mercury modem, and on Windows and Linux Direwolf for an FM radio on a sound card: nothing else to install.
 
-Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four steps (call, position, symbol, radio) starts. Nothing is transmitted until a call is set. No radio yet? A Dummy radio makes up the traffic of a station near you, on FM, on HF or on LoRa, to try NeoAPRS with. Installing, updating and removing: [the manual](docs/manual/install.md).
+Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four steps (call, position, symbol, radio) starts. Nothing is transmitted until a call is set. No radio yet? A Dummy radio makes up the traffic of a station near you (FM, Mercury or LoRa), to try NeoAPRS with. Installing, updating and removing: [the manual](docs/manual/install.md).
 
 ## What it does
 
 - **A map** of the stations you hear, with their trails and the route of each packet, on a street map kept on your disk; a station's card says what it runs and where its antenna points, and several open side by side
-- **Any number of radios, of any kind**: KISS TNCs on USB, a serial port, Bluetooth or the network; an FM radio on a sound card with Direwolf built in (Windows, Linux); an SSB radio on HF with the Mercury modem built in; LoRa APRS boards; a Yaesu FTM or a TNC without KISS that only receives. One map and one station book for all of them, each station tagged with the radio that heard it, and each message on the radio that reaches its station
+- **Any number of radios, of any kind**: KISS TNCs on USB, a serial port, Bluetooth or the network; an FM radio on a sound card, its modem built in (Windows, Linux); the Mercury modem, built in, on a radio's sound card; LoRa APRS boards; a Yaesu FTM or a TNC without KISS that only receives. One map and one station book for all of them, each station tagged with the radio that heard it, and each message on the radio that reaches its station
 - **Messages** with acks, reply-acks and retries on the specification's schedule, and the delivery chain of each message hop by hop; bulletins and group messages; email through the APRS gateway; an alert on the desktop and in the browser
 - **Your beacon**: fixed, or following a GPS (gpsd or a serial port) with SmartBeaconing for a car, a bicycle, a walker or a boat, on the radios you tick; receive only with one tick
 - **Nearby**: digipeaters, iGates, voice frequencies and the stations heard direct, nearest first, with the range of a digipeater drawn on the map

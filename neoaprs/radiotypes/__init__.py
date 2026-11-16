@@ -8,7 +8,9 @@ from neoaprs.radiotype import Field, Kind, RadioType, RadioTypeError
 from neoaprs.radiotypes import dummy, dummylora, kisstcp, lora, mercury, serialtnc, soundcard, tnctext
 from neoaprs.radiotypes.common import COMMON_FIELDS as COMMON_FIELDS
 
-TYPES: tuple[RadioType, ...] = (*serialtnc.TYPES, *kisstcp.TYPES, *tnctext.TYPES, *soundcard.TYPES, *dummy.TYPES, *mercury.TYPES, *lora.TYPES, *dummylora.TYPES)
+# The order is the order of the page's lists (types_of, Add radio): what most operators have first (a sound card interface, then a KISS TNC), the TNCs told by text from the newest to the oldest, the operator's own
+# program on the network, and the type that only receives last.
+TYPES: tuple[RadioType, ...] = (*soundcard.TYPES, *serialtnc.TYPES, *kisstcp.TYPES, *tnctext.TYPES, *dummy.TYPES, *mercury.TYPES, *lora.TYPES, *dummylora.TYPES)
 BY_KEY: Mapping[str, RadioType] = MappingProxyType({t.key: t for t in TYPES})
 DEFAULT_TYPE: Mapping[Kind, str] = MappingProxyType({"fm": "kiss", "hf": "mercury", "lora": "lora-tcp"})      # a new radio of the kind (LoRa: the iGate at home on the network, which speaks KISS as it comes and alone says the signal to a client)
 

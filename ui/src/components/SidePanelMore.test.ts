@@ -325,7 +325,7 @@ describe("on a phone", () => {
   });
 });
 
-describe("the HF tests tab, only while a radio of the kind HF is on", () => {
+describe("the HF tests tab, only while a radio of the kind Mercury is on", () => {
   async function within(daemon: FakeDaemon, room: number, extra: Record<string, unknown> = {}) {
     width = stubWidth(room);
     const wrapper = mount(SidePanel, {
@@ -341,7 +341,7 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
   const withHf = () => fakeDaemon({ radios: WITH_HF() });
   const NINE = TAB_IDS.filter((id) => id !== "skeds");
 
-  it("is not there for a station without an HF radio: one tab less, in the row and under More", async () => {
+  it("is not there for a station without a Mercury radio: one tab less, in the row and under More", async () => {
     const wide = await within(fmAlone(), 1000);
     expect(row(wide)).toEqual(NINE);
     const narrow = await within(fmAlone(), 300);
@@ -349,7 +349,7 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
     expect([...row(narrow), ...listed(narrow).map((name) => TAB_IDS.find((id) => t(`tab.${id}`) === name))]).toEqual(NINE);
   });
 
-  it("is there while the HF radio is on, and while a third radio of the kind HF is on with the HF radio of before off", async () => {
+  it("is there while the Mercury radio is on, and while a third radio of the kind Mercury is on with the Mercury radio of before off", async () => {
     expect(row(await within(withHf(), 1000))).toEqual([...TAB_IDS]);
     const third = fakeDaemon({
       radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }), radioRow(4, "dummy-hf", { number: 2 })),
@@ -357,7 +357,7 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
     expect(row(await within(third, 1000))).toEqual([...TAB_IDS]);
   });
 
-  it("is not offered until the daemon has told its radios, so that the row of a station without HF does not lose a tab when they come", async () => {
+  it("is not offered until the daemon has told its radios, so that the row of a station without Mercury does not lose a tab when they come", async () => {
     const early = fakeDaemon({ radios: null, config: null });
     const wrapper = await within(early, 1000);
     expect(row(wrapper)).toEqual(NINE);
@@ -371,7 +371,7 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
     expect(row(later)).toEqual([...TAB_IDS]);
   });
 
-  it("keeps a remembered HF tests tab in its place until the daemon has told its radios, and gives way then if no HF radio is on", async () => {
+  it("keeps a remembered HF tests tab in its place until the daemon has told its radios, and gives way then if no Mercury radio is on", async () => {
     const early = fakeDaemon({ radios: null, config: null });
     const wrapper = await within(early, 1000, { tab: "skeds" });
     expect([row(wrapper), wrapper.emitted("update:tab")]).toEqual([[...TAB_IDS], undefined]);
@@ -391,7 +391,7 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
     expect(row(nine)).toEqual(NINE);
   });
 
-  it("gives way to the first tab when it was the tab remembered, and when the HF radio is switched off while it is open", async () => {
+  it("gives way to the first tab when it was the tab remembered, and when the Mercury radio is switched off while it is open", async () => {
     const remembered = await within(fmAlone(), 1000, { tab: "skeds" });
     expect(remembered.emitted("update:tab")).toEqual([["messages"]]);
     const daemon = withHf();

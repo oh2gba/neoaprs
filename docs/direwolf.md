@@ -1,6 +1,6 @@
 # Direwolf in NeoAPRS
 
-For developers: every number NeoAPRS fixes for the radio type **Sound card (Direwolf)**, where each comes from, and how the program is built, started and checked. The source was read at the tag 1.8.1 (commit `a231971a652bfb574a4bae9a5d875fbce53d2267`), and the file and line references below are to that tree.
+For developers: every number NeoAPRS fixes for the radio type **Sound card**, whose modem is the Direwolf that NeoAPRS carries and starts, where each comes from, and how the program is built, started and checked. The source was read at the tag 1.8.1 (commit `a231971a652bfb574a4bae9a5d875fbce53d2267`), and the file and line references below are to that tree.
 
 ## What it is
 
@@ -10,7 +10,7 @@ keying proposed, what the program prints), `neoaprs/direwolfprogram.py` (one run
 keying test), `neoaprs/direwolfdriver.py` (the radio's driver), `neoaprs/winmm.py` (the WinMM devices on Windows), `neoaprs/radiotypes/soundcard.py` (the type). What it shares with the Mercury modem is
 `neoaprs/childprogram.py` (the run of a program, its stop, a run left behind, the kernel's table of sockets) and `scripts/buildtool.py` (the parts of the build that are not one program's).
 
-The sound cards are listed by the bundled Mercury (`mercury -z`), so the two types name a card by the same id and one card is one resource of the station: a Sound card radio and the HF modem on one card are refused
+The sound cards are listed by the bundled Mercury (`mercury -z`), so the two types name a card by the same id and one card is one resource of the station: a Sound card radio and a Mercury radio on one card are refused
 with the holder's name. Every installer that carries Direwolf carries Mercury too; an installation without Mercury lists no card, and the radio's card is then the one its setting names. With no card named and none
 listed that is a radio's (`direwolf.own_card`: the one that stands out, else the system's default when it names itself as a radio's or an interface's), the radio waits for one (the reason `sound_card`) and no Direwolf
 starts: the system's default device may be the computer's speakers.

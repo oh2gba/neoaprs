@@ -23,8 +23,8 @@ describe("the signal under a message that came in", () => {
   const line = (extra: Parameters<typeof incoming>[2]) =>
     mount(ConversationThread, { props: { thread: [incoming(2, "OH2HF", extra)], peer: "OH2HF" }, global: today() }).find(".bubble-route");
 
-  it("ends the line that says how it came: HF direct, SNR -3 dB", () => {
-    expect(line({ radio_id: 2, route: "direct", snr: -3 }).text()).toBe(`HF direct \u00b7 SNR ${MINUS}3 dB`);
+  it("ends the line that says how it came: Mercury direct, SNR -3 dB", () => {
+    expect(line({ radio_id: 2, route: "direct", snr: -3 }).text()).toBe(`Mercury direct \u00b7 SNR ${MINUS}3 dB`);
     expect(line({ radio_id: 1, route: "via OH2RCH-2", snr: 4, rssi: -95 }).text()).toBe(`via OH2RCH-2 \u00b7 SNR 4 dB, RSSI ${MINUS}95 dBm`);
   });
 
@@ -33,7 +33,7 @@ describe("the signal under a message that came in", () => {
   });
 
   it("is not there for a message with no reading, and the line is as it was", () => {
-    expect(line({ radio_id: 2, route: "direct", snr: null }).text()).toBe("HF direct");
+    expect(line({ radio_id: 2, route: "direct", snr: null }).text()).toBe("Mercury direct");
     const none = mount(ConversationThread, { props: { thread: [incoming(2, "OH2HF", { radio_id: null, route: "", snr: null })], peer: "OH2HF" } });
     expect(none.find(".bubble-route").exists()).toBe(false);
   });

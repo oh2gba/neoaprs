@@ -40,7 +40,7 @@ PRUNE_EVERY_SEC = 24 * 3600.0
 BACKUP_SWEEP_FIRST_SEC = LITTER_AGE_SEC + 60.0    # backup/ swept again after the start: the temporary file of a copy a kill ended just before it (its note still fresh, so the open left it) is dead by then
 RECOUNT_EVERY_SEC = 60.0                # the station book's hour of packets moves on a minute at a time
 TASK_NAMES: dict[RadioId, str] = {FM_ID: "tnc", HF_ID: "hf"}       # the task of a radio's start as the log has named it for radios 1 and 2 (another is `radio-<id>`)
-BEACON_NAMES: dict[RadioId, str] = {FM_ID: "the beacon", HF_ID: "the HF beacon"}       # a radio's beacon as the stop's log has named it for radios 1 and 2
+BEACON_NAMES: dict[RadioId, str] = {FM_ID: "the beacon", HF_ID: "the Mercury beacon"}       # a radio's beacon as the stop's log has named it for radios 1 and 2
 
 
 def made_up_alone(was: RadioSpec, config: Config) -> frozenset[str]:

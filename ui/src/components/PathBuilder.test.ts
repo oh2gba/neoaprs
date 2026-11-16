@@ -228,7 +228,7 @@ describe("the path builder", () => {
     expect(result()).toBe("OH2RDK-7");
   });
 
-  it("offers only the digipeaters a radio that may carry a path heard (plan 6b): one heard direct on HF alone is none, one heard on FM too is", async () => {
+  it("offers only the digipeaters a radio that may carry a path heard (plan 6b): one heard direct on Mercury alone is none, one heard on FM too is", async () => {
     // (OH2HFD has a digipeater's symbol and was heard direct, 400 km away, by the HF radio only; OH2BTH by both radios)
     const rows = new Map(STATIONS);
     rows.set(

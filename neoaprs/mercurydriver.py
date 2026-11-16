@@ -24,7 +24,7 @@ from .tncprofile import HF_BY_KEY, MERCURY, Profile, tcp_url
 
 log = logging.getLogger("neoaprs.controller")        # what the start of a radio says is the controller's, whoever does it
 
-NO_MERCURY = "the HF radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)"       # what the no-devices switch says of the HF radio's port (modem_settings)
+NO_MERCURY = "the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)"       # what the no-devices switch says of the HF radio's port (modem_settings)
 SPEED = 9600                                         # the line's speed, which a TCP line and the dummy line do not use
 
 
@@ -56,7 +56,7 @@ def modem_words(spec: RadioSpec, run: RunOverrides) -> str:
     """The radio that is started, for the log: the Mercury modem (the daemon's own, which under the no-devices switch is not started, or one something else runs at the address given for this run) or the
     Dummy HF radio."""
     if HF_BY_KEY[spec.rtype.profile].transport == "dummy":
-        return "the Dummy HF radio, made-up stations" + ("" if nodevices.on() else ", and the modem played through the speakers")
+        return "the Dummy Mercury radio, made-up stations" + ("" if nodevices.on() else ", and the modem played through the speakers")
     if attached := _attached(spec, run):
         return f"the Mercury modem, one something else runs at {attached}"
     return "the Mercury modem, which is not started" if nodevices.on() else "the Mercury modem, started by NeoAPRS"

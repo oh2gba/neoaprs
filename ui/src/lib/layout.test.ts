@@ -82,7 +82,7 @@ describe("defaultPanelWidth", () => {
 });
 
 describe("offeredTabs", () => {
-  it("offers HF tests only while a radio of the kind HF is on, and every other tab always, in their order", () => {
+  it("offers HF tests only while a radio of the kind Mercury is on, and every other tab always, in their order", () => {
     expect(offeredTabs(true)).toEqual([...TAB_IDS]);
     expect(offeredTabs(false)).toEqual(TAB_IDS.filter((id) => id !== "skeds"));
   });

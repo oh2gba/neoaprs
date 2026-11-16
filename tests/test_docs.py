@@ -294,7 +294,7 @@ def test_the_manual_and_the_readme_say_of_the_sound_card_type_what_the_program_o
     from neoaprs.radiotypes import type_of, unavailable_types
 
     name = catalogue_text("radio", "radio.type.direwolf")
-    sound = section(operator_docs()["radio.md"], "### A sound card with Direwolf")
+    sound = section(operator_docs()["radio.md"], "### Sound card")
     assert f"*{name}*" in sound and f"from {TX_GAIN_MIN_DB} to {TX_GAIN_MAX_DB} dB" in sound, "the type by the page's name, and its transmit level's range"
     assert type_of("direwolf").systems == {"linux", "win32"} and unavailable_types("darwin") == ("direwolf",)
     assert "On Windows and Linux NeoAPRS carries Direwolf" in sound and f"On a Mac there is no *{name}* type" in sound

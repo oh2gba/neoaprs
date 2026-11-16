@@ -9,7 +9,7 @@ Every file is on the [releases page](https://github.com/oh2gba/neoaprs/releases/
 | Mac with Apple silicon | `NeoAPRS-<version>-arm64.dmg` ([macOS](#macos)) |
 | Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` or `_amd64.deb` ([.deb](#raspberry-pi-debian-ubuntu-deb)) |
 
-These four are the supported ways: each carries its own Python and the Mercury HF modem, and all but the Mac's also carry Direwolf for an FM radio on a sound card. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
+These four are the supported ways: each carries its own Python and the Mercury modem, and all but the Mac's also carry Direwolf for an FM radio on a sound card. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
 
 After installing, [start.md](start.md) takes you through the first start. The data you make (settings, messages, packets, the map) is kept in the data folder, which no installer, update or removal touches.
 
@@ -36,7 +36,7 @@ A radio on a serial cable or USB is a COM port. The page lists the ports of the 
 
 ## Linux AppImage
 
-`NeoAPRS-<version>-x86_64.AppImage` is one file with Python, NeoAPRS and the desktop app's web engine inside, and the Mercury HF modem (about 165 MB). Nothing is installed.
+`NeoAPRS-<version>-x86_64.AppImage` is one file with Python, NeoAPRS and the desktop app's web engine inside, and the Mercury modem (about 165 MB). Nothing is installed.
 <!-- SIZE: the AppImage's size (165 MB) is that of the release before; put the measured number of this release here --> It runs on x86_64 Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and newer) and the usual desktop libraries.
 
 ```bash
@@ -53,7 +53,7 @@ chmod +x NeoAPRS-<version>-x86_64.AppImage
 
 ## macOS
 
-`NeoAPRS-<version>-arm64.dmg` is the app for a Mac with Apple silicon (an M1 or newer) on macOS 14 or newer, with Python, NeoAPRS, the desktop app's web engine and the Mercury HF modem inside. Open the file and drag **NeoAPRS** to **Applications**. Nothing else is installed.
+`NeoAPRS-<version>-arm64.dmg` is the app for a Mac with Apple silicon (an M1 or newer) on macOS 14 or newer, with Python, NeoAPRS, the desktop app's web engine and the Mercury modem inside. Open the file and drag **NeoAPRS** to **Applications**. Nothing else is installed.
 
 The app is not signed by Apple, so the first start takes a right-click on **NeoAPRS** in Applications and **Open**. macOS 15 and newer then say the app could not be verified: **Open Anyway** is under System Settings, Privacy & Security, once. After that it opens like any app.
 
@@ -67,7 +67,7 @@ The app is not signed by Apple, so the first start takes a right-click on **NeoA
 
 `neoaprs_<version>_arm64.deb` is for a Raspberry Pi with 64-bit Raspberry Pi OS, `neoaprs_<version>_amd64.deb` for a PC with Debian or Ubuntu. It is meant for a machine without a screen. Debian 12, Ubuntu 22.04 and Raspberry Pi OS (Bookworm) and newer are supported. The 32-bit Raspberry Pi OS is not supported: there is no package for it, and the AppImage is for x86_64 only.
 
-NeoAPRS needs Python 3.13, which Raspberry Pi OS and Debian 12 do not have, so the package brings its own Python and libraries, and the Mercury HF modem (about 30 MB to download, about 100 MB installed).
+NeoAPRS needs Python 3.13, which Raspberry Pi OS and Debian 12 do not have, so the package brings its own Python and libraries, and the Mercury modem (about 30 MB to download, about 100 MB installed).
 <!-- SIZE: the .deb's sizes (30 MB, 100 MB) are those of the release before; put the measured numbers of this release here --> It uses nothing of the system's Python and does not include the desktop app.
 
 ```bash
@@ -136,7 +136,7 @@ Once a day the daemon asks the project's version page whether a newer NeoAPRS is
 
 - **What is sent.** One request with the version and the kind of system in the address, `https://neo.oh2gba.eu/version.php?v=<version>&os=linux&id=<number>`, and a User-Agent that says the same. The system is `windows`, `macos`, `linux`, `linux-appimage` or `linux-arm` (a Raspberry Pi). The number is a random number made once for this installation (so that installations can be counted; it says nothing about you). Nothing else: no call, no position, no setting.
   - A clone of the repository, and an installation marked as a test machine (`neoaprs db set update/not_counted true`), send `0` in place of the number, which is not counted.
-- **What comes back.** The latest version, the address of the project page, an optional short note, and the HF frequency the group meets on, which a Mercury radio's box shows until the project's list of suggested frequencies has come.
+- **What comes back.** The latest version, the address of the project page, an optional short note, and the frequency the group meets on, which a Mercury radio's box shows until the project's list of suggested frequencies has come.
 - **What is kept.** The server adds a line with the time (to the minute, UTC), the version, the system and the number to a log, and hands the version, the system and the number to the project's status page, where they are counted. Your address is not used. The source of the page is `server/version.php` in the repository.
 - **The answer** is a few lines of JSON: the latest release, the address of the project page and an optional note. When it is newer than yours, the page shows the **Update** mark and the note is in the update window. A page that cannot be reached, or answers something else, is ignored: nothing is shown and the next question is the next day.
 - **Switching it off.** The check has no setting. `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run. The setting `update/url` can point at a page of your own (`neoaprs db set update/url ADDRESS`).

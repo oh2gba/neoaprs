@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from .coded import CodedError
 from .packetcodec import parse_stamp
-from .radiospec import FM_ID, HF_ID, RadioError, RadioId, RadioSpec, enabled, live, main_radio, senders
+from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioError, RadioId, RadioSpec, enabled, live, main_radio, senders
 from .radiotype import KINDS, Kind, stored_text
 from .radiotypes import DEFAULT_TYPE, kind_field, kind_fields, recommended_path as kind_path
 
@@ -79,7 +79,7 @@ def radios_from_flat(config: FlatRadios) -> tuple[RadioSpec, ...]:
 def radios_from_rows(rows: Iterable[Sequence[Any]], settings: Iterable[Sequence[Any]]) -> tuple[RadioSpec, ...]:
     """The radios as the database keeps them, by id: `rows` are radiosql.radio_rows (id, kind, type, name, enabled, position, removed_at) and `settings` radiosql.radio_settings (radio_id, key, value).
     A radio has the settings of its kind that are stored, as text: a key that is no setting of the kind is left out (the table keeps it), and a value that is wrong is left out and told once, with
-    `radio/<id>/<key>`, so that the default is in force. A row whose kind is none is left out and told."""
+    `radio/<id>/<key>`, so that the default is in force. A row whose kind is none is left out and told. A stored name that is a kind's word alone is taken as none (`_kind_words_dropped`)."""
     own: dict[RadioId, dict[str, str]] = {}
     for radio, key, value in settings:
         own.setdefault(int(radio), {})[str(key)] = str(value)
@@ -89,7 +89,15 @@ def radios_from_rows(rows: Iterable[Sequence[Any]], settings: Iterable[Sequence[
             log.warning("radio %s is of the kind %r, which is none: it is left out", id, kind)
             continue
         found.append(RadioSpec(int(id), kind, str(type), str(name), bool(on), int(position), None if removed_at is None else parse_stamp(str(removed_at)), _checked(int(id), kind, own.get(int(id), {}))))
-    return tuple(sorted(found, key=lambda spec: spec.id))
+    return _kind_words_dropped(tuple(sorted(found, key=lambda spec: spec.id)))
+
+
+def _kind_words_dropped(specs: tuple[RadioSpec, ...]) -> tuple[RadioSpec, ...]:
+    """The radios, with a stored name that is a kind's word alone ("Mercury", "FM", "LoRa", case folded: radiospec.KIND_WORDS) taken as none. That word is what a radio with no name is called, so a radio named
+    by it is either called the same without the name or is called as another radio is: a radio named "Mercury" while its kind's word was another would stand beside the unnamed Mercury radio under one word.
+    Such a name is not taken when it is typed (web/radiohandlers.refuse_label); the row keeps what it has."""
+    words = {word.casefold() for word in KIND_WORDS.values()}
+    return tuple(replace(spec, name="") if spec.name.casefold() in words else spec for spec in specs)
 
 
 def _checked(id: RadioId, kind: Kind, stored: Mapping[str, str]) -> dict[str, str]:

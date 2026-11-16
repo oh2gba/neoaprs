@@ -18,9 +18,9 @@ loopback is ended and not run again (`foreign_listeners`): its ports have no pas
 
 A Mercury that something else runs (the port given for this run, `--hf-port`, the benches') is not started or stopped here, only listened to on the control port 200 above its KISS port. The setting `serial/port` is never the sign of one: it is the FM radio's, and a `tcp://` address there is a Direwolf's KISS port.
 
-As the speaker of the Dummy HF radio (`start(..., speaker=True)`) the same program is started keying nothing on its fifo audio backend, paced and played by mercuryspeaker.py through the system's own player,
+As the speaker of the Dummy Mercury radio (`start(..., speaker=True)`) the same program is started keying nothing on its fifo audio backend, paced and played by mercuryspeaker.py through the system's own player,
 and the frames the dummy line is given (`play`) are written to its broadcast port, so that the operator hears the modem's own audio from the speakers; the Tnc is not connected to it, the hold is never asked,
-and a player or a Mercury that is not there is a line in the log and nothing more (the Dummy HF radio works without it)."""
+and a player or a Mercury that is not there is a line in the log and nothing more (the Dummy Mercury radio works without it)."""
 import asyncio
 import logging
 from collections.abc import Callable, Sequence
@@ -113,7 +113,7 @@ class Mercury(Channel, Tuning, Scoping, Holding):
         self.problem, self.reason = "", ""                           # why it is not running, in English for the log; empty while it is. And the same as a code of REASONS, for the page's words (only `waiting` has one)
         self.broadcast_port, self.control_port = BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET
         self.attached = ""                                           # the address of a Mercury that something else runs; empty for one of ours
-        self.speaker = False                                         # started as the speaker of the Dummy HF radio: nothing keyed, the frames of the dummy line played
+        self.speaker = False                                         # started as the speaker of the Dummy Mercury radio: nothing keyed, the frames of the dummy line played
         self._init_channel()
         self._init_scoping()
         self.test = ""                                               # one of TESTS: the tune tone or the keying test is on (the hold is on with it)
@@ -136,7 +136,7 @@ class Mercury(Channel, Tuning, Scoping, Holding):
     # ---- life
     async def start(self, config: Config, attach: str = "", speaker: bool = False) -> None:
         """Starts the program for these settings (its radio's own, `own_choice`: the sound card, the keying and the gain), or, for a Mercury something else runs (`attach`, the port given for this run; never
-        a port of another radio), only listens to its control port; as `speaker`, starts it on the computer's own sound output for the Dummy HF radio."""
+        a port of another radio), only listens to its control port; as `speaker`, starts it on the computer's own sound output for the Dummy Mercury radio."""
         await self.stop()
         self._generation += 1
         self._config = config
@@ -207,12 +207,12 @@ class Mercury(Channel, Tuning, Scoping, Holding):
         await self._run(program, audio, pid_file)
 
     async def _speaker_audio(self) -> list[str] | None:
-        """The speaker of the Dummy HF radio keys nothing and plays through the system's own player: the flags of its fifo backend, with the pipes made anew; None, and the modem stopped, where there are none."""
+        """The speaker of the Dummy Mercury radio keys nothing and plays through the system's own player: the flags of its fifo backend, with the pipes made anew; None, and the modem stopped, where there are none."""
         self.sound_card, self.keying = "", Keying("vox")               # (the choosers are for a radio)
-        log.info("Mercury is started as the speaker of the Dummy HF radio: it keys nothing and plays through the computer's sound output")
+        log.info("Mercury is started as the speaker of the Dummy Mercury radio: it keys nothing and plays through the computer's sound output")
         self._audio.capture, self._audio.playback = self.home / CAPTURE_FIFO, self.home / PLAYBACK_FIFO      # (the pipes in the modem's folder of this start)
         if not await asyncio.to_thread(self._audio.prepare):
-            log.info("the Dummy HF radio's speaker is not started: this system has no named pipes for Mercury's audio, and the modem on the default sound devices would be heard, or hear, for real")
+            log.info("the Dummy Mercury radio's speaker is not started: this system has no named pipes for Mercury's audio, and the modem on the default sound devices would be heard, or hear, for real")
             self._set("stopped", "")
             return None
         return speaker_audio(str(self._audio.capture), str(self._audio.playback))
@@ -353,9 +353,9 @@ class Mercury(Channel, Tuning, Scoping, Holding):
     def _write(self, line: str) -> bool:
         return self._control is not None and self._control.write(line)
 
-    # ---- the speaker of the Dummy HF radio
+    # ---- the speaker of the Dummy Mercury radio
     def play(self, data: bytes) -> None:
-        """A frame of the Dummy HF radio, as KISS bytes, handed to the program to be heard (mercuryspeaker.py); nothing while the program is not there."""
+        """A frame of the Dummy Mercury radio, as KISS bytes, handed to the program to be heard (mercuryspeaker.py); nothing while the program is not there."""
         self.speaker_line.play(data)
 
     # ---- what the Tnc and the page ask

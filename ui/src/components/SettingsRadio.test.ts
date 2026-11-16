@@ -50,7 +50,7 @@ const boxOf = (group: ReturnType<typeof make>["group"], legend: string) => {
   return found;
 };
 const fm = (group: ReturnType<typeof make>["group"]) => boxOf(group, "FM radio");
-const hf = (group: ReturnType<typeof make>["group"]) => boxOf(group, "HF radio");
+const hf = (group: ReturnType<typeof make>["group"]) => boxOf(group, "Mercury radio");
 const fold = (group: ReturnType<typeof make>["group"]) => fm(group).find<HTMLDetailsElement>("details.radiostatus");
 const hfFold = (group: ReturnType<typeof make>["group"]) => hf(group).find<HTMLDetailsElement>("details.radiostatus");
 /** The ids of the controls of a box that are not inside its fold. */
@@ -63,10 +63,10 @@ const outside = (box: ReturnType<typeof boxOf>, folded: HTMLDetailsElement) =>
 const ONLY = "The station's only radio that is on";
 
 describe("the Radio group of the Settings tab", () => {
-  it("has the RX only tickbox first, then the FM radio and the HF radio in a box each, each beginning with its Enable tickbox", () => {
+  it("has the RX only tickbox first, then the FM radio and the Mercury radio in a box each, each beginning with its Enable tickbox", () => {
     const { group } = make({}, BOTH);
     expect(group.find(".field").find("label").text()).toBe("RX only");
-    expect(group.findAll("fieldset.subbox legend").map((l) => l.text())).toEqual(["FM radio", "HF radio"]);
+    expect(group.findAll("fieldset.subbox legend").map((l) => l.text())).toEqual(["FM radio", "Mercury radio"]);
     for (const [box, id] of [
       [fm(group), "set-radio-1-enabled"],
       [hf(group), "set-radio-2-enabled"],
@@ -94,7 +94,7 @@ describe("the Radio group of the Settings tab", () => {
     }
   });
 
-  it("is, while the HF radio is not ticked, the FM radio as it was and the HF box as its Enable row and its Name alone, and the Enable of the only radio is greyed with a title that says why", () => {
+  it("is, while the Mercury radio is not ticked, the FM radio as it was and the Mercury box as its Enable row and its Name alone, and the Enable of the only radio is greyed with a title that says why", () => {
     const { group } = make();
     expect(hf(group).find("details").exists()).toBe(false);
     // (plan section 6: "Name and Remove, outside the status fold, so that a radio that is off can be renamed and removed": the HF radio that is off has them, and its Remove works; the FM radio's, the only one on, is off)
@@ -113,7 +113,7 @@ describe("the Radio group of the Settings tab", () => {
     expect(fm(group).find("#set-radio-1-enabled").element.closest(".field")?.querySelector(".info-toggle")).not.toBeNull(); // (the (i) still opens)
   });
 
-  it("is, while only the HF radio is ticked, the FM box as its Enable row and its Name alone and the HF Enable greyed", () => {
+  it("is, while only the Mercury radio is ticked, the FM box as its Enable row and its Name alone and the Mercury Enable greyed", () => {
     const { group } = make({}, HF_ONLY);
     expect(fm(group).find("details").exists()).toBe(false);
     expect(
@@ -158,7 +158,7 @@ describe("the Radio group of the Settings tab", () => {
     expect(wrapper.find("#set-serial-skip").exists()).toBe(false);
   });
 
-  it("has the state of the HF radio from its row when it is ticked, open until it is connected, with the modem's own words", async () => {
+  it("has the state of the Mercury radio from its row when it is ticked, open until it is connected, with the modem's own words", async () => {
     const { group, daemon } = make({}, [fmRow(), hfRow({ state: "connecting" }, { state: "starting" })]);
     expect(hfFold(group).find(".statetext").text()).toBe("connecting");
     expect(hfFold(group).element.open).toBe(true);
@@ -174,7 +174,7 @@ describe("the Radio group of the Settings tab", () => {
     expect(hfFold(group).find(".tnclines").text()).toContain("NeoAPRS: opened");
   });
 
-  it("asks the daemon to switch the HF radio on at once, and the FM radio off once both are on", async () => {
+  it("asks the daemon to switch the Mercury radio on at once, and the FM radio off once both are on", async () => {
     const { group, send, daemon } = make();
     await group.find("#set-radio-2-enabled").setValue(true);
     expect(send).toHaveBeenCalledWith({ cmd: "radio_change", radio: 2, enabled: true });
@@ -183,7 +183,7 @@ describe("the Radio group of the Settings tab", () => {
     expect(send).toHaveBeenCalledWith({ cmd: "radio_change", radio: 1, enabled: false });
   });
 
-  it("asks for the ports and the sound cards of the HF radio when it is on, and not when it is off", async () => {
+  it("asks for the ports and the sound cards of the Mercury radio when it is on, and not when it is off", async () => {
     const { send, daemon } = make();
     expect(send).not.toHaveBeenCalledWith({ cmd: "list_ports", radio: 2 });
     await tell(daemon, { radios: radiosTopic(...BOTH) });
@@ -287,7 +287,7 @@ describe("the toast of Find my radio", () => {
   });
 });
 
-describe("the HF radio's box in the Radio group", () => {
+describe("the Mercury radio's box in the Radio group", () => {
   const cards = (): PortsMessage => ({
     ...ports(),
     radio: 2,
@@ -370,7 +370,7 @@ describe("the HF radio's box in the Radio group", () => {
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "radio/2/keying": "rts:/dev/ttyUSB0" } });
   });
 
-  it("has the suggested frequencies the daemon says as a row to read, in the HF box of the Mercury modem only", () => {
+  it("has the suggested frequencies the daemon says as a row to read, in the Mercury box of the Mercury modem only", () => {
     const { group } = make({ ports: cards() }, BOTH, on);
     const row = hfFold(group).find("#hf-frequencies-2");
     expect(row.findAll(".freq").map((line) => line.text())).toEqual([
@@ -398,7 +398,7 @@ describe("the HF radio's box in the Radio group", () => {
 });
 
 describe("the fold of each box follows its own radio", () => {
-  it("opens the HF fold alone when the HF radio is not connected, and the FM fold alone when the FM radio is not", async () => {
+  it("opens the Mercury fold alone when the Mercury radio is not connected, and the FM fold alone when the FM radio is not", async () => {
     const { group, daemon } = make({}, BOTH);
     expect([fold(group).element.open, hfFold(group).element.open]).toEqual([false, false]);
     await tell(daemon, { radios: radiosTopic(fmRow(), hfRow({ state: "connecting" }, { state: "starting" })) });
@@ -408,7 +408,7 @@ describe("the fold of each box follows its own radio", () => {
     expect([fold(other.group).element.open, hfFold(other.group).element.open]).toEqual([true, false]);
   });
 
-  it("leaves the FM fold as it was when the HF radio's type is changed and the HF radio goes through connecting, in both directions", async () => {
+  it("leaves the FM fold as it was when the Mercury radio's type is changed and the Mercury radio goes through connecting, in both directions", async () => {
     const { group, send, daemon } = make({}, BOTH);
     expect(fold(group).element.open).toBe(false);
     await hfFold(group).find("#set-radio-2-type").setValue("dummy-hf");
@@ -425,7 +425,7 @@ describe("the fold of each box follows its own radio", () => {
   });
 });
 
-describe("the HF radio's type, Tune and the keying test", () => {
+describe("the Mercury radio's type, Tune and the keying test", () => {
   const running = (test: ModemState["test"] = "", extra: Partial<RadioRow> = {}, modem: Partial<ModemState> = {}) => [
     fmRow(),
     hfRow(extra, { test, ...modem }),
@@ -433,7 +433,7 @@ describe("the HF radio's type, Tune and the keying test", () => {
   const tune = (group: ReturnType<typeof make>["group"]) => hf(group).find<HTMLButtonElement>("#set-radio-2-tune");
   const keyTest = (group: ReturnType<typeof make>["group"]) => hf(group).find<HTMLButtonElement>("#set-radio-2-keying-test");
 
-  it("has the Radio type as the first field of the HF box, the Mercury modem first and the Dummy HF radio last, with the dummy picture on its (i)", async () => {
+  it("has the Radio type as the first field of the Mercury box, the Mercury modem first and the Dummy Mercury radio last, with the dummy picture on its (i)", async () => {
     const { group } = make({}, running());
     const type = hfFold(group).find<HTMLSelectElement>("#set-radio-2-type");
     expect(
@@ -504,7 +504,7 @@ describe("the HF radio's type, Tune and the keying test", () => {
     expect(tune(waiting.group).attributes("title")).toBeUndefined();
   });
 
-  it("is, with the Dummy HF radio chosen, the type alone: no sound card, no keying, no Tune, and the muted Dummy pill with its line", () => {
+  it("is, with the Dummy Mercury radio chosen, the type alone: no sound card, no keying, no Tune, and the muted Dummy pill with its line", () => {
     const { group } = make({}, [fmRow(), radioRow(2, "dummy-hf")], { "radio/2/beacon": "true" });
     expect(
       hfFold(group)
@@ -515,10 +515,10 @@ describe("the HF radio's type, Tune and the keying test", () => {
     expect(keyTest(group).exists()).toBe(false);
     expect(hfFold(group).find(".statetext").text()).toBe("Dummy");
     expect(hfFold(group).find(".statetext").classes()).toContain("tnc-dummy");
-    expect(hfFold(group).find(".tncstatus").text()).toBe("Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
+    expect(hfFold(group).find(".tncstatus").text()).toBe("Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
   });
 
-  it("has nothing of the HF radio's socket in the status line: Connecting… while it connects, the modem's words while it runs", () => {
+  it("has nothing of the Mercury radio's socket in the status line: Connecting… while it connects, the modem's words while it runs", () => {
     const connecting = make({}, running("", { state: "connecting" }));
     expect(hfFold(connecting.group).find(".tncstatus").text()).toBe("Connecting…");
     const heard = make({}, running("", {}, { snr: 3.4 }));

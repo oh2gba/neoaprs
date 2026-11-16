@@ -126,7 +126,7 @@ def test_a_card_is_one_winmm_input_and_one_output_whose_names_are_its_devices_cu
 
 def test_the_type_is_an_fm_radio_on_a_sound_card_offered_where_direwolf_is_carried() -> None:
     t = type_of("direwolf")
-    assert (t.kind, t.driver, t.transport, t.name, t.text) == ("fm", "direwolf", "modem", "Sound card (Direwolf)", "radio.type.direwolf")
+    assert (t.kind, t.driver, t.transport, t.name, t.text) == ("fm", "direwolf", "modem", "Sound card", "radio.type.direwolf")
     assert [f.key for f in t.fields] == ["sound_card", "keying", "tx_gain_db", "beacon", "status", "path", "digipeat"] and t.field("tx_gain_db").range == (-20, 0)    # type: ignore[union-attr]
     assert t.field("sound_card") is type_of("mercury").field("sound_card") and t.field("keying") is type_of("mercury").field("keying"), "one card and one keying line are one resource for both types"
     assert t.can.tune and t.can.key_test and t.can.tx_gain and t.can.rx_level and not t.can.scope and not t.can.find
@@ -141,4 +141,4 @@ def test_a_keying_holds_its_serial_port_and_on_windows_cm108_holds_the_one_chip_
     assert keying_claim(Keying("cm108"), None, windows=True) == "cm108", "on Windows a CM108 key is any CM108-class chip: one radio at a time, whatever its type"
     claims = Claims()
     assert claims.hold(Claim("keying", "cm108", 2)) is None
-    assert claims.hold(Claim("keying", "cm108", 3)) == Claim("keying", "cm108", 2), "the HF modem keys by CM108: a Sound card radio does not, on Windows"
+    assert claims.hold(Claim("keying", "cm108", 3)) == Claim("keying", "cm108", 2), "the Mercury modem keys by CM108: a Sound card radio does not, on Windows"

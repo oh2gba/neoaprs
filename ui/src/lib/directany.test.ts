@@ -26,7 +26,7 @@ describe("a station heard direct on any radio", () => {
     expect(directAt(before as StationRow)).toBe(ago(300));
   });
 
-  it("has the check mark after its call, an HF station too", () => {
+  it("has the check mark after its call, a Mercury station too", () => {
     expect([hfDirect, fmDirect, never].map(heardDirect)).toEqual([true, true, false]);
     expect(heardDirect({ ...hfDirect, is_me: true })).toBe(false);
   });
@@ -36,7 +36,7 @@ describe("a station heard direct on any radio", () => {
     expect(heardDirectRecently({ ...hfDirect, last_direct_any_at: ago(7200) }, NOW)).toBe(false);
   });
 
-  it("is kept by the filter direct only, an HF station too", () => {
+  it("is kept by the filter direct only, a Mercury station too", () => {
     const kept = listStations([hfDirect, fmDirect, never], { filter: "", directOnly: true, sort: { key: "call", dir: 1 } });
     expect(kept.map((row) => row.call)).toEqual(["OH2FM", "OH2HF"]);
   });

@@ -29,17 +29,17 @@ const net = station("OH2NET", {
   can_message: false,
 });
 
-describe("the card of a station heard on the HF radio", () => {
-  it("says when each radio last heard it: FM for the FM radio, HF for the HF radio", () => {
+describe("the card of a station heard on the Mercury radio", () => {
+  it("says when each radio last heard it: FM for the FM radio, Mercury for the Mercury radio", () => {
     const both = station("OH2FMHF", {
       heard_rf: 5,
       heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]),
       last_rf_at: ago(60),
       last_heard: ago(60),
     });
-    expect(fieldsOf(card(both))["Last heard"]).toBe("FM 3 min ago · HF 1 min ago");
+    expect(fieldsOf(card(both))["Last heard"]).toBe("FM 3 min ago · Mercury 1 min ago");
     const hf = station("OH2HF", { heard_rf: 2, heard: heardBy([2, 2, ago(60)]), last_rf_at: ago(60), last_heard: ago(60) });
-    expect(fieldsOf(card(hf))["Last heard"]).toBe("HF 1 min ago");
+    expect(fieldsOf(card(hf))["Last heard"]).toBe("Mercury 1 min ago");
   });
 });
 
@@ -162,8 +162,8 @@ describe("the card of a station, with several radios", () => {
     expect(fieldsOf(withRadios(row, ...six))["Last heard"]).toBe("FM: 10 min ago · Shack: 1 min ago · 20 m: 30 s ago · FM 4: 1 h ago · Internet: 20 s ago");
   });
 
-  it("says FM and HF for the owner's two radios", () => {
+  it("says FM and Mercury for the owner's two radios", () => {
     const both = station("OH2FMHF", { heard_rf: 5, heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]), last_heard: ago(60) });
-    expect(fieldsOf(withRadios(both, radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")))["Last heard"]).toBe("FM 3 min ago · HF 1 min ago");
+    expect(fieldsOf(withRadios(both, radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")))["Last heard"]).toBe("FM 3 min ago · Mercury 1 min ago");
   });
 });

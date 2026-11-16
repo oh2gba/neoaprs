@@ -34,7 +34,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.scope":
     "Uma estação distante transmite; a cascata mostra seu quadro como um bloco na banda marcada, o mais recente no alto, e a barra do nível de recepção fica na faixa boa.",
   "help.picture.tworadios":
-    "Sua estação com dois rádios: o rádio FM alcança o carro e o digipeater próximos rente ao chão, o rádio HF alcança uma estação distante pelo sinal que sobe e volta a descer.",
+    "Sua estação com dois rádios: o rádio FM alcança o carro e o digipeater próximos rente ao chão, o rádio Mercury alcança uma estação distante pelo sinal que sobe e volta a descer.",
   "help.picture.dummy": "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
   "help.picture.notifications": "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra um pop-up, o cartão.",
   "help.picture.encrypt":

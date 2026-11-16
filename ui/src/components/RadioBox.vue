@@ -153,8 +153,8 @@ const nameInfo = computed<FieldInfo>(() => ({
 /** Whether another radio of the station is called by this name already (its name or, without one, its label "FM 2"), case folded as the daemon compares names. */
 const taken = (typed: string): boolean =>
   typed !== "" && radios.all.value.some((other) => !other.removed && other.id !== props.radio.id && other.name.toLowerCase() === typed.toLowerCase());
-/** Whether a name is in the form of the label of a radio with no name of its own in the page's language: a word of a kind ("FM", "KW" in German), alone or with a space and a number ("UKW 2"), case folded (the daemon
- * refuses its English labels itself: `radio.name_label`). */
+/** Whether a name is in the form of the label of a radio with no name of its own: a word of a kind as the catalogue has it (FM, Mercury, LoRa: the same in every language), alone or with a space and a number
+ * ("FM 2"), case folded (the daemon refuses these itself: `radio.name_label`). The name of a band ("HF", "20 m") is no kind's word and is taken. */
 const labelLike = (typed: string): boolean => {
   const folded = typed.toLowerCase().replace(/ \d+$/, "");
   return Object.values(KIND_WORDS).some((id) => t(id).toLowerCase() === folded);

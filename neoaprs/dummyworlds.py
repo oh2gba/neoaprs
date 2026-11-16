@@ -84,7 +84,7 @@ class World:
 _CITY_CALLS = frozenset(station.call for station in CITIES)      # (the Dummy HF radio's stations are the same cities in every world)
 WORLDS: dict[str, World] = {        # the world of each Dummy type, by the key of its profile
     DUMMY.key: World(lambda tnc: DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=Scene), "dummy radio", lambda _seed: frozenset()),
-    DUMMY_HF.key: World(lambda tnc: DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=HfScene, speaker=tnc.modem), "dummy HF radio", lambda _seed: _CITY_CALLS),
+    DUMMY_HF.key: World(lambda tnc: DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=HfScene, speaker=tnc.modem), "dummy Mercury radio", lambda _seed: _CITY_CALLS),
     DUMMY_LORA.key: World(lambda tnc: DummyLoraPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id), "dummy LoRa radio", lora_calls),
 }
 

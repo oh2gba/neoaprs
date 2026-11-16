@@ -7,6 +7,9 @@
 - **New:** 80 m among the suggested HF frequencies: 3.5850 MHz USB.
 - **New:** with several radios, the status text has its own Send on, as the beacon has.
 - **Changed:** **Add radio** lists the radio types in groups: FM, HF, LoRa, and Without a radio.
+- **Changed:** **Add radio** lists the radio types in groups: FM, Mercury, LoRa, and Without a radio.
+- **Changed:** simpler names for the radio types: Sound card instead of Sound card (Direwolf), and the list says what you have, not what runs inside.
+- **Changed:** a radio on the Mercury modem is called Mercury, no longer HF, on its tags and its box: the modem works on any band.
 - **Changed:** the (i) buttons show nothing on hover.
 - **Changed:** in Dutch a radio is "radio", no longer "set".
 - **Changed:** the status text and the beacon comment show how many characters are left, as a message does, and no text takes more than fits.

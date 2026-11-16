@@ -1,5 +1,5 @@
 """The one fit function (services/radioset.py `fit`, plan §2) on radios of the types as a test writes them (tests/support/seamshapes.py): the path is dropped on a radio that may carry none, the radio's own path is
-taken when none is given (the recommended path of the station's symbol when it is empty, none for DIRECT), the comment is cut to the 123 bytes of the HF radio and the report itself never, a radio with a frame cap
+taken when none is given (the recommended path of the station's symbol when it is empty, none for DIRECT), the comment is cut to the 123 bytes of the Mercury radio and the report itself never, a radio with a frame cap
 and a path cuts the comment by what the path takes too, and what makes no frame is a SendError. The sender builds every frame of ours by it, for the radio it goes on."""
 import logging
 from dataclasses import replace
@@ -63,7 +63,7 @@ def test_on_the_hf_radio_the_comment_is_cut_to_123_bytes_the_report_is_kept_and_
     assert hf.max_frame == 123 and len(ax25.encode(frame)) == 123 and frame.path == ()
     assert frame.info == LONG[:len(frame.info)] and len(frame.info) > fixed_prefix(LONG), "the end of the comment is cut, the position is whole"
     over = len(ax25.encode(replace(frame, info=LONG))) - 123
-    assert [r.getMessage() for r in caplog.records] == [f"HF: a frame of ours is {over} bytes more than the radio carries (123): its comment is cut: {frame.tnc2()}"]
+    assert [r.getMessage() for r in caplog.records] == [f"Mercury: a frame of ours is {over} bytes more than the radio carries (123): its comment is cut: {frame.tnc2()}"]
 
 
 def test_a_radio_with_a_cap_and_a_path_cuts_the_comment_by_what_the_path_takes_too() -> None:

@@ -35,7 +35,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.scope":
     "Kaukainen asema lähettää; vesiputous näyttää sen kehyksen lohkona merkityllä kaistalla, uusin ylimpänä, ja vastaanottotason palkki on alla hyvällä alueella.",
   "help.picture.tworadios":
-    "Asemasi kahdella radiolla: FM-radio tavoittaa lähellä olevan auton ja digipeaterin maanpintaa pitkin, HF-radio kaukaisen aseman signaalilla, joka nousee ylös ja tulee alas.",
+    "Asemasi kahdella radiolla: FM-radio tavoittaa lähellä olevan auton ja digipeaterin maanpintaa pitkin, Mercury-radio kaukaisen aseman signaalilla, joka nousee ylös ja tulee alas.",
   "help.picture.dummy": "Katkoviivakehyksessä olevat keksityt asemat vastaavat asemallesi, eikä asemasi lähettämä lähde ilmaan: aallot on yliviivattu.",
   "help.picture.notifications": "Asemalta tulee viesti, ja tämä laite soittaa äänen, kaiuttimen, ja näyttää ponnahdusilmoituksen, kortin.",
   "help.picture.encrypt":

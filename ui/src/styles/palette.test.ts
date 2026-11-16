@@ -188,7 +188,7 @@ describe("the palette", () => {
     expect(plated.filter(({ body }) => !/background:\s*var\(--warn-soft-bg\)/.test(body)).map(({ name, selector }) => `${name}: ${selector}`)).toEqual([]);
   });
 
-  it("tells the HF radio's tag, the site's inverse pill, from every other tag by its lightness, in both themes: 3 to 1 between the plates at least", () => {
+  it("tells the Mercury radio's tag, the site's inverse pill, from every other tag by its lightness, in both themes: 3 to 1 between the plates at least", () => {
     for (const [name, theme] of THEMES) {
       for (const tone of TAGS.filter((t) => t !== "hf")) {
         const ratio = contrast(theme["--hf-soft-bg"] ?? "#000000", theme[`--${tone}-soft-bg`] ?? "#000000");

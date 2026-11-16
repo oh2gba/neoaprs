@@ -162,7 +162,7 @@ def test_a_query_goes_on_the_radio_named_and_the_minute_between_two_of_a_kind_is
     assert refused.value.code == "general.too_soon" and len(hf.sent) == 1
     assert [(a.radio, a.kind) for a in rig.general.asked_by_radio()] == [(HF_ID, "aprs"), (FM_ID, "aprs")], "the last of each kind on each radio"
     assert [(a.radio, a.kind) for a in rig.general.asked()] == [(FM_ID, "aprs")], "the page is given one of each kind, the latest, whose wait is never shorter than the one in force"
-    assert [r.getMessage() for r in caplog.records] == ["asked around: ?APRS? by no digipeaters on HF", "asked around: ?APRS? by WIDE1-1,WIDE2-1,RFONLY on FM"], "with two radios on the log says which"
+    assert [r.getMessage() for r in caplog.records] == ["asked around: ?APRS? by no digipeaters on Mercury", "asked around: ?APRS? by WIDE1-1,WIDE2-1,RFONLY on FM"], "with two radios on the log says which"
 
 
 def test_a_query_on_a_radio_that_is_off_or_away_is_refused_and_sends_nothing() -> None:
@@ -189,7 +189,7 @@ class AllRadios(StubPick):
         return next((radio for radio in self.radios if radio.id == id), None)
 
 
-@pytest.mark.parametrize(("air", "words"), [(LineAir, "the radio HF is off"), (Unnamed, "that radio is off")])
+@pytest.mark.parametrize(("air", "words"), [(LineAir, "the radio Mercury is off"), (Unnamed, "that radio is off")])
 def test_a_query_on_a_radio_there_is_but_that_is_off_says_so_with_its_name_or_without(air: type[LineAir], words: str) -> None:
     rig = Rig()
     radios = AllRadios([LineAir(rig.tnc, lambda: rig.config), air(StubTnc(max_frame=123), lambda: rig.config, id=HF_ID)])

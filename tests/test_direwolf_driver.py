@@ -1,6 +1,6 @@
 """A radio of the Sound card type in the daemon (neoaprs/direwolfdriver.py, the registry's "direwolf" driver), against the made-up Direwolf of tests/support/fakedirewolf.py: the driver starts Direwolf and then the
 line to its KISS port, a frame of ours goes out keyed and the frame heard comes back as a packet, with its level in the radio's row; a change of the card or the keying restarts the radio and the transmit level does
-not; the radio's row says the HF modem holds its card, with the holder's name; on the wire the type is offered, added and refused where its program is not carried, and Tune on it is refused while it is not
+not; the radio's row says the Mercury modem holds its card, with the holder's name; on the wire the type is offered, added and refused where its program is not carried, and Tune on it is refused while it is not
 running; and under the no-devices switch no Direwolf is started and its line has no port."""
 import asyncio
 from dataclasses import replace
@@ -115,7 +115,7 @@ def test_the_row_of_a_sound_card_radio_on_the_card_the_hf_modem_holds_says_so_wi
     claims.hold(Claim("sound_card", CARD, 2))
     hf = RadioSpec(2, "hf", "mercury", "", True, 2, settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true"})
     row = radio_row(spec(), (hf, spec()), SimpleNamespace(line=Tnc(profile=PROFILE), beacon=None), claims)
-    assert row is not None and row["problem"] == {"code": "radio.resource_held", "params": {"resource": "sound_card", "holder": "HF", "held_by": 2}}
+    assert row is not None and row["problem"] == {"code": "radio.resource_held", "params": {"resource": "sound_card", "holder": "Mercury", "held_by": 2}}
 
 
 def test_under_the_no_devices_switch_the_line_of_a_sound_card_radio_has_no_port(tmp_path: Path, under_the_switch: None) -> None:  # noqa: F811

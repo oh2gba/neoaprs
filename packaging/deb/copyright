@@ -23,7 +23,7 @@ License: PSF-2.0
  Python is in /opt/neoaprs/lib/python3.13/LICENSE.txt.
 
 Files: opt/neoaprs/tools/mercury/*
-Copyright: Rhizomatica and the authors of Mercury, the HF modem that NeoAPRS starts for the radio type "Mercury HF modem"
+Copyright: Rhizomatica and the authors of Mercury, the modem that NeoAPRS starts for the radio type "Mercury modem (sound card)"
 License: GPL-3.0-or-later
 Comment: Mercury is built for this package from the source at
  https://github.com/Rhizomatica/mercury/archive/1b13fab15ac477a1987b6308df7203593f1965e4.tar.gz

@@ -110,7 +110,7 @@ describe("the radio of a request for local info (plan rule 3.6)", () => {
     for (const rows of [[FM], [FM, { ...HF, enabled: false }], [{ ...FM, enabled: false }, HF]]) {
       const { wrapper, daemon } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), rows[0]?.enabled === true ? 1 : 2) }) }, ...rows);
       expect(choice(wrapper).exists()).toBe(false);
-      expect(line(wrapper)).not.toMatch(/FM:|HF:/);
+      expect(line(wrapper)).not.toMatch(/FM:|Mercury:/);
       await ask(wrapper).trigger("click");
       expect(sent(daemon)).toEqual([{ cmd: "qru_ask", text: "INFO 150" }]);
     }
@@ -125,7 +125,7 @@ describe("the radio of a request for local info (plan rule 3.6)", () => {
       choice(wrapper)
         .findAll("option")
         .map((o) => o.text()),
-    ).toEqual(["HF", "FM", "Mobile"]);
+    ).toEqual(["Mercury", "FM", "Mobile"]);
     expect(choice(wrapper).element.value).toBe("2");
     await ask(wrapper).trigger("click");
     await choice(wrapper).setValue("3");
@@ -149,14 +149,14 @@ describe("the radio of a request for local info (plan rule 3.6)", () => {
     expect((rfOnly(wrapper).element as HTMLInputElement).disabled).toBe(true);
     expect(fold(wrapper).find("button.pathbuild-open").attributes("disabled")).toBeDefined();
     expect(fold(wrapper).find("button.pathbuild-open").attributes("title"), "the path builder's button says why it is off, as its row does").toBe(
-      "HF: no path",
+      "Mercury: no path",
     );
     expect(
       fold(wrapper)
         .findAll(".field")
         .map((f) => f.attributes("title")),
       "the reason, as Route's greyed Path has it",
-    ).toEqual(["HF: no path", "HF: no path"]);
+    ).toEqual(["Mercury: no path", "Mercury: no path"]);
     await ask(wrapper).trigger("click");
     await choice(wrapper).setValue("3");
     expect(
@@ -195,7 +195,7 @@ describe("the radio of a request for local info (plan rule 3.6)", () => {
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await choice(wrapper).setValue("2");
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
-    expect(ask(wrapper).attributes("title")).toBe("HF: not connected");
+    expect(ask(wrapper).attributes("title")).toBe("Mercury: not connected");
     const one = on({}, { ...FM, state: "waiting" });
     expect(ask(one.wrapper).attributes("title")).toBe("The radio is not connected");
   });
@@ -203,8 +203,8 @@ describe("the radio of a request for local info (plan rule 3.6)", () => {
   it("says on the state word of the status line the radio the request went on, and sends a group's button and Ask again on that radio while it is on", async () => {
     const lost = qruState().servers.map((server) => ({ ...server, received: ["RPKUM"], settles_at: ago(5) }));
     const { wrapper, daemon } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 2), servers: lost }) }, FM, HF);
-    expect(wrapper.find(".qrustatus .statetext").text()).toBe("HF: Asked");
-    expect(line(wrapper)).toMatch(/^HF: Asked\s*\d\d:\d\d · /);
+    expect(wrapper.find(".qrustatus .statetext").text()).toBe("Mercury: Asked");
+    expect(line(wrapper)).toMatch(/^Mercury: Asked\s*\d\d:\d\d · /);
     expect(choice(wrapper).element.value).toBe("2"); // (the choice is the radio of the request kept)
     await pills(wrapper)[0]?.trigger("click");
     await wrapper.find("button.qru-again").trigger("click");
@@ -221,7 +221,7 @@ describe("the radio of a request for local info (plan rule 3.6)", () => {
       { ...HF, removed: true, enabled: false },
       radioRow(3, "kiss", { name: "Mobile" }),
     );
-    expect(line(wrapper)).toMatch(/^HF: Asked\s*\d\d:\d\d · /); // (the radio it went on is named: it is not on)
+    expect(line(wrapper)).toMatch(/^Mercury: Asked\s*\d\d:\d\d · /); // (the radio it went on is named: it is not on)
     expect(choice(wrapper).element.value).toBe("1");
     await pills(wrapper)[0]?.trigger("click");
     expect(sent(daemon)).toEqual([{ cmd: "qru_ask", text: "RP70 150", radio: 1 }]);

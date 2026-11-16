@@ -589,7 +589,7 @@ describe("Send on, the radios of an object", () => {
     expect(sendOn().attributes("role")).toBe("group");
     expect(ticks()).toEqual([
       ["FM", true, true],
-      ["HF", false, false],
+      ["Mercury", false, false],
     ]);
     expect(
       advanced()
@@ -604,31 +604,31 @@ describe("Send on, the radios of an object", () => {
     const { ticks } = withRadios(ofRadios(FM, HF), [], { status: status({ main_radio: 2 }) });
     expect(ticks()).toEqual([
       ["FM", false, false],
-      ["HF", true, true],
+      ["Mercury", true, true],
     ]);
   });
 
   it("sends the radios ticked, greys the last tick that is left, and greys the Path, in its place with its value kept, while no radio ticked may carry one", async () => {
     const { wrapper, field, sent, ticks, tick, view } = withRadios(ofRadios(FM, HF));
     await field("Path")?.find("input").setValue("WIDE1-1");
-    await tick("HF");
+    await tick("Mercury");
     expect(ticks()).toEqual([
       ["FM", true, false],
-      ["HF", true, false],
+      ["Mercury", true, false],
     ]);
     expect(field("Path")?.classes()).not.toContain("disabled");
     await tick("FM");
     expect(ticks()).toEqual([
       ["FM", false, false],
-      ["HF", true, true],
+      ["Mercury", true, true],
     ]);
     expect(field("Path")?.classes()).toContain("disabled");
     expect(field("Path")?.find<HTMLInputElement>("input").element.disabled).toBe(true);
     expect(field("Path")?.find<HTMLInputElement>("input").element.value).toBe("WIDE1-1");
     expect(field("Path")?.find<HTMLButtonElement>("button.pathbuild-open").element.disabled).toBe(true);
-    expect(field("Path")?.attributes("title"), "the reason, as Route's greyed Path has it").toBe("HF: no path");
+    expect(field("Path")?.attributes("title"), "the reason, as Route's greyed Path has it").toBe("Mercury: no path");
     expect(field("Path")?.find("button.pathbuild-open").attributes("title"), "the path builder's button says why it is off, as its row does").toBe(
-      "HF: no path",
+      "Mercury: no path",
     );
     expect(field("Path")?.element.previousElementSibling).toBe(wrapper.find(".field.send-on").element);
     await wrapper.find("form").trigger("submit");
@@ -643,18 +643,18 @@ describe("Send on, the radios of an object", () => {
 
   it("names the radios ticked that carry no path as the page's language lists names", async () => {
     const { field, tick } = withRadios(ofRadios(FM, HF, radioRow(3, "dummy-hf", { number: 2 })));
-    await tick("HF");
-    await tick("HF 2");
+    await tick("Mercury");
+    await tick("Mercury 2");
     await tick("FM");
     const path = field("Path");
-    expect(path?.attributes("title")).toBe("HF and HF 2: no path");
+    expect(path?.attributes("title")).toBe("Mercury and Mercury 2: no path");
     setLocale("ja");
     await nextTick();
-    expect(path?.attributes("title")).toBe(t("radio.no_path", { name: "HF、HF 2" }));
+    expect(path?.attributes("title")).toBe(t("radio.no_path", { name: "Mercury、Mercury 2" }));
     setLocale("en");
   });
 
-  it("leaves the Path row out while no radio that is on may carry a path, as with the HF radio alone (plan 6: left out only when no enabled radio may carry one)", () => {
+  it("leaves the Path row out while no radio that is on may carry a path, as with the Mercury radio alone (plan 6: left out only when no enabled radio may carry one)", () => {
     expect(withRadios(ofRadios({ ...FM, enabled: false }, HF)).field("Path")).toBeUndefined();
     expect(withRadios(ofRadios(HF, radioRow(3, "dummy-hf", { number: 2 }))).field("Path")).toBeUndefined();
     expect(withRadios(ofRadios(FM)).field("Path")?.exists()).toBe(true);
@@ -679,7 +679,7 @@ describe("Send on, the radios of an object", () => {
     await wrapper.vm.$nextTick();
     expect(ticks()).toEqual([
       ["FM", false, false],
-      ["HF", true, true],
+      ["Mercury", true, true],
     ]);
     expect(advanced()?.element.open).toBe(true);
     view.edit("NEAR");
@@ -689,23 +689,23 @@ describe("Send on, the radios of an object", () => {
     await wrapper.vm.$nextTick();
     expect(ticks()).toEqual([
       ["FM", true, true],
-      ["HF", false, false],
+      ["Mercury", false, false],
     ]);
-    await tick("HF");
+    await tick("Mercury");
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ name: "WIDE", radios: [1, 2, 3] });
   });
 
   it("follows the radios as they are turned on and off: the ticks come and go, and the form's own ticks stay", async () => {
     const { daemon, sendOn, ticks, tick, view } = withRadios(ofRadios(FM, HF));
-    await tick("HF");
+    await tick("Mercury");
     await tell(daemon, { radios: radiosTopic(FM, { ...HF, enabled: false }) });
     expect(sendOn().exists()).toBe(false);
     expect(view.draft.radios).toEqual([1, 2]);
     await tell(daemon, { radios: radiosTopic(FM, HF, radioRow(3, "kiss", { number: 2 })) });
     expect(ticks()).toEqual([
       ["FM", true, false],
-      ["HF", true, false],
+      ["Mercury", true, false],
       ["FM 2", false, false],
     ]);
   });

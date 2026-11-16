@@ -3,10 +3,10 @@ and the message that answers an add. The radios themselves are the topic `radios
 Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`.
 
 A radio is named by its id (`radio`, an integer from 1: the `id` of its row). A refusal is an `error` with a code: `radio.unknown` (no radio of that id, or one that is removed), `radio.last_enabled` (the last radio that is on
-cannot be switched off or removed), `radio.name_taken`, `radio.name_label` (a name typed in the form a radio with no name of its own is called by, "FM", "HF 2"), `radio.name_form`, `radio.type_kind` (a type of another kind), `radio.unknown_type`, `radio.off` (the radio a control sends on is switched off, with its `name`),
+cannot be switched off or removed), `radio.name_taken`, `radio.name_label` (a name typed in the form a radio with no name of its own is called by, "FM", "Mercury 2"), `radio.name_form`, `radio.type_kind` (a type of another kind), `radio.unknown_type`, `radio.off` (the radio a control sends on is switched off, with its `name`),
 `radio.receive_only` (the radio a control sends on, or Find my radio's, is of a type that only receives, with its `name`), `radio.not_connected` (it is on and does not take frames now, with its `name`), `radio.no_modem` (a modem's command on a radio that has none running, with its `name`), `radio.no_line` (Find my radio for a radio
 with no serial line, with its `name`), `radio.no_scope` (the scope of a radio whose type has none, with its `name`), `radio.none` (there is no radio at all), `setting.not_stored` (the change was not stored: the reason is in the log).
-A refusal that names a radio by its `name` (the daemon's English: the name typed, else its kind's word and number, "FM", "HF 2") carries its id too (`radio`), and `radio.resource_held` the holder's id beside its `holder`
+A refusal that names a radio by its `name` (the daemon's English: the name typed, else its kind's word and number, "FM", "Mercury 2") carries its id too (`radio`), and `radio.resource_held` the holder's id beside its `holder`
 (`held_by`: the radio's, 0 for the GPS receiver, as the ports' `held_by`), by which a page puts its own words for that radio. A removed radio is `radio.unknown` with its `name` and `removed` 1 too."""
 from typing import Annotated, Literal
 

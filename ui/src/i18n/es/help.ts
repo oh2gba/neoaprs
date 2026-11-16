@@ -34,7 +34,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.scope":
     "Una estación lejana transmite; la cascada muestra su trama como un bloque en la banda marcada, lo más reciente arriba, y la barra del nivel de recepción queda en su rango bueno.",
   "help.picture.tworadios":
-    "Tu estación con dos radios: la radio FM llega al coche y al digipeater cercanos a ras del suelo, la radio HF llega a una estación lejana con la señal que sube y vuelve a bajar.",
+    "Tu estación con dos radios: la radio FM llega al coche y al digipeater cercanos a ras del suelo, la radio Mercury llega a una estación lejana con la señal que sube y vuelve a bajar.",
   "help.picture.dummy": "Estaciones inventadas en un marco discontinuo responden a tu estación, y lo que esta envía no sale: las ondas están tachadas.",
   "help.picture.notifications": "Llega un mensaje de una estación y este dispositivo reproduce un sonido, el altavoz, y muestra una notificación, la tarjeta.",
   "help.picture.encrypt":

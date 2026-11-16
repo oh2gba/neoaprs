@@ -311,7 +311,7 @@ describe("Post and the main radio, which a bulletin goes on", () => {
     const two = on({ status: status({ main_radio: 2 }) }, FM, { ...HF, state: "connecting" });
     await two.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
     expect(two.post().element.disabled).toBe(true);
-    expect(two.post().attributes("title")).toBe("HF: not connected");
+    expect(two.post().attributes("title")).toBe("Mercury: not connected");
     const fine = on({ status: status({ main_radio: 1 }) }, FM, { ...HF, state: "connecting" });
     await fine.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
     expect(fine.post().element.disabled).toBe(false); // (the main radio is FM, which is connected)

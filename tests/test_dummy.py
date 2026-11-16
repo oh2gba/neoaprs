@@ -236,7 +236,7 @@ def test_a_frame_of_a_made_up_station_is_not_repeated_back() -> None:
 
 def test_the_dummy_is_a_profile_that_is_first_in_no_list_and_needs_neither_a_port_nor_a_speed() -> None:
     assert DUMMY.transport == "dummy" and DUMMY.baud is None and DUMMY.enter == () and not DUMMY.can_probe and not DUMMY.detect_command_mode
-    assert DUMMY.name == "Dummy (no radio, made-up traffic)"
+    assert DUMMY.name == "Dummy FM radio"
 
 
 @pytest.fixture

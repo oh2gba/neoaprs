@@ -16,7 +16,7 @@ On a fresh install the page opens a guide in four steps. It opens by itself once
 1. **Call.** Your call sign in the field, and beside it the **SSID** to choose: none for your main station, -9 for a car and so on ([beacon.md](beacon.md#the-call-and-its-ssid)). Pasting `OH2GBA-9` into the field works too.
 2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or type latitude and longitude in decimal degrees in the fields under it: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the My station tab ([beacon.md](beacon.md#the-location)), with the fields open the whole time.
 3. **Symbol.** The twelve usual ones are on top; the symbol in force is shown under them, and **More symbols…** beside it opens the picker with every symbol.
-4. **Radio.** The boxes of Settings → Radio ([radio.md](radio.md#the-radio-group)), and each change is saved at once, as in the Settings tab. A new installation has no radio: the step is one box, **New radio**, with **Add radio**. Choose the type of your radio, of any kind (FM, HF, LoRa), and press **Add**. The radio's box then takes its place: fill in what the type asks for (a port, an address). **Add radio** under it adds another.
+4. **Radio.** The boxes of Settings → Radio ([radio.md](radio.md#the-radio-group)), and each change is saved at once, as in the Settings tab. A new installation has no radio: the step is one box, **New radio**, with **Add radio**. Choose the type of your radio, of any kind (FM, Mercury, LoRa), and press **Add**. The radio's box then takes its place: fill in what the type asks for (a port, an address). **Add radio** under it adds another.
    - **Finish**, on this step, needs one radio on with no field in error. On Windows and macOS a radio on a serial line needs its **Port** chosen (or found with **Find my radio**).
 
 The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading the streets and names 150 km round your station (the radius of Settings → Map), unless the detailed map it has covers the place already, so that it is there soon after the guide. A quiet line in the guide says "Downloading the map of your area…", and a **Map** mark at the top of the page shows the percent until it is done.
@@ -28,7 +28,7 @@ The Radio step shows each radio's status line, so you see at once whether it is 
 - **Find my radio**, for a radio on a serial line, tries the ports and, when it finds the radio, fills in the type, the port and the speed (Linux, Windows, macOS).
 - **Terminal**, closed until you open it, shows what the TNC saw and did.
 - A Mercury radio's **Sound card** and **Keying** are chosen for you, with **Test** beside the keying and the **Suggested frequencies**. Tune, the Transmit level and the Spectrum are in the Settings tab only, and so are **RX only** and the main radio.
-- The type **Dummy (no radio, made-up traffic)** needs no port and no speed: pick it to try NeoAPRS without a radio ([radio.md](radio.md#the-dummy-radios)).
+- The type **Dummy FM radio** needs no port and no speed: pick it to try NeoAPRS without a radio ([radio.md](radio.md#the-dummy-radios)).
 
 A radio you change or add in the guide stays when the guide is closed. **Finish** saves the call, the place and the symbol. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes (the My station tab shows and changes it). Run again on a station that already has a call, the guide leaves the beacon alone.
 
@@ -38,7 +38,7 @@ A radio you change or add in the guide stays when the guide is closed. **Finish*
 
 An update keeps everything you have: the settings, the messages, the packets, the stations, the map. At its first start the new NeoAPRS brings your database up to date. It first puts a copy of it into `backup/`, as the version before left it, and the version before can open that copy. The database of any earlier release is brought up to date this way, back to the first one.
 
-- **Your radios** become radios of their own: the radio you had, and the HF radio if you ever switched it on. Their settings, their messages and what they heard stay theirs.
+- **Your radios** become radios of their own: the radio you had, and the Mercury radio if you ever switched it on. Their settings, their messages and what they heard stay theirs.
 - **A large database** takes a while, minutes on a slow card. The desktop app and `neoaprs open` wait for it, `neoaprs doctor` says that it is being brought up to date, and a second NeoAPRS started meanwhile waits too.
 - **A start that was cut short** (a power cut) goes on from the same copy the next time: there is still one copy, and the disk does not fill.
 
@@ -75,7 +75,7 @@ The Settings tab and the My station tab have no Save button and no Revert. A set
 - A tickbox, a choice from a list, the port list, the symbol and **Choose on map** apply at once.
 - A field you type in (the call, the comment, the position, the path) applies when you press Enter or leave the field, never while you type, so a half-typed call or position is never beaconed. Esc puts back the value in force.
 - The page checks the value first and says what is wrong under the field. Nothing is sent until it is right.
-- Fields that belong together are sent as one change: the latitude and the longitude, and the TCP host and port (the TNC restarts once, not twice).
+- Fields that belong together are sent as one change: the latitude and the longitude, and the Address and the Port of a radio on the network (the radio restarts once, not twice).
 - Nothing is shown beside a field when a change applies, so nothing on the page moves. The toast that floats over the page, and a screen reader's "Saved", are the confirmation.
 - When the daemon refuses a change, the reason is under the field, what you typed stays in it and the old value stays in force.
 - After a change a small toast, such as "Beacon interval changed · Undo", stays for ten seconds. **Undo** puts the old values back in one step. With several quick changes the toast is for the latest and the earlier ones stay applied.
@@ -102,7 +102,7 @@ neoaprs db --data data packets
 
 With no file it plays the sample capture inside the package, three minutes of a TH-D7. `neoaprs capture` records a capture from your radio. Nothing is sent while nobody is connected, and the frames go on from where they were when the daemon connects again. `--port` is radio 1's for this run only; its own port is not changed.
 
-The type **Dummy** needs no capture and no second program: the daemon makes the traffic itself, around your position, and nothing goes on the air ([radio.md](radio.md#the-dummy-radio)).
+The type **Dummy FM radio** needs no capture and no second program: the daemon makes the traffic itself, around your position, and nothing goes on the air ([radio.md](radio.md#the-dummy-fm-radio)).
 
 A moving station can be tried without a car in the same way: `neoaprs gps-replay` plays a drive as a gpsd, and the My station tab's **A GPS via gpsd** reads it ([beacon.md](beacon.md#mobile-operation)).
 

@@ -15,7 +15,7 @@ from neoaprs.config import DEFAULTS, LAST_PORT, Config
 from neoaprs.configradios import radios_from_rows
 from neoaprs.dbfile import transaction
 from neoaprs.packetcodec import stamp
-from neoaprs.radiospec import RadioSpec
+from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.radiosql import CHANGEABLE, insert_radio, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
 from neoaprs.store import DB_NAME, Store
 from neoaprs.wiring import _store_last_port
@@ -117,6 +117,17 @@ def test_the_stored_radios_are_read_with_the_settings_of_their_kind_and_a_wrong_
     config = Config.from_data({"station/call": "OH2GBA"}, radios=reversed(found))
     assert config.radios == found and [s.id for s in config.live_radios] == [2, 1] and config.main_radio == 1 and config.radio(3) is found[2], "the settings hold them by id, and read them by position"
     assert radios_from_rows([(4, "am", "kiss", "", 1, 1, None), (5, "lora", "dummy-lora", "", 1, 2, None)], []) == (RadioSpec(5, "lora", "dummy-lora", "", True, 2),), "a row of a kind that is none is left out and told"
+
+
+
+def test_a_stored_name_that_is_a_kinds_word_alone_is_read_as_no_name() -> None:
+    """A radio could be named "Mercury" while its kind's word was "HF": now that word is what a radio of the kind with no name is called (radiospec.KIND_WORDS), on the page and in the log. Such a stored name is read as
+    none, so that the radio is called by its kind and its number as any unnamed one, and never by the same word as another radio; a name with more in it, and the name of a band, stay."""
+    rows = [(1, "fm", "kiss", "Mercury", 1, 1, None), (2, "hf", "mercury", "mercury", 1, 2, None), (3, "hf", "mercury", "MERCURY", 1, 3, None), (4, "hf", "dummy-hf", "HF", 1, 4, None),
+            (5, "lora", "lora-tcp", "Mercury1", 1, 5, None), (6, "fm", "kiss", "FM 2", 1, 6, None)]
+    found = radios_from_rows(rows, [])
+    assert [s.name for s in found] == ["", "", "", "HF", "Mercury1", "FM 2"]
+    assert [log_name(s, found) for s in found] == ["FM", "Mercury", "Mercury 2", "HF", "Mercury1", "FM 2"], "no two radios under one word, and HF is a name like any other now"
 
 
 # ---- Remove

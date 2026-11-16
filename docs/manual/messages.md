@@ -98,9 +98,9 @@ Resize the panel and the layout follows, with the same conversation open.
 - The header has the call (and the back arrow on a narrow tab) and a small **Route** button at its right. It opens a box under the header with the radio the messages go on (while several radios that can send are on), the path they go by and the **RF only** tickbox ([below](#the-radio-of-a-message)); Esc or a click outside closes it. A dot on the button says that the route is not the default. An overheard pair has no Route.
 - While several radios that can send are on, the tag of the radio the messages go on stands after the call, such as **FM** or **20 m**. Its hover text says "Messages to this station go on radio 20 m". The tag keeps the room of the longest name, so nothing beside it moves when the radio changes.
 - The thread is bubbles, yours at the right and theirs at the left, filling the height and scrolled to the newest. Under your message, small, are the time, the mark and state with the attempts ("attempt 3 of 4" while it is being sent), **Retry** or **Cancel** where they apply, and the chain of digipeaters its packet went by. A message that came in shows the route it came by in small type ("via OH2RCH-2"), and while several radios are on the tag of the radio it came on before its route words.
-- When the radio measured the signal of a packet that came in, the SNR ends that line ("HF direct · SNR −3 dB", in whole dB; RSSI in dBm too for a radio that gives it, a LoRa board); a radio that measures none, a KISS TNC, leaves it out.
+- When the radio measured the signal of a packet that came in, the SNR ends that line ("Mercury direct · SNR −3 dB", in whole dB; RSSI in dBm too for a radio that gives it, a LoRa board); a radio that measures none, a KISS TNC, leaves it out.
 - Each message of yours has a mark: a clock while it is being sent or is queued; a check once it is acked (the title has the time of the ack and the SNR of the ack, when the radio measured it); a hollow check, a ring with a check in it, when it was sent and no ack is expected; a cross when it failed or was rejected; a dash when it was cancelled. A message that came in has its time only.
-- The box to write in is at the bottom, always in view, in one line: the text, the bytes left of the 67 ("67 left") and **Send**. Send is off while the radio the messages go on is not connected (its title says "The TNC is not connected", or "HF: not connected" with the radio's name while several are on), or the text is empty or too long. There is no To field: the conversation is the station.
+- The box to write in is at the bottom, always in view, in one line: the text, the bytes left of the 67 ("67 left") and **Send**. Send is off while the radio the messages go on is not connected (its title says "The TNC is not connected", or "Mercury: not connected" with the radio's name while several are on), or the text is empty or too long. There is no To field: the conversation is the station.
 - An overheard pair has no box to write in and no Route, only the bubbles, since the messages are not yours to answer.
 - What you typed stays when you go back to the list or open another conversation.
 - **Esc** deselects the open conversation, on a wide tab as on a narrow one. The Route box, if it is open, takes the first Esc. A text box with text in it keeps the text and the conversation; with it empty, Esc goes through.
@@ -113,7 +113,7 @@ Under a message of yours the thread shows the digipeaters its latest attempt wen
 - A copy of your message that the radio hears again (also one an iGate gated back) is linked to the attempt it belongs to, and each hop of the path that a copy was heard with is marked as used. A hop that is used implies the hops before it, so `OH2RCH-2,OH2RDG*` shows both.
 - A hop heard has a check. A hop not heard is grey with a `?`; its title says "beyond what this station can hear" when that digipeater was never heard direct. A hop seen only in a copy gated back from the internet is blue with `internet`.
 - The recipient at the end is plain on the ack, orange on failure and grey while the message waits.
-- While several radios are on, the chain says the radio of the attempt after the first chip ("sent 12:03 on radio HF" is its hover text): `you HF → OH2CUB-7`. An attempt over HF has no digipeater in it, because nothing on HF repeats.
+- While several radios are on, the chain says the radio of the attempt after the first chip ("sent 12:03 on radio Mercury" is its hover text): `you Mercury → OH2CUB-7`. An attempt on a Mercury radio has no digipeater in it, because nothing repeats it.
 - Acks and copies of other messages are not linked. The chain goes with the message when it or its conversation is deleted, and a retry starts a new chain.
 
 ### One text to several stations
@@ -205,18 +205,18 @@ A path of 8 digipeaters has no room for it. A message to the station is then ref
 With one radio on, every message goes on it and nothing here applies. With several radios on that can send, each conversation has one radio, which the daemon chooses when a message goes:
 
 1. the radio you chose for the station in Route, while it is on;
-2. else the radio that heard the station in the last six hours, a local one (FM, LoRa) before HF when both did;
+2. else the radio that heard the station in the last six hours, a local one (FM, LoRa) before a Mercury radio when both did;
 3. else the radio that heard it last;
 4. a station never heard goes on the [main radio](radio.md#the-main-radio).
 
 A message keeps the radio of its first attempt for all its retries, after a restart too. It moves when you choose another radio in Route, or when its radio is switched off or removed; a message that went on another radio only because its own was off goes back to its own once that is on again. A message that no longer fits the radio it moves to fails with its reason.
 
-- **Route** starts with the row **Radio**: **Automatic**, which names the radio it gives now ("Automatic: HF"), then each radio that is on and can send, by its name. A choice applies from the next attempt and is kept for the call across a restart; forgetting the station forgets it too. For a call that was never heard the row is there, greyed on Automatic, until the station is heard.
-- **Path and RF only** under it belong to the radio in force. On a radio that carries no path (HF) they are greyed with their value kept, their hover text says "HF: no path", and the line under them says "Automatic: direct". The path you set for a station on one radio is not used on another.
+- **Route** starts with the row **Radio**: **Automatic**, which names the radio it gives now ("Automatic: Mercury"), then each radio that is on and can send, by its name. A choice applies from the next attempt and is kept for the call across a restart; forgetting the station forgets it too. For a call that was never heard the row is there, greyed on Automatic, until the station is heard.
+- **Path and RF only** under it belong to the radio in force. On a radio that carries no path (Mercury) they are greyed with their value kept, their hover text says "Mercury: no path", and the line under them says "Automatic: direct". The path you set for a station on one radio is not used on another.
 - **The station panel** of the Stations tab has the same Route, and its questions go on the station's radio. **Trace the route** is greyed on a radio that carries no path.
 - **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is. A message heard only on a radio that receives is acked on the radio a message to that station would take; a query heard only there is not answered.
-- **Email** (`EMAIL-2`) goes on the radio that internet gateways hear ([email.md](email.md#the-email-tab)), never HF.
-- **The length.** Every message of 67 characters fits an HF frame. A message that does not fit the frame of its radio fails at once, and its state reads "too long for the radio" in place of the attempts; **Retry** says by how many characters to shorten it.
+- **Email** (`EMAIL-2`) goes on the radio that internet gateways hear ([email.md](email.md#the-email-tab)), never a Mercury radio.
+- **The length.** Every message of 67 characters fits a Mercury frame. A message that does not fit the frame of its radio fails at once, and its state reads "too long for the radio" in place of the attempts; **Retry** says by how many characters to shorten it.
 
 ## Encrypted messages
 

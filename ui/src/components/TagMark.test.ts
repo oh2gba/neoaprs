@@ -13,8 +13,8 @@ describe("TagMark", () => {
     expect(button.attributes("type")).toBe("button");
   });
 
-  it("has a tone of its own for the HF radio: the site's inverse pill, apart from the FM radio's neutral grey in both themes", () => {
-    const hf = mount(TagMark, { props: { tone: "hf" }, slots: { default: "HF" } });
+  it("has a tone of its own for the Mercury radio: the site's inverse pill, apart from the FM radio's neutral grey in both themes", () => {
+    const hf = mount(TagMark, { props: { tone: "hf" }, slots: { default: "Mercury" } });
     const fm = mount(TagMark, { props: { tone: "neutral" }, slots: { default: "FM" } });
     expect(hf.classes()).toEqual(["tag", "tag-hf"]);
     expect(hf.classes()).not.toEqual(fm.classes());

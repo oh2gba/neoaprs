@@ -584,7 +584,7 @@ describe("SetupGuide: the radio, Find my radio", () => {
   });
 });
 
-describe("SetupGuide: the radio, on a station of an FM and an HF radio", () => {
+describe("SetupGuide: the radio, on a station of an FM and a Mercury radio", () => {
   /** Radio 1 a serial TNC, on; radio 2 the Mercury modem, off unless `hf` says. */
   const two = (hf: Partial<RadioRow> = { enabled: false, state: "stopped" }, fm: Partial<RadioRow> = {}) =>
     radiosTopic(radioRow(1, "kenwood-tnc2", fm), radioRow(2, "mercury", hf));
@@ -592,7 +592,7 @@ describe("SetupGuide: the radio, on a station of an FM and an HF radio", () => {
   it("has a box each with Name and Remove, the FM radio's Enable greyed while it is the only one on, and no RX only and no main radio", async () => {
     const { wrapper, stand } = make({ radios: two() });
     await stand(3);
-    expect(legends(wrapper)).toEqual(["FM radio", "HF radio"]);
+    expect(legends(wrapper)).toEqual(["FM radio", "Mercury radio"]);
     expect(labels(wrapper).filter((l) => ["RX only", "Main radio"].includes(l))).toEqual([]);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-1-enabled").element.disabled).toBe(true);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-2-enabled").element.checked).toBe(false);
@@ -600,13 +600,13 @@ describe("SetupGuide: the radio, on a station of an FM and an HF radio", () => {
     expect(wrapper.find<HTMLButtonElement>("#setup-radio-1-remove").element.disabled).toBe(true);
     expect(wrapper.find<HTMLButtonElement>("#setup-radio-2-remove").element.disabled).toBe(false);
     expect(
-      boxOf(wrapper, "HF radio")
+      boxOf(wrapper, "Mercury radio")
         .findAll("select, input")
         .map((e) => e.attributes("id")),
     ).toEqual(["setup-radio-2-enabled", "setup-radio-2-name"]);
   });
 
-  it("asks the daemon to switch the HF radio on at once, and once it is on shows its type, its sound card, its keying with Test and its frequencies, and no Tune, no level and no scope", async () => {
+  it("asks the daemon to switch the Mercury radio on at once, and once it is on shows its type, its sound card, its keying with Test and its frequencies, and no Tune, no level and no scope", async () => {
     const { wrapper, sent, stand, daemon } = make({ radios: two(), ports: ports({ sound_cards: [], keying: "vox" }) });
     await stand(3);
     const above = () => {
@@ -625,7 +625,7 @@ describe("SetupGuide: the radio, on a station of an FM and an HF radio", () => {
     await flushPromises();
     expect(above()).toEqual(before); // (nothing above the Enable moves when it is ticked)
     expect(wrapper.find<HTMLInputElement>("#setup-radio-1-enabled").element.disabled).toBe(false);
-    const hf = boxOf(wrapper, "HF radio");
+    const hf = boxOf(wrapper, "Mercury radio");
     for (const id of ["setup-radio-2-type", "setup-radio-2-sound_card", "setup-radio-2-keying", "setup-radio-2-keying-test"])
       expect(hf.find(`#${id}`).exists(), id).toBe(true);
     expect(hf.find(".freqs").exists()).toBe(true);
@@ -634,7 +634,7 @@ describe("SetupGuide: the radio, on a station of an FM and an HF radio", () => {
     expect(hf.find(".hf-scope").exists()).toBe(false);
   });
 
-  it("is right with the HF radio alone, which needs no serial port where the daemon does not search the ports", async () => {
+  it("is right with the Mercury radio alone, which needs no serial port where the daemon does not search the ports", async () => {
     const { wrapper, finish, stand } = make({ radios: two({}, { enabled: false, state: "stopped" }), ports: ports({ search: false }) });
     await stand(3);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-1-enabled").element.checked).toBe(false);
@@ -663,7 +663,7 @@ function sixRadios(extra: Partial<Record<number, Partial<RadioRow>>> = {}): Map<
   );
 }
 const SIX = fresh({}, { "radio/2/sound_card": "plughw:1,0" });
-const SIX_LEGENDS = ["FM radio", "HF radio", "Mobile", "20 m", "FM radio 3", "WWWWWWWW"];
+const SIX_LEGENDS = ["FM radio", "Mercury radio", "Mobile", "20 m", "FM radio 3", "WWWWWWWW"];
 const css = (file: string) => readFileSync(join(STYLES, file), "utf8");
 
 describe("SetupGuide: the radio, on a station of six radios, on a phone (375 px)", () => {
@@ -702,7 +702,7 @@ describe("SetupGuide: the radio, on a station of six radios, on a phone (375 px)
       }),
     });
     await stand(3);
-    expect(legends(wrapper)).toEqual(["FM radio", "HF radio", "Mobile", "FM radio 3", "WWWWWWWW"]);
+    expect(legends(wrapper)).toEqual(["FM radio", "Mercury radio", "Mobile", "FM radio 3", "WWWWWWWW"]);
     expect(
       boxOf(wrapper, "Mobile")
         .findAll("select, input")
@@ -729,7 +729,7 @@ describe("SetupGuide: the radio, on a station with no radio (a fresh installatio
     await stand(3);
     expect(legends(wrapper)).toEqual(["New radio"]);
     expect(wrapper.findAll("#setup-radio-add option").map((o) => o.attributes("value"))).toEqual(["", ...addTypeChoices().map((choice) => choice.value)]); // (Settings' list, in its groups)
-    expect(wrapper.findAll("#setup-radio-add optgroup").map((g) => g.attributes("label"))).toEqual(["FM", "HF", "LoRa", "Without a radio"]);
+    expect(wrapper.findAll("#setup-radio-add optgroup").map((g) => g.attributes("label"))).toEqual(["FM", "Mercury", "LoRa", "Without a radio"]);
     expect(
       addTypeChoices()
         .map((choice) => choice.value)
@@ -752,8 +752,8 @@ describe("SetupGuide: the radio, on a station with no radio (a fresh installatio
     expect(legends(wrapper)).toEqual(["New radio"]); // (the answer comes before the row)
     await tell(daemon, { radios: added() });
     await flushPromises();
-    expect(legends(wrapper)).toEqual(["HF radio"]);
-    const box = boxOf(wrapper, "HF radio");
+    expect(legends(wrapper)).toEqual(["Mercury radio"]);
+    const box = boxOf(wrapper, "Mercury radio");
     expect(box.find<HTMLInputElement>("#setup-radio-1-enabled").element.disabled).toBe(true);
     expect(box.find(".radiostatus .tncstatus").exists()).toBe(true);
     expect(box.find<HTMLDetailsElement>("details.radiostatus").element.open).toBe(true);

@@ -61,10 +61,10 @@ def test_the_readme_says_what_to_do_what_is_in_it_and_what_was_left_out(tmp_path
 
 def test_the_summarys_beacon_is_each_radios_interval_in_force_the_hf_radio_raised_to_its_floor(tmp_path: Path) -> None:
     data = fake_folder(tmp_path, settings={"station/call": "OH2GBA", "beacon/interval_min": "20", "hf/enabled": "true", "hf/profile": "dummy-hf"}, radios=True)
-    assert "on, every 20 min on FM, 30 min on HF" in made(tmp_path, data)[1]["summary.txt"], "the 20 minutes set stay on FM and are 30 on the HF radio, as each beacon goes (plan rule 3.1)"
+    assert "on, every 20 min on FM, 30 min on Mercury" in made(tmp_path, data)[1]["summary.txt"], "the 20 minutes set stay on FM and are 30 on the Mercury radio, as each beacon goes (plan rule 3.1)"
     (tmp_path / "alone").mkdir()
     alone = fake_folder(tmp_path / "alone", settings={"station/call": "OH2GBA", "beacon/interval_min": "20", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf"}, radios=True)
-    assert "on, every 30 min" in made(tmp_path / "alone", alone)[1]["summary.txt"], "the HF radio alone: one interval, raised"
+    assert "on, every 30 min" in made(tmp_path / "alone", alone)[1]["summary.txt"], "the Mercury radio alone: one interval, raised"
 
 
 def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_screen(tmp_path: Path) -> None:
@@ -73,7 +73,7 @@ def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_scree
     for label in ("System:", "Python:", "Data folder:", "Made:", "Daemon:", "Call:", "Position:", "Beacon:", "Type:", "On:", "Port:", "Speed:", "State:", "GPS state:", "Listens:", "File:"):
         assert label in summary, label
     assert "OH2GBA" in summary and "Fixed" in summary and "on, every 60 min" in summary and "kenwood-tnc2" in summary
-    assert "Radio 1: FM" in summary and "Radio 2" not in summary, "the radios the station has, by the name the log gives each: one that never set up HF has radio 1 alone"
+    assert "Radio 1: FM" in summary and "Radio 2" not in summary, "the radios the station has, by the name the log gives each: one that never set up Mercury has radio 1 alone"
     assert "2026-10-26 12:00:00Z (UTC)" in summary and "local " in summary
     assert "not running" in summary, "nothing holds the data folder"
     assert f"schema version {SCHEMA_VERSION}" in summary
@@ -114,14 +114,14 @@ def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_n
              {"name": "Line (Webcam)", "id": "{0.0.1.00000000}.{dddd}", "records": True, "plays": False, "default": True}]
     live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"}, "radios": [radio(2, {"state": "waiting", "problem": "the sound card could not be opened"}, sound_cards=cards)]}
     summary = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"]
-    hf = section(summary, "Radio 2: HF")
+    hf = section(summary, "Radio 2: Mercury")
     assert "{0.0.0.00000000}.{ca03}" in hf and "rts:COM7" in hf and "the sound card could not be opened" in hf
     assert "'USB Audio CODEC': records and plays; {0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}" in hf
     assert "'Line (Webcam)': records, the system default; {0.0.1.00000000}.{dddd}" in hf
     assert "the daemon did not run this radio" in section(summary, "Radio 1: FM"), "a radio of the settings that the daemon's state lacks says so"
     (tmp_path / "off").mkdir()
     off = made(tmp_path / "off", fake_folder(tmp_path / "off", settings={**SETTINGS, "hf/enabled": "false", "hf/profile": "mercury"}))[1]["summary.txt"]
-    assert re.search(r"On:\s+no", section(off, "Radio 2: HF")) and "State" not in section(off, "Radio 2: HF"), "an HF radio that is off is there, off"
+    assert re.search(r"On:\s+no", section(off, "Radio 2: Mercury")) and "State" not in section(off, "Radio 2: Mercury"), "a Mercury radio that is off is there, off"
 
 
 def test_a_connected_radio_has_no_problem_and_its_old_error_stands_on_a_line_of_its_own(tmp_path: Path) -> None:
@@ -173,12 +173,12 @@ def test_a_bundle_of_stored_radios_has_a_section_for_each_by_its_name_with_its_o
     _, members = made(tmp_path, data, running=True, live=live, by="the running daemon")
     summary = members["summary.txt"]
     titles = [line for line in summary.splitlines() if line.startswith("Radio ")]
-    assert titles == ["Radio 1: FM", "Radio 2: HF", f"Radio {third}: Base"], "each radio that is not removed, by position, by the name the log gives it"
+    assert titles == ["Radio 1: FM", "Radio 2: Mercury", f"Radio {third}: Base"], "each radio that is not removed, by position, by the name the log gives it"
     assert "kenwood-tnc2" in section(summary, "Radio 1: FM") and "/dev/ttyUSB0" in section(summary, "Radio 1: FM") and "connected" in section(summary, "Radio 1: FM")
-    assert re.search(r"On:\s+no", section(summary, "Radio 2: HF")) and "vox" in section(summary, "Radio 2: HF"), "its own settings, from its rows"
+    assert re.search(r"On:\s+no", section(summary, "Radio 2: Mercury")) and "vox" in section(summary, "Radio 2: Mercury"), "its own settings, from its rows"
     assert "10.0.0.9:8100" in section(summary, f"Radio {third}: Base") and "the server does not answer" in section(summary, f"Radio {third}: Base")
     settings = json.loads(members["settings.json"])
-    assert [(r["id"], r["log_name"], r["enabled"], r["removed_at"] is not None) for r in settings["radios"]] == [(1, "FM", True, False), (2, "HF", False, False), (third, "Base", True, False), (gone, "Old", True, True)]
+    assert [(r["id"], r["log_name"], r["enabled"], r["removed_at"] is not None) for r in settings["radios"]] == [(1, "FM", True, False), (2, "Mercury", False, False), (third, "Base", True, False), (gone, "Old", True, True)]
     assert settings["radios"][0]["values"]["port"] == "/dev/ttyUSB0" and settings["radios"][0]["stored"]["port"] == "/dev/ttyUSB0" and "baud" not in settings["radios"][0]["stored"]
     assert settings["radios"][1]["values"]["keying"] == "vox" and settings["radios"][1]["stored"] == {"keying": "vox"}
     told = set(settings["values"]) | set(settings["defaults_are_used_for"]) | set(settings["stored_text_differs"]) | set(settings["other_rows"])

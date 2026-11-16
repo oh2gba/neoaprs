@@ -124,10 +124,10 @@ describe("a Sound card radio's box", () => {
     ).not.toContain("direwolf");
     expect(typeChoices("fm").map((c) => c.value)).toContain("direwolf");
     expect(typeChoices("fm", ["direwolf"]).map((c) => c.value)).not.toContain("direwolf"); // (the list a radio's type is changed in, too)
-    expect(typeText("direwolf")).toBe("Sound card (Direwolf)");
+    expect(typeText("direwolf")).toBe("Sound card");
   });
 
-  it("is asked for and takes its own sound cards and proposal, never those of the HF radio's answer, as every radio with a sound card does", async () => {
+  it("is asked for and takes its own sound cards and proposal, never those of the Mercury radio's answer, as every radio with a sound card does", async () => {
     expect(portsAsks([radioRow(1, "kenwood-tnc2"), radioRow(3, "direwolf")])).toEqual([{ cmd: "list_ports", radio: 3 }]);
     const CODEC = "plughw:CARD=CODEC,DEV=0";
     const empty = { ...OWN, "radio/2/sound_card": CODEC, "radio/2/keying": "rts:/dev/ttyUSB0", "radio/3/sound_card": "", "radio/3/keying": "" }; // (the HF radio has its own already)

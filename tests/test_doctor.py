@@ -175,7 +175,7 @@ def test_no_port_and_the_things_that_grab_one_are_said_with_the_way_out(tmp_path
     monkeypatch.setattr(doctor, "serial_group_check", lambda: hostcheck.GroupCheck("missing", "dialout", "sudo usermod -aG dialout jane   (then log out and in again)"))
     code, out = run(tmp_path / "data", capsys)
     assert code == 0
-    assert "no serial port is listed by the system" in out and "socket://127.0.0.1:8001" in out
+    assert "no serial port is listed by the system" in out and "a radio of the type Sound card, or your own Direwolf, needs no serial port" in out
     assert "not in the group dialout" in out and "fix: sudo usermod -aG dialout jane" in out
     assert "brltty is installed" in out and "fix: remove it: sudo apt remove brltty" in out
     assert "ModemManager is installed" in out and "sudo systemctl disable --now ModemManager" in out
@@ -410,7 +410,7 @@ def test_each_radio_is_a_line_by_its_name_with_its_type_and_how_it_is_reached_or
     code, out = run(data, capsys)
     assert code == 0, out
     assert [line for line in lines_of(out, "ok") if line.startswith("ok    radio ")] == [
-        "ok    radio FM (kenwood-tnc2): port /dev/ttyUSB0, speed 9600 baud", "ok    radio HF (mercury): sound card plughw:1,0, keying rts:/dev/ttyUSB1",
+        "ok    radio FM (kenwood-tnc2): port /dev/ttyUSB0, speed 9600 baud", "ok    radio Mercury (mercury): sound card plughw:1,0, keying rts:/dev/ttyUSB1",
         "ok    radio Base (kiss-tcp): port 10.0.0.9:8100", "ok    radio FM 3 (dummy): off"], "by position; the third of its kind is FM 3, the named one counted"
     assert "no radio is on" not in out
 
@@ -421,7 +421,7 @@ def test_a_station_with_no_radio_on_is_a_warning_with_the_way_to_tick_one(tmp_pa
     conn.execute("UPDATE radio SET enabled = 0")
     conn.close()
     code, out = run(data, capsys)
-    assert code == 0 and "radio FM (kiss): off" in out and "radio HF (mercury): off" in out
+    assert code == 0 and "radio FM (kiss): off" in out and "radio Mercury (mercury): off" in out
     assert "warn  no radio is on: nothing is heard and nothing is sent" in out and "fix: tick a radio on the page (Settings tab, Radio)" in out
 
 

@@ -143,7 +143,7 @@ def check_radios(config: Config | None, path: Path | None = None, unread: str = 
 def check_ports() -> Finding:
     ports = available_ports()
     if not ports:
-        return Finding("warn", "no serial port is listed by the system", "plug in the TNC's USB cable (or use a TCP TNC such as Direwolf: the port is then socket://127.0.0.1:8001)")
+        return Finding("warn", "no serial port is listed by the system", "plug in the TNC's USB cable (a radio of the type Sound card, or your own Direwolf, needs no serial port)")
     lines = []
     for p in ports:
         ids = f"{p.vid:04x}:{p.pid:04x}" if p.vid is not None and p.pid is not None else "-"

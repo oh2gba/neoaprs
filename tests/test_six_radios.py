@@ -1,10 +1,10 @@
-"""A station of six made-up radios for a simulated day (plan step 7: any number of radios of any type, side by side): two Dummy FM radios, three Dummy HF radios and one Dummy LoRa radio on the real
-controller, with the tests' clock moved over a whole day. Every radio beacons at its own interval and floor (FM at the station's 20 minutes, HF and LoRa at their own 30 with the pause after each), and the one
-whose Send on is unticked never does; each hears its own made-up world and no other's; a message goes out by rule 3.2 (on the radio that heard the station, on the HF radio that heard it last, on the main
+"""A station of six made-up radios for a simulated day (plan step 7: any number of radios of any type, side by side): two Dummy FM radios, three Dummy Mercury radios and one Dummy LoRa radio on the real
+controller, with the tests' clock moved over a whole day. Every radio beacons at its own interval and floor (FM at the station's 20 minutes, Mercury and LoRa at their own 30 with the pause after each), and the one
+whose Send on is unticked never does; each hears its own made-up world and no other's; a message goes out by rule 3.2 (on the radio that heard the station, on the Mercury radio that heard it last, on the main
 radio for a station nobody heard) and is acked from that radio's world; the digipeater repeats on the FM radio whose digipeater is on, what that radio heard, and nowhere else, and a type that may not repeat
 has no digipeater to turn on; the status and the bulletins go on the main radio alone, an object on the radios set for it and on no other, Ask around on the main radio or on the one named, each by that
-radio's own path; a radio switched off for two hours sends nothing and hears nothing in them, forgets none of the stations the other Dummy HF radios still hear (the HF worlds share their six cities), and a
-message on its way on it goes on by another HF radio that hears the station. What went out on each radio is counted, by kind and by path, and the counts are held here: a change of any of them is a change on
+radio's own path; a radio switched off for two hours sends nothing and hears nothing in them, forgets none of the stations the other Dummy Mercury radios still hear (the Mercury worlds share their six cities), and a
+message on its way on it goes on by another Mercury radio that hears the station. What went out on each radio is counted, by kind and by path, and the counts are held here: a change of any of them is a change on
 the air of a station with many radios. The same day is played again with two real types beside the six, a LoRa iGate on the network and a text monitor (`tnc-text`), each on a fake line: the six's counts are the
 same, the board keys its own beacons and nothing else, and the monitor's line gets not one byte; a Sound card radio (`direwolf`, on the made-up Direwolf) beside them sends its own beacons alone.
 
@@ -90,7 +90,7 @@ PATHS = {
     HF3: {("beacon", ""): 44, ("message", ""): 2},
     LORA: {("beacon", "WIDE1-1"): 44, ("object", "WIDE1-1"): 50, ("query", "WIDE1-1,RFONLY"): 1, ("message", ""): 1, ("ack", "WIDE1-1"): 1},
 }
-NAMES = {FM1: "FM", HF1: "HF", FM2: "FM 2", HF2: "HF 2", HF3: "HF 3", LORA: "LoRa"}
+NAMES = {FM1: "FM", HF1: "Mercury", FM2: "FM 2", HF2: "Mercury 2", HF3: "Mercury 3", LORA: "LoRa"}
 TEXT, BOARD, WOLF = 7, 8, 9           # beside the six: a text monitor (tnc-text), a LoRa iGate on the network (lora-tcp) and a Sound card radio (direwolf), each a real type on a fake line or program
 BOARD_BEACONS = 44                    # the board's beacons over the day: LoRa's 30 minutes and the pause, as the Dummy LoRa radio's
 WOLF_BEACONS = 72                     # the Sound card radio's: the station's 20 minutes, as radio 1's
@@ -266,7 +266,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
     await until_started(lambda: off.state is Source.State.STOPPED)                  # (the clock waits while the radio is stopped and started again, as no minute of the air passes in it)
     still = {s.call for s in e.ctl.stationbook.stations() if s.heard_on(HF2).count}
     assert still == made_up_calls("dummy-hf", HF2) and getattr(e.ctl.messaging.get(quiet.id), "state", "") == "sending", \
-        "a Dummy HF radio switched off forgets nothing that the other Dummy HF radios, still on, hear, and cancels no message to them"
+        "a Dummy Mercury radio switched off forgets nothing that the other Dummy Mercury radios, still on, hear, and cancels no message to them"
     await day.until(OFF_UNTIL)
     assert await e.ctl.change_radio(OFF, enabled=True)
     await until_started(lambda: off.usable and off.beacon.running)
@@ -292,7 +292,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
 
     heard = {r: {s.call for s in stations if s.heard_on(r).count} for r in IDS}
     assert heard[FM1] == fm_world(FM1) and heard[FM2] == fm_world(FM2) and heard[LORA] == made_up_calls("dummy-lora", LORA), "each radio hears its own world, all of it, and nothing of another's"
-    assert all(heard[r] == made_up_calls("dummy-hf", r) for r in HF_IDS), "each Dummy HF radio hears the six cities (the same in every HF world: neoaprs/dummyworlds.py)"
+    assert all(heard[r] == made_up_calls("dummy-hf", r) for r in HF_IDS), "each Dummy Mercury radio hears the six cities (the same in every Mercury world: neoaprs/dummyworlds.py)"
     assert not any(s.heard_by.keys() - {FM1} for s in stations if s.call in heard[FM1]) and not any(s.heard_by.keys() - {LORA} for s in stations if s.call in heard[LORA])
     assert not [p for at, p in day.heard(OFF) if OFF_FROM < at < OFF_UNTIL] and not [f for at, f in day.out(OFF) if OFF_FROM < at < OFF_UNTIL], "a radio that is off hears and sends nothing"
 
@@ -300,11 +300,11 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
     assert {to: getattr(r, "state", None) for to, r in done.items()} == {"Q1ABC": "acked", "Q3ABC": "acked", call_of("Q9KOT", LORA): "acked", CITY: "acked", NOBODY: "failed"}
     went = {to: {r for r in IDS for _, f in day.out(r) if kind_of(f) == "message" and parse_message(f.info[1:]).addressee == to} for to in sent}
     assert {to: radios for to, radios in went.items() if to != CITY} == {"Q1ABC": {FM1}, "Q3ABC": {FM2}, call_of("Q9KOT", LORA): {LORA}, NOBODY: {FM1}} \
-        and went[CITY] == {city_radio[0]}, f"each message on the radio of rule 3.2 (the city on the HF radio that heard it last, the first by position of those that heard it at once: {city_radio}): {went}"
+        and went[CITY] == {city_radio[0]}, f"each message on the radio of rule 3.2 (the city on the Mercury radio that heard it last, the first by position of those that heard it at once: {city_radio}): {went}"
     tries = sorted((at, r) for r in IDS for at, f in day.out(r) if kind_of(f) == "message" and parse_message(f.info[1:]).addressee == QUIET)
     before, after = {r for at, r in tries if at <= OFF_FROM}, {r for at, r in tries if at > OFF_FROM}
     assert len(tries) == 4 and before == {OFF} and len(after) == 1 and after < set(HF_IDS) - {OFF}, \
-        f"a message on its way when its radio is switched off goes on by another HF radio that hears the station: {tries}"
+        f"a message on its way when its radio is switched off goes on by another Mercury radio that hears the station: {tries}"
     assert getattr(e.ctl.messaging.get(quiet.id), "state", "") == "failed", "(and fails as any message no station answers)"
     if beside:
         monitor = e.ctl.radios.get(TEXT)
@@ -322,8 +322,8 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
 
 
 async def test_three_hf_radios_a_message_goes_on_the_one_that_heard_the_station_last(tmp_path: Path, quick: None) -> None:
-    """Rule 3.2 among three HF radios: a station heard on one HF radio alone takes its message there, one heard on two takes it on the one that heard it last, and one heard on an FM radio and then on an HF
-    radio takes it on the FM radio (a local kind before HF, within six hours)."""
+    """Rule 3.2 among three Mercury radios: a station heard on one Mercury radio alone takes its message there, one heard on two takes it on the one that heard it last, and one heard on an FM radio and then on a Mercury
+    radio takes it on the FM radio (a local kind before Mercury, within six hours)."""
     day = Day(tmp_path)
     e = day.e
     await e.start(connected=False)

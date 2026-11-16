@@ -33,7 +33,7 @@ export const help = {
   "help.picture.scope":
     "A distant station sends; the waterfall shows its frame as a block in the marked band, the newest at the top, and the receive level bar below stands in its good range.",
   "help.picture.tworadios":
-    "Your station with two radios: the FM radio reaches the car and the digipeater nearby along the ground, the HF radio reaches a distant station by the signal that goes up and comes down.",
+    "Your station with two radios: the FM radio reaches the car and the digipeater nearby along the ground, the Mercury radio reaches a distant station by the signal that goes up and comes down.",
   "help.picture.dummy": "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
   "help.picture.notifications": "A message from a station arrives, and this device plays a sound, the speaker, and shows a pop-up, the card.",
   "help.picture.encrypt":

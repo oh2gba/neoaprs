@@ -27,7 +27,7 @@ from .views import on_their_way
 
 log = logging.getLogger("neoaprs.web")
 
-LABEL = re.compile("(?:" + "|".join(re.escape(word.casefold()) for word in KIND_WORDS.values()) + ")(?: [0-9]+)?")      # what a radio with no name of its own is called, case folded ("fm", "hf 2")
+LABEL = re.compile("(?:" + "|".join(re.escape(word.casefold()) for word in KIND_WORDS.values()) + ")(?: [0-9]+)?")      # what a radio with no name of its own is called, case folded ("fm", "mercury 2")
 
 
 @contextmanager
@@ -95,7 +95,7 @@ def _stored(name: str, done: bool) -> None:
 
 
 def refuse_label(name: str, typed: str | None, specs: Sequence[RadioSpec], own: RadioId | None) -> None:
-    """A name typed in the form of what a radio with no name of its own is called (a kind's word, alone or with a number: "FM", "hf 2", "LoRa 3") is refused: such a name is, or becomes when a radio is added, has its
+    """A name typed in the form of what a radio with no name of its own is called (a kind's word, alone or with a number: "FM", "mercury 2", "LoRa 3") is refused: such a name is, or becomes when a radio is added, has its
     name cleared or the radios are numbered again after a remove, another radio's too. `radio.name_taken` with the radio that is called so now, else `radio.name_label`. The radio's own name of before, sent again, is
     taken (a name stored before this rule)."""
     wanted = (typed or "").strip()

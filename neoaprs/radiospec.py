@@ -14,7 +14,7 @@ from .radiotypes import kind_field, type_of
 log = logging.getLogger("neoaprs.radiospec")
 
 MAX_NAME = 8                         # the longest name of a radio: the label of its tag, its mark and its box
-KIND_WORDS: Mapping[Kind, str] = {"fm": "FM", "hf": "HF", "lora": "LoRa"}     # the English word of a kind, for the log's name of a radio that has none of its own (the page has its catalogue's)
+KIND_WORDS: Mapping[Kind, str] = {"fm": "FM", "hf": "Mercury", "lora": "LoRa"}     # the English word of a kind, for the log's name of a radio that has none of its own (the page has its catalogue's)
 
 
 class RadioError(CodedError):
@@ -99,7 +99,7 @@ def modem_radio(specs: Iterable[RadioSpec]) -> RadioId | None:
 
 
 def number_in_kind(spec: RadioSpec, specs: Iterable[RadioSpec]) -> int:
-    """The number of the radio within its kind ("FM", "HF 2"): 1 for the first of its kind by id among the live radios; a removed one is numbered after the live ones of its kind, by id among the
+    """The number of the radio within its kind ("FM", "Mercury 2"): 1 for the first of its kind by id among the live radios; a removed one is numbered after the live ones of its kind, by id among the
     removed, so that the log never calls a removed radio and a live one by the same name."""
     pool = list(specs)
     if spec.removed_at is None:
@@ -108,7 +108,7 @@ def number_in_kind(spec: RadioSpec, specs: Iterable[RadioSpec]) -> int:
 
 
 def log_name(spec: RadioSpec, specs: Iterable[RadioSpec]) -> str:
-    """What the log and the support bundle call the radio: the name typed, else the kind's word with its number after the first ("FM", "HF 2", "LoRa"). The page makes its own from its catalogue."""
+    """What the log and the support bundle call the radio: the name typed, else the kind's word with its number after the first ("FM", "Mercury 2", "LoRa"). The page makes its own from its catalogue."""
     if spec.name:
         return spec.name
     number = number_in_kind(spec, specs)

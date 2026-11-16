@@ -129,7 +129,7 @@ describe("useRadios", () => {
     const { all, enabled, senders, severalSenders, main, named, choose } = read(daemon).seen().radios;
     expect(all.value.map((radio) => [radio.id, radio.kind, radio.name])).toEqual([
       [1, "fm", "FM"],
-      [2, "hf", "HF"],
+      [2, "hf", "Mercury"],
       [4, "fm", "FM 2"],
       [5, "lora", "LoRa 2"],
       [3, "lora", "LoRa"],

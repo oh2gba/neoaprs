@@ -127,7 +127,7 @@ class Holding:
         log.info("Mercury ports: %d for KISS, %d for control", self.broadcast_port, self.control_port)
         self._hold_pair()
         if taken is not None:
-            log.warning("Mercury's ports %d and %d were taken while it was down: it is started on %d and %d, and the HF radio is pointed at them", *taken, *self._held.pair)
+            log.warning("Mercury's ports %d and %d were taken while it was down: it is started on %d and %d, and the Mercury radio is pointed at them", *taken, *self._held.pair)
             self.ports_changed.emit()
 
     def _hold_pair(self) -> None:

@@ -13,7 +13,7 @@ import { lazyText } from "@/lib/lazytext";
 import { inApp } from "@/lib/shell";
 import { GROUP_ORDER, rank } from "@/lib/settingsorder";
 import type { PageRadio } from "@/lib/radios";
-import { flatKeyOf, isRadioKey, radioFieldOf, typeText } from "@/lib/settingsradio";
+import { flatKeyOf, isRadioKey, radioFieldOf, typeChoices, typeText } from "@/lib/settingsradio";
 import { keyingChoices } from "@/lib/mercury";
 import {
   beaconChoices,
@@ -178,7 +178,7 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.lora_enabled.tip_label",
     tip: ["settings.lora_enabled.tip1", "settings.fm_enabled.tip2"],
   },
-  "tnc/profile": { ...RADIO_TYPE, choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })) },
+  "tnc/profile": { ...RADIO_TYPE, choices: () => typeChoices("fm").filter((choice) => TNC_PROFILES.some((p) => p.key === choice.value)) }, // (in the order of the one list of types, lib/settingsradio.ts)
   "hf/profile": { ...RADIO_TYPE, choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })) },
   "serial/port": {
     name: "settings.port.name",

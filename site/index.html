@@ -76,7 +76,7 @@
 <section class="facts-row" aria-label="NeoAPRS in numbers">
   <div class="wrap">
     <ul class="numbers">
-      <li><b>3</b><span>kinds of radio side by side, FM, HF and LoRa: one map, one inbox</span></li>
+      <li><b>3</b><span>kinds of radio side by side, FM, Mercury and LoRa: one map, one inbox</span></li>
       <li><b>40 km</b><span>on 10 W in the first HF test on the air</span></li>
       <li><b>4</b><span>systems: Windows, Mac, Linux, Raspberry Pi</span></li>
       <li><b>9</b><span>languages</span></li>
@@ -107,25 +107,25 @@
       <ol class="dl-steps win">
         <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">Download for Windows</a><span class="dl-note">NeoAPRS-Setup.exe · no administrator rights needed</span></li>
         <li>Open the downloaded file. If Windows says <q>Windows protected your PC</q>, choose <b>More info</b>, then <b>Run anyway</b>.</li>
-        <li>Go through the installer. On its last page, <b>Open NeoAPRS now</b> starts it. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+        <li>Go through the installer. On its last page, <b>Open NeoAPRS now</b> starts it. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose a Dummy radio.</li>
       </ol>
       <ol class="dl-steps mac">
         <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">Download for Mac</a><span class="dl-note">NeoAPRS-arm64.dmg · Apple silicon (M1 or newer), macOS 14 or newer</span></li>
         <li>Open the downloaded file and drag <b>NeoAPRS</b> to <b>Applications</b>.</li>
         <li>The first time, right-click NeoAPRS in Applications and choose <b>Open</b>. If the Mac says it could not be verified: System Settings, Privacy &amp; Security, <b>Open Anyway</b>.</li>
-        <li>NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+        <li>NeoAPRS asks for your call, your position and your radio. No radio at hand: choose a Dummy radio.</li>
       </ol>
       <ol class="dl-steps linux-app">
         <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage">Download for Linux</a><span class="dl-note">NeoAPRS-x86_64.AppImage · Ubuntu 22.04, Debian 12, Fedora 36 and newer</span></li>
         <li>Open a terminal and make it a program.<div class="cmd"><code>chmod +x ~/Downloads/NeoAPRS-x86_64.AppImage</code><button class="copy" type="button" data-text="chmod +x ~/Downloads/NeoAPRS-x86_64.AppImage" hidden>Copy</button></div></li>
         <li>Start it. From then on a double-click on the file starts it too.<div class="cmd"><code>~/Downloads/NeoAPRS-x86_64.AppImage</code><button class="copy" type="button" data-text="~/Downloads/NeoAPRS-x86_64.AppImage" hidden>Copy</button></div></li>
-        <li>NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+        <li>NeoAPRS asks for your call, your position and your radio. No radio at hand: choose a Dummy radio.</li>
       </ol>
       <ol class="dl-steps pi-app">
         <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb">Download for Raspberry Pi</a><span class="dl-note">neoaprs_arm64.deb · 64-bit Raspberry Pi OS</span></li>
         <li>Open a terminal and install it. It asks for your password.<div class="cmd"><code>sudo apt install ~/Downloads/neoaprs_arm64.deb</code><button class="copy" type="button" data-text="sudo apt install ~/Downloads/neoaprs_arm64.deb" hidden>Copy</button></div></li>
         <li>Start NeoAPRS, now and every time the computer starts.<div class="cmd"><code>neoaprs service install --linger</code><button class="copy" type="button" data-text="neoaprs service install --linger" hidden>Copy</button></div></li>
-        <li>Open <a href="http://localhost:7303">http://localhost:7303</a> in the browser. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+        <li>Open <a href="http://localhost:7303">http://localhost:7303</a> in the browser. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose a Dummy radio.</li>
       </ol>
       <ol class="dl-steps linux-srv">
         <li>From another computer, log in to the Linux PC with SSH, the way you set it up (<code>ssh YOU@NAME.local</code>).</li>
@@ -135,7 +135,7 @@
         <li>Start NeoAPRS, now and every time the computer starts.<div class="cmd"><code>neoaprs service install --linger</code><button class="copy" type="button" data-text="neoaprs service install --linger" hidden>Copy</button></div></li>
         <li>Only if you have turned on a firewall: let the page through. Raspberry Pi OS and Ubuntu come with it off, so most can skip this.<div class="cmd"><code>sudo ufw allow 7303/tcp</code><button class="copy" type="button" data-text="sudo ufw allow 7303/tcp" hidden>Copy</button></div></li>
         <li>Show the computer's name and its address, and the key the other computer or phone will ask for.<div class="cmd"><code>hostname; hostname -I; neoaprs db get web/key</code><button class="copy" type="button" data-text="hostname; hostname -I; neoaprs db get web/key" hidden>Copy</button></div></li>
-        <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+        <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose a Dummy radio.</li>
       </ol>
       <ol class="dl-steps pi-srv">
         <li>From another computer, log in to the Raspberry Pi with SSH, the way you set it up (<code>ssh YOU@NAME.local</code>). Raspberry Pi OS must be the 64-bit one.</li>
@@ -145,7 +145,7 @@
         <li>Start NeoAPRS, now and every time the computer starts.<div class="cmd"><code>neoaprs service install --linger</code><button class="copy" type="button" data-text="neoaprs service install --linger" hidden>Copy</button></div></li>
         <li>Only if you have turned on a firewall: let the page through. Raspberry Pi OS and Ubuntu come with it off, so most can skip this.<div class="cmd"><code>sudo ufw allow 7303/tcp</code><button class="copy" type="button" data-text="sudo ufw allow 7303/tcp" hidden>Copy</button></div></li>
         <li>Show the computer's name and its address, and the key the other computer or phone will ask for.<div class="cmd"><code>hostname; hostname -I; neoaprs db get web/key</code><button class="copy" type="button" data-text="hostname; hostname -I; neoaprs db get web/key" hidden>Copy</button></div></li>
-        <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+        <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose a Dummy radio.</li>
       </ol>
     </div>
     <p class="aside">Every file is on the <a href="https://github.com/oh2gba/neoaprs/releases/latest">release page</a>. The source code is on <a href="https://github.com/oh2gba/neoaprs">GitHub</a>: Python and Vue, GPL v3 or later.</p>
@@ -185,7 +185,7 @@
         <a class="zoom pic" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/packets-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/packets.webp"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" decoding="async" alt="The packet log, each frame with the radio it came on"></picture></a>
       </li>
       <li>
-        <div class="txt"><h3>Your radios</h3><p>As many as you have, FM, HF and LoRa side by side, each with its own name. Route picks the radio for a station.</p></div>
+        <div class="txt"><h3>Your radios</h3><p>As many as you have, FM, Mercury and LoRa side by side, each with its own name. Route picks the radio for a station.</p></div>
         <a class="zoom pic" href="shots/settings-tnc.png" data-dark="shots/settings-tnc-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/settings-tnc-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/settings-tnc-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/settings-tnc.webp"><img src="shots/thumbs/settings-tnc.png" width="640" height="400" loading="lazy" decoding="async" alt="NeoAPRS Settings, the Radio group: an FM, an HF and a LoRa radio, each in its own box, the main radio and Add radio"></picture></a>
       </li>
       <li>
@@ -202,7 +202,7 @@
 
 <section class="sec" id="radios">
   <div class="wrap">
-    <h2>Radios: FM, HF and LoRa</h2>
+    <h2>Radios: FM, Mercury and LoRa</h2>
     <div class="cols">
       <dl class="rlist">
         <div><dt>Kenwood TH-D7, TM-D700, TS-2000; TNC-2 clones (MFJ-1270B, 1274, 1278, TAPR)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d7-and-tm-d700">serial, 9600</a></dd></div>
@@ -210,15 +210,15 @@
         <div><dt>Kenwood TH-D74, TH-D75</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d74-and-th-d75">USB or Bluetooth</a></dd></div>
         <div><dt>Mobilinkd TNC3, TNC4</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB, Bluetooth or Bluetooth LE</a></dd></div>
         <div><dt>BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></dd></div>
-        <div><dt>Yaesu FTM-100, 400, 500 (FTM-300 <i>untested</i>); a TNC without KISS (TAPR TNC-2, PK-232) <i>(receive only)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#rx-only-yaesu-ftm-tnc-text">serial: what it hears, on the map</a></dd></div>
+        <div><dt>Yaesu FTM-100, 400, 500 (FTM-300 <i>untested</i>); a TNC without KISS (TAPR TNC-2, PK-232) <i>(receive only)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only">serial: what it hears, on the map</a></dd></div>
         <div><dt>PicoAPRS V4 <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></dd></div>
       </dl>
       <dl class="rlist">
         <div><dt>LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU, esp32_loraprs <i>(not yet tried on a board)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-boards">on the network, USB or Bluetooth</a></dd></div>
         <div><dt>NinoTNC, TNC-Pi, TNC-X, any TNC in KISS mode</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></dd></div>
         <div><dt>Kantronics KPC-3+</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kantronics-kpc-3">RS-232</a></dd></div>
-        <div><dt>Yaesu, Icom or any radio with a sound-card interface (Digirig, AIOC, SignaLink)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">Direwolf, built in (Windows, Linux)</a></dd></div>
-        <div><dt>HF: an SSB radio with a USB sound card or an interface (DigiRig, SignaLink)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mercury-hf-modem">Mercury modem, built in</a></dd></div>
+        <div><dt>Yaesu, Icom or any radio with a sound-card interface (Digirig, AIOC, SignaLink)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#sound-card">Sound card, modem built in (Windows, Linux)</a></dd></div>
+        <div><dt>Mercury: a radio with a USB sound card or an interface (Digirig, SignaLink)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mercury-modem">Mercury modem, built in</a></dd></div>
         <div><dt>A GPS receiver</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#a-gps-receiver">gpsd or serial</a></dd></div>
       </dl>
     </div>
@@ -269,7 +269,7 @@
           <li><h3>Far</h3><p>On 40 m and 20 m, usually stations 1000 to 2000 km away, on one HF frequency, with no digipeaters and no internet.</p></li>
           <li><h3>Nothing to install</h3><p>Mercury is inside NeoAPRS. The sound card and the keying are preselected; Tune and Test set up the radio.</p></li>
           <li><h3>Fast enough</h3><p>A frame takes 3.8 s on the air.</p></li>
-          <li><h3>Try it first</h3><p>The Dummy HF radio makes up distant stations and plays the modem through your speakers.</p></li>
+          <li><h3>Try it first</h3><p>The Dummy Mercury radio makes up distant stations and plays the modem through your speakers.</p></li>
         </ul>
         <table class="freqs" id="frequencies"><caption>Suggested frequencies</caption><tbody><tr><th scope="row">80 m</th><td>&nbsp;3.5850 MHz USB</td></tr><tr><th scope="row">40 m</th><td>&nbsp;7.0541 MHz USB</td></tr><tr><th scope="row">20 m</th><td>14.1070 MHz USB</td></tr><tr><th scope="row">&nbsp;6 m</th><td>50.6200 MHz USB</td></tr></tbody></table>
       </div>

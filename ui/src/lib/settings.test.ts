@@ -535,11 +535,7 @@ describe("the radios' own settings in the form", () => {
     );
     expect(FIELDS["hf/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.value))).toEqual(["mercury", "dummy-hf"]);
     expect(typeChoices().map((c) => c.value)).toEqual(RADIO_TYPES.map((type) => type.key));
-    expect([typeText("kiss-tcp"), typeText("dummy-hf"), typeText("nothing")]).toEqual([
-      "KISS over TCP (Direwolf, soundmodem)",
-      "Dummy HF radio (no radio, made-up distant stations)",
-      "nothing",
-    ]);
+    expect([typeText("kiss-tcp"), typeText("dummy-hf"), typeText("nothing")]).toEqual(["Your own Direwolf or soundmodem", "Dummy Mercury radio", "nothing"]);
     for (const type of RADIO_TYPES) expect(typeText(type.key), type.key).not.toBe(type.key); // (every type the daemon lists has its name in the catalogue: no type's key on the page)
   });
 });
@@ -575,7 +571,7 @@ describe("the keys of a radio's box", () => {
       boxTitle(radioOf(5, "mercury", { number: 3 }), true),
       boxTitle(radioOf(3, "kiss", { name: "Mobile" }), true),
       boxTitle(radioOf(3, "kiss", { name: "Mobile" }), false),
-    ]).toEqual(["FM radio", "HF radio", "HF radio 3", "Mobile", "FM radio"]);
+    ]).toEqual(["FM radio", "Mercury radio", "Mercury radio 3", "Mobile", "FM radio"]);
     expect([unnamed(radioOf(3, "kiss", { name: "Mobile", number: 2 })), unnamed(radioOf(1, "kiss"))]).toEqual(["FM 2", "FM"]);
   });
 

@@ -18,7 +18,7 @@ const ports: PortsMessage = {
   radio: 2,
 };
 
-describe("the keying choices of the Mercury HF modem", () => {
+describe("the keying choices of the Mercury modem", () => {
   it("offer the radio by itself and a CM108 chip, then RTS and DTR of every serial port, never of a Bluetooth device", () => {
     expect(keyingChoices(ports).map((c) => c.value)).toEqual(["vox", "cm108", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0", "rts:COM3", "dtr:COM3"]);
     expect(keyingChoices(ports).map((c) => c.label)).toEqual([

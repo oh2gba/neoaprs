@@ -161,7 +161,7 @@ async def find_radio_cancel(ctx: Ctx, cmd: FindRadioCancel) -> None:
 
 @command(BeaconNow)
 async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
-    """A beacon on every radio the beacon goes out on (each by its own rules: the HF one direct, the FM one by the path; Send on: RadioRegistry.beaconing); refused with the reason when none went out."""
+    """A beacon on every radio the beacon goes out on (each by its own rules: the Mercury one direct, the FM one by the path; Send on: RadioRegistry.beaconing); refused with the reason when none went out."""
     beacons = [radio.beacon for radio in ctx.ctl.radios.beaconing()]
     if not beacons and ctx.ctl.config.listens_only:
         raise UserError("beacon_now: RX only: nothing is sent", "transmit.off")          # (every radio that is on only receives)

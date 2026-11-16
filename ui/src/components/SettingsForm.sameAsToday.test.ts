@@ -70,7 +70,7 @@ const SETTINGS_TAB = {
 const STATION = ["set-station-call", "set-station-call-ssid", "set-gps-source", "set-station-place", "set-station-symbol-change"];
 
 describe("the Settings tab and the My station tab with the FM radio alone", () => {
-  it("draw the groups other than Radio as they were before the HF radio", () => {
+  it("draw the groups other than Radio as they were before the Mercury radio", () => {
     expect(drawn({}, "settings")).toEqual(SETTINGS_TAB);
   });
 
@@ -140,7 +140,7 @@ describe("the header with the FM radio alone", () => {
   };
   const open: Link = { connection: "open", radios: pageRadiosOf(fmRow()), now: NOW, inApp: false, told: true };
 
-  it("is the Server mark and the one Radio mark, mint while connected, whether the HF radio's topic is there or not", () => {
+  it("is the Server mark and the one Radio mark, mint while connected, whether the Mercury radio's topic is there or not", () => {
     const today = [
       ["SPAN", "NeoAPRS", "The page is connected to NeoAPRS", "tag-ok pill-daemon"],
       ["BUTTON", "Radio", "Radio connected. Settings → Radio", "tag-ok pill-radio"],

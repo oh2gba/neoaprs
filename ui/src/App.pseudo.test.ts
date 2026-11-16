@@ -54,7 +54,7 @@ describe("the page in the pseudo-locale", () => {
       localStorage.setItem("NeoAPRS.tab", tab);
       const { wrapper, socket } = await open();
       const fm = fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } } });
-      const hf = hfRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "HF", radio: 2 } } });
+      const hf = hfRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "Mercury", radio: 2 } } });
       const off = fmRow({ enabled: false, state: "stopped" });
       socket.say({ type: "state", topic: "radios", rev: 5, value: tab === "skeds" ? radiosValue(off, hf) : radiosValue(fm) }); // (the HF tests tab is there while an HF radio is on; one radio on, one Radio mark)
       socket.say({ type: "state", topic: "config", rev: 5, value: configValues({ "station/call": "" }) });

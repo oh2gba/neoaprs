@@ -147,7 +147,7 @@ describe("the statistics of the map", () => {
     ]);
   });
 
-  it("adds up the radios that are on, and counts the HF radio alone when the FM radio is off", () => {
+  it("adds up the radios that are on, and counts the Mercury radio alone when the FM radio is off", () => {
     const fm = (extra = {}) =>
       radioRow(1, "kenwood-tnc2", { stats: lineStats({ frames_in: 100, rejected: 0, bytes_in: 1024, bytes_out: 1024, digipeated: 2 }), ...extra });
     const hf = radioRow(2, "mercury", { stats: lineStats({ frames_in: 20, rejected: 3, bytes_in: 1024, bytes_out: 0, digipeated: 1 }) });
@@ -194,7 +194,7 @@ describe("the statistics of the map", () => {
     expect(found.some((l) => l.startsWith("stats.direct_share"))).toBe(false);
   });
 
-  it("counts the HF radio's packets as HF, apart from the FM radio's (plan section 9: they were counted together), also for the HF radio alone", () => {
+  it("counts the Mercury radio's packets as Mercury, apart from the FM radio's (plan section 9: they were counted together), also for the Mercury radio alone", () => {
     const heard = new Map(
       [packet(1, { radio_id: 1, heard_at: ago(60) }), packet(2, { radio_id: 2, heard_at: ago(30) }), packet(3, { radio_id: 2, heard_at: ago(0) })].map(
         (row) => [String(row.id), row] as const,
@@ -202,9 +202,9 @@ describe("the statistics of the map", () => {
     );
     const byChannel = (extra: object) =>
       lines(mapStats(input({ packets: heard, ...extra })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
-    expect(byChannel({})).toBe("stats.by_channel=1 FM · 2 HF");
+    expect(byChannel({})).toBe("stats.by_channel=1 FM · 2 Mercury");
     expect(byChannel({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")) })).toBe(
-      "stats.by_channel=1 FM · 2 HF",
+      "stats.by_channel=1 FM · 2 Mercury",
     );
   });
 });
@@ -234,7 +234,7 @@ describe("the statistics of the map with several radios", () => {
 
   it("counts the latest packets by radio, by the radios' names, and the internet apart", () => {
     const found = lines(mapStats(input({ packets: heard, radios: SIX })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
-    expect(found).toBe("stats.by_channel=1 FM · 1 HF · 2 Shack · 1 20 m · 1 Portable · 1 Internet");
+    expect(found).toBe("stats.by_channel=1 FM · 1 Mercury · 2 Shack · 1 20 m · 1 Portable · 1 Internet");
   });
 
   it("adds up the counters of the radios that are on, and not of one that is off", () => {

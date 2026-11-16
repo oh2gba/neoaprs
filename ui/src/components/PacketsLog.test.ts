@@ -79,7 +79,7 @@ describe("PacketsLog", () => {
     expect(wrapper.findAll("td.via .tag").map((t) => t.classes()[1])).toEqual(["tag-dummy", "tag-neutral", "tag-info", "tag-neutral", "tag-neutral"]);
   });
 
-  it("marks a packet heard on the HF radio with a tag of its own, apart from the FM radio's: FM and HF", () => {
+  it("marks a packet heard on the Mercury radio with a tag of its own, apart from the FM radio's: FM and Mercury", () => {
     const today = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
     const wrapper = mount(PacketsLog, {
       global: withDaemon(fakeDaemon({ radios: today })),
@@ -91,7 +91,7 @@ describe("PacketsLog", () => {
       },
     });
     const tags = wrapper.findAll("td.via .tag");
-    expect(tags.map((t) => t.text())).toEqual(["HF", "FM"]);
+    expect(tags.map((t) => t.text())).toEqual(["Mercury", "FM"]);
     expect(tags.map((t) => t.classes()[1])).toEqual(["tag-hf", "tag-neutral"]);
   });
 
@@ -290,7 +290,7 @@ describe("PacketsLog with several radios", () => {
       ["Portable", "tag-removed"],
       ["20 m", "tag-dummy"],
       ["Shack", "tag-neutral"],
-      ["HF", "tag-hf"],
+      ["Mercury", "tag-hf"],
       ["FM", "tag-neutral"],
     ]);
     expect(cells.map((cell) => cell.attributes("title"))).toEqual([
@@ -299,7 +299,7 @@ describe("PacketsLog with several radios", () => {
       "Heard on radio Portable",
       "Heard on radio 20 m",
       "Heard on radio Shack",
-      "Heard on radio HF",
+      "Heard on radio Mercury",
       "Heard on radio FM",
     ]);
   });
@@ -322,7 +322,7 @@ describe("PacketsLog with several radios", () => {
 
   it("names the radio for a station with one radio on too (FM, not RF), the HF radio that is off by its name, and gives no tag to a radio the page does not know", () => {
     const wrapper = log([SIX[0], { ...SIX[1], enabled: false, state: "stopped" }]);
-    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "", "Dummy", "", "HF", "FM"]); // (radios 3 to 6 are not of this station: no tag but the Dummy's mark)
+    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "", "Dummy", "", "Mercury", "FM"]); // (radios 3 to 6 are not of this station: no tag but the Dummy's mark)
     expect(wrapper.findAll("td.via")[2]?.find(".tag").exists()).toBe(false);
   });
 });
@@ -358,10 +358,10 @@ describe("PacketsLog with one radio", () => {
     ]);
   });
 
-  it("names an HF radio alone HF, in its own tone, and a LoRa radio alone LoRa, in its sage", () => {
+  it("names an Mercury radio alone Mercury, in its own tone, and a LoRa radio alone LoRa, in its sage", () => {
     expect(via(log(radioRow(1, "mercury"))).slice(2)).toEqual([
-      ["HF", "tag-hf", "Sent on radio HF"],
-      ["HF", "tag-hf", "Heard on radio HF"],
+      ["Mercury", "tag-hf", "Sent on radio Mercury"],
+      ["Mercury", "tag-hf", "Heard on radio Mercury"],
     ]);
     expect(via(log(radioRow(1, "lora-tcp"))).slice(2)).toEqual([
       ["LoRa", "tag-lora", "Sent on radio LoRa"],

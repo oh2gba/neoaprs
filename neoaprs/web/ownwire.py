@@ -35,7 +35,7 @@ class OwnObjectRow(_Model):
     updated_at: Iso = Field(description="when it was last changed or killed")
     sent: int = Field(ge=0, description="how often it was sent since it was last changed or killed")
     last_sent_at: Iso | None = Field(description="when it was last sent; null while it has not been sent (the call is not set, or the radio is away)")
-    next_at: Iso | None = Field(description="when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on HF and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request`")
+    next_at: Iso | None = Field(description="when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request`")
 
 
 class OwnBulletinRow(_Model):

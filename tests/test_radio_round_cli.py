@@ -1,6 +1,6 @@
 """Where the daemon's radios (neoaprs/radioedits.py, the controller, the page's config view) meet the command line and the support bundle (neoaprs/cli/dbcmd.py, doctor.py, support*.py). Each side
 has its own tests; here one data folder goes through both. A new installation has no radio until one is added, which `neoaprs db`, `neoaprs doctor` and the bundle say, and then show the one added;
-a radio added and set with the command line on a stopped daemon's file is what the next start runs with, and a save of the page is what `db get` reads; the HF radio added on the page is a second
+a radio added and set with the command line on a stopped daemon's file is what the next start runs with, and a save of the page is what `db get` reads; the Mercury radio added on the page is a second
 radio for the command line and the bundle, and a database made of that bundle (tests/support/bundledb.py) and migrated has the same radios and the stations' choices of them; a removed radio is no
 setting of the station's on the page, on the command line or in the bundle. A Sound card radio (`direwolf`) is a new installation's radio 1 by `radios add` where the installation carries Direwolf, and the first
 start runs it on its own Direwolf; where none is carried the command refuses it and stores no radio."""
@@ -200,7 +200,7 @@ async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command
     await e.start()
     page = await page_of(e)
     await page.send({"cmd": "radio_add", "type": "dummy-hf"})
-    assert (await page.expect("radio_added"))["id"] == HF_ID, "an HF radio added is radio 2"
+    assert (await page.expect("radio_added"))["id"] == HF_ID, "a Mercury radio added is radio 2"
     e.mercury._finder = lambda: None                              # (no program: the Dummy HF radio works without its speaker)
     await page.send({"cmd": "set_config", "values": {"radio/2/keying": "vox", "radio/2/tx_gain_db": "-4"}})
     await page.until(lambda: page.topics["config"]["radio_values"].get("radio/2/tx_gain_db") == "-4")
@@ -212,18 +212,18 @@ async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command
     await e.ctl.radios.flush()
     await e.stop()
     code, out, _ = await db(capsys, data, "radios")
-    assert code == 0 and [line.split()[:6] for line in out.splitlines() if line.startswith("radio ")] == [["radio", "1", "FM", "fm", "kenwood-tnc2", "on"], ["radio", "2", "HF", "hf", "dummy-hf", "on"]]
+    assert code == 0 and [line.split()[:6] for line in out.splitlines() if line.startswith("radio ")] == [["radio", "1", "FM", "fm", "kenwood-tnc2", "on"], ["radio", "2", "Mercury", "hf", "dummy-hf", "on"]]
     assert "radio/2/keying" in out and "vox" in out
-    assert [line.split(":")[0] for line in await doctor_radios(capsys, data)] == ["ok    radio FM (kenwood-tnc2)", "ok    radio HF (dummy-hf)"]
+    assert [line.split(":")[0] for line in await doctor_radios(capsys, data)] == ["ok    radio FM (kenwood-tnc2)", "ok    radio Mercury (dummy-hf)"]
     path, members = await bundle(tmp_path / "out", data)
-    assert bundle_radios(members) == [(FM_ID, "fm", "kenwood-tnc2", "FM", True, False), (HF_ID, "hf", "dummy-hf", "HF", True, False)] and summary_titles(members) == ["Radio 1: FM", "Radio 2: HF"]
+    assert bundle_radios(members) == [(FM_ID, "fm", "kenwood-tnc2", "FM", True, False), (HF_ID, "hf", "dummy-hf", "Mercury", True, False)] and summary_titles(members) == ["Radio 1: FM", "Radio 2: Mercury"]
     made = tmp_path / "again" / DB_NAME
     assert bundle_database(made, path) == []
     opened(made).close()                                              # (migrated to this version, as a start does)
     radios, own, rows = tables(made)
     radios_before, own_before, rows_before = tables(data / DB_NAME)
     assert radios == radios_before and in_force(made) == in_force(data / DB_NAME), "the same radios, with the same own settings in force"
-    assert [row for row in own if row[:2] != (HF_ID, "path")] == own_before, "(migration 31 keeps the station's path on radio 2 too, which no type of HF radio reads)"
+    assert [row for row in own if row[:2] != (HF_ID, "path")] == own_before, "(migration 31 keeps the station's path on radio 2 too, which no type of Mercury radio reads)"
     assert json.loads(rows[MESSAGE_RADIOS]) == json.loads(rows_before[MESSAGE_RADIOS]) == {"OH2GAX-2": HF_ID, "OH2RDG": FM_ID}, "the stations' choices of them, by id"
 
 
@@ -243,5 +243,5 @@ async def test_a_removed_radio_is_no_setting_of_the_station_on_the_page_on_the_c
     assert code == 0 and not set(FLAT_KEYS) & set(on_line) and not set(FLAT_KEYS) & (set(in_bundle["values"]) | set(in_bundle["other_rows"])), "no key of before, the removed radio's keying and sound card least"
     assert not [key for key in on_page["radio_values"] if key.startswith("radio/2/")] and not set(FLAT_KEYS) & set(on_page["values"]), "the page is told no setting of the removed radio"
     code, out, err = await db(capsys, data, "get", "mercury/keying")
-    assert (code, out) == (2, "") and "mercury/keying: no such setting: it is radio/<id>/keying now" in err, "the station has no HF radio to name"
+    assert (code, out) == (2, "") and "mercury/keying: no such setting: it is radio/<id>/keying now" in err, "the station has no Mercury radio to name"
     assert [(r[0], r[-1]) for r in bundle_radios(members)] == [(FM_ID, False), (HF_ID, True)] and summary_titles(members) == ["Radio 1: FM"], "the removed radio told as removed, no section"

@@ -28,7 +28,7 @@ The tab is a mail list, not a conversation. It has one row for each message to o
 - **Text** and "N left", the characters left of the 67 over the address, the space and the text.
 - **Send** at the lower right. It is off while the radio of email is not connected, the address or the text is empty, the address has a space in it, or the line is more than 67 bytes. After Send the text is empty again and the address stays, for the next mail to the same person.
 
-**The radio of email** is one that internet gateways hear: an FM or a LoRa radio, never HF, which has no iGates. It is the [main radio](radio.md#the-main-radio) when that is such a radio, else the first such radio that is on. While none is on, Send and Check email are off with the title "No radio that internet gateways hear is on".
+**The radio of email** is one that internet gateways hear: an FM or a LoRa radio, never a Mercury radio, which no iGate hears. It is the [main radio](radio.md#the-main-radio) when that is such a radio, else the first such radio that is on. While none is on, Send and Check email are off with the title "No radio that internet gateways hear is on".
 
 ## The rows
 

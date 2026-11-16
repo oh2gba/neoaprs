@@ -79,14 +79,14 @@ describe("the Dummy radio", () => {
     }
   });
 
-  it("says of the Dummy HF radio what it is, in the muted pill", () => {
+  it("says of the Dummy Mercury radio what it is, in the muted pill", () => {
     const dummy = radioRow(2, "dummy-hf");
     expect([rowPillText(dummy), rowPillClass(dummy)]).toEqual(["Dummy", "tnc-dummy"]);
-    expect(rowStatus(dummy, NOW)).toBe("Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
+    expect(rowStatus(dummy, NOW)).toBe("Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
   });
 });
 
-describe("the HF radio's line", () => {
+describe("the Mercury radio's line", () => {
   const hf = (modem: Partial<ModemState> = {}, extra: Partial<RadioRow> = {}) => hfRow({ stats: lineStats(), ...extra }, modem);
 
   it("says the mode, what the modem does, the SNR once a frame was decoded, and the last packet, with nothing of the socket", () => {

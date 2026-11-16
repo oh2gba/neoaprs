@@ -764,7 +764,7 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `beacon_last_sent` | time \| null |  | when the latest beacon was sent on any radio, by the timer or on request; null for none since the daemon started |
 | `beacon_next_due` | time \| null |  | when the next timed beacon is due on any radio the beacon goes out on (each radio's own is its row's `beacon`); null while none is planned |
 | `main_radio` | integer \| null |  | the main radio (its id): the one chosen (`station/main_radio`) while it is enabled, else the first enabled by position; it carries the bulletins, the status, and Ask around, Local info and email unless they name another. Null while no radio is enabled |
-| `email_radio` | integer \| null |  | the radio an email to the gateway goes out on (its id): the main radio when internet gateways hear its kind, else the first enabled radio of such a kind (FM, LoRa; never HF); null while there is none, and Send of an email is off |
+| `email_radio` | integer \| null |  | the radio an email to the gateway goes out on (its id): the main radio when internet gateways hear its kind, else the first enabled radio of such a kind (FM, LoRa; never Mercury); null while there is none, and Send of an email is off |
 | `unavailable_types` | string[] |  | the types of radio (keys of `RADIO_TYPES`) whose program this kind of installation does not carry (a Mac carries no Direwolf): the page does not offer them, and `radio_add` refuses them (`radio.unknown_type`) |
 | `station_status` | string |  | the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone |
 | `station_status_last_sent` | time \| null |  | when the latest status report was sent (kept over a restart); null for none yet |
@@ -1035,18 +1035,18 @@ row has a new distance and bearing, and the topic is told whole again.
 | `last_is_at` | time \| null |  | when a packet of the station was last received from the internet (`is`); null when none was |
 | `last_dummy_at` | time \| null |  | when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was |
 | `heard` | { [key: string]: HeardOn } |  | what each radio heard of the station, by the radio's id as text: how many packets of the air came on it and when the latest did; a radio that heard nothing of it has no entry |
-| `snr` | number \| null |  | the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy HF radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was |
+| `snr` | number \| null |  | the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy Mercury radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was |
 | `rssi` | number \| null |  | the received strength of that packet, dBm; null when its radio gave none (Mercury gives none) |
 | `signal_at` | time \| null |  | when that packet was heard; null until one with a reading was |
 | `position_via` | "rf" \| "rf-gated" \| "is" \| "dummy" \| null |  | the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own |
 | `packets_hour` | integer |  | how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) (>= 0) |
 | `device` | string |  | what the station runs, as the APRS device identification list names it ("Kenwood TH-D74", "APRSdroid"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown |
 | `last_path` | string[] |  | the digipeaters of the latest packet heard on the radio, the one that repeated it marked with `*`: the packet the radio that heard the station last (`last_path_radio`) heard last |
-| `last_path_radio` | integer \| null |  | the radio whose latest packet `last_path` is (the radio that heard the station last, radio 1 on a tie), its id; null for a station no radio heard. After a restart a station HF heard last shows HF's path, direct |
+| `last_path_radio` | integer \| null |  | the radio whose latest packet `last_path` is (the radio that heard the station last, radio 1 on a tie), its id; null for a station no radio heard. After a restart a station a Mercury radio heard last shows that radio's path, direct |
 | `last_route` | string |  | how the latest packet heard on the radio reached us (empty for a station known from the internet only): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3` (the digipeaters that repeated it, in order, `?` for one that did not put its call in) |
 | `heard_direct` | integer |  | how many packets came straight from the station (counted from the packets heard in this run and the latest 2000 the database kept) (>= 0) |
 | `last_direct_at` | time \| null |  | when a packet of the station was last heard direct (no digipeater repeated it, it was not a third-party packet), from the packets counted in `heard_direct`, on the radios that may carry a path; null for a station never heard direct |
-| `last_direct_any_at` | time \| null |  | when a packet of the station was last heard direct on any radio, HF too (plan 6b: the green check, the map's ring and the "direct only" filter count any radio); null for a station never heard direct |
+| `last_direct_any_at` | time \| null |  | when a packet of the station was last heard direct on any radio, a Mercury radio too (plan 6b: the green check, the map's ring and the "direct only" filter count any radio); null for a station never heard direct |
 | `heard_via` | [string, integer][] |  | [the station we heard, packets] for each digipeater that repeated its packets, the most first; `?` stands for a hop that was an alias (WIDE1) and gave no call; the 8 most frequent routes are counted |
 | `gated` | integer |  | how many third-party packets this station put on the air that we heard (an iGate wrapping what it took from the internet in a frame of its own; counted from the packets heard in this run and the latest 2000 the database kept, and for a station that is in the book); not `heard_rf_gated`, which counts the packets of this station that some iGate put on the air (>= 0) |
 | `igate` | boolean |  | a capabilities packet of the station said `IGATE`: it says it is an iGate |
@@ -1071,7 +1071,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `can_message` | boolean |  | a message can go to the station, and the card has a Message button: false for an object or an item, for our own station and for a station known only from the internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`) |
 | `may_not_message` | boolean |  | the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never sent a message or an ack: the conversation says a message may not be read there |
 | `radio_choice` | integer \| null |  | the radio the operator chose for messages to the station (`station_radio`), its id, while that radio is enabled; null for the daemon's choice (plan rule 3.2), and while the radio chosen is off |
-| `radio_now` | integer \| null |  | the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before HF, else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio |
+| `radio_now` | integer \| null |  | the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before Mercury, else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio |
 | `paths` | { [key: string]: string } |  | the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too) |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
@@ -1092,7 +1092,7 @@ One packet heard or sent. The rows are the values of the topic `packets`, keyed 
 | `kind` | "position" \| "message" \| "object" \| "item" \| "status" \| "other" \| "undecoded" |  | a telemetry report is `other`; its `decoded.type` is `telemetry` |
 | `route` | string |  | how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet |
 | `radio_id` | integer \| null |  | the radio the packet came on or went out on, its id (a row of the topic `radios`, a removed one too); null for a packet from the internet |
-| `snr` | number \| null |  | the signal-to-noise ratio the radio measured of the frame, dB, tied to the frame where it was read (the Mercury modem and the Dummy HF radio give it); null for a packet of ours, one from the internet and one of a radio that gives none (a KISS TNC) |
+| `snr` | number \| null |  | the signal-to-noise ratio the radio measured of the frame, dB, tied to the frame where it was read (the Mercury modem and the Dummy Mercury radio give it); null for a packet of ours, one from the internet and one of a radio that gives none (a KISS TNC) |
 | `rssi` | number \| null |  | the received strength the radio measured of the frame, dBm; null as `snr` is, and for the Mercury modem, which gives none |
 | `via` | "rf" \| "rf-gated" \| "is" \| "dummy" |  | the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) |
 | `gate` | string |  | the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet |
@@ -1625,7 +1625,7 @@ The base map: the files, the area and detail the settings ask for, the size esti
 
 ### ModemState
 
-The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury HF modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether
+The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether
 it hears a signal.
 
 | field | type | | description |
@@ -1641,7 +1641,7 @@ it hears a signal.
 | `frames_keyed` | integer |  | how many times the radio was keyed since the modem started (>= 0) |
 | `max_frame` | integer \| null |  | the longest packet the modem carries whole, in bytes (Mercury 123): a longer message is refused, a longer beacon has its comment cut; null for AX.25's own (Direwolf) (>= 1) |
 | `sound_card` | string |  | the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device |
-| `frequencies` | FrequencyRow[] |  | the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in four; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio (max 4 items) |
+| `frequencies` | FrequencyRow[] |  | the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in four; the page shows them in the Mercury radio's box as they are, with the words "suggested": they are not read from the radio (max 4 items) |
 | `keying` | string |  | how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` |
 | `scope` | boolean |  | the daemon reads the modem's UI interface: the spectrum scope can be shown (`radio_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem) |
 | `tx_gain_db` | integer |  | the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it (>= -20, <= 20) |
@@ -1699,7 +1699,7 @@ map shows; a killed one leaves that topic at once and stays here, as `killing`, 
 | `updated_at` | time |  | when it was last changed or killed |
 | `sent` | integer |  | how often it was sent since it was last changed or killed (>= 0) |
 | `last_sent_at` | time \| null |  | when it was last sent; null while it has not been sent (the call is not set, or the radio is away) |
-| `next_at` | time \| null |  | when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on HF and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request` |
+| `next_at` | time \| null |  | when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request` |
 
 ### PhgValues
 
@@ -1839,7 +1839,7 @@ What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of th
 | field | type | | description |
 |---|---|---|---|
 | `max_frame` | integer \| null |  | the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own |
-| `beacon_min_min` | integer |  | the shortest beacon interval the radio takes, in minutes (FM 20, HF 30): the station's interval is raised to it on this radio (>= 1) |
+| `beacon_min_min` | integer |  | the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio (>= 1) |
 
 ### RadioProblem
 
@@ -1861,8 +1861,8 @@ times a second; a change of the settings tells the topic whole.
 | `id` | integer |  | the radio's id (an integer the database gave it, never given again): what every other row and command names it by (>= 1) |
 | `kind` | "fm" \| "hf" \| "lora" |  | the kind of radio, fixed when it was added: its tag's colour and the defaults follow it |
 | `type` | string |  | its type, a `key` of `RADIO_TYPES` (ui/src/protocol/lists.ts), of its kind; it may change within the kind (`radio_change`) |
-| `name` | string |  | the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `HF 2`) in its own words |
-| `number` | integer |  | its number within its kind: 1 for the first of the kind by id among the radios not removed (`HF 2` is 2); a removed radio keeps its own (>= 1) |
+| `name` | string |  | the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `Mercury 2`) in its own words |
+| `number` | integer |  | its number within its kind: 1 for the first of the kind by id among the radios not removed (`Mercury 2` is 2); a removed radio keeps its own (>= 1) |
 | `enabled` | boolean |  | its Enable is ticked (`radio_change` with `enabled`); false for a removed radio |
 | `position` | integer |  | its place in the list of boxes (and of the first enabled, the main radio's default): the lowest first, then by id (>= 1) |
 | `removed` | boolean |  | it was removed: its row stays so that what came by it keeps its name; it is no longer started, chosen or offered |
@@ -1944,7 +1944,7 @@ The sked board: where it stands, the dials the project suggests, and the skeds t
 |---|---|---|---|
 | `state` | "ok" \| "offline" \| "off" \| "closed" |  | `ok`: the board was read (or has not been tried yet), and a sked may be posted. `offline`: the project's server could not be reached or its answer was not a board; `rows` are the last board known, and posting is off. `off`: the check is off (`NEOAPRS_UPDATE_CHECK=0`): nothing is read or posted, `rows` is empty. `closed`: the board is closed to new skeds (by the project, or for this call); `rows` are shown without the form |
 | `fetched_at` | time \| null |  | when the board was last read from the server (or when the one kept from the last run was); null before the first |
-| `frequencies` | SkedFrequency[] |  | the dials the project suggests for the HF radio, one to four, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state) (max 4 items) |
+| `frequencies` | SkedFrequency[] |  | the dials the project suggests for a Mercury radio, one to four, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state) (max 4 items) |
 | `rows` | SkedRow[] |  | the skeds to come by the daemon's clock, the nearest start first; empty when there are none (max 100 items) |
 
 ### SoundCardRow

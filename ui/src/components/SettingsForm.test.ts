@@ -27,7 +27,7 @@ afterEach(() => localStorage.clear());
 
 /** The boxes of the Notifications group (the Radio group has two of its own, FM radio and HF radio). */
 const notificationBoxes = (wrapper: ReturnType<typeof make>["wrapper"]) =>
-  wrapper.findAll("fieldset.subbox").filter((box) => !["FM radio", "HF radio"].includes(box.find("legend").text()));
+  wrapper.findAll("fieldset.subbox").filter((box) => !["FM radio", "Mercury radio"].includes(box.find("legend").text()));
 
 const row = (device: string, description: string) => portRow(device, description);
 const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
@@ -554,14 +554,14 @@ describe("SettingsForm", () => {
       const select = wrapper.find<HTMLSelectElement>("#set-radio-1-type");
       expect(wrapper.find("label[for=set-radio-1-type]").text()).toBe("Radio type");
       expect(select.findAll("option").map((o) => o.text())).toEqual([
-        "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+        "Sound card",
+        "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)",
         "Kenwood TM-D710 / TH-D72",
+        "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
         "Kantronics KPC-3+",
-        "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
-        "KISS over TCP (Direwolf, soundmodem)",
-        "RX only: Yaesu FTM, TNC text (no KISS)",
-        "Sound card (Direwolf)",
-        "Dummy (no radio, made-up traffic)",
+        "Your own Direwolf or soundmodem",
+        "Yaesu FTM, TNC in monitor mode (RX only)",
+        "Dummy FM radio",
       ]);
       expect(select.element.value).toBe("kenwood-tnc2");
     });
@@ -574,7 +574,7 @@ describe("SettingsForm", () => {
       expect(fieldIds(typed("kiss").wrapper)).toEqual(["set-radio-1-type", "set-radio-1-port", "set-radio-1-baud"]);
     });
 
-    it("shows the host and the port of the TCP server for KISS over TCP, and no serial port", () => {
+    it("shows the address and the port of the operator's own Direwolf or soundmodem, and no serial port", () => {
       const { wrapper } = typed("kiss-tcp", { "radio/1/port": "/dev/ttyUSB0" });
       expect(fieldIds(wrapper)).toEqual(["set-radio-1-type", "set-radio-1-tcp_host", "set-radio-1-tcp_port"]);
       expect(wrapper.find("#set-radio-1-tcp_port").attributes("placeholder")).toBe("8001");
@@ -666,9 +666,9 @@ describe("SettingsForm", () => {
       expect(options(wrapper)[0]).toBe("not set");
     });
 
-    it("shows no search and no port for KISS over TCP", () => {
+    it("shows no search and no serial port for the operator's own Direwolf or soundmodem", () => {
       const { wrapper } = make(OWNER, "settings", { ports: portList(), radios: radiosTopic(radioRow(1, "kiss-tcp")) });
-      expect(labels(wrapper)).toEqual(["Radio type", "TCP host", "TCP port"]);
+      expect(labels(wrapper)).toEqual(["Radio type", "Address", "Port"]);
       expect(wrapper.find("#set-radio-1-port").exists()).toBe(false);
       expect(headings(wrapper)).toHaveLength(0);
       expect(wrapper.find(".port-found").exists()).toBe(false);
@@ -1580,11 +1580,11 @@ describe("the radios that are on", () => {
     const fm = legends(make().wrapper);
     expect(fm).toContain("Digipeater");
     expect(legends(make({}, "settings", FM_OFF).wrapper)).toEqual(
-      fm.filter((l) => l !== "Digipeater").flatMap((l) => (l === "FM radio" ? [l, "HF radio"] : [l])),
+      fm.filter((l) => l !== "Digipeater").flatMap((l) => (l === "FM radio" ? [l, "Mercury radio"] : [l])),
     );
     // plan section 6: "one Digipeater Enable ... for each radio that may repeat ..., each row with the radio's name when there are several": with both radios on, the one Enable is in the FM radio's box
     expect(legends(make({}, "settings", BOTH).wrapper)).toEqual(
-      fm.flatMap((l) => (l === "Digipeater" ? [l, "FM radio"] : l === "FM radio" ? [l, "HF radio"] : [l])),
+      fm.flatMap((l) => (l === "Digipeater" ? [l, "FM radio"] : l === "FM radio" ? [l, "Mercury radio"] : [l])),
     );
   });
 

@@ -81,7 +81,7 @@ describe("MessageChain", () => {
     expect(show(incoming(2, "OH2RDG")).find(".chain").exists()).toBe(false);
   });
 
-  it("names the radio of the attempt on the you chip where radios are named, FM as HF, and none with one radio on", () => {
+  it("names the radio of the attempt on the you chip where radios are named, FM as Mercury, and none with one radio on", () => {
     const off = { enabled: false, state: "stopped" } as const;
     const both = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
     const fmAlone = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", off));
@@ -93,9 +93,9 @@ describe("MessageChain", () => {
       })
         .find(".chips li")
         .text();
-    expect([sent(1, both), sent(2, both)]).toEqual(["youFM", "youHF"]);
+    expect([sent(1, both), sent(2, both)]).toEqual(["youFM", "youMercury"]);
     expect([sent(1, fmAlone), sent(2, hfAlone)]).toEqual(["you", "you"]);
-    expect(sent(2, fmAlone)).toBe("youHF"); // (a radio that is not on is always named)
+    expect(sent(2, fmAlone)).toBe("youMercury"); // (a radio that is not on is always named)
   });
 
   it("names a third radio, and one removed since, by its name", () => {

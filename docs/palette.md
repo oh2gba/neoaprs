@@ -6,7 +6,7 @@ The colours are the project page's (`site/style.css`): petrol `#0a2a3d`, `#0e1f2
 
 The palette has no green, no amber and no red. **Ok** is the plain text, with its check mark where the page has one; **warn** is never a word in the bare `--warn` but a plate, the soft pair `--warn-soft-*` (the same pair as the tag): in the light theme petrol on a lime plate, in the dark theme lime on a dark lime plate, so that the plate stays darker than the HF tag's mint one. The plate is a shadow round the word's own box, so nothing moves; a line of its own (a refused Ask in Nearby, a short QRU in Objects) is as wide as its words, its plate widened sideways only. **bad** is the orange.
 
-Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a label **neutral**, a state **ok**, **warn**, **bad** or **info**, what is made up (the Dummy radio) **neutral** with a dashed border. The HF radio's tag is the site's inverse pill (`--hf-soft-*`: a petrol plate with white in the light theme, a mint one with petrol in the dark), told from every other tag by its lightness; the FM radio's tag is the neutral; the LoRa radio's is the sage (`--lora-soft-*`). The strong colours are for a line, a word, or the rare loud fill.
+Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a label **neutral**, a state **ok**, **warn**, **bad** or **info**, what is made up (the Dummy radio) **neutral** with a dashed border. The Mercury radio's tag is the site's inverse pill (`--hf-soft-*`: a petrol plate with white in the light theme, a mint one with petrol in the dark), told from every other tag by its lightness; the FM radio's tag is the neutral; the LoRa radio's is the sage (`--lora-soft-*`). The strong colours are for a line, a word, or the rare loud fill.
 
 Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`, `--bad`, and the Dummy's `--neutral-soft-fg`) reads at 4.5 to 1 on the panel, the page, a selected and a hovered row, a raised note and an input, in both themes, and on a group while it flashes (`--attention-bg`); every word on a plate reads at 4.5 to 1 on it; a drag across text (`--selection`) has the text at 4.5 to 1 and is told from every ground. The map, the weather graphs, the waterfall, the level bar, the phone code and the symbol sprites keep their own colours.
 
@@ -45,8 +45,8 @@ Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`,
 | `--neutral-soft-fg` | `#475f6e` | `#ced4d8` | petrol 75% on white / white 80% on petrol | the neutral tag: the text (AA at 11 px, on its plate and bare: the Dummy) |
 | `--lora-soft-bg` | `#91c1b9` | `#284b58` | sage / sage 22% on petrol | the LoRa radio's tag: the plate |
 | `--lora-soft-fg` | `#0a2a3d` | `#91c1b9` | petrol / sage | the LoRa radio's tag: the text (AA at 11 px) |
-| `--hf-soft-bg` | `#0a2a3d` | `#a6d7d4` | the inverse pill: petrol / the inverse pill: mint | the HF radio's tag, the site's inverse pill: the plate |
-| `--hf-soft-fg` | `#ffffff` | `#0a2a3d` | white / petrol | the HF radio's tag: the text (AA at 11 px) |
+| `--hf-soft-bg` | `#0a2a3d` | `#a6d7d4` | the inverse pill: petrol / the inverse pill: mint | the Mercury radio's tag, the site's inverse pill: the plate |
+| `--hf-soft-fg` | `#ffffff` | `#0a2a3d` | white / petrol | the Mercury radio's tag: the text (AA at 11 px) |
 | `--waterfall-0` | `#000828` | `#000828` | as it was | the HF waterfall: the floor and its background (a rig's scale, the same in both themes: the picture is dark in the light theme too) |
 | `--waterfall-1` | `#0834be` | `#0834be` | as it was | the HF waterfall: a weak signal |
 | `--waterfall-2` | `#00aaff` | `#00aaff` | as it was | the HF waterfall: halfway up |

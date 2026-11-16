@@ -45,7 +45,7 @@ KEY_TEST_SEC = 1.0                     # the PTT alone (`-x p`); the mark tone (
 TESTS = {"tune": "a", "key": "p"}
 
 # Direwolf as the Tnc reaches it: a modem program the daemon starts, KISS over TCP on this computer, with the rules a Profile has unless told others (an FM radio's).
-PROFILE = Profile("direwolf", "Sound card (Direwolf)", "modem", None, (), None, False, False,
+PROFILE = Profile("direwolf", "Sound card", "modem", None, (), None, False, False,
                   "Direwolf 1.8.1, which NeoAPRS carries, on the radio's sound card: AFSK 1200, keyed by a CM108 pin, RTS or DTR, or VOX.")
 
 

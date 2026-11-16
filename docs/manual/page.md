@@ -2,7 +2,7 @@
 
 NeoAPRS serves a page at `http://127.0.0.1:7303/` (the port is `web/port`). The [desktop app](desktop.md) shows the same page in a window. The colours follow the system's light or dark scheme.
 
-The page has a **map** of the area round your station and, at its right, a **panel** with its tabs: Messages, Stations, Nearby, Email, Bulletins, HF tests (while an HF radio is on), Objects, My station, Packets and Settings. A new page opens on Messages.
+The page has a **map** of the area round your station and, at its right, a **panel** with its tabs: Messages, Stations, Nearby, Email, Bulletins, HF tests (while a Mercury radio is on), Objects, My station, Packets and Settings. A new page opens on Messages.
 
 ## The panel and its tabs
 
@@ -18,7 +18,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 | **Nearby** | what is around you: Ask around, then the digipeaters, voice frequencies, iGates and stations heard direct |
 | **Email** | mail through the gateway ([email.md](email.md)) |
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
-| **HF tests** | when stations trying APRS on HF will be on the air, and the box to plan your own test ([hf-tests.md](hf-tests.md)); there while an HF radio is on |
+| **HF tests** | when stations trying APRS on HF will be on the air, and the box to plan your own test ([hf-tests.md](hf-tests.md)); there while a Mercury radio is on |
 | **Objects** | your objects and items, and Local info, where you ask the stations near you for theirs ([objects.md](objects.md)) |
 | **My station** | the state of the beacon with Beacon now, where your position comes from (fixed, or a GPS), the Beacon choice that switches the beacon off, and what your station says on the air ([beacon.md](beacon.md)) |
 | **Packets** | the log, newest first, below |
@@ -31,8 +31,8 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 - The columns Call, km and Last heard sort on a click. Your own station is on top.
 - A small check mark right after a call means the station was heard direct, on any radio ("Heard direct", also on its card).
 - In a column of its own after the call, as a small quiet tag, is how the station was heard: the **radio** that heard it (on the air, direct or by digipeaters), **iGate** (on the radio, from an iGate that took it from the internet), **Internet** (received over the internet, not on the radio) or two side by side, such as **FM** and **Internet** for a station heard both ways. **Dummy** is a station made up by the Dummy radio.
-- A radio's tag is its name, in the tone of its kind, with one radio on as with several: **FM**, **HF**, **LoRa** for a radio with no name of its own, else the name you gave it, **20 m** (hover text: "Heard on radio 20 m"). The row has the tags of the two radios that heard the station last, then **+1**, **+2** and so on, a tag whose hover text lists the other radios with their times; on a narrow table, one radio's tag and the +. iGate, Internet and Local info are not counted among them.
-- A station heard on a radio that is now off or removed keeps that radio's tag, by its name. Every HF packet is direct, so a station heard on HF has the check.
+- A radio's tag is its name, in the tone of its kind, with one radio on as with several: **FM**, **Mercury**, **LoRa** for a radio with no name of its own, else the name you gave it, **20 m** (hover text: "Heard on radio 20 m"). The row has the tags of the two radios that heard the station last, then **+1**, **+2** and so on, a tag whose hover text lists the other radios with their times; on a narrow table, one radio's tag and the +. iGate, Internet and Local info are not counted among them.
+- A station heard on a radio that is now off or removed keeps that radio's tag, by its name. Every packet of a Mercury radio is direct, so a station heard on one has the check.
 - An object that came as an answer to Local info has the tag **Local info** too; the station that sent it is in its hover text. Your own station and your own objects have none. Hover text says what the word means. A station known from the internet alone has its label in italics.
 - The filters are in a group box, **Filter**: the filter field, up to three tickboxes and a choice that wrap onto a second line: "hide timed out", "direct only" (stations heard direct at some time), "heard on RF only" (leaves out the stations known only from the internet; it is there once a station has been received over it, and off until you tick it) and **On map for** (1, 3, 6, 12 or 24 hours, [below](#the-map)).
 - The tickboxes are remembered by your browser; the hours are a setting of the daemon. A station heard on the radio as well as over the internet stays when "heard on RF only" is ticked, whichever radio heard it: RF there means on the air.
@@ -74,8 +74,8 @@ Each is told once each time it happens, not for every packet. A packet over the 
 
 The daemon keeps the alerts and watches the stations, so an alert works with no page open. It runs the alert command of Settings → Notifications as for a new message ([notifications.md](notifications.md)), and every page that is open alerts as its choice for messages says, with a pop-up of its own ("APRS alert: OH2XYZ", "OH2XYZ is on the air") and a bell in the browser tab, and the toast shows what happened with the time. A station with an alert has a small grey bell after its call in the table and on its card; its hover title says what is watched.
 - On the map a station known from the internet alone has a dotted outline round its symbol and its call in italics, in the light and the dark theme alike (its screen-reader name says "heard over the internet"; the hover card says how it was heard). A station heard on the radio, an iGate's too, is drawn as ever.
-- **The card** says when the station was last heard for each way it was heard ("FM 3 min ago · Internet 40 s ago"; every radio that heard it, "FM 3 min ago · HF 40 min ago", and with a colon once a radio has a name of its own, "FM: 3 min ago · 20 m: 1 h ago"), counts the packets of each under Details, and for a station known from the internet alone says that a message to it is not possible (messages go out by radio only) and has no Message button and no route.
-- **The Packets tab** has a **Via** column with how each packet came: the name of the radio it came or went on (FM, HF, 20 m; the packets you sent too), iGate (its hover text says which radio heard it) or Internet, and a packet's detail says how it came; a packet from the internet shows the path of its line (`TCPIP*,qAC,T2FINLAND`). The filter finds a radio's name, "internet" or "igate" too.
+- **The card** says when the station was last heard for each way it was heard ("FM 3 min ago · Internet 40 s ago"; every radio that heard it, "FM 3 min ago · Mercury 40 min ago", and with a colon once a radio has a name of its own, "FM: 3 min ago · 20 m: 1 h ago"), counts the packets of each under Details, and for a station known from the internet alone says that a message to it is not possible (messages go out by radio only) and has no Message button and no route.
+- **The Packets tab** has a **Via** column with how each packet came: the name of the radio it came or went on (FM, Mercury, 20 m; the packets you sent too), iGate (its hover text says which radio heard it) or Internet, and a packet's detail says how it came; a packet from the internet shows the path of its line (`TCPIP*,qAC,T2FINLAND`). The filter finds a radio's name, "internet" or "igate" too.
 
 ### Nearby
 
@@ -97,7 +97,7 @@ The tab has no count on it: nothing in it is waiting to be seen.
 The first box of the tab asks the stations in radio range to make themselves known, with one of the general queries of APRS: **Who is around** (`?APRS?`: the stations answer with their position, and their status if they have one), **iGates** (`?IGATE?`: the iGates answer with what they do) or **Weather stations** (`?WX?`: they answer with their weather). The query is in the hover text of each choice. **Ask** sends it once, by radio. The answers are ordinary packets: they arrive on the map, in the Stations tab and in the lists of this tab.
 
 - **The radio.** While several radios that can send are on, a list beside **Ask** chooses the radio the query goes on, the main radio first. Only the stations heard on that radio count as answers, and the first line under Ask begins with its name.
-- Under Ask, closed, is **Advanced** (there while a radio that is on may carry a path): the **Path** the query goes by and **RF only**, on a radio that carries none (HF) greyed with their values kept.
+- Under Ask, closed, is **Advanced** (there while a radio that is on may carry a path): the **Path** the query goes by and **RF only**, on a radio that carries none (Mercury) greyed with their values kept.
 - An empty path is your beacon's path, shown in the field. A path is calls or aliases separated by commas, as a station's own path is in Messages: `WIDE1-1,WIDE2-1`, or an explicit `OH2RDK-7,OH2RCH-2` for a station that reaches the network only through a fill-in digipeater that relays it when it is named, or `DIRECT` for none. A wrong path is orange, with the reason in its hover text. The button beside the field opens the [path builder](messages.md#the-path-builder).
 - **RF only**, ticked unless you untick it, puts `RFONLY` after the path, so that the iGates keep the query off the internet. The browser remembers the query, the path and RF only.
 - Nothing is sent while **RX only** is ticked, your call is not set, the radio is not connected or the path is wrong; one query of each kind goes on the air per minute on each radio. Ask is off then, and its hover text says why; a query the daemon refuses says why under it.
@@ -118,7 +118,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group
 - **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
 - **Radio**: the **RX only** tickbox first (ticked sends nothing, [beacon.md](beacon.md#rx-only)), a box for each radio, **Main radio** while more than one radio that can send is on, and **Add radio** last ([radio.md](radio.md#the-radio-group));
   - a box has its **Enable** tickbox, its **Name** and **Remove** once the station has more than one box, and while the radio is on its status line with **Reconnect**;
-  - behind the arrow of the status line are the **Radio type**, the fields of that type (a **Port** and **Speed**, a **TCP host** and **TCP port**, a **Sound card** and **Keying**) and what the type can do (**Find my radio**, **Suggested frequencies**, **Tune**, **Transmit level**, **Receive level**, **Spectrum**, **Terminal**);
+  - behind the arrow of the status line are the **Radio type**, the fields of that type (a **Port** and **Speed**, an **Address** and **Port**, a **Sound card** and **Keying**) and what the type can do (**Find my radio**, **Suggested frequencies**, **Tune**, **Transmit level**, **Receive level**, **Spectrum**, **Terminal**);
   - the Enable of the only radio that is on is greyed, with the hover text "The station's only radio that is on";
 - **Internet stations**: the one tickbox **Enable**, which shows the stations of APRS-IS within the map's radius, and its status row under it ([igate.md](igate.md)); without a call it says **Set your call first**;
 - **Digipeater**: the tickbox **Enable** of the fill-in digipeater, one for each FM radio that is on, each in a box named after its radio while several radios are on ([beacon.md](beacon.md#the-fill-in-digipeater));
@@ -127,7 +127,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group
 - **Map**: the **Radius**, and on the row under it **Detailed map** with the **Download map** button ([The base map](#the-base-map));
 - **Update check**: **Check now** ([install.md](install.md#the-update-check));
 - **Help**: one line, and the row **Feedback** with **Send feedback / logs** and an (i) beside it, which sends your words and the logs to the project ([support.md](support.md));
-- **About**: what NeoAPRS is, the version, who made it, the licence and the source code as links, the HF modem and its version, a thanks, the other ways to reach the project, and as the last line **Download logs**, which saves the same file ([support.md](support.md#saving-the-file)).
+- **About**: what NeoAPRS is, the version, who made it, the licence and the source code as links, the modems that come inside (Mercury, Dire Wolf) and their versions, a thanks, the other ways to reach the project, and as the last line **Download logs**, which saves the same file ([support.md](support.md#saving-the-file)).
 
 What the station says on the air, the call and the position are on the My station tab. [settings.md](settings.md) lists every setting and where it is.
 
@@ -139,13 +139,13 @@ A marker for every station that has a position shows the APRS symbol with the ca
 - While a GPS is chosen ([beacon.md](beacon.md#mobile-operation)) your own station is at the GPS fix and moves with it, and a **Follow my position** button at the top right of the map, there while the GPS has a fix, keeps the map centred on you. Dragging the map lets go of it.
 - The track of a station that moved is a line that fades with age along its length: the newest stretch full, the oldest faint. The track of the station you pick is drawn above the others, orange, heavier and solid whatever its age, on a pale edge so that it shows on any ground, with a dot at each position the station was heard at; the dots fade with the age of the position, so the trail of a moving station is read at a glance, each beacon on it.
 - The selected station, when it is a digipeater of the Nearby tab that gave a range, has a pale blue circle of that range round it, under the markers (one at a time; the map is fitted to the circle when the station is picked).
-- Your own station, when it is the selected one, has the same pale circle at the distance of the farthest station you have heard direct on a radio that may carry a path (FM, LoRa): your simplex reach as far as the stations heard tell it. A station heard direct over HF, hundreds of kilometres away, does not count. The map is fitted to it when you pick your station, and the circle goes with the selection. There is none until a station has been heard direct.
+- Your own station, when it is the selected one, has the same pale circle at the distance of the farthest station you have heard direct on a radio that may carry a path (FM, LoRa): your simplex reach as far as the stations heard tell it. A station heard direct on a Mercury radio, hundreds of kilometres away, does not count. The map is fitted to it when you pick your station, and the circle goes with the selection. There is none until a station has been heard direct.
 - A thin dashed circle round your own station is the ALOHA circle of Bob Bruninga, WB4APR: the distance within which the stations the main radio hears would fill its channel (1200 baud takes about 60 packets a minute), so a packet meant for a station beyond it is hard to receive reliably. The pointer resting on the line shows its radius.
 - NeoAPRS works the circle out every minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour: a moving car 15 packets, a parked one 7, a weather station 6, a digipeater 3, a home station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more. The circle ends at the station where the sum reaches 1800. Stations an iGate put on the air from the internet do not count.
 - There is no circle until your position is set and enough stations are heard to fill the channel, and none while the [main radio](radio.md#the-main-radio) is not an FM radio.
 - A marker dims in four steps on the way to the station's timeout.
 - **A right-click on the map** (a long press on a touch screen) opens a small menu where the pointer is: **Copy position** puts the place under the pointer on the clipboard as decimal degrees ("60.17345, 24.94123"), **Copy locator** its Maidenhead locator ("KP20le"); the page says what it copied.
-- Under them in the same menu **Statistics** opens the statistics card ([below](#the-statistics-card)), **Monitor** a radio's waterfall as a card, one item for each radio that has one, named "HF: Monitor" while several radios are on ([below](#the-monitor-card)) and **Replay**, last, plays back how the stations moved ([Replay](#replay)). Esc, a click outside the menu or an item closes it.
+- Under them in the same menu **Statistics** opens the statistics card ([below](#the-statistics-card)), **Monitor** a radio's waterfall as a card, one item for each radio that has one, named "Mercury: Monitor" while several radios are on ([below](#the-monitor-card)) and **Replay**, last, plays back how the stations moved ([Replay](#replay)). Esc, a click outside the menu or an item closes it.
 - A station heard direct within the last hour, on any radio, has a green ring round its marker.
 - A mouse resting on a marker for a quarter of a second shows a small card beside it with the call and the symbol's name, when the station was last heard, its status and comment, the distance and bearing from you, the temperature of a weather station, and how its packets reach you ("heard direct" or "via OH2RCH-2"). Only rows that have something to say are shown, and it is gone when the pointer leaves. A click still opens the full card. A touch screen has no resting pointer, so a tap opens the station as before.
 - The station you pick has its latest route drawn as a solid blue line from the station through each digipeater that has a position to your own station, with a dot and the call on each digipeater, and the route of the packet before it, if that came another way, as a thinner grey dashed line; no others. A moving station's routes start where it was when each packet was heard.
@@ -187,7 +187,7 @@ At the top is a graph of the packets heard in each of the last 24 hours, a bar f
 
 ## The monitor card
 
-**Monitor** in the map's menu, beside Statistics, opens a card over the map with a radio's waterfall, the frequency scale, the spectrum line and the receive level: the Spectrum of the radio's box in Settings ([radio.md](radio.md#the-hf-radios-box)), larger. While several radios are on, the menu and the card's head name the radio ("HF: Monitor"). The menu has it only while a radio has a scope.
+**Monitor** in the map's menu, beside Statistics, opens a card over the map with a radio's waterfall, the frequency scale, the spectrum line and the receive level: the Spectrum of the radio's box in Settings ([radio.md](radio.md#the-mercury-radios-box)), larger. While several radios are on, the menu and the card's head name the radio ("Mercury: Monitor"). The menu has it only while a radio has a scope.
 
 The card is at the bottom right of the map (beside the statistics card when both are open and the map is at least 920 pixels wide; on a narrower map and on a phone opening one closes the other). Its cross closes it, and so does Esc with the station cards. The browser remembers that it is open and where you left it, as with the statistics card; on a phone it is a card at the bottom of the screen. The pictures are made only while the card or the box in Settings shows them and this page is in front.
 
@@ -268,7 +268,7 @@ At the right, before the count of messages, are small marks that say how things 
 - **Update** (blue) while a newer version is out;
 - **NeoAPRS** (mint, lime while the page connects, orange when NeoAPRS does not answer), in a browser only. In the desktop app page and daemon are one, so it is not there. The page connects again by itself;
 - **Radio**, with one radio on: mint while it is connected, grey and dashed for a Dummy radio, lime with the state in words otherwise. It opens Settings → Radio;
-- with two radios on, a mark for each in its place, by its name (**FM**, **HF**), with the same colours and words, each leading to its own box;
+- with two radios on, a mark for each in its place, by its name (**FM**, **Mercury**), with the same colours and words, each leading to its own box;
 - with three or more, one mark **Radios**: mint while all are connected, lime naming the radio in trouble ("20 m: not connected") or the count when several are ("Radios: 2 not connected"). Its hover text lists each radio that is on with its state, and it leads to the first radio in trouble, else to the first box. It is dashed only while every radio is a Dummy;
 - **RX only** (lime) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
 - **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));
@@ -277,7 +277,7 @@ At the right, before the count of messages, are small marks that say how things 
 
 On a narrow screen the marks give way, the last first, and the count stays. Your call is not in the header; it is in the Settings tab and in every message you send.
 
-The state of the radio in words, when it is not connected (with two radios on the mark is the radio's name: "FM: searching…", "HF: not connected"):
+The state of the radio in words, when it is not connected (with two radios on the mark is the radio's name: "FM: searching…", "Mercury: not connected"):
 
 - **Radio: searching…** while it looks for the port, and **Radio: entering KISS…** while the TNC is put into KISS.
 - **Radio: not connected** while it waits between two tries or is stopped. The hover text says why.

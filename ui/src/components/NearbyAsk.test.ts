@@ -225,7 +225,7 @@ describe("the radio of Ask around (plan rule 3.6)", () => {
       radio(wrapper)
         .findAll("option")
         .map((o) => o.text()),
-    ).toEqual(["HF", "FM", "Mobile"]);
+    ).toEqual(["Mercury", "FM", "Mobile"]);
     expect(radio(wrapper).element.value).toBe("2");
     expect(fold(wrapper).find(".field").classes()).toContain("disabled"); // (HF carries no path)
     await ask(wrapper).trigger("click");
@@ -269,7 +269,7 @@ describe("the radio of Ask around (plan rule 3.6)", () => {
     const { wrapper } = on({}, FM, { ...HF, state: "connecting" });
     await radio(wrapper).setValue("2");
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
-    expect(ask(wrapper).attributes("title")).toBe("HF: not connected");
+    expect(ask(wrapper).attributes("title")).toBe("Mercury: not connected");
     const one = on({}, { ...FM, state: "waiting" });
     expect(ask(one.wrapper).attributes("title")).toBe("The radio is not connected");
     const none = on({ status: status({ main_radio: null }) }, { ...FM, enabled: false, state: "stopped" });
@@ -281,11 +281,11 @@ describe("the radio of Ask around (plan rule 3.6)", () => {
     const time = clockText(at).slice(0, 5);
     const asked = askedOf({ at, radio: 2, path: [] });
     const { wrapper, daemon } = on({ general: { asked: [asked], by_radio: [asked] } }, FM, HF);
-    expect(lines(wrapper)[0]?.text()).toBe(`HF: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`);
+    expect(lines(wrapper)[0]?.text()).toBe(`Mercury: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`);
     expect(lines(wrapper)[1]?.text()).toBe("Listening for stations that were quiet in the 10 minutes before…");
     await ask(wrapper).trigger("click");
-    await tell(daemon, { lastError: toastOf("general_query: radio HF is not connected", "radio.not_connected", { name: "HF" }) });
-    expect(lines(wrapper)[0]?.text()).toBe("Not sent: radio HF is not connected");
+    await tell(daemon, { lastError: toastOf("general_query: radio Mercury is not connected", "radio.not_connected", { name: "Mercury" }) });
+    expect(lines(wrapper)[0]?.text()).toBe("Not sent: radio Mercury is not connected");
     expect(lines(wrapper)).toHaveLength(2);
   });
 

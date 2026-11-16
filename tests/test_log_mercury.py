@@ -1,5 +1,5 @@
-"""What the log says of the HF radio and the Mercury modem, because a person who sends the support bundle is helped from it: the program found or not (and where it was looked for), the sound card with the reason it was
-chosen, the keying, the ports, the command line, Mercury's own first lines, every busy channel and every keyed radio with how long it lasted, a hold that gives up, why the program ended, and each frame over HF with its
+"""What the log says of the Mercury radio and the Mercury modem, because a person who sends the support bundle is helped from it: the program found or not (and where it was looked for), the sound card with the reason it was
+chosen, the keying, the ports, the command line, Mercury's own first lines, every busy channel and every keyed radio with how long it lasted, a hold that gives up, why the program ended, and each frame over Mercury with its
 size and the modem's SNR; and, with radios side by side, a sound card or a keying line another radio holds, with the holder, and the files an older version left in the data folder that could not be moved into
 the radio's folder. The modems are radios' (`fakemercury.of_radio`). The lines are the evidence, so the tests read them."""
 import logging
@@ -38,9 +38,9 @@ def test_the_sound_card_is_said_with_the_reason_it_was_chosen() -> None:
 
 
 def test_a_frame_over_the_modem_is_said_with_its_size_and_the_snr_when_there_is_one() -> None:
-    assert frame_words("in", 87, "OH2XYZ", -2.4) == "HF frame heard from OH2XYZ: 87 bytes, SNR -2 dB"
-    assert frame_words("in", 87, "OH2XYZ", None) == "HF frame heard from OH2XYZ: 87 bytes"
-    assert frame_words("out", 64, "OH2GBA", 3.0) == "HF frame sent from OH2GBA: 64 bytes"
+    assert frame_words("in", 87, "OH2XYZ", -2.4) == "Mercury frame heard from OH2XYZ: 87 bytes, SNR -2 dB"
+    assert frame_words("in", 87, "OH2XYZ", None) == "Mercury frame heard from OH2XYZ: 87 bytes"
+    assert frame_words("out", 64, "OH2GBA", 3.0) == "Mercury frame sent from OH2GBA: 64 bytes"
 
 
 async def test_the_start_says_the_program_the_sound_card_and_why_the_keying_the_ports_and_the_command_line(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -180,8 +180,8 @@ async def test_tune_and_the_keying_test_are_said_when_they_are_refused(tmp_path:
         await m.tune()
     with pytest.raises(Exception, match="not running"):
         await m.key_test()
-    assert "Mercury: the tune tone was refused: the HF radio is not running" in lines(caplog)
-    assert "Mercury: the keying test was refused: the HF radio is not running" in lines(caplog)
+    assert "Mercury: the tune tone was refused: the Mercury radio is not running" in lines(caplog)
+    assert "Mercury: the keying test was refused: the Mercury radio is not running" in lines(caplog)
 
 
 async def test_each_frame_over_hf_is_a_line_with_its_size_and_the_snr_of_the_modem(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -207,8 +207,8 @@ async def test_each_frame_over_hf_is_a_line_with_its_size_and_the_snr_of_the_mod
         assert tnc.send_frame(ui_frame("OH2GBA"))
         size = len(ax25.encode(ui_frame("OH2XYZ")))
         said = lines(caplog, "neoaprs.tnc")
-        assert f"HF frame heard from OH2XYZ: {size} bytes, SNR -2 dB" in said
-        assert f"HF frame sent from OH2GBA: {len(ax25.encode(ui_frame('OH2GBA')))} bytes" in said
+        assert f"Mercury frame heard from OH2XYZ: {size} bytes, SNR -2 dB" in said
+        assert f"Mercury frame sent from OH2GBA: {len(ax25.encode(ui_frame('OH2GBA')))} bytes" in said
         assert tnc.label == "hf radio" and any(line.startswith("hf radio: opened ") for line in said), "a line says which radio it is about"
         await until_started(lambda: m.frames_keyed == 1 and not m.keyed)               # (the fake station keys for our frame, then lets go)
         b.say_control("BUSY ON")

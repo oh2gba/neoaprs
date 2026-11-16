@@ -10,7 +10,7 @@ NeoAPRS is a Python package with one command, `neoaprs`. `neoaprsw` is the same 
 |---|---|
 | `--data DIR` | the data folder |
 | `--port PATH` | the port of radio 1 (its number in `neoaprs db radios`) for this run only. Its setting is not changed or stored; a replay's address, for instance. The kinds of port are in [radio.md](radio.md#the-port) |
-| `--hf-port URL` | the modem of the station's first Mercury radio for this run only: a Mercury that something else runs, such as `socket://127.0.0.1:8100` (its KISS port; its control port is the one 200 above). The daemon then starts no modem of its own and the settings for the sound card and the keying have no effect. It is for trying things on a bench; see [radio.md](radio.md#the-mercury-hf-modem) for the Mercury radio |
+| `--hf-port URL` | the modem of the station's first Mercury radio for this run only: a Mercury that something else runs, such as `socket://127.0.0.1:8100` (its KISS port; its control port is the one 200 above). The daemon then starts no modem of its own and the settings for the sound card and the keying have no effect. It is for trying things on a bench; see [radio.md](radio.md#the-mercury-modem) for the Mercury radio |
 | `--web-port N` | the page's port for this run only; 0 takes a free one |
 | `--debug` | logs more |
 | `--encryption` | allows [encrypted messages](messages.md#encrypted-messages) between two stations that have each other's key, for exceptional circumstances. Without it there is no Key menu, no padlock and nothing locked is sent |
@@ -45,7 +45,7 @@ It checks:
 - **The data folder**: made yet, writable.
 - **The database**: readable, and its version against the one this NeoAPRS uses. A file of a newer NeoAPRS fails; an older one is migrated at the next start.
 - **The call**: `station/call`. It says "set your call on the page" while it is empty or cannot transmit.
-- **The radios**: each by its name (`FM`, `HF`, `LoRa`, `FM 2`, or the one you gave it), with its type and its port, server or sound card and keying, or that it is off. It warns when no radio is on, and fails when the radios cannot be read from the database.
+- **The radios**: each by its name (`FM`, `Mercury`, `LoRa`, `FM 2`, or the one you gave it), with its type and its port, server or sound card and keying, or that it is off. It warns when no radio is on, and fails when the radios cannot be read from the database.
 - **The serial ports** the system lists, with the description and the USB `VID:PID` of each. That is also what to paste into a bug report.
 - **On Linux**, whether you are in the group that owns the serial devices (`dialout`, `uucp` on Arch), and whether **brltty** or **ModemManager** are installed. They take USB serial adapters: brltty makes a CH340, CP210x or FTDI port vanish as it is plugged in, and ModemManager probes new ports as modems. It gives the way to remove or stop them.
 - **On Linux with KDE**, whether Firefox is a Flatpak whose pop-ups can go missing. It prints the two `flatpak override` commands and never runs them ([notifications.md](notifications.md#pop-ups-do-not-appear)).

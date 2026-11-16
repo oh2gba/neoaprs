@@ -425,9 +425,9 @@ describe("the card by radio", () => {
     expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 3, on: true }]);
   });
 
-  it("names the HF radio on a station with an FM and an HF radio", () => {
+  it("names the Mercury radio on a station with an FM and a Mercury radio", () => {
     const { card } = station(radioRow(1, "kenwood-tnc2"), mercury(2));
-    expect(head(card())).toBe("HF: Monitor");
+    expect(head(card())).toBe("Mercury: Monitor");
   });
 
   it("with several radios with a scope, shows the first until another is chosen in the map's menu, then that one's, and names it", async () => {

@@ -22,8 +22,8 @@ const scopeRow = (over: Partial<ScopeRow> = {}, db = -40): ScopeRow => ({ db: ne
 const withModem = (modem: Partial<ModemState>): ModemState => modemState(modem);
 const hfBox = (wrapper: ReturnType<typeof mount>) => {
   const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
-  const box = group?.findAll("fieldset.subbox").find((f) => f.find("legend").text() === "HF radio");
-  if (!box) throw new Error("no HF box");
+  const box = group?.findAll("fieldset.subbox").find((f) => f.find("legend").text() === "Mercury radio");
+  if (!box) throw new Error("no Mercury box");
   return box;
 };
 /** The topic `radios`: radio 1 the FM radio, radio 2 the Mercury radio with this modem. */
@@ -95,7 +95,7 @@ afterEach(() => {
 });
 
 describe("the fold of the scope", () => {
-  it("is one row with the page's arrow, folded at first, under Tune and the Transmit level in the HF radio's box", () => {
+  it("is one row with the page's arrow, folded at first, under Tune and the Transmit level in the Mercury radio's box", () => {
     const { box } = make();
     const fold = box.find<HTMLDetailsElement>("details.hf-scope");
     expect(fold.exists()).toBe(true);
@@ -276,7 +276,7 @@ describe("the picture and the receive level", () => {
     expect(again.box.find(".levelvalue").text()).toBe("-38 dBFS");
   });
 
-  it("writes the call and the SNR of a frame heard on the HF radio where its line is, the call alone of one heard before it was told, and nothing for the FM radio, the internet or our own", async () => {
+  it("writes the call and the SNR of a frame heard on the Mercury radio where its line is, the call alone of one heard before it was told, and nothing for the FM radio, the internet or our own", async () => {
     packets.set("1", packet(1, { source: "OH2OLD", radio_id: 2 })); // (heard 99 s ago, before the page had any packet)
     await open();
     await say(scopeRow(), scopeRow(), scopeRow());

@@ -15,4 +15,4 @@ def _serial(profile: Profile) -> RadioType:
     return RadioType(profile.key, "fm", profile.name, f"radio.type.{profile.key}", profile.transport, "tnc", profile.key, fields_of((PORT, BAUD), FM_ALLOWED), FM_LIMITS, FM_ALLOWED, SERIAL_CAN, dummy=False)
 
 
-TYPES: tuple[RadioType, ...] = tuple(_serial(p) for p in (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS))     # in the order of today's list (tncprofile.PROFILES)
+TYPES: tuple[RadioType, ...] = tuple(_serial(p) for p in (KISS, KENWOOD_D710, KENWOOD_TNC2, KANTRONICS))     # in the order of the page's list: the KISS TNC, whose name has the TH-D74, above the two Kenwood lines, and the TM-D710 above the TH-D7

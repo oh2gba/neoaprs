@@ -13,7 +13,7 @@ from .tasks import TaskSet, cancel_all
 
 log = logging.getLogger("neoaprs.mercury")
 
-NOT_RUNNING = "the HF radio is not running"
+NOT_RUNNING = "the Mercury radio is not running"
 
 
 class Tuning:
@@ -49,12 +49,12 @@ class Tuning:
         if why := self._refusal():
             log.info("Mercury: %s was refused: %s", name, why)
             if why == NOT_RUNNING:
-                raise CodedError("the HF radio is not running", "hf.not_running")
+                raise CodedError("the Mercury radio is not running", "hf.not_running")
             raise CodedError(f"the radio is not free: {why}", "hf.held", reason=why)
         await self._cancel_test()
         if not self._write(tune_command(level_dbfs)):
             log.info("Mercury: %s was refused: the control port is not open", name)
-            raise CodedError("the HF radio is not running", "hf.not_running")
+            raise CodedError("the Mercury radio is not running", "hf.not_running")
         self.test = test
         log.info("Mercury: %s for %g s (%g dBFS, keyed by %s)", name, seconds, level_dbfs, self.keying.text)
         self._test_task = self._tasks.spawn(self._end_after(seconds, self._generation), "mercury-test")

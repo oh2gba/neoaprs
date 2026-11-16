@@ -59,7 +59,7 @@ describe("the menu of the map", () => {
     expect(document.activeElement).toBe(item("position"));
   });
 
-  it("has Monitor between Statistics and Replay while the HF radio has a scope, and says so to the page when it is chosen", async () => {
+  it("has Monitor between Statistics and Replay while the Mercury radio has a scope, and says so to the page when it is chosen", async () => {
     const { wrapper, daemon } = await mounted();
     const modem = modemState({ scope: true });
     await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { modem })) });
@@ -162,11 +162,11 @@ describe("the menu's Monitor by radio", () => {
     ]);
   });
 
-  it("names the HF radio on a station with an FM and an HF radio, and says Monitor alone with one radio on", async () => {
+  it("names the Mercury radio on a station with an FM and a Mercury radio, and says Monitor alone with one radio on", async () => {
     await withRadios(radioRow(1, "kenwood-tnc2"), mercury(2));
     rightClick(60.1, 24.9);
     await flushPromises();
-    expect(monitors().map((b) => b.textContent?.trim())).toEqual(["HF: Monitor"]);
+    expect(monitors().map((b) => b.textContent?.trim())).toEqual(["Mercury: Monitor"]);
     document.body.replaceChildren();
     resetFakes();
     await withRadios(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), mercury(2));

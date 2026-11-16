@@ -1,4 +1,4 @@
-"""The speaker of the Dummy HF radio: the Mercury the daemon starts to play our frames aloud (mercurymodem.py, `start(..., speaker=True)`), heard from the computer's own sound output.
+"""The speaker of the Dummy Mercury radio: the Mercury the daemon starts to play our frames aloud (mercurymodem.py, `start(..., speaker=True)`), heard from the computer's own sound output.
 
 Mercury runs on its `fifo` audio backend (raw s32le mono at 8000 samples a second over two named pipes, the backend the simulators use: tests/support/hfchannel.py), not on a sound card: a sound card is paced by its
 clock, but a silent capture device of ALSA (`null`) is not, and Mercury read it a thousand times faster than real time, filled its decoder and wrote a warning every millisecond (tried 2 November 2026). So the
@@ -8,9 +8,9 @@ does not. The frames to play come in on Mercury's broadcast port as KISS (`Speak
 
 Windows has no named pipes, and Mercury's fifo and null backends are one sound system for both directions with no Windows pipe in them (its audioio.c opens the path with open() and nothing else), so there the
 speaker is not started (mercurymodem.py says so in the log): Mercury on WASAPI's default devices would play the modem's audio out of the speakers and read the microphone for real, with a radio on the default
-output keying by VOX, which the Dummy's "nothing goes on the air" does not allow. The Dummy HF radio runs without the sound on Windows; whether it is to play there is a decision for later.
+output keying by VOX, which the Dummy's "nothing goes on the air" does not allow. The Dummy Mercury radio runs without the sound on Windows; whether it is to play there is a decision for later.
 
-Nothing of it is a must: no player, no pipes, a Mercury that is not there, are each a line in the log, and the Dummy HF radio makes its traffic all the same."""
+Nothing of it is a must: no player, no pipes, a Mercury that is not there, are each a line in the log, and the Dummy Mercury radio makes its traffic all the same."""
 import asyncio
 import contextlib
 import logging
@@ -45,8 +45,8 @@ NONBLOCK: int = getattr(os, "O_NONBLOCK", 0)
 
 def player_command() -> list[str] | None:
     """The system's player of raw audio from standard input, as a command; None when the machine has none of the three. NEOAPRS_PLAYER_PATH, when set, is where they are looked for instead of the PATH:
-    the tests and the demo daemons point it at a folder that is not there, so that no daemon of theirs on the Dummy HF radio plays Mercury out of the developer's speakers (John heard their beacons, 4 Nov 2026)."""
-    if nodevices.refused("the Dummy HF radio's audio is not played", logging.INFO):
+    the tests and the demo daemons point it at a folder that is not there, so that no daemon of theirs on the Dummy Mercury radio plays Mercury out of the developer's speakers (John heard their beacons, 4 Nov 2026)."""
+    if nodevices.refused("the Dummy Mercury radio's audio is not played", logging.INFO):
         return None
     path = os.environ.get("NEOAPRS_PLAYER_PATH")
     for name, args in PLAYERS:
@@ -84,7 +84,7 @@ class SpeakerAudio:
                 path.unlink(missing_ok=True)
                 make(path)
         except OSError as e:
-            log.info("the pipes of the Dummy HF radio's speaker could not be made: %s", os_error_text(e))
+            log.info("the pipes of the Dummy Mercury radio's speaker could not be made: %s", os_error_text(e))
             return False
         return True
 
@@ -168,11 +168,11 @@ class SpeakerAudio:
             command = self._player_command()
             self.player_said = True
             if command is None:
-                log.info("no player for the Dummy HF radio's audio (pw-play, paplay or aplay): the frames are not heard")
+                log.info("no player for the Dummy Mercury radio's audio (pw-play, paplay or aplay): the frames are not heard")
                 return
             try:
                 self._player = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                log.info("the Dummy HF radio's audio goes to %s", command[0])
+                log.info("the Dummy Mercury radio's audio goes to %s", command[0])
             except OSError as e:
                 log.info("the player %s could not be started: %s", command[0], os_error_text(e))
                 return
@@ -183,7 +183,7 @@ class SpeakerAudio:
             self._player.stdin.flush()
             self.bytes_played += len(data)
         except (OSError, ValueError) as e:
-            log.info("the player of the Dummy HF radio's audio ended: %s", os_error_text(e) if isinstance(e, OSError) else e)
+            log.info("the player of the Dummy Mercury radio's audio ended: %s", os_error_text(e) if isinstance(e, OSError) else e)
             self._end_player()
 
     def _end_player(self) -> None:
@@ -222,7 +222,7 @@ class SpeakerLine:
                 await asyncio.sleep(backoff.next_delay_sec())
                 continue
             self._writer = writer
-            log.info("Mercury plays the frames of the Dummy HF radio on the computer's sound output")
+            log.info("Mercury plays the frames of the Dummy Mercury radio on the computer's sound output")
             try:
                 while await reader.read(4096):                          # (nothing comes back on a broadcast port with no other station; the read ends when Mercury goes)
                     pass
