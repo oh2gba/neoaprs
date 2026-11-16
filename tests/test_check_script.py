@@ -303,19 +303,6 @@ def test_a_stage_without_a_stand_in_fails_and_the_real_one_does_not_run(gate: Ga
 
 # ---- an interrupted run ----
 
-def bash_version() -> tuple[int, int]:
-    """The version of the bash that runs the script, (0, 0) where there is none to ask."""
-    try:
-        said = subprocess.run(["bash", "-c", "echo ${BASH_VERSINFO[0]} ${BASH_VERSINFO[1]}"], capture_output=True, text=True, timeout=10).stdout.split()
-        return int(said[0]), int(said[1])
-    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
-        return 0, 0
-
-
-# A KNOWN FAULT of scripts/check, not of this test: under bash 5.3 (GitHub's runner and the container that copies it, since November 2026) a signal that comes while the script starts its stages can be lost, and
-# the run then does not end: master itself failed this test in three of six runs in that container on 16 November 2026, for each of the three signals in turn, and once on GitHub on the 15th. Two root fixes
-# (15 and 16 November) each held under bash 5.2 and not under 5.3. Until the script is right there, the test is not run there (docs/development.md says so beside the sentence it would hold).
-@pytest.mark.skipif(bash_version() >= (5, 3), reason="scripts/check can lose a signal under bash 5.3: a known fault of the script (docs/development.md)")
 @pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
 def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_away(gate: Gate, sent: signal.Signals, code: int) -> None:
     """The signal reaches the script alone, as `kill` sends it, while the stages run at once: the stage that is still busy and the program it started (a daemon of the suite, in the real one) are ended, the stage
@@ -335,9 +322,7 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
         until(lambda: not any(alive(pid) for pid in started), "the stage or what it started is still running")
     finally:
         run.kill()
-        for pid in started:                # (a script that failed this test leaves nothing behind either)
-            if alive(pid):
-                os.kill(pid, SIGKILL)
+        end_what_is_left(gate.folder, started)
     assert "start pytest" in gate.events() and "end pytest" not in gate.events() and "start smoke" not in gate.events()
     assert list(temp.iterdir()) == [] and "all green" not in output
 
@@ -349,6 +334,113 @@ def test_the_runner_has_no_command_substitution_for_a_signal_to_come_in_the_midd
     runner = SCRIPT.read_text(encoding="utf-8").split("\n# --- the runner ---", 1)[1]
     found = [line for line in runner.splitlines() if not line.lstrip().startswith("#") and re.search(r"\$\((?!\()", line)]
     assert not found, f"a command substitution in the runner of scripts/check: {found}"
+
+
+@pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
+def test_a_signal_that_comes_while_the_stages_are_being_started_ends_every_one_of_them(gate: Gate, sent: signal.Signals, code: int) -> None:
+    """The signal comes while the script is still starting the stages of the middle step, a moment made wide here: the stage in the middle of the list sends it to the script as the first thing it does, while the
+    script forks the ones after it, and every stage runs until it is ended. What this moment did to the script before: a stage that got the TERM of `finish` the moment it was forked ran `finish` itself, whose
+    bare `wait` then never returned under bash 5.3 (it waits there for jobs that are not its children); a stage forked a command before the script wrote it down, and a program that a stage forked as the TERM
+    came, were left running, under bash 5.2 too."""
+    pids, temp = gate.folder / "pids", gate.folder / "tmp"
+    temp.mkdir()
+    middle = AT_ONCE[len(AT_ONCE) // 2]
+    for name in AT_ONCE:
+        gate.bodies[name] = f'sleep 300 & echo "$BASHPID $!" >> "{pids}"; ' + (f"kill -{int(sent)} $$; " if name == middle else "") + "wait"
+    run = subprocess.Popen(["scripts/check"], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    started: list[int] = []
+    try:
+        output, _ = run.communicate(timeout=30)
+        assert run.returncode == code, output
+        started = [int(pid) for pid in pids.read_text().split()]
+        until(lambda: not any(alive(pid) for pid in started), "a stage or what it started is still running")
+    finally:
+        run.kill()
+        end_what_is_left(gate.folder, started or [int(pid) for pid in (text_if_readable(pids) or "").split()])
+    events = gate.events()
+    assert f"start {middle}" in events and not [event for event in events if event.startswith("end ") and event != "end lock"] and "start smoke" not in events
+    assert list(temp.iterdir()) == [] and "all green" not in output
+
+
+@pytest.mark.parametrize("where", ["exit", "jobs", "rm"])
+@pytest.mark.parametrize(("sent", "then", "code"), [(signal.SIGTERM, signal.SIGINT, 143), (signal.SIGINT, signal.SIGINT, 130), (SIGHUP, signal.SIGTERM, 129)])
+def test_a_second_signal_while_the_run_finishes_changes_nothing(gate: Gate, where: str, sent: signal.Signals, then: signal.Signals, code: int) -> None:
+    """A second Ctrl+C, or a second signal of another kind, that comes while the run ends what its stages started and takes its folder away: the end is the one of the first. The moment is made certain here:
+    `exit` (of the first signal's trap, before finish), `jobs` (asked for the stages before they are ended) or `rm` (the folder, last) sends the second signal to the script and takes a moment before it does
+    its work. Before, the second signal's trap ran its `exit` in the middle: the stages were left running or the folder in place, and the code named the second signal."""
+    pids, temp = gate.folder / "pids", gate.folder / "tmp"
+    temp.mkdir()
+    gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
+    gate.also = f'\n{where}() {{ echo "second signal in {where}" >> "$events"; builtin kill -{int(then)} $$; sleep 0.2; command {where} "$@"; }}\n'
+    run = subprocess.Popen(["scripts/check"], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    started: list[int] = []
+    try:
+        until(lambda: len((text_if_readable(pids) or "").split()) == 2, "the stage pytest never started")
+        started = [int(pid) for pid in pids.read_text().split()]
+        run.send_signal(sent)
+        output, _ = run.communicate(timeout=30)
+        assert run.returncode == code, output
+        until(lambda: not any(alive(pid) for pid in started), "the stage or what it started is still running")
+    finally:
+        run.kill()
+        end_what_is_left(gate.folder, started)
+    assert f"second signal in {where}" in gate.events() and "end pytest" not in gate.events() and "start smoke" not in gate.events()
+    assert list(temp.iterdir()) == [] and "all green" not in output
+
+
+def test_the_folder_goes_when_what_the_stages_started_has_ended(gate: Gate) -> None:
+    """A program of a stage that takes a moment to end after the TERM and writes into the folder of the run meanwhile (what a stage forked the moment the signal came does too, until a TERM reaches it):
+    when the script has ended, it has ended, and the folder is gone with what it wrote. Before, the script took the folder away as soon as the stages' own shells had gone, while such a program could still
+    write into it (`rm` then failed, and the run ended with 1 and its folder left)."""
+    pids, temp = gate.folder / "pids", gate.folder / "tmp"
+    temp.mkdir()
+    gate.bodies["pytest"] = f'trap \'sleep 0.5; echo late > "$work/late"; exit 1\' TERM; sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
+    run = subprocess.Popen(["scripts/check"], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    started: list[int] = []
+    try:
+        until(lambda: len((text_if_readable(pids) or "").split()) == 2, "the stage pytest never started")
+        started = [int(pid) for pid in pids.read_text().split()]
+        run.send_signal(signal.SIGTERM)
+        output, _ = run.communicate(timeout=30)
+        assert run.returncode == 143, output
+        assert not [pid for pid in started if alive(pid)], "the run has ended before what its stage started"
+    finally:
+        run.kill()
+        end_what_is_left(gate.folder, started)
+    assert list(temp.iterdir()) == [] and "all green" not in output
+
+
+@pytest.mark.parametrize("how", ["ignored", pytest.param("blocked", marks=pytest.mark.skipif(not Path("/proc/self/status").exists(), reason="the script reads a blocked TERM in /proc"))])
+def test_a_signal_the_parent_ignores_or_blocks_leaves_the_run_going_and_the_others_still_end_everything(gate: Gate, how: str) -> None:
+    """A parent that ignores HUP and TERM (as nohup does HUP) or blocks them: the run goes on through both, as it was asked (bash can neither trap nor reset a signal ignored on entry), and an INT then
+    ends it with everything its stages started, though they have TERM ignored or blocked too. Before, the TERM that ended the stages reached none of them, and the run waited for them for good."""
+    pids, temp = gate.folder / "pids", gate.folder / "tmp"
+    temp.mkdir()
+    gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
+
+    def as_the_parent_has_it() -> None:
+        if how == "ignored":
+            signal.signal(SIGHUP, signal.SIG_IGN)
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        else:
+            signal.pthread_sigmask(signal.SIG_BLOCK, [SIGHUP, signal.SIGTERM])
+
+    run = subprocess.Popen(["scripts/check"], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, preexec_fn=as_the_parent_has_it)
+    started: list[int] = []
+    try:
+        until(lambda: len((text_if_readable(pids) or "").split()) == 2, "the stage pytest never started")
+        started = [int(pid) for pid in pids.read_text().split()]
+        run.send_signal(SIGHUP)
+        run.send_signal(signal.SIGTERM)
+        run.send_signal(signal.SIGINT)
+        output, _ = run.communicate(timeout=30)
+        assert run.returncode == 130, output                 # (129 or 143: HUP or TERM ended it)
+        until(lambda: not any(alive(pid) for pid in started), "the stage or what it started is still running")
+    finally:
+        run.kill()
+        end_what_is_left(gate.folder, started)
+    assert "end pytest" not in gate.events() and "start smoke" not in gate.events()
+    assert list(temp.iterdir()) == [] and "all green" not in output
 
 
 def until(true: Callable[[], bool], otherwise: str) -> None:
@@ -367,6 +459,23 @@ def alive(pid: int) -> bool:
         return False
     stat = text_if_readable(Path(f"/proc/{pid}/stat"))                       # (None: it went between the two lookups)
     return stat is None or stat.rsplit(")", 1)[-1].split()[0] != "Z"
+
+
+def end_what_is_left(folder: Path, started: list[int]) -> None:
+    """A script that failed a test of an interrupted run leaves nothing behind either: the programs its stages started, and every shell of the copy (one that never ends would keep a core busy)."""
+    found = []
+    for entry in Path("/proc").glob("[0-9]*") if Path("/proc/self").exists() else []:
+        try:
+            if Path(os.readlink(entry / "cwd")) == folder.resolve():
+                found.append(int(entry.name))
+        except (OSError, ValueError):
+            pass
+    for pid in [*started, *found]:
+        if pid != os.getpid() and alive(pid):
+            try:
+                os.kill(pid, SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
 # ---- what keeps the stages apart when they run at once: their own command lines, against a python and an npx that only write down how they were called ----

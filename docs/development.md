@@ -66,7 +66,7 @@ The other ways to run it:
   machine with few cores, where step 2 asks for more than there is, and for reading the output of one failing test in order.
 - `scripts/check --stage NAME` runs one stage, `scripts/check --list` prints the names.
 
-A run that is interrupted (Ctrl+C, or a signal that ends it) ends the stages it started and takes its temporary folder away; a TERM sent to the script alone waits for `lock` or `smoke` to end when one of them is running. A known fault: under bash 5.3 (Ubuntu 26.04, so GitHub's runner and the container) a signal that comes while the stages are being started can be lost and the run goes on; the test of this sentence is not run under that bash until the script is right there.
+A run that is interrupted (Ctrl+C, or a signal that ends it) ends the stages it started and takes its temporary folder away, and a second signal while it does so changes nothing; a TERM sent to the script alone waits for `lock` or `smoke` to end when one of them is running. A signal that its parent ignores or blocks (nohup ignores HUP) the run ignores too.
 
 Three things it needs of the machine:
 

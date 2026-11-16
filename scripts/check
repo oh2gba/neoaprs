@@ -106,20 +106,56 @@ uv_cache() {
     fi
 }
 
-# The logs of the stages, and what a stage builds only to throw it away. The stages that run at once are each the leader of a process group of its own (`running`), so that a run that is
+# The logs of the stages, and what a stage builds only to throw it away. The stages that run at once are each the leader of a process group of its own, so that a run that is
 # interrupted can end everything they started before the folder goes.
-work="$(mktemp -d)"
-running=()
+work="$(mktemp -d)" stop=TERM
+# Careful, what finish needs (tests/test_check_script.py holds it):
+#   - it ignores INT, TERM and HUP first, and so does the trap of each before its `exit`: a second signal (a second Ctrl+C) would run its own trap's `exit` in the middle of finish, or between the first trap
+#     and finish, which then ends with that signal's code and leaves the stages running or the folder in place;
+#   - it is the script's alone: a stage that got a signal the moment it was forked, before it dropped the script's traps, runs them, and so finish, with the script's list of jobs (none of them its own);
+#   - the stages are bash's own list of jobs, which has a stage from its fork on; `running` has it a command later, and the signal can come between the two;
+#   - each is waited for by its pid: a bare `wait` never returns under bash 5.3 while that list holds a job that is no child of this shell, and after a signal it can hold one (the stage whose end the
+#     interrupted `wait PID` had just taken);
+#   - the signal goes again every tenth of a second while it waits, and KILL after a second: a stage forked the moment the first came can lose it (bash takes it with the script's trap, then drops that
+#     trap), and what a stage forked as it came did not get it (bash holds TERM back while it forks);
+#   - the folder goes once the stages' groups are empty, since what is left in one may still write into it;
+#   - the signal is `stop`: TERM, or KILL where the parent ignores or blocks TERM (below), which the stages have from it and which no TERM would end.
+signal_groups() { local how="$1" pid; shift; for pid in "$@"; do kill -"$how" -- "-$pid" 2>/dev/null || true; done; }
+groups_left() { local pid; for pid in "$@"; do if kill -0 -- "-$pid" 2>/dev/null; then return 0; fi; done; return 1; }
+again() { local _; for _ in 1 2 3 4 5 6 7 8 9 10; do sleep 0.1; signal_groups "$stop" "$@"; done; signal_groups KILL "$@"; }
 finish() {
-    local pid
-    for pid in ${running[@]+"${running[@]}"}; do kill -TERM -- "-$pid" 2>/dev/null || true; done
-    wait 2>/dev/null || true
-    rm -rf "$work"
+    local pid stages=() helper _
+    trap '' INT TERM HUP
+    [ "$BASHPID" = "$$" ] || return 0
+    IFS=$'\n' read -r -d '' -a stages <<<"$(jobs -p)" || true
+    if [ ${#stages[@]} -gt 0 ]; then
+        signal_groups "$stop" "${stages[@]}"
+        again "${stages[@]}" &
+        helper=$!
+        for pid in "${stages[@]}"; do wait "$pid" 2>/dev/null || true; done
+        kill -KILL "$helper" 2>/dev/null || true
+        wait "$helper" 2>/dev/null || true
+        for _ in 1 2 3 4 5 6 7 8 9 10; do
+            groups_left "${stages[@]}" || break
+            signal_groups "$stop" "${stages[@]}"
+            sleep 0.1
+        done
+        if groups_left "${stages[@]}"; then signal_groups KILL "${stages[@]}"; fi
+    fi
+    rm -rf "$work" 2>/dev/null || rm -rf "$work" || true
 }
 trap finish EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
-trap 'exit 129' HUP
+trap 'trap "" INT TERM HUP; exit 130' INT
+trap 'trap "" INT TERM HUP; exit 143' TERM
+trap 'trap "" INT TERM HUP; exit 129' HUP
+# A signal that was ignored when the script started can be neither trapped nor reset (`trap -p` shows it ignored still); one that was blocked stays blocked (bit 14 of SigBlk, where there is /proc). A run
+# started so goes on through it, as its parent asked.
+case "$(trap -p TERM)" in *"exit 143"*) ;; *) stop=KILL ;; esac
+if [ -r "/proc/$$/status" ]; then
+    while read -r field mask; do
+        if [ "$field" = SigBlk: ] && [[ "$mask" =~ ^[0-9a-f]+$ ]] && (( 0x$mask >> 14 & 1 )); then stop=KILL; fi
+    done <"/proc/$$/status"
+fi
 
 # --- the stages: each is a function that returns non-zero on failure ----------------------------------------------------------------------------------------------
 
@@ -255,6 +291,13 @@ report() {
 
 in_list() { local name="$1"; shift; case " $* " in *" $name "*) return 0 ;; esac; return 1; }
 
+# Waits for a stage that runs beside the others. Careful: not by `wait PID` alone. A signal that comes after bash last looked for one and before it blocks in that wait has its trap put off until the
+# stage ends (minutes; both bash 5.2 and 5.3 do it, about once in a thousand signals that come while the stages are being started), so the stage is waited for only once it has ended (bash has taken its
+# end, and `kill -0` no longer finds it), and until then the runner waits for a nap of a tenth of a second at a time: a signal ends that wait at once, and one that came just before it runs when the nap
+# has ended. The nap is a `sleep` in the background: one in the foreground puts the trap off until its end, and two signals within it are then taken in the order of their numbers, not of their coming;
+# with `read -t` the trap ran inside the read, and both bashes crashed (SIGSEGV) when a second signal came during finish.
+await() { while kill -0 "$1" 2>/dev/null; do sleep 0.1 & wait "$!" || true; done; wait "$1" || true; }
+
 total_start=$EPOCHSECONDS
 uv_cache
 if [ "$at_once" = 0 ]; then
@@ -276,8 +319,8 @@ else
         run_stage npm-ci ui_install
         report npm-ci || { failed+=(npm-ci); ui_install_failed=1; }
     fi
-    group=()
-    set -m                             # (job control: each stage started now is the leader of a process group of its own, see `finish`; the stage itself runs without it, so that what it starts stays in its group)
+    group=() running=()
+    set -m                            # (job control: each stage started now is the leader of a process group of its own, see `finish`; the stage itself runs without it, so that what it starts stays in its group)
     for name in "${STAGES[@]}"; do
         if in_list "$name" "${ALONE_FIRST[@]}" "${ALONE_LAST[@]}"; then continue; fi
         ( set +m; run_stage "$name" ) </dev/null &
@@ -285,10 +328,9 @@ else
     done
     set +m
     for i in "${!group[@]}"; do
-        wait "${running[$i]}" || true
+        await "${running[$i]}"
         report "${group[$i]}" || failed+=("${group[$i]}")
     done
-    running=()
     for name in "${ALONE_LAST[@]}"; do
         run_stage "$name"
         report "$name" || failed+=("$name")
