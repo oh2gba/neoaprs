@@ -16,6 +16,7 @@ import pytest
 
 from neoaprs import direwolf
 from tests.conftest import ROOT
+from tests.support.ptyline import posix_only
 from tests.test_mercury_windows import make_pe
 
 SCRIPT = ROOT / "scripts" / "build-direwolf"
@@ -165,6 +166,7 @@ def test_the_patches_apply_to_the_pinned_source_and_each_is_held_in_it_after(bui
     assert "Copyright (c) 1998 Todd C. Miller" in build.notices(tree)
 
 
+@posix_only                       # (the scripts that build the Linux packages are run: GitHub's Windows runner has a bash, which is no place to run them)
 @pytest.mark.parametrize(("script", "tools", "arch"), [("build-deb", "$app/tools", ("--arch", "amd64")), ("build-appimage", "$app/usr/tools", ())])
 def test_the_linux_packages_carry_direwolf_without_its_utilities_and_a_build_must_say_whether_it_does(script: str, tools: str, arch: tuple[str, ...], tmp_path: Path) -> None:
     text = (ROOT / "scripts" / script).read_text(encoding="utf-8")
