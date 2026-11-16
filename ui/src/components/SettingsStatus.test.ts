@@ -103,7 +103,9 @@ describe("the Status group", () => {
     const { wrapper, daemon } = make({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
     await wrapper.find("#set-status-rigctld").setValue("");
     await wrapper.find("#set-status-rigctld").trigger("blur");
-    await tell(daemon, { lastError: toastOf("set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)") });
+    await tell(daemon, {
+      lastError: toastOf("set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)", "setting.status_needs_rigctld"),
+    });
     expect(wrapper.find("#set-status-rigctld").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("needs status/rigctld");
     expect(wrapper.find("#set-status-source").element.closest(".field")?.querySelector(".field-error")).toBeNull();
     expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("");

@@ -87,7 +87,7 @@ def _pace_running(pace: Pace, radios: MessageRadios, record: MessageRecord) -> b
 def _sealed(keyring: Keyring | None, ours: str, to: str, text: str) -> str:
     """The text that goes on the air for an encrypted message to the station. Raises MessagingError with the cipher's code: encrypted messages off, no key from the station, a text too long or unprintable."""
     if keyring is None:
-        raise MessagingError("this daemon has no keys")
+        raise MessagingError("this daemon has no keys", "failed")
     keyring.refuse_unless_on()
     shared = shared_with(keyring, to)
     if shared is None:
@@ -172,43 +172,43 @@ class Messaging:
         try:
             to = to_call.strip().upper() if board is not None else normal_name(to_call)
         except CallsignError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         if addressed_to(to, ours):
-            raise MessagingError(f"{to} is our own call")
+            raise MessagingError(f"{to} is our own call", "message.own_call", call=to)
         if locked:
             if board is not None or once:
-                raise MessagingError("a bulletin or a query cannot be encrypted")
+                raise MessagingError("a bulletin or a query cannot be encrypted", "failed")          # (the page offers no lock for either)
             return await self._send(ours, to, text, False, "open", _sealed(self.keyring, ours, to, text))
         try:
             check_text(text)
         except MessageError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         return await self._send(ours, to, text, once, "", None)
 
     async def send_key(self, to_call: str) -> MessageRecord:
         """Announces our public key to a station as an ordinary message (`key`), so that it can encrypt to us; made when there is none yet. Refused while encrypted messages are switched off (`lock.off`), as `send` refuses."""
         ours = our_call(self._config())
         if self.keyring is None:
-            raise MessagingError("this daemon has no keys")
+            raise MessagingError("this daemon has no keys", "failed")
         self.keyring.refuse_unless_on()
         try:
             to = normal_name(to_call)
         except CallsignError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         if addressed_to(to, ours):
-            raise MessagingError(f"{to} is our own call")
+            raise MessagingError(f"{to} is our own call", "message.own_call", call=to)
         return await self._send(ours, to, self.keyring.key_text(), False, "key", None)
 
     async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
         """What every message of ours goes through once its addressee and text are right: the radio is asked, the frame is tried, the message is kept and the first attempt made."""
         radio = self.message_radios.station(to)
         if radio.state is Source.State.SILENT:
-            raise MessagingError(radio.why_unusable())
+            raise MessagingError.of(radio.why_unusable())
         self._frame(info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM, radio=radio)          # (the settings make a frame, and the text one that the radio carries)
         ident = None if once else self.acks.allocate(self._records.values())
         record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to), seal=seal, wire=wire))
         if record is None:
-            raise MessagingError("the message could not be kept: the database is not open")
+            raise MessagingError("the message could not be kept: the database is not open", "failed")
         self.put(record)
         log.info("message %d to %s is kept: %d characters, at most %d attempts, on the %s radio", record.id, to, len(text), record.attempts_max, radio_word(radio))
         return self.attempt(record)
@@ -218,7 +218,7 @@ class Messaging:
         our_call(self._config())
         record = self._ours(number)
         if record.state not in RETRYABLE:
-            raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again")
+            raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again", "failed")      # (the page offers it for no other: it changed meanwhile)
         self._frame(info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, None if record.msg_id is None else ""), record.to_call, None if record.msg_id is None else 1, room=0 if record.msg_id is None else REPLY_ACK_ROOM)          # (a message that does not fit the station's radio now is refused to the page, not sent to fail again)
         log.info("message %d to %s is sent again from the first attempt (it was %s; the operator asked)", number, record.to_call, record.state)
         record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None, failure=None, snr=None, rssi=None)
@@ -231,7 +231,7 @@ class Messaging:
         """Stops sending a message; it is kept, as "cancelled"."""
         record = self._ours(number)
         if record.state != "sending":
-            raise MessagingError(f"message {number} is {record.state}: only a message that is being sent can be cancelled")
+            raise MessagingError(f"message {number} is {record.state}: only a message that is being sent can be cancelled", "failed")
         record = replace(record, state="cancelled")
         log.info("message %d to %s is cancelled (the operator asked): %d of %d attempts were made", number, record.to_call, record.attempts, record.attempts_max)
         self.put(record)
@@ -242,11 +242,11 @@ class Messaging:
         MessagingError when there is no such message, or the database would not take the removal (the message is then kept, cancelled if it was being sent)."""
         record = self._records.get(number)
         if record is None:
-            raise MessagingError(f"there is no message {number}")
+            raise MessagingError(f"there is no message {number}", "failed")
         if record.state == "sending":
             self.put(replace(record, state="cancelled"))
         if not await self._log.delete(number):
-            raise MessagingError(f"message {number} could not be removed: the database would not take it")
+            raise MessagingError(f"message {number} could not be removed: the database would not take it", "failed")
         self._drop(number)
 
     async def delete_conversation(self, call: str) -> int:
@@ -256,7 +256,7 @@ class Messaging:
         try:
             peer = normal_name(call)
         except CallsignError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         await asyncio.gather(*self.inbox.tasks, return_exceptions=True)          # (a message that is being kept is part of the conversation)
         held = [r for r in self._records.values() if r.state != "overheard" and r.peer == peer]
         for record in held:
@@ -264,9 +264,9 @@ class Messaging:
                 self.put(replace(record, state="cancelled"))
         count = await self._log.delete_conversation(peer)
         if count is None:
-            raise MessagingError(f"the conversation with {peer} could not be removed: the database would not take it")
+            raise MessagingError(f"the conversation with {peer} could not be removed: the database would not take it", "failed")
         if not held and count == 0:
-            raise MessagingError(f"there is no conversation with {peer}")
+            raise MessagingError(f"there is no conversation with {peer}", "failed")
         for record in held:
             self._drop(record.id)
         return count
@@ -280,9 +280,9 @@ class Messaging:
         held = [r for r in self._records.values() if r.state == "overheard" and r.from_call == sender and r.to_call == addressee]
         count = await self._log.delete_overheard(sender, addressee)
         if count is None:
-            raise MessagingError(f"the overheard messages from {sender} to {addressee} could not be removed: the database would not take it")
+            raise MessagingError(f"the overheard messages from {sender} to {addressee} could not be removed: the database would not take it", "failed")
         if not held and count == 0:
-            raise MessagingError(f"there is no overheard message from {sender} to {addressee}")
+            raise MessagingError(f"there is no overheard message from {sender} to {addressee}", "failed")
         for record in held:
             self._drop(record.id)
         return count
@@ -300,7 +300,7 @@ class Messaging:
     def _ours(self, number: int) -> MessageRecord:
         record = self._records.get(number)
         if record is None or record.direction != "out":
-            raise MessagingError(f"there is no message {number} that we sent")
+            raise MessagingError(f"there is no message {number} that we sent", "failed")
         return record
 
     def radio_of(self, record: MessageRecord) -> AirRadio | None:
@@ -329,7 +329,7 @@ class Messaging:
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
         except FRAME_ERRORS as e:
-            raise MessagingError(f"the settings make no frame: {e}") from None
+            raise MessagingError.of(e, f"the settings make no frame: {e}") from None
         limit = radio.max_frame
         if limit is not None and (length := len(ax25.encode(frame)) + room) > limit:
             raise MessagingError(f"the message is {length} bytes on the air, the radio carries {limit}: shorten it by {length - limit} characters", "message.too_long_for_radio", length=length, max=limit, cut=length - limit)

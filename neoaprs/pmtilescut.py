@@ -73,7 +73,7 @@ class Cutting:
         except FormatError as e:
             raise CutError(f"the map source cannot be cut: {e}") from None
         if plan.size > self.max_bytes:
-            raise CutError(f"the map would be {plan.size / 1e6:.0f} MB, more than the {self.max_bytes / 1e6:.0f} MB it may be")
+            raise CutError(f"the map would be {plan.size / 1e6:.0f} MB, more than the {self.max_bytes / 1e6:.0f} MB it may be", problem="too_big", size=round(plan.size / 1e6), max=round(self.max_bytes / 1e6))
         return plan
 
     def estimate(self) -> Cut:

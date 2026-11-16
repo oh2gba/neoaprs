@@ -1,5 +1,5 @@
 """The commands of the sked board (neoaprs/web/skedwire.py): `skeds_wanted`, `sked_post` and `sked_delete`, answered by the sked service (neoaprs/services/skeds.py). Registered with the dispatcher as the handlers of neoaprs/web/handlers.py are, by being imported there."""
-from neoaprs.coded import CodedError
+from neoaprs.coded import CodedError, code_of
 from neoaprs.callsign import call_problem
 from neoaprs.skeds import clean_note, when
 
@@ -17,7 +17,8 @@ async def skeds_wanted(ctx: Ctx, cmd: SkedsWanted) -> None:
 async def sked_post(ctx: Ctx, cmd: SkedPost) -> None:
     """Posts a sked of our call. It is no transmission, so RX only does not matter; a call that may not be used (none set, a placeholder) is refused as the transmit interlock does."""
     if reason := call_problem(ctx.ctl.config.station_call):
-        raise UserError(f"{cmd.cmd}: nothing is sent: {reason}", "transmit.call", params={"reason": reason})
+        why, params = code_of(reason)
+        raise UserError(f"{cmd.cmd}: nothing is sent: {reason}", "transmit.call", params={"why": why, **params})
     start, end = when(cmd.from_), when(cmd.to)
     assert start is not None and end is not None                      # (the model checked both)
     try:

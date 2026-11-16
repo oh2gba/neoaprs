@@ -63,7 +63,7 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     assert states["packets"]["value"] == {}
     assert states["radios"]["value"]["1"]["state"] == "connected" and list(states["radios"]["value"]) == ["1"]
     config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key in CONFIG_KEYS}      # (station/main_radio is told in radio_values, and every radio's own setting)
-    assert {key: config[key] for key in ("values", "defaults", "urls", "https")} == {"values": wire({**DEFAULTS.to_data(), **OPERATOR}), "defaults": wire(DEFAULTS.to_data()), "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
+    assert {key: config[key] for key in ("values", "defaults", "urls", "https")} == {"values": wire({**DEFAULTS.to_data(), **OPERATOR}), "defaults": wire(DEFAULTS.to_data()), "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "reason": ""}}
     assert config["radio_values"]["station/main_radio"] == "" and config["radio_values"]["radio/1/path"] == OPERATOR["beacon/path"] and set(config["radio_values"]) == set(config["radio_defaults"])
     assert states["messages"]["value"] == {} and states["station_prefs"]["value"] == {}
     for name, message in states.items():
@@ -83,10 +83,10 @@ async def test_the_capture_comes_as_four_packets_and_the_stations_they_are_from(
     assert len(sets) == 4 and [op["value"]["id"] for op in sets] == [1, 2, 3, 4] and [op["key"] for op in sets] == ["1", "2", "3", "4"]
     rows = list(page.topics["packets"].values())
     assert {r["source"] for r in rows} == {"OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"} and all(r["kind"] == "position" and r["direction"] == "in" for r in rows)
-    assert all(r["decoded"]["type"] == "position" and r["tnc2"].startswith(r["source"] + ">") and r["summary"].startswith("position ") for r in rows)
+    assert all(r["decoded"]["type"] == "position" and r["tnc2"].startswith(r["source"] + ">") and "summary" not in r for r in rows), "the page makes the summary in its words"
     station = page.topics["stations"]["OH2RDK-7"]
     row = StationRow.model_validate_json(json.dumps(station))
-    assert row.kind == "station" and row.packets == 1 and row.is_me is False and row.symbol_name != "unknown"
+    assert row.kind == "station" and row.packets == 1 and row.is_me is False and row.symbol_code != ""
     assert row.lat is not None and row.distance_km is not None and row.distance_km > 0 and row.bearing_deg is not None and len(row.track) == 1
     assert row.last_path and row.first_heard == row.last_heard
     for call, row_ in page.topics["stations"].items():
@@ -975,7 +975,7 @@ async def test_a_third_party_ack_and_message_are_rows_for_the_sender_inside_and_
     assert (received.from_call, received.text, received.route) == ("OH2BEA-9", "Test ok", "via OH7JHF-1 (internet) → OH2RCH-3")
     third = [r for r in page.topics["packets"].values() if r["gate"]]
     assert [r["source"] for r in third] == ["OH7JHF-1", "OH7JHF-1"] and {r["route"] for r in third} == {"via OH7JHF-1 (internet) → OH2RCH-3"}
-    assert all(r["summary"].endswith(" via OH7JHF-1 (third-party)") and r["path"] == ["OH2RCH-3*"] for r in third)
+    assert all(r["path"] == ["OH2RCH-3*"] for r in third)
     assert "OH7JHF-1" not in page.topics["stations"]
     sender = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2BEA-9"]))
     assert (sender.heard_rf_gated, sender.heard_direct, sender.heard_via, sender.best_route, sender.suggested_path) == (1, 0, [], "", None)

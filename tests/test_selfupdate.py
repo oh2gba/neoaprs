@@ -167,7 +167,7 @@ async def test_a_copy_without_an_installer_or_with_a_folder_it_cannot_write_cann
     assert not job.status().supported
     with pytest.raises(UpdateNowError) as blocked:
         job.begin("0.7.0")
-    assert blocked.value.code == "update.blocked" and blocked.value.params == {"reason": "the folder cannot be written"}
+    assert blocked.value.code == "update.blocked" and blocked.value.params == {}, "the page says it in its words, without the folder: the log has it"
 
 
 async def test_a_second_update_while_one_runs_is_refused(tmp_path: Path) -> None:

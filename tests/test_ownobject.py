@@ -168,4 +168,4 @@ def test_radios_that_are_none_are_refused() -> None:
             replace(made(), radios=bad)
     with pytest.raises(OwnError) as e:
         made(radios=())
-    assert e.value.code == "other", "no code of its own: the list of coded refusals is what it was"
+    assert e.value.code == "failed", "the page offers no such list: its plain words, and the log has the sentence"

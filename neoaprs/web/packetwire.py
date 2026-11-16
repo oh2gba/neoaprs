@@ -108,7 +108,8 @@ class DecodedTelemetry(TelemetryFields):
 class DecodedOther(_Model):
     """A data type that is recognised but not (fully) decoded: a positionless weather report is decoded (`weather`, `timestamp`), the station capabilities and an Agrelo DF report are read into `items`."""
     type: Literal["other"]
-    kind: str = Field(description="a short word: weather, nmea, query, test, capabilities, agrelo-df, shelter, space-weather, third-party, user-defined, telemetry (one that is not a report), ...")
+    kind: Literal["weather", "nmea", "query", "test", "capabilities", "agrelo-df", "shelter", "space-weather", "third-party", "user-defined", "telemetry", "unknown"] = Field(
+        description="what kind of packet it is: one of these words, which the page says in its words; `telemetry` is one that is not a report, `unknown` a data type the parser does not know")
     text: str = Field(description="the whole information field")
     weather: DecodedWeather | None = Field(description="the observation of a positionless weather report (`_`); null for anything else")
     items: dict[str, str] | None = Field(description="`capabilities`: the items of the list by token (`IGATE`, `MSG_CNT`...), the value empty for a token alone; `agrelo-df`: `bearing` and `quality`; null for anything else")
@@ -118,7 +119,8 @@ class DecodedOther(_Model):
 class DecodedUndecoded(_Model):
     """A field that should have decoded and did not."""
     type: Literal["undecoded"]
-    error: str = Field(description="why it did not")
+    code: Literal["empty", "position", "mice", "message", "nmea", "damaged"] = Field(description="what could not be read, which the page says in its words (the log has the parser's own): `empty` the information field is empty; "
+                                                                                       "`position` a position (of an object or an item too); `mice` a Mic-E position; `message` a message; `nmea` a GPS sentence; `damaged` anything else, and a packet kept before there was a code")
     text: str = Field(description="the information field as latin-1")
 
 
@@ -143,7 +145,6 @@ class PacketRow(_Model):
     via: Literal["rf", "rf-gated", "is", "dummy"] = Field(description="the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on "
                                                              "the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet)")
     gate: str = Field(description="the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet")
-    summary: str = Field(description="one line, as the log has it")
     tnc2: str = Field(description="the packet as a line of TNC2 monitor text")
     decoded: Decoded
 

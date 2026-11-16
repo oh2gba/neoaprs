@@ -198,17 +198,19 @@ def asked_radio(radios: RadioPick | Radio, config: ConfigSource, radio: RadioId 
     if radio is None:
         chosen = pick.main
         if chosen is None:
-            raise MessagingError(NO_RADIO)
+            raise MessagingError.of(NO_RADIO)
     else:
         found = next((r for r in pick.enabled() if r.id == radio), None)
         if found is None:
             named = pick.get(radio)
-            raise MessagingError("there is no such radio" if named is None else f"the radio {named.name} is off" if named.name else "that radio is off")
+            if named is None:
+                raise MessagingError(f"there is no radio {radio}", "radio.unknown", radio=radio)
+            raise MessagingError(f"radio {named.name or radio} is off: turn it on first", "radio.off", name=named.name or str(radio), radio=radio)
         if not any(r.id == radio for r in pick.senders()):
             raise MessagingError(f"radio {found.name} only receives: nothing can be sent on it", "radio.receive_only", name=found.name, radio=radio)      # (the page offers it for no request)
         chosen = found
     if not chosen.usable:
-        raise MessagingError(chosen.why_unusable())
+        raise MessagingError.of(chosen.why_unusable())
     return chosen
 
 
@@ -225,7 +227,7 @@ def transmit_refusal(config: Config, error: type[CodedError] = CodedError) -> Co
     if not config.station_transmit or config.listens_only:
         return error(RX_ONLY, "transmit.off")
     if reason := can_transmit(config):
-        return error(reason)
+        return error.of(reason)
     return None
 
 

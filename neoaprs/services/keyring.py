@@ -39,7 +39,7 @@ def _station(call: str) -> str:
     try:
         return normal_name(call)
     except CallsignError as e:
-        raise MessagingError(str(e)) from None
+        raise MessagingError.of(e) from None
 
 
 class Keyring:
@@ -114,7 +114,7 @@ class Keyring:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._write_own(private)
         except OSError as e:
-            raise MessagingError(f"the key could not be kept: {e.strerror or e}") from None
+            raise MessagingError(f"the key could not be kept: {e.strerror or e}", "failed") from None
         self._private = private
         log.info("a new message key: %s", cipher.fingerprint(cipher.public_of(private)))
         self.own_changed.emit()
@@ -171,7 +171,7 @@ class Keyring:
         if station not in self._peers:
             raise MessagingError(f"there is no key from {station}", "lock.no_key", call=station)
         if not await self._log.forget_key(station):
-            raise MessagingError(f"the key of {station} could not be removed: the database would not take it")
+            raise MessagingError(f"the key of {station} could not be removed: the database would not take it", "failed")
         del self._peers[station]
         log.info("the key of %s is forgotten", station)
         self.changed.emit(station)

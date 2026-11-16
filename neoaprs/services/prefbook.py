@@ -112,7 +112,7 @@ class PrefBook:
             return path
         added = rf_only_path(path)
         if len(added) > MAX_PATH:
-            raise MessagingError(f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have")
+            raise MessagingError(f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have", "path.too_long_rf_only", count=len(path), max=MAX_PATH)
         return added
 
     def _radio_path(self, radio_id: RadioId) -> tuple[str, ...]:
@@ -133,7 +133,7 @@ class PrefBook:
         try:
             key, calls = normal_name(call), path_choice(path)
         except ValueError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         if calls is None:
             await self.clear_path(call, radio_id)
             return ()
@@ -148,7 +148,7 @@ class PrefBook:
         try:
             key = normal_name(call)
         except ValueError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         if radio_id != FM_ID:
             await self._keep_on(radio_id, key, None)
         else:
@@ -160,9 +160,9 @@ class PrefBook:
             if calls is None and key not in self._on.get(radio_id, {}):
                 return
             if self._path_log is None:
-                raise MessagingError(f"the path on radio {radio_id} could not be kept: there is nowhere to keep a path but radio 1's")
+                raise MessagingError(f"the path on radio {radio_id} could not be kept: there is nowhere to keep a path but radio 1's", "failed")
             if not await (self._path_log.forget_path(key, radio_id) if calls is None else self._path_log.save_path(key, radio_id, ",".join(calls))):
-                raise MessagingError(f"the path could not be {'removed' if calls is None else 'kept'}: the database is not open")
+                raise MessagingError(f"the path could not be {'removed' if calls is None else 'kept'}: the database is not open", "failed")
             if calls is None:
                 del self._on[radio_id][key]
             else:
@@ -175,9 +175,9 @@ class PrefBook:
         try:
             key = normal_name(call)
         except ValueError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         if on and key == EMAIL_GATEWAY:
-            raise MessagingError(f"{EMAIL_GATEWAY} cannot be RF only: the email gateway is on the internet")
+            raise MessagingError(f"{EMAIL_GATEWAY} cannot be RF only: the email gateway is on the internet", "station.email_rf_only", call=EMAIL_GATEWAY)
         await self._change(key, lambda pref: replace(pref, rf_only=on), "RF only could not be kept", quiet=not on)
 
     # ---- the alert
@@ -187,7 +187,7 @@ class PrefBook:
         try:
             key = normal_name(call)
         except ValueError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         if alert.within_km is not None and not ALERT_KM_MIN <= alert.within_km <= ALERT_KM_MAX:
             raise MessagingError(f"the distance of an alert is {ALERT_KM_MIN} to {ALERT_KM_MAX} km, not {alert.within_km}", "alert.km_range", km=alert.within_km, min=ALERT_KM_MIN, max=ALERT_KM_MAX)
         await self._change(key, lambda pref: replace(pref, alert=alert if alert.any else None), "the alert could not be kept", quiet=not alert.any)
@@ -203,7 +203,7 @@ class PrefBook:
             empty = after == Pref()
             saved = await (self._log.forget_pref(key) if empty else self._log.save_pref(key, None if after.path is None else ",".join(after.path), after.rf_only, after.alert))
             if not saved:
-                raise MessagingError(f"{failure}: the database is not open")
+                raise MessagingError(f"{failure}: the database is not open", "failed")
             if empty:
                 del self._own[key]
                 await self._keep_others(key)

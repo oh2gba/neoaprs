@@ -29,6 +29,20 @@ class MapSizeEstimate(_Model):
     build: str = Field(description="the day of the build it was estimated from; empty for a source that is not a daily build")
 
 
+class MapRetry(_Model):
+    """A download that did not move for a while is begun again: the page says "no progress: trying again (2 of 3)"."""
+    attempt: int = Field(ge=1, description="the try that is begun")
+    tries: int = Field(ge=1, description="the tries in all")
+
+
+class MapProblem(_Model):
+    """Why a map job failed, as a code the page says in its words, with the values of its sentence (the log has the details)."""
+    code: Literal["no_position", "busy", "slow", "unreachable", "no_build", "too_big", "no_space", "failed"] = Field(
+        description="`no_position` the station has no position; `slow` the map server was too slow; `unreachable` it could not be reached; `no_build` no daily build was found (`days`: how far back it was looked for); "
+                    "`too_big` the map would be bigger than it may be (`size` and `max`, in MB); `no_space` the disk is full; `failed` anything else (the log says why)")
+    params: dict[str, int] = Field(description="the values of the sentence, by name; empty for a code that has none")
+
+
 class MapState(_Model):
     """The base map: the files, the area and detail the settings ask for, the size estimated, and the job that is running. The value of the topic `map`, told whole at most four times a second."""
     state: Literal["none", "estimating", "downloading", "ready", "error"] = Field(
@@ -37,9 +51,9 @@ class MapState(_Model):
         description="what the running job is doing: looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs")
     percent: int | None = Field(ge=0, le=100, description="how far the step is; null when it cannot say (the build has no bar)")
     downloaded: int | None = Field(ge=0, description="the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet")
-    note: str = Field(description="what the job says of a download that has not moved for a while: `no progress: trying again (2 of 3)`; empty when all is well")
-    blocked: str = Field(description="why no job can be started now (no position, or a job is running); empty when one can")
-    problem: str = Field(description="why the last job failed; empty if it did not, and while a job runs")
+    retry: MapRetry | None = Field(description="a download that has not moved for a while is begun again: which try this is; null when all is well")
+    blocked: Literal["", "no_position", "busy"] = Field(description="why no job can be started now: `no_position` the station has no position, `busy` a job is running; empty when one can")
+    problem: MapProblem | None = Field(description="why the last job failed; null if it did not, and while a job runs")
     estimate: MapSizeEstimate | None = Field(description="the latest dry run (`map_estimate`); null before one, and after a download")
     radius_km: int = Field(description="`map/radius_km`")
     maxzoom: int = Field(description="`map/maxzoom`")

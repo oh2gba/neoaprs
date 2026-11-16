@@ -178,7 +178,7 @@ def with_flat(radios: Iterable[RadioSpec], values: Mapping[str, Any]) -> tuple[R
             spec = found[id]                # (a removed radio keeps its row and takes no change: the store refuses the save)
         elif spec is None:
             if id in found:
-                raise RadioError(f"radio {id} is of the kind {found[id].kind}: {attr} names no radio")
+                raise RadioError(f"radio {id} is of the kind {found[id].kind}: {attr} names no radio", "failed")
             spec = replace(_default_radio(id), settings={})
         if key == "type":
             spec = replace(spec, type=str(value))
@@ -306,5 +306,5 @@ class RadioViews:
         except CodedError as e:
             raise RadioError(f"{named}: {e}", e.code, **e.params) from None
         except ValueError as e:
-            raise RadioError(f"{named}: {e}") from None
+            raise RadioError(f"{named}: {e}", "failed") from None
 

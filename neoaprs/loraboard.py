@@ -26,10 +26,11 @@ from .tnc2line import LineReader, TextLine, read_line, text_of
 from .tncport import TncPort
 from .tncprofile import Profile, names_tcp
 from .tncwatchdog import TncStats
+from .coded import Reason
 
 log = logging.getLogger("neoaprs.tnc")
 
-TEXT_LINES = "the board sends text lines: set it to KISS"
+TEXT_LINES = Reason("the board sends text lines: set it to KISS", "radio.text_lines")
 RECEIVE_ONLY = ONLY_RECEIVES
 KEPT_USED = 64                         # how many entries of the board's list are remembered as given to a frame (it holds 10)
 OPENING_SEC = 2.0                      # how long after the list's answer at the open no frame may come for that answer to be what the board heard before: it hands a packet on right after it lists it

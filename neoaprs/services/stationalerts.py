@@ -74,7 +74,7 @@ class StationAlerts:
         try:
             key = normal_name(call)
         except ValueError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         station = self._book.get(key)
         if key == self._own_call() or (station is not None and (station.is_me or station.own)):
             raise MessagingError(f"{key} is our own: an alert is for another station", "alert.own", call=key)

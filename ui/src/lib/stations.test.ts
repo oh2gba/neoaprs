@@ -87,7 +87,7 @@ describe("listStations", () => {
 
 describe("withOwnSymbol", () => {
   const settings = { "station/symbol_table": "/", "station/symbol_code": "-" };
-  const bare = station("OH2GBA", { is_me: true, symbol_table: "", symbol_code: "", symbol_name: "unknown" });
+  const bare = station("OH2GBA", { is_me: true, symbol_table: "", symbol_code: "" });
 
   it("draws our own station with the symbol of the settings when its row has none", () => {
     const rows = new Map([

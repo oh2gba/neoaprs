@@ -9,6 +9,7 @@ from dataclasses import replace
 
 from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.cli.redaction import shown_value
+from neoaprs.coded import CodedError
 from neoaprs.config import BY_KEY, Config, SettingError, radio_key_of
 from neoaprs.configradios import flat_moved
 from neoaprs.mercurycards import stable_alsa_id
@@ -203,7 +204,7 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
             raise UserError("set_config: " + str(e), "radio.last_enabled", e.key, {**e.params, "radio": id}) from None
         raise UserError(f"set_config: {e}", e.code, e.key, e.params) from None
     except ValueError as e:
-        raise UserError(f"set_config: {e}") from None
+        raise UserError(f"set_config: {e}", "failed") from None          # (a check without a code: nothing the page lets the operator mend; the log has it)
     if not stored:
         raise UserError("set_config: the settings could not be stored (the database would not take them); nothing changed", "setting.not_stored")
     old, new = before.to_data(), after.to_data()
@@ -222,9 +223,9 @@ async def alert_test(ctx: Ctx, cmd: AlertTest) -> None:
     """The saved alert command, run at once (neoaprs/services/alerts.py); only for a page on this computer itself."""
     try:
         refuse_from_afar(ctx.conn, [ALERT_COMMAND])
-        ok, text = await ctx.ctl.alerts.test()
+        outcome = await ctx.ctl.alerts.test()
     except SettingError as e:
         raise UserError(f"{cmd.cmd}: {e}", e.code, e.key, e.params) from None
-    except ValueError as e:
-        raise UserError(f"{cmd.cmd}: {e}") from None
-    ctx.conn.send({"type": "alert_result", "ok": ok, "text": text})
+    except CodedError as e:
+        raise UserError(f"{cmd.cmd}: {e}", e.code, None, e.params) from None
+    ctx.conn.send({"type": "alert_result", "ok": outcome.ok, "outcome": outcome.kind, "status": outcome.status, "seconds": float(ctx.ctl.alerts.timeout_sec), "line": outcome.first_line if outcome.kind == "exit" else ""})

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from neoaprs import VERSION
 from neoaprs.config import DEFAULTS
-from neoaprs.services.updatecheck import NO_ANSWER, NO_VERSION, CheckResult, UpdateCheck
+from neoaprs.services.updatecheck import CheckResult, UpdateCheck
 from neoaprs.updatefetch import fetch
 from tests.support.env import Env, idle_for, until
 from tests.support.fakeversionpage import version_page
@@ -27,7 +27,7 @@ async def test_a_newer_version_is_answered_and_told_in_a_status_to_the_page_that
     other = await e.ws()
     await page.expect("status")
     await page.send({"cmd": "update_check"})
-    assert await page.expect("update_result") == {"type": "update_result", "outcome": "newer", "version": "9.9.9", "text": ""}
+    assert await page.expect("update_result") == {"type": "update_result", "outcome": "newer", "version": "9.9.9", "reason": ""}
     await page.until(lambda: page.of("status")[-1]["update"] is not None)
     assert page.of("status")[-1]["update"] == NEWER
     assert e.ctl.updatecheck.latest is not None and e.ctl.updatecheck.latest.version == "9.9.9"
@@ -46,7 +46,7 @@ async def test_the_same_version_is_up_to_date_and_clears_a_newer_one_that_was_kn
     fake.answer = {"version": VERSION, "url": "", "message": ""}
     await page.send({"cmd": "update_check"})
     await page.until(lambda: len(page.of("update_result")) == 2)
-    assert page.of("update_result")[1] == {"type": "update_result", "outcome": "current", "version": VERSION, "text": ""}
+    assert page.of("update_result")[1] == {"type": "update_result", "outcome": "current", "version": VERSION, "reason": ""}
     assert e.ctl.updatecheck.latest is None
     await page.until(lambda: page.of("status")[-1]["update"] is None)
     await e.stop()
@@ -61,11 +61,11 @@ async def test_a_page_that_cannot_be_reached_or_understood_is_no_answer_with_the
     fake.status = 503
     await page.send({"cmd": "update_check"})
     await page.until(lambda: len(page.of("update_result")) == 2)
-    assert page.of("update_result")[1] == {"type": "update_result", "outcome": "no_answer", "version": "", "text": NO_ANSWER}
+    assert page.of("update_result")[1] == {"type": "update_result", "outcome": "no_answer", "version": "", "reason": "offline"}
     fake.status, fake.body = 200, b"<html>moved</html>"
     await page.send({"cmd": "update_check"})
     await page.until(lambda: len(page.of("update_result")) == 3)
-    assert page.of("update_result")[2] == {"type": "update_result", "outcome": "no_answer", "version": "", "text": NO_VERSION}
+    assert page.of("update_result")[2] == {"type": "update_result", "outcome": "no_answer", "version": "", "reason": "bad_answer"}
     assert e.ctl.updatecheck.latest is not None, "what was known stays"
     await e.stop()
 

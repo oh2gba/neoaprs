@@ -68,6 +68,5 @@ class StationAlertMsg(_Message):
     type: Literal["station_alert"]
     call: str = Field(description="the station")
     kind: Literal["on_air", "within", "direct"] = Field(description="what happened: it came on the air, it came within the distance, it was heard direct")
-    text: str = Field(description="the words of the alert command and the log, in English: `OH2XYZ is on the air`, `OH2XYZ is 8.2 km from you`, `OH2XYZ is heard direct`")
     at: Iso = Field(description="when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved)")
     km: float | None = Field(description="for `within`, how far the station is, km with one decimal; else null")

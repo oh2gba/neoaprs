@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { kindWords, packetFacts } from "@/lib/packetview";
+import { setLocale } from "@/i18n";
+import { kindWords, packetFacts, summaryText } from "@/lib/packetview";
 import { pageRadios } from "@/lib/radios";
 import { packet, radioRow, radiosTopic } from "@/test/fixtures";
 import type { PacketRow } from "@/protocol/protocol";
@@ -111,9 +112,9 @@ describe("packetFacts", () => {
       Kind: "Telemetry report",
       Report: "number 5",
     });
-    expect(facts(withDecoded({ kind: "undecoded" }, { type: "undecoded", error: "no position", text: "!junk" }))).toMatchObject({
+    expect(facts(withDecoded({ kind: "undecoded" }, { type: "undecoded", code: "position", text: "!junk" }))).toMatchObject({
       Kind: "Could not be read",
-      Why: "no position",
+      Why: "the position cannot be read",
       Text: "!junk",
     });
     expect(facts(withDecoded({ kind: "other" }, { type: "other", kind: "weather", text: "_1234", weather: null, items: null, timestamp: null }))).toMatchObject(
@@ -161,8 +162,27 @@ describe("kindWords", () => {
       "Query",
     );
     expect(kindWords(withDecoded({ kind: "other" }, { type: "other", kind: "agrelo-df", text: "", weather: null, items: null, timestamp: null }))).toBe(
-      "Other packet (agrelo-df)",
+      "Direction finding report",
     );
+    expect(kindWords(withDecoded({ kind: "other" }, { type: "other", kind: "unknown", text: "", weather: null, items: null, timestamp: null }))).toBe(
+      "Other packet",
+    );
+  });
+});
+
+describe("summaryText", () => {
+  it("is the kind and what the packet says, in the page's words: no English of the daemon's in another language", () => {
+    expect(summaryText(withDecoded({ kind: "status" }, { type: "status", text: "on air", timestamp: null, locator: null, frequency: null }))).toBe(
+      "Status report · on air",
+    );
+    try {
+      setLocale("nl");
+      expect(summaryText(withDecoded({ kind: "status" }, { type: "status", text: "on air", timestamp: null, locator: null, frequency: null }))).toBe(
+        "Statusrapport · on air",
+      );
+    } finally {
+      setLocale("en");
+    }
   });
 });
 

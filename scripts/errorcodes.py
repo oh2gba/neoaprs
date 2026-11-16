@@ -2,7 +2,8 @@
 literal brace, `{*}` a part of the sentence that is not one of the values). scripts/gen-protocol.py writes this as ui/src/protocol/errors.json; the page's catalogue (ui/src/i18n/en.ts) is held to it by a test, so that a code
 the daemon gains has a sentence on the page, and the sentence is the daemon's.
 
-A refusal is a call that has a code in its second argument (`CodedError(text, "setting.range", value=...)`, `SettingError(key, code, {...}, text)`, `UserError(text, code, params={...})`) or in `code=` (`conn.error(text, code=...)`).
+A refusal is a call that has a code in its second argument (`CodedError(text, "setting.range", value=...)`, `SettingError(key, code, {...}, text)`, `UserError(text, code, params={...})`, and a reason passed on as a
+value, `Reason(text, "radio.silent")`) or in `code=` (`conn.error(text, code=...)`).
 The sentence is its f-string with the `<command>: ` and `<setting>: ` in front taken off (the page puts the reason where it belongs); an expression that is one of the values becomes `{name}`, `{x!r}` becomes `'{name}'`."""
 import ast
 import re
@@ -68,7 +69,7 @@ def _refusal(call: ast.Call) -> tuple[list[str], ast.expr | None] | None:
         return _codes(keyword), call.args[0] if call.args else None
     if name == "SettingError" and len(call.args) == 4:
         return _codes(call.args[1]), call.args[3]
-    if len(call.args) >= 2 and name.endswith("Error"):
+    if len(call.args) >= 2 and (name.endswith("Error") or name == "Reason"):
         return _codes(call.args[1]), call.args[0]
     return None
 

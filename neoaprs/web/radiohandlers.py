@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from typing import Any
 
 from neoaprs.callsign import CallsignError, normal_name
-from neoaprs.coded import CodedError
+from neoaprs.coded import CodedError, code_of
 from neoaprs.config import can_transmit
 from neoaprs.radioregistry import LiveRadio
 from neoaprs.mercurymodem import Mercury
@@ -139,7 +139,8 @@ def may_transmit(ctx: Ctx, name: str) -> None:
     if not config.station_transmit or config.listens_only:
         raise UserError(f"{name}: RX only: nothing is sent", "transmit.off")
     if reason := can_transmit(config):
-        raise UserError(f"{name}: nothing is sent: {reason}", "transmit.call", params={"reason": reason})
+        why, params = code_of(reason)
+        raise UserError(f"{name}: nothing is sent: {reason}", "transmit.call", params={"why": why, **params})          # (the page says the reason by `why`, error.<why>)
 
 
 def _no_modem(name: str, radio: LiveRadio[Any]) -> UserError:

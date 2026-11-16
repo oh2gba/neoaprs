@@ -19,12 +19,12 @@ describe("BeaconStatus", () => {
 
   it("shows the lines of a moving station behind the arrow, and why there is no fix", () => {
     const wrapper = block({
-      gps: gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, problem: "no satellites" }),
+      gps: gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, reason: "no_answer" }),
       values: { "gps/source": "gpsd" },
     });
     expect(wrapper.find(".statetext").classes()).toContain("gps-no_fix");
     expect(wrapper.find(".igatefold").text()).toBe("No beacon: no GPS fix");
-    expect(wrapper.find(".problem").text()).toBe("no satellites");
+    expect(wrapper.find(".problem").text()).toBe("the GPS does not answer");
   });
 
   it("shows the GPS state and the fix line with Beacon off behind the arrow while the beacon is Off", () => {

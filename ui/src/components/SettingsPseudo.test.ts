@@ -76,7 +76,7 @@ function untranslated(root: Element): string[] {
   return found;
 }
 
-const https: HttpsState = { on: true, port: 7304, fingerprint: "AB:CD:EF", problem: "" };
+const https: HttpsState = { on: true, port: 7304, fingerprint: "AB:CD:EF", reason: "" };
 const ports: PortsMessage = {
   type: "ports",
   sound_cards: [],

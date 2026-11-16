@@ -17,6 +17,7 @@
 - **Fixed:** in the app's own window, Settings → Notifications named the NeoAPRS computer and this browser; it now says this computer and this window.
 - **Changed:** in **Post a bulletin** each kind says what it does: sent for 4 hours, sent for 3 days, to one group.
 - **Changed:** Send feedback shows its log file by name: download it to look inside, or remove it to send your message alone.
+- **Fixed:** in the eight other languages some reasons, status lines and labels were still in English.
 
 ## 0.20.0
 

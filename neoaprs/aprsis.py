@@ -19,6 +19,7 @@ import logging
 import re
 import socket
 from collections import deque
+from typing import Literal
 
 from . import PROGRAM, VERSION, nodevices
 from .aprsisline import is_comment, parse_is_line
@@ -46,6 +47,18 @@ NO_SERVER = "no server set: give igate/server the address of an APRS-IS server (
 UNVERIFIED = "the server did not accept the password"
 _LOGRESP = re.compile(r"#\s*logresp\s+(\S+)\s+(unverified|verified)\b(?:\s*,\s*server\s+(\S+))?", re.IGNORECASE)
 CRLF = b"\r\n"
+
+
+LinkReason = Literal["", "no_server", "no_call", "unreachable", "offline", "not_server", "lost"]     # why the link is not logged in, as a code (the page's words: IgateState.reason)
+
+
+def _reason_of(e: Exception) -> LinkReason:
+    """The code of what ended an attempt: the server's name not looked up (no connection), a server that cannot be reached, one that is no APRS-IS server, or a connection that was lost."""
+    if isinstance(e, socket.gaierror):
+        return "offline"
+    if isinstance(e, AprsIsError):
+        return "not_server"
+    return "lost" if isinstance(e, ConnectionError) and not isinstance(e, ConnectionRefusedError) else "unreachable"
 
 
 class AprsIsError(Exception):
@@ -82,6 +95,7 @@ class AprsIs(Source):
         self.connect_sec, self.greeting_sec, self.login_sec = connect_sec, greeting_sec, login_sec
         self.quiet_sec, self.lost_sec, self.write_sec = quiet_sec, lost_sec, write_sec
         self.verified = False                                  # logged in and verified: lines may be written
+        self.reason: LinkReason = ""                           # why it is not logged in, as a code: what is missing or what ended the latest attempt; empty while it is
         self.unverified = False                                # the server refused the password that was given; the connection listens only, as the one without a password does
         self.server_name = ""                                  # the server's name from `# logresp`
         self.slow_dropped = 0                                  # lines dropped from the queue because the server took them too slowly
@@ -136,8 +150,10 @@ class AprsIs(Source):
         self.unverified, self.last_error, self.read, self.unreadable = False, "", 0, 0
         if missing := self._missing():                         # (a source without what it needs is a valid setting that cannot work yet: nothing is opened, and the problem says what to give)
             self._set_state(Source.State.CONNECTING)
+            self.reason = "no_server" if missing == NO_SERVER else "no_call"
             self._set_problem(missing)
             return
+        self.reason = ""
         self._spawn(self._run(self._generation))
 
     async def stop(self) -> None:
@@ -172,15 +188,15 @@ class AprsIs(Source):
     # ---- the connection
     async def _run(self, generation: int) -> None:
         while generation == self._generation:
-            problem = await self._attempt()
+            problem, self.reason = await self._attempt()
             if generation != self._generation:
                 return
             delay = self.backoff.next_delay_sec()
             self._waiting(problem, delay)
             await asyncio.sleep(delay)
 
-    async def _attempt(self) -> str:
-        """One connection, from opening to its end: why it ended (the serving of a connection ends only by raising)."""
+    async def _attempt(self) -> tuple[str, LinkReason]:
+        """One connection, from opening to its end: why it ended, in words for the log and as a code (the serving of a connection ends only by raising)."""
         self._set_state(Source.State.CONNECTING)
         writer: asyncio.StreamWriter | None = None
         try:
@@ -190,12 +206,12 @@ class AprsIs(Source):
         except asyncio.CancelledError:
             raise
         except Exception as e:                                 # (a feed never raises into the loop: it says why and tries again)
-            return f"{self.target}: " + (os_error_text(e) if isinstance(e, OSError) else str(e) or type(e).__name__)
+            return f"{self.target}: " + (os_error_text(e) if isinstance(e, OSError) else str(e) or type(e).__name__), _reason_of(e)
         finally:
             self._drop_session()
             if writer is not None:
                 writer.transport.abort()
-        return "the connection ended"
+        return "the connection ended", "lost"
 
     async def _open(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         nodevices.check_host(self.host, "APRS-IS")             # (under the no-devices switch a server that is not on this computer is not there: nothing logs in under the operator's call)
@@ -244,6 +260,7 @@ class AprsIs(Source):
         self.verified = verified
         self.unverified = self.unverified or (not verified and not self.read_only)
         self.backoff.connected()
+        self.reason = ""
         self._set_state(Source.State.CONNECTED)
         if self.filter and self.filter != sent_filter:
             self._enqueue(f"#filter {self.filter}".encode("ascii"))       # (the station moved between the login and the answer to it)

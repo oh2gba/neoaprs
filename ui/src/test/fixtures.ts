@@ -90,7 +90,6 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     reported_by: "",
     symbol_table: "/",
     symbol_code: ">",
-    symbol_name: "Car",
     lat: 60.2,
     lon: 24.9,
     altitude_m: null,
@@ -169,7 +168,7 @@ export function weather(extra: Partial<WeatherValues> = {}): WeatherValues {
 
 /** A weather station heard `heardAgo` seconds ago. */
 export function weatherStation(call = "OH2MUI", extra: Partial<StationRow> = {}, heardAgo = 600): StationRow {
-  return station(call, { symbol_code: "_", symbol_name: "Weather station", weather: weather(), weather_at: ago(heardAgo), ...extra });
+  return station(call, { symbol_code: "_", weather: weather(), weather_at: ago(heardAgo), ...extra });
 }
 
 /** The answer to `weather_series`: an observation every `every` seconds for `count` observations ending `last` seconds ago, the values given by `value` of the index. */
@@ -193,7 +192,6 @@ export function sentMessage(id: number, from: string, to: string, text: string, 
     direction: from === "OH2GBA" ? "out" : "in",
     heard_at: packetAt(seconds),
     kind: "message",
-    summary: `message to ${to}`,
     tnc2: `${from}>APRS::${to.padEnd(9)}:${text}`,
     decoded: { type: "message", addressee: to, text, msg_id: null, ack_id: null, rej_id: null },
     ...extra,
@@ -216,7 +214,6 @@ export function packet(id: number, extra: Partial<PacketRow> = {}): PacketRow {
     rssi: null,
     gate: "",
     kind: "position",
-    summary: "position 60.12 24.49",
     tnc2: `OH2RDG>APN391,OH2RCH-2*:!6007.47NN02429.82E#`,
     decoded: {
       type: "position",
@@ -403,7 +400,6 @@ export function lineStats(extra: Partial<TncStats> = {}): TncStats {
 export function modemState(extra: Partial<ModemState> = {}): ModemState {
   return {
     state: "running",
-    problem: "",
     reason: "",
     mode: "DATAC3",
     keyed: false,
@@ -433,7 +429,7 @@ export function gpsState(extra: Partial<GpsState> = {}): GpsState {
   return {
     source: "gpsd",
     state: "fix",
-    problem: "",
+    reason: "",
     lat: 60.4295,
     lon: 24.1452,
     altitude_m: 103,
@@ -455,7 +451,7 @@ export function igateState(extra: Partial<IgateState> = {}): IgateState {
     enabled: true,
     state: "connected",
     server: "T2FINLAND",
-    problem: "",
+    reason: "",
     gated: 1234,
     dropped: { tcpip: 31, duplicate: 6, query: 3 },
     last_gated_at: ago(12),
@@ -561,7 +557,7 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
     radio_values: radioValues,
     radio_defaults: { ...radioValues },
     urls: [],
-    https: { on: false, port: 0, fingerprint: "", problem: "" },
+    https: { on: false, port: 0, fingerprint: "", reason: "" },
   };
 }
 
@@ -600,9 +596,9 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
     step: "",
     percent: null,
     downloaded: null,
-    note: "",
+    retry: null,
     blocked: "",
-    problem: "",
+    problem: null,
     estimate: null,
     radius_km: 150,
     maxzoom: 12,
@@ -715,7 +711,6 @@ export function radiosOf(connected = true): Map<string, RadioRow> {
 export function soundCardModem(extra: Partial<ModemState> = {}): ModemState {
   return {
     state: "running",
-    problem: "",
     reason: "",
     mode: "AFSK1200",
     keyed: false,

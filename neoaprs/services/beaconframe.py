@@ -26,9 +26,10 @@ from neoaprs import ax25
 from neoaprs.aprsposition import uncompressed_position
 from neoaprs.callsign import call_problem
 from neoaprs.clock import Clock, utcnow
+from neoaprs.coded import CodedError, Reason
 from neoaprs.config import ANTENNA_DIRECTIONS, SYMBOL_TABLES, Config, can_transmit
 from neoaprs.configstatus import MAX_STATUS
-from neoaprs.configtypes import over_the_air_problem, over_the_air_refusal
+from neoaprs.configtypes import over_the_air_refusal
 from neoaprs.gpsfix import Fix
 from neoaprs.radiospec import FM_ID, HF_ID, RadioId, RadioSpec, log_name
 from neoaprs.radiotype import Allowed, Kind, Limits
@@ -46,8 +47,8 @@ log = logging.getLogger("neoaprs.beacon")
 _LOOKS_LIKE_EXTENSION = re.compile(r"\d{3}/\d{3}|PHG|RNG|DFS")        # the starts of the data extensions (course and speed, power-height-gain, range, signal strength): every receiver reads them right after the symbol or the PHG
 
 
-class BeaconError(ValueError):
-    """The settings do not make a frame."""
+class BeaconError(CodedError):
+    """The settings do not make a frame: the English for the log, and the code and values a page says it by."""
 
 
 class NoFix(BeaconError):
@@ -170,7 +171,7 @@ class BeaconFrames:
         """The frame of our position for `radio` and the fix it was made from (None for a station that stays where it is): a beacon's timer plans SmartBeaconing from it."""
         c = self._config()
         if reason := can_transmit(c):
-            raise BeaconError(reason)
+            raise BeaconError.of(reason)
         info, fix = self._position(c)
         return self.frame_for(radio, info), fix
 
@@ -179,10 +180,10 @@ class BeaconFrames:
         is not asked, only that the call is one. Raises BeaconError (NoFix for a moving station with no fresh fix) as `position()` does."""
         c = self._config()
         if problem := call_problem(c.station_call):
-            raise BeaconError(problem)
+            raise BeaconError.of(problem)
         info = self._position(c)[0]
         if len(info) > ax25.MAX_INFO:
-            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
+            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows", "frame.too_long", length=len(info), max=ax25.MAX_INFO)
         return info
 
     def _position(self, c: Config) -> tuple[bytes, Fix | None]:
@@ -190,17 +191,17 @@ class BeaconFrames:
         SmartBeaconing, HF, its timed beacon carries the fix), and is nothing without a fresh fix."""
         if c.mobile:
             return self._mobile_info(c)
-        if problem := c.comment_problem():
-            raise BeaconError(problem)
+        if refusal := c.comment_refusal():
+            raise BeaconError.of(refusal)
         if c.station_lat is None or c.station_lon is None:
-            raise BeaconError("set your position first")
+            raise BeaconError("set your position first", "beacon.no_position")
         if not (-90.0 <= c.station_lat <= 90.0 and -180.0 <= c.station_lon <= 180.0):
-            raise BeaconError(f"the position {c.station_lat}, {c.station_lon} is not on the earth")
+            raise BeaconError(f"the position {c.station_lat}, {c.station_lon} is not on the earth", "object.position", lat=c.station_lat, lon=c.station_lon)
         _check_symbol(c)
         try:
             position = uncompressed_position(c.station_lat, c.station_lon, c.station_symbol_table, c.station_symbol_code)
         except ValueError as e:
-            raise BeaconError(str(e)) from None
+            raise BeaconError.of(e) from None
         return b"=" + position + _phg(c) + _comment_text(c.station_comment).encode("ascii"), None
 
     def _mobile_info(self, c: Config) -> tuple[bytes, Fix]:
@@ -208,12 +209,12 @@ class BeaconFrames:
         if fix is None:
             raise NoFix(self.gps.why_none() if self.gps is not None else "no GPS is set up")
         if refusal := over_the_air_refusal(c.station_comment):
-            raise BeaconError(f"station/comment: {refusal}")
+            raise BeaconError.of(refusal, f"station/comment: {refusal}")
         _check_symbol(c)
         try:
             return mobile_info(c, fix), fix
         except ValueError as e:
-            raise BeaconError(str(e)) from None
+            raise BeaconError.of(e) from None
 
     # ---- the status report
     def status(self, text: str, radio: AirRadio) -> ax25.Frame | None:
@@ -221,13 +222,14 @@ class BeaconFrames:
         settings or the text make no frame."""
         if not text:
             return None
-        if problem := over_the_air_problem(text):
-            raise BeaconError(f"the status: {problem}")
+        if refusal := over_the_air_refusal(text):
+            raise BeaconError.of(refusal, f"the status: {refusal}")
         if len(text) > MAX_STATUS:
-            raise BeaconError(f"the status is {len(text)} characters, more than the {MAX_STATUS} that fit after its time")
+            raise BeaconError(f"the status is {len(text)} characters, more than the {MAX_STATUS} that fit after its time", "status.too_long", length=len(text), max=MAX_STATUS)
         info = b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii")
         if over := self._over(radio, info):
-            raise BeaconError(f"the status is longer than the radio carries ({over}): it is not cut, and not sent there")
+            fits_not = Reason(f"the status is too long for radio {radio.name}", "status.too_long_for_radio", radio=radio.id, name=radio.name)     # (what the page says; the log has the numbers)
+            raise BeaconError.of(fits_not, f"the status is longer than the radio carries ({over}): it is not cut, and not sent there")
         return self.frame_for(radio, info)
 
     def _over(self, radio: AirRadio, info: bytes) -> str:
@@ -246,16 +248,16 @@ class BeaconFrames:
         fixed frame carries (said once in the log), the report itself never. Raises BeaconError when the settings make no frame."""
         c = self._config()
         if reason := can_transmit(c):
-            raise BeaconError(reason)
+            raise BeaconError.of(reason)
         if len(info) > ax25.MAX_INFO:
-            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
+            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows", "frame.too_long", length=len(info), max=ax25.MAX_INFO)
         if problem := _path_problem(radio, c):
-            raise BeaconError(problem)
+            raise BeaconError.of(problem)
         try:
             frame = our_frame(c, path_on(radio, c, None), info)
             fitted = fit_frame(frame, radio.max_frame, radio.limits.max_text, radio.limits.max_kiss)
         except FRAME_ERRORS as e:
-            raise BeaconError(str(e)) from None
+            raise BeaconError.of(e) from None
         if fitted is not frame and self._cut_told.get(radio.id) != fitted.info:
             self._cut_told[radio.id] = fitted.info
             log.warning("the beacon is %d bytes more than the radio carries (%d): its comment is cut to %r", len(ax25.encode(frame)), radio.max_frame, fitted.info[fixed_prefix(info):].decode("ascii", "replace"))
@@ -277,13 +279,14 @@ def _path_problem(radio: AirRadio, c: Config) -> str:
     try:
         found.parse(text)
     except ValueError as e:
-        return f"the path: {e}"
+        return Reason.of(e, f"the path: {e}")
     return ""
 
 
 def _check_symbol(c: Config) -> None:
     if c.station_symbol_table not in SYMBOL_TABLES or len(c.station_symbol_table) != 1 or not "!" <= c.station_symbol_code <= "~" or len(c.station_symbol_code) != 1:
-        raise BeaconError(f"the symbol {c.station_symbol_table!r} {c.station_symbol_code!r} is not a table (/ \\ A-Z 0-9) and one printable character")
+        raise BeaconError(f"the symbol {c.station_symbol_table!r} {c.station_symbol_code!r} is not a table (/ \\ A-Z 0-9) and one printable character", "object.symbol", table=c.station_symbol_table,
+                          symbol=c.station_symbol_code)
 
 
 def _phg(c: Config) -> bytes:

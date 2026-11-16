@@ -6,7 +6,7 @@ part provides."""
 import asyncio
 import logging
 
-from .coded import CodedError
+from .coded import CodedError, code_of
 from .mercury import KEY_TEST_SEC, TUNE_OFF, TUNE_SEC, Keying, key_test_level, tune_command, tune_level
 from .signal import Signal
 from .tasks import TaskSet, cancel_all
@@ -50,7 +50,7 @@ class Tuning:
             log.info("Mercury: %s was refused: %s", name, why)
             if why == NOT_RUNNING:
                 raise CodedError("the Mercury radio is not running", "hf.not_running")
-            raise CodedError(f"the radio is not free: {why}", "hf.held", reason=why)
+            raise CodedError(f"the radio is not free: {why}", "hf.held", held="busy" if code_of(why)[0] == "radio.channel_busy" else "transmitting")          # (the page says which by `held`)
         await self._cancel_test()
         if not self._write(tune_command(level_dbfs)):
             log.info("Mercury: %s was refused: the control port is not open", name)

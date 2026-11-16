@@ -19,6 +19,7 @@ from typing import Any, Generic, Protocol, TypeVar, runtime_checkable
 from . import ax25, beaconrule, direwolfprogram, emailrule, messagerule, nodevices, radiotypes
 from .claims import Claims
 from .clock import Clock, utcnow
+from .coded import Reason
 from .config import Config
 from .direwolfdriver import DirewolfDriver
 from .mercuryclaims import radio_folder
@@ -78,7 +79,7 @@ def make_driver(spec: RadioSpec, claims: Claims, clock: Clock, data_dir: Path, l
     """The driver of the radio's type, with the radio's own folder (`radios/<id>` in the data folder); `line` and `modem` are ones made elsewhere (a test's); `search_lock` the registry's."""
     key = driver_key(spec)
     if key not in DRIVERS:
-        raise RadioTypeError(f"the type {spec.type!r} names the driver {key!r}, which is none (the drivers are {', '.join(DRIVERS)})")
+        raise RadioTypeError(f"the type {spec.type!r} names the driver {key!r}, which is none (the drivers are {', '.join(DRIVERS)})", "failed")
     return DRIVERS[key](spec, claims, clock, data_dir, line, modem, search_lock or asyncio.Lock())
 
 
@@ -195,7 +196,9 @@ class LiveRadio(Generic[B]):
         return self.line.send_frame(frame, raw)
 
     def why_unusable(self) -> str:
-        return self.line.why_unusable()
+        """Its line's reason, with this radio's id and name among its values: a refusal made of it says which radio."""
+        why = self.line.why_unusable()
+        return why.but(radio=self.id, name=self.name) if isinstance(why, Reason) else why
 
 
 class RadioRegistry(StationChoices, Generic[B]):

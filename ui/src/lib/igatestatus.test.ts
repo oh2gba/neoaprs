@@ -32,11 +32,20 @@ describe("igateLook", () => {
       line: "Connecting to T2FINLAND…",
     });
     expect(igateLook(igateState({ state: "connecting", server: "" }), values, 0).line).toBe("Connecting to rotate.aprs2.net:14580…");
-    expect(igateLook(igateState({ state: "connecting", problem: "Connection refused" }), values, 0)).toMatchObject({
+    expect(igateLook(igateState({ state: "connecting", reason: "unreachable" }), values, 0)).toMatchObject({
       state: "waiting",
       tone: "tnc-waiting",
-      line: "Not connected: Connection refused",
+      line: "Not connected: the server cannot be reached",
     });
+  });
+
+  it("says why it is not connected in the page's language, never with the daemon's English after it", () => {
+    try {
+      setLocale("nl");
+      expect(igateLook(igateState({ state: "connecting", reason: "unreachable" }), {}, 0).line).toBe("Niet verbonden: de server is niet bereikbaar");
+    } finally {
+      setLocale("en");
+    }
   });
 
   it("has the server and the filter behind the arrow", () => {

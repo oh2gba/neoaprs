@@ -53,10 +53,10 @@ describe("App: stations and the map", () => {
   it("shows the packets as they arrive, newest first", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Packets")?.trigger("click");
-    expect(wrapper.find("#pane-packets tbody tr").text()).toContain("second");
-    socket.say({ type: "patch", topic: "packets", rev: 1, ops: [{ op: "set", key: "3", value: packet(3, { summary: "third" }) }] });
+    expect(wrapper.find("#pane-packets tbody tr").text()).toContain("OH2SEC");
+    socket.say({ type: "patch", topic: "packets", rev: 1, ops: [{ op: "set", key: "3", value: packet(3, { tnc2: "OH2THR>APRS:!6007.20N/02429.40E-" }) }] });
     await flushPromises();
-    expect(wrapper.find("#pane-packets tbody tr").text()).toContain("third");
+    expect(wrapper.find("#pane-packets tbody tr").text()).toContain("OH2THR");
   });
 
   it("selects a station by a marker, shows its card, and forgets it", async () => {

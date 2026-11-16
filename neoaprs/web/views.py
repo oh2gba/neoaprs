@@ -32,7 +32,6 @@ from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.route import digipeaters, heard_path, received_text, route_text, suggested_path
 from neoaprs.station import Station
 from neoaprs.stationbook import StationBook
-from neoaprs.symbols import symbol_name
 from neoaprs.tnc import Tnc
 from neoaprs.weatherlog import Observation
 
@@ -122,7 +121,7 @@ def station_row(book: StationBook, station: Station, radios: StationRadios = NO_
     distance = None if station.is_me else book.distance_km(station)
     bearing = None if station.is_me else book.bearing_deg(station)
     return StationRow.row(
-        station, symbol_name=symbol_name(station.symbol_table, station.symbol_code) if station.symbol_code else "unknown", weather=weather_values(station.weather),
+        station, weather=weather_values(station.weather),
         telemetry=telemetry_values(book, station), packets_hour=station.hour.count(book.clock()), distance_km=None if distance is None else round(distance, 2), bearing_deg=None if bearing is None else round(bearing, 1), **_routes(station, book.clock()),
         **_radio_fields(station, radios),
     )
@@ -130,7 +129,12 @@ def station_row(book: StationBook, station: Station, radios: StationRadios = NO_
 
 def packet_row(number: int, packet: Packet) -> dict[str, Any]:
     route = received_text(packet.path, packet.gate) if packet.direction == "in" and packet.on_air else ""
-    return PacketRow.row(packet, id=number, route=route, tnc2=tnc2(packet), decoded=json.loads(encode_decoded(packet.decoded)))
+    return PacketRow.row(packet, id=number, route=route, tnc2=tnc2(packet), decoded=_wire_decoded(json.loads(encode_decoded(packet.decoded))))
+
+
+def _wire_decoded(decoded: dict[str, Any]) -> dict[str, Any]:
+    """The decoded packet as the page is told it: an undecoded one without the parser's English (the log has it), by its code alone."""
+    return {k: v for k, v in decoded.items() if k != "error"} if decoded.get("type") == "undecoded" else decoded
 
 
 def attempt_rows(record: MessageRecord, attempts: tuple[Attempt, ...]) -> list[dict[str, Any]]:
@@ -209,7 +213,7 @@ def config_values(config: Config, urls: list[str], https: dict[str, Any] | None 
     radio_values = {key: values[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": spec.settings.get(f.key, f.default) for spec in config.live_radios for f in kind_fields(spec.kind)}
     radio_defaults = {key: defaults[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": f.default for spec in config.live_radios for f in kind_fields(spec.kind)}
     return {"values": {k: v for k, v in values.items() if k not in RADIO_STATION_KEYS}, "defaults": {k: v for k, v in defaults.items() if k not in RADIO_STATION_KEYS}, "radio_values": radio_values,
-            "radio_defaults": radio_defaults, "urls": urls, "https": https or {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
+            "radio_defaults": radio_defaults, "urls": urls, "https": https or {"on": False, "port": 0, "fingerprint": "", "reason": ""}}
 
 
 class IgateSource(Protocol):
@@ -217,7 +221,7 @@ class IgateSource(Protocol):
     @property
     def state(self) -> str: ...
     @property
-    def problem(self) -> str: ...
+    def reason(self) -> str: ...
     @property
     def server_name(self) -> str: ...
     @property
@@ -230,7 +234,7 @@ class IgateSource(Protocol):
 
 def igate_state(config: Config, igate: IgateSource) -> dict[str, Any]:
     """The `igate` topic: whether the iGate is connected and what it has gated and not gated."""
-    return IgateState.row(None, enabled=config.igate_enabled, state=igate.state, server=igate.server_name, problem=igate.problem, gated=igate.gated, dropped=dict(igate.dropped),
+    return IgateState.row(None, enabled=config.igate_enabled, state=igate.state, server=igate.server_name, reason=igate.reason, gated=igate.gated, dropped=dict(igate.dropped),
                           last_gated_at=iso(igate.last_gated_at))
 
 
@@ -241,7 +245,7 @@ class GpsSource(Protocol):
     @property
     def state(self) -> str: ...
     @property
-    def problem(self) -> str: ...
+    def reason(self) -> str: ...
     def current(self) -> Fix | None: ...
 
 
@@ -266,7 +270,7 @@ def gps_state(config: Config, gps: GpsSource, plan: MobilePlanSource, next_due: 
     """The `gps` topic: the latest fix and its state, and the moving station's beacon. `next_due` is the beacon's time of the next beacon, told only for a mobile station with a fresh fix."""
     fix, last = gps.fix, plan.last
     return GpsState.row(
-        None, source=config.gps_source, state=gps.state, problem=gps.problem, lat=None if fix is None else fix.lat, lon=None if fix is None else fix.lon,
+        None, source=config.gps_source, state=gps.state, reason=gps.reason, lat=None if fix is None else fix.lat, lon=None if fix is None else fix.lon,
         altitude_m=None if fix is None else fix.altitude_m, speed_kmh=None if fix is None else fix.speed_kmh, course_deg=None if fix is None else fix.course_deg,
         satellites=None if fix is None else fix.satellites, fix_at=None if fix is None else iso(fix.at), mobile=config.mobile,
         next_beacon_at=iso(next_due) if config.mobile and gps.current() is not None else None,

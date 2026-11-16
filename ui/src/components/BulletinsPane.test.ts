@@ -181,7 +181,7 @@ describe("BulletinsPane", () => {
 
     it("are under a word for our call until the daemon says it", () => {
       const wrapper = mount(BulletinsPane, { props: { bulletins: board(), ownBulletins: posted(ours) }, global: withDaemon(fakeDaemon({ call: null })) });
-      expect(wrapper.find(".mine .bulletin-head strong").text()).toBe("us");
+      expect(wrapper.find(".mine .bulletin-head strong").text(), "the page's word for ourselves, in its language").toBe("you");
     });
   });
 });

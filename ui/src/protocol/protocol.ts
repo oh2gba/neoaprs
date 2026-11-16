@@ -10,8 +10,14 @@ export interface AlertResultMessage {
   type: "alert_result";
   /** the command ended with exit code 0 */
   ok: boolean;
-  /** `ran` when it worked; else why not: the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed after 20 s */
-  text: string;
+  /** how it ended, which the page says in its words: `ran` it worked; `exit` it ended with the exit code `status`; `timeout` it did not end within `seconds` and was killed; `no_start` it could not start (the log says why) */
+  outcome: "ran" | "exit" | "timeout" | "no_start";
+  /** the exit code for `exit`; 0 otherwise */
+  status: number;
+  /** how long a run may take, in seconds */
+  seconds: number;
+  /** for `exit`, the first line the command wrote to stderr, its own words (`no display`); empty otherwise */
+  line: string;
 }
 
 /** Runs the alert command as it is saved in the settings (`messages/alert_command`), exactly as for a message to us (the same shell, the same environment, the 20 s limit) with a made-up message: `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. `messages/alert` is not asked: a test is explicit. Waits for the command and answers the page that asked with `alert_result`, or with an `error` when the command is empty (`no alert command`). A page of another device is refused with `setting.local_only`. */
@@ -31,9 +37,10 @@ export interface AlertWhen {
 
 /** An area object (the symbol `\l`): its shape and colour, and how far down and to the right of the object's position it reaches. */
 export interface AreaValues {
-  /** open circle, line, open ellipse, open triangle, open box, filled circle, line down-left, filled ellipse, filled triangle or filled box */
-  shape: string;
-  colour: string;
+  /** the shape, which the page says in its words */
+  shape: "open circle" | "line" | "open ellipse" | "open triangle" | "open box" | "filled circle" | "line down-left" | "filled ellipse" | "filled triangle" | "filled box";
+  /** the colour, which the page says in its words; `unknown` for a number the specification has no colour for */
+  colour: "black" | "blue" | "green" | "cyan" | "red" | "violet" | "yellow" | "gray" | "dim black" | "dim blue" | "dim green" | "dim cyan" | "dim red" | "dim violet" | "dim yellow" | "dim gray" | "unknown";
   lat_offset_deg: number;
   lon_offset_deg: number;
 }
@@ -181,8 +188,8 @@ export interface DecodedObject {
 /** A data type that is recognised but not (fully) decoded: a positionless weather report is decoded (`weather`, `timestamp`), the station capabilities and an Agrelo DF report are read into `items`. */
 export interface DecodedOther {
   type: "other";
-  /** a short word: weather, nmea, query, test, capabilities, agrelo-df, shelter, space-weather, third-party, user-defined, telemetry (one that is not a report), ... */
-  kind: string;
+  /** what kind of packet it is: one of these words, which the page says in its words; `telemetry` is one that is not a report, `unknown` a data type the parser does not know */
+  kind: "weather" | "nmea" | "query" | "test" | "capabilities" | "agrelo-df" | "shelter" | "space-weather" | "third-party" | "user-defined" | "telemetry" | "unknown";
   /** the whole information field */
   text: string;
   /** the observation of a positionless weather report (`_`); null for anything else */
@@ -256,8 +263,8 @@ export interface DecodedTelemetry {
 /** A field that should have decoded and did not. */
 export interface DecodedUndecoded {
   type: "undecoded";
-  /** why it did not */
-  error: string;
+  /** what could not be read, which the page says in its words (the log has the parser's own): `empty` the information field is empty; `position` a position (of an object or an item too); `mice` a Mic-E position; `message` a message; `nmea` a GPS sentence; `damaged` anything else, and a packet kept before there was a code */
+  code: "empty" | "position" | "mice" | "message" | "nmea" | "damaged";
   /** the information field as latin-1 */
   text: string;
 }
@@ -312,16 +319,16 @@ export interface DfsValues {
   direction_deg: number | null;
 }
 
-/** A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key` and `code`; `text` is the English sentence for a log and for a code the page has no sentence for. */
+/** A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key` and `code` (with the sentence of `why` for a refusal that passes another's on); `text` is the English sentence for the log, which the page never shows: a code it has no sentence for is said with its plain words of a failure. */
 export interface ErrorMessage {
   type: "error";
   /** the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one) */
   cmd: string;
   /** the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error */
   key: string | null;
-  /** a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `other` for an error that has no code yet */
+  /** a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `failed` for one the operator can do nothing about; `other` for an error that has no code */
   code: string;
-  /** the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`; empty when there are none */
+  /** the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`, and `why`, the code of the reason, for a refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`); empty when there are none */
   params: { [key: string]: string | number };
   /** what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`) */
   text: string;
@@ -447,8 +454,8 @@ export interface GpsState {
   source: "off" | "gpsd" | "serial";
   /** `off`: no source is set; `connecting`: the line to gpsd or the receiver is not up and no fix has come; `no_fix`: it is up and the receiver has no fix; `fix`: the latest fix is fresh; `stale`: the latest fix is older than 120 seconds and is not used (a mobile beacon sends nothing on it) */
   state: "off" | "connecting" | "no_fix" | "fix" | "stale";
-  /** why there is no fix to use: the feed's own line (`Connection refused`, `the receiver has no position fix yet`) or that the latest fix is old; empty while the state is `fix` and for `off` */
-  problem: string;
+  /** why there is no fix to use, as a code the page says in its words, where `state` does not say it already (the log has the feed's own words): `no_port` no port of the receiver is set; `no_address` no address of gpsd is set; `held` the receiver's port is held by a radio; `no_answer` the receiver or gpsd does not answer, or its line was lost; empty for `off`, `fix`, `stale` and a plain wait or no fix */
+  reason: "" | "no_port" | "no_address" | "held" | "no_answer";
   /** the latest fix, degrees north; null before the first fix of the source (a stale fix is still told, with its `fix_at`) */
   lat: number | null;
   /** the latest fix, degrees east */
@@ -463,7 +470,7 @@ export interface GpsState {
   satellites: number | null;
   /** when the latest fix was received, by the daemon's clock */
   fix_at: string | null;
-  /** `gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say */
+  /** `gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `reason` say */
   mobile: boolean;
   /** when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first */
   next_beacon_at: string | null;
@@ -518,20 +525,20 @@ export interface HttpsState {
   port: number;
   /** SHA-256 fingerprint of NeoAPRS's certificate authority, `AB:CD:...`, for a person to compare with what the device shows when the certificate is installed; empty while it is not served */
   fingerprint: string;
-  /** why the secure connection could not start or go on, when it was asked for; empty otherwise */
-  problem: string;
+  /** why the secure connection could not start or go on, when it was asked for, as a code the page says in its words (the log has the details): `no_library` this installation cannot make it; `clock` the clock of this computer is not set; `certificates` the certificates could not be made, read or loaded; `no_port` no port after the page's own was free for it; empty otherwise */
+  reason: "" | "no_library" | "clock" | "certificates" | "no_port";
 }
 
 /** The iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second. */
 export interface IgateState {
   /** `igate/enabled` as in force */
   enabled: boolean;
-  /** `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `problem` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change */
+  /** `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change */
   state: "off" | "connecting" | "connected" | "listening" | "unverified";
   /** the name the server gave at the login (`T2FINLAND`); empty until it has answered */
   server: string;
-  /** why it is not connected: what is missing (the call, the password, the server) or the connection's own words (`Connection refused`, `the server did not accept the password`); empty while `connected`, `listening` and `off` */
-  problem: string;
+  /** why it is not connected, as a code the page says in its words (the log has the connection's own): `no_server` no server is set; `no_call` our call is not set or is none; `unreachable` the server cannot be reached; `offline` the server's name cannot be looked up (no connection); `not_server` it answered as no APRS-IS server, or not in time; `lost` the connection ended; `unverified` the server did not accept the password; empty while `connected`, `listening` and `off` */
+  reason: "" | "no_server" | "no_call" | "unreachable" | "offline" | "not_server" | "lost" | "unverified";
   /** packets put on APRS-IS since the daemon started */
   gated: number;
   /** packets heard and not put on APRS-IS since the daemon started, by the reason: `tcpip` (TCPIP or TCPXX in the path), `nogate` (NOGATE or RFONLY), `query` (a generic query), `source` (the source is not a station), `own` (our own call), `duplicate` (gated in the last 30 seconds), `newline` (a CR or LF inside), `long` (more than 512 bytes), `frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected), `not_air` (not heard on the radio: a packet from the internet or one the Dummy radio made up). A reason that has not happened is not a key */
@@ -600,6 +607,22 @@ export interface MapFileInfo {
   build: string;
 }
 
+/** Why a map job failed, as a code the page says in its words, with the values of its sentence (the log has the details). */
+export interface MapProblem {
+  /** `no_position` the station has no position; `slow` the map server was too slow; `unreachable` it could not be reached; `no_build` no daily build was found (`days`: how far back it was looked for); `too_big` the map would be bigger than it may be (`size` and `max`, in MB); `no_space` the disk is full; `failed` anything else (the log says why) */
+  code: "no_position" | "busy" | "slow" | "unreachable" | "no_build" | "too_big" | "no_space" | "failed";
+  /** the values of the sentence, by name; empty for a code that has none */
+  params: { [key: string]: number };
+}
+
+/** A download that did not move for a while is begun again: the page says "no progress: trying again (2 of 3)". */
+export interface MapRetry {
+  /** the try that is begun */
+  attempt: number;
+  /** the tries in all */
+  tries: number;
+}
+
 /** What a dry run said: how big the detailed map will be for the area and the zoom it was made for. */
 export interface MapSizeEstimate {
   /** the tiles it will hold */
@@ -625,12 +648,12 @@ export interface MapState {
   percent: number | null;
   /** the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet */
   downloaded: number | null;
-  /** what the job says of a download that has not moved for a while: `no progress: trying again (2 of 3)`; empty when all is well */
-  note: string;
-  /** why no job can be started now (no position, or a job is running); empty when one can */
-  blocked: string;
-  /** why the last job failed; empty if it did not, and while a job runs */
-  problem: string;
+  /** a download that has not moved for a while is begun again: which try this is; null when all is well */
+  retry: MapRetry | null;
+  /** why no job can be started now: `no_position` the station has no position, `busy` a job is running; empty when one can */
+  blocked: "" | "no_position" | "busy";
+  /** why the last job failed; null if it did not, and while a job runs */
+  problem: MapProblem | null;
   /** the latest dry run (`map_estimate`); null before one, and after a download */
   estimate: MapSizeEstimate | null;
   /** `map/radius_km` */
@@ -717,11 +740,9 @@ export interface MessageRow {
 
 /** The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether it hears a signal. */
 export interface ModemState {
-  /** `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why */
+  /** `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `reason` says why */
   state: "stopped" | "starting" | "running" | "waiting";
-  /** why the modem is not running (not installed, stopped); empty while it runs */
-  problem: string;
-  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting` */
+  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting` */
   reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "sound_card" | "keying";
   /** the modem's mode, the same for every station of the type: `DATAC3` (Mercury), `AFSK1200` (Direwolf) */
   mode: string;
@@ -905,8 +926,6 @@ export interface PacketRow {
   via: "rf" | "rf-gated" | "is" | "dummy";
   /** the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet */
   gate: string;
-  /** one line, as the log has it */
-  summary: string;
   /** the packet as a line of TNC2 monitor text */
   tnc2: string;
   decoded: DecodedPosition | DecodedMessage | DecodedObject | DecodedItem | DecodedStatus | DecodedTelemetry | DecodedOther | DecodedUndecoded;
@@ -1223,7 +1242,7 @@ export interface RadioLimits {
 
 /** Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told). */
 export interface RadioProblem {
-  /** `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log) */
+  /** `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values) */
   code: "radio.not_connected" | "radio.searching" | "radio.silent" | "radio.text_lines" | "radio.resource_held" | "modem.not_installed" | "modem.stopped" | "modem.network" | "modem.no_port" | "modem.not_started" | "modem.sound_card" | "modem.keying" | "transmit.off" | "beacon.not_sent";
   /** the values of the sentence, by name; empty for a code that has none */
   params: { [key: string]: string | number };
@@ -1352,8 +1371,8 @@ export interface ReleaseNotesMessage {
   since: string;
   /** the newest first; empty with `problem` */
   sections: NoteSection[];
-  /** why there are no sections, in a sentence; empty when there are */
-  problem: string;
+  /** why there are no sections, as a code: `unreachable` the notes could not be fetched, `unknown_version` the version is neither the newer one known nor this one; empty when there are */
+  problem: "" | "unreachable" | "unknown_version";
 }
 
 /** The whole value of the topic is `value`. */
@@ -1565,8 +1584,6 @@ export interface StationAlertMessage {
   call: string;
   /** what happened: it came on the air, it came within the distance, it was heard direct */
   kind: "on_air" | "within" | "direct";
-  /** the words of the alert command and the log, in English: `OH2XYZ is on the air`, `OH2XYZ is 8.2 km from you`, `OH2XYZ is heard direct` */
-  text: string;
   /** when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved) */
   at: string;
   /** for `within`, how far the station is, km with one decimal; else null */
@@ -1609,8 +1626,6 @@ export interface StationRow {
   symbol_table: string;
   /** the character of the symbol in its table; empty until a position is heard */
   symbol_code: string;
-  /** the name of the symbol ("Car", "Digipeater"), `unknown` for none */
-  symbol_name: string;
   /** decimal degrees, south negative; null until a position is heard */
   lat: number | null;
   /** decimal degrees, west negative; null until a position is heard */
@@ -1986,8 +2001,8 @@ export interface UpdateResultMessage {
   outcome: "newer" | "current" | "no_answer";
   /** the latest version for `newer`, this version for `current`; empty for `no_answer` */
   version: string;
-  /** for `no_answer` why, in a sentence; empty otherwise */
-  text: string;
+  /** for `no_answer` why, as a code the page says in its words: `offline` the update server did not answer (is there a connection?), `bad_answer` it gave no usable answer; empty otherwise */
+  reason: "" | "offline" | "bad_answer";
 }
 
 /** Update now (neoaprs/services/selfupdate.py): whether this copy can update itself, and the steps of the update it is doing. The value of the topic `update`, told whole as it changes, at most four times a second. */
@@ -2006,8 +2021,6 @@ export interface UpdateState {
   total: number | null;
   /** for `error`: `download` (the file or SHA256SUMS could not be fetched), `unverified` (SHA256SUMS could not be checked: its signature could not be fetched or does not hold with the project's key for this version, or the list does not name the file once; nothing was downloaded), `checksum` (the file's SHA-256 is not the one the signed SHA256SUMS gives it: it was deleted), `install` (it could not be put in place, or the installer could not be started), `no_restart` (it was installed but NeoAPRS did not restart); empty otherwise */
   problem: "" | "download" | "unverified" | "checksum" | "install" | "no_restart";
-  /** the English sentence of the problem, for the log and the page's details; empty when all is well */
-  detail: string;
 }
 
 /** Asks for the observations a weather station made in the last `hours` hours. Answered with a `weather_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a call with no observations is answered with no points. */

@@ -85,6 +85,11 @@ class FakeSubprocess:
             raise self.taskkill_error
 
 
+def ran_or_why(outcome: Outcome) -> tuple[bool, str]:
+    """What the test of the command came to, in the log's words: ran, or why not."""
+    return outcome.ok, "ran" if outcome.ok else outcome.short
+
+
 def windows(monkeypatch: pytest.MonkeyPatch, fake: FakeSubprocess) -> Alerts:
     """Alerts that think they run on Windows, on a fake subprocess."""
     monkeypatch.setattr(alerts_module, "subprocess", fake)
@@ -100,7 +105,7 @@ async def test_the_windows_run_gives_powershell_the_line_on_standard_input_and_t
     proc = FakeProc([(b"hello\n", b"")])
     fake = FakeSubprocess([proc])
     alerts = windows(monkeypatch, fake)
-    assert await alerts.test() == (True, "ran")
+    assert ran_or_why(await alerts.test()) == (True, "ran")
     [(argv, kwargs)] = fake.started
     assert argv == [windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS] and argv[-2:] == ["-Command", "-"]
     assert not {"-EncodedCommand", "-ExecutionPolicy", "Bypass"} & set(argv)
@@ -121,7 +126,7 @@ async def test_the_windows_run_tells_the_status_and_the_first_line_of_what_the_c
         monkeypatch,
         FakeSubprocess([FakeProc([(b"", b"\nno display\nmore\n")], returncode=3)]),
     )
-    assert await alerts.test() == (False, "exit code 3: no display")
+    assert ran_or_why(await alerts.test()) == (False, "exit code 3: no display")
 
 
 async def test_a_windows_run_that_cannot_start_is_a_failure_not_a_crash(
@@ -130,7 +135,7 @@ async def test_a_windows_run_that_cannot_start_is_a_failure_not_a_crash(
     alerts = windows(
         monkeypatch, FakeSubprocess(popen_error=FileNotFoundError("powershell.exe"))
     )
-    ok, text = await alerts.test()
+    ok, text = ran_or_why(await alerts.test())
     assert not ok and text == "the alert command could not run: powershell.exe"
 
 
@@ -140,7 +145,7 @@ async def test_a_windows_run_that_runs_out_of_time_is_killed_with_what_it_starte
     proc = FakeProc([subprocess.TimeoutExpired("powershell", 7.0), (b"", b"")])
     fake = FakeSubprocess([proc])
     alerts = windows(monkeypatch, fake)
-    assert await alerts.test() == (
+    assert ran_or_why(await alerts.test()) == (
         False,
         "the alert command did not end within 7 s: killed",
     )
@@ -159,7 +164,7 @@ async def test_a_windows_run_whose_wait_fails_is_killed_and_told(
     proc = FakeProc([OSError("the pipe broke")])
     fake = FakeSubprocess([proc])
     alerts = windows(monkeypatch, fake)
-    assert await alerts.test() == (
+    assert ran_or_why(await alerts.test()) == (
         False,
         "the alert command could not run: the pipe broke",
     )
@@ -247,7 +252,7 @@ async def test_a_shell_that_cannot_be_started_is_a_failure_not_a_crash(
     alerts = Alerts(
         lambda: replace(ON_AIR, messages_alert_command="true"), FixedClock()
     )
-    assert await alerts.test() == (False, "the alert command could not run: no fork")
+    assert ran_or_why(await alerts.test()) == (False, "the alert command could not run: no fork")
 
 
 async def test_the_test_button_with_no_command_is_an_error_the_page_shows() -> None:

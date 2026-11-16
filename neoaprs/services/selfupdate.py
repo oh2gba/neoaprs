@@ -94,7 +94,8 @@ class SelfUpdate:
         if self.installer is None:
             raise UpdateNowError("this copy of NeoAPRS cannot update itself; the page has the steps", "update.unsupported")
         if why := self.installer.blocked():
-            raise UpdateNowError(f"NeoAPRS cannot update itself here: {why}", "update.blocked", reason=why)
+            log.warning("Update now: %s", why)                          # (the page says it in its words, without the folder: the log has it)
+            raise UpdateNowError(f"NeoAPRS cannot update itself here: {why}", "update.blocked")
         if version != self._latest():
             raise UpdateNowError(f"{version} is not the version the update check announced", "update.not_announced", version=version)
         name = asset_name(self.install.kind, version, self.install.arch)

@@ -10,7 +10,7 @@ import asyncio
 import logging
 
 from .childprogram import Command
-from .coded import CodedError
+from .coded import CodedError, Reason
 from .direwolf import KEY_TEST_SEC, MODE, TUNE_SEC, TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from .direwolfprogram import Program
 from .mercury import Keying
@@ -19,7 +19,7 @@ from .tasks import TaskSet, cancel_all
 
 log = logging.getLogger("neoaprs.direwolf")
 
-TRANSMITTING = "the radio is transmitting"
+TRANSMITTING = Reason("the radio is transmitting", "radio.transmitting")
 DRAIN_SEC = 5.0                        # how long a test or a new transmit level waits for the frames the radio's Direwolf holds (a busy channel, its slot time and persistence) before it stops it all the same
 DRAIN_POLL_SEC = 0.05
 NOT_RUNNING = "the radio is not running"
@@ -67,7 +67,7 @@ class Tuning:
         if program is None or (self.state != "running" and not self.test):
             raise CodedError(NOT_RUNNING, "hf.not_running")
         if self.keyed and not self.test:
-            raise CodedError(f"the radio is not free: {TRANSMITTING}", "hf.held", reason=TRANSMITTING)
+            raise CodedError(f"the radio is not free: {TRANSMITTING}", "hf.held", held="transmitting")
         async with self._swapping:
             await self._cancel_test()
             drain, self.test = not self.test, test

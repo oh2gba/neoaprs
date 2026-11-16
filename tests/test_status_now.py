@@ -11,6 +11,7 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.source import Source
 from tests.support.air import said
 from tests.support.env import Env
+from neoaprs.coded import code_of
 from tests.support.fakes import rigctld
 from tests.test_rigstatus import FIRST, Rig
 
@@ -87,7 +88,8 @@ async def test_send_now_reads_the_radio_and_says_when_it_is_away() -> None:
     rigd = await rigctld()
     rig = Rig(rigd)
     rigd.radio_on = False
-    assert (await rig.status.send_now()).endswith("rigctld answered RPRT -5") and rig.tnc.sent == []
+    away = await rig.status.send_now()
+    assert (away, code_of(away)[0]) == ("the radio does not answer", "status.rig_away") and rig.status._rig_problem.endswith("rigctld answered RPRT -5") and rig.tnc.sent == [], "the page is told the code; the log has rigctld's words"
     rigd.radio_on = True
     assert await rig.status.send_now() == "" and rig.status.rig_state == "on"
 
@@ -96,7 +98,7 @@ async def test_send_now_says_why_it_sends_nothing() -> None:
     assert await Rig(None).status.send_now() == "the status is off"
     assert await Rig(None, station_status="QRV", status_source="off").status.send_now() == "the status is off"
     assert await Rig(None, status_source="text").status.send_now() == "there is no status text"
-    assert "set status/rigctld" in await Rig(None, status_source="rig").status.send_now()
+    assert code_of(await Rig(None, status_source="rig").status.send_now())[0] == "status.no_rig"
     assert "more than the 55" in await Rig(None, station_status="x" * 56).status.send_now()
     assert await Rig(await rigctld(), status_template="").status.send_now() == "there is no status text"
 
@@ -157,4 +159,19 @@ async def test_the_command_is_an_error_when_nothing_could_be_sent(tmp_path: Path
     await page.until(lambda: len(page.of("status")) >= 1)
     await page.send({"cmd": "status_now"})
     assert (await page.expect("error"))["text"] == "status_now: nothing was sent: the status is off"
+    await e.stop()
+
+
+async def test_the_error_of_a_radio_that_is_not_connected_names_the_radio_which_the_pages_sentence_is_made_of(tmp_path: Path) -> None:
+    """Why nothing was sent goes to the page as the code of the reason and the values of its sentence, and the page's sentence of `radio.not_connected` says the radio ("radio FM is not connected", in its
+    language): its id, by which the page names it, and its name for a page that does not know it. A line's own reason has neither (source.unusable_because); the registry's radio adds them
+    (radioregistry.LiveRadio.why_unusable). Without them the page would show the sentence with its placeholder in it."""
+    e = Env(tmp_path, web=True, radio=False)
+    await e.start()
+    assert await e.ctl.save_config(replace(e.ctl.config, station_status="QRV 145.500", status_source="text"))
+    page = await e.ws()
+    for command, code in (("status_now", "status.not_sent"), ("beacon_now", "beacon.not_sent")):
+        await page.send({"cmd": command})
+        error = await page.expect("error")
+        assert (error["cmd"], error["code"], error["params"]) == (command, code, {"why": "radio.not_connected", "radio": 1, "name": "FM"}), error
     await e.stop()

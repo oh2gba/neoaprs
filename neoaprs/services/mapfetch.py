@@ -5,13 +5,14 @@
 `data/basemap-world.pmtiles` is made first, the world to zoom 5 (about 15 MB). A world map the data folder has of its own is the one that is served.
 
 A download that has stood still for `Patience.stall_sec` (neither the percent nor the size of what has come moved) is ended and tried again from the start, up to `Patience.tries` times in all, saying so in the
-status (`note`); after the last try the job fails with a text that says the server is too slow, and the map that was there stays. The status also tells the size of what has come, so that a slow download is seen to move.
+status (`note`, and `retry` for the page); after the last try the job fails with a text that says the server is too slow, and the map that was there stays. The status also tells the size of what has come, so that a slow download is seen to move.
 
 One job at a time: `estimate()` is a dry run that says how big the detailed map will be, `fetch()` makes the files, `cancel()` ends the job running. A file is made beside the final one (`.part`) and moved into
 place only when it is whole, so a failed or cancelled job leaves the map that was there. `status()` is what the page is told; `changed` is emitted with every change of it. The command line is `python -m neoaprs.services.mapfetch`
 (neoaprs/services/mapcli.py)."""
 import asyncio
 import contextlib
+import errno
 import json
 import logging
 import re
@@ -20,6 +21,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import box_around
@@ -100,8 +102,9 @@ class MapFetch:
         self._downloaded: int | None = None
         self._arrived: int | None = None            # the size of what has come, as the cut tells it; looked at every `poll_sec`
         self._note = ""
+        self._retry: tuple[int, int] | None = None
         self._moved = 0.0
-        self._problem = ""
+        self._problem: MapError | None = None
         self._estimate: Estimate | None = None
 
     def _task_failed(self, task: "asyncio.Task[object]") -> None:
@@ -116,21 +119,23 @@ class MapFetch:
         config = self.config()
         place = config.station_position
         if place is None:
-            raise MapError("the station has no position yet: set Latitude and Longitude (the map is cut round them)")
+            raise MapError("the station has no position yet: set Latitude and Longitude (the map is cut round them)", problem="no_position")
         radius = self._radius or config.map_radius_km
         return box_around(*place, radius), radius, config.map_maxzoom
 
     def status(self) -> MapStatus:
         config = self.config()
         detail = describe_file(self.data_dir / DETAIL)
+        code: Literal["", "no_position", "busy"]
         try:
             box: Box | None = self._plan()[0]
-            blocked = "" if self._busy is None else "a map job is running"
+            blocked, code = ("", "") if self._busy is None else ("a map job is running", "busy")
         except MapError as e:
-            box, blocked = None, str(e)
+            box, blocked, code = None, str(e), "no_position"
         state: State = "estimating" if self._busy == "estimate" else "downloading" if self._busy == "fetch" else "error" if self._problem else "ready" if detail else "none"
-        return MapStatus(state, self._step, self._percent, self._downloaded, self._note, blocked, self._problem if self._busy is None else "", self._estimate, config.map_radius_km, config.map_maxzoom, box,
-                         detail, self._describe_world(), self.later and detail is None)
+        failure = self._problem if self._busy is None else None
+        return MapStatus(state, self._step, self._percent, self._downloaded, self._note, blocked, "" if failure is None else str(failure), self._estimate, config.map_radius_km, config.map_maxzoom, box,
+                         detail, self._describe_world(), self.later and detail is None, self._retry, code, failure)
 
     def _describe_world(self) -> MapFile | None:
         found = self._world(self.data_dir)
@@ -141,12 +146,12 @@ class MapFetch:
         return self._busy is not None
 
     def _set(self, step: Step) -> None:
-        self._step, self._percent, self._downloaded, self._note = step, None, None, ""
+        self._step, self._percent, self._downloaded, self._note, self._retry = step, None, None, "", None
         self.changed.emit()
 
     def _moves(self) -> None:
         """The download went on: the time of it is kept for the watch, and a note about a stall is no longer true."""
-        self._moved, self._note = time.monotonic(), ""
+        self._moved, self._note, self._retry = time.monotonic(), "", None
 
     def _progress(self, percent: int) -> None:
         if percent != self._percent:
@@ -157,10 +162,10 @@ class MapFetch:
     # ---- the jobs
     def _claim(self, job: Job) -> None:
         if self._busy is not None:
-            raise MapError("a map job is running already")
+            raise MapError("a map job is running already", problem="busy")
         self._plan()
-        self._busy, self._problem, self.later, self.cancelled_by_user = job, "", False, False
-        self._step, self._percent, self._downloaded, self._note = "", None, None, ""
+        self._busy, self._problem, self.later, self.cancelled_by_user = job, None, False, False
+        self._step, self._percent, self._downloaded, self._note, self._retry = "", None, None, "", None
 
     def begin(self, job: Job, radius_km: int = 0) -> None:
         """Starts the job in the background, for `radius_km` round the station when given (else `map/radius_km`, which it never changes); MapError (nothing started) if one is running or there is no position. Its end is told by `changed`."""
@@ -207,12 +212,13 @@ class MapFetch:
             log.info("the map job was cancelled")
             raise
         except (MapError, CutError) as e:
-            self._problem = str(e)
+            self._problem = e if isinstance(e, MapError) else MapError(str(e), e.problem, **e.params)
             log.warning("the map %s failed: %s", job, e)
             if raising:
                 raise
         except Exception as e:
-            self._problem = FAILED if not isinstance(e, OSError) else f"{FAILED}: {e.strerror or e}"       # (the page shows this: words for the operator, the detail is in the log)
+            full = isinstance(e, OSError) and e.errno == errno.ENOSPC
+            self._problem = MapError(FAILED if not isinstance(e, OSError) else f"{FAILED}: {e.strerror or e}", problem="no_space" if full else "failed")       # (the page says it by its code; the detail is in the log)
             log.exception("the map %s failed", job)
             if raising:
                 raise
@@ -222,7 +228,7 @@ class MapFetch:
                 for part in parts:
                     _remove(part)
             finally:
-                self._busy, self._current, self._step, self._percent, self._downloaded, self._note = None, None, "", None, None, ""
+                self._busy, self._current, self._step, self._percent, self._downloaded, self._note, self._retry = None, None, "", None, None, "", None
                 self.changed.emit()
 
     async def _source(self) -> tuple[str, str]:
@@ -275,9 +281,9 @@ class MapFetch:
             except _Stalled:
                 log.warning("the download of %s stood still for %g s (try %d of %d)", part.name, self.patience.stall_sec, attempt, self.patience.tries)
             if attempt == self.patience.tries:
-                raise CutError(SLOW) from None
+                raise CutError(SLOW, problem="slow") from None
             self._percent, self._downloaded = None, None
-            self._note = f"no progress: trying again ({attempt + 1} of {self.patience.tries})"
+            self._note, self._retry = f"no progress: trying again ({attempt + 1} of {self.patience.tries})", (attempt + 1, self.patience.tries)
             self.changed.emit()
             await asyncio.sleep(self.patience.pause_sec)
 

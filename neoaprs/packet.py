@@ -102,11 +102,14 @@ class Other:
 
 @dataclass(frozen=True, slots=True)
 class Undecoded:
-    """A field that should have decoded and did not: `error` says why, `text` is the information field as latin-1."""
+    """A field that should have decoded and did not: `error` says why (for the log), `text` is the information field as latin-1, and `code` what could not be read (UNDECODED_CODES; a packet kept before
+    there was one is `damaged`)."""
     error: str
     text: str
+    code: str = "damaged"
 
 
+UNDECODED_CODES = ("empty", "position", "mice", "message", "nmea", "damaged")      # an empty information field, a position (an object's, an item's too), a Mic-E position, a message or a GPS sentence that cannot be read, anything else
 Decoded = Position | Message | ObjectReport | ItemReport | Status | Other | Telemetry | Undecoded
 
 _KINDS: dict[type, str] = {Position: "position", Message: "message", ObjectReport: "object", ItemReport: "item", Status: "status", Other: "other", Telemetry: "other", Undecoded: "undecoded"}

@@ -36,8 +36,8 @@ INSTALL_ID_FORM = re.compile(r"[0-9a-f]{32}")
 NOT_COUNTED_ID = "0"                            # sent in place of the installation's number by a run that is not a user's: a run from the source tree, or one the row NOT_COUNTED marks (the project's report leaves it out)
 NO_ANSWER = "no answer from the update server; is there a connection?"
 NO_VERSION = "the update server gave no usable answer; try again later"
-NOTES_UNREACHABLE = "the release notes could not be fetched"
-NOTES_UNKNOWN_VERSION = "that version is neither the newer one known nor this one"
+NOTES_UNREACHABLE = "unreachable"                # why there are no release notes, as the code the page says in its words: they could not be fetched,
+NOTES_UNKNOWN_VERSION = "unknown_version"        # or the version is neither the newer one known nor this one
 
 
 @dataclass(frozen=True)
@@ -46,6 +46,11 @@ class CheckResult:
     outcome: Literal["newer", "current", "no_answer"]
     version: str = ""
     reason: str = ""
+
+    @property
+    def why(self) -> Literal["", "offline", "bad_answer"]:
+        """`reason` as a code the page says in its words: the update server did not answer, or gave no usable answer; empty unless `no_answer`."""
+        return "" if self.outcome != "no_answer" else "offline" if self.reason == NO_ANSWER else "bad_answer"
 
 
 class UpdateCheck:

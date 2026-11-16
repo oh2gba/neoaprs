@@ -596,7 +596,12 @@ describe("SettingsForm", () => {
     it("shows the refusal of the daemon under the type", async () => {
       const { wrapper, daemon } = make();
       await wrapper.find("#set-radio-1-type").setValue("kiss-tcp");
-      await tell(daemon, { lastError: toastOf("radio_change: the FM radio cannot be KISS over TCP while it names the serial port COM3") });
+      await tell(daemon, {
+        lastError: toastOf("radio_change: kiss-tcp connects over TCP, not to the serial port COM3", "setting.profile_port", {
+          profile: "kiss-tcp",
+          port: "COM3",
+        }),
+      });
       expect(wrapper.find("#set-radio-1-type").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("COM3");
       expect(wrapper.find<HTMLSelectElement>("#set-radio-1-type").element.value).toBe("kenwood-tnc2"); // (a refused choice shows as it was)
     });
@@ -868,9 +873,9 @@ describe("SettingsForm", () => {
       const { wrapper, daemon } = make({}, "beacon");
       await wrapper.find("#set-station-comment").setValue("é is not ascii");
       await wrapper.find("#set-station-comment").trigger("blur");
-      await tell(daemon, { lastError: toastOf("set_config: station/comment: 'é' is not ASCII") });
+      await tell(daemon, { lastError: toastOf("set_config: station/comment: it has characters that are not printable ASCII", "setting.not_ascii") });
       const field = wrapper.find("#set-station-comment").element.closest(".field");
-      expect(field?.querySelector(".field-error")?.textContent).toBe("'é' is not ASCII");
+      expect(field?.querySelector(".field-error")?.textContent).toBe("it has characters that are not printable ASCII");
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("é is not ascii");
       expect(wrapper.find(".location-entry").exists()).toBe(false);
     });
@@ -895,9 +900,9 @@ describe("SettingsForm", () => {
     it("shows a refused choice as it was, with the reason under it", async () => {
       const { wrapper, daemon } = make({}, "beacon");
       await wrapper.find("#set-gps-source").setValue("gpsd");
-      await tell(daemon, { lastError: toastOf("set_config: gps/source: gpsd is too much") });
+      await tell(daemon, { lastError: toastOf("set_config: gps/source: 'gpsd' is not one of off", "setting.not_among", { value: "gpsd", choices: "off" }) });
       expect(wrapper.find<HTMLSelectElement>("#set-gps-source").element.value).toBe("off");
-      expect(wrapper.find("#set-gps-source").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("gpsd is too much");
+      expect(wrapper.find("#set-gps-source").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("gpsd is not one of off");
     });
 
     it("leaves a field that is being edited alone when the daemon tells other settings, and follows it in a field that is not", async () => {
@@ -1044,7 +1049,7 @@ describe("SettingsForm", () => {
 
   describe("the Check now button of the update check", () => {
     const check = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll(".field button").find((b) => b.text() === "Check now");
-    const answer = (extra: object) => ({ type: "update_result" as const, outcome: "current" as const, version: "0.3.0", text: "", ...extra });
+    const answer = (extra: object) => ({ type: "update_result" as const, outcome: "current" as const, version: "0.3.0", reason: "" as const, ...extra });
 
     it("is the group's only field: the daily check has no switch and the address is not on the page", () => {
       const { wrapper } = make();
@@ -1112,8 +1117,8 @@ describe("SettingsForm", () => {
     it("says no answer, with the reason when the daemon gave one, in the warn colour", async () => {
       const { wrapper, daemon } = make();
       await check(wrapper)?.trigger("click");
-      await tell(daemon, { updateResult: answer({ outcome: "no_answer", version: "", text: "the version page could not be reached" }) });
-      expect(line(wrapper).find(".statetext").text()).toBe("the version page could not be reached");
+      await tell(daemon, { updateResult: answer({ outcome: "no_answer", version: "", reason: "offline" }) });
+      expect(line(wrapper).find(".statetext").text()).toBe("no answer from the update server; is there a connection?");
       expect(line(wrapper).find(".statetext").classes()).toContain("update-failed");
       expect(daemon.say).not.toHaveBeenCalled();
     });
@@ -1153,24 +1158,24 @@ describe("SettingsForm", () => {
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(true);
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
       expect(send.mock.calls.filter(([c]) => c.cmd === "alert_test")).toHaveLength(1);
-      await tell(daemon, { alertResult: { type: "alert_result", ok: true, text: "ran" } });
+      await tell(daemon, { alertResult: { type: "alert_result", ok: true, outcome: "ran", status: 0, seconds: 20, line: "" } });
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
-      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("ran");
+      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("The alert command ran");
       expect(beside(wrapper)).toBeNull();
     });
 
     it("says a failure in the toast", async () => {
       const { wrapper, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
-      await tell(daemon, { alertResult: { type: "alert_result", ok: false, text: "exit code 3: no display" } });
-      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("exit code 3: no display");
+      await tell(daemon, { alertResult: { type: "alert_result", ok: false, outcome: "exit", status: 3, seconds: 20, line: "no display" } });
+      expect(daemon.say).toHaveBeenCalledExactlyOnceWith("The alert command ended with exit code 3: no display");
       expect(beside(wrapper)).toBeNull();
     });
 
     it("says the error of an empty command in the toast", async () => {
       const { wrapper, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
-      await tell(daemon, { lastError: toastOf("alert_test: no alert command") });
+      await tell(daemon, { lastError: toastOf("alert_test: no alert command", "alert.no_command") });
       expect(daemon.say).toHaveBeenCalledExactlyOnceWith("no alert command");
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
     });
@@ -1321,7 +1326,7 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     const { wrapper, daemon } = make({}, "beacon");
     expect(wrapper.find(".location-entry").exists()).toBe(false);
     await wrapper.setProps({ picked: { lat: 60.4, lon: 24.1, n: 1 } });
-    await tell(daemon, { lastError: toastOf("set_config: station/lat: 'x' is not a number") });
+    await tell(daemon, { lastError: toastOf("set_config: station/lat: 'x' is not a number", "setting.not_number", { value: "x" }) });
     expect(wrapper.find(".location-entry").exists()).toBe(true);
     expect(lat(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("not a number");
   });

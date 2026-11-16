@@ -18,11 +18,15 @@ describe("ToastBar", () => {
 
   it("shows the error the daemon told, as an alert, in the line the daemon writes it", async () => {
     const wrapper = mount(ToastBar, { props: { toast: null } });
-    await wrapper.setProps({ toast: failure(1, "the radio is silent") });
+    await wrapper.setProps({ toast: failure(1, "send_message: the radio is silent", { code: "radio.silent", params: {} }) });
     const bar = wrapper.find(".toast");
     expect(bar.attributes("role")).toBe("alert");
     expect(bar.classes()).not.toContain("notice");
     expect(bar.text()).toContain("the radio is silent");
+    await wrapper.setProps({ toast: failure(2, "send_message: the daemon's words") });
+    expect(wrapper.find(".toast").text(), "a refusal without a sentence of the page's: its plain words, never the daemon's English").toBe(
+      "That did not work; try again. If it keeps happening, send the logs (Settings → Help).",
+    );
   });
 
   it("shows a notice as a status in the colours of the Undo toast", async () => {
@@ -51,9 +55,9 @@ describe("ToastBar", () => {
     const wrapper = mount(ToastBar, { props: { toast: null, notice: null } });
     await wrapper.setProps({ toast: failure(1, "first") });
     await vi.advanceTimersByTimeAsync(6000);
-    await wrapper.setProps({ toast: failure(2, "second") });
+    await wrapper.setProps({ toast: failure(2, "status_now: second", { code: "status.no_text", params: {} }) });
     await vi.advanceTimersByTimeAsync(6000);
-    expect(wrapper.find(".toast").text()).toContain("second");
+    expect(wrapper.find(".toast").text()).toContain("there is no status text");
     await wrapper.setProps({ notice: notice(1, "Copied OH2XYZ") });
     expect(wrapper.find(".toast").classes()).toContain("notice");
     await wrapper.setProps({ toast: failure(3, "third") });

@@ -16,6 +16,7 @@ from typing import Any
 from .clock import Clock, utcnow
 from .signal import Signal
 from .tasks import TaskSet
+from .coded import Reason
 
 log = logging.getLogger("neoaprs.source")
 
@@ -217,11 +218,11 @@ class Source:
         self.stats.rejected += 1
 
 
-CHECKING = "the TNC is checking that the radio is there"
+CHECKING = Reason("the TNC is checking that the radio is there", "radio.checking")
 
 
-def unusable_because(state: Source.State) -> str:
+def unusable_because(state: Source.State) -> Reason:
     """Why a frame cannot be sent in this state, as a clause: "the radio is silent", "the TNC is restarting into KISS mode" (connected, but not usable: the feed is settling), else "the TNC is not connected"."""
     if state is Source.State.SILENT:
-        return "the radio is silent"
-    return "the TNC is restarting into KISS mode" if state is Source.State.CONNECTED else "the TNC is not connected"
+        return Reason("the radio is silent", "radio.silent")
+    return Reason("the TNC is restarting into KISS mode", "radio.settling") if state is Source.State.CONNECTED else Reason("the TNC is not connected", "radio.not_connected")

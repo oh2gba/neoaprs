@@ -65,7 +65,7 @@ class OwnBulletins(Repeater[str]):
         name, _, _ = slot_of(slot)
         before = self._posted.get(name)
         if before is None and len(self._posted) >= MAX_POSTED:
-            raise PostError(f"{MAX_POSTED} bulletins are posted: delete one first")
+            raise PostError(f"{MAX_POSTED} bulletins are posted: delete one first", "bulletin.full", max=MAX_POSTED)
         bulletin = make_bulletin(self.clock(), slot, text, before)
         self._store(bulletin)
         return bulletin

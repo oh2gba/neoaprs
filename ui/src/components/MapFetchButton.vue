@@ -6,7 +6,7 @@
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
-import { currentEstimate, formatBytes, isRunning } from "@/lib/mapfetch";
+import { blockedText, currentEstimate, formatBytes, isRunning } from "@/lib/mapfetch";
 import type { Command, MapState } from "@/protocol/protocol";
 
 const props = defineProps<{ map: MapState; stale: boolean; send: (command: Command) => boolean; early?: boolean; id?: string }>();
@@ -15,7 +15,7 @@ const running = computed(() => isRunning(props.map));
 const estimate = computed(() => currentEstimate(props.map));
 const idle = computed(() => !running.value && !props.stale && (props.early || props.map.blocked === ""));
 const why = computed(() =>
-  props.stale ? (props.early ? undefined : t("settings.saving")) : running.value || props.early ? undefined : props.map.blocked || undefined,
+  props.stale ? (props.early ? undefined : t("settings.saving")) : running.value || props.early ? undefined : blockedText(props.map) || undefined,
 );
 /** The first press has been made and the size is not known yet. */
 const checking = ref(false);

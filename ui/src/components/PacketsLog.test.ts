@@ -9,9 +9,17 @@ import { packet, radioRow, radiosTopic } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const packets = new Map([
-  ["1", packet(1, { source: "OH2RDG", summary: "position one" })],
-  ["2", packet(2, { source: "OH2PU-9", summary: "status two", kind: "status", tnc2: "OH2PU-9>APOTC1:>on air" })],
-  ["3", packet(3, { source: "OH2GBA", direction: "out", summary: "our beacon" })],
+  ["1", packet(1, { source: "OH2RDG" })],
+  [
+    "2",
+    packet(2, {
+      source: "OH2PU-9",
+      kind: "status",
+      tnc2: "OH2PU-9>APOTC1:>on air",
+      decoded: { type: "status", text: "status two", timestamp: null, locator: null, frequency: null },
+    }),
+  ],
+  ["3", packet(3, { source: "OH2GBA", direction: "out", tnc2: "OH2GBA>APZNEO:!6007.47N/02429.82E- our beacon" })],
 ]);
 
 describe("PacketsLog", () => {
@@ -34,7 +42,7 @@ describe("PacketsLog", () => {
     expect(rows).toHaveLength(3);
     expect(rows[0]?.text()).toContain("our beacon");
     expect(rows[0]?.text()).toContain("out");
-    expect(rows[2]?.text()).toContain("position one");
+    expect(rows[2]?.text(), "the summary in the page's words").toContain("Position report · 60.12000 N 24.49000 E");
     expect(rows[2]?.text()).toContain("OH2RDG>APN391");
   });
 
@@ -185,7 +193,7 @@ describe("PacketsLog", () => {
     const live = new Map(packets);
     const wrapper = mount(PacketsLog, { props: { packets: live } });
     await wrapper.findAll("tbody tr")[1]?.trigger("click"); // packet 2
-    await wrapper.setProps({ packets: new Map([...live, ["4", packet(4, { summary: "newer" })]]) });
+    await wrapper.setProps({ packets: new Map([...live, ["4", packet(4, { tnc2: "OH2NEW>APRS:!6007.47N/02429.82E- newer" })]]) });
     expect(wrapper.find("pre").exists()).toBe(true);
     expect(wrapper.findAll("tbody tr")[0]?.text()).toContain("newer");
   });
@@ -219,7 +227,7 @@ describe("PacketsLog on a narrow tab", () => {
     const row = wrapper.findAll("tbody tr")[2];
     expect(row?.findAll("td")).toHaveLength(6);
     expect(row?.find("td.line").text()).toContain("OH2RDG>APN391");
-    expect(row?.find("td.summary").text()).toBe("position one");
+    expect(row?.find("td.summary").text()).toBe("Position report · 60.12000 N 24.49000 E");
     wrapper.unmount();
   });
 

@@ -73,6 +73,15 @@ const BAND_OR_LINK = /(?<![\p{L}\p{N}])(HF|KW|VHF|UHF|SSB|TCP)(?![\p{L}\p{N}])/u
 /** The longest a type's name is, in characters: the list of Add radio is as wide as its widest line, on a phone too (the longest English line is the KISS TNC's, 41). */
 const WIDEST_TYPE = 43;
 
+/** The refusals and reasons that name a field or a switch of the page, and the labels they name. */
+const NAMED_LABELS: Record<string, string[]> = {
+  "error.beacon.not_on_radio": ["radio.send_on"],
+  "error.status.no_rig": ["settings.status_rigctld.label"],
+  "error.map.no_position": ["settings.lat.label", "settings.lon.label"],
+  "settings.map.problem.no_position": ["settings.lat.label", "settings.lon.label"],
+  "error.station.email_rf_only": ["route.rf_only"],
+};
+
 const all = (m: Message | undefined): string => (m === undefined ? "" : texts(m).join(" | "));
 
 for (const locale of LOCALES) {
@@ -162,6 +171,12 @@ for (const locale of LOCALES) {
           (id) => !(edge(id)[0]?.startsWith(dummy) || edge(id).at(-1)?.startsWith(dummy)),
         ),
       ).toEqual([]);
+    });
+
+    it("name a field or a switch in a refusal or a reason by its label", () => {
+      expect(Object.entries(NAMED_LABELS).flatMap(([id, labels]) => labels.filter((label) => !has(id, say(label))).map((label) => `${id}: ${label}`))).toEqual(
+        [],
+      );
     });
 
     it("refuse an email with no gated radio in the words of the page's own line, from a small letter", () => {

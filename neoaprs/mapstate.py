@@ -7,10 +7,16 @@ Box = tuple[float, float, float, float]         # west, south, east, north, in d
 State = Literal["none", "estimating", "downloading", "ready", "error"]
 Step = Literal["", "build", "world", "area"]
 Job = Literal["estimate", "fetch"]
+Problem = Literal["no_position", "busy", "slow", "unreachable", "no_build", "too_big", "no_space", "failed"]      # why a job cannot be started or failed, as a code (the page's words: MapState)
 
 
 class MapError(Exception):
-    """The job cannot be started or cannot be done; the text says why."""
+    """The job cannot be started or cannot be done: the text says why for the log, `problem` as a code with the values its sentence is made of (`params`)."""
+
+    def __init__(self, text: str, problem: Problem = "failed", **params: int) -> None:
+        super().__init__(text)
+        self.problem: Problem = problem
+        self.params = params
 
 
 @dataclass(frozen=True)
@@ -40,9 +46,9 @@ class MapStatus:
     step: Step                                  # what the job is doing now; empty while none is
     percent: int | None                         # of the step; None when it cannot say
     downloaded: int | None                      # what has come of the file being made, in bytes; None before it exists and when no file is being made
-    note: str                                   # what the job is doing about a download that does not move (trying again); empty otherwise
-    blocked: str                                # why no job can be started now, empty if one can
-    problem: str                                # why the last job failed, empty if it did not
+    note: str                                   # what the job is doing about a download that does not move (trying again), in the log's words; empty otherwise
+    blocked: str                                # why no job can be started now, in the log's words; empty if one can
+    problem: str                                # why the last job failed, in the log's words; empty if it did not
     estimate: Estimate | None
     radius_km: int                              # the settings
     maxzoom: int
@@ -50,3 +56,6 @@ class MapStatus:
     detail: MapFile | None
     world: MapFile | None                       # the data folder's own, else the one that ships with the program
     later: bool = False                         # the detailed map was begun without being asked for and could not be fetched yet: it is tried again at the next start
+    retry: tuple[int, int] | None = None        # `note` as numbers, which the page says in its words: this try and the tries in all
+    blocked_code: Literal["", "no_position", "busy"] = ""     # `blocked` as a code
+    failure: MapError | None = None             # `problem` with its code and values

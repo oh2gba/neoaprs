@@ -98,11 +98,11 @@ class QruAsk:
         try:
             frame = our_frame(config, calls, b":" + format_message(ADDRESSEE, request, None, None))
         except MessageError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         except FRAME_ERRORS as e:
-            raise MessagingError(f"the request to QRU makes no frame: {e}") from None
+            raise MessagingError.of(e, f"the request to QRU makes no frame: {e}") from None
         if not on.send_frame(frame):
-            raise MessagingError("the TNC would not take the frame")
+            raise MessagingError("the TNC did not take the frame", "radio.not_taken")
         self.asked = AskedOn(request, now, on.id)
         self._requests = [*self._requests, self.asked][-REQUESTS_MAX:]
         self._sent = {key: at for key, at in self._sent.items() if (now - at).total_seconds() < ASK_EVERY_SEC} | {(on.id, request): now}

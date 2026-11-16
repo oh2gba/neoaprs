@@ -453,7 +453,7 @@ async def test_the_default_alert_command_is_not_run_and_the_operators_own_is(und
     assert doors.started == [], "neither the alert nor its test button started the notifier or the player"
     out = tmp_path / "alert.txt"
     config = replace(config, messages_alert_command=writing(out))
-    assert await alerts.test() == (True, "ran") and out.read_text(encoding="utf-8").splitlines()[0] == "NEOAPRS"
+    assert (await alerts.test()).ok and out.read_text(encoding="utf-8").splitlines()[0] == "NEOAPRS"
 
 
 @posix_only
@@ -576,7 +576,7 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     radios = page.topics["radios"]
     assert radios["1"]["state"] == "waiting" and radios["2"]["state"] == "waiting" and radios["2"]["modem"]["reason"] == "not_installed"
-    assert page.topics["igate"]["state"] == "connecting" and page.topics["igate"]["problem"].endswith(REFUSED)
+    assert page.topics["igate"]["state"] == "connecting" and page.topics["igate"]["reason"] == "unreachable"
     await page.send({"cmd": "list_ports"})
     listed = await page.expect("ports")
     assert listed["ports"] == [] and listed["sound_cards"] == []

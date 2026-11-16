@@ -47,6 +47,17 @@ describe("a refusal that names a radio", () => {
     expect(errorReason(refusal("radio.no_modem", { name: "Mercury 2", radio: 3 }))).toBe("beim Funkgerät Mercury 2 läuft kein Modem");
   });
 
+  it("says why a status went on no radio by the radio's own name, inside nothing was sent, all of it in the page's language", () => {
+    const why = (name: string, radio: number) => refusal("status.not_sent", { why: "status.too_long_for_radio", name, radio }, "status_now");
+    expect(errorLine(why("Shack", 4), names())).toBe("nothing was sent: the status is too long for radio Shack");
+    expect(errorLine(why("LoRa", 9), names()), "a radio the page does not know: the daemon's name").toBe(
+      "nothing was sent: the status is too long for radio LoRa",
+    );
+    setLocale("nl");
+    expect(errorLine(why("Mercury 2", 3), names())).toBe("er is niets verzonden: de status is te lang voor radio Mercury 2");
+    expect(errorLine(refusal("status.not_sent", { why: "radio.none" }, "status_now"), names())).not.toMatch(/there is|no radio/);
+  });
+
   it("names the holder of a device by its id, and the GPS receiver by its own words", () => {
     expect(errorReason(refusal("radio.resource_held", { resource: "serial", holder: "Shack", held_by: 4 }, "set_config"), names())).toBe(
       "the device is in use by radio Shack: choose another",

@@ -111,8 +111,9 @@ class DfBearingValues(_Model):
 
 class AreaValues(_Model):
     """An area object (the symbol `\\l`): its shape and colour, and how far down and to the right of the object's position it reaches."""
-    shape: str = Field(description="open circle, line, open ellipse, open triangle, open box, filled circle, line down-left, filled ellipse, filled triangle or filled box")
-    colour: str
+    shape: Literal["open circle", "line", "open ellipse", "open triangle", "open box", "filled circle", "line down-left", "filled ellipse", "filled triangle", "filled box"] = Field(description="the shape, which the page says in its words")
+    colour: Literal["black", "blue", "green", "cyan", "red", "violet", "yellow", "gray", "dim black", "dim blue", "dim green", "dim cyan", "dim red", "dim violet", "dim yellow", "dim gray", "unknown"] = Field(
+        description="the colour, which the page says in its words; `unknown` for a number the specification has no colour for")
     lat_offset_deg: float
     lon_offset_deg: float
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { setLocale } from "@/i18n";
 import { extensionRows, frequencyText, locatorText, sentTimeText, stormText, telemetryBitsText, telemetryText } from "@/lib/details";
 import { packet } from "@/test/fixtures";
 import type { ExtensionValues, FrequencyValues, PacketRow, StormValues, TelemetryValues } from "@/protocol/protocol";
@@ -21,8 +22,18 @@ describe("extensionRows", () => {
       { label: "Range", text: "81 km" },
       { label: "DF signal", text: "S2, 24 m, 6 dB", direction: { deg: null, title: "omni" } },
       { label: "DF bearing", text: "270°, range 6 km, quality 9, hits 7" },
-      { label: "Area", text: "cyan filled ellipse, 1° down, 0.25° right" },
+      { label: "Area", text: "filled ellipse (cyan), 1° down, 0.25° right" },
     ]);
+  });
+
+  it("says the shape and the colour of an area in the page's language, from the daemon's words for them", () => {
+    try {
+      setLocale("nl");
+      const [row] = extensionRows({ ...none, area: { shape: "open circle", colour: "dim red", lat_offset_deg: 0.1, lon_offset_deg: 0.1 } });
+      expect(row?.text, "no English in a Dutch line (the owner's 'dim red open circle, 0.1° omlaag')").toMatch(/^open cirkel \(dof rood\), 0[.,]1° omlaag/);
+    } finally {
+      setLocale("en");
+    }
   });
 });
 
@@ -119,7 +130,7 @@ describe("sentTimeText", () => {
   it("gives a zulu time in the viewer's time and nothing for a packet without a time", () => {
     expect(sentTimeText(position({ timestamp: "2026-10-09T23:45:00.000000Z" }))).toMatch(/^2026-10-\d\d \d\d:\d\d:00$/);
     expect(sentTimeText(packet(1))).toBeNull();
-    expect(sentTimeText({ ...packet(1), decoded: { type: "undecoded", error: "x", text: "" } })).toBeNull();
+    expect(sentTimeText({ ...packet(1), decoded: { type: "undecoded", code: "damaged", text: "" } })).toBeNull();
   });
   it("reads the time of an object and its local flag from the position inside", () => {
     const row = packet(1);

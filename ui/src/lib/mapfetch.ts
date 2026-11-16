@@ -44,14 +44,37 @@ export function isRunning(map: MapState): boolean {
   return map.state === "estimating" || map.state === "downloading";
 }
 
-/** What the job is doing, with its percent and the size so far when it has them, and a note about a stall: `Map of the area 49% · 340 MB`. */
+/** Why a map job failed or cannot start, in words: the daemon's code of it (`MapState.problem`, `MapState.blocked`) with the values of its sentence. */
+const PROBLEMS: Record<NonNullable<MapState["problem"]>["code"], MessageId> = {
+  no_position: "settings.map.problem.no_position",
+  busy: "settings.map.problem.busy",
+  slow: "settings.map.problem.slow",
+  unreachable: "settings.map.problem.unreachable",
+  no_build: "settings.map.problem.no_build",
+  too_big: "settings.map.problem.too_big",
+  no_space: "settings.map.problem.no_space",
+  failed: "settings.map.problem.failed",
+};
+
+/** What the last job failed with; "" when it did not. */
+export function problemText(map: MapState): string {
+  return map.problem === null ? "" : t(PROBLEMS[map.problem.code] ?? "settings.map.problem.failed", map.problem.params);
+}
+
+/** Why no job can be started now; "" when one can, and for a code the page has no words for (a daemon of another build: the button still says nothing wrong). */
+export function blockedText(map: MapState): string {
+  const id = map.blocked === "" ? undefined : (PROBLEMS[map.blocked] as MessageId | undefined);
+  return id === undefined ? "" : t(id);
+}
+
+/** What the job is doing, with its percent and the size so far when it has them, and a note about a stall: `Map of the area 49% · 340 MB`, `… · no progress: trying again (2 of 3)`. */
 export function progressText(map: MapState): string {
   const id = STEP_TEXT[map.step];
   const step = id ? t(id) : map.state === "estimating" ? t("settings.map.estimating") : t("settings.map.working");
   return [
     map.percent === null ? step : t("settings.map.step_percent", { step, percent: map.percent }),
     ...(map.downloaded ? [formatBytes(map.downloaded)] : []),
-    ...(map.note ? [map.note] : []),
+    ...(map.retry ? [t("settings.map.retry", { attempt: map.retry.attempt, tries: map.retry.tries })] : []),
   ].join(" · ");
 }
 

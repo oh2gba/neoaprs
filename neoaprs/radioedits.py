@@ -103,7 +103,7 @@ def changed_radio(config: Config, id: RadioId, columns: Mapping[str, object]) ->
     """The radio with its name, its type (of its own kind), its tickbox or its place changed; RadioError for what it cannot be (the last enabled radio is not switched off)."""
     spec = live_radio(config, id)
     if unknown := sorted(set(columns) - set(CHANGEABLE)):
-        raise RadioError(f"radio {id}: its {', '.join(unknown)} cannot be changed (its {', '.join(CHANGEABLE)} can)")
+        raise RadioError(f"radio {id}: its {', '.join(unknown)} cannot be changed (its {', '.join(CHANGEABLE)} can)", "failed")          # (the page's commands change no other)
     new = spec
     if "name" in columns:
         new = replace(new, name=check_name(str(columns["name"]), config.live_radios, id))
@@ -117,14 +117,14 @@ def changed_radio(config: Config, id: RadioId, columns: Mapping[str, object]) ->
         new = replace(new, type=rtype.key)
     if "enabled" in columns:
         if not isinstance(columns["enabled"], bool):
-            raise RadioError(f"radio/{id}/enabled: true or false, not {columns['enabled']!r}")
+            raise RadioError(f"radio/{id}/enabled: true or false, not {columns['enabled']!r}", "failed")
         if not columns["enabled"]:
             _refuse_last(config, spec, "switched off")
         new = replace(new, enabled=columns["enabled"])
     if "position" in columns:
         position = columns["position"]
         if not isinstance(position, int) or isinstance(position, bool) or not 1 <= position <= MAX_POSITION:
-            raise RadioError(f"radio/{id}/position: a whole number from 1 to {MAX_POSITION}, not {position!r}")
+            raise RadioError(f"radio/{id}/position: a whole number from 1 to {MAX_POSITION}, not {position!r}", "failed")
         new = replace(new, position=position)
     return new
 

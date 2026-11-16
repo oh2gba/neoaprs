@@ -301,15 +301,18 @@ describe("groupKeys", () => {
 });
 
 describe("reasonOf", () => {
-  it("gives the reason without the command and the setting in front", () => {
-    expect(reasonOf({ cmd: "set_config", key: "station/lat", text: "set_config: station/lat: 95 is not between -90 and 90" })).toBe(
+  it("gives the reason without the command and the setting in front, from the catalogue by its code", () => {
+    const text = "set_config: station/lat: 95 is not between -90 and 90";
+    expect(reasonOf({ cmd: "set_config", key: "station/lat", text, code: "setting.range", params: { value: 95, min: -90, max: 90 } })).toBe(
       "95 is not between -90 and 90",
     );
-    expect(reasonOf({ cmd: "alert_test", key: null, text: "alert_test: no alert command" })).toBe("no alert command");
+    expect(reasonOf({ cmd: "alert_test", key: null, text: "alert_test: no alert command", code: "alert.no_command" })).toBe("no alert command");
   });
-  it("leaves a sentence that does not begin with them as it is", () => {
-    expect(reasonOf({ cmd: "", key: null, text: "Not connected to the daemon." })).toBe("Not connected to the daemon.");
-    expect(reasonOf({ cmd: "set_config", key: "station/lat", text: "something else" })).toBe("something else");
+  it("never gives the daemon's English: a refusal without a code the page has is its plain words of a failure", () => {
+    expect(reasonOf({ cmd: "", key: null, text: "Not connected to the daemon." })).toBe(
+      "That did not work; try again. If it keeps happening, send the logs (Settings → Help).",
+    );
+    expect(reasonOf({ cmd: "set_config", key: "station/lat", text: "something else", code: "other" })).not.toContain("something else");
   });
 });
 

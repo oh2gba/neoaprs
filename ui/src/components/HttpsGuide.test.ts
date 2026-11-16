@@ -10,8 +10,8 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues } from "@/test/fixtures";
 
 const FINGERPRINT = "AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89";
-const ON: HttpsState = { on: true, port: 7304, fingerprint: FINGERPRINT, problem: "" };
-const OFF: HttpsState = { on: false, port: 0, fingerprint: "", problem: "" };
+const ON: HttpsState = { on: true, port: 7304, fingerprint: FINGERPRINT, reason: "" };
+const OFF: HttpsState = { on: false, port: 0, fingerprint: "", reason: "" };
 const NETWORK = { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" };
 
 const ANDROID = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
@@ -126,8 +126,8 @@ describe("the Web page group", () => {
     const off = settings(OFF);
     expect(off.find(".httpsguide").exists()).toBe(false);
     expect(off.findAll("details.disclosure").some((box) => box.find("summary").text() === "Install the certificate on a device")).toBe(false);
-    const failed = settings({ ...OFF, problem: "the secure page cannot listen on a port after 7303: address in use" });
-    expect(failed.find(".field-error").text()).toContain("address in use");
+    const failed = settings({ ...OFF, reason: "no_port" });
+    expect(failed.find(".field-error").text(), "the page's words, no port number").toBe("the secure page cannot listen on a port: none is free");
   });
 
   it("has the guide under a heading while https is served", () => {

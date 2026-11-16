@@ -73,15 +73,28 @@ describe("settinglinks", () => {
       "setting.comment_too_long",
       { length: 40, limit: 36 },
     );
-    expect(refusalFor(errorOf("set_config: station/lat: 95 is out"), ["station/lat", "station/lon"])).toEqual({ key: "station/lat", reason: "95 is out" });
-    expect(refusalFor(comment, ["beacon/power_w"])).toEqual({ key: "beacon/power_w", reason: "Shorten the comment to 36 first" });
-    expect(refusalFor(errorOf("set_config: status/source: needs it"), ["status/rigctld"])).toEqual({ key: "status/rigctld", reason: "needs it" });
-    expect(refusalFor(errorOf("set_config: the settings could not be stored"), ["digi/enabled"])).toEqual({
-      key: "digi/enabled",
-      reason: "the settings could not be stored",
+    expect(
+      refusalFor(errorOf("set_config: station/lat: 95 is out", "setting.range", { value: 95, min: -90, max: 90 }), ["station/lat", "station/lon"]),
+    ).toEqual({
+      key: "station/lat",
+      reason: "95 is not between -90 and 90",
     });
-    expect(refusalFor(errorOf("set_config: serial/baud: x"), ["map/radius_km"])).toEqual({ key: "map/radius_km", reason: "x" });
-    expect(refusalFor({ ...comment, code: "other", params: {} }, ["beacon/power_w"]).reason).toBe(reasonOf(comment));
+    expect(refusalFor(comment, ["beacon/power_w"])).toEqual({ key: "beacon/power_w", reason: "Shorten the comment to 36 first" });
+    expect(refusalFor(errorOf("set_config: status/source: needs it", "setting.status_needs_rigctld"), ["status/rigctld"])).toEqual({
+      key: "status/rigctld",
+      reason: "the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)",
+    });
+    expect(refusalFor(errorOf("set_config: the settings could not be stored", "setting.not_stored"), ["digi/enabled"])).toEqual({
+      key: "digi/enabled",
+      reason: "the settings could not be stored (the database would not take them); nothing changed",
+    });
+    expect(refusalFor(errorOf("set_config: serial/baud: x", "setting.not_whole", { value: "x" }), ["map/radius_km"])).toEqual({
+      key: "map/radius_km",
+      reason: "'x' is not a whole number",
+    });
+    expect(refusalFor({ ...comment, code: "other", params: {} }, ["beacon/power_w"]).reason, "without a code: the plain words, never the English").toBe(
+      reasonOf({ ...comment, code: "other", params: {} }),
+    );
   });
 
   it("asks only for what would cut the device off, and only on another device", () => {

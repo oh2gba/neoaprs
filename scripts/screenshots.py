@@ -715,7 +715,7 @@ SCOPE_LIVE_SEC = 30.0                                               # the rows t
 FRAME_SEC = 3.8                                                     # how long a frame is on the air
 SCOPE_FRAMES = ((6.0, -19.0), (27.5, -23.0), (41.0, -17.5), (66.0, -21.5), (83.5, -25.0), (101.0, -18.0), (113.0, -22.0), (124.0, -20.0), (139.5, -23.5))     # (when it begins, s; its level a bin, dB)
 SCOPE_CARRIER = (2210.0, -38.0)                                     # a faint carrier somewhere in the passband (Hz, dB)
-MADE_UP_MODEM = {"state": "running", "problem": "", "reason": "", "mode": "DATAC3", "keyed": False, "busy": False, "test": "", "snr": None, "frames_keyed": 0, "max_frame": 123, "sound_card": "",
+MADE_UP_MODEM = {"state": "running", "reason": "", "mode": "DATAC3", "keyed": False, "busy": False, "test": "", "snr": None, "frames_keyed": 0, "max_frame": 123, "sound_card": "",
                  "frequencies": [{"band": band, "dial": dial} for band, dial in SUGGESTED], "keying": "vox", "scope": True, "tx_gain_db": 0, "tx_peak_dbfs": None, "rx_level": None}
 
 

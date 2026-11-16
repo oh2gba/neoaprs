@@ -18,6 +18,7 @@ from typing import Protocol, cast
 
 from . import nodevices
 from .httpstrust import https_handler
+from .mapstate import Problem
 from .pmtilesarchive import UNREACHABLE, USER_AGENT, Redirected
 
 log = logging.getLogger("neoaprs.mapfetch")
@@ -33,7 +34,12 @@ Into = Callable[[int, bytes], None]         # told each piece with the offset in
 
 
 class CutError(Exception):
-    """The cut cannot be done; the text says why, in a sentence for the log."""
+    """The cut cannot be done; the text says why, in a sentence for the log, and `problem` as a code for the page (neoaprs/mapstate.py `Problem`), with the values of its sentence."""
+
+    def __init__(self, text: str, problem: Problem = "failed", **params: int) -> None:
+        super().__init__(text)
+        self.problem: Problem = problem
+        self.params = params
 
 
 class _TryAgain(Exception):
@@ -174,7 +180,7 @@ class HttpSource:
                     raise CutError(STOPPED) from None
                 if pause is None:
                     log.warning("the map server did not give bytes %d to %d after %d tries: %s", offset, offset + length - 1, attempt, e)
-                    raise CutError(UNREACHABLE) from None
+                    raise CutError(UNREACHABLE, problem="unreachable") from None
                 log.info("the map server did not give bytes %d to %d (try %d): %s", offset, offset + length - 1, attempt, e)
             if self._halt.wait(pause):
                 raise CutError(STOPPED)
@@ -259,7 +265,7 @@ def open_source(source: str, halt: Halt, pauses: tuple[float, ...] = PAUSES_SEC)
     scheme = source.split("://", 1)[0].lower() if "://" in source else ""
     if scheme in ("http", "https"):
         if nodevices.url_refused(source, "the map"):
-            raise CutError(UNREACHABLE)
+            raise CutError(UNREACHABLE, problem="unreachable")
         return HttpSource(source, halt, pauses)
     if scheme:
         raise CutError("the map source is neither an http or https address nor a file")

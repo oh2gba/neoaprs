@@ -79,7 +79,6 @@ class StationRow(_Model):
     reported_by: str = Field(description="who sent the report, for an object or an item; empty for a station")
     symbol_table: str = Field(description="`/` (primary), `\\` (alternate) or an overlay character 0-9, A-Z; empty until a position is heard")
     symbol_code: str = Field(description="the character of the symbol in its table; empty until a position is heard")
-    symbol_name: str = Field(description="the name of the symbol (\"Car\", \"Digipeater\"), `unknown` for none")
     lat: float | None = Field(description="decimal degrees, south negative; null until a position is heard")
     lon: float | None = Field(description="decimal degrees, west negative; null until a position is heard")
     altitude_m: float | None

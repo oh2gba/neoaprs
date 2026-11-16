@@ -85,12 +85,12 @@ describe("beaconBlock of a moving station", () => {
   });
 
   it("says no beacon without a fix and gives the problem of the daemon", () => {
-    const gps = gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, problem: "the receiver has no position fix yet" });
+    const gps = gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, reason: "no_answer" });
     expect(beaconBlock(null, gps, GPSD, NOW)).toMatchObject({
       pill: { text: "no fix", tone: "gps-no_fix" },
       line: "No fix yet",
       smart: "No beacon: no GPS fix",
-      problem: "the receiver has no position fix yet",
+      problem: "the GPS does not answer",
     });
   });
 
@@ -114,11 +114,11 @@ describe("beaconBlock of a moving station", () => {
       smart: "No automatic beacon · Beacon now still sends",
       problem: "",
     });
-    expect(beaconBlock(timed(), gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, problem: "no satellites" }), off, NOW)).toMatchObject({
+    expect(beaconBlock(timed(), gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, reason: "no_answer" }), off, NOW)).toMatchObject({
       pill: { text: "no fix", tone: "gps-no_fix" },
       line: "No fix yet",
       smart: "No automatic beacon · Beacon now still sends",
-      problem: "no satellites",
+      problem: "the GPS does not answer",
     });
     expect(beaconBlock(null, null, off, NOW)).toMatchObject({
       moving: true,

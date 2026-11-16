@@ -80,7 +80,7 @@ class UpdateResultMsg(_Message):
     type: Literal["update_result"]
     outcome: Literal["newer", "current", "no_answer"] = Field(description="`newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version")
     version: str = Field(description="the latest version for `newer`, this version for `current`; empty for `no_answer`")
-    text: str = Field(description="for `no_answer` why, in a sentence; empty otherwise")
+    reason: Literal["", "offline", "bad_answer"] = Field(description="for `no_answer` why, as a code the page says in its words: `offline` the update server did not answer (is there a connection?), `bad_answer` it gave no usable answer; empty otherwise")
 
 
 class ReleaseNotes(_Command):
@@ -103,7 +103,7 @@ class ReleaseNotesMsg(_Message):
     version: str = Field(description="the version asked for")
     since: str = Field(description="the `since` asked for, empty when there was none")
     sections: list[NoteSection] = Field(description="the newest first; empty with `problem`")
-    problem: str = Field(description="why there are no sections, in a sentence; empty when there are")
+    problem: Literal["", "unreachable", "unknown_version"] = Field(description="why there are no sections, as a code: `unreachable` the notes could not be fetched, `unknown_version` the version is neither the newer one known nor this one; empty when there are")
 
 
 class Pong(_Message):
@@ -114,10 +114,11 @@ class Pong(_Message):
 
 class Error(_Message):
     """A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`
-    and `code`; `text` is the English sentence for a log and for a code the page has no sentence for."""
+    and `code` (with the sentence of `why` for a refusal that passes another's on); `text` is the English sentence for the log, which the page never shows: a code it has no sentence for is said with its plain
+    words of a failure."""
     type: Literal["error"]
     cmd: str = Field(description="the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one)")
     key: str | None = Field(description="the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error")
-    code: str = Field(description="a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `other` for an error that has no code yet")
-    params: dict[str, str | int | float] = Field(description="the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`; empty when there are none")
+    code: str = Field(description="a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `failed` for one the operator can do nothing about; `other` for an error that has no code")
+    params: dict[str, str | int | float] = Field(description="the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`, and `why`, the code of the reason, for a refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`); empty when there are none")
     text: str = Field(description="what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`)")

@@ -368,13 +368,13 @@ describe("the beacon status of a moving station", () => {
 
   it("says there is no beacon without a fix, why there is none, and keeps Beacon now as it is", async () => {
     const { wrapper, send } = pane(moving, {
-      gps: gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, problem: "the receiver has no position fix yet" }),
+      gps: gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null }),
     });
     expect(block(wrapper).find(".statetext").text()).toBe("no fix");
     expect(block(wrapper).find(".statetext").classes()).toContain("gps-no_fix");
     expect(block(wrapper).find(".tncstatus").text()).toBe("No fix yet");
     expect(block(wrapper).find(".igatefold").text()).toBe("No beacon: no GPS fix");
-    expect(block(wrapper).find(".problem").text()).toBe("the receiver has no position fix yet");
+    expect(block(wrapper).find(".problem").exists(), "the line says there is no fix: nothing more").toBe(false);
     const button = buttons(wrapper)[0];
     expect(button?.text()).toBe("Beacon now");
     await button?.trigger("click");
@@ -383,9 +383,9 @@ describe("the beacon status of a moving station", () => {
   });
 
   it("says what it is connecting to, from the settings, and follows the GPS", async () => {
-    const { wrapper, daemon } = pane(moving, { gps: gpsState({ state: "connecting", lat: null, lon: null, fix_at: null, problem: "Connection refused" }) });
+    const { wrapper, daemon } = pane(moving, { gps: gpsState({ state: "connecting", lat: null, lon: null, fix_at: null, reason: "no_answer" }) });
     expect(block(wrapper).find(".tncstatus").text()).toBe("Connecting to gpsd at 127.0.0.1:2947");
-    expect(block(wrapper).find(".problem").text()).toBe("Connection refused");
+    expect(block(wrapper).find(".problem").text()).toBe("the GPS does not answer");
     daemon.gps.value = gpsState();
     await wrapper.vm.$nextTick();
     expect(block(wrapper).find(".statetext").text()).toBe("fix");
@@ -480,17 +480,14 @@ describe("BeaconPane with the beacon Off", () => {
   });
 
   it("shows a moving station's missing fix and its reason while the beacon is Off, and the fixed station's block as it was", () => {
-    const { wrapper } = off(
-      { "gps/source": "gpsd" },
-      { gps: gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, problem: "the receiver has no position fix yet" }) },
-    );
+    const { wrapper } = off({ "gps/source": "gpsd" }, { gps: gpsState({ state: "no_fix", lat: null, lon: null, fix_at: null, reason: "no_answer" }) });
     expect(block(wrapper).find(".statetext").text()).toBe("no fix");
     expect(block(wrapper).find(".tncstatus").text()).toBe("No fix yet");
     expect(
       block(wrapper)
         .findAll("p")
         .map((p) => p.text()),
-    ).toEqual(["No automatic beacon · Beacon now still sends", "the receiver has no position fix yet"]);
+    ).toEqual(["No automatic beacon · Beacon now still sends", "the GPS does not answer"]);
     const fixed = off();
     expect(block(fixed.wrapper).find(".statetext").text()).toBe("off");
     expect(block(fixed.wrapper).find(".tncstatus").text()).toBe("No automatic beacon · Beacon now still sends");

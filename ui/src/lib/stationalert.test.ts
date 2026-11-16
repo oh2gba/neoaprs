@@ -24,8 +24,6 @@ describe("the alerts set on stations", () => {
     expect(firedText({ call: "OH2XYZ", kind: "on_air", km: null })).toBe("OH2XYZ is on the air");
     expect(firedText({ call: "OH2XYZ", kind: "within", km: 8.24 })).toBe("OH2XYZ is 8.2 km from you");
     expect(firedText({ call: "OH2XYZ", kind: "within", km: 42 })).toBe("OH2XYZ is 42 km from you");
-    expect(firedLine({ type: "station_alert", call: "OH2XYZ", kind: "direct", text: "", at, km: null })).toBe(
-      `${clockText(at).slice(0, 5)} OH2XYZ is heard direct`,
-    );
+    expect(firedLine({ type: "station_alert", call: "OH2XYZ", kind: "direct", at, km: null })).toBe(`${clockText(at).slice(0, 5)} OH2XYZ is heard direct`);
   });
 });

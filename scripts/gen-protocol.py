@@ -474,9 +474,10 @@ way (`cmd` is empty; `code` is `not_json`, `not_object`, `no_command` or `unknow
 is wrong is the answer, with `cmd` `set_config`, `key` the setting (`station/lat`), `code` what is wrong (`setting.range`), `params` its figures (`value`, `min`, `max`) and `text` `set_config: station/lat: 95 is
 not between -90 and 90`.
 
-A page goes by `cmd`, `key` and `code` and never reads `text`; `text` is the English sentence for a log and for a code the page has no sentence for. The codes are stable words: `setting.*` for the values
-of the settings (and `call.*`, `path.*` inside them), `message.*`, `object.*` and `bulletin.*` for what is posted or sent, `station.*`, `beacon.*`, `status.*`, `map.*` and `topic.*` for the rest of the commands,
-and `other` for a refusal that has no code yet (only `text` says what it is).
+A page goes by `cmd`, `key` and `code` and never reads `text`; `text` is the English sentence for the log, and a code the page has no sentence for is said with its plain words of a failure. The codes are stable words: `setting.*` for the values
+of the settings (and `call.*`, `path.*` inside them), `message.*`, `object.*` and `bulletin.*` for what is posted or sent, `radio.*` for a radio and why it takes no frame now, `station.*`, `beacon.*`, `status.*`, `map.*` and `topic.*` for the rest of the commands,
+and `failed` for a refusal the operator can do nothing about (a race, the database, a frame no page of this daemon sends). A refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`: nothing was
+sent, and why) carries the code of that reason as `params.why`, with its values. No other message carries a sentence of the daemon's for the page to show: a reason or a state's why is a code of its model.
 
 With `NEOAPRS_VALIDATE_OUT=1` in the daemon's environment every message it sends is checked against the `Message` union too (`state` and `patch` also against the type of the topic's value, and
 each `set` against the type of the item), and a message that does not fit is logged once for each type (the test suite runs with this on, and fails on any mismatch).

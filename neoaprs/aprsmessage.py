@@ -73,13 +73,13 @@ def parse_message(body: bytes) -> Message:
 
 def _check_addressee(addressee: str) -> str:
     if not 1 <= len(addressee) <= _ADDRESSEE_LEN or addressee != addressee.strip() or ":" in addressee or not addressee.isascii() or not addressee.isprintable():
-        raise MessageError(f"bad addressee {addressee!r}")
+        raise MessageError(f"{addressee!r} cannot be the addressee of a message", "message.addressee", addressee=addressee)
     return addressee.ljust(_ADDRESSEE_LEN)
 
 
 def _check_id(msg_id: str) -> str:
     if not _ID.fullmatch(msg_id):
-        raise MessageError(f"bad message id {msg_id!r}")
+        raise MessageError(f"bad message id {msg_id!r}", "failed")          # (made by the daemon: nothing the operator can mend)
     return msg_id
 
 
@@ -88,13 +88,13 @@ def format_message(addressee: str, text: str, msg_id: str | None = None, reply_a
     read back as something else (an ack, a "{") or that is not printable ASCII is refused."""
     padded = _check_addressee(addressee)
     if any(c in text for c in FORBIDDEN) or not text.isprintable() or not text.isascii() or len(text) > MAX_TEXT:
-        raise MessageError("text with a forbidden character, or too long")
+        raise MessageError("the text has a character a message cannot carry, or is too long", "message.bad_text")
     if _ACK.match(text):
-        raise MessageError("text that reads as an ack or a reject")
+        raise MessageError("the text reads as an ack or a reject", "message.reads_as_ack")
     ident = "" if msg_id is None else "{" + _check_id(msg_id)
     if reply_ack is not None:
         if msg_id is None:
-            raise MessageError("a reply-ack needs a message id")
+            raise MessageError("a reply-ack needs a message id", "failed")
         ident += "}" + (_check_id(reply_ack) if reply_ack else "")
     return f"{padded}:{text}{ident}".encode("ascii")
 

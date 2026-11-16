@@ -20,7 +20,9 @@ export interface Outcome {
 export function outcomeOf(message: UpdateResultMessage): Outcome {
   if (message.outcome === "newer") return { text: t("settings.update.available", { version: message.version }), tone: "update-available", newer: true };
   if (message.outcome === "current") return { text: t("settings.update.current"), tone: "update-current", newer: false };
-  return { text: message.text || t("settings.update.no_answer"), tone: "update-failed", newer: false };
+  const id =
+    message.reason === "offline" ? "settings.update.offline" : message.reason === "bad_answer" ? "settings.update.bad_answer" : "settings.update.no_answer";
+  return { text: t(id), tone: "update-failed", newer: false };
 }
 
 export function useUpdateCheck(updateResult: Ref<UpdateResultMessage | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean) {

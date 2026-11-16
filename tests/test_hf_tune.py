@@ -151,7 +151,7 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     for cmd in ({"cmd": "radio_tune", "radio": 2, "on": True}, {"cmd": "radio_key_test", "radio": 2}):
         await page.send(cmd)
         error = await page.expect("error")
-        assert error["code"] == "transmit.call" and error["params"]["reason"] == "set your call first" and "call" in error["text"], "no call to send under: no tone either (coded: the page says it in its language)"
+        assert error["code"] == "transmit.call" and error["params"]["why"] == "call.none" and "call" in error["text"], "no call to send under: no tone either (coded: the page says it in its language)"
     assert station.tuned[4:] == []
     await e.stop()
     await asyncio.sleep(0)

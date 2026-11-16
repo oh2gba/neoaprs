@@ -20,7 +20,6 @@ describe("App: the Objects tab", () => {
         reported_by: "OH2GBA",
         lat: 60.3,
         lon: 25.0,
-        symbol_name: "Car",
         distance_km: 15,
         bearing_deg: 10,
       }),
@@ -100,7 +99,7 @@ describe("App: the Objects tab", () => {
       await field(wrapper, "Name")?.setValue("MARK");
       await field(wrapper, "Comment")?.setValue("kept");
       await wrapper.find("#pane-objects form").trigger("submit");
-      socket.say(errorOf("object_set: set your call first"));
+      socket.say(errorOf("object_set: set your call first", "call.none"));
       await flushPromises();
       expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);
       expect(field(wrapper, "Comment")?.element.value).toBe("kept");

@@ -49,10 +49,11 @@ from .tnc2line import text_of
 from .tncsearch import PortSearch, hold_port, may_open, release_port, taken
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
 from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_SEC, TncStats, Watchdog
+from .coded import Reason
 
 log = logging.getLogger("neoaprs.tnc")
 
-COMMAND_MODE = "the TNC is in command mode (KISS ON is sent again)"
+COMMAND_MODE = Reason("the TNC is in command mode (KISS ON is sent again)", "radio.command_mode")
 ENTER_KISS = KENWOOD_TNC2.enter[0][0]       # what the default profile writes (the Kenwood TNC-2's), for the tests
 
 

@@ -27,8 +27,8 @@ function setUp(initial: ConfigValues | null = fresh()) {
     };
     await nextTick();
   };
-  const fail = async (text: string) => {
-    lastError.value = toastOf(text, "other", {}, (lastError.value?.n ?? 0) + 1);
+  const fail = async (text: string, code = "other", params: Record<string, string | number> = {}) => {
+    lastError.value = toastOf(text, code, params, (lastError.value?.n ?? 0) + 1);
     await nextTick();
   };
   /** The first four steps answered. */
@@ -276,7 +276,7 @@ describe("useSetupGuide: Finish", () => {
     guide.go(3);
     guide.next();
     expect(guide.saving).toBe(true);
-    await fail("set_config: station/lat: 95 is not between -90 and 90");
+    await fail("set_config: station/lat: 95 is not between -90 and 90", "setting.range", { value: 95, min: -90, max: 90 });
     expect(guide.saving).toBe(false);
     expect(guide.open).toBe(true);
     expect(guide.step).toBe(1);
@@ -294,7 +294,7 @@ describe("useSetupGuide: Finish", () => {
     fill();
     guide.go(3);
     guide.next();
-    await fail("set_config: station/symbol_table: '!' is not / or \\ or an overlay character A-Z, 0-9");
+    await fail("set_config: station/symbol_table: '!' is not / or \\ or an overlay character A-Z, 0-9", "setting.not_symbol_table", { value: "!" });
     expect(guide.step).toBe(2);
     expect(guide.problems.symbol).toContain("is not / or");
     guide.edit("symbol", "/-");
@@ -312,7 +312,7 @@ describe("useSetupGuide: Finish", () => {
     const { guide, fail, fill } = setUp();
     guide.show();
     fill();
-    await fail("set_config: station/lat: 95 is not between -90 and 90");
+    await fail("set_config: station/lat: 95 is not between -90 and 90", "setting.range", { value: 95, min: -90, max: 90 });
     expect(guide.problems.lat).toBeUndefined();
     guide.go(3);
     guide.next();

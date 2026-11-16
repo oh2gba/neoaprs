@@ -12,7 +12,6 @@ const job = (over: Partial<UpdateState> = {}): UpdateState => ({
   downloaded: 0,
   total: null,
   problem: "",
-  detail: "",
   ...over,
 });
 

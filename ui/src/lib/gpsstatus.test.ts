@@ -38,7 +38,7 @@ describe("gpsStatus", () => {
   });
 
   it("says a fix that is old was lost, and when", () => {
-    const stale = gpsState({ state: "stale", fix_at: ago(180), problem: "the latest fix is 180 s old" });
+    const stale = gpsState({ state: "stale", fix_at: ago(180) });
     expect(gpsStatus(stale, values, NOW)).toBe("Fix lost 3 min ago");
   });
 
@@ -54,9 +54,10 @@ describe("gpsStatus", () => {
 
 describe("gpsProblem", () => {
   it("gives the daemon's line while there is no fix, and not for a fix or for an old one, which the line says", () => {
-    expect(gpsProblem(gpsState({ state: "connecting", problem: "Connection refused" }))).toBe("Connection refused");
-    expect(gpsProblem(gpsState({ state: "no_fix", problem: "the receiver has no position fix yet" }))).toBe("the receiver has no position fix yet");
-    expect(gpsProblem(gpsState({ state: "stale", problem: "the latest fix is 180 s old" }))).toBe("");
+    expect(gpsProblem(gpsState({ state: "connecting", reason: "no_answer" }))).toBe("the GPS does not answer");
+    expect(gpsProblem(gpsState({ state: "connecting", reason: "no_port" }))).toBe("no GPS port set: choose the receiver's port in the settings");
+    expect(gpsProblem(gpsState({ state: "no_fix", reason: "" })), "the line says there is no fix: nothing more").toBe("");
+    expect(gpsProblem(gpsState({ state: "stale", reason: "no_answer" }))).toBe("");
     expect(gpsProblem(gpsState())).toBe("");
   });
 });

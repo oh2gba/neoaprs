@@ -12,6 +12,7 @@ import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useCameOn } from "@/composables/useStationRadio";
 import { radioTone } from "@/lib/channels";
+import { routeWords } from "@/lib/routes";
 import { useSure } from "@/composables/useSure";
 import { dateTimeText } from "@/lib/format";
 import { mailState, mailTime, type MailItem } from "@/lib/mailitems";
@@ -66,7 +67,7 @@ const copy = useCopyMenu(() => [
     <div v-if="open" class="mail-detail muted">
       <span>{{ dateTimeText(row.at) }}</span>
       <span v-if="row.route || on" :title="t('messages.route_title')">
-        <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark> {{ row.route }}
+        <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark> {{ routeWords(row.route) }}
       </span>
       <MessageChain v-if="row.direction === 'out'" :row="row" :heard-direct="heardDirect" mail />
     </div>

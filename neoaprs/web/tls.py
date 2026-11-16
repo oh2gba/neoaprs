@@ -38,7 +38,11 @@ Names = tuple[str, ...]
 
 
 class TlsError(Exception):
-    """The certificates could not be made or read; the text says why, for the log and the page."""
+    """The certificates could not be made or read; the text says why, for the log. `clock`: it is the clock of this computer that is not set (the page says which of the two)."""
+
+    def __init__(self, text: str, clock: bool = False) -> None:
+        super().__init__(text)
+        self.clock = clock
 
 
 @dataclass(frozen=True)
@@ -175,7 +179,7 @@ class CertificateStore:
     def ensure(self, host: str, addresses: Iterable[str], more: Iterable[str] = ()) -> Certificates:
         now = self._clock()
         if now < CLOCK_SANE_AFTER:
-            raise TlsError("the clock of this computer is not set; the secure connection starts when it is")
+            raise TlsError("the clock of this computer is not set; the secure connection starts when it is", clock=True)
         try:
             self.folder.mkdir(mode=0o700, parents=True, exist_ok=True)
             try:

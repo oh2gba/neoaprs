@@ -9,8 +9,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 
 from neoaprs.clock import iso
-from neoaprs.coded import CodedError
-from neoaprs.config import RX_ONLY_REASONS
+from neoaprs.coded import CodedError, code_of
 from neoaprs.mapstate import Job, MapError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessagingError
@@ -170,17 +169,19 @@ async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
     sent = [b.send_now("request") for b in beacons]
     if not any(sent):
         beacon = beacons[0]
-        if beacon.problem in RX_ONLY_REASONS:
+        why, params = code_of(beacon.problem)
+        if why == "transmit.off":
             raise UserError("beacon_now: RX only: nothing is sent", "transmit.off")
-        raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"reason": beacon.problem})
+        raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"why": why, **params})      # (the page says the reason by `why`, error.<why>)
 
 
 @command(StatusNow)
 async def status_now(ctx: Ctx, cmd: StatusNow) -> None:
     if problem := await ctx.ctl.rigstatus.send_now():
-        if problem in RX_ONLY_REASONS:
+        why, params = code_of(problem)
+        if why == "transmit.off":
             raise UserError("status_now: RX only: nothing is sent", "transmit.off")
-        raise UserError(f"status_now: nothing was sent: {problem}", "status.not_sent", params={"reason": problem})
+        raise UserError(f"status_now: nothing was sent: {problem}", "status.not_sent", params={"why": why, **params})
 
 
 @command(SendMessage)
@@ -217,7 +218,7 @@ async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
         try:
             call = normal_name(cmd.call)
         except CallsignError as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         station = ctx.ctl.stationbook.get(call)
         if station is None:
             raise UserError(f"{cmd.cmd}: there is no station {call!r}", "station.unknown", params={"call": call})
@@ -301,7 +302,7 @@ async def set_station_alert(ctx: Ctx, cmd: SetStationAlert) -> None:
 @command(CheckUpdate)
 async def update_check(ctx: Ctx, cmd: CheckUpdate) -> None:
     result = await ctx.ctl.updatecheck.check_now()
-    ctx.conn.send({"type": "update_result", "outcome": result.outcome, "version": result.version, "text": result.reason})
+    ctx.conn.send({"type": "update_result", "outcome": result.outcome, "version": result.version, "reason": result.why})
     ctx.conn.send(await ctx.status())                                   # (the other pages have it at the next status, within 10 s)
 
 
@@ -338,7 +339,9 @@ def start_map_job(ctx: Ctx, job: Job, name: str) -> None:
     try:
         ctx.ctl.mapfetch.begin(job)
     except MapError as e:
-        raise UserError(f"{name}: {e}") from None
+        if e.problem == "busy":
+            raise UserError(f"{name}: a map job is running already", "map.busy") from None
+        raise UserError(f"{name}: the station has no position yet: set Latitude and Longitude (the map is cut round them)", "map.no_position") from None
 
 
 @command(ObjectSet)

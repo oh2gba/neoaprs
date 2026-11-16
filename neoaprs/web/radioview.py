@@ -7,7 +7,7 @@ from typing import Any, Protocol
 
 from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.clock import iso
-from neoaprs.config import RX_ONLY_REASONS
+from neoaprs.coded import Param, code_of
 from neoaprs.loraboard import TEXT_LINES
 from neoaprs.radiospec import RadioSpec, log_name, number_in_kind
 from neoaprs.radiotype import RadioId, RadioType, RadioTypeError, ResourceKind
@@ -82,7 +82,8 @@ def _choices(spec: RadioSpec, rtype: RadioType) -> dict[str, Any]:
 def _beacon(spec: RadioSpec, beacon: RadioBeacon | None) -> dict[str, Any]:
     if beacon is None:
         return {"last_sent": None, "next_due": None, "interval_min": 0, "problem": None}
-    problem = None if not beacon.problem else _problem("transmit.off") if beacon.problem in RX_ONLY_REASONS else _problem("beacon.not_sent", reason=beacon.problem)
+    why, params = code_of(beacon.problem)
+    problem = None if not beacon.problem else _problem("transmit.off") if why == "transmit.off" else _problem("beacon.not_sent", why=why, **params)
     return {"last_sent": iso(beacon.last_sent), "next_due": iso(beacon.next_due), "interval_min": beacon.interval_min if spec.enabled else 0, "problem": problem}
 
 
@@ -91,7 +92,7 @@ def _status(spec: RadioSpec, status: RadioStatus | None) -> dict[str, Any]:
     return {"last_sent": iso(last), "next_due": iso(due), "interval_min": minutes}
 
 
-def _problem(what: str, **params: str | int) -> dict[str, Any]:
+def _problem(what: str, **params: Param) -> dict[str, Any]:
     """A RadioProblem of the row: the code (one of RadioProblemCode) and the values of its sentence. Not a refusal: scripts/errorcodes.py leaves it out of the page's list of refusals."""
     return RadioProblem.row(None, code=what, params=params)
 

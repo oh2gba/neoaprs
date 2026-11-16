@@ -61,9 +61,16 @@ export function gpsStatus(gps: GpsState, values: Readonly<Record<string, string>
   return t("gps.fix", { facts: [positionText(gps.lat, gps.lon, FIX_DECIMALS), ...facts(gps), ...age].join(t("gps.separator")) });
 }
 
-/** The daemon's reason there is no fix (its own line, in English: "Connection refused"), when the status line does not already say it; "" for a fix and for an old fix, which the line states. */
+/** Why there is no fix, in words, where the status line does not already say it (the daemon's reason, `GpsState.reason`); "" for none, for a fix and for an old fix, which the line states. */
+const WHY_NO_FIX: Record<Exclude<GpsState["reason"], "">, MessageId> = {
+  no_port: "gps.reason.no_port",
+  no_address: "gps.reason.no_address",
+  held: "gps.reason.held",
+  no_answer: "gps.reason.no_answer",
+};
 export function gpsProblem(gps: GpsState): string {
-  return gps.problem !== "" && gps.state !== "fix" && gps.state !== "stale" ? gps.problem : "";
+  const id = WHY_NO_FIX[gps.reason as Exclude<GpsState["reason"], "">] as MessageId | undefined; // (none for "" and for a code of a daemon of another build)
+  return id !== undefined && gps.state !== "fix" && gps.state !== "stale" ? t(id) : "";
 }
 
 /** The reason the last beacon of a moving station went out, in words: "first fix", "time", "turn", "Beacon now". */

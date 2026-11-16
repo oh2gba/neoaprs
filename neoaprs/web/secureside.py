@@ -1,7 +1,7 @@
 """The https side of the web server (`web/https`): a second listening port with the certificates of neoaprs/web/tls.py, on the same application as the plain one.
 
 While `web/network` and `web/https` are both on, the page and its socket are served over TLS on the port after the plain one that is bound (7304 for 7303; if that is taken, the next free one of the ten after it). The plain
-port stays open: it sends a device other than this computer to the secure port, and the loopback keeps its http (neoaprs/web/securehandlers.py). If the secure side cannot start, `problem` says why, the plain port goes on as it
+port stays open: it sends a device other than this computer to the secure port, and the loopback keeps its http (neoaprs/web/securehandlers.py). If the secure side cannot start, `problem` says why (and `reason` as a code, for the page), the plain port goes on as it
 was, and the page is told.
 
 The certificate is looked at when the settings change and every hour (every five minutes while it is wanted and not working): a new address of the computer, or a certificate close to its end, makes a new one, and the
@@ -14,7 +14,7 @@ import ssl
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from neoaprs.clock import Clock
 
@@ -31,6 +31,7 @@ FOLDER = "tls"                                              # in the data folder
 RECHECK_SEC = 3600.0
 RETRY_SEC = 300.0
 ServerFactory = Callable[[ssl.SSLContext], LimitedHTTPServer]
+HttpsReason = Literal["", "no_library", "clock", "certificates", "no_port"]
 
 
 @dataclass(frozen=True)
@@ -39,10 +40,11 @@ class SecureState:
     on: bool = False
     port: int = 0
     fingerprint: str = ""
-    problem: str = ""
+    problem: str = ""                                       # the English of the log
+    reason: HttpsReason = ""                                # the same as a code, which the page says in its words
 
     def wire(self) -> dict[str, Any]:
-        return {"on": self.on, "port": self.port, "fingerprint": self.fingerprint, "problem": self.problem}
+        return {"on": self.on, "port": self.port, "fingerprint": self.fingerprint, "reason": self.reason}
 
 
 def ports_after(plain: int) -> list[int]:
@@ -94,29 +96,29 @@ class SecureSide:
             from .tls import CertificateStore, TlsError
         except Exception:                                            # (a cryptography library that does not load, in a broken install: the plain page still works; the log says what is missing)
             log.exception("the library of the secure connection cannot be loaded")
-            self._fail("the secure connection cannot be had in this installation")
+            self._fail("the secure connection cannot be had in this installation", "no_library")
             return
         if self._store is None:
             self._store = CertificateStore(self._folder, self._clock)
         try:
             self._certs = await asyncio.to_thread(self._store.ensure, socket.gethostname().lower(), lan_addresses(), self._names())
         except TlsError as e:
-            self._fail(str(e))
+            self._fail(str(e), "clock" if e.clock else "certificates")
             return
         except Exception as e:                                       # (a library that fails in a way nobody listed: the plain page still works)
             log.exception("the certificates of the secure connection could not be made")
-            self._fail(f"the certificates could not be made: {e}")
+            self._fail(f"the certificates could not be made: {e}", "certificates")
             return
         try:
             self._load(make_server)
         except (OSError, ssl.SSLError) as e:
-            self._fail(f"the certificate cannot be loaded: {e}")
+            self._fail(f"the certificate cannot be loaded: {e}", "certificates")
             return
         if self._address != address:
             error = self._listen(address, plain_port)
             if error is not None:
                 self._stop()
-                self._fail(f"the secure page cannot listen on a port after {plain_port}: {error}")
+                self._fail(f"the secure page cannot listen on a port after {plain_port}: {error}", "no_port")
                 return
         self.state = SecureState(True, self.state.port, self._certs.fingerprint, "")
 
@@ -144,17 +146,17 @@ class SecureSide:
         self.state = SecureState(False, port or _bound(server), "", "")
         return None
 
-    def _fail(self, problem: str) -> None:
+    def _fail(self, problem: str, reason: HttpsReason) -> None:
         log.error("the secure connection is not working: %s; the page goes on over http", problem)
         serving = self.server is not None and self._address is not None            # (a certificate that cannot be renewed in time: the one in use stays in use)
-        self.state = SecureState(serving, self.state.port if serving else 0, self.state.fingerprint if serving else "", problem)
+        self.state = SecureState(serving, self.state.port if serving else 0, self.state.fingerprint if serving else "", problem, reason)
         if not serving:
             self._stop()
 
     def _stop(self) -> None:
         server, self.server = self.server, None
         self._context, self._loaded, self._address = None, "", None
-        self.state = SecureState(False, 0, "", self.state.problem)
+        self.state = SecureState(False, 0, "", self.state.problem, self.state.reason)
         if server is not None:
             server.stop()
 

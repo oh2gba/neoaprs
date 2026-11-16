@@ -101,12 +101,12 @@ class OwnObjects(Repeater[str]):
             raise refusal
         ours = self._config().station_call
         if same_call(name, ours):
-            raise OwnError(f"{name} is our own call")
+            raise OwnError(f"{name} is our own call", "object.own_call", name=name)
         if self._is_station(name):
-            raise OwnError(f"{name} is a station, not the name of an object")
+            raise OwnError(f"{name} is a station, not the name of an object", "object.is_station", name=name)
         before = self._objects.get(name)
         if before is None and len(self._objects) >= MAX_OBJECTS:
-            raise OwnError(f"{MAX_OBJECTS} objects and items are being sent: kill one first")
+            raise OwnError(f"{MAX_OBJECTS} objects and items are being sent: kill one first", "object.full", max=MAX_OBJECTS)
         if radios is None:
             radios = before.radios if before is not None else (self._main(),)
         obj = make_object(self.clock(), name, kind, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, path, before, qru_group, on_request, radios=radios)
@@ -127,7 +127,7 @@ class OwnObjects(Repeater[str]):
         """Ends the object: the killed form is sent three times and then it is forgotten. One that was never sent is removed at once (None). Raises OwnError when there is no such object of ours."""
         obj = self._objects.get(name)
         if obj is None:
-            raise OwnError(f"there is no object or item {name!r} of ours")
+            raise OwnError(f"there is no object or item {name!r} of ours", "object.unknown", name=name)
         if not obj.alive:
             return obj
         if obj.last_sent_at is None or obj.on_request:

@@ -321,7 +321,7 @@ class DirewolfModem(Tuning):
 
     def wire(self) -> dict[str, Any]:
         """The modem as the radio's row tells it (web/tncwire.py `ModemState`)."""
-        return {"state": self.state, "problem": self.problem, "reason": self.reason, "mode": MODE, "keyed": self.keyed or bool(self.test), "busy": self.busy, "test": self.test, "snr": None,
+        return {"state": self.state, "reason": self.reason, "mode": MODE, "keyed": self.keyed or bool(self.test), "busy": self.busy, "test": self.test, "snr": None,
                 "frames_keyed": self.frames_keyed, "max_frame": None, "sound_card": self.sound_card, "frequencies": [], "keying": self.keying.text, "scope": False, "tx_gain_db": self.tx_gain_db,
                 "tx_peak_dbfs": None, "rx_level": self.rx_level}
 

@@ -173,9 +173,9 @@ describe("the Settings tab", () => {
     expect(shown(named("Radio"))).toBe(false);
     await wrapper.find("#set-radio-1-baud").setValue("4800");
     await wrapper.find("#set-radio-1-baud").trigger("keydown", { key: "Enter" });
-    await tell(daemon, { lastError: toastOf("set_config: radio/1/baud: 4800 is too slow for this TNC") });
+    await tell(daemon, { lastError: toastOf("set_config: radio/1/baud: 4800 is not one of 9600", "setting.not_among", { value: 4800, choices: "9600" }) });
     expect(shown(named("Radio"))).toBe(true);
-    expect(wrapper.find("#set-radio-1-baud").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("4800 is too slow for this TNC");
+    expect(wrapper.find("#set-radio-1-baud").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("4800 is not one of 9600");
     wrapper.unmount();
   });
 

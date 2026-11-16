@@ -27,11 +27,13 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Literal
 
 from neoaprs import nodevices
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.childenv import child_environment, windows_program
 from neoaprs.clock import Clock, iso, utcnow
+from neoaprs.coded import CodedError
 from neoaprs.message import MessageRecord, is_query
 from neoaprs.pref import Fired
 from neoaprs.services.common import ConfigSource
@@ -57,6 +59,7 @@ POWERSHELL_POSTLUDE = ";if($LASTEXITCODE){exit $LASTEXITCODE}"
 class Outcome:
     """How a run of the command ended: `problem` when it could not start or ran out of time, else its exit status and what it wrote to stdout and stderr."""
     problem: str = ""
+    why: Literal["", "timeout", "no_start"] = ""             # `problem` as a code: it ran out of time, or it could not start
     status: int = 0
     out: str = ""
     err: str = ""
@@ -68,6 +71,16 @@ class Outcome:
     @property
     def output(self) -> str:
         return (self.out + self.err).strip()[:MAX_OUTPUT]
+
+    @property
+    def kind(self) -> Literal["ran", "exit", "timeout", "no_start"]:
+        """How it ended, as a code: it ran, it ended with an exit code that is not 0, it ran out of time, it could not start."""
+        return self.why or ("ran" if self.status == 0 else "exit")
+
+    @property
+    def first_line(self) -> str:
+        """The first line the command wrote to stderr (its own words), "" for none."""
+        return next((ln.strip() for ln in self.err.splitlines() if ln.strip()), "")[:MAX_LINE]
 
     @property
     def short(self) -> str:
@@ -134,15 +147,17 @@ class Alerts:
         if not outcome.ok:
             self._fail(outcome.problem or f"the alert command ended with status {outcome.status}: {outcome.output}")
 
-    async def test(self) -> tuple[bool, str]:
-        """The test button: the command as it is saved, run as for a real message (the same environment, the same 20 s) from a made-up one, whatever `messages/alert` says. (ok, "ran" or why not: the
-        exit code and the first line of stderr). A command that is empty is a ValueError; the log is not told, the operator is looking at the answer."""
+    async def test(self) -> "Outcome":
+        """The test button: the command as it is saved, run as for a real message (the same environment, the same 20 s) from a made-up one, whatever `messages/alert` says: how it ended (the page says it by
+        `Outcome.kind`). A command that is empty is a CodedError (`alert.no_command`); the log is not told, the operator is looking at the answer."""
         command = self._command()
         if not command:
-            raise ValueError("no alert command")
+            raise CodedError("no alert command", "alert.no_command")
         record = MessageRecord(0, self.clock(), "in", TEST_FROM, "", TEST_TEXT, None, "received")
         outcome = await self._execute(command, alert_environment(record))
-        return outcome.ok, "ran" if outcome.ok else outcome.short
+        if not outcome.ok:
+            log.info("the test of the alert command: %s", outcome.short)
+        return outcome
 
     async def _execute(self, command: str, env: dict[str, str]) -> "Outcome":
         if sys.platform == "win32":
@@ -157,9 +172,9 @@ class Alerts:
             proc = await asyncio.create_subprocess_shell("set -e\n" + command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
             out, err = await asyncio.wait_for(proc.communicate(), self.timeout_sec)
         except TimeoutError:
-            return Outcome(problem=f"the alert command did not end within {self.timeout_sec:g} s: killed")
+            return Outcome(problem=f"the alert command did not end within {self.timeout_sec:g} s: killed", why="timeout")
         except Exception as e:                                   # (nothing a command does may stop the daemon)
-            return Outcome(problem=f"the alert command could not run: {e}")
+            return Outcome(problem=f"the alert command could not run: {e}", why="no_start")
         finally:
             if proc is not None and proc.returncode is None:
                 self._kill(proc)
@@ -181,17 +196,17 @@ class Alerts:
             creation = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
             proc = subprocess.Popen([windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS], env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creation)
         except Exception as e:                                   # (nothing a command does may stop the daemon)
-            return Outcome(problem=f"the alert command could not run: {e}")
+            return Outcome(problem=f"the alert command could not run: {e}", why="no_start")
         running.set(proc)
         try:
             out, err = proc.communicate(script, timeout=self.timeout_sec)
         except subprocess.TimeoutExpired:
             running.kill()
             proc.communicate()
-            return Outcome(problem=f"the alert command did not end within {self.timeout_sec:g} s: killed")
+            return Outcome(problem=f"the alert command did not end within {self.timeout_sec:g} s: killed", why="timeout")
         except Exception as e:
             running.kill()
-            return Outcome(problem=f"the alert command could not run: {e}")
+            return Outcome(problem=f"the alert command could not run: {e}", why="no_start")
         return Outcome(status=proc.returncode or 0, out=out.decode("utf-8", errors="replace"), err=err.decode("utf-8", errors="replace"))
 
     @staticmethod

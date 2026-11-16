@@ -75,7 +75,7 @@ async def test_a_check_that_raises_a_plain_value_error_is_the_pages_error_too(tm
     monkeypatch.setattr(Config, "checked", classmethod(odd))
     await page.send({"cmd": "set_config", "values": {"map/radius_km": "200"}})
     error = await page.expect("error")
-    assert (error["cmd"], error["text"]) == ("set_config", "set_config: an odd value") and error["code"] == "other"
+    assert (error["cmd"], error["text"]) == ("set_config", "set_config: an odd value") and error["code"] == "failed", "a check without a code: the page says its plain words, the log has the sentence"
 
 
 async def test_an_error_the_page_reports_when_no_one_keeps_them_is_let_go() -> None:

@@ -24,7 +24,7 @@ from collections.abc import Callable
 import random
 from datetime import datetime, timedelta
 
-from neoaprs import ax25
+from neoaprs import ax25, coded
 from neoaprs.aprsposition import uncompressed_position as uncompressed_position      # (the beacon's parts under their old names: services/beaconframe.py)
 from neoaprs.beaconrule import beacon_interval, beacon_radios, ticked
 from neoaprs.clock import Clock, utcnow
@@ -50,7 +50,13 @@ TICK_SEC = 1.0
 RETRY_SEC = 5.0
 MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the radio refused ATTEMPTS times is tried again this much later, with the fix of then
 ATTEMPTS = 6                                                    # the radio refusing the frame this many times in a row skips the interval
-NOT_ON_THIS_RADIO = "the beacon does not go out on this radio (its Send on is not ticked)"
+NOT_ON_THIS_RADIO = coded.Reason("the beacon does not go out on this radio (its Send on is not ticked)", "beacon.not_on_radio")
+NOT_TAKEN = coded.Reason("the TNC did not take the frame (it is restarting into KISS mode, or the write failed)", "radio.not_taken")
+
+
+def no_fix(why: str) -> coded.Reason:
+    """Why a moving station sends no beacon: its GPS has no fresh fix (the log has what the GPS says of it)."""
+    return coded.Reason(f"no beacon: {why}", "beacon.no_fix")
 
 
 def memory_key_of(radio: RadioId) -> str:
@@ -75,7 +81,7 @@ class Beacon:
         self.last_sent: datetime | None = None                  # when the latest beacon went out
         self.last_reason = ""                                   # why: "interval" or "request"
         self.next_due: datetime | None = None                   # when the timer sends the next one; None while the interval is 0 or the beacon is not started
-        self.problem = ""                                       # why the latest attempt did not send; empty after one that did
+        self.problem = ""                                       # why the latest attempt did not send (a coded.Reason: the page says it by its code); empty after one that did
         self._started: datetime | None = None
         self._earlier: datetime | None = None                   # the beacon of an earlier run, as the row kept it; None if there was none
         self._remembered = Remembered(memory)
@@ -130,13 +136,13 @@ class Beacon:
         try:
             frame, fix = self._frames.position_and_fix(self._radio)
         except NoFix as e:
-            return self._failed(f"no beacon: {e}")
+            return self._failed(no_fix(str(e)))
         except BeaconError as e:
-            return self._failed(f"the settings make no beacon: {e}", warn=True)
+            return self._failed(coded.Reason.of(e, f"the settings make no beacon: {e}"), warn=True)
         if not self._radio.usable:
             return self._failed(self._radio.why_unusable())
         if not self._radio.send_frame(frame):
-            return self._failed("the TNC did not take the frame (it is restarting into KISS mode, or the write failed)", warn=True)
+            return self._failed(NOT_TAKEN.but(radio=self._radio.id, name=self._radio.name), warn=True)
         self.last_sent, self.last_reason, self.problem, self._skip_told = self.clock(), reason, "", False
         self._refused, self._retry_at = 0, None
         log.info("beacon sent (%s): %s", reason, frame.tnc2())
@@ -247,7 +253,7 @@ class Beacon:
         fix = gps.current() if gps is not None else None
         if fix is None:
             self.next_due = None
-            self.problem = f"no beacon: {gps.why_none() if gps is not None else 'no GPS is set up'}"
+            self.problem = no_fix(gps.why_none() if gps is not None else "no GPS is set up")
             if not self._no_fix_told:
                 self._no_fix_told = True
                 log.warning("%s", self.problem)

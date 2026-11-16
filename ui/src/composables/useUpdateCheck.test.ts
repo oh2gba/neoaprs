@@ -9,7 +9,7 @@ const answer = (extra: Partial<UpdateResultMessage>): UpdateResultMessage => ({
   type: "update_result",
   outcome: "current",
   version: "0.3.0",
-  text: "",
+  reason: "",
   ...extra,
 });
 
@@ -30,11 +30,14 @@ describe("outcomeOf", () => {
   it("has a few words for each answer", () => {
     expect(outcomeOf(answer({}))).toEqual({ text: "up to date", tone: "update-current", newer: false });
     expect(outcomeOf(answer({ outcome: "newer", version: "0.4.0" }))).toEqual({ text: "0.4.0 available", tone: "update-available", newer: true });
-    expect(outcomeOf(answer({ outcome: "no_answer", version: "", text: "the version page could not be reached" }))).toEqual({
-      text: "the version page could not be reached",
+    expect(outcomeOf(answer({ outcome: "no_answer", version: "", reason: "offline" }))).toEqual({
+      text: "no answer from the update server; is there a connection?",
       tone: "update-failed",
       newer: false,
     });
+    expect(outcomeOf(answer({ outcome: "no_answer", version: "", reason: "bad_answer" })).text).toBe(
+      "the update server gave no usable answer; try again later",
+    );
     expect(outcomeOf(answer({ outcome: "no_answer", version: "" })).text).toBe("no answer");
   });
 });
@@ -80,10 +83,10 @@ describe("useUpdateCheck", () => {
   it("shows the error of the daemon in place of an answer", async () => {
     const { check, error } = setUp();
     check.check();
-    error.value = toastOf("update_check: the database is busy");
+    error.value = toastOf("update_check: an update is running already", "update.busy");
     await vi.advanceTimersByTimeAsync(0);
     expect(check.running.value).toBe(false);
-    expect(check.outcome.value?.text).toBe("the database is busy");
+    expect(check.outcome.value?.text).toBe("an update is running already");
   });
 
   it("leaves the error of another command alone", async () => {

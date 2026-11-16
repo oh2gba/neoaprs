@@ -2,7 +2,7 @@
 from typing import Any
 
 from neoaprs.clock import iso
-from neoaprs.mapstate import Estimate, MapFile, MapStatus
+from neoaprs.mapstate import Estimate, MapError, MapFile, MapStatus
 
 
 def _file(file: MapFile | None) -> dict[str, Any] | None:
@@ -17,6 +17,11 @@ def _estimate(estimate: Estimate | None) -> dict[str, Any] | None:
     return {"bytes": estimate.bytes, "tiles": estimate.tiles, "radius_km": estimate.radius_km, "maxzoom": estimate.maxzoom, "box": list(estimate.box), "build": estimate.build}
 
 
+def _problem(problem: MapError | None) -> dict[str, Any] | None:
+    return None if problem is None else {"code": problem.problem, "params": dict(problem.params)}
+
+
 def map_state(status: MapStatus, aloha_km: float | None = None) -> dict[str, Any]:
-    return {"state": status.state, "step": status.step, "percent": status.percent, "downloaded": status.downloaded, "note": status.note, "blocked": status.blocked, "problem": status.problem, "estimate": _estimate(status.estimate),
+    return {"state": status.state, "step": status.step, "percent": status.percent, "downloaded": status.downloaded, "retry": None if status.retry is None else {"attempt": status.retry[0], "tries": status.retry[1]},
+            "blocked": status.blocked_code, "problem": _problem(status.failure), "estimate": _estimate(status.estimate),
             "radius_km": status.radius_km, "maxzoom": status.maxzoom, "box": list(status.box) if status.box else None, "detail": _file(status.detail), "world": _file(status.world), "later": status.later, "aloha_km": aloha_km}

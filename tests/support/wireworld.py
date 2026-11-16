@@ -3,11 +3,13 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from neoaprs import coded
 from neoaprs.aprsisline import parse_is_line
 from neoaprs.claims import Claim, Claims
 from neoaprs.aprsparse import parse
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import AT_GATE, Attempt, HopSeen
+from neoaprs.config import RECEIVE_ONLY
 from neoaprs.gpsfix import Fix
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
@@ -61,7 +63,7 @@ def packets() -> list[Packet]:
         heard("%123%4", "N0ODD"),
         heard("{junk", "N0BAD"),
         Packet(T0, "in", b"", "N0MIC", "S32UVT", ("WIDE1*",), b'(_fn"Oj/', parse(b'(_fn"Oj/', "N0MIC", "S32UVT", T0)),
-        Packet(T0, "in", b"", "N0UND", "APRS", (), b"!4903", Undecoded("too short", "!4903")),
+        Packet(T0, "in", b"", "N0UND", "APRS", (), b"!4903", Undecoded("too short", "!4903", "position")),
         Packet(T0, "in", b"", "OH7JHF-1", "APRS", ("OH2RCH-3*",), b"info", Message("OH2GBA", "", ack_id="10"), ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")), "rf-gated"),
         Packet(T0 + timedelta(seconds=7), "out", b"", ME, "APNEO0", ("WIDE1-1", "WIDE2-1"), b"!6010.00N/02450.00E-", parse(b"!6010.00N/02450.00E-", ME, "APNEO0", T0)),
         Packet(T0, "in", b"", "N0MSG", "APRS", (), b":OH2GBA   :hello{7", Message("OH2GBA", "hello", "7")),
@@ -162,10 +164,10 @@ def tnc_dummy_hf() -> Tnc:
 
 @dataclass
 class FakeGps:
-    """The GPS service as the `gps` topic reads it: a fix, a state, a problem, and whether the fix is fresh."""
+    """The GPS service as the `gps` topic reads it: a fix, a state, the reason as a code, and whether the fix is fresh."""
     fix: Fix | None = None
     state: str = "off"
-    problem: str = ""
+    reason: str = ""
     fresh: bool = False
 
     def current(self) -> Fix | None:
@@ -186,7 +188,7 @@ def gps_rows(views: Any) -> list[dict[str, Any]]:
     return [
         views.gps_state(DEFAULTS, FakeGps(), FakePlan(), None),
         views.gps_state(mobile, FakeGps(fix, "fix", "", True), FakePlan(Sent(T0 - timedelta(seconds=20), 180), "turn"), T0 + timedelta(seconds=40)),
-        views.gps_state(replace(mobile, gps_source="serial", gps_device="/dev/ttyUSB1"), FakeGps(None, "connecting", "/dev/ttyUSB1: No such file or directory"), FakePlan(), None),
+        views.gps_state(replace(mobile, gps_source="serial", gps_device="/dev/ttyUSB1"), FakeGps(None, "connecting", "no_answer"), FakePlan(), None),
     ]
 
 
@@ -194,7 +196,7 @@ def gps_rows(views: Any) -> list[dict[str, Any]]:
 class FakeIgate:
     """The iGate service as the `igate` topic reads it."""
     state: str = "off"
-    problem: str = ""
+    reason: str = ""
     server_name: str = ""
     gated: int = 0
     dropped: dict[str, int] = field(default_factory=dict)
@@ -208,9 +210,9 @@ def igate_rows(views: Any) -> list[dict[str, Any]]:
     return [
         views.igate_state(DEFAULTS, FakeIgate()),
         views.igate_state(on, FakeIgate("connected", "", "T2FINLAND", 1234, {"tcpip": 31, "duplicate": 6, "query": 3}, T0 - timedelta(seconds=12))),
-        views.igate_state(on, FakeIgate("connecting", "127.0.0.1:14580: Connection refused")),
+        views.igate_state(on, FakeIgate("connecting", "unreachable")),
         views.igate_state(on, FakeIgate("listening", "", "T2FINLAND")),
-        views.igate_state(on, FakeIgate("unverified", "the server did not accept the password", "T2FINLAND")),
+        views.igate_state(on, FakeIgate("unverified", "unverified", "T2FINLAND")),
     ]
 
 
@@ -259,8 +261,8 @@ def radio_rows(views: Any) -> list[dict[str, Any]]:
     claims.hold(Claim("serial", claim_value("/dev/ttyUSB0") or "", 1))          # (as the radio's search and open hold it: the port as this system compares it, in upper case on Windows)
     waiting = Tnc(clock=FixedClock(T0))
     waiting.state = Source.State.WAITING
-    at_work = {1: FakeRadio(tnc(), FakeBeacon(T0, T0 + timedelta(minutes=30), 30)), 2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem="receive only: transmitting is switched off")),
-               3: FakeRadio(waiting, FakeBeacon(problem="no position"))}
+    at_work = {1: FakeRadio(tnc(), FakeBeacon(T0, T0 + timedelta(minutes=30), 30)), 2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem=RECEIVE_ONLY)),
+               3: FakeRadio(waiting, FakeBeacon(problem=coded.Reason("set your position first", "beacon.no_position")))}
     at_work[1].line.state = Source.State.CONNECTED
     from neoaprs.web.radioview import radio_row             # (the radios' row has its own module beside views.py)
     return [row for spec in RADIOS if (row := radio_row(spec, RADIOS, at_work.get(spec.id), claims)) is not None]

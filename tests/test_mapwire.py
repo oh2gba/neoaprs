@@ -36,7 +36,7 @@ async def test_the_page_is_told_the_state_of_the_map_with_the_area_of_the_settin
     page = await e.ws()
     await page.expect("hello")
     value = (await page.expect("state", "map"))["value"]
-    assert (value["state"], value["step"], value["percent"], value["problem"], value["blocked"]) == ("none", "", None, "", "")
+    assert (value["state"], value["step"], value["percent"], value["problem"], value["blocked"]) == ("none", "", None, None, "")
     assert (value["radius_km"], value["maxzoom"], value["detail"], value["world"], value["estimate"]) == (150, 12, None, None, None)
     west, south, east, north = value["box"]
     assert south < 60.17 < north and west < 24.94 < east
@@ -75,12 +75,13 @@ async def test_a_cancel_ends_the_job_and_every_refusal_is_an_error_with_the_reas
     await page.send({"cmd": "map_fetch"})
     await until_started(lambda: server.holding > 0)
     await page.until(lambda: page.topics["map"]["state"] == "downloading")
-    assert page.topics["map"]["step"] == "world" and page.topics["map"]["blocked"] == "a map job is running"
+    assert page.topics["map"]["step"] == "world" and page.topics["map"]["blocked"] == "busy"
     await page.send({"cmd": "map_estimate"})
-    assert (await page.expect("error"))["text"] == "map_estimate: a map job is running already"
+    refusal = await page.expect("error")
+    assert (refusal["text"], refusal["code"]) == ("map_estimate: a map job is running already", "map.busy")
     await page.send({"cmd": "map_cancel"})
     await page.until(lambda: page.topics["map"]["state"] == "none" and page.topics["map"]["percent"] is None)
-    assert page.topics["map"]["problem"] == ""
+    assert page.topics["map"]["problem"] is None
     await until_started(lambda: server.holding == 0)
     assert not list(tmp_path.glob("*.part"))
 
@@ -99,13 +100,14 @@ async def test_a_failed_job_is_the_state_error_with_the_reason(tmp_path: Path) -
     server.mode = "missing"
     await page.send({"cmd": "map_fetch"})
     await page.until(lambda: page.topics["map"]["state"] == "error")
-    assert page.topics["map"]["problem"] == "the map server answered 404 Not Found" and page.topics["map"]["detail"] is None
+    assert page.topics["map"]["problem"] == {"code": "failed", "params": {}} and page.topics["map"]["detail"] is None, "the page says it in its words; the log has the server's answer"
 
 
 async def test_without_a_position_the_jobs_are_refused_and_the_topic_says_why(tmp_path: Path) -> None:
     e, page, _ = await daemon(tmp_path, operator=False)
     value = page.topics["map"]
-    assert value["box"] is None and "no position" in value["blocked"]
+    assert value["box"] is None and value["blocked"] == "no_position"
     for cmd in ("map_estimate", "map_fetch"):
         await page.send({"cmd": cmd})
-        assert (await page.expect("error"))["text"].startswith(f"{cmd}: the station has no position")
+        refusal = await page.expect("error")
+        assert refusal["text"].startswith(f"{cmd}: the station has no position") and refusal["code"] == "map.no_position"

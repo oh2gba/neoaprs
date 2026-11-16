@@ -35,7 +35,7 @@ class Asking:
             text = query_text(custom or "") if kind == "custom" else QUERIES[kind]
             to = normal_name(to_call)
         except (CallsignError, MessageError) as e:
-            raise MessagingError(str(e)) from None
+            raise MessagingError.of(e) from None
         now = self._clock()
         last = self._asked.get((to, text))
         if last is not None and (wait := QUERY_EVERY_SEC - (now - last).total_seconds()) > 0:

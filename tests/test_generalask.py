@@ -116,7 +116,7 @@ def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away() -> 
         rig.general.ask("aprs")
     rig.tnc.state = Source.State.CONNECTED
     rig.tnc.takes = False
-    with pytest.raises(MessagingError, match="would not take"):
+    with pytest.raises(MessagingError, match="did not take"):
         rig.general.ask("aprs")
     assert rig.tnc.sent == [] and rig.general.asked() == [] and rig.told == 0
     rig.radios.on.clear()                                                   # (no radio at all: what the settings refuse, and a fresh installation of the round)
@@ -167,8 +167,9 @@ def test_a_query_goes_on_the_radio_named_and_the_minute_between_two_of_a_kind_is
 
 def test_a_query_on_a_radio_that_is_off_or_away_is_refused_and_sends_nothing() -> None:
     rig = Rig()
-    with pytest.raises(MessagingError, match="no such radio"):
+    with pytest.raises(MessagingError, match="there is no radio 2") as refused:
         rig.general.ask("aprs", radio=HF_ID)
+    assert (refused.value.code, refused.value.params) == ("radio.unknown", {"radio": HF_ID})
     hf = with_hf(rig, rig.radios)
     hf.state = Source.State.WAITING
     with pytest.raises(MessagingError):
@@ -189,15 +190,15 @@ class AllRadios(StubPick):
         return next((radio for radio in self.radios if radio.id == id), None)
 
 
-@pytest.mark.parametrize(("air", "words"), [(LineAir, "the radio Mercury is off"), (Unnamed, "that radio is off")])
+@pytest.mark.parametrize(("air", "words"), [(LineAir, "radio Mercury is off: turn it on first"), (Unnamed, "radio 2 is off: turn it on first")])
 def test_a_query_on_a_radio_there_is_but_that_is_off_says_so_with_its_name_or_without(air: type[LineAir], words: str) -> None:
     rig = Rig()
     radios = AllRadios([LineAir(rig.tnc, lambda: rig.config), air(StubTnc(max_frame=123), lambda: rig.config, id=HF_ID)])
     radios.on.discard(HF_ID)
     with pytest.raises(MessagingError) as refused:
         asked_radio(radios, lambda: rig.config, HF_ID)
-    assert str(refused.value) == words
-    with pytest.raises(MessagingError, match="^there is no such radio$"):
+    assert str(refused.value) == words and refused.value.code == "radio.off" and refused.value.params["radio"] == HF_ID, "the page says the radio by its id"
+    with pytest.raises(MessagingError, match="^there is no radio 7$"):
         asked_radio(radios, lambda: rig.config, 7)
     assert asked_radio(radios, lambda: rig.config).id == FM_ID
 

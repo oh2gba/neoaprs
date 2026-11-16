@@ -81,7 +81,7 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
 export function problemText(problem: RadioProblem, words: typeof t = t, radios?: RadioNames): string {
   const id = PROBLEM_WORDS[problem.code];
   if (id !== undefined) return words(id, problem.params);
-  return errorReason({ code: problem.code, params: problem.params, cmd: "", key: null, text: words("settings.tnc.not_connected") }, radios);
+  return errorReason({ code: problem.code, params: problem.params, cmd: "", key: null, text: "" }, radios, () => words("settings.tnc.not_connected"));
 }
 
 /** A radio's own settings out of `radio_values`, by the key of the field. */

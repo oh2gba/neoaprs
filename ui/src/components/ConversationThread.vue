@@ -20,6 +20,7 @@ import { useToNewest } from "@/composables/useToNewest";
 import { clockText, dateTimeText } from "@/lib/format";
 import { markOf as sealMarkOf, shownText } from "@/lib/lock";
 import { readingText } from "@/lib/signal";
+import { routeWords } from "@/lib/routes";
 import { askedNote, canCancel, canDelete, canRetry, stateText } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -86,7 +87,7 @@ const copy = useCopyMenu((bubble) => {
         </p>
         <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
         <p v-if="m.route || on || reading(m) !== null" class="bubble-route muted" :title="t('messages.route_title')">
-          <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark> {{ m.route
+          <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark> {{ routeWords(m.route)
           }}<template v-if="reading(m) !== null"><template v-if="m.route || on"> · </template>{{ reading(m) }}</template>
         </p>
       </div>

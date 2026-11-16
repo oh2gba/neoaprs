@@ -863,10 +863,10 @@ describe("SetupGuide: Finish", () => {
     const { wrapper, lastError, stand, next } = make();
     await stand(3);
     await next();
-    lastError.value = toastOf("set_config: station/call: 'OH2ABC-99' is not a call");
+    lastError.value = toastOf("set_config: station/call: call 'OH2ABC-99' has an SSID above 15", "call.ssid", { value: "OH2ABC-99", max: 15 });
     await flushPromises();
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
-    expect(wrapper.find(".field-error").text()).toBe("'OH2ABC-99' is not a call");
+    expect(wrapper.find(".field-error").text()).toBe("call 'OH2ABC-99' has an SSID above 15");
     expect(wrapper.find(".setup").exists()).toBe(true);
   });
 
@@ -895,11 +895,11 @@ describe("SetupGuide: Finish", () => {
 
   it("shows the daemon's refusal of its save under the field it names when a radio's save was answered first", async () => {
     const { wrapper, guide, lastError } = await portThenFinish();
-    lastError.value = toastOf("set_config: station/call: 'OH2ABC' is not a call");
+    lastError.value = toastOf("set_config: station/call: OH2ABC is a placeholder, not a call: set your call first", "call.placeholder", { call: "OH2ABC" });
     await flushPromises();
     expect(guide.open).toBe(true);
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
-    expect(wrapper.find(".field-error").text()).toBe("'OH2ABC' is not a call");
+    expect(wrapper.find(".field-error").text()).toBe("OH2ABC is a placeholder, not a call: set your call first");
     expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2ABC"); // (what was typed is still there)
   });
 
@@ -948,7 +948,7 @@ describe("SetupGuide: the map is made without a click", () => {
   it("says the detailed map will download when the computer is online, when the daemon could not fetch it yet", async () => {
     const { wrapper, daemon, stand } = make();
     await stand(2);
-    await tell(daemon, { map: mapState({ state: "error", problem: "no daily build was found (is there a connection?)", later: true }) });
+    await tell(daemon, { map: mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } }, later: true }) });
     expect(wrapper.find(".setup-mapline").text()).toBe("The detailed map will download when you are online.");
   });
 

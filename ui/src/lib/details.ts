@@ -1,8 +1,10 @@
 // The details of a position or a station that the daemon decodes beyond where it is: the data extensions (PHG, range, DF, area), the Maidenhead locator, the telemetry channels, the voice frequency with its
 // tone, offset and range, the storm data of a hurricane object, and the time a packet carries (which may be the sender's local time).
 import { formatNumber, t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import { bearingTitle, dateTimeText, distanceText, pad2, positionText, speedText } from "@/lib/format";
 import type {
+  AreaValues,
   DecodedObject,
   DecodedOther,
   DecodedPosition,
@@ -69,11 +71,51 @@ export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
       label: t("station.ext.area"),
       text:
         a.lon_offset_deg < 0
-          ? t("station.ext.area_value_left", { colour: a.colour, shape: a.shape, down: a.lat_offset_deg, left: -a.lon_offset_deg })
-          : t("station.ext.area_value", { colour: a.colour, shape: a.shape, down: a.lat_offset_deg, right: a.lon_offset_deg }),
+          ? t("station.ext.area_value_left", { ...areaWords(a), down: a.lat_offset_deg, left: -a.lon_offset_deg })
+          : t("station.ext.area_value", { ...areaWords(a), down: a.lat_offset_deg, right: a.lon_offset_deg }),
     });
   }
   return rows;
+}
+
+/** The shapes and the colours of an area object in the page's words: the daemon names each by the specification's word (`AreaValues`), which the catalogue has an id for. */
+const SHAPE_WORDS: Record<AreaValues["shape"], MessageId> = {
+  "open circle": "station.area.shape.open_circle",
+  line: "station.area.shape.line",
+  "open ellipse": "station.area.shape.open_ellipse",
+  "open triangle": "station.area.shape.open_triangle",
+  "open box": "station.area.shape.open_box",
+  "filled circle": "station.area.shape.filled_circle",
+  "line down-left": "station.area.shape.line_down_left",
+  "filled ellipse": "station.area.shape.filled_ellipse",
+  "filled triangle": "station.area.shape.filled_triangle",
+  "filled box": "station.area.shape.filled_box",
+};
+const COLOUR_WORDS: Record<AreaValues["colour"], MessageId> = {
+  black: "station.area.colour.black",
+  blue: "station.area.colour.blue",
+  green: "station.area.colour.green",
+  cyan: "station.area.colour.cyan",
+  red: "station.area.colour.red",
+  violet: "station.area.colour.violet",
+  yellow: "station.area.colour.yellow",
+  gray: "station.area.colour.gray",
+  "dim black": "station.area.colour.dim_black",
+  "dim blue": "station.area.colour.dim_blue",
+  "dim green": "station.area.colour.dim_green",
+  "dim cyan": "station.area.colour.dim_cyan",
+  "dim red": "station.area.colour.dim_red",
+  "dim violet": "station.area.colour.dim_violet",
+  "dim yellow": "station.area.colour.dim_yellow",
+  "dim gray": "station.area.colour.dim_gray",
+  unknown: "station.area.colour.unknown",
+};
+
+/** The shape and the colour of an area object, as the values of `station.ext.area_value`; a word the page does not know (a daemon of another build) is said as an area and an unknown colour. */
+export function areaWords(area: Pick<AreaValues, "shape" | "colour">): { shape: string; colour: string } {
+  const shape = SHAPE_WORDS[area.shape] as MessageId | undefined;
+  const colour = COLOUR_WORDS[area.colour] as MessageId | undefined;
+  return { shape: t(shape ?? "station.ext.area"), colour: t(colour ?? "station.area.colour.unknown") };
 }
 
 /** "IO91sx, 51.97917 N 0.45833 W": the grid square and the centre of it; a dash for none. */

@@ -48,7 +48,7 @@ class Acks:
         """The next message id: not one that a message still being sent has."""
         ident = next_msg_id(self._last_id, {r.msg_id for r in records if r.state == "sending" and r.msg_id is not None})
         if ident is None:
-            raise MessagingError(f"{len(MSG_IDS)} messages are being sent at once: no message id is free")
+            raise MessagingError(f"{len(MSG_IDS)} messages are being sent at once: no message id is free", "message.busy", count=len(MSG_IDS))
         self._last_id = ident
         return ident
 

@@ -20,7 +20,7 @@ from typing import Literal, NamedTuple
 from neoaprs.claims import PORT_KINDS, Claim, Claims
 from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import distance_km
-from neoaprs.gpsfeed import GpsFeed
+from neoaprs.gpsfeed import NO_ADDRESS, NO_FIX, NO_PORT, GpsFeed
 from neoaprs.gpsfix import Fix
 from neoaprs.policy import GPS_PLACE_EVERY_SEC, GPS_PLACE_MOVED_M, GPS_STALE_SEC
 from neoaprs.serialprobe import claim_value
@@ -33,6 +33,7 @@ log = logging.getLogger("neoaprs.gps")
 
 TICK_SEC = 1.0
 GpsStateName = Literal["off", "connecting", "no_fix", "fix", "stale"]
+GpsReason = Literal["", "no_port", "no_address", "held", "no_answer"]
 
 
 class FeedSettings(NamedTuple):
@@ -203,6 +204,17 @@ class Gps:
     def problem(self) -> str:
         """Why there is no fix to use: the feed's problem line, or that the fix is old; empty while there is a fix and for a GPS that is off."""
         return "" if self.state in ("off", "fix") else self.why_none()
+
+    @property
+    def reason(self) -> GpsReason:
+        """`problem` as a code the page says in its words, where the state does not say it already: no port or no address set, the receiver's port held by a radio, the feed not answering."""
+        state = self.state
+        if state in ("off", "fix", "stale"):
+            return ""
+        if state == "connecting" and self._held_by:
+            return "held"
+        feed = self._feed.problem
+        return "no_port" if feed == NO_PORT else "no_address" if feed == NO_ADDRESS else "" if feed in ("", NO_FIX) else "no_answer"
 
     def why_none(self) -> str:
         """Why `current()` is None, as a clause for the log and the page."""

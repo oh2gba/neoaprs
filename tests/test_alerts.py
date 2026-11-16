@@ -243,6 +243,7 @@ async def test_the_clock_of_a_message_is_the_time_it_was_heard(tmp_path: Path) -
 async def test_a_step_that_fails_fails_the_command_even_when_a_later_step_succeeds(tmp_path: Path) -> None:
     """The line runs under set -e: `notify-send ...; paplay ...` with no notify-send must not count as ran because the sound played."""
     alerts = Alerts(lambda: replace(ON_AIR, messages_alert_command=then_succeeds(missing_notifier())), clock=FixedClock(), timeout_sec=TIMEOUT_SEC)
-    ok, text = await alerts.test()
+    outcome = await alerts.test()
+    ok, text = outcome.ok, outcome.short
     assert not ok
     assert text.startswith(f"exit code {MISSING_STATUS}")

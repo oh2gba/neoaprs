@@ -79,8 +79,14 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 ## Errors and the wire
 
 - A refusal that the operator can cause carries a stable code and its values: `CodedError(text, code, **params)` (`neoaprs/coded.py`), and for a setting
-  `SettingError` (`neoaprs/config.py`), which adds the key. The English `text` is for the log and for a code the page has no sentence for; the page goes by
-  `cmd`, `key` and `code`, never by parsing the words (`docs/development.md`, "The wire").
+  `SettingError` (`neoaprs/config.py`), which adds the key. The English `text` is for the log; the page goes by `cmd`, `key` and `code`, never by parsing the words,
+  and says a code it has no sentence for with the plain words of `error.failed`, never the English (`docs/development.md`, "The wire"). A refusal the operator can do
+  nothing about (a race, the database, a page that is not the daemon's) is `failed`. A why that is passed on before it becomes a refusal (why a radio takes no frame now,
+  why nothing may be transmitted) is a `Reason` of `neoaprs/coded.py`, a string with its code, so that the log keeps its sentence and the refusal its code; a refusal
+  that only passes another's on ("nothing was sent", and why) sends that one's code as `why`.
+- No sentence of the daemon's travels on the wire for the page to show: a reason, a note, a state's why goes as a code (a `Literal` of the model) with the values of its
+  sentence beside it, and the page says it from its catalogue; the English stays in the log. `tests/test_wire_words.py` holds every text field of the wire to a kind
+  that may travel (the operator's or a station's own text, a name or a value, a device's own words, a route), and `ui/src/i18n/codes.test.ts` every code to words in every language.
 - Every word the page says to a person is a message of the catalogue (`ui/src/i18n/en/`), asked for by `t("area.thing.detail", { values })`: never written into a
   template or a `lib/` function, never a sentence glued from pieces (a plural is `{ one, other }`, a number or a name a `{value}`), and the page never decides
   by the words of a text (`docs/development.md`, "Translations").

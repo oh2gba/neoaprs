@@ -161,14 +161,15 @@ def _bang_position(info: bytes, now: datetime) -> Position | None:
 def parse(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     """What the information field `info` of a packet from `source` to `destination` says; `now` resolves timestamps. `source` gives a raw NMEA tracker its symbol when its destination does not."""
     if not info:
-        return Undecoded("empty information field", "")
+        return Undecoded("empty information field", "", "empty")
     try:
         decoded = _dispatch(info[:1], info, source, destination, now)
         if isinstance(decoded, Other) and info[:1] not in (b"}", b"{", b","):          # (test data is never a position)
             return _bang_position(info, now) or decoded
         return decoded
     except (PositionError, MicEError, MessageError, NmeaError) as e:
-        return Undecoded(str(e), info.decode("latin-1"))
+        code = "mice" if isinstance(e, MicEError) else "message" if isinstance(e, MessageError) else "nmea" if isinstance(e, NmeaError) else "position"
+        return Undecoded(str(e), info.decode("latin-1"), code)
     except (ValueError, IndexError, OverflowError) as e:
         log.debug("undecoded %r: %s: %s", info, type(e).__name__, e)
-        return Undecoded(DAMAGED, info.decode("latin-1"))
+        return Undecoded(DAMAGED, info.decode("latin-1"), "damaged")

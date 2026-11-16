@@ -68,7 +68,7 @@ def info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
     try:
         return b":" + format_message(to, text, ident, reply)
     except MessageError as e:
-        raise MessagingError(str(e)) from None
+        raise MessagingError.of(e) from None
 
 
 def named(name: str) -> str:
@@ -87,7 +87,7 @@ def station_radio(radios: RadioPick | Radio, config: ConfigSource, to: str) -> A
     if radio is None and to == EMAIL_GATEWAY:
         raise MessagingError("no radio that internet gateways hear is on", "message.email_fm_off")
     if radio is None:
-        raise MessagingError(NO_RADIO)
+        raise MessagingError.of(NO_RADIO)
     return radio
 
 

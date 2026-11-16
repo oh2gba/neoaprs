@@ -163,12 +163,12 @@ async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_
     assert e.ctl.igate.state == "off" and server.connections == 0
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    assert page.topics["igate"] == {"enabled": False, "state": "off", "server": "", "problem": "", "gated": 0, "dropped": {}, "last_gated_at": None}
+    assert page.topics["igate"] == {"enabled": False, "state": "off", "server": "", "reason": "", "gated": 0, "dropped": {}, "last_gated_at": None}
     values = page.topics["config"]["values"]
     assert values["igate/enabled"] == "false" and values["igate/server"] == "rotate.aprs2.net:14580" and values["igate/password"] == ""
     await page.send({"cmd": "set_config", "values": igate_settings(server)})
     await page.until(lambda: page.topics["igate"]["state"] == "connected")
-    assert page.topics["igate"]["server"] == server.name and page.topics["igate"]["problem"] == "" and page.topics["igate"]["enabled"] is True
+    assert page.topics["igate"]["server"] == server.name and page.topics["igate"]["reason"] == "" and page.topics["igate"]["enabled"] is True
     e.feed(on_air("OH2RDG-7", b"!6010.00N/02456.00E>x"))
     e.feed(on_air("OH2RDG-8", b"!6010.00N/02456.00E>y", path="TCPIP*"))
     await page.until(lambda: page.topics["igate"]["gated"] == 1 and page.topics["igate"]["dropped"] == {"tcpip": 1})
@@ -203,7 +203,7 @@ async def test_a_password_the_server_does_not_accept_is_told_to_the_page(tmp_pat
     await e.start()
     page = await e.ws()
     await page.until(lambda: page.topics.get("igate", {}).get("state") == "unverified")
-    assert page.topics["igate"]["problem"] == "the server did not accept the password"
+    assert page.topics["igate"]["reason"] == "unverified"
     e.feed(on_air("OH2RDG-7", b"!6010.00N/02456.00E>x"))
     await idle_for(0.3)
     assert server.packets == []

@@ -361,7 +361,7 @@ def test_a_message_that_does_not_fit_the_protocol_is_found_when_the_check_is_on(
     finally:
         outbound.VIOLATIONS.clear()
     assert len(found) == 5 and all(line.split(":")[0] in ("pong", "state", "patch") for line in found)
-    assert "now" in found[0] and "extra" in found[1] and "the value of gps" in found[2] and "problem: Field required" in found[2] and "weather" in found[3]
+    assert "now" in found[0] and "extra" in found[1] and "the value of gps" in found[2] and "reason: Field required" in found[2] and "weather" in found[3]
     assert "the item OH2X of stations" in found[4] and "kind: Field required" in found[4]
     assert len(socket.frames) == 6, "a message that does not fit is sent all the same (the check is for the tests)"
 
@@ -393,7 +393,7 @@ def test_a_message_too_big_to_send_is_replaced_by_an_error_that_says_so(caplog: 
     conn = out.open(socket, "127.0.0.1")
     conn.send_text(json.dumps({"type": "state", "topic": "stations", "rev": 1, "value": "x" * (MAX_MESSAGE + 1)}))
     (frame,) = socket.frames
-    assert json.loads(frame)["type"] == "error" and "state answer" in json.loads(frame)["text"] and len(frame) < 300
+    assert json.loads(frame)["type"] == "error" and json.loads(frame)["params"]["kind"] == "state" and len(frame) < 300
     assert any("was not sent" in r.getMessage() for r in caplog.records)
 
 

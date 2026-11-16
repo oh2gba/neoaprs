@@ -68,7 +68,7 @@ async def test_a_library_that_fails_in_a_way_nobody_listed_is_a_problem_for_the_
     side = made(tmp_path)
     side._store = FakeCertificates(RuntimeError("the library broke"))      # type: ignore[assignment]
     assert await side.follow(True, "127.0.0.1", PLAIN_PORT, factory) is True
-    assert side.state == SecureState(False, 0, "", "the certificates could not be made: the library broke") and side.server is None and side.retry_sec == RETRY_SEC
+    assert side.state == SecureState(False, 0, "", "the certificates could not be made: the library broke", "certificates") and side.server is None and side.retry_sec == RETRY_SEC
     assert any("the secure connection is not working" in r.getMessage() for r in caplog.records) and any(r.exc_info for r in caplog.records)
 
 
@@ -100,9 +100,9 @@ async def test_a_certificate_that_cannot_be_renewed_leaves_the_one_in_use_in_use
     side = made(tmp_path)
     await side.follow(True, "127.0.0.1", PLAIN_PORT, factory)
     port, fingerprint = side.state.port, side.state.fingerprint
-    side._store = FakeCertificates(TlsError("the clock of this computer is not set; the secure connection starts when it is"))      # type: ignore[assignment]
+    side._store = FakeCertificates(TlsError("the clock of this computer is not set; the secure connection starts when it is", clock=True))      # type: ignore[assignment]
     assert await side.follow(True, "127.0.0.1", PLAIN_PORT, factory) is True
-    assert side.state == SecureState(True, port, fingerprint, "the clock of this computer is not set; the secure connection starts when it is")
+    assert side.state == SecureState(True, port, fingerprint, "the clock of this computer is not set; the secure connection starts when it is", "clock")
     assert side.server is not None and side.retry_sec == RETRY_SEC, "still served, and looked at again soon"
 
 

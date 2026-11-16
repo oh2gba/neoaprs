@@ -230,7 +230,7 @@ async def test_the_daemon_tells_every_page_and_runs_the_alert_command_and_the_al
     await page.send({"cmd": "set_station_alert", "call": "OH2GBA", "on_air": True, "within_km": None, "direct": False})
     assert (await page.expect("error"))["text"] == "set_station_alert: OH2GBA is our own: an alert is for another station"
     e.feed(on_air("OH2XYZ", b">on the air"))
-    told = {"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "text": "OH2XYZ is on the air", "at": "2026-10-21T12:00:00Z", "km": None}
+    told = {"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "at": "2026-10-21T12:00:00Z", "km": None}
     assert await page.expect("station_alert") == told and await other.expect("station_alert") == told
     assert (await until_written(out)).splitlines() == ["station", "APRS alert: OH2XYZ", "OH2XYZ", "OH2XYZ is on the air", "2026-10-21T12:00:00Z", "", "end"]
     await e.stop()

@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { setLocale, t } from "@/i18n";
 import { en } from "@/i18n/en";
-import { errorLine, errorReason } from "@/i18n/errortext";
+import { errorLine, errorReason, type Failure } from "@/i18n/errortext";
 import { fill, placeholders, pick, texts, type Message, type Params } from "@/i18n/message";
 import daemon from "@/protocol/errors.json";
 
@@ -12,9 +12,9 @@ interface Refusal {
   text: string[];
 }
 const CODES = daemon as Record<string, Refusal>;
-/** What the page puts in itself (errortext.ts). */
-const ADDED = ["profiles", "settings", "forbidden", "name_forbidden"];
-/** Refusals with a sentence the page cannot make: the daemon's own words are a detail it does not pass on (a parser's message, a list of the topics). They are shown in the daemon's English. */
+/** What the page puts in itself (errortext.ts): the lists, and `{reason}`, the sentence of the refusal's `why`. */
+const ADDED = ["profiles", "settings", "forbidden", "name_forbidden", "reason"];
+/** Refusals that only a page that is not the daemon's own can cause (a frame that is no JSON, a topic there is not): the page says them with the plain words of `error.failed`, the log has the daemon's. */
 const TEXT_ONLY = ["not_json", "topic.unknown"];
 /** The page's own refusal, which no daemon sends: a command while the socket is not open (composables/useDaemon.ts `send`). */
 const PAGE_OWN = ["not_connected"];
@@ -25,6 +25,7 @@ const VARIANTS: Record<string, Record<string, string[]>> = {
   "message.not_ascii": { chars: ["", "é"] },
   "radio.unknown": { removed: ["", "1"] },
   "radio.resource_held": { held_by: ["0", "3"] },
+  "hf.held": { held: ["transmitting", "busy"] },
 };
 
 const message = (code: string): Message | undefined => (en as Record<string, Message>)[`error.${code}`];
@@ -65,7 +66,8 @@ describe("the refusals of the daemon", () => {
       const m = message(code);
       if (!m) continue;
       const asked = new Set(texts(m).flatMap(placeholders));
-      for (const name of asked) expect([...refusal.params, ...ADDED], `${code}: {${name}}`).toContain(name);
+      for (const name of asked)
+        expect([...refusal.params, ...ADDED.filter((added) => added !== "reason" || refusal.params.includes("why"))], `${code}: {${name}}`).toContain(name);
       const select = typeof m === "object" && "select" in m ? m.select : undefined;
       if (select !== undefined) expect(refusal.params, `${code}: select`).toContain(select);
     }
@@ -103,11 +105,47 @@ describe("a refusal on the page", () => {
     expect(errorLine(error), "the toast has no command name and no setting key: they say nothing to the person").toBe("95 is not between -90 and 90");
   });
 
-  it("is the daemon's English one, without the command and the setting in front, for a code it has none for", () => {
-    const text = "send_message: OH2GBA is our own call";
-    expect(errorReason({ cmd: "send_message", key: null, code: "other", params: {}, text })).toBe("OH2GBA is our own call");
-    expect(errorLine({ cmd: "send_message", key: null, code: "other", params: {}, text })).toBe("OH2GBA is our own call");
-    expect(errorReason({ cmd: "", key: null, code: "nope.nothing", params: {}, text: "Not connected to the daemon." })).toBe("Not connected to the daemon.");
+  it("is the plain words of a failure, never the daemon's English and never the code, for a code it has no sentence for", () => {
+    const text = "send_message: the daemon's words";
+    try {
+      for (const code of ["en", "de", "nl", "ja"]) {
+        setLocale(code);
+        const failures: Failure[] = [
+          { cmd: "send_message", key: null, code: "other", params: {}, text },
+          { cmd: "", key: null, code: "nope.nothing", params: {}, text },
+          { cmd: "x", key: null, code: "invalid", params: {}, text },
+          { cmd: "", key: null, code: "not_json", params: {}, text },
+          { cmd: "status_now", key: null, code: "status.not_sent", params: { why: "nope.newer" }, text },
+        ];
+        for (const failure of failures) {
+          expect(errorLine(failure), `${code} ${failure.code}`).toBe(t("error.failed"));
+          expect(errorLine(failure)).not.toContain("daemon");
+        }
+      }
+    } finally {
+      setLocale("en");
+    }
+  });
+
+  it("says the reason of a refusal that only passes on another's (nothing was sent, and why) from that reason's own sentence, in the page's language", () => {
+    const failure = (params: Record<string, string | number>) => ({
+      cmd: "status_now",
+      key: null,
+      code: "status.not_sent",
+      params,
+      text: "status_now: nothing was sent: there is no status text",
+    });
+    expect(errorLine(failure({ why: "status.no_text" }))).toBe("nothing was sent: there is no status text");
+    expect(errorLine(failure({ why: "call.placeholder", call: "N0CALL" }))).toBe("nothing was sent: N0CALL is a placeholder, not a call: set your call first");
+    try {
+      setLocale("nl");
+      expect(errorLine(failure({ why: "status.no_text" })), "the owner's case: all of it Dutch").toBe("er is niets verzonden: er is geen statustekst");
+      expect(errorLine({ cmd: "radio_tune", key: null, code: "transmit.call", params: { why: "call.none" }, text: "" })).toBe(
+        "er wordt niets verzonden: stel eerst je roepnaam in",
+      );
+    } finally {
+      setLocale("en");
+    }
   });
 
   it("is the page's own sentence, in the page's language, for a command the page could not send (the socket not open), and never names the daemon", () => {

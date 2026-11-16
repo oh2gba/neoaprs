@@ -104,18 +104,13 @@ describe("the Mercury radio's line", () => {
   });
 
   it("says why the program does not run in the page's words by the daemon's code, never in the daemon's English", () => {
-    const down = (reason: ModemState["reason"], problem = "Mercury stopped (exit 1); the log says why") =>
-      rowStatus(hf({ state: "waiting", problem, reason }, { state: "waiting" }), NOW);
-    expect(down("not_installed", "the Mercury program is not in this installation of NeoAPRS (...)")).toBe(
-      "This installation does not carry this radio's modem",
-    );
+    const down = (reason: ModemState["reason"]) => rowStatus(hf({ state: "waiting", reason }, { state: "waiting" }), NOW);
+    expect(down("not_installed")).toBe("This installation does not carry this radio's modem");
     expect(down("stopped")).toBe("Not running");
     expect(down("network")).toBe("Not run: the modem would be open to the network");
-    expect(down("no_port", "no free port for Mercury: [Errno 98]")).toBe("Not running: no free port");
-    expect(down("not_started", "Mercury could not be started: [Errno 2]")).toBe("The modem could not be started");
-    expect(down("sound_card", "the sound card could not be opened: choose another one in the Sound card field")).toBe(
-      "Sound card could not be opened: choose another",
-    );
+    expect(down("no_port")).toBe("Not running: no free port");
+    expect(down("not_started")).toBe("The modem could not be started");
+    expect(down("sound_card")).toBe("Sound card could not be opened: choose another");
     expect(down("")).toBe("Not connected");
   });
 

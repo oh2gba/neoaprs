@@ -10,12 +10,7 @@ import { NOW, ago, configValues, fmRow, hello, radiosValue, station, status } fr
 const CALLS = ["OH2ZWA", "OH2ZWB", "OH2ZWC", "OH2ZWD", "OH2ZWE", "OH2ZWF"];
 const stations = {
   OH2GBA: station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_table: "", symbol_code: "", distance_km: null, bearing_deg: null }),
-  ...Object.fromEntries(
-    CALLS.map((call, i) => [
-      call,
-      station(call, { symbol_code: "_", symbol_name: "Weather station", lat: 60.1 + i / 10, lon: 24.6 + i / 10, last_heard: ago(10 + i) }),
-    ]),
-  ),
+  ...Object.fromEntries(CALLS.map((call, i) => [call, station(call, { symbol_code: "_", lat: 60.1 + i / 10, lon: 24.6 + i / 10, last_heard: ago(10 + i) })])),
 };
 
 function resize(width: number, height: number): void {

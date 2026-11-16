@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { currentEstimate, downloadedLine, filesKey, formatBytes, isRunning, progressText, setupMapLine } from "@/lib/mapfetch";
+import { blockedText, currentEstimate, downloadedLine, filesKey, formatBytes, isRunning, problemText, progressText, setupMapLine } from "@/lib/mapfetch";
+import type { MapState } from "@/protocol/protocol";
 import { mapFile, mapState } from "@/test/fixtures";
 
 describe("formatBytes", () => {
@@ -59,9 +60,25 @@ describe("the job", () => {
     expect(progressText(mapState({ state: "downloading", step: "area", percent: 49, downloaded: 340_000_000 }))).toBe("Map of the area 49% · 340 MB");
     expect(progressText(mapState({ state: "downloading", step: "area", percent: 0, downloaded: 0 }))).toBe("Map of the area 0%");
     expect(progressText(mapState({ state: "downloading", step: "world", percent: null, downloaded: 12_300_000 }))).toBe("World map · 12 MB");
-    expect(progressText(mapState({ state: "downloading", step: "area", percent: null, note: "no progress: trying again (2 of 3)" }))).toBe(
+    expect(progressText(mapState({ state: "downloading", step: "area", percent: null, retry: { attempt: 2, tries: 3 } }))).toBe(
       "Map of the area · no progress: trying again (2 of 3)",
     );
+  });
+});
+
+describe("the problem and the block", () => {
+  it("say the daemon's code in the page's words, with its values", () => {
+    expect(problemText(mapState({ problem: { code: "no_build", params: { days: 7 } } }))).toBe(
+      "no daily build of the map was found in the last 7 days (is there a connection?)",
+    );
+    expect(blockedText(mapState({ blocked: "busy" }))).toBe("a map job is running");
+    expect([problemText(mapState()), blockedText(mapState())]).toEqual(["", ""]);
+  });
+
+  it("do not throw on what a daemon of another build sends (an English sentence, a code the page does not know)", () => {
+    const other = mapState({ blocked: "a map job is running" as MapState["blocked"], problem: "the map could not be made" as unknown as MapState["problem"] });
+    expect(blockedText(other)).toBe("");
+    expect(problemText(other)).toBe("the map could not be made; the log says why");
   });
 });
 
@@ -83,7 +100,7 @@ describe("setupMapLine", () => {
   });
 
   it("says the detailed map will come when online, when the daemon could not fetch it yet (and no job runs)", () => {
-    expect(setupMapLine(mapState({ state: "error", problem: "no daily build was found", later: true }))).toBe("setup.map_later");
+    expect(setupMapLine(mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } }, later: true }))).toBe("setup.map_later");
     expect(setupMapLine(mapState({ state: "downloading", later: true }))).toBe("setup.map_auto");
   });
 

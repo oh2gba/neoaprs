@@ -49,7 +49,7 @@ class RadioSpec:
         """Its setting of this key, parsed by the field of its kind; the field's default when the setting is absent or wrong (a wrong one is logged with `radio/<id>/<key>`). RadioError for a key that is no field of its kind."""
         found = kind_field(self.kind, key)
         if found is None:
-            raise RadioError(f"radio/{self.id}/{key}: a radio of the kind {self.kind} has no such setting")
+            raise RadioError(f"radio/{self.id}/{key}: a radio of the kind {self.kind} has no such setting", "failed")
         text = self.settings.get(key)
         if text is not None:
             try:

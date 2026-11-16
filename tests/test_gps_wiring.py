@@ -177,13 +177,13 @@ async def test_the_page_is_told_the_gps_the_fix_and_the_beacon(tmp_path: Path) -
     await said(e)
     await page.until(lambda: page.topics["gps"]["last_beacon_reason"] == "start")
     state = GpsState.model_validate(page.topics["gps"])
-    assert (state.state, state.problem, state.lat, state.lon, state.altitude_m, state.course_deg, state.fix_at) == ("fix", "", 60.43, 24.145, 31.4, 270, "2026-10-21T12:00:00Z")
+    assert (state.state, state.reason, state.lat, state.lon, state.altitude_m, state.course_deg, state.fix_at) == ("fix", "", 60.43, 24.145, 31.4, 270, "2026-10-21T12:00:00Z")
     assert state.speed_kmh == pytest.approx(54.0) and state.last_beacon_at == "2026-10-21T12:00:00Z"
     assert state.next_beacon_at == "2026-10-21T12:01:51Z", "111 seconds at 54 km/h"
     e.now.advance(130)                                                               # type: ignore[attr-defined]
     await page.until(lambda: page.topics["gps"]["state"] == "stale")
     stale = GpsState.model_validate(page.topics["gps"])
-    assert stale.problem and stale.next_beacon_at is None and stale.lat == 60.43
+    assert stale.reason == "" and stale.next_beacon_at is None and stale.lat == 60.43, "the state says the fix is old"
     await e.stop()
 
 

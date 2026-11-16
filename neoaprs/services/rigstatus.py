@@ -30,6 +30,7 @@ from typing import Literal, TypeIs
 from neoaprs import ax25
 from neoaprs.beaconrule import beacon_interval, status_radios
 from neoaprs.clock import Clock, utcnow
+from neoaprs.coded import Reason
 from neoaprs.config import STATUS_SENT, STATUS_TEXT, Config, radio_state_key
 from neoaprs.configstatus import MAX_STATUS, fill_template
 from neoaprs.configtypes import over_the_air_problem
@@ -46,6 +47,7 @@ from neoaprs.tasks import TaskSet, every
 log = logging.getLogger("neoaprs.status")
 
 POLL_SEC = 30.0
+NO_TEXT = Reason("there is no status text", "status.no_text")
 RigState = Literal["off", "on", "unused"]
 Reader = Callable[[str, int], Awaitable[Reading]]
 
@@ -169,17 +171,18 @@ class RigStatus:
         return c.station_status if c.status_choice == "text" else None
 
     async def send_now(self) -> str:
-        """Sends the status now, inside the interval; the interval counts from now. "" when it went out, else why not (the interlock, the Tnc, the radio away, no text, a text the settings cannot send)."""
+        """Sends the status now, inside the interval; the interval counts from now. "" when it went out, else why not, as a Reason with its code (the interlock, the Tnc, the radio away, no text, a text the
+        settings cannot send)."""
         c = self._config()
         if c.status_choice == "off":
-            return "the status is off"
+            return Reason("the status is off", "status.off")
         if reason := self._interlock.refused("status"):
             return reason
         text = await self._current(c)
         if text is None:
-            return self._rig_problem or "the status has no radio to come from: set status/rigctld"
+            return Reason("the radio does not answer", "status.rig_away") if self._rig_problem else Reason("the status has no radio to come from: set Rigctld", "status.no_rig")
         if not text:
-            return "there is no status text"
+            return NO_TEXT
         return self._try(text)
 
     async def _from_rig(self, c: Config, address: tuple[str, int]) -> str | None:
@@ -230,16 +233,16 @@ class RigStatus:
         try:
             frame = self._frames.status(text, radio)                       # (for the radio it goes on: no path and the frame cap on HF; none longer than it carries)
         except BeaconError as e:
-            reason = f"the settings make no status: {e}"
+            reason = Reason.of(e, f"the settings make no status: {e}")
             self._tell(id, reason, warn=True)
             return reason
         if frame is None:
-            return "there is no status text"
+            return NO_TEXT
         if not radio.usable:
             self._tell(id, f"{radio.why_unusable()}: the status waits")
             return radio.why_unusable()
         if not radio.send_frame(frame):
-            reason = "the TNC did not take the status frame"
+            reason = Reason("the TNC did not take the status frame", "radio.not_taken", radio=radio.id, name=radio.name)
             self._tell(id, reason, warn=True)
             return reason
         now = self.clock()
@@ -263,5 +266,5 @@ class RigStatus:
             return None
         target = self._radio() if radio is None else air_of(radio, self._config, old=self._old)
         if target is None:
-            raise BeaconError(NO_RADIO)
+            raise BeaconError.of(NO_RADIO)
         return self._frames.status(self.last_text, target)

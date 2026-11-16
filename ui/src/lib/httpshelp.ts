@@ -2,6 +2,8 @@
 // make a device trust it, for the device this is. The steps are of the systems' own menus and only the person can walk them: a page can install nothing. Without the certificate the browser shows a warning the first time,
 // which can also be continued past.
 import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
+import type { HttpsState } from "@/protocol/protocol";
 
 /** Where the daemon gives the authority's certificate, and the name the download has. */
 export const CERT_PATH = "/neoaprs-ca.crt";
@@ -55,3 +57,15 @@ export const STEPS: Readonly<Record<Device, readonly string[]>> = {
 
 /** The secure page on the host the page was opened at (an IPv6 address already has its brackets in `location.hostname`). */
 export const secureUrl = (port: number, hostname: string = location.hostname): string => `https://${hostname}:${port}/`;
+
+/** Why the secure connection could not start, in words, by the daemon's code of it (`HttpsState.reason`); "" for none. */
+const REASONS: Record<Exclude<HttpsState["reason"], "">, MessageId> = {
+  no_library: "settings.https.reason.no_library",
+  clock: "settings.https.reason.clock",
+  certificates: "settings.https.reason.certificates",
+  no_port: "settings.https.reason.no_port",
+};
+export function reasonText(reason: HttpsState["reason"]): string {
+  const id = REASONS[reason as Exclude<HttpsState["reason"], "">] as MessageId | undefined; // (none for "" and for a code of a daemon of another build)
+  return id === undefined ? "" : t(id);
+}

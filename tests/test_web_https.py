@@ -143,7 +143,7 @@ async def test_the_socket_works_over_tls_and_the_page_is_told_about_the_secure_c
     await page.until(lambda: "config" in page.topics)
     config = page.topics["config"]
     ca = (await e.fetch("/neoaprs-ca.crt")).body
-    assert config["https"] == {"on": True, "port": secure_port(e), "fingerprint": fingerprint_of(ca), "problem": ""}
+    assert config["https"] == {"on": True, "port": secure_port(e), "fingerprint": fingerprint_of(ca), "reason": ""}
     host = socket.gethostname().lower()
     assert config["urls"] == [f"https://{LAN}:{secure_port(e)}/", f"https://{host}.local:{secure_port(e)}/"], "the page is opened at the secure address"
 
@@ -323,7 +323,7 @@ async def test_if_the_certificates_cannot_be_made_the_plain_page_goes_on_and_the
     page = await e.ws()
     await page.until(lambda: "config" in page.topics)
     https = page.topics["config"]["https"]
-    assert https["on"] is False and https["port"] == 0 and "tls" in https["problem"] and https["fingerprint"] == ""
+    assert https["on"] is False and https["port"] == 0 and https["reason"] == "certificates" and https["fingerprint"] == ""
     assert any("secure connection is not working" in r.getMessage() for r in caplog.records)
     assert (await e.fetch("/neoaprs-ca.crt")).code == 404
 
@@ -348,7 +348,7 @@ async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and
         page = await e.ws()
         await page.until(lambda: "config" in page.topics)
         await page.send({"cmd": "set_config", "values": {"web/https": "true"}})
-        await page.until(lambda: "cannot listen" in page.topics["config"]["https"]["problem"])
+        await page.until(lambda: page.topics["config"]["https"]["reason"] == "no_port")
         https = page.topics["config"]["https"]
         assert https["on"] is False and https["port"] == 0 and (await e.fetch("/")).code == 200
         assert e.server is not None and e.server.secure.retry_sec == secureside.RETRY_SEC, "looked at again soon"

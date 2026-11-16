@@ -8,7 +8,6 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { NOW, ago, series, station, weatherStation } from "@/test/fixtures";
 
 const row = station("OH2PU-9", {
-  symbol_name: "Car",
   lat: 60.19908,
   lon: 24.65007,
   distance_km: 16.2,
@@ -139,7 +138,6 @@ describe("StationCard", () => {
   });
   const rowsOf = (wrapper: ReturnType<typeof mount>) => wrapper.findAll("dt").map((dt) => dt.text());
   const house = station("OH2DPN", {
-    symbol_name: "House",
     symbol_code: "-",
     course_deg: null,
     speed_kmh: null,
@@ -460,7 +458,7 @@ describe("StationCard", () => {
   });
 
   describe("an object or an item of ours", () => {
-    const mine = station("LEADER", { kind: "object", reported_by: "OH2GBA", own: true, symbol_name: "Car" });
+    const mine = station("LEADER", { kind: "object", reported_by: "OH2GBA", own: true });
     const card = () => mount(StationCard, { props: { row: mine, now: NOW } });
 
     it("says it is ours, and by whom it is reported", () => {

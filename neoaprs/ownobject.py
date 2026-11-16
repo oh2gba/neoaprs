@@ -51,7 +51,7 @@ def radio_set(radios: Iterable[RadioId]) -> tuple[RadioId, ...]:
     """The radios of an object as they are kept: each id once, ascending; OwnError for none at all and for what is no id (a whole number from 1)."""
     found = set(radios)
     if not found or any(type(radio) is not int or radio < 1 for radio in found):
-        raise OwnError(f"{sorted(found, key=repr)!r} are not the radios of an object: one id or more, each a whole number from 1")
+        raise OwnError(f"{sorted(found, key=repr)!r} are not the radios of an object: one id or more, each a whole number from 1", "failed")
     return tuple(sorted(found))
 
 

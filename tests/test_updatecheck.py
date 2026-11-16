@@ -137,13 +137,13 @@ async def test_what_is_new_is_the_changelog_at_the_tag_of_the_newer_version_fetc
     changelog = Changelog(NOTES)
     service = UpdateCheck(lambda: DEFAULTS, "0.1.0", "linux", Page(NEWER), environ={}, fetch_url=changelog)
     remember_stop(service.stop)
-    assert await service.release_notes("0.2.0") == ([], "that version is neither the newer one known nor this one"), "nothing is fetched for a version the check has not found"
+    assert await service.release_notes("0.2.0") == ([], "unknown_version"), "nothing is fetched for a version the check has not found"
     await service.check()
     found, problem = await service.release_notes("0.2.0")
     assert problem == "" and [(s.version, s.text) for s in found] == [("0.2.0", "- Two."), ("0.1.1", "- One and a bit.")]
     assert changelog.asked == [("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.1.0", "linux", 262144)]
     assert await service.release_notes("0.2.0") == (found, "") and len(changelog.asked) == 1, "kept"
-    assert await service.release_notes("0.3.0") == ([], "that version is neither the newer one known nor this one") and len(changelog.asked) == 1
+    assert await service.release_notes("0.3.0") == ([], "unknown_version") and len(changelog.asked) == 1
 
 
 async def test_release_notes_that_cannot_be_fetched_say_so_and_are_asked_for_again() -> None:
@@ -151,7 +151,7 @@ async def test_release_notes_that_cannot_be_fetched_say_so_and_are_asked_for_aga
     service = UpdateCheck(lambda: DEFAULTS, "0.1.0", "linux", Page(NEWER), environ={}, fetch_url=changelog)
     remember_stop(service.stop)
     await service.check()
-    assert await service.release_notes("0.2.0") == ([], "the release notes could not be fetched")
+    assert await service.release_notes("0.2.0") == ([], "unreachable")
     changelog.text = NOTES
     found, problem = await service.release_notes("0.2.0")
     assert problem == "" and len(found) == 2 and len(changelog.asked) == 2
@@ -167,7 +167,7 @@ async def test_what_the_update_we_have_had_brought_is_the_changelog_at_our_own_t
     found, problem = await service.release_notes("0.2.0", since="0.1.0")
     assert problem == "" and [s.version for s in found] == ["0.2.0", "0.1.1"] and len(changelog.asked) == 1, "every version after the one the page last saw, from the changelog kept"
     assert await service.release_notes("0.2.0", since="0.2.0") == ([], "")
-    assert await service.release_notes("0.1.1") == ([], "that version is neither the newer one known nor this one") and len(changelog.asked) == 1
+    assert await service.release_notes("0.1.1") == ([], "unknown_version") and len(changelog.asked) == 1
 
 
 async def test_the_newer_version_takes_a_since_too_and_both_changelogs_are_kept() -> None:
@@ -187,7 +187,7 @@ async def test_the_newer_version_takes_a_since_too_and_both_changelogs_are_kept(
 async def test_our_own_notes_that_cannot_be_fetched_say_so() -> None:
     service = UpdateCheck(lambda: DEFAULTS, "0.2.0", "linux", Page(), environ={}, fetch_url=Changelog(None))
     remember_stop(service.stop)
-    assert await service.release_notes("0.2.0", since="0.1.0") == ([], "the release notes could not be fetched")
+    assert await service.release_notes("0.2.0", since="0.1.0") == ([], "unreachable")
 
 
 async def test_the_page_asks_the_daemon_what_is_new_and_gets_the_sections(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -204,7 +204,7 @@ async def test_the_page_asks_the_daemon_what_is_new_and_gets_the_sections(tmp_pa
     assert answer == {"type": "release_notes", "version": "9.9.9", "since": "", "sections": [{"version": "9.9.9", "text": "Everything is new."}], "problem": ""}
     await page.send({"cmd": "release_notes", "version": "8.0.0"})
     answer = await page.expect("release_notes")
-    assert answer["sections"] == [] and answer["problem"] == "that version is neither the newer one known nor this one"
+    assert answer["sections"] == [] and answer["problem"] == "unknown_version"
     await page.send({"cmd": "release_notes", "version": VERSION, "since": "0.0.0"})
     answer = await page.expect("release_notes")
     assert answer["version"] == VERSION and answer["since"] == "0.0.0" and answer["problem"] == "", "our own version, with the page's `since` given back"

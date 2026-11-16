@@ -22,7 +22,7 @@ const props = defineProps<{ bulletins: ReadonlyMap<string, BulletinRow>; ownBull
 const { call, now, send } = useDaemonContext();
 const sure = useSure<string>(); // (the key of a row)
 const keyOf = (b: BoardEntry) => (b.own ? `own/${b.slot}` : `${b.sender}/${b.slot}`);
-const shown = computed(() => sections<BoardEntry>([...props.bulletins.values(), ...ownEntries(props.ownBulletins.values(), call.value ?? "us")]));
+const shown = computed(() => sections<BoardEntry>([...props.bulletins.values(), ...ownEntries(props.ownBulletins.values(), call.value ?? t("chain.you"))]));
 /** The copy menu of a bulletin: its text, and its sender's call. */
 const copy = useCopyMenu((item) => {
   const b = shown.value.flatMap((section) => section.rows).find((row) => keyOf(row) === item.dataset["key"]);

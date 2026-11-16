@@ -48,6 +48,7 @@ MOBILE_EVERY_SEC = 60.0
 SUMMARY_SEC = 3600.0
 TICK_SEC = 1.0
 IgateStateName = Literal["off", "connecting", "connected", "listening", "unverified"]
+IgateReason = Literal["", "no_server", "no_call", "unreachable", "offline", "not_server", "lost", "unverified"]
 
 
 def dummy_on(config: Config) -> bool:
@@ -184,6 +185,14 @@ class Igate:
         if state in ("off", "connected", "listening"):
             return ""
         return UNVERIFIED if state == "unverified" else self._link.problem or self._link.last_error
+
+    @property
+    def reason(self) -> IgateReason:
+        """`problem` as a code, which the page says in its words: what is missing, why the latest attempt ended, or the password not accepted; empty when `problem` is."""
+        state = self.state
+        if state in ("off", "connected", "listening"):
+            return ""
+        return "unverified" if state == "unverified" else self._link.reason
 
     @property
     def server_name(self) -> str:

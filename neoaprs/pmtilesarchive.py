@@ -85,4 +85,4 @@ async def latest_build(now: datetime, probe: Callable[[str], bool] = url_exists)
         url = f"{BUILDS}/{day}.pmtiles"
         if await asyncio.to_thread(probe, url):
             return url, day
-    raise MapError(f"no daily build was found at {BUILDS} in the last {BUILD_DAYS} days (is there a connection?)")
+    raise MapError(f"no daily build was found at {BUILDS} in the last {BUILD_DAYS} days (is there a connection?)", problem="no_build", days=BUILD_DAYS)

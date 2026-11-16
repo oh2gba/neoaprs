@@ -26,7 +26,7 @@ async def test_a_copy_that_cannot_update_itself_says_so_in_the_topic_and_refuses
     e = await started(tmp_path)
     page = await e.ws()
     state = (await page.expect("state", "update"))["value"]
-    assert state == {"supported": False, "state": "idle", "version": "", "percent": None, "downloaded": 0, "total": None, "problem": "", "detail": ""}
+    assert state == {"supported": False, "state": "idle", "version": "", "percent": None, "downloaded": 0, "total": None, "problem": ""}
     await page.send({"cmd": "update_now", "version": "0.7.0"})
     error = await page.expect("error")
     assert (error["cmd"], error["code"]) == ("update_now", "update.unsupported")
@@ -46,7 +46,7 @@ async def test_update_now_is_told_step_by_step_to_every_page_and_fetches_only_fr
     assert (await page.expect("error"))["code"] == "update.not_announced"
     await page.send({"cmd": "update_now", "version": "0.7.0"})
     await other.until(lambda: other.topics["update"]["state"] == "restarting")
-    assert other.topics["update"] == {"supported": True, "state": "restarting", "version": "0.7.0", "percent": 100, "downloaded": len(release.body), "total": len(release.body), "problem": "", "detail": ""}
+    assert other.topics["update"] == {"supported": True, "state": "restarting", "version": "0.7.0", "percent": 100, "downloaded": len(release.body), "total": len(release.body), "problem": ""}
     assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig", f"{RELEASES}/v0.7.0/{NAME}"]           # (not the address the version page gave)
     assert [name for _, name, _ in installer.installed] == [NAME]
     await page.send({"cmd": "update_now", "version": "0.7.0"})

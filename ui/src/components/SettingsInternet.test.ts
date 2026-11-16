@@ -80,11 +80,11 @@ describe("the Internet stations group of the Settings tab", () => {
         .text(),
     ).toBe("Connecting to T2FINLAND…");
     expect(
-      make({ "igate/enabled": "true" }, { igate: igateState({ state: "connecting", problem: "Connection refused" }) })
+      make({ "igate/enabled": "true" }, { igate: igateState({ state: "connecting", reason: "unreachable" }) })
         .group()
         ?.find(".tncstatus")
         .text(),
-    ).toBe("Not connected: Connection refused");
+    ).toBe("Not connected: the server cannot be reached");
   });
 
   it("says Set your call first, and shows no field, while the call is not set", () => {

@@ -20,7 +20,6 @@ class UpdateState(_Model):
         description="for `error`: `download` (the file or SHA256SUMS could not be fetched), `unverified` (SHA256SUMS could not be checked: its signature could not be fetched or does not hold with the project's key for "
                     "this version, or the list does not name the file once; nothing was downloaded), `checksum` (the file's SHA-256 is not the one the signed SHA256SUMS gives it: it was deleted), "
                     "`install` (it could not be put in place, or the installer could not be started), `no_restart` (it was installed but NeoAPRS did not restart); empty otherwise")
-    detail: str = Field(description="the English sentence of the problem, for the log and the page's details; empty when all is well")
 
 
 class UpdateNow(_Command):

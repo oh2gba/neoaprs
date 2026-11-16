@@ -18,6 +18,7 @@ import pytest
 from neoaprs import ax25
 from neoaprs.beaconrule import beacon_interval, status_chosen, status_radios
 from neoaprs.clock import iso
+from neoaprs.coded import code_of
 from neoaprs.config import LISTENS_ONLY, Config
 from neoaprs.packet import Packet
 from neoaprs.radiospec import RadioId, RadioSpec
@@ -25,6 +26,7 @@ from neoaprs.radiotype import Limits
 from neoaprs.services.beaconframe import BeaconFrames
 from neoaprs.services.radioset import NO_RADIO
 from neoaprs.services.rigstatus import RigStatus, memory_key_of
+from neoaprs.source import Source
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, Env, remember_stop, until
 from tests.support.seamshapes import LiveShape
@@ -258,6 +260,26 @@ async def test_send_status_now_sends_once_on_each_ticked_radio_that_takes_it_now
     assert station.reports() == {1: 2, 2: 1, 3: 0}, "inside the interval of each"
     await station.day(1)
     assert station.reports() == {1: 3, 2: 1, 3: 0}
+
+
+async def test_why_send_status_now_sent_nothing_is_a_code_with_its_values_never_only_a_sentence() -> None:
+    """Every reason Send status now gives has a code and the values of its sentence, which the page says in its own language inside `status.not_sent` (the owner saw "er is niets verzonden: there is no
+    status text"): one with the code `other` would be shown as the plain words of a failure, and an English sentence must never reach the page."""
+    async def why(station: Station) -> tuple[str, dict[str, object]]:
+        return code_of(await station.status.send_now())
+    assert await why(Station(replace(ticked(FM), enabled=False))) == ("radio.none", {})
+    assert await why(Station(ticked(FM), status_source="off")) == ("status.off", {})
+    assert await why(Station(ticked(FM), station_status="")) == ("status.no_text", {})
+    assert await why(Station(ticked(FM), station_status="x" * 56)) == ("status.too_long", {"length": 56, "max": 55})
+    assert await why(Station(ticked(LORA), short=(3,))) == ("status.too_long_for_radio", {"radio": 3, "name": "LoRa"}), "the radio by its id: the page says its own name for it"
+    refusing = Station(ticked(FM), ticked(HF))
+    refusing.lines[1].takes = refusing.lines[2].takes = False
+    assert await why(refusing) == ("radio.not_taken", {"radio": 1, "name": "FM"}), "none took it: the first radio's reason"
+    silent = Station(ticked(FM))
+    silent.lines[1].state = Source.State.SILENT
+    assert (await why(silent))[0] == "radio.silent"
+    placeholder = Station(ticked(FM), station_call="N0CALL")
+    assert await why(placeholder) == ("call.placeholder", {"call": "N0CALL"})
 
 
 async def test_the_status_of_my_radio_says_the_same_frequency_on_every_radio() -> None:

@@ -168,4 +168,7 @@ class AlertResultMsg(_Message):
     """The answer to `alert_test`, when the command has ended or run out of its 20 s."""
     type: Literal["alert_result"]
     ok: bool = Field(description="the command ended with exit code 0")
-    text: str = Field(description="`ran` when it worked; else why not: the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed after 20 s")
+    outcome: Literal["ran", "exit", "timeout", "no_start"] = Field(description="how it ended, which the page says in its words: `ran` it worked; `exit` it ended with the exit code `status`; `timeout` it did not end within `seconds` and was killed; `no_start` it could not start (the log says why)")
+    status: int = Field(description="the exit code for `exit`; 0 otherwise")
+    seconds: float = Field(ge=0, description="how long a run may take, in seconds")
+    line: str = Field(description="for `exit`, the first line the command wrote to stderr, its own words (`no display`); empty otherwise")

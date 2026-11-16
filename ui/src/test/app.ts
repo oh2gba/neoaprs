@@ -34,7 +34,7 @@ export async function open() {
   const socket = FakeSocket.last();
   socket.say(hello());
   socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
-  socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1), "2": packet(2, { summary: "second" }) } });
+  socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1), "2": packet(2, { tnc2: "OH2SEC>APRS:!6007.20N/02429.40E-" }) } });
   socket.say({ type: "state", topic: "radios", rev: 0, value: Object.fromEntries(radiosOf()) });
   socket.say({ type: "state", topic: "config", rev: 0, value: configValues() }); // (the clock stands at the fixtures' time, so nothing times out)
   socket.say({ type: "state", topic: "messages", rev: 0, value: messages });

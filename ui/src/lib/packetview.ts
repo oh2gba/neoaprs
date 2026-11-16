@@ -9,7 +9,7 @@ import { routeWords } from "@/lib/routes";
 import type { PageRadio } from "@/lib/radios";
 import { readingText } from "@/lib/signal";
 import { tempText } from "@/lib/weather";
-import type { DecodedStatus, DecodedWeather, PacketRow, PositionFields } from "@/protocol/protocol";
+import type { DecodedOther, DecodedStatus, DecodedUndecoded, DecodedWeather, PacketRow, PositionFields } from "@/protocol/protocol";
 
 export interface Fact {
   label: string;
@@ -18,14 +18,30 @@ export interface Fact {
   route?: boolean;
 }
 
-/** The kinds of "other" packets the daemon names, with the message that says each. */
-const OTHER: Record<string, MessageId> = {
+/** The kinds of "other" packets the daemon names (a telemetry packet that is no report is one too), with the message that says each. */
+const OTHER: Record<DecodedOther["kind"], MessageId> = {
   weather: "packets.kind.weather",
   capabilities: "packets.kind.capabilities",
   query: "packets.kind.query",
   "third-party": "packets.kind.third_party",
   nmea: "packets.kind.nmea",
   test: "packets.kind.test",
+  "agrelo-df": "packets.kind.agrelo_df",
+  "user-defined": "packets.kind.user_defined",
+  shelter: "packets.kind.shelter",
+  "space-weather": "packets.kind.space_weather",
+  telemetry: "packets.kind.telemetry",
+  unknown: "packets.kind.other",
+};
+
+/** Why a packet could not be read, in words, by the daemon's code of it. */
+const WHY: Record<DecodedUndecoded["code"], MessageId> = {
+  empty: "packets.why.empty",
+  position: "packets.why.position",
+  mice: "packets.why.mice",
+  message: "packets.why.message",
+  nmea: "packets.why.nmea",
+  damaged: "packets.why.damaged",
 };
 
 /** What kind of packet it is, in words: "Position report", "Message", "Weather report". */
@@ -33,8 +49,8 @@ export function kindWords(row: PacketRow): string {
   const d = row.decoded;
   if (d.type === "telemetry") return t("packets.kind.telemetry");
   if (d.type === "other") {
-    const id = OTHER[d.kind];
-    return id === undefined ? t("packets.kind.other_named", { kind: d.kind }) : t(id);
+    const id = OTHER[d.kind] as MessageId | undefined; // (a kind of a newer daemon has no words here: the plain "Other packet")
+    return t(id ?? "packets.kind.other");
   }
   return t(`packets.kind.${row.kind}`);
 }
@@ -101,12 +117,19 @@ function contentFacts(row: PacketRow): Fact[] {
       return d.sequence === null ? [] : [{ label: t("packets.fact.report"), text: t("packets.report_number", { number: d.sequence }) }];
     case "other":
       return d.text === "" ? [] : [{ label: t("packets.fact.text"), text: d.text }];
-    case "undecoded":
+    case "undecoded": {
+      const why = WHY[d.code] as MessageId | undefined; // (a code of a newer daemon: the plain word)
       return [
-        { label: t("packets.fact.why"), text: d.error },
+        { label: t("packets.fact.why"), text: t(why ?? "packets.why.damaged") },
         { label: t("packets.fact.text"), text: d.text },
       ];
+    }
   }
+}
+
+/** The one line of a packet in the Summary column of a table of packets: what kind it is and what it says, in the page's words ("Message · OH2RDG · Hello"). */
+export function summaryText(row: PacketRow): string {
+  return [kindWords(row), ...contentFacts(row).map((fact) => fact.text)].join(" · ");
 }
 
 /** The facts of a packet, in the order they are told: from, kind, what it says, how it travelled ("Came by": its tag and what it means, "FM - heard on radio FM", "20 m - heard on radio 20 m"), when. `radios`

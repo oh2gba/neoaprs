@@ -96,7 +96,7 @@ class GeneralAsk:
         config = self._config()
         our_call(config)
         if kind not in QUERIES:
-            raise MessagingError(f"{kind!r} is not aprs, igate or wx")
+            raise MessagingError(f"{kind!r} is not aprs, igate or wx", "failed")
         query = QUERIES[kind]
         on = asked_radio(self._given, self._config, radio)
         now = self.clock()
@@ -111,9 +111,9 @@ class GeneralAsk:
         try:
             frame = our_frame(config, calls, query.encode("ascii"))
         except FRAME_ERRORS as e:
-            raise MessagingError(f"the query {query} makes no frame: {e}") from None
+            raise MessagingError.of(e, f"the query {query} makes no frame: {e}") from None
         if not on.send_frame(frame):
-            raise MessagingError("the TNC would not take the frame")
+            raise MessagingError("the TNC did not take the frame", "radio.not_taken")
         heard = frozenset(s.call for s in self._book.stations() if s.kind == "station" and _heard_lately(s, on.id, now))
         asked = self._asked[(on.id, kind)] = GeneralAsked(kind, now, calls, heard_before=heard, radio=on.id)
         log.info("asked around: %s by %s%s", query, ",".join(calls) or "no digipeaters", on_words(on, self._given, self._config))

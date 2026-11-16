@@ -12,15 +12,37 @@
           "description": "the command ended with exit code 0",
           "type": "boolean"
         },
-        "text": {
-          "description": "`ran` when it worked; else why not: the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed after 20 s",
+        "outcome": {
+          "description": "how it ended, which the page says in its words: `ran` it worked; `exit` it ended with the exit code `status`; `timeout` it did not end within `seconds` and was killed; `no_start` it could not start (the log says why)",
+          "enum": [
+            "ran",
+            "exit",
+            "timeout",
+            "no_start"
+          ],
+          "type": "string"
+        },
+        "status": {
+          "description": "the exit code for `exit`; 0 otherwise",
+          "type": "integer"
+        },
+        "seconds": {
+          "description": "how long a run may take, in seconds",
+          "minimum": 0,
+          "type": "number"
+        },
+        "line": {
+          "description": "for `exit`, the first line the command wrote to stderr, its own words (`no display`); empty otherwise",
           "type": "string"
         }
       },
       "required": [
         "type",
         "ok",
-        "text"
+        "outcome",
+        "status",
+        "seconds",
+        "line"
       ],
       "title": "AlertResultMessage",
       "type": "object"
@@ -79,10 +101,42 @@
       "description": "An area object (the symbol `\\l`): its shape and colour, and how far down and to the right of the object's position it reaches.",
       "properties": {
         "shape": {
-          "description": "open circle, line, open ellipse, open triangle, open box, filled circle, line down-left, filled ellipse, filled triangle or filled box",
+          "description": "the shape, which the page says in its words",
+          "enum": [
+            "open circle",
+            "line",
+            "open ellipse",
+            "open triangle",
+            "open box",
+            "filled circle",
+            "line down-left",
+            "filled ellipse",
+            "filled triangle",
+            "filled box"
+          ],
           "type": "string"
         },
         "colour": {
+          "description": "the colour, which the page says in its words; `unknown` for a number the specification has no colour for",
+          "enum": [
+            "black",
+            "blue",
+            "green",
+            "cyan",
+            "red",
+            "violet",
+            "yellow",
+            "gray",
+            "dim black",
+            "dim blue",
+            "dim green",
+            "dim cyan",
+            "dim red",
+            "dim violet",
+            "dim yellow",
+            "dim gray",
+            "unknown"
+          ],
           "type": "string"
         },
         "lat_offset_deg": {
@@ -630,7 +684,21 @@
           "type": "string"
         },
         "kind": {
-          "description": "a short word: weather, nmea, query, test, capabilities, agrelo-df, shelter, space-weather, third-party, user-defined, telemetry (one that is not a report), ...",
+          "description": "what kind of packet it is: one of these words, which the page says in its words; `telemetry` is one that is not a report, `unknown` a data type the parser does not know",
+          "enum": [
+            "weather",
+            "nmea",
+            "query",
+            "test",
+            "capabilities",
+            "agrelo-df",
+            "shelter",
+            "space-weather",
+            "third-party",
+            "user-defined",
+            "telemetry",
+            "unknown"
+          ],
           "type": "string"
         },
         "text": {
@@ -981,8 +1049,16 @@
           "const": "undecoded",
           "type": "string"
         },
-        "error": {
-          "description": "why it did not",
+        "code": {
+          "description": "what could not be read, which the page says in its words (the log has the parser's own): `empty` the information field is empty; `position` a position (of an object or an item too); `mice` a Mic-E position; `message` a message; `nmea` a GPS sentence; `damaged` anything else, and a packet kept before there was a code",
+          "enum": [
+            "empty",
+            "position",
+            "mice",
+            "message",
+            "nmea",
+            "damaged"
+          ],
           "type": "string"
         },
         "text": {
@@ -992,7 +1068,7 @@
       },
       "required": [
         "type",
-        "error",
+        "code",
         "text"
       ],
       "title": "DecodedUndecoded",
@@ -1240,7 +1316,7 @@
     },
     "Error": {
       "additionalProperties": false,
-      "description": "A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`\nand `code`; `text` is the English sentence for a log and for a code the page has no sentence for.",
+      "description": "A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`\nand `code` (with the sentence of `why` for a refusal that passes another's on); `text` is the English sentence for the log, which the page never shows: a code it has no sentence for is said with its plain\nwords of a failure.",
       "properties": {
         "type": {
           "const": "error",
@@ -1262,7 +1338,7 @@
           "description": "the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error"
         },
         "code": {
-          "description": "a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `other` for an error that has no code yet",
+          "description": "a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `failed` for one the operator can do nothing about; `other` for an error that has no code",
           "type": "string"
         },
         "params": {
@@ -1279,7 +1355,7 @@
               }
             ]
           },
-          "description": "the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`; empty when there are none",
+          "description": "the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`, and `why`, the code of the reason, for a refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`); empty when there are none",
           "type": "object"
         },
         "text": {
@@ -1775,8 +1851,15 @@
           ],
           "type": "string"
         },
-        "problem": {
-          "description": "why there is no fix to use: the feed's own line (`Connection refused`, `the receiver has no position fix yet`) or that the latest fix is old; empty while the state is `fix` and for `off`",
+        "reason": {
+          "description": "why there is no fix to use, as a code the page says in its words, where `state` does not say it already (the log has the feed's own words): `no_port` no port of the receiver is set; `no_address` no address of gpsd is set; `held` the receiver's port is held by a radio; `no_answer` the receiver or gpsd does not answer, or its line was lost; empty for `off`, `fix`, `stale` and a plain wait or no fix",
+          "enum": [
+            "",
+            "no_port",
+            "no_address",
+            "held",
+            "no_answer"
+          ],
           "type": "string"
         },
         "lat": {
@@ -1859,7 +1942,7 @@
           "description": "when the latest fix was received, by the daemon's clock"
         },
         "mobile": {
-          "description": "`gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say",
+          "description": "`gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `reason` say",
           "type": "boolean"
         },
         "next_beacon_at": {
@@ -1903,7 +1986,7 @@
       "required": [
         "source",
         "state",
-        "problem",
+        "reason",
         "lat",
         "lon",
         "altitude_m",
@@ -2052,8 +2135,15 @@
           "description": "SHA-256 fingerprint of NeoAPRS's certificate authority, `AB:CD:...`, for a person to compare with what the device shows when the certificate is installed; empty while it is not served",
           "type": "string"
         },
-        "problem": {
-          "description": "why the secure connection could not start or go on, when it was asked for; empty otherwise",
+        "reason": {
+          "description": "why the secure connection could not start or go on, when it was asked for, as a code the page says in its words (the log has the details): `no_library` this installation cannot make it; `clock` the clock of this computer is not set; `certificates` the certificates could not be made, read or loaded; `no_port` no port after the page's own was free for it; empty otherwise",
+          "enum": [
+            "",
+            "no_library",
+            "clock",
+            "certificates",
+            "no_port"
+          ],
           "type": "string"
         }
       },
@@ -2061,7 +2151,7 @@
         "on",
         "port",
         "fingerprint",
-        "problem"
+        "reason"
       ],
       "title": "HttpsState",
       "type": "object"
@@ -2075,7 +2165,7 @@
           "type": "boolean"
         },
         "state": {
-          "description": "`off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `problem` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change",
+          "description": "`off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change",
           "enum": [
             "off",
             "connecting",
@@ -2089,8 +2179,18 @@
           "description": "the name the server gave at the login (`T2FINLAND`); empty until it has answered",
           "type": "string"
         },
-        "problem": {
-          "description": "why it is not connected: what is missing (the call, the password, the server) or the connection's own words (`Connection refused`, `the server did not accept the password`); empty while `connected`, `listening` and `off`",
+        "reason": {
+          "description": "why it is not connected, as a code the page says in its words (the log has the connection's own): `no_server` no server is set; `no_call` our call is not set or is none; `unreachable` the server cannot be reached; `offline` the server's name cannot be looked up (no connection); `not_server` it answered as no APRS-IS server, or not in time; `lost` the connection ended; `unverified` the server did not accept the password; empty while `connected`, `listening` and `off`",
+          "enum": [
+            "",
+            "no_server",
+            "no_call",
+            "unreachable",
+            "offline",
+            "not_server",
+            "lost",
+            "unverified"
+          ],
           "type": "string"
         },
         "gated": {
@@ -2123,7 +2223,7 @@
         "enabled",
         "state",
         "server",
-        "problem",
+        "reason",
         "gated",
         "dropped",
         "last_gated_at"
@@ -2345,6 +2445,61 @@
       "title": "MapFileInfo",
       "type": "object"
     },
+    "MapProblem": {
+      "additionalProperties": false,
+      "description": "Why a map job failed, as a code the page says in its words, with the values of its sentence (the log has the details).",
+      "properties": {
+        "code": {
+          "description": "`no_position` the station has no position; `slow` the map server was too slow; `unreachable` it could not be reached; `no_build` no daily build was found (`days`: how far back it was looked for); `too_big` the map would be bigger than it may be (`size` and `max`, in MB); `no_space` the disk is full; `failed` anything else (the log says why)",
+          "enum": [
+            "no_position",
+            "busy",
+            "slow",
+            "unreachable",
+            "no_build",
+            "too_big",
+            "no_space",
+            "failed"
+          ],
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "the values of the sentence, by name; empty for a code that has none",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "params"
+      ],
+      "title": "MapProblem",
+      "type": "object"
+    },
+    "MapRetry": {
+      "additionalProperties": false,
+      "description": "A download that did not move for a while is begun again: the page says \"no progress: trying again (2 of 3)\".",
+      "properties": {
+        "attempt": {
+          "description": "the try that is begun",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tries": {
+          "description": "the tries in all",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attempt",
+        "tries"
+      ],
+      "title": "MapRetry",
+      "type": "object"
+    },
     "MapSizeEstimate": {
       "additionalProperties": false,
       "description": "What a dry run said: how big the detailed map will be for the area and the zoom it was made for.",
@@ -2441,17 +2596,36 @@
           ],
           "description": "the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet"
         },
-        "note": {
-          "description": "what the job says of a download that has not moved for a while: `no progress: trying again (2 of 3)`; empty when all is well",
-          "type": "string"
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MapRetry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "a download that has not moved for a while is begun again: which try this is; null when all is well"
         },
         "blocked": {
-          "description": "why no job can be started now (no position, or a job is running); empty when one can",
+          "description": "why no job can be started now: `no_position` the station has no position, `busy` a job is running; empty when one can",
+          "enum": [
+            "",
+            "no_position",
+            "busy"
+          ],
           "type": "string"
         },
         "problem": {
-          "description": "why the last job failed; empty if it did not, and while a job runs",
-          "type": "string"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MapProblem"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "why the last job failed; null if it did not, and while a job runs"
         },
         "estimate": {
           "anyOf": [
@@ -2532,7 +2706,7 @@
         "step",
         "percent",
         "downloaded",
-        "note",
+        "retry",
         "blocked",
         "problem",
         "estimate",
@@ -2827,7 +3001,7 @@
       "description": "The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether\nit hears a signal.",
       "properties": {
         "state": {
-          "description": "`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why",
+          "description": "`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `reason` says why",
           "enum": [
             "stopped",
             "starting",
@@ -2836,12 +3010,8 @@
           ],
           "type": "string"
         },
-        "problem": {
-          "description": "why the modem is not running (not installed, stopped); empty while it runs",
-          "type": "string"
-        },
         "reason": {
-          "description": "why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting`",
+          "description": "why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting`",
           "enum": [
             "",
             "not_installed",
@@ -2955,7 +3125,6 @@
       },
       "required": [
         "state",
-        "problem",
         "reason",
         "mode",
         "keyed",
@@ -3588,10 +3757,6 @@
           "description": "the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet",
           "type": "string"
         },
-        "summary": {
-          "description": "one line, as the log has it",
-          "type": "string"
-        },
         "tnc2": {
           "description": "the packet as a line of TNC2 monitor text",
           "type": "string"
@@ -3653,7 +3818,6 @@
         "rssi",
         "via",
         "gate",
-        "summary",
         "tnc2",
         "decoded"
       ],
@@ -4860,7 +5024,7 @@
       "description": "Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told).",
       "properties": {
         "code": {
-          "description": "`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log)",
+          "description": "`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values)",
           "enum": [
             "radio.not_connected",
             "radio.searching",
@@ -4887,6 +5051,9 @@
               },
               {
                 "type": "integer"
+              },
+              {
+                "type": "number"
               }
             ]
           },
@@ -5319,7 +5486,12 @@
           "type": "array"
         },
         "problem": {
-          "description": "why there are no sections, in a sentence; empty when there are",
+          "description": "why there are no sections, as a code: `unreachable` the notes could not be fetched, `unknown_version` the version is neither the newer one known nor this one; empty when there are",
+          "enum": [
+            "",
+            "unreachable",
+            "unknown_version"
+          ],
           "type": "string"
         }
       },
@@ -6081,10 +6253,6 @@
           ],
           "type": "string"
         },
-        "text": {
-          "description": "the words of the alert command and the log, in English: `OH2XYZ is on the air`, `OH2XYZ is 8.2 km from you`, `OH2XYZ is heard direct`",
-          "type": "string"
-        },
         "at": {
           "description": "when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved)",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
@@ -6106,7 +6274,6 @@
         "type",
         "call",
         "kind",
-        "text",
         "at",
         "km"
       ],
@@ -6233,10 +6400,6 @@
         },
         "symbol_code": {
           "description": "the character of the symbol in its table; empty until a position is heard",
-          "type": "string"
-        },
-        "symbol_name": {
-          "description": "the name of the symbol (\"Car\", \"Digipeater\"), `unknown` for none",
           "type": "string"
         },
         "lat": {
@@ -6789,7 +6952,6 @@
         "reported_by",
         "symbol_table",
         "symbol_code",
-        "symbol_name",
         "lat",
         "lon",
         "altitude_m",
@@ -7780,8 +7942,13 @@
           "description": "the latest version for `newer`, this version for `current`; empty for `no_answer`",
           "type": "string"
         },
-        "text": {
-          "description": "for `no_answer` why, in a sentence; empty otherwise",
+        "reason": {
+          "description": "for `no_answer` why, as a code the page says in its words: `offline` the update server did not answer (is there a connection?), `bad_answer` it gave no usable answer; empty otherwise",
+          "enum": [
+            "",
+            "offline",
+            "bad_answer"
+          ],
           "type": "string"
         }
       },
@@ -7789,7 +7956,7 @@
         "type",
         "outcome",
         "version",
-        "text"
+        "reason"
       ],
       "title": "UpdateResultMessage",
       "type": "object"
@@ -7859,10 +8026,6 @@
             "no_restart"
           ],
           "type": "string"
-        },
-        "detail": {
-          "description": "the English sentence of the problem, for the log and the page's details; empty when all is well",
-          "type": "string"
         }
       },
       "required": [
@@ -7872,8 +8035,7 @@
         "percent",
         "downloaded",
         "total",
-        "problem",
-        "detail"
+        "problem"
       ],
       "title": "UpdateState",
       "type": "object"

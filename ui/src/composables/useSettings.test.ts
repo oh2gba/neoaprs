@@ -144,12 +144,14 @@ describe("useSettings: one save at a time", () => {
     const { settings, refuse, answer, sets } = setUp();
     settings.change({ "map/source": "ftp://x.org/m.pmtiles" });
     settings.change({ "radio/1/digipeat": "true" });
-    await refuse("set_config: map/source: ftp://x.org/m.pmtiles is not an http or https address");
-    expect(settings.errors["map/source"]).toBe("ftp://x.org/m.pmtiles is not an http or https address");
+    await refuse("set_config: map/source: 'ftp://x.org/m.pmtiles' is not a web address or the path of a PMTiles file", "setting.not_map_source", {
+      value: "ftp://x.org/m.pmtiles",
+    });
+    expect(settings.errors["map/source"]).toBe("'ftp://x.org/m.pmtiles' is not a web address or the path of a PMTiles file");
     expect(settings.errors["radio/1/digipeat"]).toBeUndefined();
     expect(sets()).toEqual([{ "map/source": "ftp://x.org/m.pmtiles" }, { "radio/1/digipeat": "true" }]);
     await answer({ "radio/1/digipeat": "true" });
-    expect(settings.errors["map/source"]).toBe("ftp://x.org/m.pmtiles is not an http or https address");
+    expect(settings.errors["map/source"]).toBe("'ftp://x.org/m.pmtiles' is not a web address or the path of a PMTiles file");
   });
 
   it("does not send what is already on its way twice (Enter, then leaving the field)", async () => {
@@ -204,7 +206,7 @@ describe("useSettings: the daemon's answer", () => {
     const { settings, refuse, config } = setUp();
     settings.edit("station/lat", "89.5");
     settings.commit(["station/lat"]);
-    await refuse("set_config: station/lat: 89.5 is not between -90 and 90");
+    await refuse("set_config: station/lat: 89.5 is not between -90 and 90", "setting.range", { value: 89.5, min: -90, max: 90 });
     expect(settings.errors["station/lat"]).toBe("89.5 is not between -90 and 90");
     expect(settings.draft["station/lat"]).toBe("89.5");
     expect(config.value?.values["station/lat"]).toBe("60.17");
@@ -216,8 +218,12 @@ describe("useSettings: the daemon's answer", () => {
   it("shows a refused choice as it was, with the reason under it", async () => {
     const { settings, refuse } = setUp();
     settings.change({ "gps/source": "serial" });
-    await refuse("set_config: gps/source: the GPS port is another's");
-    expect(settings.errors["gps/source"]).toBe("the GPS port is another's");
+    await refuse("set_config: gps/source: the device is in use by the GPS receiver: choose another", "radio.resource_held", {
+      resource: "gps",
+      holder: "GPS",
+      held_by: 0,
+    });
+    expect(settings.errors["gps/source"]).toBe("the device is in use by the GPS receiver: choose another");
     expect(settings.draft["gps/source"]).toBe("off");
   });
 
@@ -282,7 +288,7 @@ describe("useSettings: linked rules", () => {
     const { settings, refuse } = setUp({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
     settings.edit("status/rigctld", "");
     settings.commit(["status/rigctld"]);
-    await refuse("set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)");
+    await refuse("set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)", "setting.status_needs_rigctld");
     expect(settings.errors["status/rigctld"]).toContain("needs status/rigctld");
     expect(settings.errors["status/source"]).toBeUndefined();
   });

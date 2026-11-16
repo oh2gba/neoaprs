@@ -71,10 +71,10 @@ describe("MapFetchButton", () => {
   it("takes the question back, and shows why, when the check fails", async () => {
     const { wrapper, notes, button } = make(mapState());
     await button().trigger("click");
-    await wrapper.setProps({ map: mapState({ state: "error", problem: "no daily build was found" }) });
+    await wrapper.setProps({ map: mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } } }) });
     expect(button().text()).toBe("Download map");
-    await notes.setProps({ map: mapState({ state: "error", problem: "no daily build was found" }) });
-    expect(notes.find(".mapfetch-error").text()).toBe("no daily build was found");
+    await notes.setProps({ map: mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } } }) });
+    expect(notes.find(".mapfetch-error").text()).toBe("no daily build of the map was found in the last 10 days (is there a connection?)");
   });
 
   it("does not wait for a size when the command could not be sent", async () => {
@@ -85,7 +85,7 @@ describe("MapFetchButton", () => {
   });
 
   it("is off while a job runs, says Downloading…, and has Cancel beside it (the bar and the step are under the row)", async () => {
-    const { wrapper, notes, send, button } = make(mapState({ state: "downloading", step: "world", percent: 42, blocked: "a map job is running" }));
+    const { wrapper, notes, send, button } = make(mapState({ state: "downloading", step: "world", percent: 42, blocked: "busy" }));
     expect(notes.find("progress").attributes("value")).toBe("42");
     expect(notes.find(".mapfetch-progress").text()).toBe("World map 42%");
     expect(button().attributes("disabled")).toBeDefined();
@@ -103,7 +103,7 @@ describe("MapFetchButton", () => {
   });
 
   it("is off, with the reason as the hover, when the daemon says no job can start", () => {
-    const { button } = make(mapState({ blocked: "the station has no position yet: set Latitude and Longitude (the map is cut round them)", box: null }));
+    const { button } = make(mapState({ blocked: "no_position", box: null }));
     expect(button().attributes("disabled")).toBeDefined();
     expect(button().attributes("title")).toContain("no position");
   });
@@ -116,12 +116,12 @@ describe("MapFetchButton", () => {
 
   it("shows why the last job failed, and only in the state error", () => {
     expect(
-      make(mapState({ state: "error", problem: "no daily build was found" }))
+      make(mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } } }))
         .notes.find(".mapfetch-error")
         .text(),
-    ).toBe("no daily build was found");
+    ).toBe("no daily build of the map was found in the last 10 days (is there a connection?)");
     expect(
-      make(mapState({ state: "none", problem: "" }))
+      make(mapState({ state: "none", problem: null }))
         .notes.find(".mapfetch-error")
         .exists(),
     ).toBe(false);
@@ -158,7 +158,7 @@ describe("MapFetchButton", () => {
   });
 
   it("keeps the button on for an early form (the first-run guide) when the daemon has no position yet, and off for a job that runs or a form that cannot be saved", () => {
-    const blocked = mapState({ blocked: "no position" });
+    const blocked = mapState({ blocked: "no_position" });
     expect(make(blocked).button().attributes("disabled")).toBeDefined();
     const early = make(blocked, false, true);
     expect(early.button().attributes("disabled")).toBeUndefined();

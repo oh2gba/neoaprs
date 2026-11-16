@@ -120,7 +120,7 @@ TELEMETRY: dict[str, Any] = {"sequence": 5, "channels": [{"name": "Battery", "un
 WEATHER_FIELDS: dict[str, Any] = {"wind_dir": 107, "wind_kmh": 1.6, "gust_kmh": 1.6, "temp_c": 10.0, "humidity": 85, "pressure_hpa": 1028.4, "rain_1h_mm": 0.3, "rain_24h_mm": 4.1, "rain_today_mm": 3.3,
                                   "luminosity": None, "snow_mm": None}
 STATION: dict[str, Any] = {
-    "call": "OH2RDK-7", "kind": "station", "reported_by": "", "symbol_table": "T", "symbol_code": "&", "symbol_name": "unknown", "lat": 60.165, "lon": 24.9467, "altitude_m": None, "course_deg": None,
+    "call": "OH2RDK-7", "kind": "station", "reported_by": "", "symbol_table": "T", "symbol_code": "&", "lat": 60.165, "lon": 24.9467, "altitude_m": None, "course_deg": None,
     "speed_kmh": None, "first_heard": NOW, "last_heard": NOW, "last_position_at": NOW, "last_status": "", "last_comment": "432.500 MHz", "packets": 1, "heard_rf": 1, "heard_rf_gated": 1, "heard_is": 2, "heard_dummy": 1, "last_dummy_at": NOW, "heard": {"1": {"count": 1, "last_at": NOW}, "3": {"count": 2, "last_at": None}}, "last_path_radio": 1, "last_direct_any_at": NOW, "snr": None, "rssi": None, "signal_at": None, "last_rf_at": NOW, "last_rf_gated_at": NOW, "last_is_at": NOW, "position_via": "is", "packets_hour": 1, "device": "Kenwood TH-D74", "last_path": ["OH2RCH-2*", "TRACE2-1"],
     "last_route": "via OH2RCH-2", "heard_direct": 2, "last_direct_at": NOW, "gated": 4, "igate": True, "heard_via": [["OH2RCH-2", 30], ["OH2RCH-3", 4]], "best_route": "via OH2RCH-2", "suggested_path": "OH2RCH-2", "heard_path": "OH2RCH-2", "internet_reach": {"kind": "igate", "igate": "OH2GW-10", "hops": ["OH2RCH-2"]},
     "route_marks": [{"kind": "rf", "hops": ["OH2RCH-2"], "gate": "", "at": NOW, "lat": 60.165, "lon": 24.9467}],
@@ -133,7 +133,7 @@ MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_cal
                                "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "", "seal": "", "radio_id": None, "radio_now": 1, "failure": None, "snr": None, "rssi": None,
                                "attempts_detail": [{"sent_at": NOW, "hops": [{"call": "OH2RCH-2", "heard": True, "heard_at": NOW, "by_internet": False}, {"call": "OH2RDG", "heard": False, "heard_at": None, "by_internet": False}],
                                                     "internet": None, "acked": False, "radio_id": 1}]}
-PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio_id": 1, "snr": None, "rssi": None, "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
+PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio_id": 1, "snr": None, "rssi": None, "gate": "", "kind": "position",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
 STATS: dict[str, Any] = {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0}
 RADIO: dict[str, Any] = {"id": 1, "kind": "fm", "type": "kiss", "name": "Mobile", "number": 1, "enabled": True, "position": 1, "removed": False, "dummy": False, "state": "connected", "problem": None, "stats": STATS,
@@ -145,10 +145,10 @@ REMOVED_RADIO: dict[str, Any] = {**RADIO, "id": 2, "kind": "hf", "type": "mercur
                                  "status": {"last_sent": None, "next_due": None, "interval_min": 0}}
 SOUND_CARD_RADIO: dict[str, Any] = {**RADIO, "id": 3, "type": "direwolf", "name": "Attic", "number": 2, "position": 3, "holds": [{"resource": "sound_card", "value": "plughw:CARD=AIOC,DEV=0"}, {"resource": "modem_ports", "value": "8002"}],
                                     "can": {"find": False, "terminal": True, "tune": True, "key_test": True, "scope": False, "tx_gain": True, "frequencies": False, "transmit": True, "rx_level": True},
-                                    "modem": {"state": "running", "problem": "", "reason": "", "mode": "AFSK1200", "keyed": False, "busy": False, "test": "", "snr": None, "frames_keyed": 3, "max_frame": None,
+                                    "modem": {"state": "running", "reason": "", "mode": "AFSK1200", "keyed": False, "busy": False, "test": "", "snr": None, "frames_keyed": 3, "max_frame": None,
                                               "sound_card": "plughw:CARD=AIOC,DEV=0", "frequencies": [], "keying": "cm108", "scope": False, "tx_gain_db": -3, "tx_peak_dbfs": None, "rx_level": 48}}
 CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "radio_values": {"station/main_radio": "", "radio/1/port": "/dev/ttyUSB0"},
-                          "radio_defaults": {"station/main_radio": "", "radio/1/port": ""}, "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
+                          "radio_defaults": {"station/main_radio": "", "radio/1/port": ""}, "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "reason": ""}}
 
 MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "hello": [{"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "index-DefyaO5x.js", "install": {"kind": "uv-tool", "appimage": "", "service": True, "arch": ""}, "local": True, "topics": list(TOPIC_NAMES)},
@@ -179,23 +179,24 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "position_history": [{"type": "position_history", "hours": 3, "start": "2026-10-21T09:00:00Z", "end": "2026-10-21T12:00:00Z", "stations": {"OH2RDG-9": [["2026-10-21T09:12:40Z", 60.17012, 24.93801], ["2026-10-21T09:14:10Z", 60.17411, 24.94522]],
                                                                                                     "LEADER": [["2026-10-21T11:02:00Z", 60.2, 24.9]]}},
                          {"type": "position_history", "hours": 168, "start": "2026-10-20T12:00:00Z", "end": "2026-10-21T12:00:00Z", "stations": {}}],
-    "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "text": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "text": ""},
-                      {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page could not be reached"}],
+    "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "reason": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "reason": ""},
+                      {"type": "update_result", "outcome": "no_answer", "version": "", "reason": "offline"}],
     "release_notes": [{"type": "release_notes", "version": "0.4.0", "since": "", "sections": [{"version": "0.4.0", "text": "- **Fixed:** the map download."}, {"version": "0.3.1", "text": "A small release."}], "problem": ""},
-                      {"type": "release_notes", "version": "0.4.0", "since": "0.3.0", "sections": [], "problem": "the release notes could not be fetched"}],
+                      {"type": "release_notes", "version": "0.4.0", "since": "0.3.0", "sections": [], "problem": "unreachable"}],
     "radio_search": [{"type": "radio_search", "state": "trying", "port": "/dev/ttyUSB0", "baud": 9600, "profile": "", "number": 1, "total": 14, "radio": 3, "radio_type": ""},
                      {"type": "radio_search", "state": "found", "port": "bt://AA:BB:CC:DD:EE:FF", "baud": None, "profile": "kiss", "number": 0, "total": 0, "radio": None, "radio_type": "kiss"},
                      {"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0, "radio": 1, "radio_type": ""}],
     "radio_added": [{"type": "radio_added", "id": 3}],
     "station_track": [{"type": "station_track", "call": "OH2XYZ-9", "points": [["2026-10-21T11:50:00Z", 60.17, 24.94], [NOW, 60.18, 24.95]]}, {"type": "station_track", "call": "OH2RDG", "points": []}],
-    "alert_result": [{"type": "alert_result", "ok": True, "text": "ran"}, {"type": "alert_result", "ok": False, "text": "exit code 3: no display"}],
-    "station_alert": [{"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "text": "OH2XYZ is on the air", "at": NOW, "km": None},
-                      {"type": "station_alert", "call": "OH2XYZ", "kind": "within", "text": "OH2XYZ is 8.2 km from you", "at": NOW, "km": 8.2}],
+    "alert_result": [{"type": "alert_result", "ok": True, "outcome": "ran", "status": 0, "seconds": 20, "line": ""},
+                     {"type": "alert_result", "ok": False, "outcome": "exit", "status": 3, "seconds": 20, "line": "no display"}],
+    "station_alert": [{"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "at": NOW, "km": None},
+                      {"type": "station_alert", "call": "OH2XYZ", "kind": "within", "at": NOW, "km": 8.2}],
     "error": [{"type": "error", "cmd": "set_config", "key": "station/lat", "code": "setting.range", "params": {"value": 95.0, "min": -90.0, "max": 90.0}, "text": "set_config: station/lat: 95 is not between -90 and 90"},
               {"type": "error", "cmd": "", "key": None, "code": "not_json", "params": {}, "text": "That is not JSON (Expecting value)"}],
     "state": [{"type": "state", "topic": "stations", "rev": 0, "value": {"OH2RDK-7": STATION}}, {"type": "state", "topic": "packets", "rev": 3, "value": {"7": PACKET}},
               {"type": "state", "topic": "radios", "rev": 1, "value": {"1": RADIO, "2": REMOVED_RADIO, "3": SOUND_CARD_RADIO}}, {"type": "state", "topic": "config", "rev": 0, "value": CONFIG},
-              {"type": "state", "topic": "update", "rev": 4, "value": {"supported": True, "state": "downloading", "version": "0.7.0", "percent": 42, "downloaded": 63_000_000, "total": 150_000_000, "problem": "", "detail": ""}},
+              {"type": "state", "topic": "update", "rev": 4, "value": {"supported": True, "state": "downloading", "version": "0.7.0", "percent": 42, "downloaded": 63_000_000, "total": 150_000_000, "problem": ""}},
               {"type": "state", "topic": "messages", "rev": 2, "value": {"3": MESSAGE_ROW}}, {"type": "state", "topic": "bulletins", "rev": 1, "value": {"OH2XYZ/BLN3HAMS": BULLETIN_ROW}},
               {"type": "state", "topic": "own_objects", "rev": 1, "value": {"LEADER": OWN_OBJECT_ROW}}, {"type": "state", "topic": "own_bulletins", "rev": 1, "value": {"BLN3HAMS": OWN_BULLETIN_ROW}},
               {"type": "state", "topic": "station_prefs", "rev": 1,
@@ -228,7 +229,7 @@ DECODED = [
     {"type": "position", **POSITION, "weather": {**WEATHER_FIELDS, "rain_counter": 12, "raw": "107/001g001t050"}},
     {"type": "position", **POSITION, "extensions": EXTENSIONS, "timestamp": "2026-10-21T12:00:00.000000Z", "timestamp_local": True, "locator": LOCATOR},
     {"type": "position", **POSITION, "frequency": FREQUENCY, "storm": STORM, "sign": "55"},
-    {"type": "undecoded", "error": "too short", "text": "!60"},
+    {"type": "undecoded", "code": "position", "text": "!60"},
 ]
 
 COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {

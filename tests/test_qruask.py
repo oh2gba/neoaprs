@@ -143,7 +143,7 @@ async def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away
         rig.qru.ask("INFO")
     rig.tnc.state = Source.State.CONNECTED
     rig.tnc.takes = False
-    with pytest.raises(MessagingError, match="would not take"):
+    with pytest.raises(MessagingError, match="did not take"):
         rig.qru.ask("INFO")
     assert rig.tnc.sent == [] and rig.qru.asked is None and rig.told == 0
     rig.radios.on.clear()                                                   # (no radio at all: what the settings refuse, and a fresh installation of the round)
@@ -173,7 +173,7 @@ async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_i
     assert isinstance(rig.qru.asked, AskedOn) and (rig.qru.asked.text, rig.qru.asked.radio) == ("INFO", HF_ID), "the request records its radio"
     assert [r.getMessage() for r in caplog.records] == ["asked QRU: INFO on Mercury"], "with two radios on the log says which"
     rig.radios.on.discard(HF_ID)
-    with pytest.raises(MessagingError, match="no such radio"):
+    with pytest.raises(MessagingError, match="there is no radio 2"):
         rig.qru.ask("RP70", radio=HF_ID)
     assert len(hf.sent) == 1
 

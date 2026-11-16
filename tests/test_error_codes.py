@@ -128,7 +128,7 @@ async def test_a_page_is_told_the_command_the_key_and_the_code_of_every_refusal(
         ("set_config", "station/comment", "setting.comment_too_long"),
         ("set_config", "tnc/check_sec", "setting.unknown"),
         ("send_message", None, "message.too_long"),
-        ("send_message", None, "other"),
+        ("send_message", None, "message.own_call"),
         ("object_set", None, "object.name_chars"),
         ("bulletin_post", None, "bulletin.slot"),
         ("bulletin_unpost", None, "bulletin.not_posted"),

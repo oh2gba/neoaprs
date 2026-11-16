@@ -6,7 +6,7 @@ import logging
 import pytest
 
 from neoaprs import PROGRAM, VERSION
-from neoaprs.aprsis import MAX_LINE, NO_SERVER, UNVERIFIED, AprsIs, login_line, logresp_of, range_filter
+from neoaprs.aprsis import MAX_LINE, NO_SERVER, UNVERIFIED, AprsIs, LinkReason, login_line, logresp_of, range_filter
 from neoaprs.packet import IS, Packet
 from neoaprs.source import Backoff, Source
 from tests.support.clock import FixedClock
@@ -433,9 +433,9 @@ async def test_a_run_that_is_not_the_current_one_ends_without_touching_the_state
     assert link.state is Source.State.STOPPED and link.stats.opens == 0
 
     class Replaced(AprsIs):
-        async def _attempt(self) -> str | None:
+        async def _attempt(self) -> tuple[str, LinkReason]:
             self._generation += 1                                        # (stopped and started again while the attempt failed)
-            return "the connection ended"
+            return "the connection ended", "lost"
 
     other = Replaced(FixedClock(), Backoff([0.05]))
     await other._run(0)

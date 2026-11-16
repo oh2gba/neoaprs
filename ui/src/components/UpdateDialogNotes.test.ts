@@ -10,7 +10,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-const job: UpdateState = { supported: true, state: "idle", version: "", percent: null, downloaded: 0, total: null, problem: "", detail: "" };
+const job: UpdateState = { supported: true, state: "idle", version: "", percent: null, downloaded: 0, total: null, problem: "" };
 const notesOf = (since: string, versions: string[]): ReleaseNotesMessage => ({
   type: "release_notes",
   version: "0.12.0",
@@ -60,7 +60,7 @@ describe("UpdateDialog, the notes form", () => {
   });
 
   it("offers the release page of the version that runs when the notes could not be fetched (offline)", () => {
-    const { wrapper } = dialog({ releaseNotes: { ...notesOf("", []), problem: "the release notes could not be fetched" } });
+    const { wrapper } = dialog({ releaseNotes: { ...notesOf("", []), problem: "unreachable" } });
     expect(wrapper.find(".updatedialog-news .muted").text()).toBe("What is new could not be fetched; the release page has it:");
     expect(wrapper.find(".updatedialog-news a.btn").attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/tag/v0.12.0");
   });

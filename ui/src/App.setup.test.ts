@@ -80,7 +80,7 @@ describe("App: the first-run guide", () => {
       value: configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "" }),
     });
     socket.say(status({ call: "", lat: null, lon: null }));
-    socket.say({ type: "state", topic: "map", rev: 0, value: mapState({ blocked: "no position", box: null }) });
+    socket.say({ type: "state", topic: "map", rev: 0, value: mapState({ blocked: "no_position", box: null }) });
     socket.say({ type: "state", topic: "radios", rev: 0, value: { "1": radioRow(1, "kenwood-tnc2") } });
     await flushPromises();
     return { wrapper, socket };
@@ -188,10 +188,10 @@ describe("App: the first-run guide", () => {
     await wrapper.find("#setup-lat").setValue("60.17");
     await wrapper.find("#setup-lon").setValue("24.94");
     for (let i = 0; i < 4; i++) await wrapper.find("form").trigger("submit");
-    socket.say(errorOf("set_config: station/call: 'OH2ABC' is already in use"));
+    socket.say(errorOf("set_config: station/call: call 'OH2ABC' has an SSID above 15", "call.ssid", { value: "OH2ABC", max: 15 }));
     await flushPromises();
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
-    expect(wrapper.find(".setup .field-error").text()).toBe("'OH2ABC' is already in use");
+    expect(wrapper.find(".setup .field-error").text()).toBe("call 'OH2ABC' has an SSID above 15");
   });
 
   it("sends the place as the Position step is left, so that the daemon begins the map, and the header shows the download's percent", async () => {

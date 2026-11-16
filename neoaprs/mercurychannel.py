@@ -11,11 +11,12 @@ import time
 from .mercury import BUSY_HOLD_MAX_SEC, FRAME_SEC, ControlEvent
 from .reading import Pending, Reading
 from .signal import Signal
+from .coded import Reason
 
 log = logging.getLogger("neoaprs.mercury")
 
-TRANSMITTING = "the radio is transmitting"
-CHANNEL_BUSY = "the channel is busy"
+TRANSMITTING = Reason("the radio is transmitting", "radio.transmitting")
+CHANNEL_BUSY = Reason("the channel is busy", "radio.channel_busy")
 AUTO_STALE_SEC = 1.0                         # the automatic busy control (neoaprs/mercuryscoping.py) has heard no spectrum for this long: Mercury's own BUSY lines are believed again
 KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long (12.6 s, three frames' worth) is not believed: a transmitter that stayed keyed is Mercury's safety timer's business (its TUNE ends after 60 s), and ours is not to wait for ever; a choice, not a measurement (docs/mercury.md)
 

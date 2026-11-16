@@ -130,9 +130,10 @@ way (`cmd` is empty; `code` is `not_json`, `not_object`, `no_command` or `unknow
 is wrong is the answer, with `cmd` `set_config`, `key` the setting (`station/lat`), `code` what is wrong (`setting.range`), `params` its figures (`value`, `min`, `max`) and `text` `set_config: station/lat: 95 is
 not between -90 and 90`.
 
-A page goes by `cmd`, `key` and `code` and never reads `text`; `text` is the English sentence for a log and for a code the page has no sentence for. The codes are stable words: `setting.*` for the values
-of the settings (and `call.*`, `path.*` inside them), `message.*`, `object.*` and `bulletin.*` for what is posted or sent, `station.*`, `beacon.*`, `status.*`, `map.*` and `topic.*` for the rest of the commands,
-and `other` for a refusal that has no code yet (only `text` says what it is).
+A page goes by `cmd`, `key` and `code` and never reads `text`; `text` is the English sentence for the log, and a code the page has no sentence for is said with its plain words of a failure. The codes are stable words: `setting.*` for the values
+of the settings (and `call.*`, `path.*` inside them), `message.*`, `object.*` and `bulletin.*` for what is posted or sent, `radio.*` for a radio and why it takes no frame now, `station.*`, `beacon.*`, `status.*`, `map.*` and `topic.*` for the rest of the commands,
+and `failed` for a refusal the operator can do nothing about (a race, the database, a frame no page of this daemon sends). A refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`: nothing was
+sent, and why) carries the code of that reason as `params.why`, with its values. No other message carries a sentence of the daemon's for the page to show: a reason or a state's why is a code of its model.
 
 With `NEOAPRS_VALIDATE_OUT=1` in the daemon's environment every message it sends is checked against the `Message` union too (`state` and `patch` also against the type of the topic's value, and
 each `set` against the type of the item), and a message that does not fit is logged once for each type (the test suite runs with this on, and fails on any mismatch).
@@ -786,14 +787,15 @@ The answer to `ping`.
 ### `error`
 
 A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`
-and `code`; `text` is the English sentence for a log and for a code the page has no sentence for.
+and `code` (with the sentence of `why` for a refusal that passes another's on); `text` is the English sentence for the log, which the page never shows: a code it has no sentence for is said with its plain
+words of a failure.
 
 | field | type | | description |
 |---|---|---|---|
 | `cmd` | string |  | the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one) |
 | `key` | string \| null |  | the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error |
-| `code` | string |  | a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `other` for an error that has no code yet |
-| `params` | { [key: string]: string \| integer \| number } |  | the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`; empty when there are none |
+| `code` | string |  | a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `failed` for one the operator can do nothing about; `other` for an error that has no code |
+| `params` | { [key: string]: string \| integer \| number } |  | the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`, and `why`, the code of the reason, for a refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`); empty when there are none |
 | `text` | string |  | what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`) |
 
 ### `ports`
@@ -906,7 +908,10 @@ The answer to `alert_test`, when the command has ended or run out of its 20 s.
 | field | type | | description |
 |---|---|---|---|
 | `ok` | boolean |  | the command ended with exit code 0 |
-| `text` | string |  | `ran` when it worked; else why not: the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed after 20 s |
+| `outcome` | "ran" \| "exit" \| "timeout" \| "no_start" |  | how it ended, which the page says in its words: `ran` it worked; `exit` it ended with the exit code `status`; `timeout` it did not end within `seconds` and was killed; `no_start` it could not start (the log says why) |
+| `status` | integer |  | the exit code for `exit`; 0 otherwise |
+| `seconds` | number |  | how long a run may take, in seconds (>= 0) |
+| `line` | string |  | for `exit`, the first line the command wrote to stderr, its own words (`no display`); empty otherwise |
 
 ### `update_result`
 
@@ -916,7 +921,7 @@ The answer to `update_check`: what the version page said, or why it said nothing
 |---|---|---|---|
 | `outcome` | "newer" \| "current" \| "no_answer" |  | `newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version |
 | `version` | string |  | the latest version for `newer`, this version for `current`; empty for `no_answer` |
-| `text` | string |  | for `no_answer` why, in a sentence; empty otherwise |
+| `reason` | "" \| "offline" \| "bad_answer" |  | for `no_answer` why, as a code the page says in its words: `offline` the update server did not answer (is there a connection?), `bad_answer` it gave no usable answer; empty otherwise |
 
 ### `release_notes`
 
@@ -927,7 +932,7 @@ The answer to `release_notes`: the sections of the versions asked for, the newes
 | `version` | string |  | the version asked for |
 | `since` | string |  | the `since` asked for, empty when there was none |
 | `sections` | NoteSection[] |  | the newest first; empty with `problem` |
-| `problem` | string |  | why there are no sections, in a sentence; empty when there are |
+| `problem` | "" \| "unreachable" \| "unknown_version" |  | why there are no sections, as a code: `unreachable` the notes could not be fetched, `unknown_version` the version is neither the newer one known nor this one; empty when there are |
 
 ### `radio_search`
 
@@ -952,7 +957,6 @@ An alert set on a station fired (`set_station_alert`): told to every page that i
 |---|---|---|---|
 | `call` | string |  | the station |
 | `kind` | "on_air" \| "within" \| "direct" |  | what happened: it came on the air, it came within the distance, it was heard direct |
-| `text` | string |  | the words of the alert command and the log, in English: `OH2XYZ is on the air`, `OH2XYZ is 8.2 km from you`, `OH2XYZ is heard direct` |
 | `at` | time |  | when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved) |
 | `km` | number \| null |  | for `within`, how far the station is, km with one decimal; else null |
 
@@ -1014,7 +1018,6 @@ row has a new distance and bearing, and the topic is told whole again.
 | `reported_by` | string |  | who sent the report, for an object or an item; empty for a station |
 | `symbol_table` | string |  | `/` (primary), `\` (alternate) or an overlay character 0-9, A-Z; empty until a position is heard |
 | `symbol_code` | string |  | the character of the symbol in its table; empty until a position is heard |
-| `symbol_name` | string |  | the name of the symbol ("Car", "Digipeater"), `unknown` for none |
 | `lat` | number \| null |  | decimal degrees, south negative; null until a position is heard |
 | `lon` | number \| null |  | decimal degrees, west negative; null until a position is heard |
 | `altitude_m` | number \| null |  |  |
@@ -1096,7 +1099,6 @@ One packet heard or sent. The rows are the values of the topic `packets`, keyed 
 | `rssi` | number \| null |  | the received strength the radio measured of the frame, dBm; null as `snr` is, and for the Mercury modem, which gives none |
 | `via` | "rf" \| "rf-gated" \| "is" \| "dummy" |  | the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) |
 | `gate` | string |  | the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet |
-| `summary` | string |  | one line, as the log has it |
 | `tnc2` | string |  | the packet as a line of TNC2 monitor text |
 | `decoded` | DecodedPosition \| DecodedMessage \| DecodedObject \| DecodedItem \| DecodedStatus \| DecodedTelemetry \| DecodedOther \| DecodedUndecoded |  |  |
 
@@ -1224,7 +1226,7 @@ A data type that is recognised but not (fully) decoded: a positionless weather r
 | field | type | | description |
 |---|---|---|---|
 | `type` | "other" |  |  |
-| `kind` | string |  | a short word: weather, nmea, query, test, capabilities, agrelo-df, shelter, space-weather, third-party, user-defined, telemetry (one that is not a report), ... |
+| `kind` | "weather" \| "nmea" \| "query" \| "test" \| "capabilities" \| "agrelo-df" \| "shelter" \| "space-weather" \| "third-party" \| "user-defined" \| "telemetry" \| "unknown" |  | what kind of packet it is: one of these words, which the page says in its words; `telemetry` is one that is not a report, `unknown` a data type the parser does not know |
 | `text` | string |  | the whole information field |
 | `weather` | DecodedWeather \| null |  | the observation of a positionless weather report (`_`); null for anything else |
 | `items` | { [key: string]: string } \| null |  | `capabilities`: the items of the list by token (`IGATE`, `MSG_CNT`...), the value empty for a token alone; `agrelo-df`: `bearing` and `quality`; null for anything else |
@@ -1237,7 +1239,7 @@ A field that should have decoded and did not.
 | field | type | | description |
 |---|---|---|---|
 | `type` | "undecoded" |  |  |
-| `error` | string |  | why it did not |
+| `code` | "empty" \| "position" \| "mice" \| "message" \| "nmea" \| "damaged" |  | what could not be read, which the page says in its words (the log has the parser's own): `empty` the information field is empty; `position` a position (of an object or an item too); `mice` a Mic-E position; `message` a message; `nmea` a GPS sentence; `damaged` anything else, and a packet kept before there was a code |
 | `text` | string |  | the information field as latin-1 |
 
 ### DecodedWeather
@@ -1366,8 +1368,8 @@ An area object (the symbol `\l`): its shape and colour, and how far down and to 
 
 | field | type | | description |
 |---|---|---|---|
-| `shape` | string |  | open circle, line, open ellipse, open triangle, open box, filled circle, line down-left, filled ellipse, filled triangle or filled box |
-| `colour` | string |  |  |
+| `shape` | "open circle" \| "line" \| "open ellipse" \| "open triangle" \| "open box" \| "filled circle" \| "line down-left" \| "filled ellipse" \| "filled triangle" \| "filled box" |  | the shape, which the page says in its words |
+| `colour` | "black" \| "blue" \| "green" \| "cyan" \| "red" \| "violet" \| "yellow" \| "gray" \| "dim black" \| "dim blue" \| "dim green" \| "dim cyan" \| "dim red" \| "dim violet" \| "dim yellow" \| "dim gray" \| "unknown" |  | the colour, which the page says in its words; `unknown` for a number the specification has no colour for |
 | `lat_offset_deg` | number |  |  |
 | `lon_offset_deg` | number |  |  |
 
@@ -1492,7 +1494,7 @@ The GPS receiver and what the beacon does with it: the latest fix, whether it ca
 |---|---|---|---|
 | `source` | "off" \| "gpsd" \| "serial" |  | `gps/source` as in force: where the fixes come from |
 | `state` | "off" \| "connecting" \| "no_fix" \| "fix" \| "stale" |  | `off`: no source is set; `connecting`: the line to gpsd or the receiver is not up and no fix has come; `no_fix`: it is up and the receiver has no fix; `fix`: the latest fix is fresh; `stale`: the latest fix is older than 120 seconds and is not used (a mobile beacon sends nothing on it) |
-| `problem` | string |  | why there is no fix to use: the feed's own line (`Connection refused`, `the receiver has no position fix yet`) or that the latest fix is old; empty while the state is `fix` and for `off` |
+| `reason` | "" \| "no_port" \| "no_address" \| "held" \| "no_answer" |  | why there is no fix to use, as a code the page says in its words, where `state` does not say it already (the log has the feed's own words): `no_port` no port of the receiver is set; `no_address` no address of gpsd is set; `held` the receiver's port is held by a radio; `no_answer` the receiver or gpsd does not answer, or its line was lost; empty for `off`, `fix`, `stale` and a plain wait or no fix |
 | `lat` | number \| null |  | the latest fix, degrees north; null before the first fix of the source (a stale fix is still told, with its `fix_at`) |
 | `lon` | number \| null |  | the latest fix, degrees east |
 | `altitude_m` | number \| null |  | metres above mean sea level; null when the fix has none |
@@ -1500,7 +1502,7 @@ The GPS receiver and what the beacon does with it: the latest fix, whether it ca
 | `course_deg` | integer \| null |  | degrees from north, 0 to 359; null when the fix has none |
 | `satellites` | integer \| null |  | the satellites used for the fix; null when the source does not say |
 | `fix_at` | time \| null |  | when the latest fix was received, by the daemon's clock |
-| `mobile` | boolean |  | `gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `problem` say |
+| `mobile` | boolean |  | `gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `reason` say |
 | `next_beacon_at` | time \| null |  | when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first |
 | `last_beacon_reason` | "" \| "start" \| "time" \| "turn" \| "request" |  | why the latest mobile beacon of this run went out: `start` (the first fix), `time`, `turn` (a corner), `request` (Beacon now); empty before the first |
 | `last_beacon_at` | time \| null |  | when it went out; null before the first |
@@ -1534,7 +1536,7 @@ The secure connection (`web/https`) as the daemon has it.
 | `on` | boolean |  | the page is served over https right now (`web/https` and `web/network` are on, and it started) |
 | `port` | integer |  | the https port; 0 while it is not served |
 | `fingerprint` | string |  | SHA-256 fingerprint of NeoAPRS's certificate authority, `AB:CD:...`, for a person to compare with what the device shows when the certificate is installed; empty while it is not served |
-| `problem` | string |  | why the secure connection could not start or go on, when it was asked for; empty otherwise |
+| `reason` | "" \| "no_library" \| "clock" \| "certificates" \| "no_port" |  | why the secure connection could not start or go on, when it was asked for, as a code the page says in its words (the log has the details): `no_library` this installation cannot make it; `clock` the clock of this computer is not set; `certificates` the certificates could not be made, read or loaded; `no_port` no port after the page's own was free for it; empty otherwise |
 
 ### IgateState
 
@@ -1544,9 +1546,9 @@ started. Told whole as it changes, at most once a second.
 | field | type | | description |
 |---|---|---|---|
 | `enabled` | boolean |  | `igate/enabled` as in force |
-| `state` | "off" \| "connecting" \| "connected" \| "listening" \| "unverified" |  | `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `problem` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change |
+| `state` | "off" \| "connecting" \| "connected" \| "listening" \| "unverified" |  | `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change |
 | `server` | string |  | the name the server gave at the login (`T2FINLAND`); empty until it has answered |
-| `problem` | string |  | why it is not connected: what is missing (the call, the password, the server) or the connection's own words (`Connection refused`, `the server did not accept the password`); empty while `connected`, `listening` and `off` |
+| `reason` | "" \| "no_server" \| "no_call" \| "unreachable" \| "offline" \| "not_server" \| "lost" \| "unverified" |  | why it is not connected, as a code the page says in its words (the log has the connection's own): `no_server` no server is set; `no_call` our call is not set or is none; `unreachable` the server cannot be reached; `offline` the server's name cannot be looked up (no connection); `not_server` it answered as no APRS-IS server, or not in time; `lost` the connection ended; `unverified` the server did not accept the password; empty while `connected`, `listening` and `off` |
 | `gated` | integer |  | packets put on APRS-IS since the daemon started (>= 0) |
 | `dropped` | { [key: string]: integer } |  | packets heard and not put on APRS-IS since the daemon started, by the reason: `tcpip` (TCPIP or TCPXX in the path), `nogate` (NOGATE or RFONLY), `query` (a generic query), `source` (the source is not a station), `own` (our own call), `duplicate` (gated in the last 30 seconds), `newline` (a CR or LF inside), `long` (more than 512 bytes), `frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected), `not_air` (not heard on the radio: a packet from the internet or one the Dummy radio made up). A reason that has not happened is not a key |
 | `last_gated_at` | time \| null |  | when the latest packet was gated; null before the first |
@@ -1588,6 +1590,24 @@ A map file in the data folder.
 | `max_zoom` | integer \| null |  | the deepest zoom it has tiles for; the page draws a deeper one from these |
 | `build` | string |  | the day (`20261022`) of the Protomaps build it was cut from; empty if not known (a file made by hand) |
 
+### MapProblem
+
+Why a map job failed, as a code the page says in its words, with the values of its sentence (the log has the details).
+
+| field | type | | description |
+|---|---|---|---|
+| `code` | "no_position" \| "busy" \| "slow" \| "unreachable" \| "no_build" \| "too_big" \| "no_space" \| "failed" |  | `no_position` the station has no position; `slow` the map server was too slow; `unreachable` it could not be reached; `no_build` no daily build was found (`days`: how far back it was looked for); `too_big` the map would be bigger than it may be (`size` and `max`, in MB); `no_space` the disk is full; `failed` anything else (the log says why) |
+| `params` | { [key: string]: integer } |  | the values of the sentence, by name; empty for a code that has none |
+
+### MapRetry
+
+A download that did not move for a while is begun again: the page says "no progress: trying again (2 of 3)".
+
+| field | type | | description |
+|---|---|---|---|
+| `attempt` | integer |  | the try that is begun (>= 1) |
+| `tries` | integer |  | the tries in all (>= 1) |
+
 ### MapSizeEstimate
 
 What a dry run said: how big the detailed map will be for the area and the zoom it was made for.
@@ -1611,9 +1631,9 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `step` | "" \| "build" \| "world" \| "area" |  | what the running job is doing: looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs |
 | `percent` | integer \| null |  | how far the step is; null when it cannot say (the build has no bar) (>= 0, <= 100) |
 | `downloaded` | integer \| null |  | the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet (>= 0) |
-| `note` | string |  | what the job says of a download that has not moved for a while: `no progress: trying again (2 of 3)`; empty when all is well |
-| `blocked` | string |  | why no job can be started now (no position, or a job is running); empty when one can |
-| `problem` | string |  | why the last job failed; empty if it did not, and while a job runs |
+| `retry` | MapRetry \| null |  | a download that has not moved for a while is begun again: which try this is; null when all is well |
+| `blocked` | "" \| "no_position" \| "busy" |  | why no job can be started now: `no_position` the station has no position, `busy` a job is running; empty when one can |
+| `problem` | MapProblem \| null |  | why the last job failed; null if it did not, and while a job runs |
 | `estimate` | MapSizeEstimate \| null |  | the latest dry run (`map_estimate`); null before one, and after a download |
 | `radius_km` | integer |  | `map/radius_km` |
 | `maxzoom` | integer |  | `map/maxzoom` |
@@ -1630,9 +1650,8 @@ it hears a signal.
 
 | field | type | | description |
 |---|---|---|---|
-| `state` | "stopped" \| "starting" \| "running" \| "waiting" |  | `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why |
-| `problem` | string |  | why the modem is not running (not installed, stopped); empty while it runs |
-| `reason` | "" \| "not_installed" \| "stopped" \| "network" \| "no_port" \| "not_started" \| "sound_card" \| "keying" |  | why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting` |
+| `state` | "stopped" \| "starting" \| "running" \| "waiting" |  | `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `reason` says why |
+| `reason` | "" \| "not_installed" \| "stopped" \| "network" \| "no_port" \| "not_started" \| "sound_card" \| "keying" |  | why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting` |
 | `mode` | string |  | the modem's mode, the same for every station of the type: `DATAC3` (Mercury), `AFSK1200` (Direwolf) |
 | `keyed` | boolean |  | the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on |
 | `busy` | boolean |  | another station's signal is on the channel: our frames wait. The daemon judges it from the modem's spectrum (a signal as wide as a frame; a step in the noise or a carrier is none) while it reads that, else it is the modem's own fixed-threshold detector |
@@ -1847,8 +1866,8 @@ Why a radio, or its beacon, does not do what it is set to, as a code the page pu
 
 | field | type | | description |
 |---|---|---|---|
-| `code` | "radio.not_connected" \| "radio.searching" \| "radio.silent" \| "radio.text_lines" \| "radio.resource_held" \| "modem.not_installed" \| "modem.stopped" \| "modem.network" \| "modem.no_port" \| "modem.not_started" \| "modem.sound_card" \| "modem.keying" \| "transmit.off" \| "beacon.not_sent" |  | `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log) |
-| `params` | { [key: string]: string \| integer } |  | the values of the sentence, by name; empty for a code that has none |
+| `code` | "radio.not_connected" \| "radio.searching" \| "radio.silent" \| "radio.text_lines" \| "radio.resource_held" \| "modem.not_installed" \| "modem.stopped" \| "modem.network" \| "modem.no_port" \| "modem.not_started" \| "modem.sound_card" \| "modem.keying" \| "transmit.off" \| "beacon.not_sent" |  | `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values) |
+| `params` | { [key: string]: string \| integer \| number } |  | the values of the sentence, by name; empty for a code that has none |
 
 ### RadioRow
 
@@ -2070,7 +2089,6 @@ Update now (neoaprs/services/selfupdate.py): whether this copy can update itself
 | `downloaded` | integer |  | the bytes of the file so far (>= 0) |
 | `total` | integer \| null |  | the size of the file in bytes, when the server said it (>= 0) |
 | `problem` | "" \| "download" \| "unverified" \| "checksum" \| "install" \| "no_restart" |  | for `error`: `download` (the file or SHA256SUMS could not be fetched), `unverified` (SHA256SUMS could not be checked: its signature could not be fetched or does not hold with the project's key for this version, or the list does not name the file once; nothing was downloaded), `checksum` (the file's SHA-256 is not the one the signed SHA256SUMS gives it: it was deleted), `install` (it could not be put in place, or the installer could not be started), `no_restart` (it was installed but NeoAPRS did not restart); empty otherwise |
-| `detail` | string |  | the English sentence of the problem, for the log and the page's details; empty when all is well |
 
 ### WeatherValues
 

@@ -15,6 +15,7 @@ import { t } from "@/i18n";
 import { packetTag } from "@/lib/channels";
 import { useRadios } from "@/composables/useRadios";
 import { clockText } from "@/lib/format";
+import { summaryText } from "@/lib/packetview";
 import { routeWords } from "@/lib/routes";
 import type { PacketRow } from "@/protocol/protocol";
 
@@ -72,7 +73,7 @@ function toggle(key: string): void {
           </td>
           <td class="mono wrap line">{{ row.tnc2 }}</td>
           <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>
-          <td class="wrap summary">{{ row.summary }}<slot name="note" :row="row" /></td>
+          <td class="wrap summary">{{ summaryText(row) }}<slot name="note" :row="row" /></td>
         </tr>
         <tr v-if="open === keyOf(row)" class="detail">
           <td colspan="6">

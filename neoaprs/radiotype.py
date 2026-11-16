@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Final, Literal
 
 from . import kiss
-from .coded import CodedError
+from .coded import CodedError, Reason
 
 Kind = Literal["fm", "hf", "lora"]
 KINDS: tuple[Kind, ...] = ("fm", "hf", "lora")              # the order of the page's lists and of the numbering within a kind ("FM", "HF 2")
@@ -47,7 +47,7 @@ FM_ID: Final = 1                     # the ids the migration gives today's radio
 HF_ID: Final = 2                     # ... and the HF radio (hf/profile); the same ids are used before the migration exists
 
 ResourceKind = Literal["serial", "sound_card", "keying", "modem_ports", "gps"]
-ONLY_RECEIVES = "the radio only receives"         # why a radio of a type that sends nothing (Can.transmit false) takes no frame and sends no beacon
+ONLY_RECEIVES = Reason("the radio only receives", "transmit.off")         # why a radio of a type that sends nothing (Can.transmit false) takes no frame and sends no beacon
 FieldKind = Literal["text", "int", "bool", "choice", "port", "path"]
 Transport = Literal["serial", "tcp", "dummy", "modem"]        # "tcp": a program or a bridge reached by host and port; "serial": a serial port (which may be a socket:// URL); "dummy": no line, made-up traffic; "modem": a modem program the daemon starts itself
 

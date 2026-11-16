@@ -17,10 +17,11 @@ from .tncmode import looks_valid, packet_of
 from .tncport import TncPort
 from .tncprofile import Profile
 from .tncreader import Line, Reader
+from .coded import Reason
 
 log = logging.getLogger("neoaprs.tnc")
 
-RX_ONLY = "RX only: nothing is sent"          # why a line that reads text takes no frame (the page's words for receive only: error.transmit.off)
+RX_ONLY = Reason("RX only: nothing is sent", "transmit.off")          # why a line that reads text takes no frame (the page's words for receive only: error.transmit.off)
 
 
 class TextLine(Line, Protocol):

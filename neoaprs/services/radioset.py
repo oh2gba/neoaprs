@@ -13,6 +13,7 @@ from typing import Any, Protocol
 
 from neoaprs import TOCALL, ax25, kiss
 from neoaprs.callsign import CallsignError
+from neoaprs.coded import Reason
 from neoaprs.config import Config
 from neoaprs.message import path_choice
 from neoaprs.packet import Packet
@@ -24,7 +25,7 @@ from neoaprs.tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.radioset")
 
-NO_RADIO = "there is no radio"           # the reason of every send while the main or the chosen radio is None (a fresh installation)
+NO_RADIO = Reason("there is no radio", "radio.none")      # the reason of every send while the main or the chosen radio is None (a fresh installation)
 FRAME_ERRORS = (ax25.Ax25Error, CallsignError, ValueError)          # what `our_frame` raises for a call or a path that makes no frame
 _EXTENSION = re.compile(rb"PHG\d{4}|RNG\d{4}|\d{3}/\d{3}|DFS\d{4}")        # a 7-byte data extension right after a position (spec chapter 7)
 UNCOMPRESSED = 19                                                    # a position with its symbol: 8 + 1 + 9 + 1

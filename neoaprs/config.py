@@ -11,7 +11,7 @@ from typing import Any
 
 from .alertcommand import DEFAULT_ALERT_COMMAND
 from .callsign import call_problem
-from .coded import CodedError, Param
+from .coded import CodedError, Param, Reason
 from .configlegacy import with_legacy, with_network
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
 from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, path_text, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings, and today's flat keys as a view of radios 1 and 2)
@@ -20,7 +20,7 @@ from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLE
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .beaconrule import SETTING_MIN_MIN, station_interval
 from .radiospec import FM_ID, RadioId, RadioSpec
-from .radiotype import ONLY_RECEIVES, stored_text as _show
+from .radiotype import stored_text as _show
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
 from .tncprofile import Profile, names_tcp, profile_of
@@ -37,9 +37,8 @@ class SettingError(CodedError):
         super().__init__(text, code, **params)
         self.key = key
 
-RECEIVE_ONLY = "receive only: transmitting is switched off"      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "RX only: nothing is sent")
-LISTENS_ONLY = "receive only: no radio that is on can send"       # why it refuses while every enabled radio is one that only listens (to the page the same "transmit.off")
-RX_ONLY_REASONS = (RECEIVE_ONLY, LISTENS_ONLY, ONLY_RECEIVES)      # (and a radio of a type that only receives: to the page each is "transmit.off")
+RECEIVE_ONLY = Reason("receive only: transmitting is switched off", "transmit.off")      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "RX only: nothing is sent")
+LISTENS_ONLY = Reason("receive only: no radio that is on can send", "transmit.off")       # why it refuses while every enabled radio is one that only listens (to the page the same "transmit.off")
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
 MIN_BEACON_INTERVAL_MIN = SETTING_MIN_MIN      # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log

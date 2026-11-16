@@ -79,7 +79,8 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
         "beacon": beacon_state(server),
         "rig": {"state": rig.rig_state, "last_text": rig.last_text, "last_sent": iso(rig.last_sent_at)},
         "map": map_state(ctl.mapfetch.status(), ctl.aloha.radius_km),
-        "update": {"latest": None if ctl.updatecheck.latest is None else asdict(ctl.updatecheck.latest), "now": UpdateState.row(ctl.selfupdate.status())},
+        "update": {"latest": None if ctl.updatecheck.latest is None else asdict(ctl.updatecheck.latest), "now": UpdateState.row(ctl.selfupdate.status()),
+                   "detail": ctl.selfupdate.status().detail},
     }
     state["ports"] = await asyncio.to_thread(ports_with_holders)
     listed: dict[int, list[dict[str, Any]]] = {}

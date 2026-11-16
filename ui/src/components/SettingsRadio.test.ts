@@ -498,7 +498,7 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
     expect(keyTest(rx.group).element.disabled).toBe(true);
     expect(tune(rx.group).attributes("title")).toBe("RX only: nothing is sent");
     expect(keyTest(rx.group).attributes("title")).toBe("RX only: nothing is sent");
-    const waiting = make({}, running("", { state: "waiting" }, { state: "waiting", problem: "Mercury stopped", reason: "stopped" }));
+    const waiting = make({}, running("", { state: "waiting" }, { state: "waiting", reason: "stopped" }));
     expect(tune(waiting.group).element.disabled).toBe(true);
     expect(keyTest(waiting.group).element.disabled).toBe(true);
     expect(tune(waiting.group).attributes("title")).toBeUndefined();

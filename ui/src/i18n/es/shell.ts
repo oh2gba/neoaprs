@@ -5,8 +5,8 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "common.dismiss": "Descartar",
 
   "header.project_title": "La página del proyecto NeoAPRS",
-  "pill.rx": "RX only",
-  "pill.rx_title": "No se envía nada. Ajustes → Radio → RX only",
+  "pill.rx": "Solo RX",
+  "pill.rx_title": "No se envía nada. Ajustes → Radio → Solo RX",
   "pill.rx_title_radios": "No se envía nada. Ajustes → Radio",
   "pill.beacon_off": "Baliza apagada",
   "pill.beacon_off_title": "Sin baliza ni estado automáticos. Pestaña Mi estación",

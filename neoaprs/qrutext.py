@@ -35,7 +35,8 @@ def ask_text(text: str) -> str:
     """The text of a request to QRU as it is sent, upper case, `INFO`, `NEXT` or a group with an optional distance; raises MessagingError for any other."""
     found = _ASK.fullmatch(" ".join(text.upper().split()))
     if found is None or (found["km"] is not None and not 1 <= int(found["km"]) <= ASK_KM_MAX):
-        raise MessagingError(f"{text!r} is no request to QRU: INFO, NEXT or a group of up to {QRU_GROUP_MAX} letters and digits, and a distance of 1 to {ASK_KM_MAX}")
+        raise MessagingError(f"{text!r} is no request to QRU: INFO, NEXT or a group of up to {QRU_GROUP_MAX} letters and digits, and a distance of 1 to {ASK_KM_MAX}", "qru.form", request=text,
+                             max=QRU_GROUP_MAX, km=ASK_KM_MAX)
     return found[0]
 
 

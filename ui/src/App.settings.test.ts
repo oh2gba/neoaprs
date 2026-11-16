@@ -135,7 +135,7 @@ describe("App: the Settings tab", () => {
       type: "patch",
       topic: "map",
       rev: 2,
-      ops: [{ op: "replace", value: mapState({ state: "downloading", step: "world", percent: 42, blocked: "a map job is running" }) }],
+      ops: [{ op: "replace", value: mapState({ state: "downloading", step: "world", percent: 42, blocked: "busy" }) }],
     });
     await flushPromises();
     expect(wrapper.find("#pane-settings .mapfetch-progress").text()).toBe("World map 42%");

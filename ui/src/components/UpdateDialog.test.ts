@@ -19,7 +19,6 @@ const job = (over: Partial<UpdateState> = {}): UpdateState => ({
   downloaded: 0,
   total: null,
   problem: "",
-  detail: "",
   ...over,
 });
 const dialog = (given: Given = {}, version = "0.4.0") => {
@@ -60,7 +59,7 @@ describe("UpdateDialog", () => {
         { version: "0.4.0", text: "Bug fixes.\n\n- **Fixed:** the map download.\n- The `neoaprs map` command." },
         { version: "0.3.1", text: "A small release." },
       ],
-      problem: "",
+      problem: "" as const,
     };
     const { wrapper, daemon } = dialog({ releaseNotes: notes });
     expect(daemon.send).not.toHaveBeenCalledWith({ cmd: "release_notes", version: "0.4.0" });
@@ -81,7 +80,7 @@ describe("UpdateDialog", () => {
   });
 
   it("offers the release page when the notes could not be fetched", () => {
-    const failed = { type: "release_notes" as const, version: "0.4.0", since: "", sections: [], problem: "the release notes could not be fetched" };
+    const failed = { type: "release_notes" as const, version: "0.4.0", since: "", sections: [], problem: "unreachable" as const };
     const { wrapper } = dialog({ releaseNotes: failed });
     expect(wrapper.find(".updatedialog-news .muted").text()).toBe("What is new could not be fetched; the release page has it:");
     const news = wrapper.find(".updatedialog-news a.btn");
@@ -191,9 +190,8 @@ describe("UpdateDialog", () => {
     expect(wrapper.find(".updatedialog-progress").text()).toBe("NeoAPRS restarts in a moment");
   });
 
-  it("says a failure in plain words, without the daemon's detail (that is for the log), offers Try again and opens the steps by hand", async () => {
-    const detail = "NeoAPRS-0.4.0-x86_64.AppImage is not the file of the release: its SHA-256 is ab, SHA256SUMS says cd";
-    const { wrapper, daemon } = dialog({ install: install("appimage"), selfUpdate: job({ state: "error", version: "0.4.0", problem: "checksum", detail }) });
+  it("says a failure in plain words, without the daemon's detail (that is for the log, and is not on the wire), offers Try again and opens the steps by hand", async () => {
+    const { wrapper, daemon } = dialog({ install: install("appimage"), selfUpdate: job({ state: "error", version: "0.4.0", problem: "checksum" }) });
     const problem = wrapper.find(".updatedialog-problem");
     expect(problem.text()).toBe("The download is not the release's file, so it was deleted and nothing was installed. Try again.");
     expect(problem.attributes("role")).toBe("alert");

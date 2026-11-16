@@ -11,7 +11,7 @@ Three shapes of name, each written once here: the AX.25 call (`AX25_CALL`), the 
 if it has been repeated (`PATH_ELEMENT`). The path of a frame on the air has its own, stricter rule (igaterules.py)."""
 import re
 
-from .coded import CodedError
+from .coded import CodedError, Reason
 
 MAX_SSID = 15
 BASE_MAX = 6                         # the most characters of a call's base
@@ -59,16 +59,16 @@ def normal_name(text: str) -> str:
 
 
 def call_problem(call: str) -> str:
-    """Why we may not transmit under this call, empty when we may: it is empty, a placeholder (N0CALL, NOCALL, MYCALL: what an example says) or not an amateur call (3 to 6 characters with a digit
-    and a letter, and an SSID if any)."""
+    """Why we may not transmit under this call (a Reason, with its code), empty when we may: it is empty, a placeholder (N0CALL, NOCALL, MYCALL: what an example says) or not an amateur call (3 to 6
+    characters with a digit and a letter, and an SSID if any)."""
     if not call:
-        return SET_CALL_FIRST
+        return Reason("set your call first", "call.none")
     try:
         base, _ = parse_call(call)
     except CallsignError:
-        return f"{call!r} is not a call: {SET_CALL_FIRST}"
+        return Reason(f"{call!r} is not a call: {SET_CALL_FIRST}", "call.not_call", call=call)
     if base in PLACEHOLDER_CALLS:
-        return f"{base} is a placeholder, not a call: {SET_CALL_FIRST}"
+        return Reason(f"{base} is a placeholder, not a call: {SET_CALL_FIRST}", "call.placeholder", call=base)
     if _AMATEUR_CALL.fullmatch(base) is None:
-        return f"{call} is not an amateur call: {SET_CALL_FIRST}"
+        return Reason(f"{call} is not an amateur call: {SET_CALL_FIRST}", "call.not_amateur", call=call)
     return ""

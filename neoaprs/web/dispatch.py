@@ -97,11 +97,15 @@ class Dispatcher:
         try:
             cmd = COMMANDS.validate_python(raw)
         except ValidationError as e:
-            conn.error(describe_errors(name, e.errors(include_url=False, include_input=False)), name, "invalid")
+            text = describe_errors(name, e.errors(include_url=False, include_input=False))
+            log.warning("a command that does not fit its model: %s", text)             # (only a page that is not this daemon's sends one: the page says the plain words of `failed` for it)
+            conn.error(text, name, "invalid")
             return
         try:
             await self._call(conn, name, cmd)
         except UserError as e:
+            if e.code == "failed":
+                log.warning("%s", e)                                               # (a refusal the operator can do nothing about: the page says the plain words, the log the sentence)
             conn.error(str(e), name, e.code, e.key, e.params)
         except Exception:
             log.exception("command %s failed", name)
