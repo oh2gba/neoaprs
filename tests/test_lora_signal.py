@@ -136,7 +136,287 @@ async def test_the_igates_list_says_each_packets_signal_even_for_a_repeated_text
         board.air(b"OH2ABC-7>APLRT1:>a control byte\x01 in it", rssi=-101, snr=2.0)
         await until(lambda: len(line.packets) == 4)
         assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0), (-11.5, -120.0), (9.0, -80.0), (2.0, -101.0)], "each frame its own entry, in the order heard"
-        assert set(server.requests) == {"/received-packets.json"} and len(server.requests) <= 4, "at most one request at a time, and nothing else of the board is asked"
+        assert set(server.requests) == {"/received-packets.json"} and len(server.requests) <= 5, "one at the open, then at most one at a time, and nothing else of the board is asked"
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_a_frame_whose_lists_answer_already_holds_the_next_copy_of_its_text_takes_its_own_entry(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The list's answer slower than the next packet on the air: the board has heard the digipeater's copy and the next packet, and not yet handed them on, when the first copy's answer comes."""
+    asked, answer = list[str](), asyncio.Event()
+    fetch = loralist.fetch
+
+    async def slow(host: str) -> list[loralist.Heard]:
+        asked.append(host)
+        await answer.wait()
+        return await fetch(host)
+    board = Board("igate")
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        answer.set()
+        monkeypatch.setattr(loralist, "fetch", slow)
+        board.air(HEARD, rssi=-97, snr=6.25)
+        await until(lambda: len(line.packets) == 1)
+        answer.clear()
+        board.air(HEARD, rssi=-120, snr=-11.5)
+        await until(lambda: len(asked) == 2)
+        send, later = board.out, list[bytes]()
+        board.out = later.append                                            # (in the list at once, on the KISS line only after the answer)
+        board.air(HEARD, rssi=-80, snr=9.0)
+        board.air(b"OH2ABC-7>APLRT1:>after it", rssi=-101, snr=2.0)
+        answer.set()
+        await until(lambda: len(line.packets) == 2)
+        for data in later:
+            send(data)
+        await until(lambda: len(line.packets) == 4)
+        assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0), (-11.5, -120.0), (9.0, -80.0), (2.0, -101.0)], "the copy the board has not handed on yet keeps its entry"
+    finally:
+        await server.stop()
+
+
+class Gate:
+    """The list's answers, held where a test says: before the board is asked (`before`, the answer is the list when the gate opens) or after it answered (the list as it was when asked). `asked`, `made`
+    and `taken` count the requests, the answers the board made and the answers the daemon took."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.open, self.before = asyncio.Event(), True
+        self.open.set()
+        self.asked = self.made = self.taken = 0
+        fetch = loralist.fetch
+
+        async def gated(host: str) -> list[loralist.Heard]:
+            self.asked += 1
+            before = self.before
+            if before:
+                await self.open.wait()
+            entries = await fetch(host)
+            self.made += 1
+            if not before:
+                await self.open.wait()
+            self.taken += 1
+            return entries
+        monkeypatch.setattr(loralist, "fetch", gated)
+
+
+def board_of(line: Any) -> Any:
+    """The board's reader of the line's open (loraboard.LoraBoard)."""
+    return line.tnc._reader.board
+
+
+def held(line: Any) -> int:
+    """How many frames the board's reader has held on this open."""
+    return int(board_of(line)._serial)
+
+
+@stops
+async def test_a_frame_whose_entry_never_comes_takes_no_entry_of_the_next_copy_of_its_text(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(loraboard, "LIST_WAIT_SEC", 30.0)
+    board = Board("igate")
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        board.air(HEARD, rssi=-97, snr=6.25)
+        await until(lambda: len(line.packets) == 1)
+        board.out(encode_kiss(HEARD))                                       # (handed on, and not in the list: it fell out of it, or the list lost it)
+        await until(lambda: len(line.packets) == 2)                         # (at its answer, not at the end of its wait)
+        board.air(HEARD, rssi=-120, snr=-11.5)
+        await until(lambda: len(line.packets) == 3)
+        assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0), (None, None), (-11.5, -120.0)], "the frame without an entry goes on without figures, the next copy with its own"
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_two_copies_that_come_while_the_list_is_asked_and_the_first_has_no_entry_go_on_without(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    gate = Gate(monkeypatch)
+    board = Board("igate")
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        board.air(HEARD, rssi=-97, snr=6.25)
+        await until(lambda: len(line.packets) == 1)
+        gate.open.clear()
+        asked = gate.asked
+        board.air(b"OH2ABC-7>APLRT1:>other", rssi=-80, snr=9.0)
+        await until(lambda: gate.asked == asked + 1)
+        board.out(encode_kiss(HEARD))                                       # (no entry)
+        board.air(HEARD, rssi=-120, snr=-11.5)                              # (its entry in the answer that is on its way)
+        await until(lambda: held(line) == 4)
+        gate.open.set()
+        await until(lambda: len(line.packets) == 4)
+        assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0), (9.0, -80.0), (None, None), (None, None)], "which of the two copies has no entry cannot be told: neither takes one"
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_without_the_opens_answer_an_answer_asked_before_the_next_copy_came_gives_neither_copy_an_entry_of_it(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    made, steps, fetch = [0], asyncio.Semaphore(0), loralist.fetch
+
+    async def stepped(host: str) -> list[loralist.Heard]:
+        entries = await fetch(host)
+        made[0] += 1
+        await steps.acquire()
+        return entries
+    monkeypatch.setattr(loralist, "fetch", stepped)
+    board = Board("igate")
+    board.air(HEARD, rssi=-90, snr=3.0)
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        await until(lambda: made[0] == 1)
+        board.air(HEARD, rssi=-97, snr=6.25)                                # (while the open's answer is on its way: no start)
+        await until(lambda: held(line) == 1)
+        steps.release()
+        await until(lambda: made[0] == 2)                                   # (the first copy's answer, made)
+        board.air(HEARD, rssi=-120, snr=-11.5)
+        await until(lambda: held(line) == 2)
+        for _ in range(5):
+            steps.release()
+        await until(lambda: len(line.packets) == 2)
+        assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0), (-11.5, -120.0)]
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_frames_whose_entries_fell_out_of_the_list_take_none_of_the_later_copies_entries(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The list keeps the last 10 packets: eleven copies of one text heard before the KISS line hands the first on push out the entry given last and the first copy's own."""
+    board = Board("igate")
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        board.air(HEARD, rssi=-97, snr=6.25)
+        await until(lambda: len(line.packets) == 1)
+        send, later = board.out, list[bytes]()
+        board.out = later.append
+        for n in range(11):
+            board.air(HEARD, rssi=-100 - n, snr=n)
+        board.out = send
+        for data in later:
+            send(data)
+        await until(lambda: len(line.packets) == 12)
+        figures = [(p.snr, p.rssi) for p in line.packets[1:]]
+        assert not [(n, f) for n, f in enumerate(figures) if f not in ((None, None), (float(n), -100.0 - n))], "a frame with no figures, or its own; never another copy's"
+        board.air(b"OH2ABC-7>APLRT1:>after it", rssi=-80, snr=9.0)
+        await until(lambda: len(line.packets) == 13)
+        assert (line.packets[12].snr, line.packets[12].rssi) == (9.0, -80.0), "the list starts afresh"
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_the_first_answer_of_an_open_that_already_holds_the_next_copy_gives_each_frame_its_own(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The board is asked at the open what it heard before: an older copy of the text in the list is no frame's, and the copy the board has not handed on yet is left for its frame."""
+    monkeypatch.setattr(loraboard, "OPENING_SEC", 0.05)
+    gate = Gate(monkeypatch)
+    board = Board("igate")
+    board.air(HEARD, rssi=-90, snr=3.0)                                     # (heard before the daemon connected: in the list, handed to no one)
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        await until(lambda: gate.taken == 1)
+        await asyncio.sleep(2 * loraboard.OPENING_SEC)                      # (no frame right after the open's answer: it is what the board heard before)
+        gate.open.clear()
+        board.air(HEARD, rssi=-97, snr=6.25)
+        await until(lambda: gate.asked == 2)
+        send, later = board.out, list[bytes]()
+        board.out = later.append
+        board.air(HEARD, rssi=-120, snr=-11.5)                              # (in the list before the first copy's answer is made, on the KISS line only after it)
+        gate.open.set()
+        await until(lambda: len(line.packets) == 1)
+        for data in later:
+            send(data)
+        await until(lambda: len(line.packets) == 2)
+        assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0), (-11.5, -120.0)]
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_a_copy_that_comes_after_the_answer_was_made_waits_for_the_next_and_the_older_copy_is_no_ones(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(loraboard, "OPENING_SEC", 0.05)
+    gate = Gate(monkeypatch)
+    board = Board("igate")
+    board.air(HEARD, rssi=-90, snr=3.0)
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        await until(lambda: gate.taken == 1)
+        await asyncio.sleep(2 * loraboard.OPENING_SEC)                      # (no frame right after the open's answer: it is what the board heard before)
+        gate.before = False
+        gate.open.clear()
+        board.air(HEARD, rssi=-97, snr=6.25)
+        await until(lambda: gate.made == 2)                                 # (the answer for the first copy is made, and on its way)
+        gate.before = True
+        board.air(HEARD, rssi=-120, snr=-11.5)
+        await until(lambda: held(line) == 2)
+        gate.open.set()
+        await until(lambda: len(line.packets) == 2)
+        assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0), (-11.5, -120.0)]
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_an_answer_asked_before_a_frame_came_gives_it_nothing(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The answer at the open, made before the first frame came, holds only an older copy of its text: the frame waits for the next answer."""
+    gate = Gate(monkeypatch)
+    gate.before = False
+    gate.open.clear()
+    board = Board("igate")
+    board.air(HEARD, rssi=-90, snr=3.0)
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        await until(lambda: gate.made == 1)
+        board.air(HEARD, rssi=-97, snr=6.25)
+        await until(lambda: held(line) == 1)
+        gate.open.set()
+        await until(lambda: len(line.packets) == 1)
+        assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0)]
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_a_frame_that_comes_right_after_the_answer_at_the_open_takes_its_entry_from_that_answer(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The board listed the packet just before it answered, and its bytes come after the answer: the answer at the open is not taken as what the board heard before."""
+    gate = Gate(monkeypatch)
+    gate.open.clear()
+    board = Board("igate")
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        await until(lambda: gate.asked == 1)
+        send, later = board.out, list[bytes]()
+        board.out = later.append
+        board.air(HEARD, rssi=-97, snr=6.25)
+        gate.open.set()
+        await until(lambda: gate.taken == 1)
+        board.out = send
+        for data in later:
+            send(data)
+        await until(lambda: len(line.packets) == 1)
+        assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0)]
+    finally:
+        await server.stop()
+
+
+@stops
+async def test_the_board_keeps_no_timer_of_a_frame_that_has_gone_on(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(loraboard, "LIST_WAIT_SEC", 30.0)
+    board = Board("igate")
+    server = await listed(monkeypatch, board)
+    try:
+        line, _ = await line_on(lines, board, LORA_TCP)
+        for n in range(12):
+            board.air(HEARD.replace(b"tracker", b"n%d" % n), rssi=-100 - n, snr=n)
+            await until(lambda count=n + 1: len(line.packets) == count)
+        assert [p.rssi for p in line.packets] == [-100.0 - n for n in range(12)]
+        assert len(board_of(line)._timers) == 0, "a timer for each frame for the life of the open"
     finally:
         await server.stop()
 

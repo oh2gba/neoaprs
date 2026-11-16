@@ -12,6 +12,7 @@ What comes on the line is cut into KISS frames and the text between them (`KissT
 - on the CA2RXU iGate's log (`console`) a line of a packet heard is that packet with its signal, and every other line is for the terminal; nothing is ever written to that line (`RECEIVE_ONLY`);
 - a frame whose path says APRS-IS is the iGate's bridge handing on the internet, not the air (`drop_internet`): it is passed over and counted."""
 import asyncio
+import itertools
 import logging
 from collections import deque
 from typing import Any, Coroutine, Protocol
@@ -31,6 +32,7 @@ log = logging.getLogger("neoaprs.tnc")
 TEXT_LINES = "the board sends text lines: set it to KISS"
 RECEIVE_ONLY = ONLY_RECEIVES
 KEPT_USED = 64                         # how many entries of the board's list are remembered as given to a frame (it holds 10)
+OPENING_SEC = 2.0                      # how long after the list's answer at the open no frame may come for that answer to be what the board heard before: it hands a packet on right after it lists it
 
 
 class Owner(Protocol):
@@ -137,10 +139,15 @@ class LoraBoard:
         self._list = tnc.profile.board_readings and tnc.profile.transport == "tcp" and bool(host_of(tnc.path))     # the iGate's list, on the board on the network: asked for until it fails once
         self._asking = self._again = False
         self._used: deque[tuple[str, str, Reading]] = deque(maxlen=KEPT_USED)
+        self._start = False                                            # where this open's entries begin in the list is known: what it held at the open is in `_used`
+        self._opening: tuple[list[loralist.Heard], float] | None = None  # the list's answer at the open, and when it came, until the first frame
         self._held: dict[str, tuple[bytes, str]] = {}                  # each frame that waits: its AX.25 bytes and its text as the list writes it
+        self._since: deque[tuple[str, str]] = deque(maxlen=KEPT_USED)   # each frame no answer asked after it has named yet, waiting or gone on: its key and its text as the list writes it
         self._serial = 0
         self._following: Following[str] = Following(LIST_WAIT_SEC if self._list else REPORT_WAIT_SEC)
-        self._timers: list[asyncio.TimerHandle] = []
+        self._timers: dict[str, asyncio.TimerHandle] = {}              # the end of the wait of each frame that waits
+        if self._list and self._port is not None:
+            self._ask()                                                # (what the list holds before the first frame is no frame's of this open)
 
     def take_reading(self) -> Reading:
         return self._reading
@@ -151,7 +158,7 @@ class LoraBoard:
 
     def close(self) -> None:
         """The open is over: what still waits for its reading goes no further."""
-        for timer in self._timers:
+        for timer in self._timers.values():
             timer.cancel()
         self._timers.clear()
 
@@ -210,12 +217,18 @@ class LoraBoard:
         self._release(self._following.report(reading, self._now()))
 
     def _hold(self, payload: bytes, frame: ax25.Frame) -> str:
+        if self._opening is not None:
+            entries, came = self._opening
+            self._opening = None
+            if self._now() - came >= OPENING_SEC:
+                self._used.extend((e.when, e.key, e.reading) for e in entries)
+                self._start = True
         key = str(self._serial)
         self._serial += 1
         self._held[key] = (payload, list_key(text_of(frame)))
+        self._since.append((key, self._held[key][1]))
         self._following.hold(key, key, self._now())
-        self._timers = [t for t in self._timers if not t.cancelled()]
-        self._timers.append(asyncio.get_running_loop().call_later(self._following.wait_sec + 0.01, self._due))
+        self._timers[key] = asyncio.get_running_loop().call_later(self._following.wait_sec + 0.01, self._due)
         return key
 
     def _due(self) -> None:
@@ -225,6 +238,8 @@ class LoraBoard:
     def _release(self, frames: list[tuple[str, Reading]]) -> None:
         for key, reading in frames:
             payload, _ = self._held.pop(key)
+            if (timer := self._timers.pop(key, None)) is not None:
+                timer.cancel()
             self._hand(payload, reading)
 
     def _hand(self, payload: bytes, reading: Reading) -> None:
@@ -244,9 +259,10 @@ class LoraBoard:
             self._again = True
             return
         self._asking = True
-        self._tnc._spawn(self._fetch(host_of(self._tnc.path)))
+        self._tnc._spawn(self._fetch(host_of(self._tnc.path), self._serial))
 
-    async def _fetch(self, host: str) -> None:
+    async def _fetch(self, host: str, sent: int) -> None:
+        """The list asked once `sent` frames had come on this open: the board put each of them in its list before it handed it on, so the answer holds the entry of each, if the list still has it."""
         try:
             entries = await loralist.fetch(host)
         except loralist.ListError as e:
@@ -259,22 +275,78 @@ class LoraBoard:
         self._asking = False
         if self._tnc._port is not self._port:
             return
-        self._match(entries)
+        self._match(entries, sent)
         if self._again:
             self._again = False
             self._ask()
 
-    def _match(self, entries: list[loralist.Heard]) -> None:
-        """Each frame that waits gets the newest entry of its text not given yet, the latest frame first: two frames of one text take the two newest in their order, and a frame of a station that beacons
-        the same text every few minutes takes its own entry, not an older one. (The board puts a packet in its list before it hands it on; a frame heard while a request is on its way may find its entry
-        given to an earlier one of the same text, which a LoRa channel, where a packet takes a second or more, hardly allows.)"""
+    def _match(self, entries: list[loralist.Heard], sent: int) -> None:
+        """Each frame that waits gets its own entry, or none. The board puts a packet in its list before it hands it on, and in the same order, so an answer asked after a frame came holds its entry
+        unless the list has lost it (it keeps the last 10); the frames held after the list was asked wait for the answer asked after them, which follows. What the list holds at the open (asked before the
+        first frame, which came OPENING_SEC or more after the answer) is no frame's of this open. From there the frames held since the last entry given take the entries after it one by one, each the first
+        of its text: a frame that went on without its reading still takes its own, and an entry of a frame not read yet (the list's answer slower than the next packet on the air) is left for that frame.
+        A frame whose entry is not in the answer goes on without, and so does each frame of its text named in this answer, one of which may hold the entry of the next; when every entry given has fallen out
+        of the list, what fell out with them cannot be told: no frame asked for is named, and the list starts afresh. Without that start (a frame came while the open's answer was on its way, or right after
+        it), each frame that waits takes the newest entry of its text, the latest frame first: a station that beacons the same text every few minutes leaves older entries that are none of these frames'."""
+        now = self._now()
+        if self._start:
+            out = self._line_up(entries, sent, now)
+        elif self._serial != sent:
+            out = []                                                       # (a frame came after the list was asked: the answer asked after it, which follows, is for it)
+        elif not sent:
+            self._opening = (entries, now)
+            return
+        else:
+            out = self._newest(entries, now)
+        self._release(out + self._following.due(now))
+
+    def _newest(self, entries: list[loralist.Heard], now: float) -> list[tuple[str, Reading]]:
+        """Without a start: each frame that waits takes the newest entry of its text, the latest frame first; one whose text is not in the answer goes on without."""
         out: list[tuple[str, Reading]] = []
         for key in reversed(self._following.keys()):
             entry = next((e for e in reversed(entries) if e.key == self._held[key][1] and (e.when, e.key, e.reading) not in self._used), None)
             if entry is not None:
                 self._used.append((entry.when, entry.key, entry.reading))
-                out += self._following.report(entry.reading, self._now(), key)
-        self._release(out + self._following.due(self._now()))
+            out += self._following.report(NO_READING if entry is None else entry.reading, now, key)
+        self._start = bool(self._used)
+        self._since.clear()
+        return out
+
+    def _line_up(self, entries: list[loralist.Heard], sent: int, now: float) -> list[tuple[str, Reading]]:
+        """From the start: the frames asked for take the entries after the last one given, in their order, each the first of its text; the readings of the frames that wait, said."""
+        used = set(self._used)
+        at = max((i for i, e in enumerate(entries) if (e.when, e.key, e.reading) in used), default=-1) + 1
+        asked = list(itertools.takewhile(lambda item: int(item[0]) < sent, self._since))     # (one held after the list was asked: the answer asked after it, which follows, is for it)
+        given: list[tuple[str, str, Reading]] = []
+        lost: list[tuple[str, str]] = []
+        if self._used and not at:
+            lost = asked                                                            # (every entry given has fallen out of the list, and what fell out with them cannot be told: the list starts afresh)
+            self._used.clear()
+            self._used.extend((e.when, e.key, e.reading) for e in entries)
+        else:
+            given, lost = self._named(asked, entries, at)
+        self._since = deque((item for item in self._since if int(item[0]) >= sent), maxlen=KEPT_USED)
+        waiting, lost_texts = set(self._following.keys()), {text for _, text in lost}
+        out: list[tuple[str, Reading]] = []
+        for key, text, reading in given + [(key, text, NO_READING) for key, text in lost]:
+            if key in waiting:
+                out += self._following.report(NO_READING if text in lost_texts else reading, now, key)
+        return out
+
+    def _named(self, asked: list[tuple[str, str]], entries: list[loralist.Heard], at: int) -> tuple[list[tuple[str, str, Reading]], list[tuple[str, str]]]:
+        """The frames asked for, each with the first entry of its text after the one before it, from `at`; and those whose text is not there (the board listed each before it handed it on: its entry
+        is gone from the list)."""
+        given: list[tuple[str, str, Reading]] = []
+        lost: list[tuple[str, str]] = []
+        for key, text in asked:
+            found = next((i for i in range(at, len(entries)) if entries[i].key == text), None)
+            if found is None:
+                lost.append((key, text))
+                continue
+            entry, at = entries[found], found + 1
+            self._used.append((entry.when, entry.key, entry.reading))
+            given.append((key, text, entry.reading))
+        return given, lost
 
     # ---- text
     def _text(self, data: bytes) -> None:
