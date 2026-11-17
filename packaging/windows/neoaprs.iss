@@ -4,9 +4,10 @@
 ; is the program's own and is never touched by the installer or the uninstaller. Build, from the repository root, after packaging/windows/neoaprs.spec has made dist\NeoAPRS:
 ;     iscc /DAppVersion=0.1.0 /Qp packaging\windows\neoaprs.iss        (makes dist-installer\NeoAPRS-Setup-0.1.0.exe)
 ; Silent: NeoAPRS-Setup-VERSION.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART [/LOG=file] [/DIR=folder] [/TASKS=""]  (the last one: no start at sign-in, no desktop shortcut).
-; Installing over a NeoAPRS that is running: the code below ends the app and then the daemon cleanly (neoaprs-app.exe --quit, neoaprs.exe stop, each waiting until the process has gone) before Setup looks for files in use, so
-; that the user is not asked to close them and the daemon ends as it does at a stop, not terminated; Setup's own files-in-use check (CloseApplications) stays as the safety net for anything else that holds a file.
-; Update now (neoaprs/services/selfinstall.py) runs it silently with /NOCLOSEAPPLICATIONS (the same clean ending, and no check) and two values of its own:
+; Installing over a NeoAPRS that is running: the code below ends the app and then the daemon cleanly (neoaprs-app.exe --quit, neoaprs.exe stop, each waiting until the process has gone) before Setup replaces any file, so
+; that the user is not asked to close them and the daemon ends as it does at a stop, not terminated. Setup's own files-in-use check (Restart Manager) is off: it also names Windows' own services that read our files
+; for a moment (Cryptographic Services, Application Identity), which a per-user Setup cannot close, and a silent run with its message boxes suppressed then gave up (the upgrade proof from 0.20.2, 17 Nov 2026).
+; Update now (neoaprs/services/selfinstall.py) runs it silently with /NOCLOSEAPPLICATIONS too (the same clean ending, and no check) and two values of its own:
 ; /NEOAPRSDATA=folder (the data folder of the daemon that runs it) and /NEOAPRSRESTART=app or daemon (what was running, and is started again on that folder once the files are in place).
 #ifndef AppVersion
   #error Give the version: iscc /DAppVersion=0.1.0 packaging\windows\neoaprs.iss
@@ -37,6 +38,8 @@ WizardStyle=modern
 UninstallDisplayIcon={app}\neoaprs-app.exe
 UninstallDisplayName=NeoAPRS
 OutputDir=..\..\dist-installer
+; no files-in-use check of Setup's own (see above): the code section ends NeoAPRS, and nothing else is ours to close
+CloseApplications=no
 
 [Tasks]
 Name: "autostart"; Description: "Start NeoAPRS when I sign in"
@@ -126,7 +129,7 @@ begin
     Exec(ExpandConstant('{app}\neoaprs.exe'), Trim('stop ' + DataArgs('')), '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
-// An update over a NeoAPRS that is running: Setup calls this before it looks for files in use, so the app and the daemon are ended cleanly here and the user is not asked to close them. (The last page's
+// An update over a NeoAPRS that is running: Setup calls this before it replaces any file, so the app and the daemon are ended cleanly here and the user is not asked to close them. (The last page's
 // "Open NeoAPRS now" starts the app again; a silent update of Update now starts again what was running, by the [Run] entries above; any other silent update leaves it to the next sign-in.)
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin

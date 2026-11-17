@@ -1405,6 +1405,10 @@ def radio_scripts(script: ModuleType, old_version: str = "0.20.0") -> dict[str, 
     return {name: parts for name, parts, _ in script.upgrade_steps(paths, f"NeoAPRS-Setup-{old_version}.exe", old_version, "NeoAPRS-Setup-0.20.1.exe", "0.20.1")}
 
 
+TAKEN_AWAY = "; if the new release takes it away on purpose, name it in DROPPED beside same_settings in scripts/check-windows"
+NEW_DEFAULT = "; if the new release changes this default on purpose, name it in CHANGED beside same_settings in scripts/check-windows"
+
+
 def radio_data_problems(script: ModuleType, old: str, new: str, **changed: str) -> list[str]:
     """What the data check finds when `old` in what the new release says (or, by name, in a step's output) is `new`."""
     found: list[str] = script.check_radio_data(radio_outputs(data=RADIO_DATA_SAYS.replace(old, new), **changed))[0]
@@ -1569,7 +1573,7 @@ def test_the_radio_data_check_holds_the_keys_of_a_radio_and_the_name_that_was_ty
     assert radio_data_problems(script, "dummy-hf  on  (position 2)", "dummy-hf  removed 2026-11-16 10:35:21Z  (position 2)") == ["radio 2 had the state 'on' and has 'removed 2026-11-16 10:35:21Z' after the update"]
     assert radio_data_problems(script, "dummy  on  (position 1)", "dummy  on  (position 3)") == ["radio 1 had the position 1 and has 3 after the update"]
     radio_2 = NEW_RADIOS_SAYS[NEW_RADIOS_SAYS.index("radio 2"):]
-    assert radio_data_problems(script, radio_2, "") == ["db radios has lost radio 2, HF (hf, dummy-hf, on)", "radio/2/beacon was 'true' (stored) and is not listed after the update"]
+    assert radio_data_problems(script, radio_2, "") == ["db radios has lost radio 2, HF (hf, dummy-hf, on)", "radio/2/beacon was 'true' (stored) and is not listed after the update" + TAKEN_AWAY]
     assert radio_data_problems(script, radio_2, radio_2 + "radio 3  FM 2  fm  kiss  on  (position 3)\n") == [
         "db radios has a radio 3, FM 2 (fm, kiss, on), that the old release did not list", "doctor has no line `ok    radio FM 2 (kiss): ...` for radio 3"]
     assert radio_data_problems(script, "ok    radio Mercury (dummy-hf): traffic made up: nothing goes on the air\n", "") == ["doctor has no line `ok    radio Mercury (dummy-hf): ...` for radio 2"]
@@ -1588,16 +1592,32 @@ def test_what_the_update_to_no_main_radio_does_on_purpose_is_no_fault_of_the_set
     assert len(script.same_settings(was, {**now, "station/call": ("N0CALL", "stored")})) == 1
 
 
+def test_a_setting_that_differs_says_which_and_where_a_release_names_it_when_the_change_is_meant(script: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A release that changes a default on purpose says so in same_settings: the failure itself says where, so the rule needs no memory."""
+    was = {"web/port": ("7303", "default"), "radio/2/hold_s": ("3", "default"), "beacon/power_w": ("5", "stored"), "station/old": ("x", "default")}
+    now = {"web/port": ("7304", "default"), "radio/2/hold_s": ("4", "default"), "beacon/power_w": ("6", "stored")}
+    assert script.same_settings(was, now) == [
+        "web/port was '7303' (default) and is '7304' (default) after the update" + NEW_DEFAULT, "radio/2/hold_s was '3' (default) and is '4' (default) after the update" + NEW_DEFAULT,
+        "beacon/power_w was '5' (stored) and is '6' (stored) after the update", "station/old was 'x' (default) and is not listed after the update" + TAKEN_AWAY], "the value the operator stored is never the release's to change"
+    monkeypatch.setattr(script, "CHANGED", {"web/port": ("7303", "7304"), "radio/N/hold_s": ("3", "4")})
+    monkeypatch.setattr(script, "DROPPED", script.DROPPED | {"station/old"})
+    assert script.same_settings(was, now) == ["beacon/power_w was '5' (stored) and is '6' (stored) after the update"], "named, the change is no fault, for every radio by radio/N/"
+    assert script.same_settings(was, {**now, "radio/2/hold_s": ("4", "stored")}) == ["beacon/power_w was '5' (stored) and is '6' (stored) after the update"], "the new default the new release stores is named as well"
+    assert len(script.same_settings(was, {**now, "web/port": ("7305", "default")})) == 2, "a default other than the one named is still a fault"
+    assert len(script.same_settings(was, {**now, "web/port": ("7305", "stored")})) == 2, "stored or not"
+    assert len(script.same_settings({**was, "web/port": ("7303", "stored")}, now)) == 2, "and so is the operator's value, even where the default changed"
+
+
 def test_the_radio_data_check_refuses_a_changed_setting_a_lost_station_and_a_failed_doctor(script: ModuleType) -> None:
     assert radio_data_problems(script, "station/lat               60.1699", "station/lat               60.17  ") == ["station/lat was '60.1699' (stored) and is '60.17' (stored) after the update"]
     assert radio_data_problems(script, "beacon/power_w            5                   stored", "beacon/power_w            5                   default") == [
         "beacon/power_w was '5' (stored) and is '5' (default) after the update"], "a value that is the default by chance is not the operator's any more"
-    assert radio_data_problems(script, "web/port                  7303                default", "web/port                  7304                default") == ["web/port was '7303' (default) and is '7304' (default) after the update"]
+    assert radio_data_problems(script, "web/port                  7303                default", "web/port                  7304                default") == ["web/port was '7303' (default) and is '7304' (default) after the update" + NEW_DEFAULT]
     assert radio_data_problems(script, "web/port                  7303                default", "web/port                  7303                stored ") == [], "a default the new release stores as it was is the same setting"
-    assert radio_data_problems(script, "status/template           QRV {freq} {mode}   default\n", "") == ["status/template was 'QRV {freq} {mode}' (default) and is not listed after the update"]
+    assert radio_data_problems(script, "status/template           QRV {freq} {mode}   default\n", "") == ["status/template was 'QRV {freq} {mode}' (default) and is not listed after the update" + TAKEN_AWAY]
     assert radio_data_problems(script, "  radio/1/path      WIDE1-1             stored", "  radio/1/path      WIDE2-2             stored") == ["radio/1/path was 'WIDE1-1' (stored) and is 'WIDE2-2' (stored) after the update"]
     assert radio_data_problems(script, "  radio/2/beacon    true                stored", "  radio/2/beacon    true                default") == ["radio/2/beacon was 'true' (stored) and is 'true' (default) after the update"]
-    assert radio_data_problems(script, "  radio/1/digipeat  false               default\n", "") == ["radio/1/digipeat was 'false' (default) and is not listed after the update"]
+    assert radio_data_problems(script, "  radio/1/digipeat  false               default\n", "") == ["radio/1/digipeat was 'false' (default) and is not listed after the update" + TAKEN_AWAY]
     assert radio_data_problems(script, "  radio/1/status    false               default\n  radio/1/path", "  radio/1/status    true                stored\n  radio/1/path") == [], "a setting 0.20.0 did not list is the new release's own"
     assert radio_data_problems(script, "2026-11-16T10:35:51Z", "2026-11-16T11:00:00Z") == [], "when a beacon last went out is the daemon's row, not a setting"
     assert radio_data_problems(script, "Q1KUO      station  2026-11-16 10:35:47Z  62.8923 27.6770          2\n", "") == ["db stations has lost 1 of the stations the old release knew: Q1KUO"]

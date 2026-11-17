@@ -119,6 +119,12 @@ def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> Non
     assert "UninstallDelete" not in INSTALLER, "the data folder is not the installer's to delete"
 
 
+def test_the_installer_asks_restart_manager_about_no_program_so_a_silent_run_by_hand_ends_as_update_nows_does() -> None:
+    """Two of seven upgrade proofs from 0.20.2 gave up (17 Nov 2026): Setup's files-in-use check found Windows' own services holding our files and, its message boxes suppressed, aborted."""
+    setup = INSTALLER.split("[Setup]", 1)[1].split("[Tasks]", 1)[0]
+    assert "\nCloseApplications=no\n" in setup, "the code section ends NeoAPRS itself; nobody else's program is Setup's to close"
+
+
 def test_the_installer_starts_again_what_ran_after_the_silent_update_of_update_now() -> None:
     run = INSTALLER.split("[Run]", 1)[1].split("[UninstallRun]", 1)[0]
     assert 'Filename: "{app}\\neoaprs-app.exe"; Parameters: "{code:DataArgs}{code:EncryptionArg}"; Flags: nowait; Check: RestartWanted(\'app\')' in run
