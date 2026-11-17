@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import nodevices
-from .cardlevels import CardLevels
+from .cardlevels import CardLevels, wanted
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
@@ -87,7 +87,7 @@ class MercuryDriver:
         self._line.radio_id = spec.id
         self._line.modem = self._modem                 # (the line asks it why no frame is to go now; the Dummy HF radio's line plays its frames through it)
         self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()       # what `configure` gave last: `start` starts the modem with it
-        self._card = CardLevels(self._own_card, lambda: self._modem.starts, mixer)
+        self._card = CardLevels(self._own_card, lambda: self._modem.starts, mixer, own=self._has_card)
 
     @property
     def line(self) -> Tnc:
@@ -103,7 +103,11 @@ class MercuryDriver:
 
     def _own_card(self) -> str:
         """The card whose own levels are the radio's: the modem's while the radio holds it, but none for the Dummy radio (the computer's own sound) and a Mercury something else runs."""
-        return "" if self._spec.rtype.dummy or _attached(self._spec, self._run) else self._modem.held_card()
+        return self._modem.held_card() if self._has_card() else ""
+
+    def _has_card(self) -> bool:
+        """Whether the radio has a sound card of its own by its kind: not the Dummy radio, not a Mercury something else runs."""
+        return not (self._spec.rtype.dummy or _attached(self._spec, self._run))
 
     def configure(self, spec: RadioSpec, station: Config, run: RunOverrides) -> None:
         self._spec, self._station, self._run = spec, station, run
@@ -141,7 +145,7 @@ class MercuryDriver:
             log.exception("the Mercury modem could not be started")        # (the radio is started all the same: its line follows the modem's ports once they are chosen)
         self._point()
         await self._line.start()
-        await self._card.start(self._spec.value("tx_card"), self._spec.value("rx_card"))
+        await self._card.start(*wanted(self._spec))
 
     async def stop(self) -> None:
         await self._card.stop()

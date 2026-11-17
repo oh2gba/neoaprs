@@ -70,7 +70,12 @@ def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | 
         problem=radio_problem(spec, specs, line, claims), stats=TncStats.row(LineStats() if line is None else line.stats), lines=lines, limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
         allowed=plain(rtype.allowed), can=plain(rtype.can), choices=_choices(spec, rtype), beacon=_beacon(spec, None if radio is None or spec.removed else radio.beacon),
         status=_status(spec, status),
-        modem=None if line is None else modem_state(line), card={"tx": None if card is None else card.levels.tx, "rx": None if card is None else card.levels.rx}, holds=[{"resource": c.kind, "value": c.value} for c in claims.all() if c.holder == spec.id])
+        modem=None if line is None else modem_state(line), card=_card(card), holds=[{"resource": c.kind, "value": c.value} for c in claims.all() if c.holder == spec.id])
+
+
+def _card(card: CardLevels | None) -> dict[str, Any]:
+    """The row's sound card levels: none, and known, for a radio without a card of its own."""
+    return {"tx": None, "rx": None, "read": True} if card is None else {"tx": card.levels.tx, "rx": card.levels.rx, "read": card.known}
 
 
 def radio_state(line: Tnc | None) -> str:

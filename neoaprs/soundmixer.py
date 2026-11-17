@@ -8,10 +8,12 @@ a mute or the card's Auto Gain Control stays as the system has it. The percent i
 is run to find one. On Windows they are the master volume of the card's playing device and of its recording device (Core Audio, winmixer.py). Other systems have none.
 
 `Mixer` is the one small interface: the radio's part (cardlevels.py) is given the system's (`cardlevels.SystemMixer`, which under the no-devices switch reads and sets nothing and loads no library), a
-test its own. A control that cannot be read or set is said in the log at DEBUG and is no control: the operator can do nothing about it, and the radio works as it does without one."""
+test its own. A control that cannot be read or set is said in the log at DEBUG and is no control: the operator can do nothing about it, and the radio works as it does without one. A library that lacks one
+of the calls is no library."""
 import ctypes
 import logging
 import re
+import threading
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -86,6 +88,7 @@ class Alsa:
         self._load = load or load_alsa
         self._lib: Any = None
         self._loaded = False                                      # (the library is looked for once: a system without it is asked no more)
+        self._loading = threading.Lock()                          # (the event loop asks `present` while the mixer's thread may be looking for it)
 
     def read(self, card: str) -> Levels:
         return self._session(card, None, None)
@@ -93,11 +96,20 @@ class Alsa:
     def write(self, card: str, tx: int | None, rx: int | None) -> Levels:
         return self._session(card, tx, rx)
 
+    def present(self) -> bool:
+        """Whether the system has the library (looked for once)."""
+        return self._library() is not None
+
+    def _library(self) -> Any:
+        with self._loading:
+            if not self._loaded:
+                self._loaded = True
+                self._lib = self._load()
+            return self._lib
+
     def _session(self, card: str, tx: int | None, rx: int | None) -> Levels:
         name = alsa_control_name(card)
-        if name and not self._loaded:
-            self._lib, self._loaded = self._load(), True
-        lib = self._lib if name else None
+        lib = self._library() if name else None
         if lib is None:
             return NONE
         try:
@@ -178,9 +190,13 @@ def load_alsa() -> Any:
     for way in ("playback", "capture"):
         signatures |= {f"snd_mixer_selem_has_{way}_volume": (ctypes.c_int, [elem]), f"snd_mixer_selem_get_{way}_volume_range": (ctypes.c_int, [elem, long_p, long_p]),
                        f"snd_mixer_selem_get_{way}_volume": (ctypes.c_int, [elem, ctypes.c_int, long_p]), f"snd_mixer_selem_set_{way}_volume_all": (ctypes.c_int, [elem, ctypes.c_long])}
-    for call, (restype, argtypes) in signatures.items():
-        function = getattr(lib, call)
-        function.restype, function.argtypes = restype, argtypes
+    try:
+        for call, (restype, argtypes) in signatures.items():
+            function = getattr(lib, call)
+            function.restype, function.argtypes = restype, argtypes
+    except AttributeError as e:
+        log.info("the ALSA library lacks a call NeoAPRS makes (%s): the sound cards have no levels of their own here", e)
+        return None
     _quiet(lib)
     return lib
 

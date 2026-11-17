@@ -144,8 +144,8 @@ A LoRa APRS board is an ESP32 board with a LoRa chip (a LilyGO LoRa32 or T-Beam,
 For an FM radio on a sound-card interface (Digirig, AIOC, SignaLink, a USB dongle, a radio's USB audio): NeoAPRS carries Direwolf and runs it for you, on Windows and Linux. There is nothing to install.
 
 1. Settings → Radio → Add radio: *Sound card*, then Add.
-2. In its box: the Sound card (the interface's card is proposed), the Keying (RTS of a Digirig's serial port, the CM108 pin of an AIOC, or VOX; proposed from what is plugged in) and the Transmit level.
-3. Tune sends alternating tones for ten seconds, to set the deviation; Test keys the radio for a second. The receive level shows the level of the last packet heard, around 50 for most stations.
+2. In its box: the Sound card (the interface's card is proposed), the Keying (RTS of a Digirig's serial port, the CM108 pin of an AIOC, or VOX; proposed from what is plugged in), the Transmit level and the Receive level. Where the sound card has levels of its own, the Transmit level is a slider for its playback level and the Receive level has a slider for its capture level; NeoAPRS puts what you set back on the card at every start.
+3. Tune sends alternating tones for ten seconds, to set the deviation; Test keys the radio for a second. The Receive level shows the audio as it arrives, ten times a second while you look at it: a packet should reach the green.
 
 - One sound card is one radio's: a card that another radio uses, a Mercury radio or another Sound card radio, is refused.
 - **Never choose the Digirig's serial port as a serial TNC.** Opening it keys the transmitter through RTS. Its keying is the Sound card radio's.

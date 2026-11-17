@@ -44,15 +44,15 @@ The command (`direwolf.command`): `direwolf -c <conf> -t 0 -q d -a 2 -R 100 -d o
 | the level of a packet heard | 0 to 200 | Direwolf's own scale: "cranking the input level way up produces 199" (`direwolf.c:1329`) |
 | too low, too high | under 5, over 110 | Direwolf's own warnings (`direwolf.c:1336-1349`) |
 | the good band | 30 to 70 | round Direwolf's "most stations are around 50"; a choice, not a measurement, as Mercury's good range is |
-| the transmit level | -20 to 0 dB | Direwolf's amplitude as a percentage, 100·10^(dB/20) (`-G`, txlevel.patch; the constant was 100, `direwolf.c:183`); offered only where the card has no playback level of its own |
+| the transmit level | -20 to 0 dB | Direwolf's amplitude as a percentage, 100·10^(dB/20) (`-G`, txlevel.patch; the constant was 100, `direwolf.c:183`); offered where the card has no playback level of its own, and on a radio whose level stood off 0 dB when its row came into sight or was moved off 0 dB while in sight |
 | a new transmit level | 1 s after the last change | each press of - and + is a change of the setting: the program is started again once the presses have ended (`direwolftune.SETTLE_SEC`), not once for each |
 | the sound card's own levels | 0 to 100 %, read every 2 s | the card's ALSA simple mixer controls (playback: the first of Master, Speaker, PCM, Headphone; capture: Capture, then Mic), the raw value within the control's range as `amixer` prints it; on Windows the master volume of the card's playing and recording device (Core Audio); `neoaprs/soundmixer.py`, `neoaprs/winmixer.py`, `neoaprs/cardlevels.py` |
 | Tune | 10 s | the alternating mark and space tones (`-x a`), long enough to read the deviation off a meter |
 | the keying test | 1 s | the PTT alone (`-x p`); the mark tone (`-x m`) on VOX, which silence does not key |
 | the stop | 3 s, then SIGINT, 3 s, then the kill | its cleanup sleeps one second (`direwolf.c:1695-1699`) |
 
-**The sound card's own levels.** Where the card has a playback control the Transmit level row drives the card (`radio/<id>/tx_card`) and Direwolf runs at the level it has (0 dB, its most, unless the
-operator set another before); where it has a capture control the Receive level row has its slider (`rx_card`). A change is set on the card at once and restarts nothing: Direwolf keeps the card open. The
+**The sound card's own levels.** Where the card has a playback control and the radio's own transmit level stands at 0 dB, the Transmit level row drives the card (`radio/<id>/tx_card`) and Direwolf runs at
+0 dB, its most; a radio whose level was set off 0 dB keeps its - and + until it is back at 0 dB and the row is out of sight and seen again (its fold or tab closed and opened), and until the radio's modem has run once in this run of the daemon (its card read, or a modem on the system's default device, which has no card of its own name) the row shows neither. Where it has a capture control the Receive level row has its slider (`rx_card`). A change is set on the card at once and restarts nothing: Direwolf keeps the card open. The
 values are put back at every start of the program (a start, a start again after it died, a card plugged in again: the desktop's sound system and a replug move the same controls); a value never set is
 never written. Only volumes are set: a switch (the C-Media chip's Auto Gain Control, a mute) is never touched. The ALSA library is opened by ctypes (`libasound.so.2`): a system without it has no sliders,
 and no program is run to find it. Not on macOS. Under the no-devices switch nothing is read or set.
@@ -83,6 +83,7 @@ up when the radio was stopped or started again while it waited: no calibration r
 - **The keying the daemon chooses** when the setting leaves it (`direwolf.choose_keying`): an AIOC's CM108 pin whatever other cable is plugged in; else RTS of the one USB serial port that is part of the card's
   interface (on Linux the port on the card's own USB device or hub, `neoaprs/usbtie.py`; elsewhere the computer's one such port, when the card names itself as an interface's or a radio's); else VOX. A port that is not
   the card's (a programming cable, another radio's interface) is never keyed.
+- **A start that is refused** (no Direwolf in this installation, the sound card held by another radio): the radio's line has no port until its Direwolf has chosen its KISS port for this start (`port_chosen`), so it connects to nothing, never to 8002 where another radio's Direwolf may listen, and the radio says the modem's problem. A start tried again points the line at the port it chose (`ports_changed`).
 - **Under the no-devices switch** no Direwolf is started, no card is listed, and the radio's line has no port.
 
 ## The build

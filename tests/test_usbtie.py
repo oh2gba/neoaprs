@@ -180,3 +180,31 @@ def test_a_by_id_link_to_a_port_is_in_the_group_of_the_port_it_names(station: Pa
     link.symlink_to(dev / "ttyUSB4")
     cards, ports = usbtie.groups(CARDS, [str(link), "/dev/ttyUSB3"], station)
     assert ports[str(link)] is not None and ports[str(link)] == ports["/dev/ttyUSB3"] == cards["plughw:CARD=CODEC,DEV=0"], "the link and the port are one device of one radio"
+
+
+@posix_only
+def test_a_dongle_and_a_cable_on_a_hub_shared_with_a_keyboard_keep_the_cable_as_their_keying(station: Path) -> None:
+    """The busy hub's dongle and cable are no radio's group (the Keying list does not put them together), but the keying the daemon chooses is the cable, as where the card's group has none it always was."""
+    cards, ports = usbtie.groups(CARDS, STATION, station)
+    assert _together(cards, ports, "plughw:4,0") == []
+    assert usbtie.tied("plughw:4,0", STATION, station) == ["/dev/ttyUSB6"]
+    cable = [SerialPort("/dev/ttyUSB6", 0x0403, 0x6001)]
+    assert choose_keying("USB PnP Sound Device", cable, usbtie.tied("plughw:4,0", ["/dev/ttyUSB6"], station)) == Keying("rts", "/dev/ttyUSB6")
+
+
+@posix_only
+def test_a_card_with_a_port_of_its_own_on_a_busy_hub_is_keyed_as_it_always_was(station: Path) -> None:
+    """A chip that is both a sound card and a serial port, on the hub with the keyboard and the cable: its own port and the cable are both the card's, as they always were, so two ports are VOX."""
+    _card(station, 5, "Combo", "1-5/1-5.4/1-5.4:1.0")
+    _tty(station, "ttyACM1", "1-5/1-5.4/1-5.4:1.2", usb_serial=False)
+    assert usbtie.tied("plughw:CARD=Combo,DEV=0", ["/dev/ttyUSB6", "/dev/ttyACM1"], station) == ["/dev/ttyUSB6", "/dev/ttyACM1"]
+    ports = [SerialPort("/dev/ttyUSB6", 0x0403, 0x6001), SerialPort("/dev/ttyACM1", 0x10C4, 0xEA60)]
+    assert choose_keying("USB Audio Device", ports, usbtie.tied("plughw:CARD=Combo,DEV=0", ["/dev/ttyUSB6", "/dev/ttyACM1"], station)) == Keying("vox")
+
+
+@posix_only
+def test_the_keying_is_chosen_among_the_cards_own_hub_and_never_another_hubs(station: Path) -> None:
+    assert usbtie.tied("plughw:CARD=CODEC,DEV=0", STATION, station) == ["/dev/ttyUSB3", "/dev/ttyUSB4"], "the other radio's CP2105, none of the FTX-1's"
+    assert usbtie.tied("plughw:CARD=Dongle,DEV=0", STATION, station) == ["/dev/ttyUSB5"]
+    assert usbtie.tied("plughw:CARD=PCH,DEV=0", STATION, station) is None, "the mainboard's sound is not on the USB: nothing can be told"
+    assert usbtie.tied("plughw:CARD=CODEC,DEV=0", ["/dev/ttyUSB0", "/dev/ttyUSB6"], station) == [], "no port of its group is free: none of another hub's is taken instead"

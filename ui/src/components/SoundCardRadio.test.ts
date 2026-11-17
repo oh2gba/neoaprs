@@ -104,21 +104,25 @@ describe("a Sound card radio's box", () => {
 
   it("asks for the level ten times a second while its row is in view and follows it, the row's level until it comes, and stops asking when the row goes out of view", async () => {
     const original = globalThis.IntersectionObserver;
-    let seen: ((entries: { isIntersecting: boolean }[]) => void) | null = null;
+    const observers: { target: Element | null; run: (entries: { isIntersecting: boolean }[]) => void }[] = [];
     globalThis.IntersectionObserver = class {
       constructor(run: (entries: { isIntersecting: boolean }[]) => void) {
-        seen = run;
+        observers.push({ target: null, run });
       }
-      observe(): void {}
+      observe(target: Element): void {
+        const made = observers[observers.length - 1];
+        if (made) made.target = target;
+      }
       disconnect(): void {}
     } as unknown as typeof IntersectionObserver;
     const { daemon, wrapper, box } = make();
     globalThis.IntersectionObserver = original;
+    const seen = (entries: { isIntersecting: boolean }[]) => observers.filter((o) => o.target?.querySelector(".levelbar")).forEach((o) => o.run(entries)); // (the Receive level row, not the Transmit level row)
     mounted = wrapper;
     await flushPromises();
     const levelAsks = () => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === "radio_level");
     expect(levelAsks()).toEqual([]);
-    seen!([{ isIntersecting: true }]);
+    seen([{ isIntersecting: true }]);
     expect(levelAsks()).toEqual([{ cmd: "radio_level", radio: 3, on: true }]);
     await tell(daemon, { radios: radios({ rx_level: 30 }) });
     await flushPromises();
@@ -132,7 +136,7 @@ describe("a Sound card radio's box", () => {
     await tell(daemon, { radioLevels: new Map([[3, null]]) });
     await flushPromises();
     expect(box().find(".levelvalue").text()).toBe("31");
-    seen!([{ isIntersecting: false }]);
+    seen([{ isIntersecting: false }]);
     expect(levelAsks()).toEqual([
       { cmd: "radio_level", radio: 3, on: true },
       { cmd: "radio_level", radio: 3, on: false },

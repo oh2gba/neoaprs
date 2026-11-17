@@ -138,6 +138,8 @@ export interface CardLevelsRow {
   tx: number | null;
   /** the card's capture level in percent, what it takes from the radio (ALSA's Capture or Mic control; the recording device's master volume on Windows); null as `tx` */
   rx: number | null;
+  /** the levels are the card's: its card was read in this run of the daemon, or there is nothing to wait for (this system has no mixer, the radio has no sound card of its own); false while an enabled radio's card was not read yet, and for a radio that is off and was never read in this run. While false the page draws neither the slider nor the modem's - and +, so that the row has one shape from its first paint */
+  read: boolean;
 }
 
 /** Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked. */
@@ -1341,7 +1343,7 @@ export interface RadioRow {
   status: RadioStatusState;
   /** its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio */
   modem: ModemState | null;
-  /** its sound card's own levels, read every two seconds while it runs and kept as read last while it is stopped or its card cannot be read; both null for a radio without a sound card of its own and before its card was read */
+  /** its sound card's own levels, read every two seconds while it runs and kept as read last while it is stopped or its card cannot be read; both null for a radio without a sound card of its own and before its card was read (`read` says which) */
   card: CardLevelsRow;
   /** the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none */
   holds: RadioHold[];

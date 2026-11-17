@@ -7,8 +7,9 @@ with a sound card; else it is a group alone. So the two radios of one computer, 
 another hub or a second sound card is no radio's, and each device on it stands alone; two devices straight on the computer are never grouped. A lone serial cable and a lone sound dongle on a small desktop hub
 with nothing else on it look like a radio's hub, and are grouped: nothing in the tree tells them apart, and the cable is then the likely keying anyway.
 
-Read for the keying Direwolf is given when the settings leave it to the daemon (direwolf.choose_keying), and for `usb_group` of the ports and the sound cards on the wire (`together`): an opaque token, equal
-for the devices of one group, which the page orders the keying lines by. The token is never shown and never logged."""
+Read for `usb_group` of the ports and the sound cards on the wire (`together`): an opaque token, equal for the devices of one group, which the page orders the keying lines by. The token is never shown and
+never logged. The keying Direwolf is given when the settings leave it to the daemon (direwolf.choose_keying) is chosen among the ports on the card's own USB device or beside it on its hub, whatever else
+that hub carries (`tied`): a sound dongle and a serial cable on a hub they share with a keyboard keep the keying line they always had."""
 import hashlib
 import os
 import re
@@ -96,12 +97,25 @@ class _Tree:
 
 
 def tied(card_id: str, devices: Sequence[str], sys_root: Path = SYS) -> list[str] | None:
-    """The serial devices of `devices` (`/dev/ttyUSB0`, a by-id link to one) that are in the sound card's group (`_Tree.group`): part of the card's interface or of the radio it is in.
-    None when that cannot be told: the card is not found on the USB. Reads sysfs: for a thread."""
-    tree = _Tree(sys_root)
-    if (card := tree.card(card_id)) is None:
+    """The serial devices of `devices` (`/dev/ttyUSB0`, a by-id link to one) that are part of the sound card's interface: on the card's own USB device, or beside it on a hub that is not the computer's own,
+    whatever else that hub carries. None when that cannot be told: the card is not found on the USB. The keying chosen from them is the one a station always had; the stricter group orders the Keying list
+    alone. Reads sysfs: for a thread."""
+    number = _card_number(card_id, sys_root)
+    card = None if number is None else _usb_place((sys_root / "class" / "sound" / f"card{number}" / "device").resolve())
+    if card is None:
         return None
-    return [d for d in devices if not d.lower().startswith(("bt://", "ble://")) and tree.port(d) == card]
+    found: list[str] = []
+    for device in devices:
+        if device.lower().startswith(("bt://", "ble://")):
+            continue
+        try:
+            name = Path(device).resolve().name                         # (a by-id link is followed to its ttyUSB0)
+        except OSError:
+            continue
+        place = _usb_place((sys_root / "class" / "tty" / name / "device").resolve()) if name else None
+        if place is not None and (place[0] == card[0] or (card[1] and place[1] == card[1])):
+            found.append(device)
+    return found
 
 
 def _token(group: str | None) -> str | None:

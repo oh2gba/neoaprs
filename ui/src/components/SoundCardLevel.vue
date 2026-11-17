@@ -3,8 +3,9 @@
 // (composables/useWhenShown.ts `useInView`) the page asks for the level ten times a second (`radio_level`, counted with the other panes in composables/useRadioAsks.ts) and the bar follows it; else, and until the
 // first one comes, the bar is the modem's `rx_level` of the radio's row, every two seconds and at each packet.
 // The row is there while Direwolf does not run, with its room kept, so that nothing moves when the level comes; the bar is dimmed while the radio transmits (or is tuned), when the level is the last one heard. Its (i) is
-// the receive level's of the HF box: the same words hold for both. Where the radio's sound card has a capture level of its own (the row's `card.rx`) its slider stands before the bar (components/CardSlider.vue, the
-// radio's `rx_card`): the slider sets what the card takes from the radio, the bar shows what comes out.
+// the receive level's of the HF box: the same words hold for both. Where the radio's sound card has a capture level of its own (the row's `card.rx`, once its levels are known: `card.read`) its slider stands
+// before the bar (components/CardSlider.vue, the radio's `rx_card`): the slider sets what the card takes from the radio, the bar shows what comes out. The slider's room is there whatever the card has, so
+// that the bar never changes its width or place when the slider comes.
 import { computed, ref, useId } from "vue";
 import CardSlider from "@/components/CardSlider.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -32,14 +33,13 @@ const level = computed(
 );
 const zone = computed(() => (level.value === null ? "low" : levelZone(level.value)));
 const fill = computed(() => (level.value === null ? 0 : levelPercent(level.value)));
-const card = computed(() => props.radio.row.card.rx);
+const card = computed(() => (props.radio.row.card.read ? props.radio.row.card.rx : null));
 const held = computed(() => modem.value !== null && (modem.value.keyed || modem.value.test !== ""));
 </script>
 
 <template>
   <LevelBar :id="id" ref="bar" :label="t('settings.scope.level')" :percent="fill" :zone="zone" :good="GOOD_PERCENT" :held="held" :value="levelText(level)"
-    ><template v-if="card !== null" #control
-      ><CardSlider :label="t('settings.cardlevel.rx_label')" :setting-key="`radio/${radio.id}/rx_card`" :level="card" :form="form" /></template
+    ><template #control><CardSlider :label="t('settings.cardlevel.rx_label')" :setting-key="`radio/${radio.id}/rx_card`" :level="card" :form="form" /></template
     ><InfoTip :label="t('settings.scope.tip_label')"
       ><span class="info-line">{{ t("settings.scope.tip1") }}</span
       ><span class="info-line">{{ t("settings.scope.tip2") }}</span></InfoTip

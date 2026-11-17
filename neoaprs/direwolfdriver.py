@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import nodevices
-from .cardlevels import CardLevels
+from .cardlevels import CardLevels, wanted
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
@@ -98,7 +98,7 @@ class DirewolfDriver:
             log.exception("Direwolf could not be started")
         self._point()
         await self._line.start()
-        await self._card.start(spec.value("tx_card"), spec.value("rx_card"))
+        await self._card.start(*wanted(spec))
 
     async def stop(self) -> None:
         await self._card.stop()

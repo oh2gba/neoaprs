@@ -71,6 +71,7 @@ class CardLevelsRow(_Model):
     """The radio's sound card's own levels (the radio's `tx_card` and `rx_card` set them): a slider is drawn only where the card has the control, at the card's level."""
     tx: int | None = Field(ge=0, le=100, description="the card's playback level in percent, what the radio is given to transmit (ALSA's Speaker, PCM or Master control; the playing device's master volume on Windows); null where the card has no such control, the radio has no sound card or its card was never read")
     rx: int | None = Field(ge=0, le=100, description="the card's capture level in percent, what it takes from the radio (ALSA's Capture or Mic control; the recording device's master volume on Windows); null as `tx`")
+    read: bool = Field(description="the levels are the card's: its card was read in this run of the daemon, or there is nothing to wait for (this system has no mixer, the radio has no sound card of its own); false while an enabled radio's card was not read yet, and for a radio that is off and was never read in this run. While false the page draws neither the slider nor the modem's - and +, so that the row has one shape from its first paint")
 
 
 # ---- the topic `radios`
@@ -171,5 +172,5 @@ class RadioRow(_Model):
     beacon: RadioBeaconState
     status: RadioStatusState
     modem: ModemState | None = Field(description="its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio")
-    card: CardLevelsRow = Field(description="its sound card's own levels, read every two seconds while it runs and kept as read last while it is stopped or its card cannot be read; both null for a radio without a sound card of its own and before its card was read")
+    card: CardLevelsRow = Field(description="its sound card's own levels, read every two seconds while it runs and kept as read last while it is stopped or its card cannot be read; both null for a radio without a sound card of its own and before its card was read (`read` says which)")
     holds: list[RadioHold] = Field(description="the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none")

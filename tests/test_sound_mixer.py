@@ -3,12 +3,13 @@ Speaker, Mic and its Auto Gain Control switch, a TI codec with PCM alone, a card
 card's two devices through a stand-in for Core Audio; and under the no-devices switch nothing is read or set and no library is loaded. No real card of this machine is touched: none may be."""
 import ctypes
 import sys
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
 
-from neoaprs import soundmixer
+from neoaprs import nodevices, soundmixer
 from neoaprs.cardlevels import SystemMixer
 from neoaprs.soundmixer import NONE, Alsa, Control, Levels, alsa_control_name, percent, pick, raw_of
 from neoaprs.winmixer import Windows
@@ -211,3 +212,42 @@ def test_without_the_switch_the_system_mixer_is_alsa_on_linux_and_none_where_nei
     assert SystemMixer().read("plughw:CARD=Device,DEV=0") == Levels(38, 50)
     monkeypatch.setattr(sys, "platform", "darwin")
     assert SystemMixer().read("plughw:CARD=Device,DEV=0") == NONE, "macOS: no levels of the card's own"
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the ALSA library is Linux's")
+def test_a_library_that_lacks_a_call_is_no_library_and_the_system_has_no_mixer(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Old:
+        """An ALSA library as ctypes has it, without the call that sets a capture volume."""
+        def __getattr__(self, name: str) -> Any:
+            if name == "snd_mixer_selem_set_capture_volume_all":
+                raise AttributeError(f"undefined symbol: {name}")
+            return type("Function", (), {})()
+    monkeypatch.setattr(ctypes, "CDLL", lambda name: Old())
+    assert LOAD_ALSA() is None
+    monkeypatch.setattr(soundmixer, "load_alsa", LOAD_ALSA)
+    monkeypatch.setattr(nodevices, "on", lambda: False)
+    monkeypatch.setattr(sys, "platform", "linux")
+    mixer = SystemMixer()
+    assert mixer.read("plughw:CARD=Device,DEV=0") == NONE and not mixer.present()
+
+
+def test_a_look_for_the_library_while_the_mixers_thread_is_loading_it_waits_for_its_answer() -> None:
+    """The event loop asks `present` while the first read on the mixer's thread is still loading the library: it gets the library, not the empty answer of a look that is not finished."""
+    entered, go = threading.Event(), threading.Event()
+
+    def load() -> object:
+        entered.set()
+        go.wait(5)
+        return object()
+
+    alsa, said = Alsa(load), list[bool]()
+    first = threading.Thread(target=alsa.present)
+    first.start()
+    assert entered.wait(5)
+    second = threading.Thread(target=lambda: said.append(alsa.present()))
+    second.start()
+    second.join(0.2)
+    go.set()
+    first.join(5)
+    second.join(5)
+    assert said == [True]

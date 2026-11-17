@@ -12,6 +12,7 @@ from dataclasses import replace
 from datetime import timedelta
 
 from .app import Radio, Services
+from .cardlevels import wanted
 from .config import LAST_PORT, MESSAGE_RADIOS
 from .mercury import DIAL_BAND, SUGGESTED
 from .mercurymodem import Mercury
@@ -117,7 +118,7 @@ def _tx_gains(parts: Services) -> None:
         if (modem := radio.driver.modem) is not None:
             modem.set_tx_gain(radio.spec.value("tx_gain_db"))
         if (card := radio.driver.card) is not None:
-            card.want(radio.spec.value("tx_card"), radio.spec.value("rx_card"))
+            card.want(*wanted(radio.spec))
 
 
 def _show_frequencies(parts: Services) -> None:

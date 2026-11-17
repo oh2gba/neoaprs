@@ -1957,6 +1957,7 @@
     "tx_gain": false
    },
    "card": {
+    "read": true,
     "rx": null,
     "tx": null
    },
@@ -2050,6 +2051,7 @@
     "tx_gain": false
    },
    "card": {
+    "read": true,
     "rx": null,
     "tx": null
    },
@@ -2136,6 +2138,7 @@
     "tx_gain": false
    },
    "card": {
+    "read": true,
     "rx": null,
     "tx": null
    },
@@ -2219,6 +2222,7 @@
     "tx_gain": false
    },
    "card": {
+    "read": true,
     "rx": null,
     "tx": null
    },
