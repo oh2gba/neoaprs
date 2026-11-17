@@ -2,6 +2,7 @@
 (a guard that fails at teardown is an ERROR line of that child), and the pure parts are tried directly."""
 import asyncio
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -584,6 +585,8 @@ def test_the_real_direwolf_without_a_readable_configuration_or_through_another_p
     bad = tmp_path / "bad.conf"
     bad.write_text("ADEVICE plughw:1,0\n")
     (tools / "direwolf" / "direwolf").chmod(0o755)
+    if sys.platform == "win32":
+        shutil.copy(tools / "direwolf" / "direwolf", tools / "direwolf" / "direwolf.exe")       # (Windows finds a bare name on the PATH by its extension)
     assert "audio device" in direwolfs.direwolf_refusal(["direwolf", "-c", str(bad)], env={"PATH": str(tools / "direwolf")}), "found on the PATH it runs with"
     assert "audio device" in direwolfs.direwolf_refusal(["x", "-c", str(bad)], executable=program), "given as the executable"
     assert "audio device" in direwolfs.direwolf_refusal([program, "-c", str(good), "-c", str(bad)]) and direwolfs.direwolf_refusal([program, "-c", str(bad), "-c", str(good)]) == "", "Direwolf reads the last -c"

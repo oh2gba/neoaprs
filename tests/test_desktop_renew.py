@@ -63,11 +63,11 @@ def test_a_file_that_changes_between_looks_is_not_started(tmp_path: Path) -> Non
 
 
 def test_the_app_starts_again_from_the_same_file_on_the_same_folder_as_the_owner_of_its_daemon_with_its_flags() -> None:
-    assert renew.argv("/home/ham/NeoAPRS.AppImage", Path("/home/ham/.local/share/neoaprs"), False, False) == [
-        "/home/ham/NeoAPRS.AppImage", "app", "--data", "/home/ham/.local/share/neoaprs", "--owns-daemon"]
-    assert renew.argv("/a/N.AppImage", Path("/d"), True, True) == ["/a/N.AppImage", "app", "--data", "/d", "--owns-daemon", "--encryption", "--debug"]
+    data, folder = Path("/home/ham/.local/share/neoaprs"), str(Path("/d"))          # (as this system writes a path: the app is an AppImage's, the test runs everywhere)
+    assert renew.argv("/home/ham/NeoAPRS.AppImage", data, False, False) == ["/home/ham/NeoAPRS.AppImage", "app", "--data", str(data), "--owns-daemon"]
+    assert renew.argv("/a/N.AppImage", Path("/d"), True, True) == ["/a/N.AppImage", "app", "--data", folder, "--owns-daemon", "--encryption", "--debug"]
     args = cmd.parser().parse_args(renew.argv("/a/N.AppImage", Path("/d"), True, True)[2:])
-    assert (args.data, args.owns_daemon, args.encryption, args.debug, args.tray) == ("/d", True, True, True, False), "the window comes back shown, as after the installer of Windows"
+    assert (args.data, args.owns_daemon, args.encryption, args.debug, args.tray) == (folder, True, True, True, False), "the window comes back shown, as after the installer of Windows"
     assert "--owns-daemon" not in cmd.parser().format_help(), "the flag is the app's own, not the operator's"
     assert splash.window_now(["--owns-daemon"]) is not None
 

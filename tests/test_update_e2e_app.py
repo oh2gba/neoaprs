@@ -26,6 +26,9 @@ def update_e2e() -> types.ModuleType:
     return e2e
 
 
+posix_paths = pytest.mark.skipif(sys.platform == "win32", reason="the app's proof is of an AppImage: its readers take Linux's /proc and the paths as Linux writes them")
+
+
 def test_the_test_names_the_apps_files_flags_and_log_lines_as_the_program_has_them(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     from neoaprs import instancelock, selfreplace
     from neoaprs.cli import logfile
@@ -94,6 +97,7 @@ def fake_process(proc: Path, pid: int, parent: int, cmdline: list[str], state: s
         (folder / "exe").symlink_to(exe)
 
 
+@posix_paths
 def test_the_app_and_the_daemon_of_a_data_folder_are_found_by_their_command_lines(tmp_path: Path) -> None:
     e2e = update_e2e()
     proc, data, other = tmp_path / "proc", tmp_path / "data folder", tmp_path / "other"
@@ -128,6 +132,7 @@ def test_the_version_a_program_runs_is_read_from_its_folder(tmp_path: Path) -> N
     assert (ROOT / "scripts" / "build-appimage").read_text(encoding="utf-8").count("usr/lib/python3.*/site-packages/neoaprs/__init__.py") == 1, "where --retag changes the VERSION"
 
 
+@posix_paths
 def test_the_sockets_locks_and_mounts_are_read_from_proc(tmp_path: Path) -> None:
     e2e = update_e2e()
     proc = tmp_path / "proc"
@@ -184,6 +189,7 @@ def test_the_readers_read_this_kernels_own_proc(tmp_path: Path) -> None:
     assert e2e.processes_from(tmp_path, tmp_path / "NeoAPRS-0.20.2-x86_64.AppImage") == [], "this test runs nothing from its folder"
 
 
+@posix_paths
 def test_what_the_test_left_running_is_every_process_from_its_folder_or_of_its_file(tmp_path: Path) -> None:
     e2e = update_e2e()
     proc, work = tmp_path / "proc", tmp_path / "work"
