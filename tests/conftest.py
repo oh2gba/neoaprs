@@ -62,7 +62,7 @@ from tests.support.clock import FixedClock  # noqa: E402, F401
 from tests.support.files import FIXTURES, fixture_bytes, fixture_text  # noqa: E402, F401
 from tests.support.fixtures import clock, no_shipped_world, protocol_violations, search_pattern_from_settings, tmp_data, ui_port_near_the_pair  # noqa: E402, F401
 from tests.support import guards, markers  # noqa: E402
-from tests.support.guards import isolated_machine, logging_restored, no_leaked_db_threads, no_leaked_tasks, no_unexpected_errors  # noqa: E402, F401
+from tests.support.guards import doors_of_the_module, doors_of_the_session, isolated_machine, logging_restored, no_leaked_db_threads, no_leaked_tasks, no_unexpected_errors  # noqa: E402, F401
 from tests.support.ptyline import ptys  # noqa: E402, F401
 from tests.support.timelimit import a_test_has_a_time_limit  # noqa: E402, F401
 from tests.support import winloop  # noqa: E402

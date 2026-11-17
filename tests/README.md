@@ -529,6 +529,10 @@ in an installation without them, and a test that starts anything inside the real
 folder (not Mercury's), and the guard reads the configuration that Direwolf is started on (`-c`): it must name its audio as `null`, `stdin` or `udp:PORT` and have no PTT line or other line that keys or
 opens a device (`conf_refusal`); `dev/gen_packets` and `dev/atest` take none.
 
+The same doors are shut where a test's own guards are not yet there. On Windows a COM port is opened by pyserial's `win32.CreateFile`, which refuses a port's name (`install_com`). The starts that do not go through `subprocess.Popen`
+(`os.exec*`, `os.spawn*`, `os.posix_spawn*`, `os.system`, `os.startfile`: `OS_STARTS`) are checked as a Popen of the same program is (`install_os`). And the fixtures of a module or of the session run under `Doors`, installed once
+for the session (`doors_of_the_session`; it stands aside while a test runs, the test's own guards then stand in front): what a fixture reached for fails the module at its last test (`doors_of_the_module`).
+
 A fifth thing that is not a guard but behaves like one: the logging (levels, handlers, switches) is put back as it was when the test ends.
 
 ## The no-devices switch

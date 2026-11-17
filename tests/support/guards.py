@@ -9,6 +9,7 @@
   machine and key what hangs on them. The tests use the made-up programs (tests/support/fakemercury.py, fakedirewolf.py); only the tests of the real Direwolf keep theirs (the marker `real_direwolf`), on a
   configuration that names no sound card and keys nothing;
 * no Bluetooth: a test that makes a real Bluetooth socket (AF_BLUETOOTH: an RFCOMM or L2CAP connection to a device, which a radio nearby would answer) fails; the tests use a socket pair (tests/support/fakebluetooth.py), and the list of the devices paired with the machine (BlueZ) is not read; the same for a Bluetooth LE scan or connection through bleak, which is replaced by a stand-in that refuses (a test of the BLE port gives its own, tests/support/fakeble.py);
+* the same doors for what runs before the test's own guards: the fixtures of a module and of the session are set up under `Doors` (the network, the serial ports, Bluetooth and the starts of programs), which stands aside while a test runs and fails the module whose fixture reached for one;
 * no leak: a test that ends with an asyncio task still running fails (the daemons of `Env` are stopped for it first, see env.stop_all), and so does one that ends with the thread of
   a Db (neoaprs/db.py) still running (`await db.close()`); stopping them may take TEARDOWN_LIMIT_SEC, after which the test fails by its name instead of hanging its worker;
 * no swallowed error: a test that makes the code log an ERROR it did not say it expects fails (`@pytest.mark.expects_errors`, or a test that reads the log
@@ -21,6 +22,7 @@ Each guard is a small function here, so that tests/test_guards.py can show that 
 import asyncio
 import errno
 import fnmatch
+import importlib
 import inspect
 import ipaddress
 import logging
@@ -36,7 +38,7 @@ import tempfile
 import types
 import threading
 import time
-from collections.abc import AsyncIterator, Callable, Iterator, Sequence
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -240,6 +242,35 @@ class SerialGuard:
 
         patch(os, "open", guarded_open)
 
+    def install_com(self, patch: Callable[[Any, str, Any], None], win32: Any = None) -> None:
+        """Windows has no device file to open: pyserial opens a COM port with its own `win32.CreateFile`, which is refused for a port's name, and remembered. `win32`: the module that holds it (a test of the guard gives a stand-in)."""
+        win32 = win32 if win32 is not None else _windows_serial()
+        if win32 is None:
+            return
+        original = win32.CreateFile
+
+        def guarded_create_file(name: Any, *args: Any, **kwargs: Any) -> Any:
+            text = os.fsdecode(name) if isinstance(name, (str, bytes, os.PathLike)) else ""
+            if is_com_port(text):
+                self.refused.append(text)
+                raise RadioTouched(errno.EACCES, f"a test may not open the radio's serial port {text}")
+            return original(name, *args, **kwargs)
+
+        patch(win32, "CreateFile", guarded_create_file)
+
+
+# Windows: the name of a serial port as pyserial gives it to CreateFile: COM3, or \\\\.\\COM12 (the form for the ports from COM9 up), and any other name of the device namespace (a virtual port pair has its own), but not a pipe.
+_COM_NAME = re.compile(r"(?:\\\\[.?]\\)?COM\d+|\\\\[.?]\\(?!pipe\\).+", re.IGNORECASE)
+
+
+def is_com_port(name: str) -> bool:
+    return _COM_NAME.fullmatch(name.strip()) is not None
+
+
+def _windows_serial() -> Any:
+    """pyserial's module of the Windows calls (its CreateFile is what opens a COM port); None elsewhere, where importing it fails."""
+    return importlib.import_module("serial.win32") if sys.platform == "win32" else None
+
 
 class BluetoothTouched(PermissionError):
     """Raised, as a refused socket, where a test's code would have made a Bluetooth socket of this machine."""
@@ -307,6 +338,7 @@ class ProcessGuard:
         folders = TOOLS_FOLDERS if tools is None else (tools,) if isinstance(tools, (str, os.PathLike)) else tuple(tools)
         self._tools = tuple(dict.fromkeys(form for folder in folders for form in (_norm(os.path.abspath(folder)), _norm(os.path.realpath(folder)))))     # (as written and as it is on the disk)
         self._allowed = tuple(_norm(name) for name in allowed)        # the folders of the shipped programs this test may start (`real_direwolf`: "direwolf")
+        self._popen = threading.local()                    # set while a Popen runs: the os call it makes (posix_spawn) is the same start, already checked
 
     def _names_tools(self, text: str) -> bool:
         """`text` names the folder of the shipped programs itself, or something in it that is not under an allowed folder."""
@@ -367,9 +399,62 @@ class ProcessGuard:
         def guarded_init(popen: Any, args: Any, *rest: Any, **kwargs: Any) -> None:
             given = {**dict(zip(_POPEN_PARAMETERS, rest)), **kwargs}
             self.check(args, given.get("env"), given.get("executable"), given.get("cwd"))
-            original_init(popen, args, *rest, **kwargs)
+            self._popen.inside = True
+            try:
+                original_init(popen, args, *rest, **kwargs)
+            finally:
+                self._popen.inside = False
 
         patch(subprocess.Popen, "__init__", guarded_init)
+        self.install_os(patch)
+
+    def install_os(self, patch: Callable[[Any, str, Any], None]) -> None:
+        """The starts that do not go through Popen (`OS_STARTS`: os.exec*, os.spawn*, os.posix_spawn*, os.system, os.startfile; the ones this system has) are checked as a Popen of the same program is."""
+        for name in OS_STARTS:
+            original = getattr(os, name, None)
+            if original is None:
+                continue
+
+            def guarded(*args: Any, _name: str = name, _original: Any = original, **kwargs: Any) -> Any:
+                if not getattr(self._popen, "inside", False) and (start := os_start(_name, args, kwargs)) is not None:
+                    self.check(*start)
+                return _original(*args, **kwargs)
+
+            patch(os, name, guarded)
+
+
+OS_STARTS = ("system", "startfile", "posix_spawn", "posix_spawnp",
+             *(f"exec{form}" for form in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")), *(f"spawn{form}" for form in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")))
+
+
+def os_start(name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[Any, Any, Any, Any] | None:
+    """What a call of one of `OS_STARTS` starts, as `ProcessGuard.check` takes it: (args, env, executable, cwd); None when it names no program (a file descriptor, no arguments).
+    The `p` forms look the program up on the PATH (the name is not a file: no `executable`), the `e` forms give the environment, the `l` forms list the arguments, and spawn* has its mode first."""
+    if name == "system":
+        command = args[0] if args else kwargs.get("command")
+        return (command, None, None, None) if isinstance(command, (str, bytes, os.PathLike)) else None
+    if name == "startfile":
+        target = args[0] if args else kwargs.get("filepath")
+        arguments = args[2] if len(args) > 2 else kwargs.get("arguments")        # (the text handed to the program: a word of it may name a modem program too)
+        cwd = kwargs.get("cwd", args[3] if len(args) > 3 else None)
+        return ([target, *([arguments] if isinstance(arguments, (str, bytes, os.PathLike)) and arguments else [])], None, None, cwd) if isinstance(target, (str, bytes, os.PathLike)) else None
+    rest = args[1:] if name.startswith("spawn") else args
+    form = name.removeprefix("posix_spawn").removeprefix("exec").removeprefix("spawn") or "v"
+    if name.startswith("posix_spawn"):
+        form = "v" + ("p" if name == "posix_spawnp" else "") + "e"
+    if not rest or not isinstance(rest[0], (str, bytes, os.PathLike)):
+        return None
+    program, env = rest[0], None
+    if form.startswith("l"):
+        listed = list(rest[1:])
+        if form.endswith("e") and listed:
+            env = listed.pop()
+    else:
+        listed = list(rest[1]) if len(rest) > 1 else []
+        env = rest[2] if form.endswith("e") and len(rest) > 2 else None
+    if env is not None and not isinstance(env, Mapping):
+        env = None
+    return [program, *listed[1:]], env, None if "p" in form else program, None
 
 
 _POPEN_PARAMETERS = ("bufsize", "executable", "stdin", "stdout", "stderr", "preexec_fn", "close_fds", "shell", "cwd", "env")     # Popen's parameters after `args`, in their order
@@ -627,6 +712,67 @@ def restore_logging(state: tuple[int, dict[logging.Logger, LoggerState]]) -> lis
     return changed
 
 
+# ---- the doors for the fixtures of a module and of the session
+
+class Doors:
+    """The guards of the doors (the network, the serial ports, Bluetooth, the starts of programs) for what runs before a test's own guards are there: the fixtures of a module and of the session. Installed for the
+    whole session; while a test runs (`paused`) the test's own guards, which stand in front of these, are the ones that watch, so that a refusal is not counted twice. What a fixture reached for is kept, and `take` hands it over."""
+
+    def __init__(self) -> None:
+        self.paused = False
+        self.network, self.radio, self.bluetooth, self.processes = NetworkGuard(), SerialGuard(), BluetoothGuard(), ProcessGuard()
+        for guard in (self.network, self.radio, self.bluetooth, self.processes):
+            guard.check = self._unless_paused(guard.check)                                   # type: ignore[method-assign]
+        self.bluetooth.check_ble = self._unless_paused(self.bluetooth.check_ble)             # type: ignore[method-assign]
+
+    def _unless_paused(self, check: Callable[..., Any]) -> Callable[..., Any]:
+        def checked(*args: Any, **kwargs: Any) -> Any:
+            return None if self.paused else check(*args, **kwargs)
+        return checked
+
+    def install(self, patch: Callable[[Any, str, Any], None], setitem: Callable[[Any, str, Any], None]) -> None:
+        self.network.install(patch)
+        self.radio.install(patch)
+        self.radio.install_com(patch)
+        self.bluetooth.install(patch)
+        self.bluetooth.install_ble(setitem)
+        self.processes.install(patch)
+
+    def take(self) -> list[str]:
+        """Everything the fixtures reached for since the last call, and forgets it."""
+        taken = [*self.network.refused, *self.radio.refused, *self.bluetooth.refused, *self.processes.refused, *self.processes.shipped]
+        for refused in (self.network.refused, self.radio.refused, self.bluetooth.refused, self.processes.refused, self.processes.shipped):
+            refused.clear()
+        return taken
+
+
+ACTIVE_DOORS: Doors | None = None
+
+
+def fail_for(taken: list[str], where: str) -> None:
+    assert not taken, f"a fixture of {where} reached for something that is not this machine's to take (a real network, serial port, Bluetooth device or modem program): " + ", ".join(taken)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def doors_of_the_session() -> Iterator[Doors]:
+    global ACTIVE_DOORS
+    doors = ACTIVE_DOORS = Doors()
+    try:
+        with pytest.MonkeyPatch.context() as patches:
+            doors.install(patches.setattr, patches.setitem)
+            yield doors
+    finally:
+        ACTIVE_DOORS = None
+    fail_for(doors.take(), "the session")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def doors_of_the_module(doors_of_the_session: Doors) -> Iterator[None]:
+    """Set up before the fixtures of the module and torn down after them: what they reached for fails the module, at its last test."""
+    yield
+    fail_for(doors_of_the_session.take(), "the module")
+
+
 # ---- the fixtures (wired in by tests/conftest.py)
 
 @pytest.fixture(autouse=True)
@@ -647,6 +793,7 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
         radio, processes, bluetooth = SerialGuard(), ProcessGuard(allowed=("direwolf",) if real_direwolf else ()), BluetoothGuard()
         no_shipped_programs(monkeypatch.setattr, Path(root) / "no-tools", real_direwolf)
         radio.install(monkeypatch.setattr)
+        radio.install_com(monkeypatch.setattr)
         bluetooth.install(monkeypatch.setattr)
         bluetooth.install_ble(monkeypatch.setitem)
         no_default_alert(monkeypatch.setattr)
@@ -656,7 +803,12 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
         monkeypatch.setattr(soundmixer, "load_alsa", lambda: None)              # no sound card's own levels are read or set (the machine's radios hang on its cards): as on a system without ALSA; a test that needs a mixer gives its own
         monkeypatch.setattr(winmixer.CoreAudio, "_with_volume", lambda self, device, use: False)
         processes.install(monkeypatch.setattr)
+        doors = ACTIVE_DOORS
+        if doors is not None:
+            doors.paused = True                                                       # (the guards of this test stand in front of the doors of the session)
         yield
+        if doors is not None:
+            doors.paused = False
         assert not network.refused, "the test tried to reach something that is not this machine: " + ", ".join(network.refused)
         assert not radio.refused, "the test tried to open the radio's serial port: " + ", ".join(radio.refused)
         assert not bluetooth.refused, "the test tried to make a Bluetooth socket: " + ", ".join(bluetooth.refused)
