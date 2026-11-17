@@ -184,6 +184,27 @@ describe("Ask around in the Nearby tab", () => {
     expect(lines(wrapper)[0]?.text()).toMatch(/^Asked the weather stations at \d\d:\d\d by direct; answers arrive/);
   });
 
+  it("names no path in the first line while its radios went each by its own and those differ, for every kind; the hover is the query alone", async () => {
+    const { wrapper, daemon } = make();
+    const at = ago(20);
+    const time = clockText(at).slice(0, 5);
+    const said = {
+      aprs: `Asked who is around at ${time}; answers arrive on the map and in Stations`,
+      igate: `Asked the iGates at ${time}; answers arrive on the map and in Stations`,
+      wx: `Asked the weather stations at ${time}; answers arrive on the map and in Stations`,
+    };
+    for (const [kind, query] of [
+      ["aprs", "?APRS?"],
+      ["igate", "?IGATE?"],
+      ["wx", "?WX?"],
+    ] as const) {
+      await tell(daemon, { general: general(askedOf({ kind, query, at, radios: [1, 3], path: null })) });
+      expect(lines(wrapper)[0]?.text(), kind).toBe(said[kind]);
+      expect(lines(wrapper)[0]?.text(), kind).not.toContain("(default)");
+      expect(lines(wrapper)[0]?.attributes("title"), kind).toBe(query);
+    }
+  });
+
   it("says a refusal of the daemon in the first line, in the warn colour, until the next query", async () => {
     const { wrapper, daemon } = make();
     await ask(wrapper).trigger("click");
@@ -366,8 +387,8 @@ describe("the Send on of Ask around", () => {
     await tell(daemon, { general: general(askedOf({ at, radios: [2], path: [] })) });
     expect(lines(wrapper)[0]?.text()).toBe(`Mercury: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`);
     await tell(daemon, { general: general(askedOf({ at, radios: [1, 3], path: null })) });
-    expect(lines(wrapper)[0]?.text()).toBe(`FM: Asked who is around at ${time} by (default); answers arrive on the map and in Stations`); // (each radio by its own path; a radio the page does not have is not named)
-    expect(lines(wrapper)[0]?.attributes("title")).toBe("?APRS? (default)");
+    expect(lines(wrapper)[0]?.text()).toBe(`FM: Asked who is around at ${time}; answers arrive on the map and in Stations`); // (each radio by its own path, so none named; a radio the page does not have is not named)
+    expect(lines(wrapper)[0]?.attributes("title")).toBe("?APRS?");
     await ask(wrapper).trigger("click");
     await tell(daemon, { lastError: toastOf("general_query: radio Mercury is not connected", "radio.not_connected", { name: "Mercury" }) });
     expect(lines(wrapper)[0]?.text()).toBe("Not sent: radio Mercury is not connected");

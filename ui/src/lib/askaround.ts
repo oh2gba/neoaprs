@@ -22,9 +22,9 @@ export function generalWait(state: GeneralState | null, kind: GeneralKind, radio
 }
 
 export interface AskLines {
-  /** what was asked, when and by what path, and where the answers arrive; before a query what Ask does; a refusal with its reason */
+  /** what was asked, when and by what path (no path while its radios went by their own, and those differ), and where the answers arrive; before a query what Ask does; a refusal with its reason */
   line: string;
-  /** the hover of the first line: the query and the whole path, RFONLY included */
+  /** the hover of the first line: the query and the whole path, RFONLY included (the query alone while the radios went by their own paths) */
   title: string;
   /** the first line is a refusal */
   refused: boolean;
@@ -42,14 +42,18 @@ export function askLines(state: GeneralState | null, refusal: string, nowMs: num
   if (refusal !== "") return { line: t("nearby.ask_refused", { reason: refusal }), title: refusal, refused: true, count: "", countTitle: "" };
   if (latest === undefined) return { line: t("nearby.ask_help"), title: "", refused: false, count: "", countTitle: "" };
   const hops = (latest.path ?? []).filter((hop) => hop !== RF_ONLY);
-  const path = latest.path === null ? t("route.default") : hops.length > 0 ? hops.join(",") : t("route.direct"); // (null: each radio by its own path, and those differ)
   const time = hourMinuteText(latest.at);
   const n = latest.new.length;
   const quiet = { n, min: LIMITS.general.quietMin, after: Math.round(LIMITS.general.countSec / 60) };
   const counting = Date.parse(latest.until) > nowMs;
+  // (path null: each radio went by its own path, and those differ; the line then names no path, and the hover is the query alone)
+  const line =
+    latest.path === null
+      ? t(`nearby.ask_sent_own.${latest.kind}`, { time })
+      : t(`nearby.ask_sent.${latest.kind}`, { time, path: hops.length > 0 ? hops.join(",") : t("route.direct") });
   return {
-    line: t(`nearby.ask_sent.${latest.kind}`, { time, path }),
-    title: `${latest.query} ${latest.path === null ? t("route.default") : latest.path.join(",") || t("route.direct")}`,
+    line,
+    title: latest.path === null ? latest.query : `${latest.query} ${latest.path.join(",") || t("route.direct")}`,
     refused: false,
     count: t(counting ? "nearby.ask_new_counting" : "nearby.ask_new", quiet),
     countTitle: n > 0 ? t("nearby.ask_new_title", { calls: latest.new.join(", ") }) : t("nearby.ask_new_note", { min: LIMITS.general.quietMin }),

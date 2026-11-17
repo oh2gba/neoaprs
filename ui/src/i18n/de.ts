@@ -2089,6 +2089,9 @@ export const de: Catalogue = {
   "nearby.ask_sent.aprs": "Um {time} über {path} gefragt, wer da ist; Antworten erscheinen auf der Karte und unter Stationen",
   "nearby.ask_sent.igate": "Um {time} über {path} die iGates gefragt; Antworten erscheinen auf der Karte und unter Stationen",
   "nearby.ask_sent.wx": "Um {time} über {path} die Wetterstationen gefragt; Antworten erscheinen auf der Karte und unter Stationen",
+  "nearby.ask_sent_own.aprs": "Um {time} gefragt, wer da ist; Antworten erscheinen auf der Karte und unter Stationen",
+  "nearby.ask_sent_own.igate": "Um {time} die iGates gefragt; Antworten erscheinen auf der Karte und unter Stationen",
+  "nearby.ask_sent_own.wx": "Um {time} die Wetterstationen gefragt; Antworten erscheinen auf der Karte und unter Stationen",
   "nearby.ask_new_counting": {
     "=0": "Warte auf Stationen, die in den {min} Minuten davor still waren…",
     one: "{n} Station, in den {min} Minuten davor still, hat sich seitdem gemeldet…",

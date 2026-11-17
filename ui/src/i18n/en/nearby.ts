@@ -39,6 +39,9 @@ export const nearby = {
   "nearby.ask_sent.aprs": "Asked who is around at {time} by {path}; answers arrive on the map and in Stations",
   "nearby.ask_sent.igate": "Asked the iGates at {time} by {path}; answers arrive on the map and in Stations",
   "nearby.ask_sent.wx": "Asked the weather stations at {time} by {path}; answers arrive on the map and in Stations",
+  "nearby.ask_sent_own.aprs": "Asked who is around at {time}; answers arrive on the map and in Stations",
+  "nearby.ask_sent_own.igate": "Asked the iGates at {time}; answers arrive on the map and in Stations",
+  "nearby.ask_sent_own.wx": "Asked the weather stations at {time}; answers arrive on the map and in Stations",
   "nearby.ask_new_counting": {
     "=0": "Listening for stations that were quiet in the {min} minutes before…",
     one: "{n} station quiet in the {min} minutes before has spoken since…",

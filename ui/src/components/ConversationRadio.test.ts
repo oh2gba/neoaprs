@@ -263,7 +263,7 @@ describe("the radio of email", () => {
     const button = wrapper.findAll("button").find((b) => b.text() === "Check email");
     return [button?.element.disabled, button?.attributes("title")];
   };
-  const list = (wrapper: ReturnType<typeof pane>) => wrapper.find<HTMLSelectElement>(".mail-bar select.mail-radio");
+  const list = (wrapper: ReturnType<typeof pane>) => wrapper.find<HTMLSelectElement>(".mail-bar .mail-radio select");
   const offered = (wrapper: ReturnType<typeof pane>) =>
     list(wrapper)
       .findAll("option")
@@ -285,11 +285,10 @@ describe("the radio of email", () => {
     const wrapper = pane({ radios: EIGHT, status: status({ email_radio: 3 }) });
     expect(offered(wrapper)).toEqual(["Shack", "20 m", "Mobile", "40 m", "Portable", "80 m"]);
     expect([list(wrapper).element.value, list(wrapper).element.selectedOptions[0]?.text]).toEqual(["3", "Mobile"]);
-    expect([list(wrapper).attributes("aria-label"), list(wrapper).attributes("title"), list(wrapper).classes()]).toEqual([
-      "Radio",
-      undefined,
-      ["input", "mail-radio"],
-    ]);
+    const label = wrapper.find(".mail-bar .mail-radio label");
+    expect([label.text(), label.attributes("for"), label.classes()]).toEqual(["Send on", list(wrapper).attributes("id"), ["path-label"]]);
+    expect([list(wrapper).attributes("aria-label"), list(wrapper).attributes("title"), list(wrapper).classes()]).toEqual([undefined, undefined, ["input"]]);
+    expect(wrapper.find(".mail-bar .mail-radio").classes()).toEqual(["pathbox", "mail-radio"]);
     expect(check(wrapper)).toEqual([false, undefined]);
     expect(wrapper.find(".mail-bar .tag").exists()).toBe(false);
   });
@@ -335,13 +334,18 @@ describe("the radio of email", () => {
     const { daemon, wrapper } = mount_({ radios: SIX, status: status({ email_radio: 1 }) });
     const bar = () => [...wrapper.find(".mail-bar").element.children].map((e) => `${e.tagName.toLowerCase()}.${e.className.split(" ").join(".")}`);
     const before = bar();
-    expect(before).toEqual(["button.btn", "select.input.mail-radio", "span.grow", "span.infotip"]);
+    expect(before).toEqual(["button.btn", "div.pathbox.mail-radio", "span.grow", "span.infotip"]);
     await list(wrapper).setValue("6");
     await tell(daemon, { status: status({ email_radio: 6 }) });
     expect(bar()).toEqual(before);
-    expect(wrapper.find(".mail-bar").text()).toBe("Check emailShack20 mMobile40 mPortable80 mi");
+    expect(wrapper.find(".mail-bar").text()).toBe("Check emailSend onShack20 mMobile40 mPortable80 mi");
     const sheet = readFileSync(resolve(__dirname, "../styles/email.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    expect(sheet.match(/\.mail-radio \{([^}]*)\}/)?.[1]).toContain("flex: none");
+    const rule = sheet.match(/\.mail-radio \{([^}]*)\}/)?.[1] ?? "";
+    expect([rule.includes("flex: none"), rule.includes("flex-wrap: nowrap")], "the label and the list go as one, as wide as the longest name").toEqual([
+      true,
+      true,
+    ]);
+    expect(sheet.match(/\.mail-bar \{([^}]*)\}/)?.[1], "at 375 px the two go under the button rather than out of the screen").toContain("flex-wrap: wrap");
   });
 
   it("keeps Check email and Send off while its radio is not connected, saying which", async () => {

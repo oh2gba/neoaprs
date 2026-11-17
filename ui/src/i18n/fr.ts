@@ -2074,6 +2074,9 @@ export const fr: Catalogue = {
   "nearby.ask_sent.aprs": "Demandé qui est là à {time} par {path} ; les réponses arrivent sur la carte et dans Stations",
   "nearby.ask_sent.igate": "Demandé aux iGates à {time} par {path} ; les réponses arrivent sur la carte et dans Stations",
   "nearby.ask_sent.wx": "Demandé aux stations météo à {time} par {path} ; les réponses arrivent sur la carte et dans Stations",
+  "nearby.ask_sent_own.aprs": "Demandé qui est là à {time} ; les réponses arrivent sur la carte et dans Stations",
+  "nearby.ask_sent_own.igate": "Demandé aux iGates à {time} ; les réponses arrivent sur la carte et dans Stations",
+  "nearby.ask_sent_own.wx": "Demandé aux stations météo à {time} ; les réponses arrivent sur la carte et dans Stations",
   "nearby.ask_new_counting": {
     "=0": "À l'écoute des stations muettes dans les {min} minutes d'avant…",
     one: "{n} station muette dans les {min} minutes d'avant a parlé depuis…",

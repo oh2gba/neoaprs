@@ -42,6 +42,9 @@ export const nearby: Record<keyof typeof source, Message> = {
   "nearby.ask_sent.aprs": "Kysyttiin, ketä on lähellä, klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
   "nearby.ask_sent.igate": "Kysyttiin iGateja klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
   "nearby.ask_sent.wx": "Kysyttiin sääasemia klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
+  "nearby.ask_sent_own.aprs": "Kysyttiin, ketä on lähellä, klo {time}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
+  "nearby.ask_sent_own.igate": "Kysyttiin iGateja klo {time}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
+  "nearby.ask_sent_own.wx": "Kysyttiin sääasemia klo {time}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
   "nearby.ask_new_counting": {
     "=0": "Kuunnellaan asemia, jotka olivat hiljaa edeltävät {min} minuuttia…",
     one: "{n} edeltävät {min} minuuttia hiljaa ollut asema on sen jälkeen puhunut…",

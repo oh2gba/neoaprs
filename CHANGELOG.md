@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Fixed:** Ask around no longer says "by (default)" when the radios it went on have different paths; the line names no path then.
+- **Fixed:** in the Email tab the list of radios beside Check email has its label, Send on.
+
 ## 0.20.2
 
 All radios are equal: each thing goes on the radios you tick; the Sound card radio and Update now put right.

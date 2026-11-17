@@ -2,8 +2,9 @@
 .mail-bar {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
 }
@@ -11,10 +12,15 @@
   flex: none;
   white-space: nowrap;
 }
-/* the radio email goes on, chosen beside Check email while several radios that can send are on: as wide as its longest name, whichever is chosen */
+/* the radio email goes on, chosen beside Check email while several radios that can send are on: Send on and the list as one, the list as wide as its longest name, whichever is chosen; on a narrow
+   screen the two go together under the button */
 .mail-radio {
   flex: none;
+  flex-wrap: nowrap;
   max-width: 100%;
+}
+.mail-radio .input {
+  min-width: 0;
 }
 .mail-address {
   position: relative;

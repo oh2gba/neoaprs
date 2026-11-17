@@ -39,6 +39,9 @@ export const nearby = {
   "nearby.ask_sent.aprs": "{time}に{path}経由で周囲の局に問い合わせました。応答は地図と局タブに届きます",
   "nearby.ask_sent.igate": "{time}に{path}経由でiGateに問い合わせました。応答は地図と局タブに届きます",
   "nearby.ask_sent.wx": "{time}に{path}経由で気象局に問い合わせました。応答は地図と局タブに届きます",
+  "nearby.ask_sent_own.aprs": "{time}に周囲の局に問い合わせました。応答は地図と局タブに届きます",
+  "nearby.ask_sent_own.igate": "{time}にiGateに問い合わせました。応答は地図と局タブに届きます",
+  "nearby.ask_sent_own.wx": "{time}に気象局に問い合わせました。応答は地図と局タブに届きます",
   "nearby.ask_new_counting": { "=0": "直前{min}分間に受信のなかった局を待っています…", other: "直前{min}分間に受信のなかった局{n}局がその後送信しました…" },
   "nearby.ask_new": {
     "=0": "直前{min}分間に受信のなかった局は、その後{after}分間に送信しませんでした",

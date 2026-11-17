@@ -42,6 +42,9 @@ export const nearby: Record<keyof typeof source, Message> = {
   "nearby.ask_sent.aprs": "Om {time} via {path} gevraagd wie er in de buurt is; de antwoorden verschijnen op de kaart en in Stations",
   "nearby.ask_sent.igate": "Om {time} via {path} de iGates gevraagd; de antwoorden verschijnen op de kaart en in Stations",
   "nearby.ask_sent.wx": "Om {time} via {path} de weerstations gevraagd; de antwoorden verschijnen op de kaart en in Stations",
+  "nearby.ask_sent_own.aprs": "Om {time} gevraagd wie er in de buurt is; de antwoorden verschijnen op de kaart en in Stations",
+  "nearby.ask_sent_own.igate": "Om {time} de iGates gevraagd; de antwoorden verschijnen op de kaart en in Stations",
+  "nearby.ask_sent_own.wx": "Om {time} de weerstations gevraagd; de antwoorden verschijnen op de kaart en in Stations",
   "nearby.ask_new_counting": {
     "=0": "Luisteren naar stations die de {min} minuten ervoor stil waren…",
     one: "{n} station dat de {min} minuten ervoor stil was, heeft zich sindsdien laten horen…",

@@ -18,6 +18,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 | MFJ-1270B/1274/1278, TAPR TNC-2 clones | yes with notes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | RS-232; depends on the firmware |
 | Kantronics KPC-3+ | yes | Kantronics KPC-3+ | RS-232 |
 | A sound-card interface on an FM radio: Digirig, SignaLink, AIOC, a radio's data port or USB audio, a USB sound dongle | yes | Sound card | NeoAPRS carries Direwolf and starts it itself: nothing to install (Windows, Linux; [Sound card](#sound-card)) |
+| Yaesu FTX-1 (its own USB sound card) | yes, tried on the air on FM | Sound card | the radio's USB cable: its sound card, keyed by RTS on the second of its two serial ports, after one setting on the radio ([Yaesu FTX-1](#yaesu-ftx-1)) |
 | A Direwolf or a soundmodem you run yourself, on this computer or another (on a Mac: the way for a sound-card interface) | yes | Your own Direwolf or soundmodem | the program serves KISS on the network ([Your own Direwolf](#your-own-direwolf)) |
 | A radio with a sound card and the Mercury modem (Rhizomatica): an SSB radio on shortwave, on 6 m or 2 m, or an FM radio's audio | untested on the air, tested against the program | Mercury modem (sound card) | NeoAPRS carries Mercury and starts it itself; only stations with the same modem on the same frequency hear you ([Mercury modem](#mercury-modem)) |
 | BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic), users' reports only; the BLE KISS specification also lists the radio for Bluetooth LE (`ble://`), untested |
@@ -30,7 +31,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 | Icom (D-STAR radios, IC-9700, IC-705) | no | – | D-PRS is not APRS packets. A sound-card interface and the type Sound card work as for any radio |
 | Icom ID-5200A | unverified | – | has a KISS TNC (USB, Bluetooth); entry and speed not known, needs a tester |
 
-Tried on the air: the Kenwood TH-D7. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
+Tried on the air: the Kenwood TH-D7 and the Yaesu FTX-1. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
 
 NeoAPRS sends and receives over RF, and can show the stations of the internet round you on the map, marked as such ([Internet stations](manual/igate.md)). Nothing from the internet goes to the radio.
 
@@ -150,6 +151,18 @@ For an FM radio on a sound-card interface (Digirig, AIOC, SignaLink, a USB dongl
 - **Never choose the Digirig's serial port as a serial TNC.** Opening it keys the transmitter through RTS. Its keying is the Sound card radio's.
 - On Linux, keying by a CM108 pin (an AIOC, a dongle) needs your user to be allowed to write the chip's `/dev/hidraw` device, which a udev rule gives; without it the radio waits and says its keying could not be opened.
 - A Mac has no Sound card type yet: run your own Direwolf there, as below.
+
+### Yaesu FTX-1
+
+The FTX-1's USB cable is all it takes: the computer sees one hub with a sound card ("USB Audio Device"), two serial ports (a CP2105 chip) and one port more.
+
+1. In NeoAPRS, Add radio: *Sound card*. Sound card: *USB Audio Device*. Keying: RTS on the second of the radio's two serial ports (on Linux the one whose name under /dev/serial/by-id ends in if01-port0).
+2. On the radio, hold FUNC: RADIO SETTING → MODE FM → RPTT SELECT: *RTS* (it is OFF when the radio is new, and the radio then ignores the computer's keying). Leave MOD SOURCE on AUTO: keyed by RTS the radio sends the computer's audio, keyed by the microphone's PTT the microphone's, so voice works as before.
+3. The levels are on the radio, under MODE FM: USB OUT LEVEL (what the computer hears) and USB MOD GAIN (what the radio sends), each 0 to 100, 50 when new.
+
+- VOX instead of RTS: OPERATION SETTING → TX GNRL → VOX SELECT: *USB* (MIC when new), and Keying VOX in NeoAPRS. RTS is the more dependable.
+- On Linux the sound card's own output volume may stand low (38 % on the first one tried): raise it in the system's mixer (alsamixer, the control Speaker).
+- Tried on 17 November 2026 on 144.800 MHz FM: a beacon came back from two digipeaters within four seconds. More in [the tech note](https://neo.oh2gba.eu/yaesu-ftx-1.html).
 
 ### Your own Direwolf
 
