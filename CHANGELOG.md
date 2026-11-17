@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.20.3
+
 Sliders for the sound card's levels, a receive level that follows the audio at once, and no radio sending through another's modem.
 
 - **New:** a Sound card or Mercury radio has sliders for the sound card's own transmit and receive levels, where the card has them.
