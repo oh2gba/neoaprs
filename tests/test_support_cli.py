@@ -57,6 +57,15 @@ def test_the_command_makes_the_file_in_the_folder_it_is_given_and_prints_where_a
     assert "state.json" not in members and "not running" in members["summary.txt"] and "neoaprs support, without the daemon" in members["summary.txt"]
 
 
+def test_the_journal_is_the_one_the_module_has_when_the_bundle_is_made(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stand-in for the journal put in its module's place is the one asked, so that a test's own takes the machine's journalctl out of the bundle."""
+    monkeypatch.setattr(supportmake.gather, "journal_text", lambda *a, **k: "the journal of the test")
+    data = fake_folder(tmp_path)
+    code, _, _ = run(capsys, "--data", str(data), "--out", str(tmp_path / "out"))
+    [made] = list((tmp_path / "out").glob("neoaprs-support-*.zip"))
+    assert code == 0 and "the journal of the test" in zip_members(made)["logs/journal.txt"]
+
+
 def test_the_default_folder_is_the_desktop_and_without_one_the_home_folder(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     home = Path.home()
     data = fake_folder(tmp_path)

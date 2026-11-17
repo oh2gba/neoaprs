@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import childprogram, direwolfmodem, direwolfprogram, direwolftune, serialholders, winmm
+from neoaprs import childprogram, direwolfmodem, direwolfprogram, direwolftune, serialholders, usbtie, winmm
 from neoaprs.claims import Claim, Claims
 from neoaprs.coded import CodedError
 from neoaprs.direwolf import CONF_FILE, PID_FILE, adevice
@@ -629,6 +629,13 @@ async def test_the_daemons_own_keying_is_the_port_of_the_cards_interface(tmp_pat
     cards = [SoundCard("plughw:CARD=AIOC,DEV=0", "All-In-One-Cable", True, True)]
     ftdi = [PortInfo("/dev/ttyUSB1", "FT232R", "", 0x0403, 0x6001)]
     assert proposal(cards, ftdi, holder=3, beside=lambda card, devices: None) == ("plughw:CARD=AIOC,DEV=0", "cm108"), "an AIOC beside an FTDI cable keys by its pin"
+
+
+def test_the_proposal_asks_the_cards_interface_of_usbtie_as_that_module_has_it_when_it_is_made(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stand-in put in usbtie's place is the one asked, so that a test's own keeps the machine's sysfs out of it."""
+    asked: list[str] = []
+    monkeypatch.setattr(usbtie, "beside", lambda card, devices: asked.append(card) or [])
+    assert proposal([SoundCard("plughw:CARD=AIOC,DEV=0", "All-In-One-Cable", True, True)], [], holder=3)[0] == "plughw:CARD=AIOC,DEV=0" and asked == ["plughw:CARD=AIOC,DEV=0"]
 
 
 async def test_a_port_left_out_in_another_spelling_of_it_as_on_windows_keys_no_sound_card_radio(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

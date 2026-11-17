@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Starts the daemon of this checkout on a data folder for trying the page (the browser pane, a look at a change), under the no-devices switch: whatever its settings say, it opens no serial port, Bluetooth device or
+sound card, starts no Mercury or Direwolf of the machine, plays and notifies nothing and connects to nothing but this computer (neoaprs/nodevices.py). The Dummy radios, the loopback and the page stay, which is all a
+page to look at needs. Its search for a radio looks at ports that match nothing, and it does not ask the version page.
+
+  scripts/demo-daemon --data DIR [--web-port PORT]
+
+  --data DIR        the data folder (made when it is not there); never the operator's own (the system's data folder of NeoAPRS, or a folder `data` of a checkout)
+  --web-port PORT   the page's port (default 7390)
+
+It runs `python -m neoaprs --data DIR --web-port PORT` in the checkout it is in, with the checkout's .venv when there is one, and ends with the daemon (Ctrl+C stops both)."""
+import argparse
+import os
+import subprocess
+import sys
+from collections.abc import Callable, Mapping
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from neoaprs.paths import default_data_dir  # noqa: E402
+
+WEB_PORT = 7390
+NO_PORT = "/nonexistent/neoaprs-demo-no-such-port*"        # the search for the radio finds no serial device of the machine
+
+
+def environment(base: Mapping[str, str]) -> dict[str, str]:
+    """The daemon's environment: this one without any NEOAPRS_ variable of the person who runs it (a data folder, a debug switch), and the switch, the search that finds nothing and no update check."""
+    env = {key: value for key, value in base.items() if not key.startswith("NEOAPRS_")}
+    env["NEOAPRS_NO_DEVICES"] = "1"
+    env["NEOAPRS_UPDATE_CHECK"] = "0"
+    env["NEOAPRS_SERIAL_PATTERN"] = NO_PORT
+    return env
+
+
+def operators_folder(data: Path, own: Path) -> str:
+    """Why `data` is the operator's own data folder ("" when it is not): the system's data folder of NeoAPRS (`own`, as neoaprs/paths.py finds it without NEOAPRS_DATA_DIR), or a folder `data` directly in a checkout,
+    which the clone's scripts use."""
+    folder = data.expanduser().resolve()
+    if folder == own.expanduser().resolve():
+        return f"{folder} is the data folder of NeoAPRS on this computer"
+    if folder.name == "data" and (folder.parent / "pyproject.toml").is_file() and (folder.parent / "neoaprs").is_dir():
+        return f"{folder} is the data folder of the checkout {folder.parent}"
+    return ""
+
+
+def python() -> str:
+    """The checkout's own Python (its .venv), else the one that runs this script."""
+    for candidate in (ROOT / ".venv" / "bin" / "python", ROOT / ".venv" / "Scripts" / "python.exe"):
+        if candidate.is_file():
+            return str(candidate)
+    return sys.executable
+
+
+def own_data_folder() -> Path:
+    """The system's data folder of NeoAPRS, whatever NEOAPRS_DATA_DIR says (that variable is the daemon's, not the folder of the operator's data)."""
+    saved = os.environ.pop("NEOAPRS_DATA_DIR", None)
+    try:
+        return default_data_dir()
+    finally:
+        if saved is not None:
+            os.environ["NEOAPRS_DATA_DIR"] = saved
+
+
+def main(argv: list[str] | None = None, run: Callable[..., int] = subprocess.call) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--data", required=True, type=Path, help="the data folder (never the operator's own)")
+    parser.add_argument("--web-port", type=int, default=WEB_PORT, help=f"the page's port (default {WEB_PORT})")
+    args = parser.parse_args(argv)
+    why = operators_folder(args.data, own_data_folder())
+    if why:
+        print(f"demo-daemon: refused: {why}; give a folder of its own (for example work/demo)", file=sys.stderr)
+        return 2
+    command = [python(), "-m", "neoaprs", "--data", str(args.data.expanduser().resolve()), "--web-port", str(args.web_port)]
+    print("demo-daemon: " + " ".join(command), file=sys.stderr)
+    try:
+        return run(command, cwd=ROOT, env=environment(os.environ))
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main())

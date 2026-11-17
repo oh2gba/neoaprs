@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
@@ -179,12 +179,14 @@ def test_the_wrappers_of_the_scripts_call_the_command_with_the_data_folder_of_th
 # ---- the scripts that talk to a daemon's page, on the wire before the radios and on the wire of the radios (breakdown 1.11), and what the screenshots leave
 
 def load_script(name: str) -> ModuleType:
-    """A script of scripts/ as a module, with scripts/ on the path as when it is run (screenshots.py imports demoscene and smoke from there)."""
+    """A script of scripts/ as a module, with scripts/ on the path as when it is run (screenshots.py imports demoscene and smoke from there); one without `.py` (build-mercury) too."""
+    import importlib.machinery
     import importlib.util
     folder = str(ROOT / "scripts")
     if folder not in sys.path:
         sys.path.insert(0, folder)
-    spec = importlib.util.spec_from_file_location(name.removesuffix(".py").replace("-", "_"), ROOT / "scripts" / name)
+    module_name = name.removesuffix(".py").replace("-", "_")
+    spec = importlib.util.spec_from_file_location(module_name, ROOT / "scripts" / name, loader=importlib.machinery.SourceFileLoader(module_name, str(ROOT / "scripts" / name)))
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -608,3 +610,79 @@ def test_the_scripts_that_run_a_daemon_in_their_process_reach_its_radios_by_id_a
         assert not re.search(r"\bctl\.(tnc|hf|mercury|beacon|hf_" r"beacon)\b", source), name
     assert "radios=(DEMO_RADIO,)" in (ROOT / "scripts" / "demoscene.py").read_text(encoding="utf-8")
     assert not re.search(r'neoaprs_db_set\([^)]*"(hf|mercury)/', (ROOT / "scripts" / "screenshots.py").read_text(encoding="utf-8"))
+
+
+def test_the_demo_daemon_runs_the_checkouts_daemon_under_the_switch_and_never_on_the_operators_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The daemon of the browser pane opens no device, starts no modem of the machine and asks nothing of the internet, whatever its settings say; and it is never started on the data of the operator's own
+    station, the system's data folder or a checkout's `data`."""
+    demo = load_script("demo-daemon")
+    started: list[tuple[list[str], Path, dict[str, str]]] = []
+
+    def run(command: list[str], cwd: Path, env: dict[str, str]) -> int:
+        started.append((command, cwd, env))
+        return 0
+
+    monkeypatch.setenv("NEOAPRS_DATA_DIR", str(tmp_path / "elsewhere"))
+    monkeypatch.setenv("NEOAPRS_DEBUG", "1")
+    assert demo.main(["--data", str(tmp_path / "demo")], run) == 0
+    [(command, cwd, env)] = started
+    assert command[1:] == ["-m", "neoaprs", "--data", str((tmp_path / "demo").resolve()), "--web-port", "7390"] and cwd == ROOT and Path(command[0]).is_file()
+    assert (env["NEOAPRS_NO_DEVICES"], env["NEOAPRS_UPDATE_CHECK"]) == ("1", "0") and not list(Path("/").glob(env["NEOAPRS_SERIAL_PATTERN"].lstrip("/")))
+    assert "NEOAPRS_DATA_DIR" not in env and "NEOAPRS_DEBUG" not in env and env["PATH"] == os.environ["PATH"], "none of the variables of whoever runs it but the three"
+    assert demo.main(["--data", str(tmp_path / "demo"), "--web-port", "7391"], run) == 0 and started[-1][0][-1] == "7391"
+    monkeypatch.setattr(demo, "default_data_dir", lambda: tmp_path / "share" / "neoaprs")
+    checkout = tmp_path / "clone"
+    (checkout / "neoaprs").mkdir(parents=True)
+    (checkout / "pyproject.toml").write_text("")
+    for folder in (tmp_path / "share" / "neoaprs", tmp_path / "share" / "neoaprs" / ".", checkout / "data", ROOT / "data"):
+        assert demo.main(["--data", str(folder)], run) == 2, folder
+    assert len(started) == 2 and demo.main(["--data", str(checkout / "data" / "demo")], run) == 0 and demo.main(["--data", str(tmp_path / "data")], run) == 0, "a folder named data that is no checkout's"
+    assert demo.own_data_folder() == tmp_path / "share" / "neoaprs" and os.environ["NEOAPRS_DATA_DIR"] == str(tmp_path / "elsewhere")
+
+
+def test_the_check_of_the_built_mercury_lists_no_sound_card_and_holds_its_alsa_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`mercury -z` would open the control device of every sound card of the machine, the radios' among them: the check runs `-V` alone, and holds the ALSA configuration the folder carries to being there."""
+    build = load_script("build-mercury")
+    ran: list[list[str]] = []
+
+    def run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        ran.append(argv[1:])
+        return subprocess.CompletedProcess(argv, 0, f"Mercury {build.VERSION}\n", "")
+
+    monkeypatch.setattr(build, "MACOS", False)
+    monkeypatch.setattr(build, "subprocess", SimpleNamespace(run=run))           # (the script's name for the module: the program is never started)
+    for name in ("runpath", "glibc_needed", "check_links"):
+        monkeypatch.setattr(build, name, lambda *args: "")
+    monkeypatch.setattr(build, "check_loopback", lambda program, env: "listens on 127.0.0.1 only")
+    folder = tmp_path / "mercury"
+    (folder / "share" / "alsa").mkdir(parents=True)
+    with pytest.raises(build.BuildError, match="ALSA configuration"):
+        build.check(folder)
+    (folder / "share" / "alsa" / "alsa.conf").write_text("")
+    with pytest.raises(build.BuildError, match="empty"):
+        build.check(folder)
+    (folder / "share" / "alsa" / "alsa.conf").write_text("pcm.null { type null }\n")
+    build.check(folder)
+    assert ran == [["-V"]]
+
+
+async def test_the_radio_of_the_day_on_the_air_listens_on_a_port_the_system_gives_not_where_a_real_modem_may(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The daemon of the screenshots runs under the no-devices switch, which connects to no port of this computer where a real modem may listen (Direwolf's 8001 among them): the made-up TNC is never there."""
+    import asyncio
+
+    from tests.support.guards import MODEM_PORTS
+    demoscene = load_script("demoscene.py")
+    asked: list[int] = []
+    real_start_server = asyncio.start_server
+
+    async def start_server(serve: Any, host: str, port: int) -> asyncio.Server:
+        asked.append(port)
+        return await real_start_server(serve, host, 0)                    # (the port asked for is looked at, never taken)
+
+    monkeypatch.setattr(demoscene.asyncio, "start_server", start_server)
+    radio = demoscene.DemoRadio()
+    await radio.start()
+    try:
+        assert asked == [0] and radio.port not in MODEM_PORTS
+    finally:
+        await radio.stop()

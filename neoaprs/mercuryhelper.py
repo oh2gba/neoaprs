@@ -25,13 +25,12 @@ from .childprogram import HIDDEN_WINDOW as HIDDEN_WINDOW, LAST_LINES as LAST_LIN
 from .childprogram import Command as Command, _listeners as _listeners, environment as environment, foreign_listeners as foreign_listeners
 from .claims import Claims
 from .radiotype import RadioId
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PAIR, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards, unstamped
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PAIR, PORT_TRIES, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards, unstamped
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
 
 NAME = "mercury"
-PORT_TRIES = 50                      # how many pairs of ports are tried from the defaults up
 LIST_TIMEOUT_SEC = 15.0              # `mercury -z` opens the sound system; a stuck one is given this long
 STOP_WAIT_SEC = 5.0                  # how long a terminated Mercury is given to end before it is asked again, and then killed
 

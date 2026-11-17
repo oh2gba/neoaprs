@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
-from neoaprs import btpaired, dummyline, mercurymodem, nodevices, pmtilesarchive, pmtilescut, serialprobe, updatedownload, updatefetch
+from neoaprs import btpaired, direwolf, dummyline, mercury, mercurymodem, nodevices, pmtilesarchive, pmtilescut, serialprobe, updatedownload, updatefetch
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.claims import Claims
 from neoaprs.config import Config
@@ -254,11 +254,28 @@ def test_a_port_is_refused_with_the_error_of_one_that_is_not_there(path: str, er
     assert type(refusal.value) is error and refusal.value.strerror == os.strerror(refusal.value.errno or 0)
 
 
-@pytest.mark.parametrize("path", ["socket://127.0.0.1:8001", "tcp://localhost:8100", "socket://[::1]:8001", " TCP://127.0.0.1:8001 ", "socket://127.0.0.1:8001?logging=debug"])
+@pytest.mark.parametrize("path", ["socket://127.0.0.1:40001", "tcp://localhost:32768", "socket://[::1]:20000", " TCP://127.0.0.1:31999 ", "socket://127.0.0.1:18100?logging=debug", "socket://127.0.0.1:8052"])
 def test_a_tcp_port_on_this_computer_is_let_through(path: str, under_the_switch: None, caplog: pytest.LogCaptureFixture) -> None:
+    """A fake's: one the system handed out, the tests' own from 20000 up, a bench's (scripts/mercury-sim from 18100)."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     nodevices.check_port(path)
     assert said(caplog) == []
+
+
+MODEM_PORTS = [direwolf.OWN_PORT, direwolf.OWN_AGW_PORT, mercury.OWN_UI_PORT, direwolf.FIRST_PORT, direwolf.FIRST_PORT + direwolf.PORT_TRIES - 1, mercury.BROADCAST_PORT, mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1, mercury.CONTROL_PORT,
+               mercury.CONTROL_PORT + 1, mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1 + mercury.CONTROL_OFFSET + 1, mercury.BROADCAST_PORT + mercury.UI_OFFSET, mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1 + mercury.UI_OFFSET]
+
+
+@pytest.mark.parametrize("path", [*(f"socket://127.0.0.1:{port}" for port in MODEM_PORTS), "tcp://localhost:8100", "socket://[::1]:8001", " TCP://127.0.0.1:8001 ", "socket://127.0.0.1:8001?logging=debug",
+                                  "socket://127.0.0.1:port", "socket://127.0.0.1"])
+def test_a_tcp_port_on_this_computer_where_a_real_modem_may_listen_is_refused(path: str, under_the_switch: None, caplog: pytest.LogCaptureFixture) -> None:
+    """The operator's own Direwolf (8001 for KISS, 8000 for AGW) and Mercury (its UI on 10000) or a running NeoAPRS's Direwolf and Mercury, keyed to the radios on the desk; one whose number cannot be read is
+    refused as well."""
+    caplog.set_level(logging.DEBUG, logger="neoaprs")
+    with pytest.raises(ConnectionRefusedError) as refusal:
+        nodevices.check_port(path)
+    assert refusal.value.strerror == os.strerror(errno.ECONNREFUSED) and len(said(caplog)) == 1
+    assert not nodevices.modem_port(direwolf.FIRST_PORT + direwolf.PORT_TRIES) and not nodevices.modem_port(mercury.BROADCAST_PORT + mercury.PORT_TRIES) and not any(map(nodevices.modem_port, (7999, 9999, 10001)))
 
 
 def test_an_address_is_refused_unless_it_names_this_computer_or_a_file(under_the_switch: None) -> None:
@@ -524,7 +541,7 @@ def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_
     assert hf_said(on, "socket://127.0.0.1:18100") == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
     monkeypatch.delenv(nodevices.ENV)
     assert hf_line(on).port == "socket://127.0.0.1:8100" and hf_line(on, modem_port=18100).port == "socket://127.0.0.1:18100", "the same with the switch off"
-    assert pointed(on) == ("socket://127.0.0.1:8100", "", False)
+    assert pointed(on) == ("", "", False), "and no port before the modem chose its ports (neoaprs/mercurydriver.py)"
     assert hf_said(on, "") == "the Mercury modem, started by NeoAPRS" and hf_said(replace(on, hf_profile="dummy-hf"), "").endswith("and the modem played through the speakers")
 
 

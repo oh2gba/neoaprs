@@ -1,9 +1,11 @@
 """The driver of a radio of the Sound card type (neoaprs/radiodriver.py; plan §2, "Type"): Direwolf on the radio's sound card (direwolfmodem.py), and the line to its KISS port. The modem is started before
-the line, because it chooses the port the line then connects to; a modem that cannot be started is said in the log and the line is started all the same: it keeps trying its port. The two are stopped together.
+the line, because it chooses the port the line then connects to; a modem that cannot be started is said in the log and the line is started all the same: it has a port only once the modem has chosen
+its KISS port for this start (`port_chosen`), and until then none, and says the modem's problem: a start refused before the choice (no Direwolf, the sound card held) leaves the port where another radio's
+Direwolf may be. The two are stopped together.
 
 A change of the sound card, the keying or the type restarts the radio; the transmit level is set in the running modem (it starts its program again with it), and the sound card and the keying the running modem
-chose for itself are no change when the settings come to name exactly those (`made_explicit`). Under the no-devices switch the daemon starts no Direwolf, and the line has no port: whatever listens where a Direwolf
-of ours would be is not ours and is never connected to."""
+chose for itself are no change when the settings come to name exactly those (`made_explicit`). Under the no-devices switch the daemon starts no Direwolf, and without a Direwolf in this installation none
+runs either: the line then has no port, because whatever listens where a Direwolf of ours would be is not ours and is never connected to; after a start tried again the line follows (`ports_changed`)."""
 import logging
 from pathlib import Path
 from typing import NamedTuple
@@ -14,7 +16,7 @@ from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
 from .direwolf import PROFILE
-from .direwolfmodem import HOST, DirewolfModem
+from .direwolfmodem import HOST, DirewolfModem, levels_card, port_chosen
 from .mercurydriver import chosen_as_set
 from .mercurymodem import left_out
 from .radiodriver import RunOverrides
@@ -52,7 +54,7 @@ class DirewolfDriver:
         self._modem = modem if modem is not None else DirewolfModem(folder, clock, claims=claims, holder=spec.id)
         self._line.radio_id = spec.id
         self._line.modem = self._modem                 # (the line asks it why no frame is to go now, and what to say in the status line)
-        self._card = CardLevels(lambda: self._modem.sound_card, lambda: self._modem.starts, mixer)
+        self._card = CardLevels(lambda: levels_card(self._modem), lambda: self._modem.starts, mixer)       # (the card while the radio holds it: never one another radio holds)
         self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()
 
     @property
@@ -73,8 +75,8 @@ class DirewolfDriver:
         self._line.set_check(run.check_sec)
 
     def _point(self) -> None:
-        """The line, which is stopped, takes its port: the modem's KISS port as it is now (none under the no-devices switch)."""
-        no_line = nodevices.refused(NO_DIREWOLF, logging.INFO) if self._spec.enabled else nodevices.on()
+        """The line, which is stopped, takes its port: the modem's KISS port as it is now (none under the no-devices switch, nor before the modem has chosen its port for this start)."""
+        no_line = (nodevices.refused(NO_DIREWOLF, logging.INFO) if self._spec.enabled else nodevices.on()) or not port_chosen(self._modem)
         self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = ("" if no_line else tcp_url(HOST, self._modem.kiss_port)), SPEED, PROFILE, False, (), ""
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:

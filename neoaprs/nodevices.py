@@ -10,7 +10,9 @@ the place that would open it:
   map (`check_url`, `url_refused`);
 * the default alert command, which shows a notification on the desktop and plays a sound, is not run, and the Dummy HF radio's audio is not played (`refused`).
 
-What stays: the Dummy radios, whatever is on the loopback (a KISS TCP radio, a gpsd, a version page: the fakes of the tests and the benches) and the page's own server.
+What stays: the Dummy radios, whatever is on the loopback (a KISS TCP radio, a gpsd, a version page: the fakes of the tests and the benches) and the page's own server, but for the ports a real modem
+of this computer listens on (`modem_port`): Direwolf's own default, 8001, and the ports NeoAPRS starts its own Direwolf and Mercury on. The operator's own Direwolf or a running NeoAPRS's modems are there,
+keyed to the radios on the desk; a fake listens on a port the system hands out, or one a bench chooses outside them.
 
 A door that is shut behaves as it does when its device is not there: the checks raise the system's own error for a file that is missing or a connection that is refused, so the part that asked waits and says what
 it says of a radio that is unplugged or a server that is down. The page is told nothing else. The log says it: one line when the daemon starts (`announce`), and one line for each door the first time it is
@@ -25,6 +27,8 @@ import logging
 import os
 import urllib.request
 from urllib.parse import urlsplit
+
+from . import direwolf, mercury
 
 log = logging.getLogger("neoaprs.nodevices")
 
@@ -113,14 +117,34 @@ def direct() -> list[urllib.request.BaseHandler]:
     return [urllib.request.ProxyHandler({})] if on() else []
 
 
+def modem_port(number: int) -> bool:
+    """Whether a real modem of this computer may listen on this TCP port: Direwolf's own defaults (KISS and AGW) and Mercury's own UI port, a KISS port NeoAPRS's Direwolf tries (from direwolf.FIRST_PORT up),
+    or one of the four ports of a pair NeoAPRS's Mercury tries (from mercury.BROADCAST_PORT up: broadcast, control, ARQ data, UI)."""
+    if number in (direwolf.OWN_PORT, direwolf.OWN_AGW_PORT, mercury.OWN_UI_PORT) or direwolf.FIRST_PORT <= number < direwolf.FIRST_PORT + direwolf.PORT_TRIES:
+        return True
+    return any(mercury.BROADCAST_PORT <= number - offset < mercury.BROADCAST_PORT + mercury.PORT_TRIES for offset in (0, mercury.CONTROL_OFFSET, mercury.CONTROL_OFFSET + 1, mercury.UI_OFFSET))
+
+
+def _tcp_port_refused(port: str, level: int) -> bool:
+    """Whether a TCP port on this computer is refused: one a real modem may listen on (`modem_port`), or one whose number cannot be read."""
+    try:
+        number = urlsplit(port).port
+    except ValueError:
+        number = None
+    return (number is None or modem_port(number)) and refused(f"the port {port} is not opened: a modem of this computer may listen there", level)
+
+
 def check_port(path: str, level: int = logging.WARNING) -> None:
     """Raises, for a port that is refused, the error it gives when it is not there: FileNotFoundError for a device (`/dev/ttyUSB0`, `COM3`), ConnectionRefusedError for a Bluetooth port (`bt://`, `ble://`), a TCP port
-    on another host and any other address pyserial would open. The one port that is let through is a TCP one on this computer (`socket://127.0.0.1:8001`, `tcp://localhost:8001`)."""
+    on another host, a TCP port on this computer where a real modem may listen (`modem_port`: `socket://127.0.0.1:8001`) and any other address pyserial would open. The one port that is let through is another TCP
+    one on this computer (`socket://127.0.0.1:40001`, `tcp://localhost:40001`)."""
     if not on():
         return
     port = path.strip()
     if port.lower().startswith(TCP_PORTS):
         check_url(port, "a KISS TCP port", level)
+        if _tcp_port_refused(port, level):
+            raise ConnectionRefusedError(errno.ECONNREFUSED, os.strerror(errno.ECONNREFUSED))
     elif "://" in port:
         if refused(f"the port {port} is not opened", level):
             raise ConnectionRefusedError(errno.ECONNREFUSED, os.strerror(errno.ECONNREFUSED))

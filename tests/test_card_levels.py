@@ -11,7 +11,7 @@ import pytest
 
 from neoaprs import cardlevels, direwolfmodem, direwolftune
 from neoaprs.cardlevels import CardLevels
-from neoaprs.claims import Claims
+from neoaprs.claims import Claim, Claims
 from neoaprs.clock import utcnow
 from neoaprs.config import DEFAULTS
 from neoaprs.direwolfdriver import DirewolfDriver
@@ -159,12 +159,33 @@ async def test_a_sound_card_radio_puts_its_levels_on_the_card_and_a_change_of_th
     await driver.stop()
 
 
+async def test_a_sound_card_radio_set_to_the_card_another_radio_holds_never_reads_or_sets_its_levels(tmp_path: Path) -> None:
+    """Two radios set to one card: the second's start is refused, and its values are not written on the card the first transmits on, nor is that card read for its row."""
+    mixer = FakeMixer({CARD: Levels(38, 50)})
+    radio = spec(tx_card="70", rx_card="20")
+    driver = direwolf_driver(tmp_path, mixer, radio)
+    driver.claims.hold(Claim("sound_card", CARD, 2))
+    await driver.start()
+    try:
+        await until(lambda: driver.modem.state == "waiting")
+        assert driver.modem.sound_card == CARD and "is held by" in driver.modem.problem
+        await asyncio.sleep(0.3)
+        driver.card.want(90, 90)
+        await asyncio.sleep(0.1)
+        assert mixer.writes == [] and mixer.reads == 0 and driver.card.levels == NONE and mixer.cards[CARD] == Levels(38, 50)
+    finally:
+        await driver.stop()
+
+
 async def test_the_mercury_radios_card_has_levels_and_the_dummy_and_an_attached_mercury_have_none(tmp_path: Path) -> None:
     mixer = FakeMixer({CARD: Levels(38, 50)})
     hf = RadioSpec(2, "hf", "mercury", "", True, 2, settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true", "rx_card": "30"})
-    driver = MercuryDriver(hf, Claims(), radio_folder(tmp_path, 2), utcnow, mixer=mixer)
+    claims = Claims()
+    driver = MercuryDriver(hf, claims, radio_folder(tmp_path, 2), utcnow, mixer=mixer)
     driver.modem.sound_card = CARD
     driver.configure(hf, DEFAULTS, RunOverrides())
+    assert driver._own_card() == "", "a card the radio does not hold (its start was refused, the card let go) is not its to set"
+    claims.hold(Claim("sound_card", CARD, 2))
     assert driver._own_card() == CARD
     driver.configure(hf, DEFAULTS, RunOverrides(hf_port="socket://127.0.0.1:9", attach_to=2))
     assert driver._own_card() == "", "a Mercury something else runs: its card is not ours to set"

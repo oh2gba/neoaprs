@@ -39,6 +39,14 @@ def keying_claim(keying: Keying, device: str | None, windows: bool = sys.platfor
     return "cm108" if keying.kind == "cm108" and windows else None
 
 
+def held_card(claims: Claims | None, holder: RadioId, card: str) -> str:
+    """The modem's sound card while the station's table has a sound card held by its radio, which is the card it chose last (held in the table's own way of naming it); "" while it holds none: another radio
+    holds that card, or the radio let it go when its start was refused. Without the table, the card as it is."""
+    if claims is None or not card:
+        return card
+    return card if any(c.kind == "sound_card" and c.holder == holder for c in claims.all()) else ""
+
+
 def radio_folder(data_dir: Path, radio: RadioId) -> Path:
     """The radio's own folder in the data folder, where the files of its modem are (made at the modem's first start)."""
     return data_dir / RADIOS_FOLDER / str(radio)
@@ -90,6 +98,11 @@ class HeldPorts:
     def forget(self) -> None:
         self._held = False
 
+    @property
+    def chosen(self) -> bool:
+        """Whether the pair of this start is chosen: until then `pair` is only where a modem of ours may be, which can be another radio's modem or another program."""
+        return self._held
+
     def choose(self, free: Callable[[], tuple[int, int]] = free_ports) -> tuple[int, int] | None:
         """The pair to start the program on, kept in `pair`: the one held when it is still free, else a fresh one from `free` (OSError from it when none is); the pair that was taken, when one was, else None."""
         if self._held and pair_free(self.pair[0]):
@@ -105,6 +118,8 @@ class Holding:
     holder: RadioId
     broadcast_port: int
     control_port: int
+    sound_card: str
+    state: str
     ports_changed: Signal[[]]
     _held: HeldPorts
 
@@ -116,19 +131,32 @@ class Holding:
         """The folder of the program's files: the radio's own, else the data folder."""
         return self.data_dir if self.folder is None else self.folder
 
+    @property
+    def ports_chosen(self) -> bool:
+        """Whether the pair of this start is chosen (`HeldPorts.chosen`): the line is pointed at it only then."""
+        return self._held.chosen
+
+    def held_card(self) -> str:
+        """The sound card whose own levels are the radio's: the one it runs on while it holds it (`held_card`)."""
+        return held_card(self.claims, self.holder, self.sound_card)
+
     def held(self) -> list[Claim]:
         """What the modem holds of the station's resources now: its sound card, its keying line, its pair of ports (nothing without the table), in the order they were held."""
         return [] if self.claims is None else [c for c in self.claims.all() if c.holder == self.holder and c.kind in MODEM_KINDS]
 
     def _choose_ports(self) -> None:
         """The pair of ports of this start (HeldPorts: kept for a program started again in the place of one that died, so that the HF Tnc finds the modem where it left it), held for the radio; when something else took
-        the pair meanwhile the owner is told to point the Tnc at the new one. OSError when no pair is free."""
+        the pair meanwhile the owner is told to point the Tnc at the new one, and so it is when the pair is the first of a start that failed before it chose one (the Tnc then has no port). OSError when no
+        pair is free."""
+        first = not self._held.chosen
         taken, (self.broadcast_port, self.control_port) = self._held.choose(self._free_pair), self._held.pair          # (chosen first, then read)
         log.info("Mercury ports: %d for KISS, %d for control", self.broadcast_port, self.control_port)
         self._hold_pair()
         if taken is not None:
             log.warning("Mercury's ports %d and %d were taken while it was down: it is started on %d and %d, and the Mercury radio is pointed at them", *taken, *self._held.pair)
             self.ports_changed.emit()
+        elif first and self.state == "waiting":
+            self.ports_changed.emit()                                  # (a start tried again after one that failed before its ports were chosen: the line, which has no port, is pointed at them)
 
     def _hold_pair(self) -> None:
         """The pair in use (its broadcast port, as text) held for the radio in the place of the one it held before."""

@@ -62,7 +62,7 @@ def daemon_env() -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
     env["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-bench-no-such-port*"
     env["NEOAPRS_UPDATE_CHECK"] = "0"
-    env["NEOAPRS_NO_DEVICES"] = "1"                 # (its HF radio is the Mercury it is given with --hf-port, which the switch lets through; no device of the machine and nothing but this computer otherwise: neoaprs/nodevices.py)
+    env["NEOAPRS_NO_DEVICES"] = "1"                 # (its HF radio is the Mercury it is given with --hf-port, on a port outside the ones a real modem may listen on, which the switch lets through; no device of the machine and nothing but this computer otherwise: neoaprs/nodevices.py)
     return env
 
 

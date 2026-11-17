@@ -41,7 +41,9 @@ FRAME_SEC = 3.8                        # a frame on the air, PTT ON to PTT OFF, 
 DELIVERY_SEC = 3.8                     # from the frame handed to Mercury to the packet at the far station: measured 3.68 s on average and 3.78 s at the slowest (0.14 s to PTT ON, and the far side decodes 0.26 s before PTT OFF: the postamble and the tail are still on the air)
 BROADCAST_PORT = 8100                  # Mercury's defaults (its docs/TNC.md): the KISS port, and the control port 200 below it
 CONTROL_PORT = 8300
+PORT_TRIES = 50                        # how many pairs of ports are tried from the defaults up
 UI_OFFSET = 2000                       # Mercury's UI interface (the scope, the transmit level) is on the broadcast port plus this, 10100 by default: not Mercury's own 10000, which an operator's own Mercury UI may hold
+OWN_UI_PORT = 10000                    # Mercury's own default UI port (the transmit level), where an operator's own Mercury may listen
 CONTROL_OFFSET = CONTROL_PORT - BROADCAST_PORT         # the control port is this far from the broadcast port, where the daemon chooses the ports; of a Mercury something else runs it is an assumption of ours (Mercury's -b and -p are independent), true of one started with its defaults
 # The busy detector (Mercury's modem/channel_busy.c, switched on in the ini the daemon writes): a spectrum every 50 ms, bands of 150 Hz over 300 to 2700 Hz, BUSY when the loudest band is `busy_threshold_db` above the noise floor
 # (the lower-quartile band, tracked slowly) for 300 ms, and CLEAR 3 dB lower for 1500 ms. Mercury's default threshold, 10 dB, is read off a quiet channel; a real band is not one. Measured on the simulated channel with real

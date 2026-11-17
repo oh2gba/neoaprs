@@ -24,7 +24,7 @@ from .direwolf import CONF_FILE, FIRST_PORT, MODE, PID_FILE, PORT_TRIES, DeviceL
 from .direwolf import dcd_of, keying_open_error, kiss_from_client, level_of, own_card, ptt_of, ready_port, several_cm108, wrong_device
 from .direwolftune import Tuning, clamp
 from .mercury import CONTROL_OFFSET, Keying, SerialPort, SoundCard, keying_of, propose_sound_card
-from .mercuryclaims import MODEM_KINDS, HeldPorts, keying_claim
+from .mercuryclaims import MODEM_KINDS, HeldPorts, held_card, keying_claim
 from .mercuryhelper import Command, foreign_listeners, free_ports, list_sound_cards, next_modem_ports
 from .mercuryhelper import find as mercury_program
 from .mercurymodem import system_serial_ports
@@ -351,6 +351,16 @@ class DirewolfModem(Tuning):
         self.changed.emit()
 
 
+def port_chosen(modem: DirewolfModem) -> bool:
+    """Whether the modem has chosen its KISS port for this start (mercuryclaims.HeldPorts.chosen): until then `kiss_port` is only where a Direwolf of ours may be, another radio's for one."""
+    return modem._held.chosen
+
+
+def levels_card(modem: DirewolfModem) -> str:
+    """The sound card whose own levels are the radio's: the one the modem runs on while its radio holds it (mercuryclaims.held_card)."""
+    return held_card(modem.claims, modem.holder, modem.sound_card)
+
+
 def _numbers_of(card_name: str) -> tuple[int, int] | None:
     """The WinMM numbers of the card of this name (winmm.py); None when it is not one input and one output there."""
     inputs, outputs = winmm.devices()
@@ -358,9 +368,11 @@ def _numbers_of(card_name: str) -> tuple[int, int] | None:
 
 
 def proposal(cards: Sequence[SoundCard], ports: Sequence[PortInfo], leave: Sequence[str] = (), *, claims: Claims | None = None, holder: RadioId,
-             beside: Callable[[str, Sequence[str]], list[str] | None] = usbtie.beside) -> tuple[str, str]:
+             beside: Callable[[str, Sequence[str]], list[str] | None] | None = None) -> tuple[str, str]:
     """The sound card and the keying the page proposes for a Sound card radio while its settings are empty: the card the list proposes (leaving out the others'), and `choose_keying` on its name and the serial
-    ports no one else holds (and none of `leave`), with those of them that are part of the card's interface (`beside`); both empty when no card is listed. Reads sysfs: for a thread."""
+    ports no one else holds (and none of `leave`), with those of them that are part of the card's interface (`beside`, else `usbtie.beside` as that module has it now); both empty when no card is listed. Reads
+    sysfs: for a thread."""
+    beside = beside or usbtie.beside
     serial, held_cards = (claims.held_by_others(holder, "serial"), claims.held_by_others(holder, "sound_card")) if claims is not None else (frozenset[str](), frozenset[str]())
     card = propose_sound_card([c for c in cards if c.id not in held_cards])
     free = [SerialPort(p.device, p.vid, p.pid) for p in ports if (key := claim_value(p.device)) not in leave and (not serial or key not in serial)]

@@ -16,6 +16,7 @@ Sliders for the sound card's own levels, a receive level that follows the audio 
 - **Fixed:** a Sound card radio did not start when the data folder's path was long.
 - **Fixed:** Ask around no longer says "by (default)" when the radios it went on have different paths; the line names no path then.
 - **Fixed:** in the Email tab the list of radios beside Check email has its label, Send on.
+- **Fixed:** a radio whose modem cannot start, its program missing or its sound card in use, no longer sends through another radio's modem.
 
 ## 0.20.2
 

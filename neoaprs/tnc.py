@@ -191,7 +191,7 @@ class Tnc(TimedSource):
 
     async def _find_line(self, reopen: str, named: bool, generation: int) -> tuple[TncPort | DummyPort, str, bytes] | None:
         """The line, open, with its path and what the search heard on it; None when `stop` came meanwhile. Raises SerialError."""
-        if not named and not self.profile.search:
+        if not named and (not self.profile.search or self._modem() is not None):      # (nor is a modem's line, which has no port only where no modem of ours runs)
             raise NotChosenError("no address is chosen: type the board's address in the settings" if self.profile.transport == "tcp" else "no port is chosen: choose the radio's port in the settings")    # (a LoRa board is not looked for: an open may restart one)
         path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: accepts(self.profile, heard), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port, claims=self.claims, holder=self.radio_id, lock=self.search_lock)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well; what other radios hold or are set to is not: Claims.others)
         if generation != self._generation:
@@ -228,7 +228,7 @@ class Tnc(TimedSource):
         """WAITING, and the line is tried again after the back-off; not `again` (no port or address is chosen, and none is looked for): only a change of the settings, which restarts the radio, can open it."""
         self.watchdog.probes = 0
         if (modem := self._modem()) is not None:
-            problem, again = modem.problem or f"waiting for {modem.describe()}", True     # (the line to a modem the daemon starts is refused because the modem is not running: why it is not, or that it is starting, is what the operator can do something with; the socket's words are not)
+            problem = modem.problem or f"waiting for {modem.describe()}"     # (the line to a modem the daemon starts is refused because the modem is not running: why it is not, or that it is starting, is what the operator can do something with; the socket's words are not)
         self._waiting(problem, self.backoff.next_delay_sec(), self._connect) if again else _until_settings_change(self, problem)
 
     def _modem(self) -> Modem | None:

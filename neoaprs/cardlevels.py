@@ -5,7 +5,8 @@ The values are put back at every start of the radio's modem (its program's `star
 the same controls; a value the operator never set (None) is never written, so that the card stays as the system has it. A change of a value is set at once, and restarts nothing: the modem keeps its sound
 card open. While the radio runs the card is read every POLL_SEC, so that the row follows what the desktop's mixer does to it.
 
-The card is the modem's (the one it runs on: the settings', or its own choice); "" (the Dummy radio's, a Mercury something else runs) has no levels. The mixer is called on a thread, one call at a time. The
+The card is the modem's (the one it runs on: the settings', or its own choice) while its radio holds it in the station's table; "" (the Dummy radio's, a Mercury something else runs, a card another radio holds
+or one let go when the start was refused) has no levels, and the row keeps the ones read last. The mixer is called on a thread, one call at a time. The
 system's mixer is `SystemMixer` (ALSA on Linux, Core Audio on Windows, none elsewhere and none under the no-devices switch); a test gives its own."""
 import asyncio
 import logging

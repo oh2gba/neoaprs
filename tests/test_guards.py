@@ -6,7 +6,9 @@ import socket
 import subprocess
 import sys
 import textwrap
+import types
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -80,13 +82,61 @@ def test_makes_a_bluetooth_socket_and_swallows_the_error():
     except OSError:
         pass
 
-def test_starts_the_mercury_of_this_installation_and_swallows_the_error():
+def test_starts_a_file_in_the_folder_of_the_shipped_programs_and_swallows_the_error():
     import subprocess
     from neoaprs import bundled
     try:
-        subprocess.Popen([str(bundled.tools_dir() / "mercury" / "mercury"), "-l"])
+        subprocess.Popen([str(bundled.tools_dir() / "mercury" / "no-such-program"), "-l"])        # (not the real Mercury: were the guard broken, nothing would start)
     except OSError:
         pass
+
+@pytest.mark.real_direwolf
+def test_marked_for_the_real_direwolf_keeps_its_folder_and_finds_no_mercury():
+    import subprocess
+    from neoaprs import bundled, direwolfprogram, mercuryhelper
+    assert direwolfprogram.tools_dir() == bundled.tools_dir() and mercuryhelper.find() is None and not mercuryhelper.expected_program().parent.parent.exists()
+    with pytest.raises(FileNotFoundError):
+        subprocess.Popen([str(bundled.tools_dir() / "direwolf" / "no-such-program")])            # (Direwolf's folder is open to it: the file is simply not there)
+
+@pytest.mark.real_direwolf
+def test_marked_for_the_real_direwolf_starts_a_file_of_mercurys_folder_and_swallows_the_error():
+    import subprocess
+    from neoaprs import bundled
+    try:
+        subprocess.Popen([str(bundled.tools_dir() / "mercury" / "no-such-program")])
+    except OSError:
+        pass
+
+def test_connects_to_the_port_of_a_real_mercury_and_swallows_the_error():
+    from neoaprs.mercury import BROADCAST_PORT
+    try:
+        socket.create_connection(("127.0.0.1", BROADCAST_PORT), timeout=0.2)
+    except OSError:
+        pass
+
+def test_connects_to_the_kiss_port_of_a_real_direwolf_and_swallows_the_error():
+    from neoaprs.radiotypes.kisstcp import TCP_PORT
+    try:
+        socket.create_connection(("localhost", int(TCP_PORT.default)), timeout=0.2)
+    except OSError:
+        pass
+
+def test_the_default_alert_command_is_not_run_and_a_command_of_the_tests_own_is(monkeypatch):
+    from dataclasses import replace
+    monkeypatch.setattr("neoaprs.nodevices.on", lambda: False)                  # (the switch lifted, as tests/conftest.py devices_are_fakes has it)
+    from neoaprs.config import DEFAULTS
+    from neoaprs.services.alerts import Alerts
+    assert Alerts(lambda: DEFAULTS)._command() == "" and Alerts(lambda: replace(DEFAULTS, messages_alert_command="true"))._command() == "true"
+
+def test_the_journal_of_this_machine_is_not_read():
+    import inspect
+    from neoaprs.cli import supportgather, supportmake
+    for journal in (supportgather.journal_text, inspect.signature(supportmake.make_bundle).parameters["journal"].default):
+        if journal is None:
+            continue
+        which = inspect.signature(journal).parameters.get("which")
+        assert which is None or which.default("journalctl") is None, "it would look for journalctl on this machine"       # (asked before it is called: a broken guard reads nothing)
+        assert journal() is None
 
 def test_finds_no_modem_program_where_the_installation_has_them(tmp_path):
     from neoaprs import direwolfprogram, mercuryhelper
@@ -171,7 +221,9 @@ def child_outcomes(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
         [pytest]
         asyncio_mode = auto
         asyncio_default_fixture_loop_scope = function
-        markers = expects_errors: on purpose
+        markers =
+            expects_errors: on purpose
+            real_direwolf: keeps Direwolf's folder
     """))
     env = {**os.environ, "PYTHONPATH": str(ROOT), "REAL_HOME": os.environ.get("HOME", "")}
     proc = subprocess.run([sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-rA", "--color=no", "-q", str(work)], cwd=work, env=env, capture_output=True, text=True, timeout=120)
@@ -187,13 +239,15 @@ def child_outcomes(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
 
 @pytest.mark.parametrize("name", [
     "test_clean", "test_a_task_that_is_finishing_is_not_a_leak", "test_forgets_to_stop_its_daemon_and_the_guard_stops_it", "test_stops_its_daemon_itself_and_the_guard_does_not_mind", "test_talks_to_the_loopback", "test_logs_an_error_on_purpose", "test_reads_the_log_itself",
-    "test_a_warning_and_the_asyncio_logger_are_not_errors", "test_makes_a_pair_of_sockets_that_stand_in_for_a_radio", "test_finds_no_modem_program_where_the_installation_has_them", "test_the_home_is_empty_and_not_the_real_one", "test_changes_the_logging", "test_the_logging_is_as_it_was_before_the_test_that_changed_it"])
+    "test_a_warning_and_the_asyncio_logger_are_not_errors", "test_makes_a_pair_of_sockets_that_stand_in_for_a_radio", "test_finds_no_modem_program_where_the_installation_has_them", "test_the_home_is_empty_and_not_the_real_one", "test_changes_the_logging", "test_the_logging_is_as_it_was_before_the_test_that_changed_it",
+    "test_marked_for_the_real_direwolf_keeps_its_folder_and_finds_no_mercury", "test_the_default_alert_command_is_not_run_and_a_command_of_the_tests_own_is", "test_the_journal_of_this_machine_is_not_read"])
 def test_what_is_allowed_passes_the_guards(child_outcomes: dict[str, str], name: str) -> None:
     assert child_outcomes[name] == "ok"
 
 
 @pytest.mark.parametrize("name", ["test_leaks_a_task", "test_leaves_a_stop_that_never_ends", "test_reaches_out_and_swallows_the_error", "test_sends_a_datagram_out", "test_looks_up_a_name", "test_logs_an_error", "test_asks_the_rigctld_of_this_machine", "test_asks_the_rotctld_of_this_machine_by_name",
-                                  "test_starts_the_mercury_of_this_installation_and_swallows_the_error",
+                                  "test_starts_a_file_in_the_folder_of_the_shipped_programs_and_swallows_the_error", "test_marked_for_the_real_direwolf_starts_a_file_of_mercurys_folder_and_swallows_the_error",
+                                  "test_connects_to_the_port_of_a_real_mercury_and_swallows_the_error", "test_connects_to_the_kiss_port_of_a_real_direwolf_and_swallows_the_error",
                                   *(["test_makes_a_bluetooth_socket_and_swallows_the_error"] if hasattr(socket, "AF_BLUETOOTH") else [])])
 def test_what_is_forbidden_fails_the_test(child_outcomes: dict[str, str], name: str) -> None:
     assert child_outcomes[name] == "error"
@@ -270,11 +324,74 @@ def test_the_names_of_the_aprs_is_servers_are_not_looked_up_and_say_so() -> None
     assert network.refused == [f"{name} (name lookup of an APRS-IS server)" for name in ("rotate.aprs2.net", "euro.aprs2.net", "first.aprs.net", "ROTATE.APRS2.NET.")]
 
 
-@pytest.mark.parametrize("address", [("127.0.0.1", 7303), ("::1", 7303, 0, 0), ("localhost", 80), ("0.0.0.0", 8080), ("127.0.0.1", 0)])
+@pytest.mark.parametrize("address", [("127.0.0.1", 7303), ("::1", 7303, 0, 0), ("localhost", 80), ("0.0.0.0", 8080), ("127.0.0.1", 0), ("127.0.0.1", 20000)])
 def test_any_port_of_this_machine_may_be_reached(address: tuple[object, ...]) -> None:
     network = guards.NetworkGuard()
     network.check(address, socket.AF_INET6 if address[0] == "::1" else socket.AF_INET)
     assert network.refused == []
+
+
+def _modem_ports() -> list[int]:
+    from neoaprs import direwolf, mercury, mercuryhelper
+    from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, UI_OFFSET
+    from neoaprs.radiotypes.kisstcp import TCP_PORT
+    last = BROADCAST_PORT + mercuryhelper.PORT_TRIES - 1
+    return [int(TCP_PORT.default), direwolf.OWN_AGW_PORT, mercury.OWN_UI_PORT, direwolf.FIRST_PORT, direwolf.FIRST_PORT + direwolf.PORT_TRIES - 1, BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET, BROADCAST_PORT + CONTROL_OFFSET + 1, BROADCAST_PORT + UI_OFFSET,
+            last, last + CONTROL_OFFSET + 1, last + UI_OFFSET]
+
+
+@pytest.mark.parametrize("port", _modem_ports())
+def test_a_port_of_this_machine_a_real_modem_may_listen_on_is_not_reached(port: int) -> None:
+    """Direwolf's own default and the ports NeoAPRS's Direwolf and Mercury try: the operator's modems on the radios may be there. The tests' made-up modems run from 20000 up (tests/support/modemports.py)."""
+    network = guards.NetworkGuard()
+    for address, family in ((("127.0.0.1", port), socket.AF_INET), (("localhost", port), socket.AF_INET), (("::1", port, 0, 0), socket.AF_INET6)):
+        with pytest.raises(guards.NonLoopbackConnection, match="real Direwolf or Mercury"):
+            network.check(address, family)
+    assert len(network.refused) == 3 and all("a port of a real modem" in line for line in network.refused)
+
+
+def test_the_ports_of_the_tests_own_modems_are_none_of_a_real_modems() -> None:
+    from neoaprs import nodevices
+    from tests.support.modemports import WORKER_SPAN, WORKERS
+    assert guards.MODEM_PORTS == {port for port in range(1, 65536) if nodevices.modem_port(port)} and set(_modem_ports()) <= guards.MODEM_PORTS, "the ports the no-devices switch refuses"
+    assert guards.MODEM_PORTS.isdisjoint(range(20000, 20000 + WORKER_SPAN * WORKERS + 2000 + 1000)), "a worker's ports, its UI ports 2000 above them too"
+    assert guards.MODEM_PORTS.isdisjoint(range(32768, 65536)), "nor a port the system gives (Linux from 32768, Windows from 49152)"
+
+
+def test_a_connect_a_probe_and_a_datagram_to_a_real_modems_port_are_refused_when_installed() -> None:
+    from neoaprs.mercury import BROADCAST_PORT
+    network = guards.NetworkGuard()
+    with pytest.MonkeyPatch.context() as mp:
+        network.install(mp.setattr)
+        with pytest.raises(guards.NonLoopbackConnection), socket.socket() as s:
+            s.connect(("127.0.0.1", BROADCAST_PORT))
+        with pytest.raises(guards.NonLoopbackConnection), socket.socket() as s:
+            s.connect_ex(("127.0.0.1", BROADCAST_PORT))
+        with pytest.raises(guards.NonLoopbackConnection), socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as u:
+            u.sendto(b"x", ("127.0.0.1", BROADCAST_PORT))
+    assert len(network.refused) == 3
+
+
+def test_a_connect_of_the_windows_loop_which_goes_past_socket_connect_is_refused_too() -> None:
+    """IocpProactor.connect, the Windows loop's, calls ConnectEx and never `socket.connect`: the guard wraps it as well (here a stand-in of it)."""
+    from neoaprs.mercury import BROADCAST_PORT
+
+    class Proactor:
+        def connect(self, conn: socket.socket, address: Any) -> str:
+            return "connected"
+
+    network = guards.NetworkGuard()
+    with pytest.MonkeyPatch.context() as mp, socket.socket() as s:
+        network.install(mp.setattr, Proactor)
+        with pytest.raises(guards.NonLoopbackConnection):
+            Proactor().connect(s, ("127.0.0.1", BROADCAST_PORT))
+        assert Proactor().connect(s, ("127.0.0.1", 20000)) == "connected"
+    assert len(network.refused) == 1 and Proactor().connect(s, ("127.0.0.1", BROADCAST_PORT)) == "connected", "put back after the test"
+    if sys.platform == "win32":
+        from asyncio import windows_events
+        assert guards._iocp_proactor() is windows_events.IocpProactor
+    else:
+        assert guards._iocp_proactor() is None
 
 
 @posix_only
@@ -395,3 +512,144 @@ async def test_the_bluetooth_guard_stands_in_for_bleak_and_remembers_a_scan_and_
         with pytest.raises(guards.BluetoothTouched):
             bleak.BleakClient("AA:BB:CC:DD:EE:FF")
     assert bluetooth.refused == ["a Bluetooth LE scan", "a Bluetooth LE connection"]
+
+
+def _tools(root: Path) -> Path:
+    """A folder of shipped programs as a checkout has it: Mercury, Direwolf with its dev/ tools."""
+    tools = root / "tools"
+    for name in ("mercury", "direwolf"):
+        (tools / name / "dev").mkdir(parents=True)
+        (tools / name / name).write_text("#!/bin/sh\n")
+    (tools / "direwolf" / "dev" / "gen_packets").write_text("#!/bin/sh\n")
+    return tools
+
+
+def test_a_shipped_program_is_found_by_its_cwd_its_executable_its_path_a_shell_or_one_string_with_a_space_in_it(tmp_path: Path) -> None:
+    tools = _tools(tmp_path / "John Smith" / "venv")                  # (a profile folder with a space, as on Windows)
+    mercury = tools / "mercury" / "mercury"
+    processes = guards.ProcessGuard(tools)
+    assert processes.starts_shipped(["./mercury", "-z"], cwd=tools / "mercury") and processes.starts_shipped(["x"], executable=str(mercury))
+    assert processes.starts_shipped(["mercury"], env={"PATH": f"/usr/bin{os.pathsep}{tools / 'mercury'}"}) and processes.starts_shipped(["sh", "-c", f"{mercury} -z"])
+    assert processes.starts_shipped(f'"{mercury}" -z') and processes.starts_shipped(f"exec {mercury} -z") and processes.starts_shipped(["mercury"], cwd=tools), "the folder itself"
+    assert not processes.starts_shipped(["sh", "-c", "echo hello"], cwd=tmp_path, env={"PATH": "/usr/bin"}) and not processes.starts_shipped([sys.executable, "-c", "pass"], executable=sys.executable)
+    assert not processes.starts_shipped(["ls"], cwd=str(tools) + "-other") and not processes.starts_shipped(f"ls {tools}-other/mercury")
+    if sys.platform != "win32":
+        (tmp_path / "into").symlink_to(tools / "mercury")
+        assert processes.starts_shipped(["./mercury"], cwd=tmp_path / "into") and processes.starts_shipped(["mercury"], env={"PATH": str(tmp_path / "into")}), "by the folder it is on the disk"
+    direwolfs = guards.ProcessGuard(tools, allowed=("direwolf",))
+    assert not direwolfs.starts_shipped(["gen_packets"], cwd=tools / "direwolf" / "dev", env={"PATH": str(tools / "direwolf")}) and direwolfs.starts_shipped(["x"], executable=str(mercury))
+
+
+async def test_a_shell_line_that_starts_a_shipped_program_is_refused_before_it_runs(tmp_path: Path) -> None:
+    tools = _tools(tmp_path / "venv")
+    processes = guards.ProcessGuard(tools)
+    with pytest.MonkeyPatch.context() as mp:
+        processes.install(mp.setattr)
+        with pytest.raises(guards.RadioTouched):
+            await asyncio.create_subprocess_shell(f'"{tools / "mercury" / "mercury"}" -z')
+        with pytest.raises(guards.RadioTouched):
+            subprocess.Popen(["./mercury", "-z"], cwd=tools / "mercury")
+        with pytest.raises(guards.RadioTouched):
+            subprocess.Popen(["anything"], executable=str(tools / "mercury" / "mercury"))
+    assert len(processes.shipped) == 3
+
+
+@pytest.mark.parametrize("conf,why", [
+    ("ADEVICE udp:7355 null\nKISSPORT 17411\n", ""), ("# written by NeoAPRS\nADEVICE stdin null\nACHANNELS 1\n", ""), ("ADEVICE null\n", ""), ("adevice NULL UDP:1\n", ""),
+    ("ADEVICE plughw:1,0 null\n", "audio device"), ("ADEVICE default\n", "audio device"), ("ADEVICE null\nADEVICE1 hw:1\n", "audio device"), ("ADEVICE\n", "audio device"), ("ADEVICE null null null\n", "audio device"),
+    ("ACHANNELS 1\nMODEM 1200\n", "no audio device"), ("ADEVICE null\nPTT CM108\n", "PTT CM108"), ("ADEVICE null\nptt /dev/ttyUSB0 RTS\n", "ptt"), ("ADEVICE null\nGPSNMEA /dev/ttyUSB1\n", "GPSNMEA"),
+    ("ADEVICE null\nSERIALKISS /dev/ttyS0 9600\n", "SERIALKISS"), ("ADEVICE null\nTXINH GPIO 17\n", "TXINH"), ("ADEVICE null\nNULLMODEM /dev/ttyUSB0\n", "NULLMODEM"),
+    ("ADEVICE null\nWAYPOINT /dev/ttyUSB0\n", "WAYPOINT"), ("ADEVICE null\nIGSERVER noam.aprs2.net\n", "IGSERVER")])
+def test_the_real_direwolf_starts_only_on_a_configuration_that_opens_no_sound_card_and_keys_nothing(tmp_path: Path, conf: str, why: str) -> None:
+    tools = _tools(tmp_path / "venv")
+    (tmp_path / "direwolf.conf").write_text(conf)
+    direwolfs = guards.ProcessGuard(tools, allowed=("direwolf",))
+    program = str(tools / "direwolf" / "direwolf")
+    for args, cwd in (([program, "-c", str(tmp_path / "direwolf.conf"), "-t", "0"], None), ([program, "-t", "0", "-c", "direwolf.conf"], tmp_path), ([program, f"-c{tmp_path / 'direwolf.conf'}"], None)):
+        found = direwolfs.direwolf_refusal(args, cwd)
+        assert (why in found and bool(found)) if why else found == "", (args, found)
+
+
+def test_the_real_direwolf_without_a_readable_configuration_or_through_another_program_is_refused_and_remembered(tmp_path: Path) -> None:
+    tools = _tools(tmp_path / "venv")
+    direwolfs = guards.ProcessGuard(tools, allowed=("direwolf",))
+    program = str(tools / "direwolf" / "direwolf")
+    good = tmp_path / "good.conf"
+    good.write_text("ADEVICE stdin null\n")
+    assert "no configuration" in direwolfs.direwolf_refusal([program, "-t", "0"]) and "cannot be read" in direwolfs.direwolf_refusal([program, "-c", str(tmp_path / "missing.conf")])
+    assert "cannot be read" in direwolfs.direwolf_refusal([program, "-c", str(tmp_path)]), "a folder is no configuration"
+    assert "another program" in direwolfs.direwolf_refusal(["sh", "-c", f"{program} -c {good}"]) and direwolfs.direwolf_refusal(f"{program} -c {good}") == ""
+    assert direwolfs.direwolf_refusal([str(tools / "direwolf" / "dev" / "gen_packets"), "-o", "x.wav"]) == "" and direwolfs.direwolf_refusal(["sh", "-c", "echo"]) == "", "gen_packets and atest take no configuration"
+    assert guards.ProcessGuard(tools).direwolf_refusal([program]) == "", "where Direwolf is not allowed, starts_shipped refuses it"
+    bad = tmp_path / "bad.conf"
+    bad.write_text("ADEVICE plughw:1,0\n")
+    (tools / "direwolf" / "direwolf").chmod(0o755)
+    assert "audio device" in direwolfs.direwolf_refusal(["direwolf", "-c", str(bad)], env={"PATH": str(tools / "direwolf")}), "found on the PATH it runs with"
+    assert "audio device" in direwolfs.direwolf_refusal(["x", "-c", str(bad)], executable=program), "given as the executable"
+    assert "audio device" in direwolfs.direwolf_refusal([program, "-c", str(good), "-c", str(bad)]) and direwolfs.direwolf_refusal([program, "-c", str(bad), "-c", str(good)]) == "", "Direwolf reads the last -c"
+    with pytest.MonkeyPatch.context() as mp:
+        direwolfs.install(mp.setattr)
+        with pytest.raises(guards.RadioTouched, match="no sound card"):
+            subprocess.Popen([program, "-c", str(tmp_path / "missing.conf")])
+    assert len(direwolfs.shipped) == 1 and "missing.conf" in direwolfs.shipped[0]
+
+
+def test_the_main_checkouts_programs_are_refused_too_when_the_tests_run_in_a_worktree_of_it(tmp_path: Path) -> None:
+    main, own = tmp_path / "NeoAPRS", tmp_path / "NeoAPRS" / ".claude" / "worktrees" / "round" / ".venv" / "tools"
+    assert guards.tools_folders(main / ".claude" / "worktrees" / "round", own) == (own, main / ".venv" / "tools")
+    assert guards.tools_folders(main, main / ".venv" / "tools") == (main / ".venv" / "tools",) and guards.tools_folders(tmp_path / "worktrees" / "x", own) == (own,)
+    sibling = main / ".claude" / "worktrees" / "other" / ".venv" / "tools"
+    sibling.mkdir(parents=True)
+    own.mkdir(parents=True)
+    assert guards.tools_folders(main / ".claude" / "worktrees" / "round", own) == (own, main / ".venv" / "tools", sibling) and guards.tools_folders(main, main / ".venv" / "tools") == (main / ".venv" / "tools", sibling, own), "every worktree's"
+    assert guards.TOOLS_FOLDERS == guards.tools_folders(guards.CHECKOUT, guards.REAL_TOOLS) and guards.TOOLS_FOLDERS[0] == guards.REAL_TOOLS
+    for folder in guards.TOOLS_FOLDERS:
+        assert guards.ProcessGuard().starts_shipped([str(folder / "mercury" / "no-such-program")]), folder
+    two = guards.ProcessGuard([_tools(tmp_path / "a"), _tools(tmp_path / "b")])
+    assert two.starts_shipped([str(tmp_path / "a" / "tools" / "mercury" / "mercury")]) and two.starts_shipped([str(tmp_path / "b" / "tools" / "mercury" / "mercury")]) and not two.starts_shipped([str(tmp_path / "c")])
+
+
+def test_the_journal_is_not_read_by_the_module_nor_by_the_function_bound_before(tmp_path: Path) -> None:
+    """A default argument keeps the function it was given (`make_bundle(journal=gather.journal_text)`): the guard shuts the function too, not only the name in its module."""
+    ran: list[str] = []
+
+    def journal_text(run: Any = lambda *a, **k: ran.append("journalctl"), which: Any = lambda name: "/bin/" + name) -> str | None:
+        if which("journalctl") is None:
+            return None
+        run(["journalctl"])
+        return "the journal"
+
+    gather = types.SimpleNamespace(journal_text=journal_text)
+    bound = journal_text                                                      # (as a default argument holds it)
+    assert bound() == "the journal" and ran == ["journalctl"], "the stand-in reads its journal"
+    with pytest.MonkeyPatch.context() as mp:
+        guards.no_journal(mp.setattr, gather)
+        assert gather.journal_text() is None and bound() is None and ran == ["journalctl"]
+        assert bound(run=lambda *a, **k: None, which=lambda name: "/bin/" + name) == "the journal" == gather.journal_text(lambda *a, **k: None, which=lambda name: "/bin/" + name), "a test of the journal gives its own"
+        assert gather.journal_text(lambda *a, **k: ran.append("given")) is None and ran == ["journalctl"], "what it does not give stays shut"
+    assert bound.__defaults__ is not None and bound() == "the journal", "put back after the test"
+
+    def other(run: Any = None) -> None:
+        return None
+
+    with pytest.MonkeyPatch.context() as mp, pytest.raises(AssertionError, match="no_journal"):
+        guards.no_journal(mp.setattr, types.SimpleNamespace(journal_text=other))
+
+
+def test_the_default_alert_command_is_shut_and_a_command_of_the_tests_own_runs() -> None:
+    from dataclasses import replace
+
+    from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
+    from neoaprs.config import DEFAULTS
+    from neoaprs.services import alerts
+
+    class Unswitched(alerts.Alerts):
+        def _command(self) -> str:
+            return self._config().messages_alert_command.strip()                # (as with the no-devices switch lifted)
+
+    assert Unswitched(lambda: DEFAULTS)._command() == DEFAULT_ALERT_COMMAND
+    with pytest.MonkeyPatch.context() as mp:
+        guards.no_default_alert(mp.setattr, Unswitched)
+        assert Unswitched(lambda: DEFAULTS)._command() == "" and Unswitched(lambda: replace(DEFAULTS, messages_alert_command=" echo hi "))._command() == "echo hi"
+        for wrapped in (f"true; {DEFAULT_ALERT_COMMAND}", f"{DEFAULT_ALERT_COMMAND} # mine", "notify-send x; paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga"):
+            assert Unswitched(lambda wrapped=wrapped: replace(DEFAULTS, messages_alert_command=wrapped))._command() == "", wrapped

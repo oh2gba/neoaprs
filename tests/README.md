@@ -510,7 +510,10 @@ that makes the code log an ERROR on purpose, and `real_direwolf` by the tests th
    demands of a `neoaprs` that a test starts with an environment of its own). HOME and the XDG folders are an empty folder of the test; a connect, a datagram or
    a name lookup to an address that is not on the loopback fails the test, even when the code under test swallowed the error. Not even this machine's port 4532
    or 4533 may be reached (the rigctld and rotctld of whoever runs the tests, on a real radio): a test that wants a radio starts a fake rigctld on a free port
-   (`support/fakes.py`).
+   (`support/fakes.py`). Nor a port where a real modem may listen (`MODEM_PORTS`: Direwolf's own 8001 and 8000, Mercury's own UI port 10000, the KISS ports NeoAPRS's Direwolf tries and the four ports of each pair its Mercury
+   tries; the ports the no-devices switch refuses, `nodevices.modem_port`): the operator's Direwolf or a running NeoAPRS keys a radio there. The made-up modems run from port 20000 up (`support/modemports.py`), a fake TNC on a port the
+   system gives; a radio added with the defaults of `kiss-tcp` is added switched off. The default alert command (a notification, a sound) is not run, a command of the test's own is (`no_default_alert`), and
+   the support bundle reads no journal of this machine (`no_journal`: the name in its module and the defaults of the function itself, so a default argument that holds it reads nothing either).
 2. **No leak.** A test that ends with an asyncio task still running, or with the thread of a `Db` still running, fails. `support/env.py` stops the daemons of
    the `Env`s and closes the `Db`s of the stores the test opened (`support/storedb.py`).
 3. **No unexpected ERROR.** A test that makes the code log an ERROR it did not say it expects fails.
@@ -520,8 +523,11 @@ that makes the code log an ERROR on purpose, and `real_direwolf` by the tests th
 
 Part of the fourth: **never the modem programs of this installation.** A checkout where the developer built Mercury or Direwolf has them in `.venv/tools`, where the modems look for them. A radio of a test
 that found the real Mercury would start it on the sound cards of the machine, with the radios that hang on them. So for every test the modems look in a folder that is not there (`no_shipped_programs`), as
-in an installation without them, and a test that starts anything inside the real folder all the same fails (`ProcessGuard`). The tests use the made-up programs (`support/fakemercury.py`,
-`support/fakedirewolf.py`); only the tests marked `real_direwolf` keep Direwolf's folder, and they run it on ALSA's `null` card with no serial port.
+in an installation without them, and a test that starts anything inside the real folder all the same fails (`ProcessGuard`). The folder counts wherever the start names it: the program, `executable`,
+`cwd`, an entry of the PATH, a shell line, as written and as it is on the disk; and besides this interpreter's folder the main checkout's `.venv/tools` when the tests run in a worktree of it
+(`tools_folders`, from the path of the checkout). The tests use the made-up programs (`support/fakemercury.py`, `support/fakedirewolf.py`); only the tests marked `real_direwolf` keep Direwolf's
+folder (not Mercury's), and the guard reads the configuration that Direwolf is started on (`-c`): it must name its audio as `null`, `stdin` or `udp:PORT` and have no PTT line or other line that keys or
+opens a device (`conf_refusal`); `dev/gen_packets` and `dev/atest` take none.
 
 A fifth thing that is not a guard but behaves like one: the logging (levels, handlers, switches) is put back as it was when the test ends.
 

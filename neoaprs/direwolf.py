@@ -23,7 +23,9 @@ SOURCE_SHA256 = "9d9a31d13d87571dee77c91fb95a7b9bfdcb39f3d796e87bbbcd20f09f67658
 BANNER = "Dire Wolf Release %d.%d.%d, November 2025"                # the banner's format string in the program (direwolf.c:310): the version check of a program that cannot be run here (Windows)
 
 MODE = "AFSK1200"
-FIRST_PORT = 8002                      # the first KISS port tried: 8001 is Direwolf's own default, where an operator's own Direwolf may listen
+OWN_PORT = 8001                        # Direwolf's own default KISS port, where an operator's own Direwolf may listen
+OWN_AGW_PORT = 8000                    # Direwolf's own default AGW port (frames are sent through it too), where an operator's own Direwolf may listen; ours has none
+FIRST_PORT = OWN_PORT + 1              # the first KISS port tried: the one above Direwolf's own default
 PORT_TRIES = 50                        # how many ports are tried from FIRST_PORT up (below Mercury's 8100)
 CONF_FILE = "direwolf.conf"
 PID_FILE = "direwolf.pid"

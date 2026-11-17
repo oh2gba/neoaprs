@@ -47,12 +47,10 @@ class DemoRadio:
     def url(self) -> str:
         return f"socket://{HOST}:{self.port}"
 
-    async def start(self, preferred: int = 8001) -> None:
-        """Listens on `preferred` (Direwolf's KISS port, which is what the settings then show) when it is free, else on any free port."""
-        try:
-            self._server = await asyncio.start_server(self._serve, HOST, preferred)
-        except OSError:
-            self._server = await asyncio.start_server(self._serve, HOST, 0)
+    async def start(self) -> None:
+        """Listens on a free port the system gives: never Direwolf's own 8001 or another port where a real modem of this computer may listen, which the daemon under the no-devices switch does not connect to
+        (the screenshots write 8001 into the field of a TCP port themselves)."""
+        self._server = await asyncio.start_server(self._serve, HOST, 0)
         self.port = self._server.sockets[0].getsockname()[1]
 
     async def _serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:

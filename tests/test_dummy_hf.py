@@ -38,6 +38,7 @@ from tests.support import fakemercury
 from tests.support.clock import FixedClock
 from tests.support.env import Env, until_started
 from tests.support.hfchannel import NONBLOCK
+from tests.support.modemports import own_ports
 from tests.support.mercuryworld import World
 from tests.test_dummy import refuse_the_world
 
@@ -117,6 +118,12 @@ def test_the_nearest_station_acks_a_message_a_frame_each_way_later_and_answers_o
 @pytest.fixture
 def fast(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
+
+
+@pytest.fixture(autouse=True)
+def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The made-up Mercury that is the speaker asks for free ports from a base of this test's own (tests/support/modemports.py), not from Mercury's defaults, where a real Mercury of this machine may listen."""
+    own_ports(monkeypatch)
 
 
 class Spoken:

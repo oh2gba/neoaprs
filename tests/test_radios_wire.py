@@ -146,10 +146,11 @@ async def test_a_command_that_names_no_radio_is_refused_for_radio_1_once_it_is_r
 
 async def test_a_radios_own_settings_ride_set_config_and_each_refusal_names_its_key(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
-    id = await added(page, "kiss-tcp")
-    await page.until(lambda: f"radio/{id}/tcp_port" in page.topics["config"]["radio_values"])
+    id = await e.ctl.add_radio("kiss-tcp", enabled=False)              # (off while it has the defaults, 127.0.0.1:8001, and 8002 below: the ports of a real Direwolf of this machine)
+    assert id is not None
+    await page.until(lambda: str(id) in page.topics["radios"] and f"radio/{id}/tcp_port" in page.topics["config"]["radio_values"])
     values = page.topics["config"]["radio_values"]
-    assert values[f"radio/{id}/tcp_port"] == "8001" and values["email/radio"] == str(FM_ID) and "station/main_radio" not in values and page.topics["config"]["radio_defaults"][f"radio/{id}/tcp_port"] == "8001"
+    assert values[f"radio/{id}/tcp_port"] == "8001" and "station/main_radio" not in values and page.topics["config"]["radio_defaults"][f"radio/{id}/tcp_port"] == "8001"
     assert not [key for key in page.topics["config"]["values"] if key.startswith("radio/") or key == "email/radio"], "the form of before is shown none of them"
     await page.send({"cmd": "set_config", "values": {f"radio/{id}/tcp_port": "8002", "station/comment": "both at once"}})
     await page.until(lambda: page.topics["config"]["radio_values"][f"radio/{id}/tcp_port"] == "8002")
@@ -163,6 +164,12 @@ async def test_a_radios_own_settings_ride_set_config_and_each_refusal_names_its_
         error = await refused(page, {"cmd": "set_config", "values": {**values_, "station/comment": "not stored"}})
         assert (error["key"], error["code"]) == (key, code), values_
     assert e.ctl.config.station_comment == "both at once", "nothing of a refused save is stored"
+    fake = await e.new_radio()                                         # (switched on, for email to go out on it, at a made-up radio of the test)
+    await page.send({"cmd": "set_config", "values": {f"radio/{id}/tcp_port": str(fake.port)}})
+    await page.until(lambda: page.topics["config"]["radio_values"][f"radio/{id}/tcp_port"] == str(fake.port))
+    await page.send({"cmd": "radio_change", "radio": id, "enabled": True})
+    await page.until(lambda: page.topics["radios"][str(id)]["enabled"])
+    await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(FM_ID))     # (a second radio that sends: email stays on radio 1 until the operator chooses)
     await page.send({"cmd": "set_config", "values": {"email/radio": str(id)}})
     await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(id))
     await page.send({"cmd": "status"})

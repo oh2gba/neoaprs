@@ -162,6 +162,7 @@ extend-include = [
     "scripts/check-in-container",
     "scripts/check-windows",
     "scripts/check-installs",
+    "scripts/demo-daemon",
     "scripts/doc-arch",
     "scripts/doc-settings",
     "scripts/flaky",

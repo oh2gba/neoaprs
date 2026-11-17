@@ -79,3 +79,24 @@ async def test_when_the_pair_was_taken_meanwhile_the_hf_radio_is_pointed_at_the_
             await until_started(lambda: e.hf.port == f"socket://127.0.0.1:{new}" and e.hf.usable)
     finally:
         await e.stop()
+
+
+async def test_a_start_refused_before_its_ports_were_chosen_gives_the_hf_radio_no_port_and_the_start_tried_again_points_it_at_them(tmp_path: Path) -> None:
+    """The card the HF radio is set to is another radio's: its start is refused before it chose its ports, and the port it stood on (8100) may be another radio's modem or another program's, so its line has
+    none and says why. Once the card is let go, the start tried again chooses its pair and the line is pointed at it (`ports_changed`)."""
+    card = "plughw:CARD=CODEC,DEV=0"
+    e = Env(tmp_path, settings={"hf/enabled": "true", "mercury/sound_card": card, "mercury/keying": "vox"})
+    e.mercury._finder = fakemercury.program
+    claims = e.mercury.claims = Claims()
+    claims.hold(Claim("sound_card", card, 5))
+    e.mercury.backoff = Backoff([0.3, 0.3])
+    e.mercury._control_backoff = Backoff([0.05, 0.05])
+    e.hf.backoff = Backoff([0.05, 0.1])
+    await e.start(connected=False)
+    try:
+        await until_started(lambda: e.mercury.state == "waiting" and "is held by" in e.mercury.problem)
+        assert e.hf.port == "" and e.hf.stats.opens == 0 and not e.mercury.ports_chosen, "no port before the modem chose its pair"
+        claims.release(5, "sound_card")
+        await until_started(lambda: e.mercury.running and e.hf.port == f"socket://127.0.0.1:{e.mercury.broadcast_port}" and e.hf.usable)
+    finally:
+        await e.stop()

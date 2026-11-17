@@ -132,10 +132,11 @@ def _database(data: Path, facts: list[DbFacts]) -> str:
 
 def make_bundle(data: Path, out_dir: Path, *, live: dict[str, Any] | None = None, page: dict[str, Any] | None = None, page_errors: list[dict[str, Any]] | None = None,
                 install: InstallInfo | None = None, running: bool | None = None, by: str = "neoaprs support, without the daemon", now: Clock = utcnow,
-                journal: Callable[[], str | None] = gather.journal_text, call: str = "") -> Made:
-    """Writes the bundle of the data folder into `out_dir` (made if it is not there) and says where. Nothing in the data folder is changed. Blocking: the daemon runs it in a thread."""
+                journal: Callable[[], str | None] | None = None, call: str = "") -> Made:
+    """Writes the bundle of the data folder into `out_dir` (made if it is not there) and says where. Nothing in the data folder is changed. Blocking: the daemon runs it in a thread. The service's journal is
+    `journal`'s, else `gather.journal_text`'s as the module has it when the bundle is made."""
     made_at = now()
-    members, secrets, call = collect(data, made_at, live, page, page_errors, install, running, by, journal, call)
+    members, secrets, call = collect(data, made_at, live, page, page_errors, install, running, by, journal or gather.journal_text, call)
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / bundle_name(call, made_at)
     return Made(path, write_zip(path, members, made_at, secrets))

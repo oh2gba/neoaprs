@@ -3,6 +3,7 @@ line to its KISS port, a frame of ours goes out keyed and the frame heard comes 
 not; the radio's row says the Mercury modem holds its card, with the holder's name; on the wire the type is offered, added and refused where its program is not carried, and Tune on it is refused while it is not
 running; and under the no-devices switch no Direwolf is started and its line has no port."""
 import asyncio
+import logging
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,7 +28,7 @@ from neoaprs.web.radioview import radio_row
 from neoaprs.web.tncwire import RadioRow
 from tests.support import fakedirewolf, fakemercury
 from tests.support.fakedriver import with_radios
-from tests.support.env import until, until_started
+from tests.support.env import idle_for, until, until_started
 from tests.support.modemports import base_of_this_test
 from tests.test_no_devices import under_the_switch  # noqa: F401  (the fixture)
 from tests.test_radios_wire import added, refused, started
@@ -167,6 +168,62 @@ async def test_under_the_no_devices_switch_no_daemon_starts_a_direwolf(tmp_path:
     assert driver.modem is not None and (driver.modem.state, driver.modem.reason, driver.modem.pid) == ("waiting", "not_installed", None) and started_programs == [], "the program is not even looked for"
     assert driver.modem.sound_cards() == []
     await driver.stop()
+
+
+async def test_a_sound_card_radio_whose_direwolf_is_not_in_this_installation_has_no_line_and_says_so_once(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Whatever listens where a Direwolf of ours would be (here the test's own listener on the modem's port as it stands before any start) is not ours: it is never connected to, and a later start re-points."""
+    accepted: list[int] = []
+    other = await asyncio.start_server(lambda r, w: accepted.append(1) or w.close(), "127.0.0.1", 0)
+    driver = driver_of(tmp_path)
+    driver.modem._finder = lambda: None
+    driver.modem.kiss_port = other.sockets[0].getsockname()[1]
+    try:
+        await driver.start()
+        assert (driver.modem.state, driver.modem.reason) == ("waiting", "not_installed")
+        assert driver.line.port == ""
+        await until(lambda: driver.line.state is Source.State.WAITING)
+        await idle_for(0.3)
+        assert accepted == [] and driver.line.stats.opens == 0 and driver.line.problem == direwolfmodem.NOT_INSTALLED, "the modem's problem, not a connection's"
+        assert [r for r in caplog.records if r.levelno >= logging.ERROR] == [] and sum("trying again" in r.getMessage() for r in caplog.records if r.name == "neoaprs.tnc") == 0, "said once, not at every back-off"
+        await driver.stop()
+        driver.modem._finder = fakedirewolf.program
+        await driver.start()
+        assert driver.line.port == f"socket://127.0.0.1:{driver.modem.kiss_port}" and driver.modem.kiss_port != other.sockets[0].getsockname()[1], "a start again looks for the program again"
+    finally:
+        await driver.stop()
+        other.close()
+        await other.wait_closed()
+
+
+async def test_a_sound_card_radio_whose_start_is_refused_never_reaches_the_direwolf_of_another_radio_and_follows_its_own_once_it_runs(tmp_path: Path) -> None:
+    """Radio 3 is set to the card radio 2 runs on: its start is refused before it chose a port, and the port it stood on is where radio 2's Direwolf listens. Its line has no port, so nothing of radio 3
+    is keyed by radio 2's Direwolf; once the card is free, the start tried again points it at a Direwolf of its own (`ports_changed`, as wiring.py ties it to the registry's repoint)."""
+    claims = Claims()
+    first, second = driver_of(tmp_path / "a", claims, spec(2)), driver_of(tmp_path / "b", claims, spec(3))
+    tasks: set[asyncio.Task[None]] = set()
+
+    async def repoint() -> None:
+        await second.line.stop()
+        second.configure(spec(3), DEFAULTS, RunOverrides(check_sec=0.0))
+        await second.line.start()
+
+    second.modem.ports_changed.connect(lambda: tasks.add(asyncio.ensure_future(repoint())))
+    try:
+        await first.start()
+        await until_started(lambda: first.line.state is Source.State.CONNECTED)
+        second.modem.kiss_port = first.modem.kiss_port                                 # (where it stood before any start: FIRST_PORT, the first radio's)
+        await second.start()
+        assert (second.modem.state, second.modem.reason) == ("waiting", "not_started") and second.line.port == "", "no port before the modem chose one"
+        await idle_for(0.3)
+        assert second.line.state is not Source.State.CONNECTED and not second.line.send_frame(ui_frame()) and first.modem.frames_keyed == 0, "radio 2's Direwolf keyed nothing of radio 3"
+        await first.stop()
+        await until_started(lambda: second.modem.state == "running" and second.line.state is Source.State.CONNECTED)
+        assert second.line.path == f"socket://127.0.0.1:{second.modem.kiss_port}"
+    finally:
+        await second.stop()
+        await first.stop()
+        for task in tasks:
+            await task
 
 
 async def test_the_type_is_offered_and_added_on_the_wire_and_tune_on_it_waits_for_its_modem(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

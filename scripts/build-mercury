@@ -19,7 +19,7 @@ checked against the pin, and a different file is refused. The tree is built in b
 a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL; for Windows `HAVE_HAMLIB=0 WS_TLS=0` and hidapi stays, since it is compiled into the program from Mercury's own copy of its source and is how a CM108 chip is keyed there), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
 ALSA device), the TCP listeners and the UI websocket bound to the loopback by packaging/mercury/loopback.patch on every system (Mercury binds its control, data, KISS and UI ports on every interface with no password, which would let any host
 on the LAN key the radio; the patch says more), a lead-in tone for a radio on VOX added by packaging/mercury/leadin.patch (the ini key `tx_leadin_ms`, off unless the ini sets it), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does
-(`-V`, `-z`, and on Linux once on its fifo backend to see that its four ports (the UI websocket included) listen on 127.0.0.1 and nowhere else) and prints what it says. A program for Windows cannot be run here: its import table is read instead, and it may name no DLL that
+(`-V`, and on Linux once on its fifo backend to see that its four ports (the UI websocket included) listen on 127.0.0.1 and nowhere else) and prints what it says. A program for Windows cannot be run here: its import table is read instead, and it may name no DLL that
 does not come with Windows (the release workflow's Windows job starts it and reads the system's table of sockets).
 Needs gcc, make, patch and libasound2-dev (with libasound2-data for the ALSA configuration) on Linux; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
 the floor of the AppImage and the .deb. On a Mac it needs the command line tools (cc, make, otool, patch) and builds for macOS 14 and newer (MACOS_MIN, the floor of the app, which scripts/build-macos-app says too), for the
@@ -329,8 +329,8 @@ def install(folder: Path) -> Path:
 
 
 def check(folder: Path, windows: bool = False) -> None:
-    """For Windows check_windows (the program cannot be run here). Else the program as the daemon starts it: from its folder, on Linux with the ALSA configuration of the folder and no LD_LIBRARY_PATH. `-V` has to say the pinned version; `-z` lists the sound cards and exits 0 with
-    none on Linux (on a Mac what it says is printed: a build machine without a sound device is no place to hold CoreAudio to an exit code)."""
+    """For Windows check_windows (the program cannot be run here). Else the program as the daemon starts it: from its folder, on Linux with the ALSA configuration of the folder and no LD_LIBRARY_PATH. `-V` has to say the pinned version,
+    and on Linux the folder's ALSA configuration has to be there and not empty. The sound cards are not listed (`-z`): that would open the control device of every card of the machine, the radios' among them."""
     env = {key: value for key, value in os.environ.items() if key != "LD_LIBRARY_PATH"}
     program = str(folder / "mercury")
     print(f"check: {folder}")
@@ -340,7 +340,10 @@ def check(folder: Path, windows: bool = False) -> None:
     if MACOS:
         print("  " + check_links_mac(folder / "mercury").replace("\n", "\n  ").rstrip())
     else:
-        env["ALSA_CONFIG_PATH"] = str(folder / "share" / "alsa" / "alsa.conf")
+        alsa_conf = folder / "share" / "alsa" / "alsa.conf"
+        if not alsa_conf.is_file() or alsa_conf.stat().st_size == 0:
+            raise BuildError(f"the ALSA configuration {alsa_conf} is not there or is empty")
+        env["ALSA_CONFIG_PATH"] = str(alsa_conf)
         print(f"  {runpath(folder / 'mercury')}")
         print(f"  newest glibc needed: mercury {glibc_needed(folder / 'mercury')}, libasound.so.2 {glibc_needed(folder / 'lib' / 'libasound.so.2')}")
         print("  " + check_links(folder / "mercury", folder).replace("\n", "\n  ").rstrip())
@@ -348,10 +351,6 @@ def check(folder: Path, windows: bool = False) -> None:
     print(f"  $ mercury -V (exit {shown.returncode})\n    " + (shown.stdout + shown.stderr).strip().replace("\n", "\n    "))
     if shown.returncode != 0 or VERSION not in shown.stdout + shown.stderr:
         raise BuildError(f"mercury -V does not say {VERSION}")
-    cards = subprocess.run([program, "-z"], env=env, check=False, text=True, capture_output=True, timeout=60)
-    print(f"  $ mercury -z (exit {cards.returncode})\n    " + (cards.stdout + cards.stderr).strip().replace("\n", "\n    "))
-    if cards.returncode != 0 and not MACOS:
-        raise BuildError("mercury -z does not exit 0")
     if not MACOS:
         print("  " + check_loopback(program, env).replace("\n", "\n  "))         # (the kernel's table of sockets is Linux's; the patch is in the source of both builds)
 

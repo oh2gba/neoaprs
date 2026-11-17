@@ -4,6 +4,7 @@ again, the cable pulled and put back, pruning and a change of the port in the se
 Then how a radio's settings become its line's, which is its driver's (neoaprs/tncdriver.py, neoaprs/mercurydriver.py): radio 1's and radio 2's (`line_settings`,
 `modem_settings`, read from a radio's own spec), the words of a change for the log (neoaprs/radioregistry.py), and the wiring of the radios: every radio's packets through the one signal
 `radio_packet`, what changes of a radio on `radio_changed` with its id."""
+import asyncio
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -17,12 +18,12 @@ from neoaprs.config import DEFAULTS
 from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.mercury import Keying
 from neoaprs.mercurydriver import MercuryDriver, modem_settings
-from neoaprs.mercurymodem import Mercury
+from neoaprs.mercurymodem import NOT_INSTALLED, Mercury
 from neoaprs.packet import Position
 from neoaprs.radiodriver import RunOverrides
 from neoaprs.radioregistry import changed_words
 from neoaprs.radiospec import FM_ID, HF_ID
-from neoaprs.source import Source
+from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncdriver import TncDriver, line_settings
 from neoaprs.tncprofile import DUMMY_HF, KENWOOD_TNC2, KISS, KISS_TCP, MERCURY
@@ -328,6 +329,33 @@ def test_a_modem_driver_points_its_line_at_the_modems_port_and_its_key_has_the_g
     assert driver.words(hf, config, run) == hf_said(config, "socket://127.0.0.1:18100") == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
     fourth = replace(hf, id=4)
     assert modem_settings(fourth, run).port != "socket://127.0.0.1:18100", "the Mercury of the run is radio 2's: another radio's modem is its own"
+
+
+async def test_a_mercury_radio_whose_program_is_not_in_this_installation_has_no_line_and_says_the_modems_problem(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Whatever listens where a Mercury of ours would be (the test's own listener on the modem's port as it stands before any start) is not ours and is never connected to, before a start and after one."""
+    accepted: list[int] = []
+    other = await asyncio.start_server(lambda r, w: accepted.append(1) or w.close(), "127.0.0.1", 0)
+    config = replace(DEFAULTS, hf_enabled=True)
+    hf = config.radio(HF_ID)
+    assert hf is not None
+    line, modem = Tnc(profile=MERCURY, backoff=Backoff([0.05])), Mercury(tmp_path, finder=lambda: None)
+    modem.broadcast_port = other.sockets[0].getsockname()[1]
+    driver, run = MercuryDriver(hf, Claims(), tmp_path / "radios" / "2", line=line, modem=modem), RunOverrides(check_sec=0.0)
+    driver.configure(hf, config, run)
+    try:
+        await driver.start()
+        assert (modem.state, modem.reason) == ("waiting", "not_installed") and line.port == "" and modem_settings(hf, run, modem.broadcast_port, True).port == "" and not modem.ports_chosen
+        await until(lambda: line.state is Source.State.WAITING)
+        await idle_for(0.3)
+        assert accepted == [] and line.stats.opens == 0 and line.problem == NOT_INSTALLED, "the modem's problem, not a connection's"
+        assert [r for r in caplog.records if r.levelno >= logging.ERROR] == [] and sum("trying again" in r.getMessage() for r in caplog.records if r.name == "neoaprs.tnc") == 0, "said once"
+        await driver.stop()
+        driver.configure(hf, config, run)
+        assert line.port == "" and not modem.ports_chosen, "a stop chose no ports either: the line has a port after a start that chose them"
+    finally:
+        await driver.stop()
+        other.close()
+        await other.wait_closed()
 
 
 def test_storing_what_the_running_modem_chose_for_itself_is_no_change_and_anything_else_is(tmp_path: Path) -> None:
