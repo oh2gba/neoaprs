@@ -58,10 +58,16 @@ const cardInfo = computed<FieldInfo>(() => ({
   kind: "choice",
   choices: soundCardChoices(own.value, holder.value, props.settings.expected(cardKey.value ?? "")),
 }));
+/** Where the radio's sound card sits on the USB (`usb_group`), which the keying lines of the ports with it are offered first by; null where it is not known. */
+const cardGroup = computed<string | null>(() => {
+  const now = valueOf(cardKey.value ?? "");
+  const id = soundCardWith(own.value, now) || now; // (a card a setting made before names by its number is the card it means now)
+  return own.value?.sound_cards.find((c) => c.id === id)?.usb_group ?? null;
+});
 const keyingInfo = computed<FieldInfo>(() => ({
   ...fieldFor(keyingKey.value ?? ""),
   kind: "choice",
-  choices: keyingChoices(ports.value, valueOf(keyingKey.value ?? "")),
+  choices: keyingChoices(ports.value, valueOf(keyingKey.value ?? ""), cardGroup.value),
 }));
 /** A field's words: its kind's own where they differ (a LoRa board's address). */
 const wordsOf = (key: string): FieldInfo => fieldFor(key, {}, props.radio?.kind);

@@ -1772,6 +1772,7 @@ A serial port the system lists, or a Bluetooth device paired with it (Linux; on 
 | `vid` | integer \| null |  | the USB vendor id of an adapter; null for a port that is not USB |
 | `pid` | integer \| null |  | the USB product id of an adapter; null for a port that is not USB |
 | `held_by` | integer \| null |  | the radio of the station that holds the port now (its id), 0 for the GPS receiver; null while none of ours does. A port another radio holds is not proposed, and the page greys it with the holder's name |
+| `usb_group` | string \| null | optional | which USB device the port sits on together with the others of one radio (an opaque token: equal for a sound card and the serial ports on one radio's own USB hub, or on one USB device; neoaprs/usbtie.py); null where it is not known (Windows, macOS, a port that is not USB, a Bluetooth device). The page orders the keying lines by it and never shows it (default `null`) |
 
 ### QruAsked
 
@@ -2009,6 +2010,7 @@ A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card
 | `default` | boolean |  | whether it is the system's default device, which the empty setting means |
 | `pick` | boolean |  | whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it |
 | `held_by` | integer \| null |  | the radio of the station whose modem holds the card now (its id); null while none does. A card another radio holds is never the `pick` |
+| `usb_group` | string \| null | optional | which USB device the card sits on together with the serial ports of one radio: the `usb_group` of those ports (an opaque token); null where it is not known (Windows, macOS, a card that is not USB) (default `null`) |
 
 ### StationKey
 

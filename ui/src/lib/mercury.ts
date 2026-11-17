@@ -36,14 +36,17 @@ export const soundCardWith = (ports: PortsMessage | null, value: string): string
   return cards.find((c) => (c.id.includes(PAIR) && c.id.split(PAIR).includes(value)) || (c.numbered !== "" && c.numbered === value))?.id ?? "";
 };
 
-/** The ways of keying: the radio by itself, a CM108 chip, then RTS and DTR of every serial port the daemon lists (a Bluetooth device has no line to key with). The value in force stays offered when its port is not listed. */
-export function keyingChoices(ports: PortsMessage | null, current = ""): Choice[] {
+/** The ways of keying: the radio by itself, a CM108 chip, then RTS and DTR of every serial port the daemon lists (a Bluetooth device has no line to key with), those of the ports that sit with the radio's
+ * sound card first (`group`: the card's `usb_group`; the order alone says it). The value in force stays offered when its port is not listed. */
+export function keyingChoices(ports: PortsMessage | null, current = "", group: string | null = null): Choice[] {
   const kinds = LIMITS.mercury.pttKinds;
   const plain: Choice[] = [
     { value: "vox", label: t("settings.keying.vox") },
     { value: "cm108", label: t("settings.keying.cm108") },
   ].filter((c) => (kinds as readonly string[]).includes(c.value));
-  const devices = (ports?.ports ?? []).map((p) => p.device).filter((d) => !/^(bt|ble):\/\//i.test(d));
+  const listed = (ports?.ports ?? []).filter((p) => !/^(bt|ble):\/\//i.test(p.device));
+  const own = (p: (typeof listed)[number]): boolean => group !== null && p.usb_group === group;
+  const devices = [...listed.filter(own), ...listed.filter((p) => !own(p))].map((p) => p.device);
   const [kind, device] = current.split(":", 2);
   if (device && !devices.includes(device) && (LINES as readonly string[]).includes(kind ?? "")) devices.push(device);
   const lines = devices.flatMap((d) => LINES.map((line) => ({ value: `${line}:${d}`, label: t(`settings.keying.${line}`, { port: d }) })));

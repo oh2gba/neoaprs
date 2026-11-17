@@ -193,12 +193,30 @@ async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_
     page = await e.ws()
     await page.send({"cmd": "list_ports"})
     assert await page.expect("ports") == {"type": "ports", "search": False, "find": True, "ports": [
-        {"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001", "vid": 1027, "pid": 24577, "held_by": None},
-        {"device": "COM4", "description": "Bluetooth", "hwid": "BTHENUM", "vid": None, "pid": None, "held_by": None}], "sound_cards": [], "keying": "", "radio": None}
+        {"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001", "vid": 1027, "pid": 24577, "held_by": None, "usb_group": None},
+        {"device": "COM4", "description": "Bluetooth", "hwid": "BTHENUM", "vid": None, "pid": None, "held_by": None, "usb_group": None}], "sound_cards": [], "keying": "", "radio": None}
     monkeypatch.setattr(web_handlers, "available_ports", lambda: [])
     await page.send({"cmd": "list_ports"})
     await page.until(lambda: len(page.of("ports")) == 2)
     assert page.of("ports")[-1]["ports"] == []
+
+
+async def test_list_ports_says_which_ports_sit_together_on_one_usb_device_by_a_token_alone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from neoaprs.serialprobe import PortInfo
+    monkeypatch.setattr(web_handlers, "available_ports", lambda: [PortInfo("/dev/ttyUSB0", "CP2105", "USB VID:PID=10C4:EA70", 0x10C4, 0xEA70), PortInfo("/dev/ttyS0", "ttyS0", "n/a", None, None)])
+    asked: list[tuple[list[str], list[str]]] = []
+
+    def together(cards: list[str], devices: list[str]) -> tuple[dict[str, str | None], dict[str, str | None]]:
+        asked.append((list(cards), list(devices)))
+        return {}, {"/dev/ttyUSB0": "0123456789ab", "/dev/ttyS0": None}
+    monkeypatch.setattr(web_handlers, "together", together)
+    e = Env(tmp_path, web=True)
+    await e.start()
+    page = await e.ws()
+    await page.send({"cmd": "list_ports"})
+    ports = (await page.expect("ports"))["ports"]
+    assert {p["device"]: p["usb_group"] for p in ports if p["device"] in ("/dev/ttyUSB0", "/dev/ttyS0")} == {"/dev/ttyUSB0": "0123456789ab", "/dev/ttyS0": None}
+    assert asked and asked[0][0] == [] and "/dev/ttyUSB0" in asked[0][1]
 
 
 async def test_list_ports_ends_with_the_paired_bluetooth_devices(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

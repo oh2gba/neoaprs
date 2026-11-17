@@ -116,7 +116,7 @@ def own_card(cards: Sequence[SoundCard]) -> str:
 
 def choose_keying(card_name: str, ports: Sequence[SerialPort], tied: Sequence[str] | None = None) -> Keying:
     """How an FM radio on a sound-card interface is likely keyed, the card first: the CM108 pin of an AIOC whatever serial ports there are (its own way: its serial port keys only on DTR with RTS low, which
-    `dtr:` does not say); else RTS of the one USB serial port that is part of the card's interface (a Digirig's CP2102): of `tied`, the ports that sit on the card's own USB device or hub, where that can be
+    `dtr:` does not say); else RTS of the one USB serial port that is part of the card's interface (a Digirig's CP2102): of `tied`, the ports in the card's group on the USB (its own device, or the hub of the radio it is in), where that can be
     told (Linux: usbtie.py), else the one such port of the computer when the card names itself as an interface's or a radio's; else VOX. A port that is not the card's is never keyed: it may be a programming
     cable, or another radio's."""
     if _AIOC.search(card_name or ""):

@@ -23,6 +23,7 @@ from neoaprs.radiospec import FM_ID
 from neoaprs.radiotype import ResourceKind
 from neoaprs.radiosearch import Trying
 from neoaprs.serialprobe import available_ports, can_find, can_search, claim_value, paired_bluetooth_ports, with_links
+from neoaprs.usbtie import together
 
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
@@ -112,16 +113,15 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     modem = None if radio is None else radio.driver.modem
     ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
     cards = await asyncio.to_thread(modem.sound_cards) if modem is not None else []        # (the modem's program is run for its list: only while the radio has a modem on a sound card)
-    if radio is None:
-        pick, keying = "", ""
-    elif isinstance(modem, DirewolfModem):
+    on_card, on_port = await asyncio.to_thread(together, [c.id for c in cards], [p.device for p in ports])     # (which of them sit on one radio's USB hub, read from sysfs: the page orders the keying by it)
+    if isinstance(modem, DirewolfModem) and radio is not None:
         holder = radio.id
         pick, keying = await asyncio.to_thread(lambda: sound_card_proposal(cards, ports, left_out(ctx.ctl.config, holder), claims=claims, holder=holder))       # (which ports are the card's is read from sysfs)
     else:
-        pick, keying = proposal(cards, ports, ctx.ctl.config, claims=claims, holder=radio.id)
+        pick, keying = ("", "") if radio is None else proposal(cards, ports, ctx.ctl.config, claims=claims, holder=radio.id)
     ctx.conn.send({"type": "ports", "radio": cmd.radio, "search": can_search(), "find": can_find(), "keying": keying,
-                   "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid, "held_by": _holder(claims, "serial", claim_value(p.device))} for p in ports],
-                   "sound_cards": [{"id": c.id, "name": c.name, "numbered": c.numbered, "default": c.default, "pick": c.id == pick, "held_by": _holder(claims, "sound_card", c.id)} for c in cards]})
+                   "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid, "held_by": _holder(claims, "serial", claim_value(p.device)), "usb_group": on_port.get(p.device)} for p in ports],
+                   "sound_cards": [{"id": c.id, "name": c.name, "numbered": c.numbered, "default": c.default, "pick": c.id == pick, "held_by": _holder(claims, "sound_card", c.id), "usb_group": on_card.get(c.id)} for c in cards]})
 
 
 @command(FindRadio)

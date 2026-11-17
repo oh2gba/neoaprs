@@ -159,6 +159,37 @@ describe("a Sound card radio's box", () => {
     expect(cards()).not.toContain(CODEC);
   });
 
+  it.each([
+    ["by its id", "plughw:CARD=FTX1,DEV=0"],
+    ["by its number, as an old setting has it", "plughw:1,0"],
+  ])("offers first the keying lines of the ports that sit on one USB hub with its sound card, by the order alone, the card stored %s", async (_how, stored) => {
+    const FTX1 = "plughw:CARD=FTX1,DEV=0";
+    const own: PortsMessage = {
+      ...ports,
+      keying: "",
+      sound_cards: [
+        soundCard(FTX1, "USB Audio Device", { numbered: "plughw:1,0", usb_group: "ftx1" }),
+        soundCard("plughw:CARD=CODEC,DEV=0", "USB Audio CODEC", { usb_group: "other" }),
+      ],
+      ports: [portRow("/dev/ttyUSB0", "CP2105", { usb_group: "other" }), portRow("/dev/ttyUSB1", "CP2105", { usb_group: "ftx1" })],
+    };
+    const config = configValues({});
+    const values = { ...OWN, "radio/3/sound_card": stored, "radio/3/keying": "vox" };
+    const daemon = fakeDaemon({
+      config: { ...config, radio_values: { ...config.radio_values, ...values }, radio_defaults: { ...config.radio_defaults, ...OWN } },
+      radios: radios(),
+      ports: own,
+      portsByRadio: new Map([[3, own]]),
+      status: status({ unheard_radio: 1 }),
+    });
+    const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
+    mounted = wrapper;
+    await flushPromises();
+    const keying = () => [...wrapper.find<HTMLSelectElement>("#set-radio-3-keying").element.options].map((o) => o.value);
+    expect(keying()).toEqual(["vox", "cm108", "rts:/dev/ttyUSB1", "dtr:/dev/ttyUSB1", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
+    expect(wrapper.find("#set-radio-3-keying").element.closest("fieldset")?.querySelectorAll("optgroup")).toHaveLength(0); // (no heading: the order alone)
+  });
+
   it("says why its modem waits, and has the (i) of its keying, Tune and transmit level, in words of any modem: never Mercury's, the ALC or a steady tone", () => {
     const waiting = (reason: ModemState["reason"]) =>
       rowStatus(radioRow(3, "direwolf", { state: "waiting", modem: soundCardModem({ state: "waiting", reason }) }), Date.now());

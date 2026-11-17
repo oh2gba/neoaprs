@@ -101,7 +101,7 @@ Then **Port** and, only when the TNC's manual says so, **Speed** (a NinoTNC need
 **Choose:** *Sound card*, a radio of the kind FM. Its box has:
 
 - **Sound card**, the interface's card, proposed for you. When no card could be the radio's, the radio waits for one rather than play to the computer's speakers. One sound card is one radio's: a card a Mercury radio holds is refused, and the other way round.
-- **Keying**, proposed from what is plugged in: the CM108 pin of an AIOC, RTS of the interface's own serial port (a Digirig), else VOX. **Test** beside it keys the radio for a second.
+- **Keying**, proposed from what is plugged in: the CM108 pin of an AIOC, RTS of the interface's own serial port (a Digirig), else VOX. On Linux the lines of the serial ports that sit on one USB hub with the sound card come first in its list. **Test** beside it keys the radio for a second.
 - **Tune**, ten seconds of Direwolf's two tones, for the audio level or finding the radio's sound card, and **Transmit level**, from -20 to 0 dB.
 - **Receive level**, the level of the audio that arrives now, on a bar with its good range in green: a packet should reach the green, and with the radio off the bar is empty.
 
@@ -230,7 +230,7 @@ Each box of a radio that is on has one line, the radio status, with an arrow in 
 The box of a Mercury radio has, behind the arrow of its status line, no port, speed or host:
 
 - **Sound card** is the radio's, chosen among the cards the modem finds (hold the pointer over one for its id); **Refresh** reads the list again. NeoAPRS proposes the one USB sound card that records and plays, else the system's default device, and stores it when none is set. A sound card another radio holds is refused.
-- **Keying** is how the radio is switched to transmit: *The radio keys itself (VOX)*, *CM108 sound chip*, or RTS or DTR of a serial port. NeoAPRS proposes RTS of the one USB serial port of an interface when the sound card is a USB one, else VOX.
+- **Keying** is how the radio is switched to transmit: *The radio keys itself (VOX)*, *CM108 sound chip*, or RTS or DTR of a serial port, on Linux those of the ports on one USB hub with the sound card first. NeoAPRS proposes RTS of the one USB serial port of an interface when the sound card is a USB one, else VOX.
 - **Test**, beside Keying, keys the radio for a second; the status line says *Keyed*. With VOX it sends the tuning tone for that second.
 - **Suggested frequencies** are the dials the group agrees on, a line for each band (*40 m 7.0541 MHz USB*), read from the project page when you open the box. They are not read from your radio and are not a setting.
 - **Tune** keys the radio and sends a steady tone for ten seconds, for an antenna tuner, the audio level or finding the radio's sound card; a second press, on *Stop*, ends it. No frame of yours goes out under the tone. Refused while a frame is on the air or the channel is busy.

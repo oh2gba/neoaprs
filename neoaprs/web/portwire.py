@@ -15,6 +15,7 @@ class PortRow(_Model):
     vid: int | None = Field(description="the USB vendor id of an adapter; null for a port that is not USB")
     pid: int | None = Field(description="the USB product id of an adapter; null for a port that is not USB")
     held_by: int | None = Field(description="the radio of the station that holds the port now (its id), 0 for the GPS receiver; null while none of ours does. A port another radio holds is not proposed, and the page greys it with the holder's name")
+    usb_group: str | None = Field(default=None, description="which USB device the port sits on together with the others of one radio (an opaque token: equal for a sound card and the serial ports on one radio's own USB hub, or on one USB device; neoaprs/usbtie.py); null where it is not known (Windows, macOS, a port that is not USB, a Bluetooth device). The page orders the keying lines by it and never shows it")
 
 
 class SoundCardRow(_Model):
@@ -25,6 +26,7 @@ class SoundCardRow(_Model):
     default: bool = Field(description="whether it is the system's default device, which the empty setting means")
     pick: bool = Field(description="whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it")
     held_by: int | None = Field(description="the radio of the station whose modem holds the card now (its id); null while none does. A card another radio holds is never the `pick`")
+    usb_group: str | None = Field(default=None, description="which USB device the card sits on together with the serial ports of one radio: the `usb_group` of those ports (an opaque token); null where it is not known (Windows, macOS, a card that is not USB)")
 
 
 class ListPorts(_Command):

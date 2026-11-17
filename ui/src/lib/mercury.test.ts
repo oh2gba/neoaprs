@@ -43,6 +43,38 @@ describe("the keying choices of the Mercury modem", () => {
   });
 });
 
+describe("the keying choices of a radio whose sound card sits on one USB hub with serial ports", () => {
+  const two: PortsMessage = {
+    ...ports,
+    ports: [
+      portRow("/dev/ttyUSB0", "CP2105 Dual USB to UART Bridge Controller", { usb_group: "other" }),
+      portRow("/dev/ttyUSB1", "CP2105 Dual USB to UART Bridge Controller", { usb_group: "ftx1" }),
+      portRow("/dev/ttyS0", "ttyS0"),
+      portRow("/dev/ttyUSB2", "CP2102 USB to UART Bridge Controller", { usb_group: "ftx1" }),
+    ],
+  };
+
+  it("offer the lines of the ports with the card first, the others after in the daemon's order, and nothing else changes", () => {
+    expect(keyingChoices(two, "", "ftx1").map((c) => c.value)).toEqual([
+      "vox",
+      "cm108",
+      "rts:/dev/ttyUSB1",
+      "dtr:/dev/ttyUSB1",
+      "rts:/dev/ttyUSB2",
+      "dtr:/dev/ttyUSB2",
+      "rts:/dev/ttyUSB0",
+      "dtr:/dev/ttyUSB0",
+      "rts:/dev/ttyS0",
+      "dtr:/dev/ttyS0",
+    ]);
+    expect(keyingChoices(two, "", "ftx1")[2]?.label).toBe("RTS on /dev/ttyUSB1"); // (the same words: no heading, no mark)
+    const plain = keyingChoices(two).map((c) => c.value);
+    expect(keyingChoices(two, "", null).map((c) => c.value)).toEqual(plain);
+    expect(keyingChoices(two, "", "none of them").map((c) => c.value)).toEqual(plain);
+    expect(new Set(keyingChoices(two, "", "ftx1").map((c) => c.value))).toEqual(new Set(plain));
+  });
+});
+
 describe("the sound cards as a plain choice", () => {
   it("are the cards the daemon listed, the system's name as the label and the id as the hover title, and no choice of leaving it to the daemon", () => {
     const choices = soundCardChoices(ports);

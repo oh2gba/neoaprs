@@ -1010,6 +1010,8 @@ export interface PortRow {
   pid: number | null;
   /** the radio of the station that holds the port now (its id), 0 for the GPS receiver; null while none of ours does. A port another radio holds is not proposed, and the page greys it with the holder's name */
   held_by: number | null;
+  /** which USB device the port sits on together with the others of one radio (an opaque token: equal for a sound card and the serial ports on one radio's own USB hub, or on one USB device; neoaprs/usbtie.py); null where it is not known (Windows, macOS, a port that is not USB, a Bluetooth device). The page orders the keying lines by it and never shows it */
+  usb_group?: string | null;
 }
 
 /** The answer to `list_ports`. */
@@ -1571,6 +1573,8 @@ export interface SoundCardRow {
   pick: boolean;
   /** the radio of the station whose modem holds the card now (its id); null while none does. A card another radio holds is never the `pick` */
   held_by: number | null;
+  /** which USB device the card sits on together with the serial ports of one radio: the `usb_group` of those ports (an opaque token); null where it is not known (Windows, macOS, a card that is not USB) */
+  usb_group?: string | null;
 }
 
 /** Asks for the speeds a station reported in its positions in the last `hours` hours. Answered with a `speed_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a station that reported no speed is answered with no points. */
