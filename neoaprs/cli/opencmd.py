@@ -11,7 +11,7 @@ import webbrowser
 from collections.abc import Callable
 from pathlib import Path
 
-from neoaprs import stopfile
+from neoaprs import selfreplace, stopfile
 from neoaprs.paths import default_data_dir
 
 from . import servicecmd, servicewindows
@@ -47,13 +47,16 @@ def daemon_argv(data: Path, encryption: bool = False) -> list[str]:
 
 def spawn(argv: list[str], data: Path) -> "subprocess.Popen[bytes]":
     """Starts the daemon detached from this process; its stdout and stderr go to `launch.log` of the data folder, which holds a traceback from before the daemon has its log (nowhere on Windows, where the
-    daemon has no console and logs to the file itself). The file starts empty at every start: the daemon's lines are in `neoaprs.log` (it writes none to a stderr that is a file)."""
+    daemon has no console and logs to the file itself). The file starts empty at every start: the daemon's lines are in `neoaprs.log` (it writes none to a stderr that is a file). The daemon of an AppImage
+    that runs unpacked runs unpacked too (selfreplace.keep_extract_and_run)."""
     data.mkdir(parents=True, exist_ok=True)
     if sys.platform == "win32":
         return subprocess.Popen(argv, creationflags=servicewindows.DETACHED, close_fds=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
+        env = dict(os.environ)
+        selfreplace.keep_extract_and_run(env)        # (an AppImage started unpacked by the flag, which its runtime keeps to itself: the daemon is that file started again, and where there is no FUSE it cannot be mounted)
         with (data / LAUNCH_NAME).open("wb") as log:
-            return subprocess.Popen(argv, start_new_session=True, close_fds=True, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+            return subprocess.Popen(argv, start_new_session=True, close_fds=True, stdin=subprocess.DEVNULL, stdout=log, stderr=log, env=env)
 
 
 def wait_for_page(data: Path, child: "subprocess.Popen[bytes] | None", seconds: float, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep,

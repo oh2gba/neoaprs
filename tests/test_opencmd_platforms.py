@@ -1,6 +1,7 @@
 """`neoaprs open` (neoaprs/cli/opencmd.py) where it branches on the system or on what the daemon has done so far, with the platform said and Popen, the Windows API and the daemon's state faked: the command that
 starts the daemon on Windows and how it is detached, the message box of a program that has no console, and a wait for a page that is not up yet. Nothing is started and no window is made."""
 import ctypes
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -45,6 +46,23 @@ def test_elsewhere_the_daemon_is_a_session_of_its_own_whose_output_goes_to_a_fil
     opencmd.spawn(["neoaprs", "run"], tmp_path / "data")
     [(_, options)] = spawned.calls
     assert options["start_new_session"] is True and "creationflags" not in options and (tmp_path / "data" / LAUNCH_NAME).is_file() and not (tmp_path / "data" / LOG_NAME).exists(), "(the daemon's warnings would be in the log twice)"
+
+
+def test_the_daemon_of_an_appimage_that_runs_unpacked_runs_unpacked_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An AppImage started with --appimage-extract-and-run (a computer without FUSE): the runtime keeps the flag to itself, so the daemon the app starts, the same file again, tried to mount and never
+    came up. The variable says the same and is inherited."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.delenv("APPIMAGE_EXTRACT_AND_RUN", raising=False)
+    spawned = Spawned(monkeypatch)
+    unpacked = tmp_path / "appimage_extracted_0123"
+    unpacked.mkdir()
+    for appdir, appimage, expected in ((str(unpacked), "/home/op/NeoAPRS.AppImage", "1"), ("/", "/home/op/NeoAPRS.AppImage", None), (str(unpacked), None, None), (None, None, None)):
+        for name, value in (("APPDIR", appdir), ("APPIMAGE", appimage)):
+            monkeypatch.setenv(name, value) if value is not None else monkeypatch.delenv(name, raising=False)
+        opencmd.spawn(["/home/op/NeoAPRS.AppImage", "run"], tmp_path / "data")
+        env = spawned.calls[-1][1]["env"]
+        assert env.get("APPIMAGE_EXTRACT_AND_RUN") == expected, (appdir, appimage)
+        assert {k: v for k, v in env.items() if k != "APPIMAGE_EXTRACT_AND_RUN"} == dict(os.environ) and "APPIMAGE_EXTRACT_AND_RUN" not in os.environ, "everything else as this process has it, which is left as it is"
 
 
 class Windows:
