@@ -744,9 +744,14 @@ def test_the_doors_of_the_session_put_the_com_guard_in_front_of_pyserials_window
 
 @pytest.mark.skipif(sys.platform != "win32", reason="a COM port is a Windows thing")
 def test_a_test_that_opens_a_com_port_with_pyserial_is_refused() -> None:
+    """The guard is the one every test has (`isolated_machine`): found behind pyserial's own CreateFile, and its refusal, which is this test's doing, is taken from it so that it is not held against the test."""
     import serial  # type: ignore[import-untyped,unused-ignore]
+    create = guards._windows_serial().CreateFile
+    guard = next(cell.cell_contents for cell in create.__closure__ or () if isinstance(cell.cell_contents, guards.SerialGuard))
     with pytest.raises(guards.RadioTouched):
         serial.Serial("COM250")
+    assert [name.rsplit("\\", 1)[-1] for name in guard.refused] == ["COM250"]
+    guard.refused.clear()
 
 
 def os_starts_made_up(mp: pytest.MonkeyPatch) -> list[tuple[str, tuple[Any, ...]]]:
