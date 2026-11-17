@@ -30,7 +30,8 @@ from neoaprs.direwolf import LEVEL_NOW_MS, level_now_of
 
 FOLDER = tools_dir() / "direwolf"
 PROGRAM = FOLDER / "direwolf"
-pytestmark = pytest.mark.skipif(not sys.platform.startswith("linux") or not PROGRAM.is_file(), reason="a Direwolf in the venv (scripts/build-direwolf --install), and the kernel's table of sockets, are needed")
+pytestmark = [pytest.mark.skipif(not sys.platform.startswith("linux") or not PROGRAM.is_file(), reason="a Direwolf in the venv (scripts/build-direwolf --install), and the kernel's table of sockets, are needed"),
+              pytest.mark.real_direwolf]
 its_tools = pytest.mark.skipif(not (FOLDER / "dev" / "gen_packets").is_file(), reason="gen_packets and atest, which scripts/build-direwolf --install builds beside it, are needed")
 LOOPBACK = "0100007F"
 

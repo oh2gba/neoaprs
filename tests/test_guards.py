@@ -80,6 +80,19 @@ def test_makes_a_bluetooth_socket_and_swallows_the_error():
     except OSError:
         pass
 
+def test_starts_the_mercury_of_this_installation_and_swallows_the_error():
+    import subprocess
+    from neoaprs import bundled
+    try:
+        subprocess.Popen([str(bundled.tools_dir() / "mercury" / "mercury"), "-l"])
+    except OSError:
+        pass
+
+def test_finds_no_modem_program_where_the_installation_has_them(tmp_path):
+    from neoaprs import direwolfprogram, mercuryhelper
+    assert mercuryhelper.find() is None and direwolfprogram.find() is None
+    assert not mercuryhelper.expected_program().parent.parent.exists() and not direwolfprogram.expected_program().parent.parent.exists()
+
 def test_makes_a_pair_of_sockets_that_stand_in_for_a_radio():
     a, b = socket.socketpair()
     a.close()
@@ -174,12 +187,13 @@ def child_outcomes(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
 
 @pytest.mark.parametrize("name", [
     "test_clean", "test_a_task_that_is_finishing_is_not_a_leak", "test_forgets_to_stop_its_daemon_and_the_guard_stops_it", "test_stops_its_daemon_itself_and_the_guard_does_not_mind", "test_talks_to_the_loopback", "test_logs_an_error_on_purpose", "test_reads_the_log_itself",
-    "test_a_warning_and_the_asyncio_logger_are_not_errors", "test_makes_a_pair_of_sockets_that_stand_in_for_a_radio", "test_the_home_is_empty_and_not_the_real_one", "test_changes_the_logging", "test_the_logging_is_as_it_was_before_the_test_that_changed_it"])
+    "test_a_warning_and_the_asyncio_logger_are_not_errors", "test_makes_a_pair_of_sockets_that_stand_in_for_a_radio", "test_finds_no_modem_program_where_the_installation_has_them", "test_the_home_is_empty_and_not_the_real_one", "test_changes_the_logging", "test_the_logging_is_as_it_was_before_the_test_that_changed_it"])
 def test_what_is_allowed_passes_the_guards(child_outcomes: dict[str, str], name: str) -> None:
     assert child_outcomes[name] == "ok"
 
 
 @pytest.mark.parametrize("name", ["test_leaks_a_task", "test_leaves_a_stop_that_never_ends", "test_reaches_out_and_swallows_the_error", "test_sends_a_datagram_out", "test_looks_up_a_name", "test_logs_an_error", "test_asks_the_rigctld_of_this_machine", "test_asks_the_rotctld_of_this_machine_by_name",
+                                  "test_starts_the_mercury_of_this_installation_and_swallows_the_error",
                                   *(["test_makes_a_bluetooth_socket_and_swallows_the_error"] if hasattr(socket, "AF_BLUETOOTH") else [])])
 def test_what_is_forbidden_fails_the_test(child_outcomes: dict[str, str], name: str) -> None:
     assert child_outcomes[name] == "error"
@@ -302,6 +316,54 @@ async def test_a_database_thread_that_is_left_running_is_found_and_a_closed_one_
     assert len(leaked) == 1 and leaked[0].is_alive()
     await db.close()
     assert guards.leaked_db_threads() == []
+
+
+def test_a_modem_program_of_the_installation_is_refused_whatever_it_is_called_and_only_the_real_direwolfs_tests_start_theirs(tmp_path: Path) -> None:
+    """The folder of the shipped programs as a checkout has it where the developer built them: a test's radio that started the Mercury or the Direwolf in it would open the machine's sound cards."""
+    tools = tmp_path / "venv" / "tools"
+    for name in ("mercury", "direwolf"):
+        (tools / name / "dev").mkdir(parents=True)
+        (tools / name / name).write_text("#!/bin/sh\n")
+    (tools / "direwolf" / "dev" / "gen_packets").write_text("#!/bin/sh\n")
+    elsewhere = tmp_path / "made-up-mercury"
+    elsewhere.write_text("#!/bin/sh\n")
+    linked = tmp_path / "another-name"
+    if sys.platform != "win32":
+        linked.symlink_to(tools / "mercury" / "mercury")
+    processes = guards.ProcessGuard(tools)
+    assert processes.starts_shipped([str(tools / "mercury" / "mercury"), "-l"]) and processes.starts_shipped(str(tools / "direwolf" / "direwolf") + " -c x") and processes.starts_shipped([tools / "direwolf" / "dev" / "gen_packets"])
+    assert not processes.starts_shipped([str(elsewhere)]) and not processes.starts_shipped([sys.executable, "-m", "tests.support.fakemercury"]) and not processes.starts_shipped([]) and not processes.starts_shipped([str(tools) + "-other/mercury"])
+    assert sys.platform == "win32" or processes.starts_shipped([str(linked)]), "by the file it is, not by its name"
+    with pytest.MonkeyPatch.context() as mp:
+        processes.install(mp.setattr)
+        with pytest.raises(guards.RadioTouched, match="modem program"):
+            subprocess.Popen([str(tools / "mercury" / "mercury"), "-l"])
+        with pytest.raises(guards.RadioTouched):
+            subprocess.run([str(tools / "direwolf" / "direwolf")], check=False)
+        subprocess.run([sys.executable, "-c", "pass"], check=True)                 # any other program is none of its business
+    assert len(processes.shipped) == 2 and processes.refused == []
+    direwolfs = guards.ProcessGuard(tools, allowed=("direwolf",))
+    assert not direwolfs.starts_shipped([str(tools / "direwolf" / "direwolf")]) and not direwolfs.starts_shipped([str(tools / "direwolf" / "dev" / "gen_packets")]) and direwolfs.starts_shipped([str(tools / "mercury" / "mercury")])
+
+
+def test_no_modem_looks_for_its_program_in_the_installation_and_the_real_direwolfs_tests_keep_theirs(tmp_path: Path) -> None:
+    from neoaprs import direwolfprogram, mercuryhelper
+
+    tools = tmp_path / "tools"
+    for module, name in ((mercuryhelper, "mercury"), (direwolfprogram, "direwolf")):
+        program = tools / name / module.program_file()
+        program.parent.mkdir(parents=True)
+        program.write_text("#!/bin/sh\n")
+        program.chmod(0o755)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(mercuryhelper, "tools_dir", lambda: tools)
+        mp.setattr(direwolfprogram, "tools_dir", lambda: tools)
+        assert mercuryhelper.find() is not None and direwolfprogram.find() is not None, "an installation with both programs"
+        guards.no_shipped_programs(mp.setattr, tmp_path / "nowhere")
+        assert mercuryhelper.find() is None and direwolfprogram.find() is None
+        mp.setattr(direwolfprogram, "tools_dir", lambda: tools)
+        guards.no_shipped_programs(mp.setattr, tmp_path / "nowhere", direwolf=True)
+        assert mercuryhelper.find() is None and direwolfprogram.find() is not None
 
 
 def test_the_bluetooth_guard_refuses_and_remembers_even_when_the_error_is_swallowed() -> None:

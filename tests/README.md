@@ -497,7 +497,7 @@ Windows (their programs are scripts with a shebang). The rest is written for bot
 
 Every test is exactly one of `unit` (pure code, no loop, no daemon, no socket) and `integration` (a loop, the Controller, a fake service, a child process),
 given by `support/markers.py` from what the test uses, not by decorators. `safety` is added to the tests of the data layer. `expects_errors` is set by a test
-that makes the code log an ERROR on purpose.
+that makes the code log an ERROR on purpose, and `real_direwolf` by the tests that run the Direwolf of this installation (`test_direwolf_real.py`).
 
 ## The four guards
 
@@ -514,6 +514,11 @@ that makes the code log an ERROR on purpose.
 4. **Never the radio.** A test that opens a path matching `/dev/brainbox_*` or `/dev/tty*` (through `serial.Serial` or `os.open`, symlinks resolved) fails: the
    tests use a fake radio on the loopback (`support/fakeradio.py`) and, for the few that are about a device file, a pseudo-terminal pair (`support/ptyline.py`,
    POSIX only).
+
+Part of the fourth: **never the modem programs of this installation.** A checkout where the developer built Mercury or Direwolf has them in `.venv/tools`, where the modems look for them. A radio of a test
+that found the real Mercury would start it on the sound cards of the machine, with the radios that hang on them. So for every test the modems look in a folder that is not there (`no_shipped_programs`), as
+in an installation without them, and a test that starts anything inside the real folder all the same fails (`ProcessGuard`). The tests use the made-up programs (`support/fakemercury.py`,
+`support/fakedirewolf.py`); only the tests marked `real_direwolf` keep Direwolf's folder, and they run it on ALSA's `null` card with no serial port.
 
 A fifth thing that is not a guard but behaves like one: the logging (levels, handlers, switches) is put back as it was when the test ends.
 

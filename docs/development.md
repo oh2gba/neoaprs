@@ -758,6 +758,7 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
 ## Tests and real devices
 
 The tests never open a serial device: `tests/conftest.py` points the search at a path that matches nothing (`NEOAPRS_SERIAL_PATTERN`), and the guards of
-`tests/support/guards.py` refuse any device of a serial driver. A daemon started by hand for a test, outside the suite, gets `--port socket://...` (a fake TNC,
+`tests/support/guards.py` refuse any device of a serial driver. They never start the Mercury or the Direwolf built into this checkout's `.venv/tools` either (only the tests of the real Direwolf do, on
+ALSA's `null` card): a test's radio finds no shipped program, and one that starts one fails. A daemon started by hand for a test, outside the suite, gets `--port socket://...` (a fake TNC,
 `neoaprs replay`) or a `serial/pattern` that matches nothing: a fresh data folder otherwise searches every serial port of the machine, and some boards reset
 when their port is opened. Everything about the suite is in [`tests/README.md`](../tests/README.md).

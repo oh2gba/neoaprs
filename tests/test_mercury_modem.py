@@ -25,7 +25,7 @@ from dataclasses import replace
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs.mercurycontrol import EMPTY, HELD, ControlLine
-from neoaprs import mercuryhelper, mercurymodem
+from neoaprs import bundled, mercuryhelper, mercurymodem
 from neoaprs.mercuryhelper import environment, find, free_ports, list_sound_cards, pair_free
 from neoaprs.mercurystale import end_stale
 from neoaprs.claims import Claim, Claims
@@ -128,6 +128,7 @@ def test_the_program_is_the_shipped_one_in_the_tools_folder_and_nothing_else(tmp
     assert find(tmp_path / "tools") == [str(shipped)]
     monkeypatch.setattr(sys, "frozen", False, raising=False)
     monkeypatch.setattr(sys, "prefix", str(tmp_path))
+    monkeypatch.setattr(mercuryhelper, "tools_dir", bundled.tools_dir)      # (the guard of the tests gave it a folder that is not there; the prefix is this test's own folder now)
     assert find() == [str(shipped)], "a venv, the AppImage and the .deb: tools/ of the Python's prefix"
 
 

@@ -161,7 +161,7 @@ The FTX-1's USB cable is all it takes: the computer sees one hub with a sound ca
 3. The levels are on the radio, under MODE FM: USB OUT LEVEL (what the computer hears) and USB MOD GAIN (what the radio sends), each 0 to 100, 50 when new.
 
 - VOX instead of RTS: OPERATION SETTING → TX GNRL → VOX SELECT: *USB* (MIC when new), and Keying VOX in NeoAPRS. RTS is the more dependable.
-- On Linux the sound card's own output volume may stand low (38 % on the first one tried): raise it in the system's mixer (alsamixer, the control Speaker).
+- On Linux the sound card's own output volume may stand low (38 % on the first one tried): raise it with the **Transmit level** slider in the radio's box, which NeoAPRS puts back at every start.
 - Tried on 17 November 2026 on 144.800 MHz FM: a beacon came back from two digipeaters within four seconds. More in [the tech note](https://neo.oh2gba.eu/yaesu-ftx-1.html).
 
 ### Your own Direwolf

@@ -18,7 +18,8 @@ from neoaprs.web import handlers as web_handlers
 from neoaprs.web.protocol import TOPIC_NAMES
 from neoaprs.web.tncwire import RadioRow
 from neoaprs.serialprobe import PortInfo, claim_value
-from tests.support.env import Env, until
+from neoaprs.mercurymodem import Mercury
+from tests.support.env import START_SEC, Env, until
 from tests.support.wireworld import heard
 from tests.support.wsclient import WsClient
 
@@ -48,6 +49,13 @@ async def added(page: WsClient, type: str, name: str = "") -> int:
     id = int(page.of("radio_added")[-1]["id"])
     await page.until(lambda: str(id) in page.topics["radios"])
     return id
+
+
+async def at_rest(modem: Mercury) -> None:
+    """The start of a Mercury radio, which the daemon makes in a task of its own after the radio is added, is over, and its modem has come to rest: the made-up program runs with its control line up, or
+    there is none to run. Until then the modem forgets the rows it kept and lets go of what the radio held (the stop a start begins with, the link to the program's UI, every try of the control line that
+    fails), so what a test puts there by hand waits for this."""
+    await until(lambda: modem.state in ("running", "waiting"), START_SEC)
 
 
 async def test_the_topic_has_every_radio_and_a_radio_added_changed_and_removed_is_told_with_its_row(tmp_path: Path) -> None:
@@ -179,7 +187,7 @@ async def test_a_device_another_radio_holds_is_refused_with_the_holders_name_and
     from neoaprs.mercurycards import SoundCard
     hf = await added(page, "mercury")
     modem = e.ctl.radios.get(hf).driver.modem                      # type: ignore[union-attr]
-    await until(lambda: modem.state == "waiting")                  # (the radio's start, a task of its own, is over: it lets go of what the radio held, the claim made by hand below too)
+    await at_rest(modem)                                           # (its start lets go of what the radio held, the claim made by hand below too)
     monkeypatch.setattr(modem, "sound_cards", lambda: [SoundCard("plughw:CARD=A", "A"), SoundCard("plughw:CARD=B", "B"), SoundCard("plughw:CARD=C", "C")])
     e.ctl.radios.claims.hold(Claim("sound_card", "plughw:CARD=A", id))
     e.ctl.radios.claims.hold(Claim("sound_card", "plughw:CARD=B", hf))

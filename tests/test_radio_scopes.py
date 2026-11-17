@@ -10,7 +10,7 @@ from neoaprs.mercuryscope import ROW_BINS, ScopeRow, parse_history, parse_row, s
 from neoaprs.radiospec import HF_ID
 from neoaprs.web.scopefeed import RADIO_KIND, parse_radio_frame
 from tests.support.env import until
-from tests.test_radios_wire import added, refused, started
+from tests.test_radios_wire import added, at_rest, refused, started
 
 ROW = ScopeRow(bytes(i % 256 for i in range(ROW_BINS)), -41, False)
 
@@ -18,11 +18,6 @@ ROW = ScopeRow(bytes(i % 256 for i in range(ROW_BINS)), -41, False)
 def made(modem: Mercury, row: ScopeRow) -> None:
     """A row as the modem part makes one: kept, then told."""
     modem.scope_row.emit(modem.scope_history.add(row, scope_clock()))
-
-
-async def started_up(modem: Mercury) -> None:
-    """The radio's start, which the daemon makes in a task of its own after the radio is added, is over: it forgets the rows the modem kept (they were of the program before), so a row made by hand waits for it."""
-    await until(lambda: modem.state == "waiting")
 
 
 def named(frame: bytes) -> tuple[int, bytes]:
@@ -37,7 +32,8 @@ async def test_each_radio_with_a_scope_sends_its_rows_named_radio_2_too(tmp_path
     three = await added(page, "mercury")
     modem = e.ctl.radios.get(three).driver.modem                      # type: ignore[union-attr]
     assert modem is not None and modem is not e.mercury, "a radio of its own has a modem of its own"
-    await started_up(modem)
+    await at_rest(modem)
+    await at_rest(e.mercury)
     made(modem, replace(ROW, level=-50))
     await page.send({"cmd": "radio_scope", "radio": three, "on": True})
     radio, history = named((await page.frames(1))[0])
@@ -99,7 +95,7 @@ async def test_the_scope_of_a_radio_removed_lets_go_of_its_modem(tmp_path: Path)
     three = await added(page, "mercury")
     modem = e.ctl.radios.get(three).driver.modem                      # type: ignore[union-attr]
     assert modem is not None
-    await started_up(modem)
+    await at_rest(modem)
     await page.send({"cmd": "radio_scope", "radio": three, "on": True})
     await page.frames(1)
     followed = len(modem.scope_row)

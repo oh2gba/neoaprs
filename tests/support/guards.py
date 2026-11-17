@@ -4,6 +4,9 @@
   there to be read), and a socket that connects, sends a datagram or looks up a name that is not on this machine fails the test (a test must never post a made-up packet to the real
   internet, and pass);
 * no radio: a test that opens a serial device of the machine (/dev/brainbox_*, /dev/tty*, /dev/serial/*, /dev/rfcomm*, or any device node of the serial drivers, whatever it is called or linked as) through `serial.Serial` or `os.open` fails; the tests use a fake radio on the loopback (tests/support/fakeradio.py) or, for a device file, a pseudo-terminal pair (tests/support/ptyline.py), and the live port is the operator's. A process a test starts inherits NEOAPRS_SERIAL_PATTERN (tests/conftest.py), which makes its search find no port, and NEOAPRS_UPDATE_CHECK=0, which keeps its daily update check from asking the version page on the internet; one that is given an environment of its own must carry both (`ProcessGuard`);
+* no modem program of this installation: the Mercury and the Direwolf NeoAPRS ships (`.venv/tools` of a checkout where the developer built them) are not found by a test, and a test that starts one all the
+  same fails: a radio of a test whose modem found the real program would open the sound cards of the machine and key what hangs on them. The tests use the made-up programs (tests/support/fakemercury.py,
+  fakedirewolf.py); only the tests of the real Direwolf, on ALSA's `null` card, keep theirs (the marker `real_direwolf`);
 * no Bluetooth: a test that makes a real Bluetooth socket (AF_BLUETOOTH: an RFCOMM or L2CAP connection to a device, which a radio nearby would answer) fails; the tests use a socket pair (tests/support/fakebluetooth.py), and the list of the devices paired with the machine (BlueZ) is not read; the same for a Bluetooth LE scan or connection through bleak, which is replaced by a stand-in that refuses (a test of the BLE port gives its own, tests/support/fakeble.py);
 * no leak: a test that ends with an asyncio task still running fails (the daemons of `Env` are stopped for it first, see env.stop_all), and so does one that ends with the thread of
   a Db (neoaprs/db.py) still running (`await db.close()`); stopping them may take TEARDOWN_LIMIT_SEC, after which the test fails by its name instead of hanging its worker;
@@ -37,7 +40,7 @@ import pytest
 import pytest_asyncio
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
-from neoaprs import btpaired, soundmixer, winmixer
+from neoaprs import btpaired, bundled, direwolfprogram, mercuryhelper, soundmixer, winmixer
 from neoaprs.dbthread import DbThread
 from tests.support import env as env_module
 
@@ -257,8 +260,18 @@ class BluetoothGuard:
 class ProcessGuard:
     """Patches `subprocess.Popen`: the `neoaprs` command (or `python -m neoaprs`) started with an environment of its own, which does not carry NEOAPRS_SERIAL_PATTERN, would search the machine's serial ports, and without NEOAPRS_UPDATE_CHECK=0 would ask the version page on the internet, and without NEOAPRS_NO_DEVICES would open what its settings name: refused, and remembered."""
 
-    def __init__(self) -> None:
+    def __init__(self, tools: Path | None = None, allowed: tuple[str, ...] = ()) -> None:
         self.refused: list[str] = []
+        self.shipped: list[str] = []                       # the modem programs of this installation the test started
+        self._tools = os.path.realpath(tools if tools is not None else REAL_TOOLS)
+        self._allowed = allowed                            # the folders of the shipped programs this test may start (`real_direwolf`: "direwolf")
+
+    def starts_shipped(self, args: Any) -> bool:
+        """The program is one of this installation's shipped programs (anything in its folder of them, by the file it is, whatever it is called or linked as), and not one this test may start."""
+        words = [os.fsdecode(a) for a in args] if isinstance(args, (list, tuple)) else os.fsdecode(args).split()
+        program = os.path.realpath(words[0]) if words else ""
+        inside = program.startswith(self._tools + os.sep)
+        return inside and program[len(self._tools) + 1:].split(os.sep)[0] not in self._allowed
 
     @staticmethod
     def starts_neoaprs(args: Any) -> bool:
@@ -267,6 +280,9 @@ class ProcessGuard:
         return program in ("neoaprs", "neoaprs-app", "neoaprsw") or any(a == "-m" and b.split(".")[0] == "neoaprs" for a, b in zip(words, words[1:]))
 
     def check(self, args: Any, env: Any) -> None:
+        if self.starts_shipped(args):
+            self.shipped.append(str(args))
+            raise RadioTouched(errno.EACCES, f"a test may not start a modem program of this installation, which opens the machine's sound cards: {args}")
         if env is None or not self.starts_neoaprs(args):
             return
         doors_open = DEVICES_VARIABLE in os.environ and env.get(DEVICES_VARIABLE, "").strip() in ("", "0")       # (a test that took the variable out of its own environment: its process may go without)
@@ -282,6 +298,17 @@ class ProcessGuard:
             original_init(popen, args, *rest, **kwargs)
 
         patch(subprocess.Popen, "__init__", guarded_init)
+
+
+# ---- no modem program of this installation
+REAL_TOOLS = bundled.tools_dir()          # where this installation's shipped programs are, read before any test looks elsewhere
+
+
+def no_shipped_programs(patch: Callable[[Any, str, Any], None], nowhere: Path, direwolf: bool = False) -> None:
+    """The modems look for their shipped program in a folder that is not there, so that none is found: as in an installation without them (a wheel, the CI). `direwolf`: the real Direwolf's tests keep its folder."""
+    patch(mercuryhelper, "tools_dir", lambda: nowhere)
+    if not direwolf:
+        patch(direwolfprogram, "tools_dir", lambda: nowhere)
 
 
 # ---- no leak
@@ -398,12 +425,14 @@ def logging_restored() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def isolated_machine(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     with tempfile.TemporaryDirectory(prefix="neoaprs-test-home-") as root:
         empty_home(Path(root), monkeypatch.setenv)
         network = NetworkGuard()
         network.install(monkeypatch.setattr)
-        radio, processes, bluetooth = SerialGuard(), ProcessGuard(), BluetoothGuard()
+        real_direwolf = request.node.get_closest_marker("real_direwolf") is not None
+        radio, processes, bluetooth = SerialGuard(), ProcessGuard(allowed=("direwolf",) if real_direwolf else ()), BluetoothGuard()
+        no_shipped_programs(monkeypatch.setattr, Path(root) / "no-tools", real_direwolf)
         radio.install(monkeypatch.setattr)
         bluetooth.install(monkeypatch.setattr)
         bluetooth.install_ble(monkeypatch.setitem)
@@ -417,6 +446,7 @@ def isolated_machine(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         assert not radio.refused, "the test tried to open the radio's serial port: " + ", ".join(radio.refused)
         assert not bluetooth.refused, "the test tried to make a Bluetooth socket: " + ", ".join(bluetooth.refused)
         assert not processes.refused, f"the test started neoaprs without {SEARCH_VARIABLE} in its environment: " + ", ".join(processes.refused)
+        assert not processes.shipped, "the test started a modem program of this installation: " + ", ".join(processes.shipped)
 
 
 @pytest.fixture(autouse=True)

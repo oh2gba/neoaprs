@@ -90,6 +90,7 @@ markers = [
     "integration: the daemon (Controller), the web server or a fake service on the loopback",
     "safety: guards the data: storage, migrations, the database actor and everything under tests/safety (run alone with -m safety)",
     "expects_errors: the test makes the code log an ERROR on purpose (any other test that does fails, see tests/support/guards.py)",
+    "real_direwolf: the test runs the Direwolf of this installation, on ALSA's null card (any other test that starts a shipped modem program fails, see tests/support/guards.py)",
 ]
 filterwarnings = ["error::DeprecationWarning:neoaprs.*"]
 # A test that is still running after two minutes has the stack of every thread written to stderr (the standard library's faulthandler; the test goes on): a test that hangs then says where, instead of only costing the job its half hour.
