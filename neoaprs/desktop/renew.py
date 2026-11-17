@@ -24,7 +24,7 @@ OWNS_DAEMON = "--owns-daemon"
 HELPERS = ("QtWebEngineProcess", "WebKitWebProcess", "WebKitNetworkProcess", "WebKitGPUProcess",     # the programs a web engine of the app starts beside it, Qt's and WebKitGTK's; with the
            "bwrap", "xdg-dbus-proxy")    # sandbox on (gtkenv.py) WebKitGTK starts its web process through bubblewrap and its D-Bus proxy, which the app starts for nothing else
 NAME_LEN = 15                                     # how much of a program's name the system keeps as the process's name
-HELPERS_END_SEC = 5.0
+HELPERS_END_SEC = 1.0
 HELPERS_POLL_SEC = 0.05
 PROC = "/proc"
 
