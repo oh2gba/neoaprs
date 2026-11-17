@@ -2,17 +2,19 @@
 
 ## Unreleased
 
-- **Fixed:** Ask around no longer says "by (default)" when the radios it went on have different paths; the line names no path then.
-- **Fixed:** in the Email tab the list of radios beside Check email has its label, Send on.
-- **Changed:** on Linux, a Sound card or Mercury radio's Keying list starts with the serial ports on the radio's own USB hub.
+Sliders for the sound card's own levels, a receive level that follows the audio at once, and small things put right in the app's window.
+
+- **New:** a Sound card or Mercury radio has sliders for the sound card's own transmit and receive levels, where the card has them.
+- **New:** NeoAPRS puts the sound card's levels back each time the radio starts, so a replug no longer leaves the radio faint.
 - **Changed:** a Sound card radio's Receive level follows the audio ten times a second while you look at it.
-- **Fixed:** a Sound card radio did not start when the data folder's path was long.
+- **Changed:** on Linux, a Sound card or Mercury radio's Keying list starts with the serial ports on the radio's own USB hub.
+- **Changed:** several presses of the Transmit level's - and + restart Direwolf once, when you stop pressing, no longer once for each.
 - **Changed:** a right-click in the app's window no longer shows the web engine's menu with Back and Reload; text fields keep cut, copy and paste.
 - **Fixed:** after Update now of an AppImage the app's window and tray start again as the new version; Stop and quit still stops NeoAPRS.
 - **Fixed:** the update window no longer moves when Update now is pressed, nor while it downloads, installs or fails.
-- **New:** a Sound card or Mercury radio has sliders for the sound card's own transmit and receive levels, where the card has them.
-- **New:** NeoAPRS puts the sound card's levels back each time the radio starts, so a replug no longer leaves the radio faint.
-- **Changed:** several presses of the Transmit level's - and + restart Direwolf once, when you stop pressing, no longer once for each.
+- **Fixed:** a Sound card radio did not start when the data folder's path was long.
+- **Fixed:** Ask around no longer says "by (default)" when the radios it went on have different paths; the line names no path then.
+- **Fixed:** in the Email tab the list of radios beside Check email has its label, Send on.
 
 ## 0.20.2
 
