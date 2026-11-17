@@ -10,7 +10,7 @@ The sound card's sliders look as they should, and a handful of open ends are clo
 - **Fixed:** a Sound card or Mercury radio no longer says in its Terminal that it is waiting and trying again each time it starts.
 - **Fixed:** on Windows, an installer run by hand over a running NeoAPRS no longer gives up halfway.
 - **Fixed:** the app of an AppImage run unpacked no longer loses its files when its NeoAPRS stops before it.
-- **Fixed:** on Windows, `neoaprs gps-replay`, `replay` and `capture` end at Ctrl+Break without hanging.
+- **Fixed:** on Windows, `neoaprs gps-replay` ends at Ctrl+Break.
 
 ## 0.20.3
 
