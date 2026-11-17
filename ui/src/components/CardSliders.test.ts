@@ -15,8 +15,18 @@ import { pageRadio } from "@/lib/radios";
 import type { CardLevelsRow, RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { configValues, modemState, radioRow, radiosTopic, soundCardModem, status } from "@/test/fixtures";
+import { stubWidth } from "@/test/width";
 
-const RESPONSIVE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "styles", "responsive.css"), "utf8");
+const HERE = dirname(fileURLToPath(import.meta.url));
+const RESPONSIVE = readFileSync(join(HERE, "..", "styles", "responsive.css"), "utf8");
+const SLIDER = readFileSync(join(HERE, "CardSlider.vue"), "utf8");
+const TXLEVEL = readFileSync(join(HERE, "HfLevelRow.vue"), "utf8");
+/** The body of the rule of `selector` in a component's or a sheet's source (jsdom lays nothing out: the rules are what place and draw the slider). */
+function rule(source: string, selector: string): string {
+  const at = source.indexOf(`\n${selector} {`);
+  if (at < 0) throw new Error(`no rule ${selector}`);
+  return source.slice(at + selector.length + 3, source.indexOf("}", at));
+}
 const OWN = {
   "radio/3/sound_card": "plughw:CARD=Device,DEV=0",
   "radio/3/keying": "rts:/dev/ttyUSB1",
@@ -70,7 +80,7 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     const tx = box().find(".txlevel input[type=range]");
     expect(tx.attributes("id")).toBe("set-radio-3-txlevel-up");
     expect((tx.element as HTMLInputElement).value).toBe("38");
-    expect(box().find(".txlevel .txlevel-value").text()).toBe("38 %");
+    expect(box().find(".txlevel .cardslider-value").text()).toBe("38 %");
     expect(box().find(".txlevel .stepbtn").exists()).toBe(false); // (one transmit level: the card's, not the modem's beside it)
     const level = box().find(".scope-level");
     const rx = level.find("input[type=range]");
@@ -78,6 +88,71 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(rx.attributes("aria-label")).toBe("Sound card input level");
     expect([...level.element.children].map((c) => c.className.split(" ")[0])).toEqual(["cardslider", "levelbar", "mono", "infotip"]); // (one row: the slider sets, the bar shows)
     expect(level.find(".levelvalue").text()).toBe("48");
+  });
+
+  it("has both sliders in rooms of one share of the control column, each with its percent in a room every value fits, and the (i) of both rows at the column's end", async () => {
+    const { wrapper, box } = make(FTX1);
+    mounted = wrapper;
+    await flushPromises();
+    const parts = (room: Element) => [...room.children].map((c) => `${c.tagName}.${c.className.split(" ").at(-1)}`);
+    const tx = box().find(".txlevel .txlevel-control > .cardslider");
+    const rx = box().find(".scope-level > .cardslider");
+    expect(parts(tx.element)).toEqual(["INPUT.cardslider-input", "OUTPUT.cardslider-value"]);
+    expect(parts(rx.element)).toEqual(["INPUT.cardslider-input", "OUTPUT.cardslider-value"]); // (the Receive level's slider says its percent too, as the Transmit level's does)
+    expect(tx.find(".cardslider-value").text()).toBe("38 %");
+    expect(rx.find(".cardslider-value").text()).toBe("50 %");
+    expect(box().find(".txlevel .txlevel-control").element.lastElementChild?.className).toContain("infotip");
+    expect(rule(SLIDER, ".cardslider")).toMatch(/flex: 0 0 min\(40%, calc\(100% - 104px - 9ch\)\);\s*font-family: var\(--mono\);/); // (the same start, length and end in both rows, and the Receive level's bar, number and (i) beside it)
+    expect(rule(SLIDER, ".cardslider-value")).toMatch(/width: 5ch;[^]*text-align: right;/); // ("100 %" and "7 %" in one room)
+    expect(rule(TXLEVEL, ".txlevel-control > .infotip")).toMatch(/margin-left: auto;/); // (the Transmit level's (i) where the Receive level's bar puts its own)
+  });
+
+  it("has both sliders on lines of their own in a control column too narrow for them beside the bar, the Receive level's under its bar, and both in one line again in a wider one", async () => {
+    const width = stubWidth(258); // (the control column of the 480 px panel every window under 1280 px has)
+    try {
+      const { wrapper, box } = make(FTX1);
+      mounted = wrapper;
+      await flushPromises();
+      const narrow = () =>
+        box()
+          .findAll(".cardslider")
+          .map((room) => room.classes("narrow"));
+      expect(narrow()).toEqual([true, true]);
+      width.set(309); // (a 560 px panel)
+      await flushPromises();
+      expect(narrow()).toEqual([false, false]);
+      width.set(220); // (a tablet's panel)
+      await flushPromises();
+      expect(narrow()).toEqual([true, true]);
+      expect(RESPONSIVE).toMatch(/\.size-phone \.field-control > \.cardslider,\s*\.field-control > \.cardslider\.narrow \{\s*flex-basis: calc\(100% - 28px\);/);
+      expect(RESPONSIVE).toMatch(/\.size-phone \.scope-level > \.cardslider,\s*\.scope-level > \.cardslider\.narrow \{\s*order: 1;/);
+      expect(RESPONSIVE).toMatch(/\n\.scope-level:has\(> \.cardslider\) \{\s*flex-wrap: wrap;/); // (a wider column has the room for the slider's share in one line, so the row does not wrap there)
+    } finally {
+      width.restore();
+    }
+  });
+
+  it("is a slider of the page's own drawing: a thin track, the accent up to the thumb, a round thumb with the buttons' border, and the focus ring and the dimming of the other controls", async () => {
+    const { wrapper, box } = make(FTX1);
+    mounted = wrapper;
+    await flushPromises();
+    const tx = box().find(".txlevel input[type=range]");
+    expect((tx.element as HTMLInputElement).style.getPropertyValue("--fill")).toBe("38%");
+    (tx.element as HTMLInputElement).value = "55";
+    await tx.trigger("input");
+    expect((tx.element as HTMLInputElement).style.getPropertyValue("--fill")).toBe("55%"); // (the accent follows the thumb in Chromium and WebKit, which have no part of their own for it)
+    expect(SLIDER).not.toMatch(/accent-color/); // (not the engine's own slider, which every engine draws its way)
+    expect(rule(SLIDER, ".cardslider-input")).toMatch(/appearance: none;/);
+    expect(rule(SLIDER, ".cardslider-input::-webkit-slider-runnable-track")).toMatch(
+      /height: 4px;[^]*background: linear-gradient\(to right, var\(--accent\) var\(--fill\), var\(--border\) var\(--fill\)\);/,
+    );
+    expect(rule(SLIDER, ".cardslider-input::-moz-range-track")).toMatch(/height: 4px;[^]*background: var\(--border\);/);
+    expect(rule(SLIDER, ".cardslider-input::-moz-range-progress")).toMatch(/background: var\(--accent\);/);
+    for (const thumb of ["::-webkit-slider-thumb", "::-moz-range-thumb"]) {
+      expect(rule(SLIDER, `.cardslider-input${thumb}`)).toMatch(/width: 16px;\s*height: 16px;[^]*border: 1px solid var\(--border\);\s*border-radius: 50%;/);
+      expect(rule(SLIDER, `.cardslider-input:focus-visible${thumb}`)).toMatch(/outline: 2px solid var\(--accent\);/);
+    }
+    expect(rule(SLIDER, ".cardslider-input:disabled")).toMatch(/opacity: 0\.5;/);
   });
 
   it("has no slider where the card has no control: the codec's Receive level has the bar and the slider's empty room, and a card of neither has today's - and +", async () => {
@@ -103,7 +178,7 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     const tx = box().find(".txlevel input[type=range]");
     (tx.element as HTMLInputElement).value = "55";
     await tx.trigger("input"); // (dragged: the thumb and the number follow, nothing is sent)
-    expect(box().find(".txlevel .txlevel-value").text()).toBe("55 %");
+    expect(box().find(".txlevel .cardslider-value").text()).toBe("55 %");
     expect(daemon.send.mock.calls.filter(([c]) => c.cmd === "set_config")).toHaveLength(0);
     await tx.trigger("change");
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/3/tx_card": "55" } });
@@ -128,7 +203,7 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     await tx.trigger("input");
     await tell(daemon, { radios: radios({ tx: 40, rx: 50, read: true }) }); // (the desktop moved the card while the operator drags)
     expect((box().find(".txlevel input[type=range]").element as HTMLInputElement).value).toBe("70");
-    expect(box().find(".txlevel .txlevel-value").text()).toBe("70 %");
+    expect(box().find(".txlevel .cardslider-value").text()).toBe("70 %");
     await tx.trigger("change");
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/3/tx_card": "70" } });
   });
@@ -145,7 +220,7 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     await tx.trigger("pointerup"); // (back where it was pressed: the browser fires no change)
     await tell(daemon, { radios: radios({ tx: 45, rx: 50, read: true }) }); // (the desktop's mixer moves the card afterwards)
     expect((box().find(".txlevel input[type=range]").element as HTMLInputElement).value).toBe("45");
-    expect(box().find(".txlevel .txlevel-value").text()).toBe("45 %");
+    expect(box().find(".txlevel .cardslider-value").text()).toBe("45 %");
     expect(daemon.send.mock.calls.filter(([c]) => c.cmd === "set_config")).toHaveLength(0);
   });
 
@@ -161,10 +236,11 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(children()).toEqual(["SPAN.cardslider", "DIV.levelbar", "OUTPUT.mono", "SPAN.infotip"]); // (the slider's room is kept before the bar)
     await tell(daemon, { radios: radios(FTX1) });
     expect(box().find(".txlevel input[type=range]").exists()).toBe(true);
-    expect(children()).toEqual(["INPUT.cardslider", "DIV.levelbar", "OUTPUT.mono", "SPAN.infotip"]); // (the slider in that room: the bar keeps its width and place)
+    expect(children()).toEqual(["SPAN.cardslider", "DIV.levelbar", "OUTPUT.mono", "SPAN.infotip"]); // (the slider in that room: the bar keeps its width and place)
     expect(labels()).toEqual(before);
     await tell(daemon, { radios: radios(CODEC) });
     expect(children()).toEqual(["SPAN.cardslider", "DIV.levelbar", "OUTPUT.mono", "SPAN.infotip"]); // (a card with no capture control keeps the room empty)
+    expect(box().find(".scope-level > .cardslider").element.children).toHaveLength(0);
   });
 
   it("keeps the modem's - and + where the gain is not 0, and keeps them while the row is in sight when + reaches 0", async () => {
@@ -193,6 +269,8 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(box().find(".txlevel input[type=range]").exists()).toBe(false);
     expect(box().findAll(".txlevel .stepbtn")).toHaveLength(2);
     expect(box().find(".txlevel .txlevel-value").text()).toBe("-1 dB");
+    const control = box().find(".txlevel .txlevel-control").element;
+    expect([control.firstElementChild?.className, control.lastElementChild?.className]).toEqual(["btn stepbtn", "infotip"]); // (- starts where the slider starts, the (i) at the column's end)
     await box().find("#set-radio-3-txlevel-up").trigger("click");
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/3/tx_gain_db": "0" } });
     await tell(daemon, { config: settingsWith({ "radio/3/tx_gain_db": "0" }) });
@@ -204,7 +282,7 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(box().findAll(".txlevel .stepbtn")).toHaveLength(0);
   });
 
-  it("keeps the rows on a phone (375 px), where the Receive level's slider has the control's line above the bar", async () => {
+  it("keeps the rows on a phone (375 px), where the Receive level's slider has the control's line under the bar, as long as the Transmit level's", async () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 375 });
     document.documentElement.classList.add("size-phone");
     const { wrapper, labels } = make(FTX1);
@@ -216,8 +294,9 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     mounted = none.wrapper;
     await flushPromises();
     expect(none.labels()).toEqual(phone);
-    expect(RESPONSIVE).toMatch(/\.size-phone \.scope-level:has\(> \.cardslider\) \{\s*flex-wrap: wrap;/); // (jsdom has no layout: the rule is what puts the slider on its own line)
-    expect(RESPONSIVE).toMatch(/\.size-phone \.scope-level > \.cardslider \{\s*flex: 1 1 100%;/);
+    expect(RESPONSIVE).toMatch(/\n\.scope-level:has\(> \.cardslider\) \{\s*flex-wrap: wrap;/); // (jsdom has no layout: the rules are what put the slider on its own line)
+    expect(RESPONSIVE).toMatch(/\.size-phone \.scope-level > \.cardslider,[^{]*\{\s*order: 1;/); // (under the bar: a card without a capture control has no empty line above it)
+    expect(RESPONSIVE).toMatch(/\.size-phone \.field-control > \.cardslider,[^{]*\{\s*flex-basis: calc\(100% - 28px\);/); // (both rows: the line but the room of the (i), so the two are one length)
   });
 });
 
@@ -253,6 +332,7 @@ describe("the sound card's own levels in a Mercury radio's box", () => {
     mounted = box;
     const slider = box.find(".scope-level input[type=range]");
     expect((slider.element as HTMLInputElement).value).toBe("50");
+    expect(box.find(".scope-level .cardslider-value").text()).toBe("50 %");
     (slider.element as HTMLInputElement).value = "64";
     await slider.trigger("change");
     expect(form.choose).toHaveBeenCalledWith({ "radio/2/rx_card": "64" });

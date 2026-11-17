@@ -3,10 +3,11 @@
 // the tune tone follows it, so the operator presses Tune and watches the radio's ALC while the level moves. Beside it the peak of the latest transmission in dBFS (the modem's own reading), which turns orange at 0 or over, where the sound card clips.
 // The room of the number is kept, so that nothing moves when it changes. The range is the field's of the radio's type, the modem the radio's row. A modem that says no peak (a Sound card radio's Direwolf: `can.scope` is the modem giving its audio) has the row without it.
 // Where the radio's sound card has a playback level of its own (the row's `card.tx`) and the modem's gain is at its start (0), the row has the card's slider in the place of the two buttons (components/CardSlider.vue,
-// the radio's `tx_card`), and the modem's gain is not offered: one transmit level, the card's, which is set without a restart; the percent stands beside it in the room of the dB. A gain that is not 0 keeps the
+// the radio's `tx_card`, with its percent), and the modem's gain is not offered: one transmit level, the card's, which is set without a restart. A gain that is not 0 keeps the
 // two buttons, and the daemon then leaves the card's playback level as it is: nothing changes the level out of sight. The row keeps its shape while it is in sight: a gain that was not 0 when the row came
 // into sight, or since, keeps the buttons when + or - reaches 0 under the pointer; the slider comes the next time the row is seen (its fold or tab opened again, composables/useWhenShown.ts `useInView`).
-// Until the card's levels are known (`card.read`) the row has neither, at its height.
+// Until the card's levels are known (`card.read`) the row has neither, at its height. The slider, or the two buttons, start where the control column starts, as the Receive level's slider does, and the (i) stands at
+// the column's end, where the Receive level's has its own.
 import CardSlider from "@/components/CardSlider.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { computed, ref, watch } from "vue";
@@ -59,16 +60,7 @@ function move(by: number): void {
     <label :for="`${id}-up`">{{ t("settings.txlevel.label") }}</label>
     <div class="field-control txlevel-control">
       <template v-if="known">
-        <CardSlider
-          v-if="card !== null"
-          :id="`${id}-up`"
-          v-slot="{ value }"
-          :label="t('settings.txlevel.label')"
-          :setting-key="cardKey"
-          :level="card"
-          :form="form"
-          ><output class="mono txlevel-value">{{ t("settings.cardlevel.value", { value }) }}</output></CardSlider
-        >
+        <CardSlider v-if="card !== null" :id="`${id}-up`" :label="t('settings.txlevel.label')" :setting-key="cardKey" :level="card" :form="form" />
         <template v-else>
           <button
             class="btn stepbtn"
@@ -115,6 +107,9 @@ function move(by: number): void {
 .btn.stepbtn {
   min-width: 0;
   width: var(--control-h);
+}
+.txlevel-control > .infotip {
+  margin-left: auto;
 }
 .txlevel-value {
   min-width: 6ch;
