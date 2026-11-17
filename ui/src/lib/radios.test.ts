@@ -127,7 +127,7 @@ describe("what the page calls a radio", () => {
           ?.fields.map((field) => field.key)
           .sort(),
       ],
-    ).toEqual(["hf", true, ["ask", "beacon", "keying", "local_info", "sound_card", "status", "tx_gain_db"]]);
+    ).toEqual(["hf", true, ["ask", "beacon", "keying", "local_info", "rx_card", "sound_card", "status", "tx_card", "tx_gain_db"]]);
     expect(typeOf({ type: "nonesuch" })).toBeUndefined();
   });
 });

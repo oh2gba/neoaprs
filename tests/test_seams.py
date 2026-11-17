@@ -69,7 +69,7 @@ def test_the_radios_of_the_settings_are_todays_fm_and_hf_radio_made_of_the_flat_
             elif key != "beacon":                                          # (a field of the kind that no flat key of this radio holds is at its default: radio 1's sound card, keying and gain)
                 assert text == kind_field(spec.kind, key).default, key     # type: ignore[union-attr]
             assert Config.check_radio(spec, key, text) == text, "what is stored reads back as it is"
-    assert set(fm.settings) == {"port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "beacon", "status", "ask", "local_info", "path", "digipeat"} and set(hf.settings) == {"sound_card", "keying", "tx_gain_db", "beacon", "status", "ask", "local_info"}
+    assert set(fm.settings) == {"port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "tx_card", "rx_card", "beacon", "status", "ask", "local_info", "path", "digipeat"} and set(hf.settings) == {"sound_card", "keying", "tx_gain_db", "tx_card", "rx_card", "beacon", "status", "ask", "local_info"}
     today = "fm" if config.fm_enabled else "hf" if config.hf_enabled else None
     assert config.unheard_radio == {"fm": FM_ID, "hf": HF_ID, None: None}[today], "the radio of a call no radio heard is today's default radio (none for none: today's stopped FM radio)"
     assert [s.id for s in config.enabled_radios] == [i for i, on in ((FM_ID, config.fm_enabled), (HF_ID, config.hf_enabled)) if on]

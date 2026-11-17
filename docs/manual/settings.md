@@ -71,7 +71,7 @@ The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `h
 <!-- doc-settings:radios -->
 | type | kind | what it is | its own settings |
 | --- | --- | --- | --- |
-| `direwolf` | fm | Sound card | `sound_card`, `keying`, `tx_gain_db`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
+| `direwolf` | fm | Sound card | `sound_card`, `keying`, `tx_gain_db`, `tx_card`, `rx_card`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `kiss` | fm | KISS TNC (Kenwood TH-D74/D75, Mobilinkd…) | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `kenwood-d710` | fm | Kenwood TM-D710 / TH-D72 | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `kenwood-tnc2` | fm | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
@@ -80,7 +80,7 @@ The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `h
 | `tnc-text` | fm | Yaesu FTM, TNC in monitor mode (RX only) | `port`, `baud` |
 | `dummy` | fm | Dummy FM radio | `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `dummy-hf` | hf | Dummy Mercury radio | `beacon`, `status`, `ask`, `local_info` |
-| `mercury` | hf | Mercury modem (sound card) | `sound_card`, `keying`, `tx_gain_db`, `beacon`, `status`, `ask`, `local_info` |
+| `mercury` | hf | Mercury modem (sound card) | `sound_card`, `keying`, `tx_gain_db`, `tx_card`, `rx_card`, `beacon`, `status`, `ask`, `local_info` |
 | `lora-tcp` | lora | LoRa APRS board on the network | `tcp_host`, `tcp_port`, `beacon`, `status`, `ask`, `local_info`, `path` |
 | `lora-serial` | lora | LoRa APRS board on USB or Bluetooth | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path` |
 | `lora-console` | lora | LoRa APRS iGate on USB (RX only) | `port`, `baud` |
@@ -100,7 +100,9 @@ The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `h
 | `radio/<id>/digipeat` | `false` | `direwolf`, `kiss`, `kenwood-d710`, `kenwood-tnc2`, `kantronics`, `kiss-tcp`, `dummy` | Settings tab, Digipeater | `true`: this radio repeats a packet that asks for `WIDE1-1`, or for our call: the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater)) |
 | `radio/<id>/sound_card` | empty | `direwolf`, `mercury` | Settings tab, Radio (Sound card) | the sound card of the radio's modem (the Mercury modem, Direwolf), as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows); one card is one radio's. The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice ([radio.md](radio.md#the-mercury-modem)) |
 | `radio/<id>/keying` | empty | `direwolf`, `mercury` | Settings tab, Radio (Keying) | how the radio's modem keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice |
-| `radio/<id>/tx_gain_db` | `0` | `direwolf`, `mercury` | Settings tab, Radio (Transmit level) | the transmit gain of the radio's modem in dB (Mercury -20 to 20, Direwolf -20 to 0; `0`: the modem's own level, a Mercury frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once (Direwolf starts its program again with it) and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame |
+| `radio/<id>/tx_gain_db` | `0` | `direwolf`, `mercury` | Settings tab, Radio (Transmit level) | the transmit gain of the radio's modem in dB (Mercury -20 to 20, Direwolf -20 to 0; `0`: the modem's own level, a Mercury frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once (Direwolf starts its program again with it) and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame. Where the sound card has a playback level of its own the row's slider sets that one instead (`tx_card`), and this stays as it is |
+| `radio/<id>/tx_card` | empty | `direwolf`, `mercury` | Settings tab, Radio (Transmit level) | the sound card's own playback level in percent, 0 to 100 (on Linux its ALSA Master, Speaker or PCM control, on Windows the playing device's volume; not on macOS). Empty: never set, the card stays as the system has it. Set with the slider of the Transmit level row, which is there only where the card has such a control; it is set on the card at once, without a restart, and put back on it at every start of the radio's modem |
+| `radio/<id>/rx_card` | empty | `direwolf`, `mercury` | Settings tab, Radio (Receive level) | the sound card's own capture level in percent, 0 to 100 (its ALSA Capture or Mic control, the recording device's volume on Windows). Empty: never set. Set with the slider of the Receive level row, beside the bar, which is there only where the card has such a control; set and put back as `tx_card`. A switch of the card (its Auto Gain Control, a mute) is never touched |
 <!-- /doc-settings -->
 
 ## Values the program decides

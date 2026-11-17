@@ -164,6 +164,7 @@ class _Driver:
 class DriverShape(_Driver):
     """A driver of a type with no modem."""
     modem = None
+    card = None
 
 
 class ModemDriverShape(_Driver):
@@ -171,6 +172,7 @@ class ModemDriverShape(_Driver):
     def __init__(self, line: LineOfTest, modem: ModemOfTest) -> None:
         super().__init__(line)
         self.modem = modem
+        self.card = None
 
 
 def as_air(radio: LiveShape | FrozenAir) -> AirRadio:

@@ -75,6 +75,7 @@ class FakeSettings(NamedTuple):
 class FakeDriver:
     """A driver that opens nothing: `calls` is what it was asked, in order (`configure`, `start`, `stop`); its line is CONNECTED from its start to its stop."""
     modem = None
+    card = None
 
     def __init__(self, made_for: RadioSpec, clock: Clock, line: FakeLine | None = None) -> None:
         self.id = made_for.id

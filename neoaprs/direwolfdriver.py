@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import nodevices
+from .cardlevels import CardLevels
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
@@ -18,6 +19,7 @@ from .mercurydriver import chosen_as_set
 from .mercurymodem import left_out
 from .radiodriver import RunOverrides
 from .radiospec import RadioSpec
+from .soundmixer import Mixer
 from .tnc import Tnc
 from .tncprofile import tcp_url
 
@@ -43,13 +45,14 @@ def direwolf_words(spec: RadioSpec) -> str:
 
 
 class DirewolfDriver:
-    def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: DirewolfModem | None = None) -> None:
+    def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: DirewolfModem | None = None, mixer: Mixer | None = None) -> None:
         self.id = spec.id
         self.claims = claims
         self._line = line if line is not None else Tnc(clock=clock, profile=PROFILE)
         self._modem = modem if modem is not None else DirewolfModem(folder, clock, claims=claims, holder=spec.id)
         self._line.radio_id = spec.id
         self._line.modem = self._modem                 # (the line asks it why no frame is to go now, and what to say in the status line)
+        self._card = CardLevels(lambda: self._modem.sound_card, lambda: self._modem.starts, mixer)
         self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()
 
     @property
@@ -59,6 +62,10 @@ class DirewolfDriver:
     @property
     def modem(self) -> DirewolfModem:
         return self._modem
+
+    @property
+    def card(self) -> CardLevels:
+        return self._card
 
     def configure(self, spec: RadioSpec, station: Config, run: RunOverrides) -> None:
         self._spec, self._station, self._run = spec, station, run
@@ -71,7 +78,7 @@ class DirewolfDriver:
         self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = ("" if no_line else tcp_url(HOST, self._modem.kiss_port)), SPEED, PROFILE, False, (), ""
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
-        """The sound card and the keying (the transmit level is set live)."""
+        """The sound card and the keying (the transmit level is set live, and so are the card's own levels)."""
         return (direwolf_settings(spec),)
 
     def made_explicit(self, before: RadioSpec, after: RadioSpec) -> RadioSpec:
@@ -89,8 +96,10 @@ class DirewolfDriver:
             log.exception("Direwolf could not be started")
         self._point()
         await self._line.start()
+        await self._card.start(spec.value("tx_card"), spec.value("rx_card"))
 
     async def stop(self) -> None:
+        await self._card.stop()
         await self._line.stop()
         await self._modem.stop()
 

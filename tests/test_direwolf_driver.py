@@ -70,7 +70,7 @@ async def test_the_driver_starts_direwolf_then_its_line_and_a_frame_of_ours_goes
     driver.line.packet.connect(lambda packet: heard.append(packet.direction))
     assert driver.line.send_frame(ui_frame())
     await until(lambda: "in" in heard and driver.modem.rx_level == 48)
-    row = radio_row(spec(), (spec(),), SimpleNamespace(line=driver.line, beacon=None), claims)
+    row = radio_row(spec(), (spec(),), SimpleNamespace(line=driver.line, beacon=None, driver=driver), claims)
     assert row is not None and ROW.validate_python(row)
     assert (row["modem"]["mode"], row["modem"]["rx_level"], row["modem"]["frames_keyed"], row["can"]["rx_level"], row["problem"]) == ("AFSK1200", 48, 1, True, None)
     assert {h["resource"] for h in row["holds"]} == {"sound_card", "modem_ports"} and driver.held() == [c for c in claims.all() if c.holder == 3]
@@ -148,7 +148,7 @@ def test_the_row_of_a_sound_card_radio_on_the_card_the_hf_modem_holds_says_so_wi
     claims = Claims()
     claims.hold(Claim("sound_card", CARD, 2))
     hf = RadioSpec(2, "hf", "mercury", "", True, 2, settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true"})
-    row = radio_row(spec(), (hf, spec()), SimpleNamespace(line=Tnc(profile=PROFILE), beacon=None), claims)
+    row = radio_row(spec(), (hf, spec()), SimpleNamespace(line=Tnc(profile=PROFILE), beacon=None, driver=SimpleNamespace(card=None)), claims)
     assert row is not None and row["problem"] == {"code": "radio.resource_held", "params": {"resource": "sound_card", "holder": "Mercury", "held_by": 2}}
 
 
@@ -215,10 +215,10 @@ def test_a_type_whose_program_this_installation_does_not_carry_is_not_offered_bu
 def test_while_tune_or_the_keying_test_has_the_radio_its_row_shows_the_test_and_no_problem(tmp_path: Path) -> None:
     driver = driver_of(tmp_path)
     driver.modem.state, driver.modem.test = "running", "tune"                 # (the radio's Direwolf is stopped for the calibration run: its line is down meanwhile)
-    row = radio_row(spec(), (spec(),), SimpleNamespace(line=driver.line, beacon=None), Claims())
+    row = radio_row(spec(), (spec(),), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
     assert row is not None and row["problem"] is None and (row["modem"]["test"], row["modem"]["keyed"]) == ("tune", True)
     driver.modem.test = ""
-    row = radio_row(spec(), (spec(),), SimpleNamespace(line=driver.line, beacon=None), Claims())
+    row = radio_row(spec(), (spec(),), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
     assert row is not None and row["problem"] == {"code": "radio.not_connected", "params": {"name": "FM"}}
 
 

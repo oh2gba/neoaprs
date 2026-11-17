@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import nodevices
+from .cardlevels import CardLevels
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
@@ -19,6 +20,7 @@ from .mercury import BROADCAST_PORT
 from .mercurymodem import HOST, Mercury
 from .radiodriver import RunOverrides
 from .radiospec import RadioSpec
+from .soundmixer import Mixer
 from .tnc import Tnc
 from .tncprofile import HF_BY_KEY, MERCURY, Profile, tcp_url
 
@@ -74,7 +76,8 @@ def chosen_as_set(before: RadioSpec, after: RadioSpec, state: str, sound_card: s
 
 
 class MercuryDriver:
-    def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: Mercury | None = None, data_dir: Path | None = None) -> None:
+    def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: Mercury | None = None, data_dir: Path | None = None,
+                 mixer: Mixer | None = None) -> None:
         self.id = spec.id
         self.claims = claims
         self._line = line if line is not None else Tnc(clock=clock, profile=MERCURY)                                              # (a line and a modem made elsewhere: a test's)
@@ -82,6 +85,7 @@ class MercuryDriver:
         self._line.radio_id = spec.id
         self._line.modem = self._modem                 # (the line asks it why no frame is to go now; the Dummy HF radio's line plays its frames through it)
         self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()       # what `configure` gave last: `start` starts the modem with it
+        self._card = CardLevels(self._own_card, lambda: self._modem.starts, mixer)
 
     @property
     def line(self) -> Tnc:
@@ -90,6 +94,14 @@ class MercuryDriver:
     @property
     def modem(self) -> Mercury:
         return self._modem
+
+    @property
+    def card(self) -> CardLevels:
+        return self._card
+
+    def _own_card(self) -> str:
+        """The card whose own levels are the radio's: the modem's, but none for the Dummy radio (the computer's own sound) and a Mercury something else runs."""
+        return "" if self._spec.rtype.dummy or _attached(self._spec, self._run) else self._modem.sound_card
 
     def configure(self, spec: RadioSpec, station: Config, run: RunOverrides) -> None:
         self._spec, self._station, self._run = spec, station, run
@@ -127,8 +139,10 @@ class MercuryDriver:
             log.exception("the Mercury modem could not be started")        # (the radio is started all the same: it keeps trying its port)
         self._point()
         await self._line.start()
+        await self._card.start(self._spec.value("tx_card"), self._spec.value("rx_card"))
 
     async def stop(self) -> None:
+        await self._card.stop()
         await self._line.stop()
         await self._modem.stop()
 

@@ -177,6 +177,15 @@ button,
   flex: none;
 }
 
+/* the Receive level with the slider of the sound card's own capture level on a phone: the slider has the control's whole line, the bar, its number and the (i) the line under it (both lines are there whatever the
+   slider or the bar say: nothing moves) */
+.size-phone .scope-level:has(> .cardslider) {
+  flex-wrap: wrap;
+}
+.size-phone .scope-level > .cardslider {
+  flex: 1 1 100%;
+}
+
 /* the access key on a phone has the whole line, with its button under it: the key is long, and a longer word for the button (in another language) would leave it a few letters */
 .size-phone .field-control:has(#set-web-key) {
   flex-wrap: wrap;

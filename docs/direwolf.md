@@ -44,10 +44,18 @@ The command (`direwolf.command`): `direwolf -c <conf> -t 0 -q d -a 2 -R 100 -d o
 | the level of a packet heard | 0 to 200 | Direwolf's own scale: "cranking the input level way up produces 199" (`direwolf.c:1329`) |
 | too low, too high | under 5, over 110 | Direwolf's own warnings (`direwolf.c:1336-1349`) |
 | the good band | 30 to 70 | round Direwolf's "most stations are around 50"; a choice, not a measurement, as Mercury's good range is |
-| the transmit level | -20 to 0 dB | Direwolf's amplitude as a percentage, 100·10^(dB/20) (`-G`, txlevel.patch; the constant was 100, `direwolf.c:183`) |
+| the transmit level | -20 to 0 dB | Direwolf's amplitude as a percentage, 100·10^(dB/20) (`-G`, txlevel.patch; the constant was 100, `direwolf.c:183`); offered only where the card has no playback level of its own |
+| a new transmit level | 1 s after the last change | each press of - and + is a change of the setting: the program is started again once the presses have ended (`direwolftune.SETTLE_SEC`), not once for each |
+| the sound card's own levels | 0 to 100 %, read every 2 s | the card's ALSA simple mixer controls (playback: the first of Master, Speaker, PCM, Headphone; capture: Capture, then Mic), the raw value within the control's range as `amixer` prints it; on Windows the master volume of the card's playing and recording device (Core Audio); `neoaprs/soundmixer.py`, `neoaprs/winmixer.py`, `neoaprs/cardlevels.py` |
 | Tune | 10 s | the alternating mark and space tones (`-x a`), long enough to read the deviation off a meter |
 | the keying test | 1 s | the PTT alone (`-x p`); the mark tone (`-x m`) on VOX, which silence does not key |
 | the stop | 3 s, then SIGINT, 3 s, then the kill | its cleanup sleeps one second (`direwolf.c:1695-1699`) |
+
+**The sound card's own levels.** Where the card has a playback control the Transmit level row drives the card (`radio/<id>/tx_card`) and Direwolf runs at the level it has (0 dB, its most, unless the
+operator set another before); where it has a capture control the Receive level row has its slider (`rx_card`). A change is set on the card at once and restarts nothing: Direwolf keeps the card open. The
+values are put back at every start of the program (a start, a start again after it died, a card plugged in again: the desktop's sound system and a replug move the same controls); a value never set is
+never written. Only volumes are set: a switch (the C-Media chip's Auto Gain Control, a mute) is never touched. The ALSA library is opened by ctypes (`libasound.so.2`): a system without it has no sliders,
+and no program is run to find it. Not on macOS. Under the no-devices switch nothing is read or set.
 
 The level shown is the level as it is now. The radio's row in the topic `radios`, which every page has, carries Direwolf's audio statistics every two seconds (`-a 2`) and each packet's own level when one is heard;
 null while Direwolf does not run. A page whose Receive level row is in view asks for more (`radio_level`): the level Direwolf says every 100 ms (`-R 100`), sent to that page alone, in the pattern of the scope's feed

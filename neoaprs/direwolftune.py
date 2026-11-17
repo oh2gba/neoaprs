@@ -1,7 +1,8 @@
 """Tune, the keying test and the transmit level of a radio of the Sound card type, the half of the modem part (direwolfmodem.py, whose `DirewolfModem` inherits this) that runs Direwolf's own calibration runs
 (`-x`, direwolf.c:1056-1110): the radio's Direwolf is stopped cleanly (its input closed), the run keys the radio and sends (the alternating mark and space tones for Tune, the PTT alone for the keying test, the mark
 tone for a radio on VOX, which silence does not key) until the daemon closes its input after TUNE_SEC or KEY_TEST_SEC, and the radio's Direwolf is started again on the same KISS port. The hold is on meanwhile
-(`test` is what is on), so the services wait as for any radio that is not free. A change of the transmit level starts the program again with it (`-G`): the tune tones too.
+(`test` is what is on), so the services wait as for any radio that is not free. A change of the transmit level starts the program again with it (`-G`): the tune tones too. Each press of the page's - and + is a
+change of the setting, so the start waits until the presses have ended (SETTLE_SEC after the last): several presses in a row are one start, not one each, each of which leaves the radio deaf for seconds.
 
 Every swap of the program (a test, its end, a new level) is one at a time, first lets the radio's Direwolf send the frames the line handed it (a stop would lose them), and is given up when the radio was
 stopped or started again while it waited: a run started after that would be left beside the radio's own, keying it with no one to stop it. A class of its own for its size alone: it reads and sets the modem's
@@ -22,6 +23,7 @@ log = logging.getLogger("neoaprs.direwolf")
 TRANSMITTING = Reason("the radio is transmitting", "radio.transmitting")
 DRAIN_SEC = 5.0                        # how long a test or a new transmit level waits for the frames the radio's Direwolf holds (a busy channel, its slot time and persistence) before it stops it all the same
 DRAIN_POLL_SEC = 0.05
+SETTLE_SEC = 1.0                       # how long after the latest change of the transmit level the program is started again with it: the presses of - and + in a row are one start
 NOT_RUNNING = "the radio is not running"
 
 
@@ -47,6 +49,7 @@ class Tuning:
     _swapping: asyncio.Lock
     _handed: int
     _keyed_upto: int
+    _gain_asks = 0                         # the changes of the transmit level so far: a start waits for the latest
 
     def _program_to_run(self) -> Command | None:
         raise NotImplementedError
@@ -146,19 +149,21 @@ class Tuning:
             await self._run(program)
 
     def set_tx_gain(self, gain_db: int) -> None:
-        """The transmit level of the settings: a change starts the program again with it (a gap of about a second, Direwolf's cleanup), the tune tones too; the keying test is left to end (the radio's Direwolf
-        after it has the new level)."""
+        """The transmit level of the settings: a change starts the program again with it (a gap of about a second, Direwolf's cleanup), the tune tones too, once no other change has come for SETTLE_SEC; the
+        keying test is left to end (the radio's Direwolf after it has the new level)."""
         gain = clamp(gain_db)
         if gain == self.tx_gain_db:
             return
         self.tx_gain_db = gain
+        self._gain_asks += 1
         if self.test == "tune" or (not self.test and self.state in ("starting", "running")):
-            self._tasks.spawn(self._again(), "direwolf-gain")
+            self._tasks.spawn(self._again(self._gain_asks, self._generation), "direwolf-gain")
 
-    async def _again(self) -> None:
+    async def _again(self, ask: int, generation: int) -> None:
+        await asyncio.sleep(SETTLE_SEC)
         program = self._program_to_run()
-        if program is None:
-            return
+        if program is None or ask != self._gain_asks or generation != self._generation:
+            return                                                       # (a later change starts it, or the radio was started again meanwhile, with the level)
         async with self._swapping:
             test = self.test
             if test == "key" or not await self._stopped(drain=not test):

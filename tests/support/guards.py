@@ -37,7 +37,7 @@ import pytest
 import pytest_asyncio
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
-from neoaprs import btpaired
+from neoaprs import btpaired, soundmixer, winmixer
 from neoaprs.dbthread import DbThread
 from tests.support import env as env_module
 
@@ -409,6 +409,8 @@ def isolated_machine(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         bluetooth.install_ble(monkeypatch.setitem)
         monkeypatch.setattr(btpaired, "_run", lambda command: "")               # BlueZ is not asked which devices this machine is paired with: a test that needs some gives its own answer
         monkeypatch.setattr(serial.tools.list_ports, "comports", lambda: [])    # the machine's USB devices are not read (slow, and not the test's): a test that needs some gives its own list
+        monkeypatch.setattr(soundmixer, "load_alsa", lambda: None)              # no sound card's own levels are read or set (the machine's radios hang on its cards): as on a system without ALSA; a test that needs a mixer gives its own
+        monkeypatch.setattr(winmixer.CoreAudio, "_with_volume", lambda self, device, use: False)
         processes.install(monkeypatch.setattr)
         yield
         assert not network.refused, "the test tried to reach something that is not this machine: " + ", ".join(network.refused)

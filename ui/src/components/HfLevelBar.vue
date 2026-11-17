@@ -1,16 +1,19 @@
 <script setup lang="ts">
 // The receive level of a radio's audio, one row of the scope: a bar with its good range, and the number. The level comes with every row of the waterfall of `radio` (the page's memory of that radio's rows; null while no radio has a scope: no level) while `on` (the caller asks for the rows), and from the
-// newest of the rows the daemon kept when they come; while the radio transmits the rows are of our own signal, so the bar is dimmed and holds the last level received (the bar is components/LevelBar.vue). The box in Settings (components/HfScope.vue) has the (i) of it (`tip`); the monitor card over the map (components/MonitorCard.vue) has the row alone.
+// newest of the rows the daemon kept when they come; while the radio transmits the rows are of our own signal, so the bar is dimmed and holds the last level received (the bar is components/LevelBar.vue). The box in Settings (components/HfScope.vue) has the (i) of it (`tip`), and where the radio's sound card has a capture level of its own the slider of it before the bar (`card`: the radio and the
+// form, components/CardSlider.vue); the monitor card over the map (components/MonitorCard.vue) has the row alone.
 import { computed, onBeforeUnmount, ref, useId, watch } from "vue";
+import CardSlider from "@/components/CardSlider.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import LevelBar from "@/components/LevelBar.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
 import { GOOD_PERCENT, dbText, levelPercent, levelZone } from "@/lib/hflevel";
-import type { RadioId } from "@/lib/radios";
+import type { SettingsFormState } from "@/composables/useSettingsForm";
+import type { PageRadio, RadioId } from "@/lib/radios";
 import type { ScopeRow } from "@/lib/scoperow";
 
-const props = defineProps<{ on: boolean; radio: RadioId | null; tip?: boolean }>();
+const props = defineProps<{ on: boolean; radio: RadioId | null; tip?: boolean; card?: { radio: PageRadio; form: SettingsFormState } }>();
 const { scopeOf } = useDaemonContext();
 const id = useId();
 const level = ref<number | null>(null);
@@ -47,6 +50,8 @@ watch(
 );
 onBeforeUnmount(() => listen(false));
 
+/** The card's own capture level, where the box has the slider of it. */
+const capture = computed(() => props.card?.radio.row.card.rx ?? null);
 const zone = computed(() => (level.value === null ? "low" : levelZone(level.value)));
 const fill = computed(() => (level.value === null ? 0 : levelPercent(level.value)));
 </script>
@@ -61,6 +66,9 @@ const fill = computed(() => (level.value === null ? 0 : levelPercent(level.value
     :held="transmitting"
     :value="t('settings.scope.value', { value: dbText(level) })"
   >
+    <template v-if="card && capture !== null" #control
+      ><CardSlider :label="t('settings.cardlevel.rx_label')" :setting-key="`radio/${card.radio.id}/rx_card`" :level="capture" :form="card.form"
+    /></template>
     <InfoTip v-if="tip" :label="t('settings.scope.tip_label')" picture="scope"
       ><span class="info-line">{{ t("settings.scope.tip1") }}</span
       ><span class="info-line">{{ t("settings.scope.tip2") }}</span></InfoTip

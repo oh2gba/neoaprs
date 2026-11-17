@@ -244,10 +244,17 @@ class FakeBeacon:
 
 
 @dataclass
+class NoCard:
+    """The driver of a radio with no sound card of its own, as the topic `radios` reads it."""
+    card: None = None
+
+
+@dataclass
 class FakeRadio:
-    """A radio at run time as the topic `radios` reads it: its line and its beacon."""
+    """A radio at run time as the topic `radios` reads it: its line, its beacon and its driver."""
     line: Tnc
     beacon: FakeBeacon
+    driver: NoCard = field(default_factory=NoCard)
 
 
 RADIOS = (RadioSpec(1, "fm", "kiss", "Mobile", True, 1, settings={"port": "/dev/ttyUSB0", "path": "WIDE1-1", "digipeat": "true"}),

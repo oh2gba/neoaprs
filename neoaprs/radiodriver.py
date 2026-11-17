@@ -6,6 +6,7 @@ members, so that a plain attribute, a property, or a subclass of Tnc or Mercury 
 from dataclasses import dataclass
 from typing import Protocol
 
+from .cardlevels import CardLevels
 from .claims import Claim
 from .config import Config
 from .direwolfmodem import DirewolfModem
@@ -34,6 +35,11 @@ class RadioDriver(Protocol):
     @property
     def modem(self) -> Mercury | DirewolfModem | None:
         """The modem of a "mercury" or a "direwolf" driver (Tune, the keying test, the transmit level; Mercury's scope); None for any other."""
+        ...
+
+    @property
+    def card(self) -> CardLevels | None:
+        """The sound card's own levels of a modem's radio (cardlevels.py); None for a radio with no sound card."""
         ...
 
     def configure(self, spec: RadioSpec, station: Config, run: RunOverrides) -> None:

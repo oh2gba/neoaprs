@@ -1440,6 +1440,15 @@ entry stays on the board until it is deleted.
 | `last_heard` | time |  | when it was last heard |
 | `times_heard` | integer |  | how often this text was heard (the copies of one transmission that came by different digipeaters within 10 seconds are one) (>= 1) |
 
+### CardLevelsRow
+
+The radio's sound card's own levels (the radio's `tx_card` and `rx_card` set them): a slider is drawn only where the card has the control, at the card's level.
+
+| field | type | | description |
+|---|---|---|---|
+| `tx` | integer \| null |  | the card's playback level in percent, what the radio is given to transmit (ALSA's Speaker, PCM or Master control; the playing device's master volume on Windows); null where the card has no such control, the radio has no sound card or its card was never read (>= 0, <= 100) |
+| `rx` | integer \| null |  | the card's capture level in percent, what it takes from the radio (ALSA's Capture or Mic control; the recording device's master volume on Windows); null as `tx` (>= 0, <= 100) |
+
 ### DfBearingValues
 
 The bearing and quality of a DF report (`/270/729` after the course and speed).
@@ -1949,6 +1958,7 @@ times a second; a change of the settings tells the topic whole.
 | `beacon` | RadioBeaconState |  |  |
 | `status` | RadioStatusState |  |  |
 | `modem` | ModemState \| null |  | its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio |
+| `card` | CardLevelsRow |  | its sound card's own levels, read every two seconds while it runs and kept as read last while it is stopped or its card cannot be read; both null for a radio without a sound card of its own and before its card was read |
 | `holds` | RadioHold[] |  | the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none |
 
 ### RadioStatusState

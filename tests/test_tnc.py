@@ -171,7 +171,7 @@ async def test_the_row_of_a_tnc_being_put_into_kiss_says_it_is_connecting_until_
     settled the line is usable though no KISS frame has come (a TNC in KISS mode is silent until it hears a packet): the row says `connected`, so the page sends as the daemon does."""
     r = await rig()
     spec = RadioSpec(FM_ID, "fm", "kenwood-tnc2", "", True, 1)
-    at_work = SimpleNamespace(line=r.tnc, beacon=SimpleNamespace(last_sent=None, next_due=None, interval_min=0, problem=""))
+    at_work = SimpleNamespace(line=r.tnc, beacon=SimpleNamespace(last_sent=None, next_due=None, interval_min=0, problem=""), driver=SimpleNamespace(card=None))
     status = lambda: (lambda row: (row["state"], row["problem"]))(radio_row(spec, [spec], at_work, Claims()))       # noqa: E731
     assert not r.tnc.entering_kiss and status() == ("connected", None), "an open line that has said nothing yet"
     r.radio.feed(MONITOR_LINE)

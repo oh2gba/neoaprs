@@ -264,9 +264,9 @@ const hasGain = computed(() => can.value.tx_gain && gainKey.value in props.setti
       <FindRadioRow v-if="findable" :id="ids(radioElementId(radio, 'find'))" />
       <template v-if="tools">
         <HfTuneRow v-if="can.tune" :id="ids(radioElementId(radio, 'tune'))" :radio="radio" />
-        <SoundCardLevel v-if="can.rx_level" :radio="radio" />
+        <SoundCardLevel v-if="can.rx_level" :radio="radio" :form="form" />
         <HfLevelRow v-if="hasGain" :id="ids(radioElementId(radio, 'txlevel'))" :settings="settings" :form="form" :radio="radio" :setting-key="gainKey" />
-        <HfScope v-if="can.scope" :radio="radio.id" />
+        <HfScope v-if="can.scope" :radio="radio.id" :card="{ radio, form }" />
       </template>
     </RadioStatus>
   </SettingsBox>

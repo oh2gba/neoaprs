@@ -70,7 +70,7 @@ def wire(parts: Services) -> None:
     parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
     wired: list[object] = []                                                             # the lines, modems and beacons connected so far (a radio given another driver may keep its line)
     parts.radios.wire = lambda radio: wire_radio(parts, radio, wired)                   # (a radio made later, or given another driver, is connected the same way)
-    parts.config_changed.connect(lambda config: _tx_gains(parts))                       # (the transmit gain is set live in each radio's modem as it is now, and the tune tone follows it)
+    parts.config_changed.connect(lambda config: _tx_gains(parts))                       # (the transmit gain is set live in each radio's modem as it is now, and the tune tone follows it; so are the card's own levels)
     for radio in parts.radios.all():
         wire_radio(parts, radio, wired)
     parts.stationbook.removed.connect(parts.radios.forget)                              # (a station let go takes the operator's radio for it along: neoaprs/radioregistry.py)
@@ -94,7 +94,7 @@ def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
         wired.append(part)
         return True
 
-    line, modem, beacon, id = radio.line, radio.driver.modem, radio.beacon, radio.id
+    line, modem, card, beacon, id = radio.line, radio.driver.modem, radio.driver.card, radio.beacon, radio.id
     if first_time(line):
         line.packet.connect(parts.radio_packet.emit)
         line.state_changed.connect(lambda state: _remember_port(parts, radio, state))
@@ -105,15 +105,19 @@ def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
             modem.frequencies = parts.suggested_frequencies
         modem.ports_changed.connect(lambda: parts.repoint(id))                           # (a modem started again on other ports, the old pair taken meanwhile: the radio's line follows it)
         modem.changed.connect(lambda: parts.radio_changed.emit(id))
+    if card is not None and first_time(card):
+        card.changed.connect(lambda: parts.radio_changed.emit(id))                       # (the sound card's own levels: the row draws the sliders at them)
     if first_time(beacon):
         beacon.sent.connect(parts.igate.beacon_sent)                                     # (a moving station's beacon is also put on APRS-IS)
 
 
 def _tx_gains(parts: Services) -> None:
-    """Every radio's modem takes the transmit gain of the settings live; a modem replaced or of a radio removed is no radio's and takes nothing."""
+    """Every radio's modem takes the transmit gain of the settings live, and its sound card the radio's own levels; a modem replaced or of a radio removed is no radio's and takes nothing."""
     for radio in parts.radios.all():
         if (modem := radio.driver.modem) is not None:
             modem.set_tx_gain(radio.spec.value("tx_gain_db"))
+        if (card := radio.driver.card) is not None:
+            card.want(radio.spec.value("tx_card"), radio.spec.value("rx_card"))
 
 
 def _show_frequencies(parts: Services) -> None:

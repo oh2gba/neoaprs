@@ -132,6 +132,14 @@ export interface BulletinUnpostCommand {
   slot: string;
 }
 
+/** The radio's sound card's own levels (the radio's `tx_card` and `rx_card` set them): a slider is drawn only where the card has the control, at the card's level. */
+export interface CardLevelsRow {
+  /** the card's playback level in percent, what the radio is given to transmit (ALSA's Speaker, PCM or Master control; the playing device's master volume on Windows); null where the card has no such control, the radio has no sound card or its card was never read */
+  tx: number | null;
+  /** the card's capture level in percent, what it takes from the radio (ALSA's Capture or Mic control; the recording device's master volume on Windows); null as `tx` */
+  rx: number | null;
+}
+
 /** Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked. */
 export interface CheckUpdateCommand {
   cmd: "update_check";
@@ -1333,6 +1341,8 @@ export interface RadioRow {
   status: RadioStatusState;
   /** its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio */
   modem: ModemState | null;
+  /** its sound card's own levels, read every two seconds while it runs and kept as read last while it is stopped or its card cannot be read; both null for a radio without a sound card of its own and before its card was read */
+  card: CardLevelsRow;
   /** the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none */
   holds: RadioHold[];
 }

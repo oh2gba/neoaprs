@@ -77,6 +77,8 @@ NOT_YET_ON_THE_PAGE = {
     "status": "a radio's own tick of the status's Send on (My station, with no flat key): unticked by default, the status goes on the radios ticked",
     "ask": "a radio's own tick of Ask around's Send on (Nearby, with no flat key): unticked by default, the query goes on the radios ticked",
     "local_info": "a radio's own tick of Local info's Send on (Objects, with no flat key): unticked by default, the request goes on the radios ticked",
+    "tx_card": "the sound card's own playback level, the Transmit level row's slider where the card has that control (with no flat key): empty by default, the card stays as the system has it",
+    "rx_card": "the sound card's own capture level, the Receive level row's slider where the card has that control (with no flat key): empty by default, the card stays as the system has it",
 }
 
 # The fields that stop something the page offers when they are changed: each is on the page (through its flat key until the page names a radio).

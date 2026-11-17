@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // A level as a bar with its good band and the number beside it, in a room that is kept so that nothing moves when the number changes; dimmed (`held`) while the radio transmits, when the level shown is the last one
-// received. Its feeds are the HF radio's scope (components/HfLevelBar.vue, in dBFS) and a Sound card radio's modem (components/SoundCardLevel.vue, on Direwolf's own scale); the (i) of a feed goes in the slot.
+// received. Its feeds are the HF radio's scope (components/HfLevelBar.vue, in dBFS) and a Sound card radio's modem (components/SoundCardLevel.vue, on Direwolf's own scale); the (i) of a feed goes in the slot, and the
+// slider of the sound card's own capture level, where the card has one, in the slot `control` before the bar (one row: the slider sets, the bar shows; the slider is no higher than the (i), and nothing in the row moves while its value changes).
 defineProps<{ id: string; label: string; percent: number; zone: string; good: readonly [number, number]; held: boolean; value: string }>();
 </script>
 
@@ -8,6 +9,7 @@ defineProps<{ id: string; label: string; percent: number; zone: string; good: re
   <div class="field">
     <label :for="id">{{ label }}</label>
     <div class="field-control scope-level">
+      <slot name="control" />
       <div :id="id" class="levelbar" :class="{ held }" role="meter" :aria-label="label">
         <span class="levelgood" :style="{ left: `${good[0]}%`, width: `${good[1] - good[0]}%` }"></span>
         <span class="levelfill" :class="zone" :style="{ width: `${percent}%` }"></span>

@@ -766,6 +766,7 @@ export function radioRow(id: number, type: string, extra: Partial<RadioRow> = {}
     beacon: { last_sent: null, next_due: null, interval_min: 30, problem: null },
     status: { last_sent: null, next_due: null, interval_min: 0 },
     modem: type === "direwolf" ? soundCardModem() : known.kind === "hf" && !type.startsWith("dummy") ? modemState() : null,
+    card: { tx: null, rx: null },
     holds: [],
     ...extra,
   };

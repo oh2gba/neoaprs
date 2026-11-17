@@ -10,6 +10,9 @@
 - **Changed:** a right-click in the app's window no longer shows the web engine's menu with Back and Reload; text fields keep cut, copy and paste.
 - **Fixed:** after Update now of an AppImage the app's window and tray start again as the new version; Stop and quit still stops NeoAPRS.
 - **Fixed:** the update window no longer moves when Update now is pressed, nor while it downloads, installs or fails.
+- **New:** a Sound card or Mercury radio has sliders for the sound card's own transmit and receive levels, where the card has them.
+- **New:** NeoAPRS puts the sound card's levels back each time the radio starts, so a replug no longer leaves the radio faint.
+- **Changed:** several presses of the Transmit level's - and + restart Direwolf once, when you stop pressing, no longer once for each.
 
 ## 0.20.2
 

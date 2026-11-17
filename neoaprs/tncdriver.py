@@ -105,6 +105,10 @@ class TncDriver:
     def modem(self) -> None:
         return None
 
+    @property
+    def card(self) -> None:
+        return None
+
     def configure(self, spec: RadioSpec, station: Config, run: RunOverrides) -> None:
         apply_tnc_settings(self._line, line_settings(spec, station, run))
         self._line.remembered = remembered(spec, station, run)

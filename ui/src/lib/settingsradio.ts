@@ -64,8 +64,9 @@ export const flatKeyOf = (field: string, kind?: PageRadio["kind"]): string | nul
 /** The ticks of a radio in the Send on of each thing: the beacon's and the status's (My station), Ask around's (Nearby) and Local info's (Objects). */
 const SEND_ON = ["beacon", "status", "ask", "local_info"];
 
-/** The fields of a radio that are shown elsewhere than behind its status: its ticks of each Send on and its path (My station), its digipeater (the Digipeater group) and the transmit level, which is a row of its own. */
-const ELSEWHERE = [...SEND_ON, "path", "digipeat", "tx_gain_db"];
+/** The fields of a radio that are shown elsewhere than behind its status: its ticks of each Send on and its path (My station), its digipeater (the Digipeater group), the transmit level, which is a row of its own,
+ * and the sound card's own levels, the sliders of the Transmit level and Receive level rows. */
+const ELSEWHERE = [...SEND_ON, "path", "digipeat", "tx_gain_db", "tx_card", "rx_card"];
 
 /** The keys behind the status of a radio: its type's fields there (the host and the TCP port for one reached over TCP, the port and the speed for a serial one), each its own `radio/<id>/<field>`. */
 export function boxKeys(radio: Pick<PageRadio, "id" | "type">): string[] {

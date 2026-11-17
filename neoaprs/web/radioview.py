@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Protocol
 
+from neoaprs.cardlevels import CardLevels
 from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.clock import iso
 from neoaprs.coded import Param, code_of
@@ -38,12 +39,20 @@ class RadioStatus(Protocol):
     def on_radio(self, id: RadioId) -> tuple[datetime | None, datetime | None, int]: ...
 
 
+class RadioCard(Protocol):
+    """What the topic `radios` reads of a radio's driver: its sound card's own levels (cardlevels.py), none for a radio without a sound card."""
+    @property
+    def card(self) -> CardLevels | None: ...
+
+
 class RadioAtWork(Protocol):
-    """What the topic `radios` reads of a radio at run time (radioregistry.LiveRadio): its line and its beacon."""
+    """What the topic `radios` reads of a radio at run time (radioregistry.LiveRadio): its line, its beacon and its driver."""
     @property
     def line(self) -> Tnc: ...
     @property
     def beacon(self) -> RadioBeacon: ...
+    @property
+    def driver(self) -> RadioCard: ...
 
 
 def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | None, claims: Claims, status: RadioStatus | None = None) -> dict[str, Any] | None:
@@ -55,12 +64,13 @@ def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | 
         return None
     line = None if radio is None or spec.removed else radio.line
     lines = [] if line is None else [{"at": iso(at), "text": text} for at, text in line.recent_lines(LINES_MAX)]
+    card = None if line is None or radio is None else radio.driver.card
     return RadioRow.row(
         spec, enabled=spec.enabled and not spec.removed, number=number_in_kind(spec, specs), removed=spec.removed, dummy=rtype.dummy, state=radio_state(line),
         problem=radio_problem(spec, specs, line, claims), stats=TncStats.row(LineStats() if line is None else line.stats), lines=lines, limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
         allowed=plain(rtype.allowed), can=plain(rtype.can), choices=_choices(spec, rtype), beacon=_beacon(spec, None if radio is None or spec.removed else radio.beacon),
         status=_status(spec, status),
-        modem=None if line is None else modem_state(line), holds=[{"resource": c.kind, "value": c.value} for c in claims.all() if c.holder == spec.id])
+        modem=None if line is None else modem_state(line), card={"tx": None if card is None else card.levels.tx, "rx": None if card is None else card.levels.rx}, holds=[{"resource": c.kind, "value": c.value} for c in claims.all() if c.holder == spec.id])
 
 
 def radio_state(line: Tnc | None) -> str:
