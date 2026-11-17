@@ -67,6 +67,7 @@ def test_closing_its_input_ends_it_cleanly_and_it_listens_on_this_computer_only(
         assert _bound(port, ("/proc/net/tcp", "/proc/net/tcp6")) == {LOOPBACK} and _bound(udp, ("/proc/net/udp", "/proc/net/udp6")) == {LOOPBACK}
         assert child.stdin is not None
         child.stdin.close()
+        child.stdin = None                                               # (communicate would flush the closed pipe: "flush of closed file")
         closed = time.monotonic()
         output = child.communicate(timeout=10)[0].decode("utf-8", "replace")
         assert child.returncode == 0 and "PTT 0 = 0" in output and "QRT" in output and time.monotonic() - closed < 3.0, output
