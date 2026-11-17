@@ -179,6 +179,7 @@ async def test_a_device_another_radio_holds_is_refused_with_the_holders_name_and
     from neoaprs.mercurycards import SoundCard
     hf = await added(page, "mercury")
     modem = e.ctl.radios.get(hf).driver.modem                      # type: ignore[union-attr]
+    await until(lambda: modem.state == "waiting")                  # (the radio's start, a task of its own, is over: it lets go of what the radio held, the claim made by hand below too)
     monkeypatch.setattr(modem, "sound_cards", lambda: [SoundCard("plughw:CARD=A", "A"), SoundCard("plughw:CARD=B", "B"), SoundCard("plughw:CARD=C", "C")])
     e.ctl.radios.claims.hold(Claim("sound_card", "plughw:CARD=A", id))
     e.ctl.radios.claims.hold(Claim("sound_card", "plughw:CARD=B", hf))
