@@ -14,7 +14,7 @@ from pathlib import Path
 
 from neoaprs import kiss
 
-from .output import SETTLE_SEC, ctrl_break_is_ctrl_c, say
+from .output import SETTLE_SEC, ctrl_break_is_ctrl_c, interruptible, say
 
 HOST = "127.0.0.1"
 SAMPLE = Path(__file__).resolve().parent.parent / "samples" / "thd7.kiss"          # package data: neoaprs/samples/thd7.kiss
@@ -126,7 +126,7 @@ def main(argv: list[str]) -> int:
         print(f"socket://{HOST}:{port}", flush=True)
 
     try:
-        asyncio.run(Replay(frames, args.interval, args.loop, args.port, ready=announce).run())
+        asyncio.run(interruptible(Replay(frames, args.interval, args.loop, args.port, ready=announce).run))
     except KeyboardInterrupt:
         say("replay: stopped")
     except OSError as e:

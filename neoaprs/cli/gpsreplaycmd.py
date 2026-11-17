@@ -9,14 +9,12 @@ The drive goes on only while a client watches, and from where it stopped. Ctrl-C
 import argparse
 import asyncio
 import json
-import signal
-from collections.abc import Iterator, Mapping
-from contextlib import contextmanager
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
 from .gpstrip import Sample, Trip
-from .output import ctrl_break_is_ctrl_c, say
+from .output import break_as_interrupt, ctrl_break_is_ctrl_c, say
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 2948
@@ -113,22 +111,6 @@ class FakeGpsd:
             except OSError:
                 if client in self.watchers:                       # (the client's own task has taken it away if it went while the data was drained)
                     self.watchers.remove(client)
-
-
-@contextmanager
-def break_as_interrupt() -> Iterator[None]:
-    """Windows: Ctrl+Break, while the loop runs, is handled as asyncio.run handles Ctrl+C, by cancelling the drive at its next wait; raised as KeyboardInterrupt at whatever line the loop is on, it can land inside
-    the loop's own wait for the system's completions, lose one of them, and the loop's close then waits for it for ever."""
-    number = getattr(signal, "SIGBREAK", None)
-    on_interrupt = signal.getsignal(signal.SIGINT)
-    if number is None or not callable(on_interrupt):
-        yield
-        return
-    before = signal.signal(number, on_interrupt)
-    try:
-        yield
-    finally:
-        signal.signal(number, before)
 
 
 def main(argv: list[str]) -> int:

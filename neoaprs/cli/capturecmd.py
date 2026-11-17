@@ -19,7 +19,7 @@ from neoaprs.source import os_error_text
 from neoaprs.serialprobe import can_search, probe, search_pattern, searchable_ports
 from neoaprs.tncmode import looks_valid
 
-from .output import ctrl_break_is_ctrl_c, say
+from .output import ctrl_break_is_ctrl_c, interruptible, say
 
 PROBE_SECONDS = 20.0
 SHOWN_BYTES = 16
@@ -121,7 +121,7 @@ def main(argv: list[str]) -> int:
         say(f"capture: {args.out} exists; use --force to overwrite it")
         return 2
     try:
-        return asyncio.run(run(args))
+        return asyncio.run(interruptible(lambda: run(args)))
     except KeyboardInterrupt:
         say("capture: stopped; what came is in " + args.out)
         return 0
