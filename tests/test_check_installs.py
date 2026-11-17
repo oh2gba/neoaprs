@@ -453,3 +453,63 @@ def test_the_default_run_leaves_the_trial_out(rig: Rig) -> None:
     rig.cached()
     done = rig.run("--no-mercury")
     assert done.returncode == 0 and "appimage-web" not in done.stdout and not any(line.startswith("build-gi") for line in rig.builds())
+
+
+# ---- a Mercury that this system's glibc is too old for ----
+
+def mercury_part(installs: ModuleType, tmp_path: Path) -> tuple[Path, dict[str, str]]:
+    """The Mercury part of the .deb check, cut out of the script and pointed at a folder of the test, with an ldd, a dpkg and a mercury of the test's own first on the PATH."""
+    text = installs.DEB
+    part = text[text.index('if [ -n "${MERCURY_VERSION:-}" ]'):text.index("mkdir -p /tmp/home")]
+    part = part.replace("/tmp/", "/@work/").replace("/opt/neoaprs/tools/mercury", str(tmp_path / "mercury")).replace("/@work/", f"{tmp_path}/")
+    script = tmp_path / "part.sh"
+    script.write_text("set -eu\n" + part, encoding="utf-8")
+    (tmp_path / "mercury" / "lib").mkdir(parents=True)
+    (tmp_path / "mercury" / "LICENSE").write_text("licence", encoding="utf-8")
+    (tmp_path / "mercury" / "mercury").write_text('#!/bin/sh\n[ "$1" != -V ] || echo "Mercury 1.2.3"\n', encoding="utf-8")
+    (tmp_path / "mercury" / "mercury").chmod(0o755)
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "dpkg").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    (bin / "ldd").write_text(f'#!/bin/sh\ncat "{tmp_path}/ldd-says"\n', encoding="utf-8")
+    for name in ("dpkg", "ldd"):
+        (bin / name).chmod(0o755)
+    return script, {"PATH": f"{bin}{os.pathsep}{os.environ['PATH']}", "MERCURY_VERSION": "1.2.3"}
+
+
+def run_part(script: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["sh", str(script)], env=env, capture_output=True, text=True, timeout=PATIENCE_SEC, check=False)
+
+
+def test_a_mercury_built_against_a_newer_glibc_than_the_system_has_is_said_to_be_skipped_not_passed_or_failed(installs: ModuleType, tmp_path: Path) -> None:
+    script, env = mercury_part(installs, tmp_path)
+    (tmp_path / "ldd-says").write_text(
+        "./mercury: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.38' not found (required by ./mercury)\n\tlibasound.so.2 => /x/lib/libasound.so.2 (0x1)\n", encoding="utf-8")
+    done = run_part(script, env)
+    assert done.returncode == 0, done.stdout + done.stderr
+    skipped = [line for line in done.stdout.splitlines() if line.startswith(installs.SKIPPED)]
+    assert len(skipped) == 1 and "GLIBC_2.38" in skipped[0] and "mercury -V" not in done.stdout
+
+
+def test_a_library_of_mercury_that_is_missing_still_fails_beside_a_glibc_that_is_too_old(installs: ModuleType, tmp_path: Path) -> None:
+    script, env = mercury_part(installs, tmp_path)
+    (tmp_path / "ldd-says").write_text("./mercury: /lib/libc.so.6: version `GLIBC_2.38' not found (required by ./mercury)\n\tlibfoo.so.1 => not found\n", encoding="utf-8")
+    done = run_part(script, env)
+    assert done.returncode == 1 and "a library of mercury is missing" in done.stdout and installs.SKIPPED not in done.stdout
+
+
+def test_a_mercury_that_fits_the_system_is_still_run_and_not_skipped(installs: ModuleType, tmp_path: Path) -> None:
+    script, env = mercury_part(installs, tmp_path)
+    (tmp_path / "ldd-says").write_text(f"\tlibasound.so.2 => {tmp_path}/mercury/lib/libasound.so.2 (0x1)\n", encoding="utf-8")
+    done = run_part(script, env)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "mercury -V: Mercury 1.2.3" in done.stdout and installs.SKIPPED not in done.stdout
+
+
+def test_a_check_that_passed_with_a_part_skipped_says_so_in_one_line_and_the_run_is_not_called_all_green(rig: Rig) -> None:
+    rig.rules({"image": "debian:bookworm-slim", "stdout": "SKIPPED: Mercury was not run: it needs GLIBC_2.38", "exit": 0})
+    done = rig.run("--only", "deb-debian", "--only", "deb-ubuntu")
+    assert done.returncode == 0, done.stdout + done.stderr
+    lines = done.stdout.splitlines()
+    assert lines[0].startswith("ok    deb-debian") and lines[1] == "      | skipped: Mercury was not run: it needs GLIBC_2.38" and lines[2].startswith("ok    deb-ubuntu")
+    assert lines[-1] == "all green, but a part of deb-debian was skipped"

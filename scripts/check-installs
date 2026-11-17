@@ -18,7 +18,7 @@ them are mounted read-only, nothing a container makes reaches this machine, and 
 Ubuntu of GitHub's runner that packaging/ci/runner.json names, 26.04, with the libraries of the Qt web engine, uv and Python 3.13); the .deb in debian:bookworm-slim and in ubuntu:24.04, the older LTS, as the
 release workflow's job `deb` has it on its arm64 runner and pinned by its digest (the Debian one also proves that Mercury needs no library of the system). The upgrade starts from the .deb in packaging/ci/old-release.json, fetched once into the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build) and checked against the SHA-256 that is
 pinned there; an old release that is not pinned is a check that did not run, which is a failure. An old build of the same version number as this one is installed over with --reinstall (apt would leave it as it is),
-and the proof that this build runs is its files and its database, not its version. Every daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
+and the proof that this build runs is its files and its database, not its version. A Mercury built here with a newer glibc than the system of the container has cannot run there: the .deb checks then say so in one line, as a part skipped (the rest of the check is made, and the run is not called all green); the release workflow's job `deb` builds it on the older system and is the proof of that part. Every daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
 
 One more check is run only when it is named, `--only appimage-web`: the trial AppImage of the web window (scripts/build-appimage --window web, never a release; aprs-reference/window-plan.md, 9.3), built
 without Mercury from this tree and the gi tarball of `scripts/build-gi --docker`, and started by scripts/smoke-appimage-web in each container of WEB_CASES, as a desktop of that system has it: with WebKitGTK
@@ -51,6 +51,7 @@ TRIAL_CHECKS = ("appimage-web",)                                          # run 
 DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"          # Ubuntu by its index digest (`docker buildx imagetools inspect ubuntu:24.04`): tag and digest move together
 RELEASES = "https://github.com/oh2gba/neoaprs/releases/download"          # (the same address neoaprs/updateasset.py has)
 MAX_DOWNLOAD = 200_000_000
+SKIPPED = "SKIPPED: "                                                      # what a container says, at the start of a line, of a part of its check that cannot be tried on this system
 TAIL_LINES = 40                                                           # of the log of a check that failed, as many as the report shows
 ENVIRONMENT = ("--env", "NEOAPRS_UPDATE_CHECK=0", "--env", "NEOAPRS_NO_DEVICES=1")
 FIXTURE = Path("tests") / "fixtures" / "kiss" / "thd7-2026-10-21.bin"
@@ -119,17 +120,25 @@ if [ -n "${MERCURY_VERSION:-}" ]; then
     # (a `!` does not stop a script under set -e: the checks are ifs)
     if dpkg -s libasound2 > /dev/null 2>&1 || dpkg -s libasound2t64 > /dev/null 2>&1; then echo "the ALSA library is installed here: the proof proves nothing"; exit 1; fi
     bundled=/opt/neoaprs/tools/mercury
-    ldd "$bundled/mercury" | tee /tmp/ldd.txt
-    if grep -q 'not found' /tmp/ldd.txt; then echo "a library of mercury is missing"; exit 1; fi
-    grep -q "$bundled/lib/libasound.so.2" /tmp/ldd.txt
-    export ALSA_CONFIG_PATH="$bundled/share/alsa/alsa.conf"
-    said="$("$bundled/mercury" -V 2>&1 || true)"
-    echo "mercury -V: $said"
-    echo "$said" | grep -qF "$MERCURY_VERSION"
-    status=0
-    "$bundled/mercury" -z > /tmp/z.txt 2>&1 || status=$?
-    cat /tmp/z.txt
-    if [ "$status" -ge 126 ] || grep -q 'error while loading' /tmp/z.txt; then echo "mercury -z did not run (exit $status)"; exit 1; fi
+    ldd "$bundled/mercury" 2>&1 | tee /tmp/ldd.txt
+    fits=yes
+    if grep -q 'not found' /tmp/ldd.txt; then
+        # (a library that is missing fails; a glibc older than the one the modem was linked against, which the modem built on this machine meets, is a part that cannot be tried here)
+        if grep 'not found' /tmp/ldd.txt | grep -qv 'version `GLIBC'; then echo "a library of mercury is missing"; exit 1; fi
+        fits=no
+        echo "SKIPPED: Mercury was not run: the one built here needs $(grep -o 'GLIBC_[0-9.]*' /tmp/ldd.txt | sort -uV | tail -n 1), newer than this system has; the release workflow's job deb proves it"
+    fi
+    if [ "$fits" = yes ]; then
+        grep -q "$bundled/lib/libasound.so.2" /tmp/ldd.txt
+        export ALSA_CONFIG_PATH="$bundled/share/alsa/alsa.conf"
+        said="$("$bundled/mercury" -V 2>&1 || true)"
+        echo "mercury -V: $said"
+        echo "$said" | grep -qF "$MERCURY_VERSION"
+        status=0
+        "$bundled/mercury" -z > /tmp/z.txt 2>&1 || status=$?
+        cat /tmp/z.txt
+        if [ "$status" -ge 126 ] || grep -q 'error while loading' /tmp/z.txt; then echo "mercury -z did not run (exit $status)"; exit 1; fi
+    fi
     [ -f "$bundled/LICENSE" ] && [ ! -e "$bundled/dev" ]
 fi
 mkdir -p /tmp/home /tmp/fakebin
@@ -436,6 +445,7 @@ class Result:
     ok: bool
     seconds: float
     output: str
+    skipped: str = ""          # the part of a passed check that could not be tried here, in one line
 
 
 def run_web(work: Path, built: Built) -> Result:
@@ -471,7 +481,8 @@ def run_check(name: str, work: Path, built: Built, with_mercury: bool, update_fr
     with log.open("wb") as out:
         done = subprocess.run(command, stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False)
     lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
-    return Result(name, done.returncode == 0, time.monotonic() - started, "\n".join(lines[-TAIL_LINES:]) if done.returncode else "")
+    skipped = next((line[len(SKIPPED):] for line in lines if line.startswith(SKIPPED)), "") if done.returncode == 0 else ""
+    return Result(name, done.returncode == 0, time.monotonic() - started, "\n".join(lines[-TAIL_LINES:]) if done.returncode else "", skipped)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -501,10 +512,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     results = [run_check(name, work, built, not args.no_mercury, args.update_from) for name in CHECKS + TRIAL_CHECKS if name in wanted]
     for result in results:
         print(f"{'ok  ' if result.ok else 'FAIL'}  {result.name:<11} {result.seconds:6.1f}s")
+        if result.skipped:
+            print(f"      | skipped: {result.skipped}")
         if not result.ok or result.name in TRIAL_CHECKS:
             print("\n".join(f"      | {line}" for line in result.output.splitlines()))
     failed = [result.name for result in results if not result.ok]
-    print(f"failed: {' '.join(failed)}" if failed else "all green")
+    partly = [result.name for result in results if result.skipped]
+    print(f"failed: {' '.join(failed)}" if failed else "all green" + (f", but a part of {' '.join(partly)} was skipped" if partly else ""))
     return 1 if failed else 0
 
 
