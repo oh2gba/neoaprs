@@ -145,7 +145,7 @@ def stop_owned(session: Session, daemon: Daemon | None = None) -> bool:
 
 class DaemonWatch:
     """Calls `gone` once when the daemon the app owns has ended without the app stopping it (`neoaprs stop`, the uninstaller, the Start menu's Stop). It looks every `every` seconds in a thread of its own; `cancel` stops it.
-    A daemon that ends to start again as a new version (Update now of an AppImage: the note of neoaprs/stopfile.py) has not ended.
+    A daemon that ends to start again as a new version (Update now of an AppImage: the note of neoaprs/stopfile.py) has not ended, and while the note is fresh the daemon's lock is not looked at.
     Calls `moved(address)` each time the daemon, the app's own or one it attached to, serves its page at another address than the app last knew (it started again and could not have the port it had): the
     address is read from the file the daemon writes, which is not there while it serves no page, and nothing is asked of the daemon's lock for it. Only the port may be another: an address of
     another host than the one the session was opened on is not the daemon's page, whatever the file says, and the window is never sent there.
@@ -176,8 +176,8 @@ class DaemonWatch:
         missing = 0
         while not self._cancelled.wait(self.every):
             if self.session.owned:
-                up = self.daemon.running(self.session.data)
-                again = not up and self.daemon.restarting(self.session.data)
+                again = self.daemon.restarting(self.session.data)
+                up = not again and self.daemon.running(self.session.data)          # (the lock is not looked at while the daemon starts again: the look takes it for a moment, and the new daemon that takes it then would find it held and end)
                 missing = 0 if up or again else missing + 1                       # (a daemon that starts again as a new version is waited for)
                 if missing >= GONE_AFTER:
                     log.info("the daemon on %s has ended: the app ends too", self.session.data)

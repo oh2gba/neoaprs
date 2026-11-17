@@ -118,9 +118,10 @@ def run(args: argparse.Namespace) -> int:
 
 def start_again(launch: Launch, app_file: renew.AppFile, args: argparse.Namespace, start: Callable[[list[str]], None] | None = None) -> int:
     """The app ended to start again as the new version and has let go of the data folder: the new file takes the place of this process. It returns only when that could not be done: then the daemon,
-    which no app owns now, is stopped as Quit would stop it, and the exit code is 1."""
+    which no app owns now, is stopped as Quit would stop it, and the exit code is 1. What the window's engine started beside the app is ended first (renew.end_helpers)."""
     assert launch.ctx is not None
     session = launch.ctx.session
+    renew.end_helpers()
     (start or renew.start_again)(renew.argv(app_file.path, session.data, args.encryption, args.debug))
     say("app: the new version of NeoAPRS could not be started; NeoAPRS stops")
     stop_owned(session, launch.ctx.daemon)

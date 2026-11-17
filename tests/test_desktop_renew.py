@@ -3,6 +3,9 @@ daemon running, lets go of the data folder, and is started again from the new fi
 to a daemon (a service, one started by hand) is left as it is. What only a real desktop shows (the exec of a real AppImage, the window and the tray coming back) is not here: the exec, the toolkits and the
 daemons are stand-ins."""
 import os
+import signal
+import subprocess
+import sys
 import threading
 from pathlib import Path
 from typing import Any
@@ -16,6 +19,7 @@ from neoaprs.desktop.session import DaemonWatch, Session, open_session
 from neoaprs.desktop.shell import Launch
 from neoaprs.desktop.single import SingleApp
 from tests.support import fakeshell
+from tests.support.ptyline import SIGKILL
 from tests.test_desktop_cmd import World
 from tests.test_desktop_logic import PAGE, FakeDaemon, actions_for
 
@@ -157,6 +161,24 @@ def test_the_watch_waits_while_the_daemon_is_starting_again_or_has_a_restart_pen
     assert renewed.wait(5) and not gone.is_set()
 
 
+def test_the_watch_does_not_look_at_the_daemons_lock_while_the_daemon_starts_again() -> None:
+    """A look at the lock takes it for a moment: the new daemon that takes it in that moment finds it held and ends, and no daemon is left (work/par/r3/appe2e, risk 3)."""
+    daemon = FakeDaemon(up=False)
+    pending = [True]
+    looks: list[bool] = []
+    daemon.restarting = lambda data: pending[0]
+    daemon.running = lambda data: looks.append(pending[0]) or daemon.up
+    w, renewed, gone = watch(True, daemon, Replaced())
+    try:
+        assert not renewed.wait(0.3) and not gone.is_set()
+        assert looks == [], "while the note of the restart is fresh the lock is not looked at"
+        daemon.up = True
+        pending[0] = False
+        assert renewed.wait(5) and looks and True not in looks, "once the new daemon runs, it is"
+    finally:
+        w.cancel()
+
+
 def test_an_app_attached_to_a_daemon_or_outside_an_appimage_is_never_started_again() -> None:
     w, renewed, _ = watch(False, FakeDaemon(up=True), Replaced())
     assert w.thread.is_alive() and not renewed.wait(0.3), "a service's daemon: the app only attached to it"
@@ -244,6 +266,7 @@ def renewing(world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> t
         started.append((argv, SingleApp(world.data).running()))
         raise Started
     monkeypatch.setattr(renew, "start_again", start)
+    monkeypatch.setattr(renew, "end_helpers", lambda: started.append((["the web engine's processes ended"], SingleApp(world.data).running())))
     return world, image, launches, started
 
 
@@ -252,7 +275,8 @@ def test_the_app_lets_go_of_the_data_folder_and_is_started_again_from_the_new_fi
     fakeshell.STEPS.append(lambda frame: launches[0].ctx.actions.renew())      # type: ignore[union-attr]
     with pytest.raises(Started):
         world.run("--encryption")
-    assert started == [([str(image), "app", "--data", str(world.data), "--owns-daemon", "--encryption"], False)], "the one-app lock and its port are let go of before the exec"
+    assert started == [(["the web engine's processes ended"], False), ([str(image), "app", "--data", str(world.data), "--owns-daemon", "--encryption"], False)], \
+        "the one-app lock and its port are let go of, and the web engine's processes ended, before the exec"
     assert not (world.data / "neoaprs-app.port").exists()
     assert world.owns == [False], "the first app was not started again"
     assert launches[0].ctx is not None and launches[0].ctx.watch is not None and launches[0].ctx.watch.app_file is not None
@@ -279,5 +303,87 @@ def test_when_the_new_file_cannot_be_started_the_daemon_no_app_owns_now_is_stopp
     monkeypatch.setattr(cmd, "stop_owned", lambda session, daemon=None: stopped.append(session) or True)
     fakeshell.STEPS.append(lambda frame: launches[0].ctx.actions.renew())      # type: ignore[union-attr]
     assert world.run() == 1
-    assert len(started) == 1 and stopped == [Session(world.data, PAGE, True)]
+    assert len(started) == 2 and stopped == [Session(world.data, PAGE, True)]
     assert any("could not be started" in line for line in world.said)
+
+
+# ---- the web engine's processes
+
+def proc_entry(proc: Path, pid: int, line: str) -> None:
+    (proc / str(pid)).mkdir()
+    (proc / str(pid) / "stat").write_text(line, encoding="utf-8")
+
+
+def test_the_web_engines_processes_are_the_children_of_the_app_by_the_engines_program_names(tmp_path: Path) -> None:
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    proc_entry(proc, 501, "501 (QtWebEngineProc) S 500 500 500 0 -1")
+    proc_entry(proc, 502, "502 (WebKitNetworkPr) Z 500 500 500 0 -1")
+    proc_entry(proc, 503, "503 (python3) S 500 503 503 0 -1")                  # (the daemon the app started)
+    proc_entry(proc, 504, "504 (QtWebEngineProc) S 501 500 500 0 -1")          # (a renderer, the child of the engine's own process)
+    proc_entry(proc, 505, "505 (QtWebEngineProc) S 900 900 900 0 -1")          # (another app's)
+    proc_entry(proc, 506, "506 (a) (QtWebEngineProc) S 500 500 500 0 -1")      # (a name of brackets of its own)
+    proc_entry(proc, 508, "508 (bwrap) S 500 500 500 0 -1")                    # (WebKitGTK's web process in its sandbox)
+    proc_entry(proc, 509, "509 (WebKitWebProces) S 510 500 500 0 -1")          # (the web process itself, inside the sandbox)
+    proc_entry(proc, 511, "511 (xdg-dbus-proxy) Z 500 500 500 0 -1")
+    (proc / "self").mkdir()
+    (proc / "self" / "stat").write_text("500 (python3) S 1 500 500 0 -1", encoding="utf-8")
+    (proc / "507").mkdir()                                                    # (one that ended while the folder was listed)
+    assert renew.helpers(str(proc), parent=500) == [501, 502, 508, 511]
+    assert renew.helpers(str(tmp_path / "no proc"), parent=500) == []
+
+
+class Helpers:
+    """The kill and the wait of the web engine's processes, in virtual time: `stubborn` ones end only when killed."""
+
+    def __init__(self, stubborn: set[int]) -> None:
+        self.stubborn, self.now = stubborn, 0.0
+        self.signals: list[tuple[int, int]] = []
+        self.ended: set[int] = set()
+
+    def kill(self, pid: int, sig: int) -> None:
+        self.signals.append((pid, sig))
+        if sig == SIGKILL or pid not in self.stubborn:
+            self.ended.add(pid)
+
+    def waited_for(self, pid: int, block: bool = False) -> bool:
+        return pid in self.ended
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the installer ends the app on Windows")
+def test_the_web_engines_processes_are_asked_to_end_and_those_that_do_not_are_killed() -> None:
+    h = Helpers(stubborn={602})
+    renew.end_helpers([601, 602], kill=h.kill, waited_for=h.waited_for, seconds=5, clock=lambda: h.now, sleep=h.sleep)
+    assert h.signals == [(601, signal.SIGTERM), (602, signal.SIGTERM), (602, SIGKILL)] and h.ended == {601, 602}
+    assert 5 <= h.now < 5.5, "the stubborn one was given its seconds"
+    quick = Helpers(stubborn=set())
+    renew.end_helpers([601], kill=quick.kill, waited_for=quick.waited_for, clock=lambda: quick.now, sleep=quick.sleep)
+    assert quick.signals == [(601, signal.SIGTERM)] and quick.now == 0
+    renew.end_helpers([], kill=quick.kill)
+    assert quick.signals == [(601, signal.SIGTERM)], "none: nothing is done"
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the AppImage is Linux's, and so is /proc")
+def test_a_real_child_named_as_the_web_engine_is_ended_and_waited_for_and_the_daemon_beside_it_is_left() -> None:
+    """For real: two children of this process, one named as Qt's web engine names its process, the other as a daemon is named. The engine's ends and is waited for (no process is left that nobody waits for);
+    the daemon runs on."""
+    program = "import sys\nopen('/proc/self/comm', 'w').write(sys.argv[1])\nprint('ready', flush=True)\nsys.stdin.read()"
+    started = [subprocess.Popen([sys.executable, "-c", program, name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True) for name in ("QtWebEngineProcess", "neoaprs-daemon")]
+    engine, daemon = started
+    try:
+        for child in started:
+            assert child.stdout is not None and child.stdout.readline() == "ready\n"
+        found = renew.helpers()
+        assert engine.pid in found and daemon.pid not in found
+        renew.end_helpers([engine.pid])
+        with pytest.raises(ChildProcessError):
+            os.waitpid(engine.pid, 0)                                   # (waits, were it not waited for already)
+        assert daemon.poll() is None, "the daemon is not the engine's"
+    finally:
+        for child in started:
+            if child.poll() is None:
+                child.kill()
+            child.communicate(timeout=30)

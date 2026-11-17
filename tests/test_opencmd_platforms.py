@@ -53,6 +53,7 @@ def test_the_daemon_of_an_appimage_that_runs_unpacked_runs_unpacked_too(tmp_path
     came up. The variable says the same and is inherited."""
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.delenv("APPIMAGE_EXTRACT_AND_RUN", raising=False)
+    monkeypatch.delenv("NO_CLEANUP", raising=False)
     spawned = Spawned(monkeypatch)
     unpacked = tmp_path / "appimage_extracted_0123"
     unpacked.mkdir()
@@ -62,7 +63,28 @@ def test_the_daemon_of_an_appimage_that_runs_unpacked_runs_unpacked_too(tmp_path
         opencmd.spawn(["/home/op/NeoAPRS.AppImage", "run"], tmp_path / "data")
         env = spawned.calls[-1][1]["env"]
         assert env.get("APPIMAGE_EXTRACT_AND_RUN") == expected, (appdir, appimage)
-        assert {k: v for k, v in env.items() if k != "APPIMAGE_EXTRACT_AND_RUN"} == dict(os.environ) and "APPIMAGE_EXTRACT_AND_RUN" not in os.environ, "everything else as this process has it, which is left as it is"
+        added = ("APPIMAGE_EXTRACT_AND_RUN", "NO_CLEANUP")
+        assert {k: v for k, v in env.items() if k not in added} == dict(os.environ) and not any(k in os.environ for k in added), "everything else as this process has it, which is left as it is"
+
+
+def test_the_daemon_of_an_appimage_that_runs_unpacked_leaves_the_folder_it_shares_with_the_app_to_the_apps_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The runtime unpacks one file into one folder for every run of it and removes the folder when its program ends: the daemon, which the app stops at Quit before it ends itself, removed the app's
+    files under it, and the app's runtime then failed with "Failed to clean up cache directory" (work/par/r3/appe2e, risk 2). The app's runtime removes the folder at the app's end."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.delenv("NO_CLEANUP", raising=False)
+    spawned = Spawned(monkeypatch)
+    unpacked = tmp_path / "appimage_extracted_0123"
+    unpacked.mkdir()
+    for appdir, appimage, program, expected in ((str(unpacked), "/home/op/NeoAPRS.AppImage", "/home/op/NeoAPRS.AppImage", "neoaprs"), ("/", "/home/op/NeoAPRS.AppImage", "/home/op/NeoAPRS.AppImage", None),
+                                                (str(unpacked), "/home/op/NeoAPRS.AppImage", "/home/op/Other.AppImage", None), (None, None, "/usr/bin/python3", None)):
+        for name, value in (("APPDIR", appdir), ("APPIMAGE", appimage)):
+            monkeypatch.setenv(name, value) if value is not None else monkeypatch.delenv(name, raising=False)
+        opencmd.spawn([program, "run"], tmp_path / "data")
+        assert spawned.calls[-1][1]["env"].get("NO_CLEANUP") == expected, (appdir, program)
+    monkeypatch.setenv("APPDIR", str(unpacked))
+    monkeypatch.setenv("NO_CLEANUP", "1")
+    opencmd.spawn(["/home/op/NeoAPRS.AppImage", "run"], tmp_path / "data")
+    assert spawned.calls[-1][1]["env"]["NO_CLEANUP"] == "1", "the operator's own is left as it is"
 
 
 class Windows:

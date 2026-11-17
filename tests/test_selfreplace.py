@@ -72,6 +72,35 @@ def test_a_mounted_appimage_whose_mount_goes_with_its_descriptors_is_executed_ag
     assert seen[1] == ("1", True), "and one that ran unpacked is started unpacked"
 
 
+def test_a_daemon_that_left_its_folder_to_the_app_has_its_new_version_remove_the_folder_of_its_own() -> None:
+    """The daemon the app started unpacked leaves the folder it shares with the app to the app's runtime (selfreplace.leave_the_folder). The new file of Update now is unpacked into another folder, which
+    no other run removes: started in the daemon's place, its runtime is to remove it. A NO_CLEANUP the operator set is kept."""
+    seen: list[str | None] = []
+    ours = {"APPIMAGE": "/home/ham/NeoAPRS.AppImage", "APPDIR": "/tmp/appimage_extracted_0123", "NO_CLEANUP": selfreplace.LEFT_TO_THE_STARTER}
+    selfreplace.reexec(["/home/ham/NeoAPRS.AppImage", "run"], lambda path, argv: seen.append(ours.get("NO_CLEANUP")), close=lambda: None, environ=ours, is_mount=lambda path: False)
+    operators = {**ours, "NO_CLEANUP": "1"}
+    selfreplace.reexec(["/home/ham/NeoAPRS.AppImage", "run"], lambda path, argv: seen.append(operators.get("NO_CLEANUP")), close=lambda: None, environ=operators, is_mount=lambda path: False)
+    assert seen == [None, "1"]
+
+
+def test_the_old_version_put_back_in_the_place_of_a_daemon_that_left_its_folder_to_the_app_leaves_it_again(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The new file of Update now cannot be started: the old one is put back, and it has the old contents, so its runtime unpacks into the folder the app runs from. It is started with NO_CLEANUP again,
+    or at Quit its runtime would remove the folder under the app."""
+    image = tmp_path / "NeoAPRS.AppImage"
+    image.write_bytes(b"new")
+    (tmp_path / "NeoAPRS.AppImage.old").write_bytes(b"old")
+    environ = {"APPIMAGE": str(image), "APPDIR": "/tmp/appimage_extracted_0123", "NO_CLEANUP": selfreplace.LEFT_TO_THE_STARTER}
+    tried: list[tuple[bytes, str | None]] = []
+
+    def execv(path: str, argv: list[str]) -> None:
+        tried.append((Path(path).read_bytes(), environ.get("NO_CLEANUP")))
+        raise OSError(8, "Exec format error")
+
+    selfreplace.reexec([str(image), "run"], execv, close=lambda: None, environ=environ, is_mount=lambda path: False)
+    assert tried == [(b"new", None), (b"old", selfreplace.LEFT_TO_THE_STARTER)]
+    capsys.readouterr()
+
+
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the AppImage is Linux's, and so is /proc/self/fd")
 def test_the_program_started_in_the_place_of_the_process_does_not_hold_the_descriptor_of_the_old_mount(tmp_path: Path) -> None:
     """For real, in a child process: it holds the read end of a pipe it was handed, as the program of a mounted AppImage does, and starts another program in its place. The pipe is open until the exec (the

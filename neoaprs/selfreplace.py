@@ -80,13 +80,30 @@ def keep_extract_and_run(environ: MutableMapping[str, str], is_mount: Callable[[
         environ[EXTRACT_AND_RUN] = "1"
 
 
-def reexec(argv: list[str], execv: Callable[[str, list[str]], None] = os.execv, close: Callable[[], None] = close_inherited, environ: MutableMapping[str, str] = os.environ,
+NO_CLEANUP = "NO_CLEANUP"
+LEFT_TO_THE_STARTER = "neoaprs"                  # the value of NO_CLEANUP that NeoAPRS sets (`leave_the_folder`), told from one the operator set
+
+
+def leave_the_folder(environ: MutableMapping[str, str], argv0: str, is_mount: Callable[[str], bool] = os.path.ismount) -> None:
+    """For a program started from the AppImage file this one runs from (`argv0`, the daemon the app or `neoaprs open` starts) while it runs unpacked: sets `NO_CLEANUP`, which has the new runtime leave
+    the folder at its end. The runtime unpacks one file into one folder for every run of it and removes the folder when its program ends, whoever else still runs from it: the daemon, which the app
+    stops at Quit before it ends itself, took the app's files away under it. The runtime of this process removes the folder at its end, as before. A NO_CLEANUP of the operator's is left as it is."""
+    appdir, appimage = environ.get("APPDIR"), environ.get("APPIMAGE")
+    if appdir and appimage and os.path.abspath(appimage) == os.path.abspath(argv0) and not is_mount(appdir):
+        environ.setdefault(NO_CLEANUP, LEFT_TO_THE_STARTER)
+
+
+def reexec(argv: list[str], execv: Callable[[str, list[str]], None] | None = None, close: Callable[[], None] = close_inherited, environ: MutableMapping[str, str] = os.environ,
            is_mount: Callable[[str], bool] = os.path.ismount, put_back: bool = True) -> None:
     """Runs `argv` (the AppImage file and the arguments this process had) in the place of this process, which has let go of everything already: the log, the database, the lock, the radio, the page's port.
     When the new file cannot be started, the kept old one is put back and started (`put_back`; the desktop app, started again after its daemon, puts nothing back: the daemon runs the new file). Returns only
     when neither could be."""
+    execv = execv or os.execv                   # (looked up at the call, so that what stands in for it at the time is what runs)
     logging.shutdown()
     keep_extract_and_run(environ, is_mount)         # (before the descriptors go: the mount goes with them)
+    left = environ.get(NO_CLEANUP) == LEFT_TO_THE_STARTER
+    if left:
+        del environ[NO_CLEANUP]                     # (the new file is unpacked into a folder of its own, which no other run removes: this one's runtime does)
     close()
     try:
         execv(argv[0], argv)
@@ -96,6 +113,8 @@ def reexec(argv: list[str], execv: Callable[[str, list[str]], None] = os.execv, 
         return                                  # (only a stand-in of execv returns)
     if not put_back:
         return
+    if left:
+        environ[NO_CLEANUP] = LEFT_TO_THE_STARTER   # (the old file put back has the old contents and so the folder it shares with the app: the app's runtime removes it)
     try:
         if restore(Path(argv[0])):
             execv(argv[0], argv)
