@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import childprogram, direwolfmodem, direwolfprogram, direwolftune, serialholders, usbtie, winmm
+from neoaprs import childprogram, direwolfmodem, direwolfprogram, direwolftune, modemstate, serialholders, usbtie, winmm
 from neoaprs.claims import Claim, Claims
 from neoaprs.coded import CodedError
 from neoaprs.direwolf import CONF_FILE, PID_FILE, adevice
@@ -651,3 +651,46 @@ async def test_a_port_left_out_in_another_spelling_of_it_as_on_windows_keys_no_s
         cards, ports = [SoundCard(CARD, "USB Audio CODEC", True, True)], [PortInfo(listed, "CP2102", "", 0x10C4, 0xEA60)]
         assert proposal(cards, ports, ("COM3",), holder=3, beside=lambda card, devices: None) == (CARD, "vox"), "the page's proposal leaves it out alike"
         assert proposal(cards, ports, (), holder=3, beside=lambda card, devices: None) == (CARD, f"rts:{listed}"), "and keys by it when no radio names it"
+
+
+async def test_a_line_refused_while_direwolf_is_starting_says_nothing_in_the_terminal_or_the_log_above_debug_and_is_said_once_the_start_time_is_over(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from neoaprs.direwolf import PROFILE
+    from neoaprs.source import Source
+    from neoaprs.tnc import Tnc
+    m = modem(tmp_path, "listen")
+    m._set("starting", "")
+    tnc = Tnc("socket://127.0.0.1:1", profile=PROFILE, check_sec=0.0, backoff=Backoff([30.0]), fallback_probe=False)
+    tnc.modem = m
+    caplog.set_level(logging.DEBUG)
+    await tnc.start()
+    try:
+        assert tnc.state is Source.State.WAITING and tnc.problem == f"waiting for {m.describe()}"
+        assert not any("trying again" in line for line in tnc.lines) and not [r for r in caplog.records if r.levelno >= logging.WARNING and "trying again" in r.getMessage()]
+        m._starting_since -= modemstate.START_SEC + 1
+        assert not m.starting()
+        await tnc.start()
+        assert any("trying again in 30 s" in line for line in tnc.lines) and any(r.levelno == logging.WARNING and "trying again" in r.getMessage() for r in caplog.records), "a modem that is still not there after its start time is a fault"
+    finally:
+        await tnc.stop()
+
+
+async def test_a_line_lost_while_direwolf_is_swapped_for_a_test_or_a_new_level_says_nothing_until_it_listens_again(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from neoaprs.direwolf import PROFILE
+    from neoaprs.source import Source
+    from neoaprs.tnc import Tnc
+    m = modem(tmp_path, "listen")
+    m._set("running", "")
+    assert not m.starting(), "a radio that listens is not starting"
+    assert await m._stopped(drain=False)
+    assert m.state == "running" and m.starting(), "a swap has the program down until it listens again"
+    tnc = Tnc("socket://127.0.0.1:1", profile=PROFILE, check_sec=0.0, backoff=Backoff([30.0]), fallback_probe=False)
+    tnc.modem = m
+    caplog.set_level(logging.DEBUG)
+    await tnc.start()
+    try:
+        assert tnc.state is Source.State.WAITING
+        assert not any("trying again" in line for line in tnc.lines) and not [r for r in caplog.records if r.levelno >= logging.WARNING and "trying again" in r.getMessage()]
+        m._ready(m.kiss_port)
+        assert not m.starting(), "a program that listens is no longer starting"
+    finally:
+        await tnc.stop()

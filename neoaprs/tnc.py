@@ -227,9 +227,11 @@ class Tnc(TimedSource):
     def _wait(self, problem: str, again: bool = True) -> None:
         """WAITING, and the line is tried again after the back-off; not `again` (no port or address is chosen, and none is looked for): only a change of the settings, which restarts the radio, can open it."""
         self.watchdog.probes = 0
+        expected = False
         if (modem := self._modem()) is not None:
+            expected = modem.starting()                                  # (a program started a moment ago, not listening yet: its first refusal is no warning; after its start time it is one)
             problem = modem.problem or f"waiting for {modem.describe()}"     # (the line to a modem the daemon starts is refused because the modem is not running: why it is not, or that it is starting, is what the operator can do something with; the socket's words are not)
-        self._waiting(problem, self.backoff.next_delay_sec(), self._connect) if again else _until_settings_change(self, problem)
+        self._waiting(problem, self.backoff.next_delay_sec(), self._connect, expected=expected) if again else _until_settings_change(self, problem)
 
     def _modem(self) -> Modem | None:
         """The modem program behind the line, while the profile is a modem's."""

@@ -31,6 +31,7 @@ from .mercurymodem import system_serial_ports
 from .radiotype import RadioId
 from .reading import NO_READING, Reading
 from .serialprobe import PortInfo, claim_value, holder_words
+from .modemstate import ModemState
 from .signal import Signal
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
@@ -50,7 +51,9 @@ STATES = ("stopped", "starting", "running", "waiting")
 REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying")
 
 
-class DirewolfModem(Tuning):
+class DirewolfModem(Tuning, ModemState):
+    PROGRAM, LOG, STARTING = "Direwolf", log, ("starting", "running")     # (modemstate.py: a test or a new level swaps the program while the state stays `running`)
+
     def __init__(self, folder: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, *, claims: Claims | None = None, holder: RadioId,
                  lister: Callable[[], Command | None] | None = None) -> None:
         self.home, self.clock = folder, clock                        # the radio's own folder (mercuryclaims.radio_folder): the configuration, the process id, and where the program runs
@@ -85,6 +88,7 @@ class DirewolfModem(Tuning):
         self._generation = self._waits = 0
         self._handed = self._keyed_upto = 0                          # the frames the line handed the radio's Direwolf (as it says them: `-d n`), and how many of them had been handed at its latest key
         self._swapping = asyncio.Lock()                              # one swap of the program at a time (a test, its end, a new transmit level): direwolftune.py
+
 
     @property
     def running(self) -> bool:
@@ -279,6 +283,7 @@ class DirewolfModem(Tuning):
             return
         self.backoff.connected()
         self._after_test = False
+        self._starting_since = 0.0
         self._set("running", "")
         self.ports_changed.emit()                                    # (the line connects now, not at the end of its back-off: Direwolf takes a moment to listen, and a test or a new level had it down)
 
@@ -343,12 +348,6 @@ class DirewolfModem(Tuning):
     def _clear(self) -> None:
         self.keyed = self.busy = False
         self.rx_level = None                                             # (a program that does not run hears nothing: the page's bar is empty, not at the last level)
-
-    def _set(self, state: str, problem: str, reason: str = "") -> None:
-        if (state, problem, reason) != (self.state, self.problem, self.reason):
-            self.state, self.problem, self.reason = state, problem, reason
-            log.log(logging.WARNING if problem else logging.INFO, "Direwolf: %s%s", state, f": {problem}" if problem else "")
-        self.changed.emit()
 
 
 def port_chosen(modem: DirewolfModem) -> bool:

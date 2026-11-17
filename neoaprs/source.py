@@ -185,12 +185,13 @@ class Source:
             self.state_changed.emit(state)
         self.changed.emit()
 
-    def _waiting(self, problem: str, delay: float, retry: Callable[[], Coroutine[Any, Any, None]] | None = None) -> None:
-        """The line is down: the state is WAITING and the problem is why it is down now, not what was wrong with an earlier line; `retry`, when given, is run after `delay` seconds unless the feed was stopped meanwhile."""
-        logging.getLogger(f"neoaprs.{self.name}").warning("%s: %s; trying again in %g s", self.label, problem, delay)
+    def _waiting(self, problem: str, delay: float, retry: Callable[[], Coroutine[Any, Any, None]] | None = None, *, expected: bool = False) -> None:
+        """The line is down: the state is WAITING and the problem is why it is down now, not what was wrong with an earlier line; `retry`, when given, is run after `delay` seconds unless the feed was stopped meanwhile. An `expected` wait (the program behind the line is still starting) is no warning: the log has it at DEBUG and the Terminal not at all."""
+        logging.getLogger(f"neoaprs.{self.name}").log(logging.DEBUG if expected else logging.WARNING, "%s: %s; trying again in %g s", self.label, problem, delay)
         self.problem = ""
         self._set_state(Source.State.WAITING, problem)
-        self._note(f"{problem}; trying again in {delay:g} s")
+        if not expected:
+            self._note(f"{problem}; trying again in {delay:g} s")
         if retry is not None:
             self._spawn(self._retry_after(delay, self._generation, retry))
 

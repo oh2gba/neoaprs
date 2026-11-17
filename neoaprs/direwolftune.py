@@ -9,6 +9,7 @@ stopped or started again while it waited: a run started after that would be left
 state and asks it to start its program, which the modem part provides; the hold and the status words, which say the test, are here too."""
 import asyncio
 import logging
+import time
 
 from .childprogram import Command
 from .coded import CodedError, Reason
@@ -45,6 +46,7 @@ class Tuning:
     _tasks: TaskSet
     _generation: int
     _after_test: bool
+    _starting_since: float
     _test_task: asyncio.Task[None] | None
     _swapping: asyncio.Lock
     _handed: int
@@ -93,6 +95,7 @@ class Tuning:
             log.info("Direwolf: the radio was stopped or started again meanwhile: the swap is given up")
             return False
         self.keyed = self.busy = False
+        self._starting_since = time.monotonic()                      # (down until the next run listens: starting())
         return True
 
     async def _drained(self) -> None:

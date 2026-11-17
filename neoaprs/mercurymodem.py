@@ -43,6 +43,7 @@ from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO, SpeakerAudio, SpeakerLi
 from .radiotype import HF_ID, RadioId
 from .radiotypes import kind_field
 from .serialprobe import PortInfo, available_ports, claim_value, holder_words, named_ports
+from .modemstate import ModemState
 from .signal import Signal
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
@@ -97,7 +98,9 @@ def _address(url: str) -> tuple[str, int]:
     return host.strip("[]") or HOST, int(port)
 
 
-class Mercury(Channel, Tuning, Scoping, Holding):
+class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
+    PROGRAM, LOG = "Mercury", log
+
     def __init__(self, data_dir: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, control_backoff: Backoff | None = None, *,
                  claims: Claims | None = None, holder: RadioId = HF_ID, folder: Path | None = None) -> None:
         self.data_dir, self.clock = data_dir, clock
@@ -370,6 +373,7 @@ class Mercury(Channel, Tuning, Scoping, Holding):
         snr = f", SNR {self.snr:.0f} dB" if self.snr is not None else ""
         return f"Mercury {MODE}, {words}{snr}"
 
+
     @property
     def running(self) -> bool:
         return self.state == "running"
@@ -391,9 +395,3 @@ class Mercury(Channel, Tuning, Scoping, Holding):
         """What the program said is cleared (mercurychannel.py), and the rows of the scope it fed are forgotten with it."""
         super()._clear_channel()
         self.forget_scope()
-
-    def _set(self, state: str, problem: str, reason: str = "") -> None:
-        if (state, problem, reason) != (self.state, self.problem, self.reason):
-            self.state, self.problem, self.reason = state, problem, reason
-            log.log(logging.WARNING if problem else logging.INFO, "Mercury: %s%s", state, f": {problem}" if problem else "")
-        self.changed.emit()

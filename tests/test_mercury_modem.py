@@ -25,7 +25,7 @@ from dataclasses import replace
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs.mercurycontrol import EMPTY, HELD, ControlLine
-from neoaprs import bundled, mercuryhelper, mercurymodem
+from neoaprs import bundled, mercuryhelper, mercurymodem, modemstate
 from neoaprs.mercuryhelper import environment, find, free_ports, list_sound_cards, pair_free
 from neoaprs.mercurystale import end_stale
 from neoaprs.claims import Claim, Claims
@@ -856,3 +856,21 @@ def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_every_h
     said = [r for r in caplog.records if r.name == "neoaprs.mercury.program"]
     assert [r.levelno for r in said if "snd_pcm" in r.getMessage()] == [logging.INFO] * 4, "the 1st, the 10th, the 100th and the 200th"
     assert "(the 200th time)" in said[3].getMessage() and said[-1].levelno == logging.DEBUG
+
+
+async def test_a_line_refused_while_mercury_is_starting_says_nothing_in_the_terminal_or_the_log_above_debug_and_is_said_once_the_start_time_is_over(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    m = modem(tmp_path, program=False)
+    m._set("starting", "")
+    tnc = Tnc(f"socket://127.0.0.1:{free_ports(18200, 5)[0]}", profile=MERCURY, check_sec=0.0, backoff=Backoff([30.0]), fallback_probe=False)
+    tnc.modem = m
+    caplog.set_level(logging.DEBUG)
+    await tnc.start()
+    try:
+        assert tnc.state is Source.State.WAITING and tnc.problem == f"waiting for {m.describe()}"
+        assert not any("trying again" in line for line in tnc.lines) and not [r for r in caplog.records if r.levelno >= logging.WARNING and "trying again" in r.getMessage()]
+        m._starting_since -= modemstate.START_SEC + 1
+        assert not m.starting()
+        await tnc.start()
+        assert any("trying again in 30 s" in line for line in tnc.lines) and any(r.levelno == logging.WARNING and "trying again" in r.getMessage() for r in caplog.records), "a modem that is still not there after its start time is a fault"
+    finally:
+        await tnc.stop()
