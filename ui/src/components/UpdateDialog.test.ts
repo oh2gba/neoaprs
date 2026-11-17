@@ -4,6 +4,10 @@ import UpdateDialog from "@/components/UpdateDialog.vue";
 import type { InstallInfo, UpdateState } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { status } from "@/test/fixtures";
+import { setLocale, t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
+import { LOCALES } from "@/i18n/locales";
+import { cssRule } from "@/test/css";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -166,38 +170,38 @@ describe("UpdateDialog", () => {
       install: install("windows-installer"),
       selfUpdate: job({ state: "downloading", version: "0.4.0", percent: 42, downloaded: 42, total: 100 }),
     });
-    expect(wrapper.find(".updatedialog-progress").text()).toBe("Downloading… 42 %");
-    expect(wrapper.find(".updatedialog-progress").attributes("role")).toBe("status");
+    expect(wrapper.find(".updatedialog-state").text()).toBe("Downloading… 42 %");
+    expect(wrapper.find(".updatedialog-state").attributes("role")).toBe("status");
     expect((wrapper.find("progress").element as HTMLProgressElement).value).toBe(42);
     expect(wrapper.find(".updatedialog-go").exists()).toBe(false);
     const cancel = wrapper.findAll(".updatedialog-now button").find((b) => b.text() === "Cancel");
     await cancel?.trigger("click");
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "update_cancel" });
     await tell(daemon, { selfUpdate: job({ state: "verifying", version: "0.4.0" }) });
-    expect(wrapper.find(".updatedialog-progress").text()).toBe("Checking the download…");
+    expect(wrapper.find(".updatedialog-state").text()).toBe("Checking the download…");
     expect(wrapper.find("progress").exists()).toBe(false);
     await tell(daemon, { selfUpdate: job({ state: "installing", version: "0.4.0" }) });
-    expect(wrapper.find(".updatedialog-progress").text()).toBe("Installing…");
+    expect(wrapper.find(".updatedialog-state").text()).toBe("Installing…");
     expect(wrapper.findAll(".updatedialog-now button")).toHaveLength(0);
     await tell(daemon, { selfUpdate: job({ state: "restarting", version: "0.4.0" }) });
-    expect(wrapper.find(".updatedialog-progress").text()).toBe("Installing… NeoAPRS restarts in a moment");
+    expect(wrapper.find(".updatedialog-state").text()).toBe("Installing… NeoAPRS restarts in a moment");
     await tell(daemon, { connection: "closed" });
-    expect(wrapper.find(".updatedialog-progress").text()).toBe("NeoAPRS is restarting");
+    expect(wrapper.find(".updatedialog-state").text()).toBe("NeoAPRS is restarting");
   });
 
   it("keeps the progress while the topic says the copy can no longer update itself (the restart is on its way)", () => {
     const { wrapper } = dialog({ install: install("appimage"), selfUpdate: job({ supported: false, state: "restarting", version: "0.4.0" }) });
-    expect(wrapper.find(".updatedialog-progress").text()).toBe("NeoAPRS restarts in a moment");
+    expect(wrapper.find(".updatedialog-state").text()).toBe("NeoAPRS restarts in a moment");
   });
 
-  it("says a failure in plain words, without the daemon's detail (that is for the log, and is not on the wire), offers Try again and opens the steps by hand", async () => {
+  it("says a failure in plain words, without the daemon's detail (that is for the log, and is not on the wire), offers Try again, and leaves the steps by hand folded (opening by themselves they would move the dialog)", async () => {
     const { wrapper, daemon } = dialog({ install: install("appimage"), selfUpdate: job({ state: "error", version: "0.4.0", problem: "checksum" }) });
     const problem = wrapper.find(".updatedialog-problem");
     expect(problem.text()).toBe("The download is not the release's file, so it was deleted and nothing was installed. Try again.");
     expect(problem.attributes("role")).toBe("alert");
     expect(problem.attributes("title")).toBeUndefined();
     expect(wrapper.html()).not.toContain("SHA-256 is ab");
-    expect(wrapper.find("details.updatedialog-hand").attributes("open")).toBeDefined();
+    expect(wrapper.find("details.updatedialog-hand").attributes("open")).toBeUndefined();
     await wrapper.find(".updatedialog-go").trigger("click");
     expect(wrapper.find(".updatedialog-go").text()).toBe("Try again");
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "update_now", version: "0.4.0" });
@@ -263,4 +267,75 @@ describe("UpdateDialog", () => {
     await vi.waitFor(() => expect(wrapper.text()).toContain("Not copied"));
     vi.unstubAllGlobals();
   });
+});
+
+describe("the box of Update now keeps its shape", () => {
+  const STATES: Partial<UpdateState>[] = [
+    {},
+    { state: "downloading", version: "0.4.0", percent: 42, downloaded: 42, total: 100 },
+    { state: "downloading", version: "0.4.0", downloaded: 42e6 },
+    { state: "verifying", version: "0.4.0" },
+    { state: "installing", version: "0.4.0" },
+    { state: "restarting", version: "0.4.0" },
+    { state: "error", version: "0.4.0", problem: "download" },
+  ];
+  /** The box as it stands: its parts, in order. */
+  const parts = (wrapper: ReturnType<typeof dialog>["wrapper"]) =>
+    [...(wrapper.find(".updatedialog-now").element.children ?? [])].map(
+      (part) => `${part.tagName}.${[...part.classList].filter((name) => name !== "updatedialog-problem").join(".")}`,
+    );
+
+  it("has the line of what is going on and the row under it in every state, the line there (empty) before Update now is pressed", async () => {
+    const { wrapper, daemon } = dialog({ install: install("appimage"), selfUpdate: job() });
+    const idle = parts(wrapper);
+    expect(idle).toEqual(["P.updatedialog-state", "DIV.updatedialog-act"]);
+    expect(wrapper.find(".updatedialog-state").text()).toBe("");
+    for (const over of STATES) {
+      await tell(daemon, { selfUpdate: job(over) });
+      expect(parts(wrapper), JSON.stringify(over)).toEqual(idle);
+    }
+    expect(wrapper.find(".updatedialog-state").text()).not.toBe("");
+  });
+
+  it("keeps the room by its style: two lines for the line, three on a phone, a button's height for the row, which never wraps", () => {
+    expect(cssRule(".updatedialog-state")).toMatch(/min-height:\s*2\.8em/);
+    expect(cssRule(".updatedialog-state")).toMatch(/line-height:\s*1\.4/);
+    expect(cssRule(".updatedialog-state")).toMatch(/margin:\s*0/);
+    expect(cssRule(".size-phone .updatedialog-state")).toMatch(/min-height:\s*4\.2em/);
+    expect(cssRule(".updatedialog-act")).toMatch(/min-height:\s*var\(--control-h\)/);
+    expect(cssRule(".updatedialog-act")).toMatch(/flex-wrap:\s*nowrap/);
+    expect(cssRule(".updatedialog-act progress")).toMatch(/min-width:\s*0/);
+    expect(cssRule(".updatedialog-act .btn")).toMatch(/flex:\s*none/);
+    expect(cssRule(".updatedialog-now")).toMatch(/flex-direction:\s*column/);
+    expect(cssRule(".updatedialog-problem")).not.toMatch(/(^|;)\s*(min-height|height|margin|padding|font[a-z-]*|line-height)\s*:/); // (a failure only colours the line)
+    expect(cssRule(".updatedialog")).toMatch(/width:\s*min\(540px, 100%\)/);
+  });
+
+  // The room was measured with the widest of the usual fonts (DejaVu Sans, 14 px): in the box of the dialog (480 px) every text below takes at most two lines, at 375 px (317 px) at most three.
+  // A text longer than the longest of then is a new measure: these are the lengths it was made for.
+  const TEXTS: MessageId[] = [
+    "help.update.downloading",
+    "help.update.downloading_size",
+    "help.update.verifying",
+    "help.update.installing",
+    "help.update.restarting",
+    "help.update.restarting_installer",
+    "help.update.reconnecting",
+    "help.update.problem.download",
+    "help.update.problem.unverified",
+    "help.update.problem.checksum",
+    "help.update.problem.install",
+    "help.update.problem.no_restart",
+  ];
+  for (const locale of LOCALES) {
+    it(`${locale.name}: the longest text of a state fits the room`, () => {
+      setLocale(locale.code);
+      try {
+        const longest = Math.max(...TEXTS.map((id) => t(id, { percent: 100, mb: 120 }).length));
+        expect(longest).toBeLessThanOrEqual(locale.code === "ja" ? 63 : 128);
+      } finally {
+        setLocale("en");
+      }
+    });
+  }
 });

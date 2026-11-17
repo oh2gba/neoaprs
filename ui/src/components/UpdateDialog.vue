@@ -3,7 +3,9 @@
 // to Check now. The version this copy is, what is new (the project's note of the version page, and the release notes themselves: the dialog asks the daemon for them, `release_notes`, and shows the sections of the versions between this one and the new one in a box
 // that scrolls; while they are fetched it says so, and when they cannot be it offers the release page on GitHub instead), then the update itself: **Update now** where the daemon can
 // do it (the topic `update` says so: the Windows installer, an AppImage), with its progress, a Cancel while it downloads and the problem in words when it fails; and the steps by hand for the way this copy
-// was installed (lib/update.ts, UpdateSteps), folded under Update now and open when it failed. The focus goes into the dialog and stays in it; Escape, the cross and a click beside it close it, which
+// was installed (lib/update.ts, UpdateSteps), folded under Update now (also when it failed: opening by itself, they would move the dialog, which stands in the middle).
+// The box of Update now keeps its shape in every state, so that nothing moves under the pointer when the button is pressed: a line for what is going on (empty until then; the room of the longest text of every state in
+// nine languages: two lines, three on a phone) and under it a row as high as a button, which holds the button, or the bar and Cancel, or nothing (styles/help.css). The focus goes into the dialog and stays in it; Escape, the cross and a click beside it close it, which
 // does not stop an update. The longer explanation is in the manual (Updating).
 // The same window in its notes form (`notesOnly`, composables/useWhatsNew.ts), opened from Settings → Update check and from the line the page shows once after an update: "What's new in NeoAPRS 0.12.0", the version that runs, and only
 // the notes, of that version or with `since` of every version after that one up to it (the daemon reads them from the changelog at our own tag); no note of the version page, no update, no steps, and the release page when they cannot be fetched.
@@ -95,17 +97,20 @@ const cancel = (): boolean => send({ cmd: "update_cancel" });
       </section>
       <template v-if="!notesOnly">
         <section v-if="offered" class="updatedialog-now">
-          <template v-if="progress">
-            <p class="updatedialog-progress" role="status">{{ progress }}</p>
-            <progress v-if="selfUpdate?.state === 'downloading'" max="100" :value="selfUpdate.percent ?? undefined"></progress>
-            <button v-if="cancellable" type="button" class="btn" @click="cancel">{{ t("help.update.cancel") }}</button>
-          </template>
-          <template v-else>
-            <p v-if="failed" class="updatedialog-problem" role="alert">{{ problemText(failed.problem) }}</p>
-            <button type="button" class="btn primary updatedialog-go" @click="updateNow">{{ t(failed ? "help.update.retry" : "help.update.now") }}</button>
-          </template>
+          <p class="updatedialog-state" :class="{ 'updatedialog-problem': failed }" :role="failed ? 'alert' : 'status'">
+            {{ progress ?? (failed ? problemText(failed.problem) : "") }}
+          </p>
+          <div class="updatedialog-act">
+            <template v-if="progress">
+              <progress v-if="selfUpdate?.state === 'downloading'" max="100" :value="selfUpdate.percent ?? undefined"></progress>
+              <button v-if="cancellable" type="button" class="btn" @click="cancel">{{ t("help.update.cancel") }}</button>
+            </template>
+            <button v-else type="button" class="btn primary updatedialog-go" @click="updateNow">
+              {{ t(failed ? "help.update.retry" : "help.update.now") }}
+            </button>
+          </div>
         </section>
-        <details v-if="offered" class="updatedialog-hand" :open="failed !== null">
+        <details v-if="offered" class="updatedialog-hand">
           <summary>{{ t("help.update.by_hand") }}</summary>
           <UpdateSteps :steps="steps" />
         </details>

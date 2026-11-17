@@ -56,6 +56,7 @@ class AppActions:
         self.open_browser = open_browser or (lambda url: webbrowser.open(url))          # (looked up when it is used)
         self.support = support                       # makes the bundle of a data folder and shows it
         self.quitting = False
+        self.renewing = False                        # the app ends to start again as the new version (renew.py): the daemon is left running
         self.thread: threading.Thread | None = None
         self.support_thread: threading.Thread | None = None
 
@@ -131,6 +132,14 @@ class AppActions:
         self.session = replace(self.session, url=url)
         if not self.quitting:
             self.frame.load(url)
+
+    def renew(self) -> None:
+        """The app's file is a new version and the daemon runs it (renew.py): the app ends as Quit would, but leaves the daemon running, and cmd.py starts it again from the new file. Nothing when the app is quitting already."""
+        if self.quitting:
+            return
+        self.quitting = True
+        self.renewing = True
+        self.frame.quit()
 
     def daemon_gone(self) -> None:
         """The daemon the app owns ended by itself: nothing is left to stop, the app ends."""

@@ -18,7 +18,7 @@ FONT = "Segoe UI"                         # the UI font of Windows
 LIMIT_SEC = 15.0                          # it never stays longer than this, whatever the app does
 
 # The app's arguments as the quick look knows them (cmd.parser has them all; tests/test_desktop_splash.py holds the two equal): whether each takes a value, and which of them mean no window now.
-OPTIONS = {"--data": True, "--tray": False, "--quit": False, "--timeout": True, "--debug": False, "--encryption": False, "--help": False, "-h": False}
+OPTIONS = {"--data": True, "--tray": False, "--quit": False, "--timeout": True, "--debug": False, "--encryption": False, "--owns-daemon": False, "--help": False, "-h": False}
 NO_WINDOW = ("--tray", "--quit", "--help", "-h")
 PORT_NAME, PID_NAME = "neoaprs-app.port", "neoaprs-app.pid"     # the files of the app that holds a data folder (single.py)
 

@@ -1,6 +1,7 @@
 """`neoaprs app [--data DIR] [--tray]` and `neoaprs-app`: the desktop app. It shows the page of the daemon that holds the data folder in a window (attaching to it), or starts a daemon of its own the way
 `neoaprs open` does and stops it at Quit; the tray icon is where it lives when the window is closed. `--tray` starts with the window hidden (what start at sign-in runs), `--quit` ends the app that is running
-(the uninstaller does). A second app on the same data folder raises the first one's window and ends.
+(the uninstaller does). A second app on the same data folder raises the first one's window and ends. An AppImage's app that started its daemon starts itself again as the new version after Update
+now (renew.py), the owner of the daemon it finds, so that its Quit stops it.
 Exit code 0: it ran and ended; 1: no page came up, or the toolkit could not start; 2: wrong arguments."""
 import argparse
 import importlib
@@ -9,15 +10,17 @@ import os
 import sys
 import time
 import webbrowser
+from collections.abc import Callable
 from pathlib import Path
 
 from neoaprs.cli import opencmd, uncaught
 from neoaprs.cli.output import say
+from neoaprs.cli.servicecmd import appimage_file
 from neoaprs.paths import default_data_dir
 
-from . import appstate, shell, splash
+from . import appstate, renew, shell, splash
 from .autostart import autostart_for
-from .session import NoPage, Opening, Session, open_session
+from .session import NoPage, Opening, Session, open_session, stop_owned
 from .shell import Choice, Launch
 from .single import SingleApp, process_alive
 
@@ -33,6 +36,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long to wait for the daemon's page; default %(default)s")
     p.add_argument("--debug", action="store_true", help="log more")
     p.add_argument("--encryption", action="store_true", help="a daemon the app starts allows encrypted messages (the daemon's --encryption), and so does start at sign-in once it is ticked in the tray menu")
+    p.add_argument(renew.OWNS_DAEMON, dest="owns_daemon", action="store_true", help=argparse.SUPPRESS)    # (the app started again after Update now: renew.py)
     return p
 
 
@@ -93,9 +97,10 @@ def run(args: argparse.Namespace) -> int:
         if not args.tray:
             single.tell_the_other("show")
         return 0
-    opening = Opening(data, lambda: open_session(data, timeout=args.timeout, encryption=args.encryption)).start()
+    app_file = renew.AppFile.of(appimage_file())
+    opening = Opening(data, lambda: open_session(data, timeout=args.timeout, encryption=args.encryption, owns=args.owns_daemon)).start()
     choice = shell.choose()
-    launch = Launch(data, opening, args.tray, choice.window, autostart_for(data, encryption=args.encryption), single, describe=choice.describe(), tray=choice.tray)
+    launch = Launch(data, opening, args.tray, choice.window, autostart_for(data, encryption=args.encryption), single, describe=choice.describe(), tray=choice.tray, app_file=app_file)
     try:
         if choice.module is None:
             splash.done()
@@ -105,9 +110,21 @@ def run(args: argparse.Namespace) -> int:
                 return launch.no_page(e)
             single.close()
             return browser_only(session, choice, args.tray)
-        return run_shell(choice, launch)
+        code = run_shell(choice, launch)
     finally:
         launch.close()
+    return start_again(launch, app_file, args) if launch.ctx is not None and launch.ctx.renewing() and app_file is not None else code
+
+
+def start_again(launch: Launch, app_file: renew.AppFile, args: argparse.Namespace, start: Callable[[list[str]], None] | None = None) -> int:
+    """The app ended to start again as the new version and has let go of the data folder: the new file takes the place of this process. It returns only when that could not be done: then the daemon,
+    which no app owns now, is stopped as Quit would stop it, and the exit code is 1."""
+    assert launch.ctx is not None
+    session = launch.ctx.session
+    (start or renew.start_again)(renew.argv(app_file.path, session.data, args.encryption, args.debug))
+    say("app: the new version of NeoAPRS could not be started; NeoAPRS stops")
+    stop_owned(session, launch.ctx.daemon)
+    return 1
 
 
 def main(argv: list[str] | None = None) -> int:

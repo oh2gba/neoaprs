@@ -22,9 +22,11 @@ import "./lib/firststart"; // (first: it looks at the store before anything of t
 import { createApp } from "vue";
 import AccessGate from "./AccessGate.vue";
 import { listenForInstall } from "./composables/useInstall";
+import { keepEngineMenuToText } from "./lib/appmenu";
 import { installErrorCapture } from "./lib/pageerrors";
 import { registerWorker } from "./lib/worker";
 
+keepEngineMenuToText();
 listenForInstall();
 registerWorker();
 const app = createApp(AccessGate);

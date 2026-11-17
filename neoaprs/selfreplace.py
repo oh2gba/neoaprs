@@ -81,18 +81,21 @@ def keep_extract_and_run(environ: MutableMapping[str, str], is_mount: Callable[[
 
 
 def reexec(argv: list[str], execv: Callable[[str, list[str]], None] = os.execv, close: Callable[[], None] = close_inherited, environ: MutableMapping[str, str] = os.environ,
-           is_mount: Callable[[str], bool] = os.path.ismount) -> None:
+           is_mount: Callable[[str], bool] = os.path.ismount, put_back: bool = True) -> None:
     """Runs `argv` (the AppImage file and the arguments this process had) in the place of this process, which has let go of everything already: the log, the database, the lock, the radio, the page's port.
-    When the new file cannot be started, the kept old one is put back and started. Returns only when neither could be."""
+    When the new file cannot be started, the kept old one is put back and started (`put_back`; the desktop app, started again after its daemon, puts nothing back: the daemon runs the new file). Returns only
+    when neither could be."""
     logging.shutdown()
     keep_extract_and_run(environ, is_mount)         # (before the descriptors go: the mount goes with them)
     close()
     try:
         execv(argv[0], argv)
     except OSError as e:
-        print(f"neoaprs: the new version could not be started ({e}); the old one is put back", file=sys.stderr)
+        print(f"neoaprs: the new version could not be started ({e}){'; the old one is put back' if put_back else ''}", file=sys.stderr)
     else:
         return                                  # (only a stand-in of execv returns)
+    if not put_back:
+        return
     try:
         if restore(Path(argv[0])):
             execv(argv[0], argv)

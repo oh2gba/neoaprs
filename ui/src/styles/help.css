@@ -177,26 +177,39 @@
 .updatedialog-notes code {
   font: 12px var(--mono);
 }
+/* the box of Update now keeps its shape in every state: the line of what is going on always has the room of two lines (three on a phone, responsive.css), which the longest text of every state takes in the widest
+   of the usual fonts in each of the nine languages, and the row under it is as high as a button whatever it holds (the button; the bar and Cancel; nothing), so pressing Update now moves nothing */
 .updatedialog-now {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-box);
   background: var(--bg);
 }
-.updatedialog-progress,
-.updatedialog-problem {
-  flex: 1 1 100%;
+.updatedialog-state {
+  min-height: 2.8em;
   margin: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 .updatedialog-problem {
   color: var(--bad);
 }
-.updatedialog-now progress {
-  flex: 1 1 200px;
+.updatedialog-act {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-h);
+}
+.updatedialog-act .btn {
+  flex: none;
+}
+.updatedialog-act progress {
+  flex: 1 1 0;
+  min-width: 0;
   height: 10px;
   accent-color: var(--accent);
 }

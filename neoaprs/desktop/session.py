@@ -15,6 +15,7 @@ from neoaprs.cli.daemonstate import is_running
 from neoaprs.cli.logfile import read_page
 from neoaprs import stopfile
 from .links import same_host
+from .renew import AppFile
 
 log = logging.getLogger("neoaprs.desktop")
 
@@ -51,19 +52,22 @@ class Daemon:
     address: Callable[[Path], str | None] = read_page
 
 
-def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC, encryption: bool = False) -> Session:
-    """Attach to the daemon of the data folder, or start one. Raises NoPage when no page comes up. A daemon that someone else started while ours was starting wins the lock: ours ends at once, and the app does not own the one it shows."""
+def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC, encryption: bool = False, owns: bool = False) -> Session:
+    """Attach to the daemon of the data folder, or start one. Raises NoPage when no page comes up. A daemon that someone else started while ours was starting wins the lock: ours ends at once, and the app does not own the one it shows.
+    `owns`: the app is started again after Update now (renew.py) and owns the daemon it finds, as the app before it did; a daemon that is starting again as the new version is waited for, not started twice."""
     daemon = daemon or Daemon(start=lambda folder: _start_detached(folder, encryption))       # (a daemon the app starts has encrypted messages when the app was started with --encryption)
     child = None
     if daemon.running(data):
-        log.info("a daemon runs on %s: attaching", data)
+        log.info("a daemon runs on %s: attaching%s", data, " as its owner" if owns else "")
+    elif owns and daemon.restarting(data):
+        log.info("the daemon on %s is starting again: waiting for it, as its owner", data)
     else:
         log.info("no daemon on %s: starting one", data)
         child = daemon.start(data)
     url = daemon.wait(data, child, timeout)
     if url is None:
         raise NoPage(f"no page came up on {data} within {timeout:g} s; see the log, neoaprs.log in that folder")
-    owned = child is not None and child.poll() is None
+    owned = child.poll() is None if child is not None else owns
     return Session(data, url, owned)
 
 
@@ -144,12 +148,16 @@ class DaemonWatch:
     A daemon that ends to start again as a new version (Update now of an AppImage: the note of neoaprs/stopfile.py) has not ended.
     Calls `moved(address)` each time the daemon, the app's own or one it attached to, serves its page at another address than the app last knew (it started again and could not have the port it had): the
     address is read from the file the daemon writes, which is not there while it serves no page, and nothing is asked of the daemon's lock for it. Only the port may be another: an address of
-    another host than the one the session was opened on is not the daemon's page, whatever the file says, and the window is never sent there."""
+    another host than the one the session was opened on is not the daemon's page, whatever the file says, and the window is never sent there.
+    Calls `renewed()` once when the app's own AppImage file (`app_file`) is a new version and the daemon the app owns runs again (renew.py): the app is to start again as the new version."""
 
-    def __init__(self, session: Session, gone: Callable[[], None], daemon: Daemon | None = None, every: float = WATCH_SEC, moved: Callable[[str], None] | None = None) -> None:
+    def __init__(self, session: Session, gone: Callable[[], None], daemon: Daemon | None = None, every: float = WATCH_SEC, moved: Callable[[str], None] | None = None,
+                 app_file: AppFile | None = None, renewed: Callable[[], None] | None = None) -> None:
         self.session = session
         self.gone = gone
         self.moved = moved
+        self.app_file = app_file if renewed is not None else None
+        self.renewed = renewed
         self.url = session.url                     # where the page is, as the app knows it
         self.refused: str | None = None            # an address the file named that the app did not follow (said once)
         self.daemon = daemon or Daemon()
@@ -168,12 +176,24 @@ class DaemonWatch:
         missing = 0
         while not self._cancelled.wait(self.every):
             if self.session.owned:
-                missing = 0 if self.daemon.running(self.session.data) or self.daemon.restarting(self.session.data) else missing + 1      # (a daemon that starts again as a new version is waited for)
+                up = self.daemon.running(self.session.data)
+                again = not up and self.daemon.restarting(self.session.data)
+                missing = 0 if up or again else missing + 1                       # (a daemon that starts again as a new version is waited for)
                 if missing >= GONE_AFTER:
                     log.info("the daemon on %s has ended: the app ends too", self.session.data)
                     self.gone()
                     return
+                if up and self._renewed():
+                    return
             self._follow()
+
+    def _renewed(self) -> bool:
+        """The app's file is a new version and its daemon, running, has no restart pending (it runs the new file): `renewed` is called, and the watch is over."""
+        if self.app_file is None or self.renewed is None or not self.app_file.replaced() or self.daemon.restarting(self.session.data):
+            return False
+        log.info("the app's file %s is a new version and the daemon on %s runs it: the app starts again", self.app_file.path, self.session.data)
+        self.renewed()
+        return True
 
     def _follow(self) -> None:
         if self.moved is None:

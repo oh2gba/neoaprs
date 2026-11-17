@@ -25,6 +25,7 @@ from neoaprs.cli.logfile import LOG_NAME
 from . import splash
 from .autostart import AutoStart
 from .menu import QUIT, AppActions, Frame
+from .renew import AppFile
 from .session import Daemon, DaemonWatch, NoPage, Opening, Session
 from .single import SingleApp
 
@@ -161,7 +162,7 @@ def choose(platform: str | None = None, importer: Importer = importlib.import_mo
 @dataclass
 class ShellContext:
     """What a shell is given to run: the daemon's session, whether to start with the window hidden, the start at sign-in of this system, and the app's one-app lock. `ready(actions)` is the shell telling the app that its
-    window and tray exist: from then on a second app's `show` and `quit`, the end of the daemon and a new address of its page reach the actions."""
+    window and tray exist: from then on a second app's `show` and `quit`, the end of the daemon, a new address of its page and a new version of the app's own file (`app_file`, renew.py) reach the actions."""
     session: Session
     hidden: bool
     window: bool
@@ -169,14 +170,21 @@ class ShellContext:
     single: SingleApp
     daemon: Daemon = field(default_factory=Daemon)
     watch: DaemonWatch | None = None
+    app_file: AppFile | None = None
+    actions: AppActions | None = None
 
     def actions_for(self, frame: Frame) -> AppActions:
         return AppActions(self.session, frame, self.autostart, self.daemon)
 
     def ready(self, actions: AppActions) -> None:
+        self.actions = actions
         self.single.handle(lambda command: actions.show() if command == "show" else actions.run(QUIT))
-        self.watch = DaemonWatch(self.session, actions.daemon_gone, self.daemon, moved=actions.page_moved)
+        self.watch = DaemonWatch(self.session, actions.daemon_gone, self.daemon, moved=actions.page_moved, app_file=self.app_file, renewed=actions.renew)
         self.watch.start()
+
+    def renewing(self) -> bool:
+        """Whether the app ended to start again as the new version (renew.py)."""
+        return self.actions is not None and self.actions.renewing
 
     def close(self) -> None:
         if self.watch is not None:
@@ -188,7 +196,8 @@ class ShellContext:
 class Launch:
     """What a shell starts with, before the daemon's page is there: the data folder, the session on its way, whether to start with the window hidden, whether a window can be had, the start at sign-in and the
     one-app lock. The shell makes its window at once (with the page of loading.py in it) and asks `context(session)` for its ShellContext once `opening` has the session; when it never comes, `no_page` is
-    the end, in the words the app has always said it with. `describe` is what the shell can do, for the log line of the session; `tray`, whether its tray's toolkit loaded (Choice.tray)."""
+    the end, in the words the app has always said it with. `describe` is what the shell can do, for the log line of the session; `tray`, whether its tray's toolkit loaded (Choice.tray); `app_file`, the
+    AppImage file the app runs from, as it was at the start (renew.py)."""
     data: Path
     opening: Opening
     hidden: bool
@@ -199,6 +208,7 @@ class Launch:
     describe: str = ""
     ctx: ShellContext | None = None
     tray: bool = True
+    app_file: AppFile | None = None
 
     @classmethod
     def of(cls, ctx: ShellContext) -> "Launch":
@@ -208,7 +218,7 @@ class Launch:
     def context(self, session: Session) -> ShellContext:
         if self.ctx is None:
             log.info("NeoAPRS app on %s, page %s, %s daemon; %s", self.data, session.url, "its own" if session.owned else "a running", self.describe)
-            self.ctx = ShellContext(session, self.hidden, self.window, self.autostart, self.single, self.daemon)
+            self.ctx = ShellContext(session, self.hidden, self.window, self.autostart, self.single, self.daemon, app_file=self.app_file)
         return self.ctx
 
     def no_page(self, error: NoPage) -> int:

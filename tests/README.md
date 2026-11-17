@@ -389,6 +389,9 @@
   page stays, other sites go to the browser, `file:` and `javascript:` are dropped), the tray menu as data and what its items do against a fake toolkit
   (`support/fakeshell.py`), the decision to attach to a daemon or start one (a scripted `Daemon`), the watch that follows the daemon's page to another address (told once for each, for an attached daemon too, without a look at its lock), what the app remembers, and which shell a computer can run
   (the importer and the WebView2 registry stood in for).
+* `test_desktop_renew.py`: the app after Update now of an AppImage (`neoaprs/desktop/renew.py`): its own file seen replaced (at two looks in a row), the watch that says so only for a daemon the app owns
+  and only once it runs the new file, the app that ends as Quit would but leaves the daemon running, lets go of the data folder before the exec and asks to own the daemon it finds, and the daemon stopped when
+  the new file cannot be started; the exec, the toolkits and the daemons are stand-ins.
 * `test_desktop_cmd.py`: `neoaprs app` end to end with the shell and the session replaced: the second app, the browser fallbacks, a page that does not come up,
   a shell that cannot start, `--quit`. `test_desktop_session.py` is the same decision against real detached daemons (fixtures of `test_open_stop.py`).
   `test_desktop_autostart.py`: start at sign-in on Windows (the stand-in for winreg of `test_service.py`) and on Linux (a configuration folder of the test's

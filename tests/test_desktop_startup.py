@@ -40,7 +40,8 @@ def test_the_loading_page_is_the_mark_and_the_name_on_the_pages_own_colours_in_b
     assert (loading.BACKGROUND[False], loading.TEXT[False]) == (tokens("light")["bg"], tokens("light")["text"])
     assert (loading.BACKGROUND[True], loading.TEXT[True]) == (tokens("dark")["bg"], tokens("dark")["text"])
     assert loading.background(True) == loading.BACKGROUND[True] and "prefers-color-scheme: dark" in loading.HTML
-    body = loading.HTML[loading.HTML.index("<body>"):]
+    assert '<body oncontextmenu="return false">' in loading.HTML, "a right-click shows no menu of the web engine (Back, Reload)"
+    body = loading.HTML[loading.HTML.index("<body"):]
     assert re.sub(r"<[^>]+>", "", body) == "NeoAPRS", "nothing to read but the name"
     assert not any(word in loading.HTML for word in ("<script", "animation", "transition", "@keyframes", "src=", "href=", "url(")), "nothing moves and nothing is fetched"
 
@@ -135,7 +136,7 @@ class App:
         monkeypatch.setattr(fakeshell, "event", self.event)
         slow_page(monkeypatch, self.clock, answers_at, self.looks)
         daemon = Daemon(running=lambda data: False, start=self.start, wait=lambda data, child, seconds: opencmd.wait_for_page(data, child, seconds, self.clock.time, self.clock.sleep))
-        monkeypatch.setattr(cmd, "open_session", lambda data, timeout, encryption: session.open_session(data, daemon, timeout, encryption))
+        monkeypatch.setattr(cmd, "open_session", lambda data, timeout, encryption, owns: session.open_session(data, daemon, timeout, encryption, owns))
         monkeypatch.setattr(cmd.shell, "choose", self.choose)
         monkeypatch.setattr(cmd, "autostart_for", lambda data, encryption=False: None)
         monkeypatch.setattr(cmd.opencmd, "tell_the_user", self.said.append)

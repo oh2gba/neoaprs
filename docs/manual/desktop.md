@@ -22,6 +22,8 @@ The Windows installer and the AppImage have it inside; the .deb, made for a mach
 - On Windows the app's log, `neoaprs-app.log`, has a line beginning `window:` for each save and restore of the window: the placement read, the one applied with the monitor's area, the work area without the taskbar and the display scaling (DPI), and what Windows says right after. If the window comes back wrong, **Collect support logs** in the tray menu puts that log in the support file ([support.md](support.md)).
 - What the page keeps in the browser (the panel's width and tab, the map's view, the messages and bulletins seen) is kept in the folder `webview/` of the data folder, so it survives a restart. It belongs to the page's address, `127.0.0.1` and the port. A page that moves to another port (7303 was taken) starts with a clean slate there. After Update now, and after any other restart of NeoAPRS by itself, the page is on the port it was on; if that one cannot be had, the window follows NeoAPRS to the new one.
 - Closing the window **hides** it. NeoAPRS goes on listening in the tray.
+- A right-click shows the page's own menus (the map's, a station's) and, in a text field or on text you selected, the menu to cut, copy and paste. The web engine's menu with Back and Reload is not there.
+- After **Update now** of an AppImage the app that started NeoAPRS starts again as the new version, the window and the tray icon too ([Updating](install.md#updating)). On Windows the installer does it.
 - A link to another site (the QRZ page of a call, the credits of the map) and a link that asks for a new tab open in the system's browser and never in the window. `file:` and `javascript:` addresses are dropped.
 
 ## The tray menu

@@ -1,6 +1,7 @@
 """What the app's window shows from the moment it is made until the daemon's page answers: the mark and the name on the page's own background, in the light scheme and in the dark one, with the colours of
 the page's tokens (ui/src/styles/tokens.css: --bg and --text). Nothing on it moves and there is nothing on it to read but the name; the page takes its place in the same window as soon as it answers, and when
-no page comes the window closes and the app says why, as it did before there was a window to wait in. One page for both shells: qtwindow.py gives it to the web view, webshell.py to pywebview."""
+no page comes the window closes and the app says why, as it did before there was a window to wait in. A right-click on it shows nothing: the web engine's own menu (Back, Reload) has no place in the app's window,
+nor here (the page's rule is ui/src/lib/appmenu.ts). One page for both shells: qtwindow.py gives it to the web view, webshell.py to pywebview."""
 
 BACKGROUND = {False: "#eff0f2", True: "#0e1f2c"}         # --bg of the page, light and dark
 TEXT = {False: "#0a2a3d", True: "#ffffff"}               # --text
@@ -15,7 +16,7 @@ HTML = f"""<!doctype html>
 html, body {{ margin: 0; height: 100%; overflow: hidden; }}
 body {{ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; font: 600 22px system-ui, sans-serif; cursor: default; user-select: none; }}
 svg {{ width: 96px; height: 96px; }}
-</style></head><body>{MARK}<div>NeoAPRS</div></body></html>"""
+</style></head><body oncontextmenu="return false">{MARK}<div>NeoAPRS</div></body></html>"""
 
 
 def background(dark: bool) -> str:

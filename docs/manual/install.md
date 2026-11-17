@@ -115,9 +115,9 @@ Where NeoAPRS can update itself, the window has an **Update now** button. NeoAPR
 
 **The page stays where it was.** After the restart NeoAPRS serves the page on the port it was on, so a page left open and the app's window find it again by themselves. Only when another program has taken that port in the meantime does the page come back on another one: the app's window follows it there, and a page in a browser has to be opened again (`neoaprs open` shows where).
 
-**The app after an update of the AppImage.** The page in the window is the new version's at once. The window itself and the tray icon stay the program of the old version until you choose **Stop and quit** and start NeoAPRS again.
+**The app after an update of the AppImage.** When the app started NeoAPRS itself, it starts again as the new version once NeoAPRS runs again: the window closes and comes back, and so does the tray icon. **Stop and quit** still stops NeoAPRS. An app that only attached to NeoAPRS (a service, one started by hand) goes on as it was until you quit it and start it again.
 
-Nothing is downloaded or installed unless you press the button. When something goes wrong the window says so in plain words, offers **Try again** and shows the steps by hand. An AppImage in a folder you cannot write to has no Update now: the window shows the steps.
+Nothing is downloaded or installed unless you press the button. When something goes wrong the window says so in plain words and offers **Try again**; the steps by hand are under it. An AppImage in a folder you cannot write to has no Update now: the window shows the steps.
 
 ### By hand
 

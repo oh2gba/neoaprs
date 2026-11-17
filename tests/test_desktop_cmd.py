@@ -29,6 +29,7 @@ class World:
         self.sessions: list[Path] = []
         self.encryption: list[tuple[str, bool]] = []                     # (what was asked with --encryption: the session's daemon, the start at sign-in)
         self.owned = True
+        self.owns: list[bool] = []                                        # (what each session was asked: the owner of the daemon it finds)
         self.page_fails = False
         self.choice = FAKE
         fakeshell.FRAMES.clear()
@@ -40,8 +41,9 @@ class World:
         monkeypatch.setattr(cmd.opencmd, "tell_the_user", self.said.append)
         monkeypatch.setattr(cmd, "say", self.said.append)
 
-    def open_session(self, data: Path, timeout: float = 60.0, encryption: bool = False) -> Session:
+    def open_session(self, data: Path, timeout: float = 60.0, encryption: bool = False, owns: bool = False) -> Session:
         self.sessions.append(data)
+        self.owns.append(owns)
         self.encryption.append(("daemon", encryption))
         if self.page_fails:
             raise NoPage("no page came up")

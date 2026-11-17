@@ -7,6 +7,9 @@
 - **Changed:** on Linux, a Sound card or Mercury radio's Keying list starts with the serial ports on the radio's own USB hub.
 - **Changed:** a Sound card radio's Receive level follows the audio ten times a second while you look at it.
 - **Fixed:** a Sound card radio did not start when the data folder's path was long.
+- **Changed:** a right-click in the app's window no longer shows the web engine's menu with Back and Reload; text fields keep cut, copy and paste.
+- **Fixed:** after Update now of an AppImage the app's window and tray start again as the new version; Stop and quit still stops NeoAPRS.
+- **Fixed:** the update window no longer moves when Update now is pressed, nor while it downloads, installs or fails.
 
 ## 0.20.2
 

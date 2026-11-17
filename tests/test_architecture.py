@@ -136,7 +136,7 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
     "neoaprs/mercuryspeaker.py": ("program", "the Dummy HF radio's sound: the system's player (pw-play, paplay or aplay) with arguments written in the module, fed through its standard input"),
     "neoaprs/pmtilesarchive.py": ("url", "asks build.protomaps.com which daily build is there (a HEAD request for each of the last days)"),
     "neoaprs/pmtilesrange.py": ("url", "reads the bytes of the map out of the archive of the whole world with range requests, from the address the settings or the daily build give"),
-    "neoaprs/selfreplace.py": ("exec", "Update now for an AppImage: the new file, whose checksum was checked, is started in the place of this process with the arguments the daemon had"),
+    "neoaprs/selfreplace.py": ("exec", "Update now for an AppImage: the new file, whose checksum was checked, is started in the place of this process with the arguments the daemon had, and the desktop app that owned that daemon after it, with its own (neoaprs/desktop/renew.py)"),
     "neoaprs/serialport.py": ("serial", "the one place a port is made: the address of the radio's or the GPS's port goes to pyserial here and nowhere else"),
     "neoaprs/services/alerts.py": ("program shell", "the alert command: the operator's own line, given to the shell (on Windows to PowerShell, a program that reads the line from its standard input), with what came from the air in environment variables only; taskkill ends its tree on Windows"),
     "neoaprs/services/selfinstall.py": ("program", "Update now on Windows: runs the downloaded installer, whose checksum was checked, silently and detached from the daemon"),
