@@ -273,6 +273,7 @@ async def test_the_levels_are_known_once_the_radios_card_was_read_or_where_there
     await levels.stop()
     assert levels.known, "stopped: still the card's levels as read last"
     assert CardLevels(lambda: CARD, lambda: 1, FakeMixer({}), own=lambda: False).known, "no card of the radio's own by its kind"
+    monkeypatch.setattr(nodevices, "on", lambda: True)                   # (the switch is lifted in a test's own process: this is a daemon under it, on any system)
     assert CardLevels(lambda: CARD, lambda: 1).known, "the no-devices switch: no mixer at all"
     monkeypatch.setattr(nodevices, "on", lambda: False)
     monkeypatch.setattr(sys, "platform", "darwin")
