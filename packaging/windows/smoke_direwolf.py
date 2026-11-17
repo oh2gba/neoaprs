@@ -1,5 +1,5 @@
 """The Direwolf of the Windows app, as the release workflow's Windows job checks it: `smoke_direwolf.py PROGRAM` starts the program the way it says who it is (`-h`: its banner, the optional parts it holds, its options),
-and the program must be the pinned release, with `cm108-ptt` as its one optional part, and know NeoAPRS's options -Q and -G. Only that: the runner has no sound device to count on, and Direwolf ends before it listens
+and the program must be the pinned release, with `cm108-ptt` as its one optional part, and know NeoAPRS's options -Q, -G and -R. Only that: the runner has no sound device to count on, and Direwolf ends before it listens
 when it cannot open one, so the listening on this computer only, the WinMM devices, the stop at the end of its input and a CM108 key are the Windows VM's (docs/direwolf.md). Run with the Python that has NeoAPRS installed."""
 import subprocess
 import sys
@@ -18,9 +18,9 @@ def check(text: str) -> list[str]:
     optional = next((line.split(":", 1)[1].split() for line in text.splitlines() if line.startswith("Includes optional support for:")), [])
     if optional != ["cm108-ptt"]:
         wrong.append(f"its optional parts are {' '.join(optional) or 'none'}, not cm108-ptt alone")
-    for option in ("-Q ", "-G pct"):
+    for option in ("-Q ", "-G pct", "-R ms"):
         if option not in text:
-            wrong.append(f"it has no option {option.split()[0]} (packaging/direwolf/quit.patch and txlevel.patch)")
+            wrong.append(f"it has no option {option.split()[0]} (packaging/direwolf/quit.patch, txlevel.patch and rxlevel.patch)")
     return wrong
 
 

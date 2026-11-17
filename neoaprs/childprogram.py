@@ -270,8 +270,9 @@ class Program:
         for raw in process.stdout:
             line = raw.rstrip()
             if line:
-                self.last_lines.append(line)
-                self._tell(line)
+                if not self._unlogged(line):
+                    self.last_lines.append(line)
+                    self._tell(line)
                 if self._process is process:
                     self._heard(line, loop)
         code = process.wait()
@@ -282,6 +283,10 @@ class Program:
 
     def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
         """A line of this run, on the reader thread: what the subclass does with it (tells the loop with `call_soon_threadsafe`); nothing here."""
+
+    def _unlogged(self, line: str) -> bool:
+        """Whether the line is one the daemon reads and the log never has (neither counted among the first lines of a run nor among its last); none here."""
+        return False
 
     def _warning(self, line: str) -> str | None:
         """The words a warning or an error of the program is counted by (the same warning again is the same words); None for any other line."""

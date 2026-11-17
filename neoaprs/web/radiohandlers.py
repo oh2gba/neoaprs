@@ -15,12 +15,13 @@ from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.coded import CodedError, code_of
 from neoaprs.config import can_transmit
 from neoaprs.radioregistry import LiveRadio
+from neoaprs.direwolfmodem import DirewolfModem
 from neoaprs.mercurymodem import Mercury
 from neoaprs.radiospec import KIND_WORDS, RadioError, RadioId, RadioSpec, live, log_name
 from neoaprs.radiotype import RadioTypeError
 
 from .dispatch import Ctx, UserError, command
-from .radiowire import RadioAdd, RadioChange, RadioKeyTest, RadioRemove, RadioScope, RadioTune, StationRadio
+from .radiowire import RadioAdd, RadioChange, RadioKeyTest, RadioLevel, RadioRemove, RadioScope, RadioTune, StationRadio
 from .radioview import removed_name
 from .tncwire import Frequencies
 from .views import on_their_way
@@ -201,6 +202,22 @@ async def radio_scope(ctx: Ctx, cmd: RadioScope) -> None:
     if not isinstance(modem, Mercury) or not radio.rtype.can.scope:
         raise UserError(f"{cmd.cmd}: radio {radio.name} has no scope", "radio.no_scope", params={"name": radio.name, "radio": radio.id})
     ctx.scopes.feed(radio.id, modem).ask(ctx.conn, True)
+
+
+@command(RadioLevel)
+async def radio_level(ctx: Ctx, cmd: RadioLevel) -> None:
+    """This page shows the radio's receive level: it is sent the level its Direwolf says ten times a second, or no more of it. A radio that is none, or whose type has no receive level, is refused when it is
+    asked for, never when it is stopped."""
+    if ctx.levels is None:
+        return
+    if not cmd.on:
+        ctx.levels.stop(ctx.conn, cmd.radio)
+        return
+    radio = named_radio(ctx, cmd.cmd, cmd.radio)
+    modem = radio.driver.modem
+    if not isinstance(modem, DirewolfModem) or not radio.rtype.can.rx_level:
+        raise _no_modem(cmd.cmd, radio)
+    ctx.levels.ask(ctx.conn, radio.id, modem)
 
 
 @command(StationRadio)

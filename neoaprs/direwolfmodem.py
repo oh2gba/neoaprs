@@ -8,7 +8,7 @@ that died, as the Mercury modem's pair is). The settings name the card and the k
 WinMM numbers are found first (winmm.py), and a Direwolf that says it chose another device is ended at once, before its KISS port exists.
 
 Direwolf says what it does: `Ready to accept KISS TCP client` (running), `Bind failed` (its port taken: another is chosen), a sound card or a keying device that cannot be opened (waiting, with the reason the page
-puts in its words), `PTT 0 = 1/0` (keyed), `DCD 0 = 1/0` (busy) and the receive level, every two seconds and at every packet heard (`rx_level`). Tune and the keying test are Direwolf's own calibration runs (`-x`): the radio's Direwolf is stopped
+puts in its words), `PTT 0 = 1/0` (keyed), `DCD 0 = 1/0` (busy) and the receive level, every two seconds and at every packet heard (`rx_level`), and ten times a second for the pages that show it (`level_now`). Tune and the keying test are Direwolf's own calibration runs (`-x`): the radio's Direwolf is stopped
 cleanly, the run keys the radio for TUNE_SEC or KEY_TEST_SEC, and the radio's Direwolf is started again on the same port; meanwhile the hold is on, so the services wait as they wait for any radio that is not free."""
 import asyncio
 import logging
@@ -75,6 +75,7 @@ class DirewolfModem(Tuning):
         self.beside: Callable[[str, Sequence[str]], list[str] | None] = usbtie.beside      # the serial ports that are part of the card's interface (None: it cannot be told here)
         self.windows = sys.platform == "win32"
         self._program = direwolfprogram.Program(self._ended, self._line)
+        self.level_now = self._program.level_now                    # the receive level every LEVEL_NOW_MS, for the pages that show it (web/levelfeed.py); the row's `rx_level` changes every STATS_SEC
         self._settings: tuple[str, str, tuple[str, ...]] = ("", "", ())        # the sound card and the keying the settings name ("" for the daemon's choice), and the ports that key no radio
         self._numbers: tuple[int, int] | None = None
         self._lists, self._ending, self._after_test = DeviceLists(), "", False

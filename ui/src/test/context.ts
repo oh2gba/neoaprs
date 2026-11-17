@@ -6,6 +6,7 @@ import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useFindRadio } from "@/composables/useFindRadio";
 import { usePanel } from "@/composables/usePanel";
+import { useRadioAsks } from "@/composables/useRadioAsks";
 import { useScopeLooks, type ScopeLooks } from "@/composables/useScopeLooks";
 import { scopeMemories } from "@/composables/useScopeRows";
 import { pageVisible } from "@/composables/useVisible";
@@ -89,6 +90,8 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     lastError,
     connection,
     scope: scopeOf(over, sender, connection, radios),
+    level: over.level ?? useRadioAsks("radio_level", sender, connection, pageVisible(), () => null),
+    radioLevels: part(over.radioLevels, new Map()),
     version: part(over.version, ""),
     install: part(over.install, null),
     local: part(over.local, true),

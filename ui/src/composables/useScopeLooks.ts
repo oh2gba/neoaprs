@@ -1,10 +1,11 @@
-// Who is looking at a radio's scope, counted in one place: the box of a radio in Settings (composables/useHfScope.ts) and the monitor card over the map (components/MonitorCard.vue) each say `look` while they show the picture, and of
-// which radio, and the page asks the daemon for that radio's rows (`radio_scope`) while at least one does, this page is in front, the radio has a scope now (it is on, its type has one and its modem the interface that makes
-// the rows) and the socket is open; asked again when the socket was open anew, since the daemon forgets a page that left. Nobody looking, no rows. Each radio looked at is asked for at once, in frames that name their
-// radio, so that the page keeps each radio's rows apart (composables/useScopeRows.ts). Here too is the radio the monitor card shows: the one chosen in the map's menu, remembered by this browser, else the one it showed, else the first that has a scope. The card leaves its radio only when that radio can have no scope (it is
+// Who is looking at a radio's scope, counted in one place (composables/useRadioAsks.ts, as a Sound card radio's receive level is): the box of a radio in Settings (composables/useHfScope.ts) and the monitor card over the map
+// (components/MonitorCard.vue) each say `look` while they show the picture, and of which radio, and the page asks the daemon for that radio's rows (`radio_scope`) while at least one does, this page is in front, the radio has a
+// scope now (it is on, its type has one and its modem the interface that makes the rows) and the socket is open. Each radio looked at is asked for at once, in frames that name their radio, so that the page keeps each
+// radio's rows apart (composables/useScopeRows.ts). Here too is the radio the monitor card shows: the one chosen in the map's menu, remembered by this browser, else the one it showed, else the first that has a scope. The card leaves its radio only when that radio can have no scope (it is
 // off, removed, or of a type without one): while its modem is without the interface for a moment (started again), the card stays on it.
-import { computed, onBeforeUnmount, shallowRef, watch, type Ref } from "vue";
+import { computed, type Ref } from "vue";
 import { usePersistedNumber } from "@/composables/usePersisted";
+import { useRadioAsks } from "@/composables/useRadioAsks";
 import type { Connection } from "@/lib/hub";
 import type { RadioId } from "@/lib/radios";
 import type { Command, RadioRow } from "@/protocol/protocol";
@@ -62,23 +63,7 @@ export function useScopeLooks(
   const has = (radio: RadioId): boolean => radios.value.includes(radio);
   const first = (): RadioId | null => radios.value[0] ?? null;
 
-  /** The panes looking now, each by the radio it looks at. */
-  const looking = shallowRef<readonly (() => RadioId | null)[]>([]);
-  const asked = computed<readonly RadioId[]>((old) => {
-    const wanted = new Set(visible.value && connection.value === "open" ? looking.value.map((pane) => pane()) : []);
-    const ids = radios.value.filter((radio) => wanted.has(radio));
-    return old !== undefined && old.length === ids.length && ids.every((id, i) => id === old[i]) ? old : ids;
-  });
-  // at once, not on the next tick: a pane that looks from its first moment asks in that moment; each radio started and stopped on its own, in frames that name it
-  // (a socket that is closed says no to nothing: the daemon forgets the page by itself)
-  watch(
-    asked,
-    (now, was = []) => {
-      if (connection.value === "open") for (const radio of was.filter((id) => !now.includes(id))) send({ cmd: "radio_scope", radio, on: false });
-      for (const radio of now.filter((id) => !was.includes(id))) send({ cmd: "radio_scope", radio, on: true });
-    },
-    { flush: "sync" },
-  );
+  const { asked, lookers, look: looks } = useRadioAsks("radio_scope", send, connection, visible, () => radios.value);
 
   /** The radio can have a scope (before the topic `radios` is told: it has one now). */
   const keeps = (radio: RadioId): boolean => (parts.radios?.value ? canHave(parts.radios.value, radio) : has(radio));
@@ -89,29 +74,15 @@ export function useScopeLooks(
     return first();
   });
 
-  function look(looks: () => boolean, radio: () => RadioId | null = first): void {
-    const pane = (): RadioId | null => radio(); // (its own, so that two panes of the same radio are two)
-    let now = false;
-    const set = (on: boolean): void => {
-      if (on === now) return;
-      now = on;
-      looking.value = on ? [...looking.value, pane] : looking.value.filter((other) => other !== pane);
-    };
-    const stop = watch(looks, set, { immediate: true, flush: "sync" });
-    onBeforeUnmount(() => {
-      stop();
-      set(false);
-    });
-  }
   return {
     radios,
     available: computed(() => radios.value.length > 0),
     has,
     asked,
     wanted: computed(() => asked.value.length > 0),
-    lookers: computed(() => looking.value.length),
+    lookers,
     monitor,
     showOnMonitor: (radio) => void (chosen.value = radio),
-    look,
+    look: (looking, radio = first) => looks(looking, radio),
   };
 }

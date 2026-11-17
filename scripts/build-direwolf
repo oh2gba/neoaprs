@@ -16,10 +16,10 @@ data files, the licences of Direwolf and of the code it compiles in, and the sou
 
 The version, the commit, the URL and the SHA-256 of the source are the pins at the top of neoaprs/direwolf.py and nowhere else: the archive is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build) and
 checked against the pin, and a different file is refused (so is a build while the SHA-256 is not pinned). The tree is built in build/direwolf/work/ (work-windows/ with --windows) with CMake, Release, without the unit
-tests, the announcement on the LAN (DNS-SD), gpsd, hamlib and libgpiod (NeoAPRS has its own GPS; an FM interface keys on RTS or DTR, a CM108 pin or VOX; GPIO keying on a Pi is not in this build). Four patches of
+tests, the announcement on the LAN (DNS-SD), gpsd, hamlib and libgpiod (NeoAPRS has its own GPS; an FM interface keys on RTS or DTR, a CM108 pin or VOX; GPIO keying on a Pi is not in this build). Six patches of
 packaging/direwolf/ are applied first, each checked in the source after it: every listener bound to 127.0.0.1 (loopback.patch: Direwolf's KISS and AGW ports and its UDP audio input have no password and bind every
-interface), each line of its output flushed (flush.patch: Windows buffers a pipe), `-Q` (quit.patch: the end of its standard input ends it as a Ctrl-C does, its keying outputs set to 0) and `-G` (txlevel.patch: the
-transmit level). The program proves what it holds: its banner says the pinned release with `cm108-ptt` as its one optional part, and on Linux a run on its UDP audio input listens on 127.0.0.1 alone and ends with
+interface), each line of its output flushed (flush.patch: Windows buffers a pipe), `-Q` (quit.patch: the end of its standard input ends it as a Ctrl-C does, its keying outputs set to 0), `-G` (txlevel.patch: the
+transmit level), `-R` (rxlevel.patch: the receive level every so many milliseconds of audio read) and a configuration path of any length (confpath.patch: `-c` was cut at 99 characters). The program proves what it holds: its banner says the pinned release with `cm108-ptt` as its one optional part, and on Linux a run on its UDP audio input listens on 127.0.0.1 alone and ends with
 "QRT" and exit 0 within a few seconds of its input closing. A program for Windows cannot be run here: its import table is read instead and its banner's bytes are looked for (the release workflow's VM proves the rest).
 Needs cmake, gcc, g++, make, patch, pkg-config, libasound2-dev and libudev-dev on Linux (Ubuntu 22.04 in the release workflow, whose glibc is the floor of the AppImage and the .deb). How it is used: docs/direwolf.md."""
 import argparse
@@ -57,11 +57,13 @@ _PINS = pins()
 VERSION, SOURCE_COMMIT, SOURCE_URL, SOURCE_SHA256, BANNER = _PINS["VERSION"], _PINS["SOURCE_COMMIT"], _PINS["SOURCE_URL"], _PINS["SOURCE_SHA256"], _PINS["BANNER"]
 
 PACKAGING = ROOT / "packaging" / "direwolf"
-PATCHES = ("loopback.patch", "flush.patch", "quit.patch", "txlevel.patch")         # in this order: the last two change the same option string
+PATCHES = ("loopback.patch", "flush.patch", "quit.patch", "txlevel.patch", "rxlevel.patch", "confpath.patch")         # in this order: quit, txlevel and rxlevel change the same option string
 TOOLCHAIN = PACKAGING / "mingw-w64.cmake"
 LISTENER_FILES = ("src/kissnet.c", "src/server.c", "src/audio.c", "src/audio_win.c")          # every place Direwolf binds a socket; no INADDR_ANY and no getaddrinfo(NULL may be left in them
 FLUSH_FILE, FLUSH_LINE = "src/textcolor.c", "fflush (stdout);"
-OPTIONS_FILE, OPTIONS = "src/direwolf.c", "AI:i:QG:\""                              # the end of the option string with -Q and -G
+OPTIONS_FILE, OPTIONS = "src/direwolf.c", "AI:i:QG:R:\""                            # the end of the option string with -Q, -G and -R
+LEVEL_FILE, LEVEL_LINE = "src/audio_stats.c", 'dw_printf ("RXLEVEL 0 = %d\\n", alevel0.rec);'      # the line of -R (rxlevel.patch), which neoaprs/direwolf.py reads
+CONF_PATH_LINE = "char config_file[4096];"                                           # the room of the path given with -c (confpath.patch; it was 100)
 WORK, DEFAULT_OUT = ROOT / "build" / "direwolf" / "work", ROOT / "build" / "direwolf" / "dist"
 WORK_WINDOWS, DEFAULT_OUT_WINDOWS = ROOT / "build" / "direwolf" / "work-windows", ROOT / "build" / "direwolf" / "dist-windows"
 ALSA_DATA = Path("/usr/share/alsa")
@@ -91,7 +93,7 @@ def fetch_source() -> Path:
 
 
 def apply_patches(tree: Path) -> None:
-    """The four patches, each held in the source after it: a new pin that moved the lines is found here and not by an operator on a LAN."""
+    """The six patches, each held in the source after it: a new pin that moved the lines is found here and not by an operator on a LAN."""
     for name in PATCHES:
         buildtool.apply_patch(tree, PACKAGING / name)
     for name in LISTENER_FILES:
@@ -100,8 +102,13 @@ def apply_patches(tree: Path) -> None:
             raise BuildError(f"{name} still binds a socket on every interface after loopback.patch")
     if FLUSH_LINE not in (tree / FLUSH_FILE).read_text(encoding="latin-1"):
         raise BuildError(f"{FLUSH_FILE} has no {FLUSH_LINE} after flush.patch")
-    if OPTIONS not in (tree / OPTIONS_FILE).read_text(encoding="latin-1"):
-        raise BuildError(f"{OPTIONS_FILE} has no -Q and -G after quit.patch and txlevel.patch")
+    options = (tree / OPTIONS_FILE).read_text(encoding="latin-1")
+    if OPTIONS not in options:
+        raise BuildError(f"{OPTIONS_FILE} has no -Q, -G and -R after quit.patch, txlevel.patch and rxlevel.patch")
+    if LEVEL_LINE not in (tree / LEVEL_FILE).read_text(encoding="latin-1"):
+        raise BuildError(f"{LEVEL_FILE} does not say the receive level after rxlevel.patch")
+    if CONF_PATH_LINE not in options:
+        raise BuildError(f"{OPTIONS_FILE} still cuts the configuration's path after confpath.patch")
 
 
 def commands(tree: Path, windows: bool = False) -> list[list[str]]:
@@ -210,6 +217,8 @@ def source_offer(flags: str, notes: str) -> str:
         "Changes to the source: src/textcolor.c flushes each line it prints, so that the lines reach the program that reads them as they are written, also on Windows, whose C runtime buffers a pipe (packaging/direwolf/flush.patch of NeoAPRS).\n"
         "Changes to the source: src/direwolf.c has the option -Q: the end of standard input ends the program as a Ctrl-C does, every keying output set to 0 (packaging/direwolf/quit.patch of NeoAPRS).\n"
         "Changes to the source: src/direwolf.c has the option -G pct, the transmit level as a percentage of full scale, which was the constant 100 (packaging/direwolf/txlevel.patch of NeoAPRS).\n"
+        "Changes to the source: src/direwolf.c and src/audio_stats.c have the option -R ms: the receive level of channel 0 every ms milliseconds of audio read, as a line of its own (packaging/direwolf/rxlevel.patch of NeoAPRS).\n"
+        "Changes to the source: src/direwolf.c takes a configuration path (-c) of up to 4095 characters, where it cut it at 99 (packaging/direwolf/confpath.patch of NeoAPRS).\n"
         "This product includes software developed by the National Geospatial-Intelligence Agency (GEOTRANS, external/geotranz; see LICENSE-geotranz.txt).\n"
         f"Date: {datetime.date.today().isoformat()}\n")
 
@@ -291,6 +300,8 @@ def check(folder: Path, windows: bool = False) -> None:
     print("  " + buildtool.check_links(folder / "direwolf", folder, NEEDED_OK, NEEDED_NEVER, OWN_LIBS).replace("\n", "\n  ").rstrip())
     shown = subprocess.run([program, "-h"], env=env, check=False, text=True, capture_output=True, timeout=60)
     print("  " + check_banner(shown.stdout + shown.stderr))
+    if "-R ms" not in shown.stdout + shown.stderr:
+        raise BuildError(f"the program has no option -R (rxlevel.patch):\n{shown.stdout}{shown.stderr}")
     print("  " + check_quit(program, env))
     listed = subprocess.run([str(folder / "dev" / "cm108")], env=env, check=False, text=True, capture_output=True, timeout=60)
     if "error while loading shared libraries" in listed.stdout + listed.stderr or listed.returncode in (126, 127):

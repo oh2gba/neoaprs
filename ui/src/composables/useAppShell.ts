@@ -22,6 +22,7 @@ import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { usePageAlerts } from "@/composables/usePageAlerts";
 import { usePanel } from "@/composables/usePanel";
+import { useRadioAsks } from "@/composables/useRadioAsks";
 import { useScopeLooks } from "@/composables/useScopeLooks";
 import { useSettings } from "@/composables/useSettings";
 import { useSkeds } from "@/composables/useSkeds";
@@ -238,6 +239,7 @@ export function useAppShell() {
     blocked: escBlocked,
   });
   const scope = useScopeLooks(send, connection, pageVisible(), { radios: daemon.radios });
+  const level = useRadioAsks("radio_level", send, connection, pageVisible(), () => null);
   const mapwrap = ref<HTMLElement | null>(null); // (the map's box, bound by App.vue)
   const mapWidth = useElementWidth(mapwrap);
   const { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays } = useMapOverlays(scope.available, layout.phone, mapWidth);
@@ -251,6 +253,7 @@ export function useAppShell() {
   provideDaemon({
     ...daemon,
     scope,
+    level,
     weatherSeries: daemon.weatherSeriesByCall,
     ...derived,
     guide,

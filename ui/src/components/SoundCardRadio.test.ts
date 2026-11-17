@@ -102,6 +102,43 @@ describe("a Sound card radio's box", () => {
     expect(box().find(".levelfill").classes()).toContain("clip");
   });
 
+  it("asks for the level ten times a second while its row is in view and follows it, the row's level until it comes, and stops asking when the row goes out of view", async () => {
+    const original = globalThis.IntersectionObserver;
+    let seen: ((entries: { isIntersecting: boolean }[]) => void) | null = null;
+    globalThis.IntersectionObserver = class {
+      constructor(run: (entries: { isIntersecting: boolean }[]) => void) {
+        seen = run;
+      }
+      observe(): void {}
+      disconnect(): void {}
+    } as unknown as typeof IntersectionObserver;
+    const { daemon, wrapper, box } = make();
+    globalThis.IntersectionObserver = original;
+    mounted = wrapper;
+    await flushPromises();
+    const levelAsks = () => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === "radio_level");
+    expect(levelAsks()).toEqual([]);
+    seen!([{ isIntersecting: true }]);
+    expect(levelAsks()).toEqual([{ cmd: "radio_level", radio: 3, on: true }]);
+    await tell(daemon, { radios: radios({ rx_level: 30 }) });
+    await flushPromises();
+    expect(box().find(".levelvalue").text()).toBe("30");
+    await tell(daemon, { radioLevels: new Map([[3, 61]]) });
+    await flushPromises();
+    expect(box().find(".levelvalue").text()).toBe("61");
+    await tell(daemon, { radios: radios({ rx_level: 31 }) });
+    await flushPromises();
+    expect(box().find(".levelvalue").text()).toBe("61"); // (the row's level, every two seconds, does not stand over the level now)
+    await tell(daemon, { radioLevels: new Map([[3, null]]) });
+    await flushPromises();
+    expect(box().find(".levelvalue").text()).toBe("31");
+    seen!([{ isIntersecting: false }]);
+    expect(levelAsks()).toEqual([
+      { cmd: "radio_level", radio: 3, on: true },
+      { cmd: "radio_level", radio: 3, on: false },
+    ]);
+  });
+
   it("is not offered by Add radio, nor as a type to change to, where the installation does not carry its program", async () => {
     const offered = make();
     mounted = offered.wrapper;

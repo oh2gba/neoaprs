@@ -17,6 +17,7 @@ import type {
   PortsMessage,
   RadioRow,
   RadioAddedMessage,
+  RadioLevelMessage,
   RadioSearchMessage,
   StationAlertMessage,
   StationKey,
@@ -55,6 +56,7 @@ function memory() {
     ports: [] as PortsMessage[],
     searches: [] as RadioSearchMessage[],
     added: [] as RadioAddedMessage[],
+    levels: [] as RadioLevelMessage[],
     stationAlerts: [] as StationAlertMessage[],
     rows: [] as ScopeRow[],
     histories: [] as ScopeHistory[],
@@ -96,6 +98,7 @@ function memory() {
     ports: (m) => seen.ports.push(m),
     radioSearch: (m) => seen.searches.push(m),
     radioAdded: (m) => seen.added.push(m),
+    radioLevel: (m) => seen.levels.push(m),
     stationAlert: (m) => seen.stationAlerts.push(m),
     hfScopeRow: (r) => seen.rows.push(r),
     hfScopeHistory: (history) => seen.histories.push(history),
@@ -308,6 +311,16 @@ describe("Hub", () => {
     const { seen, socket } = opened();
     socket.say({ type: "radio_added", id: 3 });
     expect(seen.added).toEqual([{ type: "radio_added", id: 3 }]);
+  });
+
+  it("hands each receive level of a radio asked for to the store, none while its Direwolf does not run", () => {
+    const { seen, socket } = opened();
+    socket.say({ type: "radio_level", radio: 3, level: 48 });
+    socket.say({ type: "radio_level", radio: 3, level: null });
+    expect(seen.levels).toEqual([
+      { type: "radio_level", radio: 3, level: 48 },
+      { type: "radio_level", radio: 3, level: null },
+    ]);
   });
 
   it("hands each alert of a station to the store as it comes, the same words twice as two", () => {

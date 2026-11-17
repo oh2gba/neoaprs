@@ -151,7 +151,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-61 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+62 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -708,6 +708,17 @@ false, or when the page closes, no more. Several radios can be looked at at once
 | `radio` | integer |  | the radio's id, the `id` of its row in the topic `radios` (>= 1) |
 | `on` | boolean |  | true starts the rows for this page, false stops them |
 
+### `radio_level`
+
+The receive level of a Sound card radio as its Direwolf says it ten times a second: with `on`, this page is sent `radio_level` for that radio, the level now at once and then each change, while it shows the
+level (the radio's box is in view); with `on` false, or when the page closes, no more. A page that is behind is skipped. Every page has the slower `modem.rx_level` of the radio's row. Refused, with `on`, for a
+radio that is none (`radio.unknown`) and for one whose type has no receive level (`radio.no_modem`, with its `name`: `can.rx_level` of its row is false); `on` false is never refused.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer |  | the radio's id, the `id` of its row in the topic `radios` (>= 1) |
+| `on` | boolean |  | true starts the levels for this page, false stops them |
+
 ### `station_radio`
 
 Chooses the radio messages to a station go out on (`radio`, or null to leave it to the daemon again: plan rule 3.2, the radio that heard it lately, a local one before HF). It holds from the next attempt on, also of a
@@ -739,7 +750,7 @@ a page that shows it asks again when the row changes.
 
 ## Server to client
 
-20 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+21 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -984,6 +995,15 @@ The track of one station, the answer to `station_track`: what its row's `track` 
 |---|---|---|---|
 | `call` | string |  | the station asked about: a page with several cards open tells the answers apart by it |
 | `points` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed; empty for a station that has sent no position (max 50 items) |
+
+### `radio_level`
+
+A Sound card radio's receive level as it is now, to a page that asked for it (`radio_level`): on Direwolf's own scale, as the row's `modem.rx_level`; null while its Direwolf does not run.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer |  | (>= 1) |
+| `level` | integer \| null |  | (>= 0) |
 
 ## Topics
 

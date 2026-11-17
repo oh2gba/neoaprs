@@ -7,6 +7,7 @@ symbols.c:267-279).
 It is stopped by its own clean way: its standard input is a pipe, and closing it ends the program as a Ctrl-C does (`-Q`, packaging/direwolf/quit.patch: "QRT", every keying output set to 0, a second, exit 0);
 then SIGINT on POSIX, the one signal Direwolf cleans up on (direwolf.c:341); then the kill (`taskkill /T /F` on Windows). A daemon that dies closes the pipe too, so its Direwolf unkeys and ends by itself."""
 import asyncio
+import contextlib
 import logging
 import os
 import signal
@@ -18,7 +19,8 @@ from pathlib import Path
 from . import childprogram
 from .bundled import tools_dir
 from .childprogram import Command
-from .direwolf import CONF_FILE, is_error, kiss_dump
+from .direwolf import CONF_FILE, is_error, kiss_dump, level_now_of
+from .signal import Signal
 
 log = logging.getLogger("neoaprs.direwolf")
 direwolf_log = logging.getLogger("neoaprs.direwolf.program")       # what Direwolf itself prints, one line each
@@ -80,24 +82,45 @@ def end_stale(pid_file: Path) -> bool:
     return childprogram.end_stale(pid_file, lambda pid, written: is_ours(pid, conf, written=written), "Direwolf", signal.SIGINT if sys.platform != "win32" else signal.SIGTERM, STOP_WAIT_SEC)
 
 
+class LevelNow:
+    """The receive level as Direwolf says it every LEVEL_NOW_MS (`-R`, rxlevel.patch), for the pages that show it (web/levelfeed.py) and for nothing else: the latest, None while no run says it, and `changed`
+    at each change of it (a level that stays is not said again). The radio's row keeps the slower `rx_level` of the modem, which every page is sent."""
+
+    def __init__(self) -> None:
+        self.value: int | None = None
+        self.changed: Signal[[int | None]] = Signal("direwolf.level_now")
+
+    def said(self, value: int | None) -> None:
+        if value != self.value:
+            self.value = value
+            self.changed.emit(value)
+
+
 class Program(childprogram.Program):
-    """One run of Direwolf: started with a pipe as its input, read, every line handed to the loop (`on_line`), and told when it ends."""
+    """One run of Direwolf: started with a pipe as its input, read, every line handed to the loop (`on_line`) but the level it says every LEVEL_NOW_MS (`level_now`), and told when it ends."""
     name = "Direwolf"
 
     def __init__(self, on_ended: Callable[[int | None, list[str]], None], on_line: Callable[[str], None] | None = None) -> None:
         super().__init__(on_ended, log, direwolf_log, stdin_pipe=True)
         self._on_line = on_line
+        self.level_now = LevelNow()
 
     def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
-        if self._on_line is not None:
+        if (level := level_now_of(line)) is not None:
+            _on_loop(loop, self.level_now.said, level)
+        elif self._on_line is not None:
             loop.call_soon_threadsafe(self._on_line, line)
+
+    def _read(self, process: subprocess.Popen[str], loop: asyncio.AbstractEventLoop, pid_file: Path | None = None) -> None:
+        super()._read(process, loop, pid_file)
+        if self._process in (None, process):                         # (a run that ended says no level; the reader of a run before the one that runs now says nothing of it)
+            _on_loop(loop, self.level_now.said, None)
 
     def _warning(self, line: str) -> str | None:
         return line if is_error(line) else None
 
-    def _tell(self, line: str) -> None:
-        if not kiss_dump(line):                                      # (the frames of `-d n` are the daemon's to count; the log has the packets already)
-            super()._tell(line)
+    def _unlogged(self, line: str) -> bool:
+        return kiss_dump(line) or level_now_of(line) is not None     # (the frames of `-d n` are the daemon's to count, the log has the packets already; the level ten times a second is the pages')
 
     def _end(self, process: subprocess.Popen[str]) -> None:
         """Its input closed (its own clean end), SIGINT after STOP_WAIT_SEC on POSIX, the kill after another; on Windows the tree ended after the wait."""
@@ -108,3 +131,9 @@ class Program(childprogram.Program):
             childprogram.end_tree(process, STOP_WAIT_SEC)
         elif not self.ask(process, signal.SIGINT, STOP_WAIT_SEC):
             self.kill(process)
+
+
+def _on_loop(loop: asyncio.AbstractEventLoop, call: Callable[[int | None], None], value: int | None) -> None:
+    """The call made on the loop, from the reader thread; nothing once the loop is closed (the daemon ended while a run was read)."""
+    with contextlib.suppress(RuntimeError):
+        loop.call_soon_threadsafe(call, value)

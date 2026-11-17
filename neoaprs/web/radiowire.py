@@ -1,5 +1,5 @@
-"""The commands that name a radio, on the wire: add one, remove one, change its name, type, Enable or place, work its modem (Tune, the keying test, the scope), and choose the radio a station's messages go out on;
-and the message that answers an add. The radios themselves are the topic `radios` (neoaprs/web/tncwire.py `RadioRow`), and a radio's own settings ride `set_config` and the topic `config` under `radio/<id>/<key>`.
+"""The commands that name a radio, on the wire: add one, remove one, change its name, type, Enable or place, work its modem (Tune, the keying test, the scope, the receive level), and choose the radio a station's messages go out on;
+and the messages that answer an add and carry a receive level. The radios themselves are the topic `radios` (neoaprs/web/tncwire.py `RadioRow`), and a radio's own settings ride `set_config` and the topic `config` under `radio/<id>/<key>`.
 Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`.
 
 A radio is named by its id (`radio`, an integer from 1: the `id` of its row). A refusal is an `error` with a code: `radio.unknown` (no radio of that id, or one that is removed), `radio.last_enabled` (the last radio that is on
@@ -79,6 +79,22 @@ class RadioScope(_Command):
     cmd: Literal["radio_scope"]
     radio: RadioRef
     on: bool = Field(description="true starts the rows for this page, false stops them")
+
+
+class RadioLevel(_Command):
+    """The receive level of a Sound card radio as its Direwolf says it ten times a second: with `on`, this page is sent `radio_level` for that radio, the level now at once and then each change, while it shows the
+    level (the radio's box is in view); with `on` false, or when the page closes, no more. A page that is behind is skipped. Every page has the slower `modem.rx_level` of the radio's row. Refused, with `on`, for a
+    radio that is none (`radio.unknown`) and for one whose type has no receive level (`radio.no_modem`, with its `name`: `can.rx_level` of its row is false); `on` false is never refused."""
+    cmd: Literal["radio_level"]
+    radio: RadioRef
+    on: bool = Field(description="true starts the levels for this page, false stops them")
+
+
+class RadioLevelMsg(_Message):
+    """A Sound card radio's receive level as it is now, to a page that asked for it (`radio_level`): on Direwolf's own scale, as the row's `modem.rx_level`; null while its Direwolf does not run."""
+    type: Literal["radio_level"]
+    radio: int = Field(ge=1)
+    level: int | None = Field(ge=0)
 
 
 class StationRadio(_Command):

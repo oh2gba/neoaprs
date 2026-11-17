@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -1257,6 +1257,22 @@ export interface RadioKeyTestCommand {
   cmd: "radio_key_test";
   /** the radio's id, the `id` of its row in the topic `radios` */
   radio: number;
+}
+
+/** The receive level of a Sound card radio as its Direwolf says it ten times a second: with `on`, this page is sent `radio_level` for that radio, the level now at once and then each change, while it shows the level (the radio's box is in view); with `on` false, or when the page closes, no more. A page that is behind is skipped. Every page has the slower `modem.rx_level` of the radio's row. Refused, with `on`, for a radio that is none (`radio.unknown`) and for one whose type has no receive level (`radio.no_modem`, with its `name`: `can.rx_level` of its row is false); `on` false is never refused. */
+export interface RadioLevelCommand {
+  cmd: "radio_level";
+  /** the radio's id, the `id` of its row in the topic `radios` */
+  radio: number;
+  /** true starts the levels for this page, false stops them */
+  on: boolean;
+}
+
+/** A Sound card radio's receive level as it is now, to a page that asked for it (`radio_level`): on Direwolf's own scale, as the row's `modem.rx_level`; null while its Direwolf does not run. */
+export interface RadioLevelMessage {
+  type: "radio_level";
+  radio: number;
+  level: number | null;
 }
 
 /** What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of the type. */

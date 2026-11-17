@@ -1,0 +1,11 @@
+--- a/src/direwolf.c
++++ b/src/direwolf.c
+@@ -227,7 +227,7 @@
+ 	int err;
+ 	//int eof;
+ 	int j;
+-	char config_file[100];
++	char config_file[4096];	/* NeoAPRS: was 100, which cut a longer path given with -c (packaging/direwolf/confpath.patch) */
+ 	int enable_pseudo_terminal = 0;
+ 	struct digi_config_s digi_config;
+ 	struct cdigi_config_s cdigi_config;

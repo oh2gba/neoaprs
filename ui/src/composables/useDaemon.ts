@@ -58,6 +58,7 @@ function useWholeTopics() {
   const refs = {
     radios: radios.radios,
     radioAdded: radios.radioAdded,
+    radioLevels: radios.radioLevels,
     config: shallowRef<ConfigValues | null>(null),
     map: shallowRef<MapState | null>(null),
     selfUpdate: shallowRef<UpdateState | null>(null),
@@ -81,6 +82,7 @@ function useWholeTopics() {
     | "setRadio"
     | "delRadio"
     | "radioAdded"
+    | "radioLevel"
   > = {
     replaceConfig: (value) => (refs.config.value = value),
     replaceMap: (value) => (refs.map.value = value),
@@ -96,17 +98,19 @@ function useWholeTopics() {
 }
 
 /** The topic `radios`, by the radio's id as text: null until the daemon has told it (a daemon of the wire of before never does). A change makes a new map, as the radios are few. And the answer to this page's
- * `radio_add`, the id of the radio it made (its row comes with the topic's next patch). */
+ * `radio_add`, the id of the radio it made (its row comes with the topic's next patch), and the receive level of each Sound card radio this page asked for (`radio_level`), the latest by the radio's id. */
 function useRadioTopic() {
   const radios = shallowRef<ReadonlyMap<string, RadioRow> | null>(null);
   const radioAdded = shallowRef<RadioAddedMessage | null>(null);
-  const handlers: Pick<Store, "replaceRadios" | "setRadio" | "delRadio" | "radioAdded"> = {
+  const radioLevels = shallowRef<ReadonlyMap<number, number | null>>(new Map());
+  const handlers: Pick<Store, "replaceRadios" | "setRadio" | "delRadio" | "radioAdded" | "radioLevel"> = {
     replaceRadios: (rows) => (radios.value = new Map(Object.entries(rows))),
     setRadio: (key, row) => (radios.value = new Map(radios.value ?? []).set(key, row)),
     delRadio: (key) => (radios.value = new Map([...(radios.value ?? [])].filter(([id]) => id !== key))),
     radioAdded: (message) => (radioAdded.value = message),
+    radioLevel: (message) => (radioLevels.value = new Map(radioLevels.value).set(message.radio, message.level)),
   };
-  return { radios, radioAdded, handlers };
+  return { radios, radioAdded, radioLevels, handlers };
 }
 
 /** A hello of a daemon that the page does not go with, after the load that was made for it (lib/reload.ts): the notice is set and the socket closed for good, so that nothing the daemon sends reaches the page and it is not opened again. */

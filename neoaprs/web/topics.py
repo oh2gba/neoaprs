@@ -36,6 +36,7 @@ from neoaprs.bulletin import BulletinRecord
 from neoaprs.config import Config
 from neoaprs.callsign import normal_name
 from neoaprs.controller import Controller
+from neoaprs.direwolfmodem import DirewolfModem
 from neoaprs.mercurymodem import Mercury
 from neoaprs.message import MessageRecord, MessagingError
 from neoaprs.ownbulletin import OwnBulletin
@@ -47,6 +48,7 @@ from neoaprs.signal import Signal
 from neoaprs.station import Station
 
 from .hub import StateHub, Topic
+from .levelfeed import LevelFeed, Leveled, RadioLevels
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
 from .scopefeed import RadioScopes, ScopeFeed
@@ -81,6 +83,7 @@ class Topics:
         self._tell = tell                           # a message to every page that is open, which no topic keeps (an alert set on a station fired)
         self.window = PacketWindow()
         self.scopes = RadioScopes(self._wire_scope)              # the pages that have a radio's scope open (`radio_scope`): the rows are sent to them, not to every page
+        self.levels = RadioLevels(self._wire_level)                           # the pages that show a Sound card radio's receive level (`radio_level`): its level ten times a second goes to them alone
         self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
         self._config = ctl.config                   # the settings the stations were last told with
         self.window.internet = ctl.config.igate_enabled
@@ -226,6 +229,7 @@ class Topics:
         for signal, handler in self._followed():
             signal.disconnect(handler)
         self.scopes.disconnect()
+        self.levels.disconnect()
 
     @staticmethod
     def _wire_scope(feed: ScopeFeed, modem: Mercury, on: bool) -> None:
@@ -236,6 +240,14 @@ class Topics:
         else:
             modem.scope_row.disconnect(feed.row)
             modem.scope_cleared.disconnect(feed.cleared)
+
+    @staticmethod
+    def _wire_level(feed: LevelFeed, modem: Leveled, on: bool) -> None:
+        """A radio's level feed follows its modem's level now, or no more (`RadioLevels` makes one when a page first asks for that radio)."""
+        if on:
+            modem.level_now.changed.connect(feed.said)
+        else:
+            modem.level_now.changed.disconnect(feed.said)
 
     def _station_changed(self, station: Station) -> None:
         self.hub.changed("stations", station.call)
@@ -332,6 +344,7 @@ class Topics:
         self._config = config
         self.hub.changed("radios")                  # (a radio's settings, its Enable, its beacon's interval)
         self.scopes.keep({radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, Mercury)})      # (a radio removed lets go of its modem's rows; the scope is Mercury's)
+        self.levels.keep({radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, DirewolfModem)})
         if radios:
             self.hub.changed("stations")            # (the radio a message to each takes now, and the choices in force)
             self.hub.changed("own_objects")         # (a radio removed has left the objects' radios: OwnObjects.forget_radio)

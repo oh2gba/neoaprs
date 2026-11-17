@@ -4,6 +4,7 @@ the stop by its own clean way (its input closed, then SIGINT, then the kill), a 
 back-off), a program that dies, one that listens on the network, a run of ours left behind, Tune and the keying test as Direwolf's own calibration runs on the same port, the transmit level, the Windows checks of
 the WinMM devices and of several CM108 chips, and the sound card as one resource of the station: two radios on two cards side by side, a third and the HF modem refused on a card that is held, with the holder."""
 import asyncio
+import logging
 import os
 import shlex
 import signal
@@ -91,7 +92,7 @@ async def test_direwolf_is_started_in_the_radios_folder_with_its_configuration_h
     home = radio_folder(tmp_path, 3)
     assert (home / CONF_FILE).read_text(encoding="utf-8") == (f"# written by NeoAPRS at every start\nADEVICE {adevice(CARD, m._numbers)}\nACHANNELS 1\nCHANNEL 0\nMODEM 1200\nPTT /dev/ttyUSB7 RTS\n"
                                                               f"KISSPORT 0\nKISSPORT {m.kiss_port}\nAGWPORT 0\nDNSSD 0\n")
-    assert fakedirewolf.runs(home)[-1][-12:] == ["-c", str(home / CONF_FILE), "-t", "0", "-q", "d", "-a", "2", "-d", "on", "-Q", "-G", "50"][-12:]
+    assert fakedirewolf.runs(home)[-1][-14:] == ["-c", str(home / CONF_FILE), "-t", "0", "-q", "d", "-a", "2", "-R", "100", "-d", "on", "-Q", "-G", "50"][-14:]
     assert set(m.held()) == {Claim("sound_card", CARD, 3), Claim("keying", port("/dev/ttyUSB7"), 3), Claim("modem_ports", str(m.kiss_port), 3)}
     assert (home / PID_FILE).read_text(encoding="ascii") == str(m.pid) and m.describe() == "Direwolf AFSK1200, listening" and m.starts == 1
     pid = m.pid
@@ -136,6 +137,32 @@ async def test_the_receive_level_is_the_level_now_not_the_last_packets_and_none_
     finally:
         await m.stop()
     assert m.rx_level is None and m.wire()["rx_level"] is None, "a Direwolf that does not run hears nothing"
+
+
+async def test_the_level_now_comes_ten_times_a_second_apart_from_the_row_and_never_reaches_the_log(tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Our Direwolf's `-R` line (rxlevel.patch): read into the modem's `level_now` for the pages that show it, a level that stays said once; not the row's `rx_level` (every page has that, every STATS_SEC),
+    not in the log, not among the first lines of a run the log keeps, not among its last; none once the program has ended."""
+    monkeypatch.setattr("neoaprs.direwolf.STATS_SEC", 60)                  # (the statistics line, which the row follows, not within the test)
+    m = modem(tmp_path, idle_level=23)
+    heard: list[int | None] = []
+    m.level_now.changed.connect(heard.append)
+    rows: list[int | None] = []
+    m.changed.connect(lambda: rows.append(m.rx_level))
+    with caplog.at_level(logging.DEBUG, logger="neoaprs.direwolf"):
+        await m.start(CARD, "vox", 0)
+        try:
+            await running(m)
+            asked = fakedirewolf.runs(m.home)[-1]
+            assert asked[asked.index("-R") + 1] == "100"
+            await until(lambda: m.level_now.value == 23)
+            lines = m._program.lines_read
+            await asyncio.sleep(0.5)                                     # (five lines more of the program, each the same level)
+            assert heard == [23] and 23 not in rows and m._program.lines_read == lines
+            assert not any("RXLEVEL" in line for line in m._program.last_lines)
+        finally:
+            await m.stop()
+    assert heard == [23, None] and m.level_now.value is None
+    assert not [record for record in caplog.records if "RXLEVEL" in record.getMessage()]
 
 
 async def test_only_the_first_ready_line_of_a_start_tells_the_line_to_come(tmp_path: Path) -> None:

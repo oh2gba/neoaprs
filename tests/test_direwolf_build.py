@@ -96,8 +96,8 @@ def test_the_configure_leaves_out_what_neoaprs_does_not_use_and_the_windows_buil
         assert line in toolchain
 
 
-def test_the_four_patches_are_there_in_their_order_and_say_what_they_change(build: ModuleType) -> None:
-    assert build.PATCHES == ("loopback.patch", "flush.patch", "quit.patch", "txlevel.patch")
+def test_the_six_patches_are_there_in_their_order_and_say_what_they_change(build: ModuleType) -> None:
+    assert build.PATCHES == ("loopback.patch", "flush.patch", "quit.patch", "txlevel.patch", "rxlevel.patch", "confpath.patch")
     texts = {name: (PACKAGING / name).read_text(encoding="utf-8") for name in build.PATCHES}
     assert {line[6:] for line in texts["loopback.patch"].splitlines() if line.startswith("+++ b/")} == set(build.LISTENER_FILES)
     added = [line for line in texts["loopback.patch"].splitlines() if line.startswith("+") and not line.startswith("+++")]
@@ -105,6 +105,8 @@ def test_the_four_patches_are_there_in_their_order_and_say_what_they_change(buil
     assert "+\tfflush (stdout);" in texts["flush.patch"]
     assert '"hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:Q"' in texts["quit.patch"] and "cleanup_linux (0);" in texts["quit.patch"] and "cleanup_win (CTRL_C_EVENT);" in texts["quit.patch"]
     assert '"hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:QG:"' in texts["txlevel.patch"] and "+static int audio_amplitude = 100;" in texts["txlevel.patch"]
+    assert '"hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:QG:R:"' in texts["rxlevel.patch"] and build.LEVEL_LINE in texts["rxlevel.patch"]
+    assert "audio_amplitude" not in texts["rxlevel.patch"] and "+\t" + build.CONF_PATH_LINE in texts["confpath.patch"] and "-\tchar config_file[100];" in texts["confpath.patch"]
 
 
 def test_the_link_check_refuses_what_the_folder_does_not_carry(build: ModuleType, tmp_path: Path) -> None:
@@ -243,7 +245,8 @@ def test_the_windows_app_takes_direwolf_with_its_data_and_nothing_that_is_not_th
 def test_the_windows_smoke_check_wants_the_pinned_release_cm108_ptt_alone_and_neoaprss_options() -> None:
     smoke = _load("smoke_direwolf", ROOT / "packaging" / "windows" / "smoke_direwolf.py")
     said = (f"Dire Wolf Release {direwolf.VERSION}, November 2025\nIncludes optional support for:  cm108-ptt\n\nUsage: direwolf [options] [ - | stdin | UDP:nnnn ]\n"
-            "    -Q             Exit cleanly at the end of standard input.\n    -G pct         Transmit level, 1 to 100 percent of full scale.\n")
+            "    -Q             Exit cleanly at the end of standard input.\n    -G pct         Transmit level, 1 to 100 percent of full scale.\n"
+            "    -R ms          Receive level of channel 0 every ms milliseconds.\n")
     assert smoke.check(said) == []
-    assert len(smoke.check(said.replace(" cm108-ptt", " hamlib cm108-ptt").replace("-G pct", ""))) == 2
+    assert len(smoke.check(said.replace(" cm108-ptt", " hamlib cm108-ptt").replace("-G pct", "").replace("-R ms", ""))) == 3
     assert smoke.check(said.replace(direwolf.VERSION, "1.7.0"))

@@ -5082,6 +5082,64 @@
       "title": "RadioKeyTestCommand",
       "type": "object"
     },
+    "RadioLevel": {
+      "additionalProperties": false,
+      "description": "The receive level of a Sound card radio as its Direwolf says it ten times a second: with `on`, this page is sent `radio_level` for that radio, the level now at once and then each change, while it shows the\nlevel (the radio's box is in view); with `on` false, or when the page closes, no more. A page that is behind is skipped. Every page has the slower `modem.rx_level` of the radio's row. Refused, with `on`, for a\nradio that is none (`radio.unknown`) and for one whose type has no receive level (`radio.no_modem`, with its `name`: `can.rx_level` of its row is false); `on` false is never refused.",
+      "properties": {
+        "cmd": {
+          "const": "radio_level",
+          "type": "string"
+        },
+        "radio": {
+          "description": "the radio's id, the `id` of its row in the topic `radios`",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "on": {
+          "description": "true starts the levels for this page, false stops them",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cmd",
+        "radio",
+        "on"
+      ],
+      "title": "RadioLevelCommand",
+      "type": "object"
+    },
+    "RadioLevelMsg": {
+      "additionalProperties": false,
+      "description": "A Sound card radio's receive level as it is now, to a page that asked for it (`radio_level`): on Direwolf's own scale, as the row's `modem.rx_level`; null while its Direwolf does not run.",
+      "properties": {
+        "type": {
+          "const": "radio_level",
+          "type": "string"
+        },
+        "radio": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "radio",
+        "level"
+      ],
+      "title": "RadioLevelMessage",
+      "type": "object"
+    },
     "RadioLimits": {
       "additionalProperties": false,
       "description": "What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of the type.",
@@ -8475,6 +8533,7 @@
           "radio_add": "#/$defs/RadioAdd",
           "radio_change": "#/$defs/RadioChange",
           "radio_key_test": "#/$defs/RadioKeyTest",
+          "radio_level": "#/$defs/RadioLevel",
           "radio_remove": "#/$defs/RadioRemove",
           "radio_scope": "#/$defs/RadioScope",
           "radio_tune": "#/$defs/RadioTune",
@@ -8680,6 +8739,9 @@
           "$ref": "#/$defs/RadioScope"
         },
         {
+          "$ref": "#/$defs/RadioLevel"
+        },
+        {
           "$ref": "#/$defs/StationRadio"
         },
         {
@@ -8703,6 +8765,7 @@
           "ports": "#/$defs/PortsMsg",
           "position_history": "#/$defs/PositionHistoryMsg",
           "radio_added": "#/$defs/RadioAddedMsg",
+          "radio_level": "#/$defs/RadioLevelMsg",
           "radio_search": "#/$defs/RadioSearchMsg",
           "release_notes": "#/$defs/ReleaseNotesMsg",
           "signal_series": "#/$defs/SignalSeriesMsg",
@@ -8777,6 +8840,9 @@
         },
         {
           "$ref": "#/$defs/StationTrackMsg"
+        },
+        {
+          "$ref": "#/$defs/RadioLevelMsg"
         }
       ],
       "title": "Message"

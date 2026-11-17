@@ -48,7 +48,7 @@ def test_a_keying_device_that_would_add_a_line_or_a_word_to_the_configuration_is
 
 
 def test_the_command_lines_of_the_run_of_tune_and_of_the_keying_test() -> None:
-    assert command(["direwolf"], "r/direwolf.conf") == ["direwolf", "-c", "r/direwolf.conf", "-t", "0", "-q", "d", "-a", "2", "-d", "on", "-Q", "-G", "100"]
+    assert command(["direwolf"], "r/direwolf.conf") == ["direwolf", "-c", "r/direwolf.conf", "-t", "0", "-q", "d", "-a", "2", "-R", "100", "-d", "on", "-Q", "-G", "100"]
     assert command(["direwolf"], "c", -6)[-2:] == ["-G", "50"], "the transmit level as Direwolf's percentage"
     tune = command(["direwolf"], "c", 0, "tune")
     assert tune == ["direwolf", "-c", "c", "-t", "0", "-d", "on", "-Q", "-G", "100", "-x", "a"]

@@ -103,7 +103,7 @@ Then **Port** and, only when the TNC's manual says so, **Speed** (a NinoTNC need
 - **Sound card**, the interface's card, proposed for you. When no card could be the radio's, the radio waits for one rather than play to the computer's speakers. One sound card is one radio's: a card a Mercury radio holds is refused, and the other way round.
 - **Keying**, proposed from what is plugged in: the CM108 pin of an AIOC, RTS of the interface's own serial port (a Digirig), else VOX. On Linux the lines of the serial ports that sit on one USB hub with the sound card come first in its list. **Test** beside it keys the radio for a second.
 - **Tune**, ten seconds of Direwolf's two tones, for the audio level or finding the radio's sound card, and **Transmit level**, from -20 to 0 dB.
-- **Receive level**, the level of the audio that arrives now, on a bar with its good range in green: a packet should reach the green, and with the radio off the bar is empty.
+- **Receive level**, the level of the audio that arrives now, on a bar with its good range in green: a packet should reach the green, and with the radio off the bar is empty. While you look at it the bar follows the audio ten times a second, so you see at once what choosing another sound card, moving a plug or turning the radio's volume does.
 
 **When it works:** the status line says *connected*, and a packet Direwolf decodes is on the map a moment later.
 

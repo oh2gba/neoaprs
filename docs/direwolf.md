@@ -30,9 +30,9 @@ starts: the system's default device may be the computer's speakers.
 No `MYCALL`: Direwolf asks for it only before it digipeats or gates (`config.c:5690-5720`), and sends KISS frames as given, so a change of the station's call restarts no radio. TXDELAY, TXTAIL, SLOTTIME and PERSIST
 are Direwolf's defaults (300 ms, 100 ms, 100 ms and 63, `audio.h:497-500`); whether 300 ms suits a VOX radio is to be looked at on the air.
 
-The command (`direwolf.command`): `direwolf -c <conf> -t 0 -q d -a 60 -d on -Q -G <pct>`. `-t 0` no colours; `-q d` no description of each packet (NeoAPRS decodes); `-a 60` the audio statistics once a minute (the log,
-DEBUG); `-d o` prints `PTT 0 = 1/0` at each key and unkey, VOX too (`ptt.c:1341-1343`), and `DCD 0 = 1/0` at each carrier; `-d n` prints each frame the line hands it ("<<< Data frame from KISS client application",
-`kiss_frame.c:464`), which the daemon counts and does not log; `-Q` and `-G` are NeoAPRS's patches. The working folder is the program's own (`direwolfprogram.working_folder`), so it reads the `data/tocalls.yaml` and
+The command (`direwolf.command`): `direwolf -c <conf> -t 0 -q d -a 2 -R 100 -d on -Q -G <pct>`. `-t 0` no colours; `-q d` no description of each packet (NeoAPRS decodes); `-a 2` the audio statistics every two seconds
+(the log, DEBUG, and the radio's row: its `rx_level`); `-R 100` the receive level every 100 ms of audio read, `RXLEVEL 0 = N` (rxlevel.patch), which never reaches the log; `-d o` prints `PTT 0 = 1/0` at each key and unkey, VOX too (`ptt.c:1341-1343`), and `DCD 0 = 1/0` at each carrier; `-d n` prints each frame the line hands it ("<<< Data frame from KISS client application",
+`kiss_frame.c:464`), which the daemon counts and does not log; `-Q`, `-G` and `-R` are NeoAPRS's patches. The working folder is the program's own (`direwolfprogram.working_folder`), so it reads the `data/tocalls.yaml` and
 `data/symbols-new.txt` it carries before any of a system Direwolf (`deviceid.c:229-243`, `symbols.c:267-279`).
 
 ## The numbers
@@ -49,11 +49,21 @@ DEBUG); `-d o` prints `PTT 0 = 1/0` at each key and unkey, VOX too (`ptt.c:1341-
 | the keying test | 1 s | the PTT alone (`-x p`); the mark tone (`-x m`) on VOX, which silence does not key |
 | the stop | 3 s, then SIGINT, 3 s, then the kill | its cleanup sleeps one second (`direwolf.c:1695-1699`) |
 
-The level shown is the level as it is now: Direwolf's audio statistics every two seconds (`-a 2`), and each packet's own level when one is heard; null while Direwolf does not run. Between packets it is the channel's noise, or nothing with the radio's squelch closed or the radio off, which is what the bar is for: it shows that audio arrives. (Until 0.20.1 it was the latest packet's level, which stood on the bar for ever.)
+The level shown is the level as it is now. The radio's row in the topic `radios`, which every page has, carries Direwolf's audio statistics every two seconds (`-a 2`) and each packet's own level when one is heard;
+null while Direwolf does not run. A page whose Receive level row is in view asks for more (`radio_level`): the level Direwolf says every 100 ms (`-R 100`), sent to that page alone, in the pattern of the scope's feed
+(`neoaprs/web/levelfeed.py`: the level now at once, then each change; a page that is behind is skipped; nothing is sent, and the level is not followed, while no page looks). Between packets it is the channel's noise,
+or nothing with the radio's squelch closed or the radio off, which is what the bar is for: it shows that audio arrives, and at once when a card is chosen, a plug is moved or the radio's volume is turned. (Until 0.20.1
+it was the latest packet's level, which stood on the bar for ever.)
+
+All three numbers are `demod_get_audio_level` of channel 0 (`demod.c:1069`): half of the peak to peak of the samples read (`demod_process_sample`, `demod.c:986-997`), 100 for a quarter of full scale. The transmit
+level does not scale it: `-G` reaches the tone generators alone (`gen_tone_init`, `dtmf_init`, `morse_init`, `direwolf.c`), and the same audio read at `-G 30` and `-G 100` gives the same number
+(`tests/test_direwolf_real.py`). A level that differs after a change of the Transmit level is the card's or the radio's: each change starts Direwolf again, which opens the card anew (a card with an automatic gain of its own
+may settle at another level from there; not proven on the FTX-1).
 
 ## Running it
 
-- **The lines.** Direwolf's lines carry no severity: the first 30 of a run go to the log at INFO, the error texts the driver reads at INFO counted the first, the tenth and every hundredth time, the rest at DEBUG.
+- **The lines.** Direwolf's lines carry no severity: the first 30 of a run go to the log at INFO, the error texts the driver reads at INFO counted the first, the tenth and every hundredth time, the rest at DEBUG. The
+  frames of `-d n` and the level of `-R` are read and never logged, nor counted among the first lines of a run or kept among its last.
 - **Running** once it says "Ready to accept KISS TCP client application 0 on port N" (`kissnet.c:606`). Then the kernel's table must show the port on 127.0.0.1 alone, or it is ended and not run again.
 - **Its port taken** ("Bind failed", "Some other application is probably already using port N", `kissnet.c:567-574`): it runs on with no KISS, so it is ended and started on another port, and the line follows it.
 - **A sound card that cannot be opened** ("Could not open audio device", "Pointless to continue without audio device", `audio.c:355`, `direwolf.c:1005-1011`) is the reason `sound_card`; **a keying device** ("ERROR can't open device", `ptt.c:945`) the reason `keying`, and so is a CM108 pin that keys nothing: `PTT CM108` with no chip on the card ("Could not determine USB Audio GPIO PTT device", `config.c:2185`: Direwolf would run on unkeyed) or a HID it cannot open or write at a key ("Could not open /dev/hidrawN for write", "Write to … failed", `cm108.c:1013`, `1059`: on Linux the rights of `/dev/hidraw*`), whose run is ended though `PTT 0 = 1` was said. All are started again after the back-off.
@@ -69,7 +79,7 @@ up when the radio was stopped or started again while it waited: no calibration r
 
 ## The build
 
-`scripts/build-direwolf` builds the pinned source with CMake (Release, no unit tests, no DNS-SD, gpsd, hamlib or libgpiod: the module names are those of `cmake/modules/Find*.cmake`), after four patches of
+`scripts/build-direwolf` builds the pinned source with CMake (Release, no unit tests, no DNS-SD, gpsd, hamlib or libgpiod: the module names are those of `cmake/modules/Find*.cmake`), after six patches of
 `packaging/direwolf/`, each held in the source after it:
 
 | patch | what |
@@ -78,9 +88,11 @@ up when the radio was stopped or started again while it waited: no calibration r
 | `flush.patch` | `dw_printf` flushes each line (`textcolor.c`): on Windows the C runtime buffers a pipe |
 | `quit.patch` | `-Q`: a thread reads standard input to its end and runs the cleanup; started after the keying is set up, before the `-x` run and before any port opens; inert when the audio is read from standard input |
 | `txlevel.patch` | `-G pct`: the transmit level, 1 to 100 |
+| `rxlevel.patch` | `-R ms`: the receive level of channel 0 every ms milliseconds (10 to 60000) of audio read, as `RXLEVEL 0 = N` on a line of its own (`audio_stats.c`, called with each buffer read on Linux and on Windows): the samples are counted, no timer of the system; the number is the statistics line's |
+| `confpath.patch` | the path given with `-c` has room for 4095 characters (`direwolf.c`, `config_file[100]` cut it at 99: "Could not open configuration file", and a data folder with a long path started no Sound card radio). On Windows the path is then held to Windows's own 259 (`_fullpath` into `PATH_MAX`, `config.c:971`) |
 
 Linux (Ubuntu 22.04, x86-64 and arm64): RUNPATH `$ORIGIN/lib`, `lib/libasound.so.2` and `lib/libudev.so.1` of the build machine (CM108 keying on Linux needs udev, `cm108.c:818-848`), `share/alsa/` without `ucm`,
-`ucm2` and `topology`; `dev/` holds `gen_packets`, `atest` and `cm108` for the tests. The build runs the program: the banner must say the pinned release with `cm108-ptt` as its one optional part, and a quit run on
+`ucm2` and `topology`; `dev/` holds `gen_packets`, `atest` and `cm108` for the tests. The build runs the program: the banner must say the pinned release with `cm108-ptt` as its one optional part, its usage must list `-R`, and a quit run on
 the UDP audio input must listen on 127.0.0.1 alone and end with "QRT" and exit 0 within 3 s of its input closing. Windows (cross-built in Debian trixie with MinGW-w64, `packaging/direwolf/mingw-w64.cmake`,
 linked `-static -s`): the import table must name Windows's own DLLs alone, no MinGW DLL and no `dsound.dll`, and the file must hold the banner's format string `Dire Wolf Release %d.%d.%d, November 2025` (the
 version is not a literal in the program). The release's Windows job asks the frozen app for its Direwolf (`neoaprs.exe db radios add direwolf`, refused with 2 where `direwolfprogram.find()` does not find it), and the install proof

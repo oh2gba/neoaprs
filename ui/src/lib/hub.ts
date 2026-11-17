@@ -14,6 +14,7 @@ import type {
   PacketRow,
   PortsMessage,
   RadioAddedMessage,
+  RadioLevelMessage,
   RadioRow,
   RadioSearchMessage,
   StationAlertMessage,
@@ -54,6 +55,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   ports: "ports",
   radio_search: "radioSearch",
   radio_added: "radioAdded",
+  radio_level: "radioLevel",
 };
 
 type TopicName = keyof TopicValues;
@@ -77,6 +79,8 @@ export interface Store {
   ports(message: PortsMessage): void;
   radioSearch(message: RadioSearchMessage): void;
   radioAdded(message: RadioAddedMessage): void;
+  /** a Sound card radio's receive level as it is now, told ten times a second to a page that asked (`radio_level`) */
+  radioLevel(message: RadioLevelMessage): void;
   /** an alert set on a station fired (not an answer: every page is told, once) */
   stationAlert(message: StationAlertMessage): void;
   /** a row of a radio's waterfall, told to a page that asked for its scope: a binary frame, not a message (PROTOCOL.md) */

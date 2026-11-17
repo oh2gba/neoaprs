@@ -1,13 +1,15 @@
 """The Direwolf that scripts/build-direwolf --install builds into the venv, run by the test itself and never by a daemon, with no sound card: on its UDP audio input with -Q it listens on 127.0.0.1 alone and ends
 with "PTT 0 = 0", "QRT" and exit 0 within 3 s of its input closing; on audio read from its standard input (`ADEVICE stdin null`) it decodes the frames its own gen_packets made, as many as its own atest decodes of
-them, and hands each to its KISS client. No configuration has a PTT line (`PTT CM108` would walk the HID devices of the machine). Skipped where the venv has no such Direwolf (a checkout that has not built it),
+them, and hands each to its KISS client; with `-R` it says the receive level every so many milliseconds of the audio it read, the same number whatever its transmit level (`-G`), and it reads a
+configuration whose path is longer than the 99 characters it once cut it at. No configuration has a PTT line (`PTT CM108` would walk the HID devices of the machine). Skipped where the venv has no such Direwolf (a checkout that has not built it),
 and off Linux (the kernel's table of sockets). And the daemon's own driver with the real program on ALSA's `null` device (no sound card of the machine is opened): the line to its KISS port is opened once,
 though this Direwolf says "Ready to accept KISS TCP client application N" again at every client, which the made-up one of the other tests only imitates."""
 import asyncio
 import logging
+import math
+import struct
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -24,6 +26,7 @@ from neoaprs.radioregistry import make_driver
 from neoaprs.radiospec import RadioSpec
 from neoaprs.source import Source
 from neoaprs.childprogram import environment
+from neoaprs.direwolf import LEVEL_NOW_MS, level_now_of
 
 FOLDER = tools_dir() / "direwolf"
 PROGRAM = FOLDER / "direwolf"
@@ -102,22 +105,55 @@ async def test_it_decodes_the_frames_of_its_own_gen_packets_and_hands_each_to_it
             child.kill()
 
 
-async def test_the_daemons_line_to_it_is_opened_once_though_it_says_ready_again_at_every_client(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def _sine(seconds: float, amplitude: int, rate: int = 44100) -> bytes:
+    """A 1000 Hz tone of this amplitude as Direwolf reads its standard input: 16-bit little-endian samples, one channel."""
+    return b"".join(struct.pack("<h", round(amplitude * math.sin(2 * math.pi * 1000 * n / rate))) for n in range(round(seconds * rate)))
+
+
+def _levels_heard(folder: Path, gain: int, audio: bytes) -> tuple[list[int], str]:
+    """Direwolf on audio read from its standard input (`ADEVICE stdin null`) at the transmit level `gain` with `-R`: the levels it said, and all it said. It ends at the end of its input."""
+    done = subprocess.run([str(PROGRAM), "-c", str(_conf(folder, "stdin null", 17431)), "-t", "0", "-q", "d", "-G", str(gain), "-R", str(LEVEL_NOW_MS)], cwd=folder, env=environment([str(PROGRAM)]),
+                          input=audio, capture_output=True, timeout=60, check=False)
+    said = (done.stdout + done.stderr).decode("utf-8", "replace")
+    return [level for line in said.splitlines() if (level := level_now_of(line)) is not None], said
+
+
+def test_its_receive_level_comes_every_tenth_of_a_second_of_audio_and_no_transmit_level_scales_it(tmp_path: Path) -> None:
+    """The owner's station read a lower idle level at -G 100 than at -G 71 (17 November 2026): the same audio at two transmit levels gives the same receive level here, so it was not the program's doing
+    (the transmit level reaches the tone generators alone: gen_tone_init, dtmf_init and morse_init in direwolf.c; the receive level is demod_get_audio_level's, of the samples read). Counted in the samples read,
+    so the audio written faster than real time still gives one level every LEVEL_NOW_MS of it."""
+    audio = _sine(3.0, 8000)
+    low, said = _levels_heard(tmp_path, 30, audio)
+    full, _ = _levels_heard(tmp_path, 100, audio)
+    assert len(low) == len(full) and 3000 // LEVEL_NOW_MS - 2 <= len(low) <= 3000 // LEVEL_NOW_MS, said
+    assert low == full and 45 <= low[-1] <= 53, (low, full)             # (half of peak to peak, on its scale of 100 for a quarter of full scale: 8000/16384·100/2 is 49)
+    assert _levels_heard(tmp_path, 100, _sine(1.0, 16000))[0][-1] > 2 * low[-1] - 5
+
+
+def test_it_reads_a_configuration_whose_path_is_longer_than_99_characters(tmp_path: Path) -> None:
+    folder = tmp_path / ("a-data-folder-with-a-long-name-" * 4)
+    folder.mkdir()
+    assert len(str(folder / "direwolf.conf")) > 140
+    levels, said = _levels_heard(folder, 100, _sine(0.5, 8000))
+    assert "Could not open configuration file" not in said and f"Reading config file {folder / 'direwolf.conf'}" in said and levels, said      # (it ended at once there, exit 1: config.c)
+
+
+async def test_the_daemons_line_to_it_is_opened_once_though_it_says_ready_again_at_every_client(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
     """The daemon's Sound card radio with the real program: started by the modem, its line pointed at the KISS port when Direwolf says it listens (wiring.py ties `ports_changed` to the registry's repoint, as here).
-    This Direwolf offers the next place as soon as our line has attached; taken as a start, that opened the line three times a second for ever (0.20.0, 0.20.1)."""
+    This Direwolf offers the next place as soon as our line has attached; taken as a start, that opened the line three times a second for ever (0.20.0, 0.20.1). In a data folder whose path is long: Direwolf
+    cut the path of its configuration at 99 characters, and started no Sound card radio there (confpath.patch)."""
     from tests.support.modemports import base_of_this_test
 
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
     radio = RadioSpec(3, "fm", "direwolf", "", True, 3, settings={"sound_card": "null", "keying": "vox", "tx_gain_db": "0", "beacon": "true", "path": "", "digipeat": "false"})
-    with tempfile.TemporaryDirectory(prefix="dw") as short:              # (a folder of its own with a short name: Direwolf cuts the path of its configuration at 99 characters, and pytest's folders are longer)
-        await _opened_once(Path(short), radio, caplog)
+    await _opened_once(tmp_path / ("a-data-folder-with-a-long-name-" * 4), radio, caplog)
 
 
 async def _opened_once(folder: Path, radio: RadioSpec, caplog: pytest.LogCaptureFixture) -> None:
     from tests.support import fakemercury
     from tests.support.env import until_started
 
-    assert len(str(folder / "radios" / "3" / "direwolf.conf")) < 99, "the temporary folder's path is too long for Direwolf's configuration"
+    assert len(str(folder / "radios" / "3" / "direwolf.conf")) > 140
     driver = make_driver(radio, Claims(), utcnow, folder)
     assert isinstance(driver, DirewolfDriver)
     driver.modem._lister, driver.modem.ports = fakemercury.program, lambda: []      # (no sound card of the machine is listed and no serial port looked at: the card is ALSA's `null`, the keying VOX)
@@ -146,6 +182,9 @@ async def _opened_once(folder: Path, radio: RadioSpec, caplog: pytest.LogCapture
             said = [record.getMessage() for record in caplog.records if "KISS TCP client application" in record.getMessage()]
             assert sum("Attached to KISS TCP client application" in line for line in said) == 1, said
             assert sum(line.startswith("Ready to accept KISS TCP client application") for line in said) == 2, f"this Direwolf says Ready again once a client has attached: {said}"
-            await until_started(lambda: driver.modem.rx_level is not None)       # (its statistics line, every STATS_SEC: the receive level as it is now, which the page's bar follows)
+            await until_started(lambda: driver.modem.rx_level is not None)       # (its statistics line, every STATS_SEC: the receive level as it is now, which the radio's row has)
+            assert driver.modem.level_now.value is not None                     # (and every LEVEL_NOW_MS, for the pages that show it)
+            assert not [record for record in caplog.records if "RXLEVEL" in record.getMessage()]
         finally:
             await driver.stop()
+        assert driver.modem.level_now.value is None

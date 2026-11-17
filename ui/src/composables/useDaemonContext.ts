@@ -5,6 +5,7 @@ import type { Toast } from "@/composables/useDaemon";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import type { FindRadio } from "@/composables/useFindRadio";
 import type { Panel } from "@/composables/usePanel";
+import type { RadioAsks } from "@/composables/useRadioAsks";
 import type { ScopeLooks } from "@/composables/useScopeLooks";
 import type { Settings } from "@/composables/useSettings";
 import type { SetupGuide } from "@/composables/useSetupGuide";
@@ -58,6 +59,10 @@ export interface DaemonContext {
   scopeOf: (radio: RadioId) => ScopeMemory;
   /** who looks at the scope (the box in Settings, the monitor card over the map), counted in one place: the rows are asked for only while someone does */
   scope: ScopeLooks;
+  /** who shows a Sound card radio's receive level (its box in Settings, in view), counted in one place: the level ten times a second is asked for only while someone does */
+  level: RadioAsks;
+  /** the receive level of each Sound card radio asked for (`radio_level`), the latest by the radio's id; null while its Direwolf does not run */
+  radioLevels: Read<ReadonlyMap<RadioId, number | null>>;
   /** the GPS receiver and the moving station's beacon; null until the daemon has told */
   gps: Read<GpsState | null>;
   /** the receive-only iGate: connected or not, what it gated; null until the daemon has told */

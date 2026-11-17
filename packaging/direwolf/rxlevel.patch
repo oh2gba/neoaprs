@@ -1,0 +1,130 @@
+--- a/src/audio_stats.c
++++ b/src/audio_stats.c
+@@ -63,6 +63,7 @@
+ #include <time.h>
+ 
+ 
++#include "audio.h"		/* NeoAPRS: for struct audio_s (rxlevel.patch) */
+ #include "audio_stats.h"
+ #include "textcolor.h"
+ #include "demod.h"		/* for alevel_t & demod_get_audio_level() */
+@@ -92,8 +93,49 @@
+  *----------------------------------------------------------------*/
+ 
+ 
++/*
++ * NeoAPRS: -R ms, the receive level of channel 0 every ms milliseconds of audio read, as "RXLEVEL 0 = N" on a line of its own
++ * (packaging/direwolf/rxlevel.patch).  The samples read are counted, so no timer of the system is needed and it is the same on
++ * every system; the level is demod_get_audio_level's, the one of the statistics line, which no transmit level (-G) scales.
++ */
++
++static int level_ms = 0;
++static struct audio_s *level_audio = NULL;
++static long level_count = 0;
++
++void audio_stats_level_init (int ms, struct audio_s *pa)
++{
++	level_ms = ms;
++	level_audio = pa;
++	level_count = 0;
++}
++
++static void audio_stats_level (int adev, int nsamp)
++{
++	long every;
++
++	if (level_ms <= 0 || level_audio == NULL || adev != 0 || nsamp <= 0) {
++	  return;
++	}
++	every = (long) level_audio->adev[0].samples_per_sec * level_ms / 1000;
++	if (every < 1) {
++	  every = 1;
++	}
++	level_count += nsamp;
++	if (level_count >= every) {
++	  alevel_t alevel0 = demod_get_audio_level (ADEVFIRSTCHAN(0), 0);
++
++	  level_count %= every;
++	  text_color_set(DW_COLOR_DEBUG);
++	  dw_printf ("RXLEVEL 0 = %d\n", alevel0.rec);
++	}
++}
++
++
+ void audio_stats (int adev, int nchan, int nsamp, int interval)
+ {
++	audio_stats_level (adev, nsamp);	/* NeoAPRS: -R (rxlevel.patch), whether or not -a is given */
++
+ 
+ 	/* Gather numbers for read from audio device. */
+ 
+--- a/src/audio_stats.h
++++ b/src/audio_stats.h
+@@ -5,3 +5,6 @@
+ 
+ extern void audio_stats (int adev, int nchan, int nsamp, int interval);
+ 
++struct audio_s;
++extern void audio_stats_level_init (int ms, struct audio_s *pa);	/* NeoAPRS: -R ms (packaging/direwolf/rxlevel.patch) */
++
+--- a/src/direwolf.c
++++ b/src/direwolf.c
+@@ -87,6 +87,7 @@
+ 
+ #include "version.h"
+ #include "audio.h"
++#include "audio_stats.h"		/* NeoAPRS: audio_stats_level_init (rxlevel.patch) */
+ #include "config.h"
+ #include "multi_modem.h"
+ #include "demod.h"
+@@ -148,6 +149,7 @@
+ /* The program that started Direwolf closes the pipe to stop it, and a program that dies closes it too, so the radio is never left keyed. */
+ 
+ static int Q_opt = 0;
++static int R_opt = 0;			/* NeoAPRS: -R ms, the receive level every ms milliseconds (packaging/direwolf/rxlevel.patch). */
+ 
+ #if __WIN32__
+ #include <process.h>
+@@ -465,7 +467,7 @@
+ 
+ 	  /* ':' following option character means arg is required. */
+ 
+-          c = getopt_long(argc, argv, "hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:QG:",
++          c = getopt_long(argc, argv, "hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:QG:R:",
+                         long_options, &option_index);
+           if (c == -1)
+             break;
+@@ -788,6 +790,16 @@
+ 	    }
+ 	    break;
+ 
++	  case 'R':			// NeoAPRS: -R ms, the receive level of channel 0 every ms milliseconds (packaging/direwolf/rxlevel.patch)
++
++	    R_opt = atoi(optarg);
++	    if (R_opt < 10 || R_opt > 60000) {
++	      text_color_set(DW_COLOR_ERROR);
++	      dw_printf ("Receive level interval -R must be 10 to 60000 milliseconds.\n");
++	      exit (EXIT_FAILURE);
++	    }
++	    break;
++
+ 	  case 'Q':			// NeoAPRS: -Q, end cleanly at the end of standard input (packaging/direwolf/quit.patch)
+ 
+ 	    Q_opt = 1;
+@@ -1053,6 +1065,8 @@
+ 	  exit (1);
+ 	}
+ 
++	audio_stats_level_init (R_opt, &audio_config);		/* NeoAPRS: -R (rxlevel.patch), once the sample rate is the device's */
++
+ /*
+  * Initialize the demodulator(s) and layer 2 decoder (HDLC, IL2P).
+  */
+@@ -1829,6 +1843,7 @@
+ 	dw_printf ("    -x             Send Xmit level calibration tones.\n");
+ 	dw_printf ("    -Q             Exit cleanly at the end of standard input.\n");
+ 	dw_printf ("    -G pct         Transmit level, 1 to 100 percent of full scale.\n");
++	dw_printf ("    -R ms          Receive level of channel 0 every ms milliseconds.\n");
+ 	dw_printf ("       a             a = Alternating mark/space tones.\n");
+ 	dw_printf ("       m             m = Steady mark tone (e.g. 1200Hz).\n");
+ 	dw_printf ("       s             s = Steady space tone (e.g. 2200Hz).\n");

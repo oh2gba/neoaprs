@@ -416,7 +416,7 @@ jobs:
           overwrite: true
 
   # Direwolf for the Windows installer: built from the pinned source (scripts/build-direwolf --windows) on Linux with the MinGW-w64 cross compilers (C and C++: Direwolf's project enables both), in the Debian
-  # container of mercury-windows, with NeoAPRS's four patches (every port bound to the loopback, each line flushed, -Q and -G). The folder is one program that imports the DLLs of Windows alone, its two data files
+  # container of mercury-windows, with NeoAPRS's six patches (every port bound to the loopback, each line flushed, -Q, -G, -R and a configuration path of any length). The folder is one program that imports the DLLs of Windows alone, its two data files
   # and the licences; the tarball is what the job `windows` packs into the installer (packaging/windows/bundle_tool.py direwolf), which then asks the program who it is (packaging/windows/smoke_direwolf.py).
   direwolf-windows:
     needs: verify

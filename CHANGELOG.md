@@ -5,6 +5,8 @@
 - **Fixed:** Ask around no longer says "by (default)" when the radios it went on have different paths; the line names no path then.
 - **Fixed:** in the Email tab the list of radios beside Check email has its label, Send on.
 - **Changed:** on Linux, a Sound card or Mercury radio's Keying list starts with the serial ports on the radio's own USB hub.
+- **Changed:** a Sound card radio's Receive level follows the audio ten times a second while you look at it.
+- **Fixed:** a Sound card radio did not start when the data folder's path was long.
 
 ## 0.20.2
 

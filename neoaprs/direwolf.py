@@ -4,7 +4,8 @@ direwolfmodem.py, and the Tnc reaches its KISS port as it reaches any KISS serve
 
 Direwolf is AFSK 1200 on FM (MODEM 1200), keying the radio itself (a CM108 pin, RTS or DTR of a serial port, or nothing: VOX), with its own carrier sense and its defaults for TXDELAY, TXTAIL, SLOTTIME and
 PERSIST. It is given no call (it digipeats and gates nothing: NeoAPRS's own digipeater and beacon go over KISS as for any TNC), so a change of the station's call restarts no radio. Every listener of the Direwolf
-NeoAPRS builds binds 127.0.0.1 (packaging/direwolf/loopback.patch), it ends cleanly when its standard input closes (`-Q`, quit.patch) and its transmit level is a percentage (`-G`, txlevel.patch).
+NeoAPRS builds binds 127.0.0.1 (packaging/direwolf/loopback.patch), it ends cleanly when its standard input closes (`-Q`, quit.patch), its transmit level is a percentage (`-G`, txlevel.patch), it says the receive level ten times a second (`-R`, rxlevel.patch)
+and it takes a configuration path of any length (confpath.patch).
 docs/direwolf.md says where each number comes from."""
 import re
 from collections.abc import Sequence
@@ -26,7 +27,8 @@ FIRST_PORT = 8002                      # the first KISS port tried: 8001 is Dire
 PORT_TRIES = 50                        # how many ports are tried from FIRST_PORT up (below Mercury's 8100)
 CONF_FILE = "direwolf.conf"
 PID_FILE = "direwolf.pid"
-STATS_SEC = 2                          # `-a`: a line every two seconds with the sample rate, the audio errors and the receive level as it is now (the page's bar follows it), to the log at DEBUG
+STATS_SEC = 2                          # `-a`: a line every two seconds with the sample rate, the audio errors and the receive level as it is now (the radio's row follows it), to the log at DEBUG
+LEVEL_NOW_MS = 100                     # `-R`: the receive level of channel 0 every 100 ms of audio read, "RXLEVEL 0 = N" (rxlevel.patch), for the pages that show it (web/levelfeed.py); never in the log
 
 # The level of a packet heard, on Direwolf's own scale (direwolf.c:1329-1349): about 50 for most stations, "too high" over 110, "too low" under 5, 199 with the input cranked all the way up. The good band is a choice
 # round Direwolf's 50, not a measurement, as Mercury's good range is (docs/direwolf.md).
@@ -93,12 +95,12 @@ def conf_text(device: str, keying: Keying, kiss_port: int) -> str:
 
 def command(program: Sequence[str], conf_file: str, gain_db: int = 0, test: str = "", vox: bool = False) -> list[str]:
     """The command line that starts Direwolf for NeoAPRS: the program (its path; or an interpreter and a module that stands in for it), the configuration the daemon wrote, no colours, no description of each
-    packet (NeoAPRS decodes), the audio statistics once a minute, the keying and the carrier said as they change (`-d o`), each frame the line hands it said (`-d n`: a test waits for those to go), the end
+    packet (NeoAPRS decodes), the audio statistics every STATS_SEC, the receive level every LEVEL_NOW_MS, the keying and the carrier said as they change (`-d o`), each frame the line hands it said (`-d n`: a test waits for those to go), the end
     at the end of its input (`-Q`) and the transmit level (`-G`). With `test`
     (`tune` or `key`) the calibration run of that test: the mark tone for the keying test of a radio on VOX."""
     argv = [*program, "-c", conf_file, "-t", "0"]
     if not test:
-        argv += ["-q", "d", "-a", str(STATS_SEC)]
+        argv += ["-q", "d", "-a", str(STATS_SEC), "-R", str(LEVEL_NOW_MS)]
     argv += ["-d", "on", "-Q", "-G", str(gain_percent(gain_db))]
     if test:
         argv += ["-x", "m" if test == "key" and vox else TESTS[test]]
@@ -131,6 +133,7 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort], tied: Sequence[st
 _READY = re.compile(r"^Ready to accept KISS TCP client application \d+ on port (\d+)")
 _PORT_TAKEN = re.compile(r"^Some other application is probably already using port (\d+)")
 _LEVEL = re.compile(r" audio level = (\d+)\(|receive audio level CH0 (\d+)")
+_LEVEL_NOW = re.compile(r"^RXLEVEL 0 = (\d+)$")
 _PTT = re.compile(r"^PTT (\d+) = ([01])$")
 _DCD = re.compile(r"^DCD (\d+) = ([01])$")
 _DEVICE = re.compile(r"^ ([* ])  (\d+): (.*?)(?:   \(channels? [\d &]+\))?$")
@@ -196,6 +199,12 @@ def level_of(line: str) -> int | None:
     packet just heard ("OH2XYZ audio level = 48(12/9)   [NONE]   ___|||___"); None for any other line."""
     m = _LEVEL.search(line)
     return int(m.group(1) or m.group(2)) if m else None
+
+
+def level_now_of(line: str) -> int | None:
+    """The receive level of channel 0 as it is now, which `-R` says every LEVEL_NOW_MS ("RXLEVEL 0 = 43", rxlevel.patch); None for any other line."""
+    m = _LEVEL_NOW.match(line)
+    return int(m.group(1)) if m else None
 
 
 def ptt_of(line: str) -> bool | None:

@@ -13,7 +13,8 @@ Every run writes its command line, one line each, to `fake-direwolf-runs.txt` in
 `--cm108-unknown` (`PTT CM108` finds no chip on the card: it says so and runs on unkeyed), `--hidraw-denied` (the chip's HID cannot be opened at each key: it says so after `PTT 0 = 1`), `--busy-sec SECONDS`
 (each frame waits that long for a clear channel before it is sent), `--several-cm108`,
 `--port-taken` (the KISS port is taken: it says so and runs on with no KISS), `--die-after SECONDS`, `--ignore-stdin` (the end of its input does nothing), `--ignore-sigint`, `--listen-any` (it binds every
-interface), `--level N` (the level of the frames it hears, 48 by default)."""
+interface), `--level N` (the level of the frames it hears, 48 by default). With `-R MS` it says "RXLEVEL 0 = N" every MS milliseconds, N the `--idle-level` (0 without it), as our Direwolf does
+(packaging/direwolf/rxlevel.patch)."""
 import asyncio
 import os
 import signal
@@ -138,6 +139,12 @@ class Fake:
             await asyncio.sleep(every)
             say(f"ADEVICE0: Sample rate approx. 44.1 k, 0 errors, receive audio level CH0 {level}")
 
+    async def levels_now(self, every_ms: int, level: int) -> None:
+        """Our Direwolf's `-R`: the receive level of channel 0 every so many milliseconds (packaging/direwolf/rxlevel.patch)."""
+        while True:
+            await asyncio.sleep(every_ms / 1000)
+            say(f"RXLEVEL 0 = {level}")
+
     async def frames(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         while data := await reader.read(4096):
             if "n" in _option(self.argv, "-d"):
@@ -188,6 +195,9 @@ class Fake:
             if "--idle-level" in self.argv:
                 stats = asyncio.ensure_future(self.statistics(float(_option(self.argv, "-a") or 60), int(_option(self.argv, "--idle-level"))))
                 stats.add_done_callback(lambda _: None)
+            if "-R" in self.argv:
+                now = asyncio.ensure_future(self.levels_now(int(_option(self.argv, "-R")), int(_option(self.argv, "--idle-level") or 0)))
+                now.add_done_callback(lambda _: None)
         die_after = float(_option(self.argv, "--die-after")) if "--die-after" in self.argv else None
         try:
             await asyncio.wait_for(self.done.wait(), die_after)

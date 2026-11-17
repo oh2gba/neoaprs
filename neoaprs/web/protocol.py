@@ -35,7 +35,7 @@ from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBul
 from .packetwire import PacketRow, StationTraffic, StationTrafficMsg
 from .portwire import FindRadio, FindRadioCancel, ListPorts, PortsMsg, RadioSearchMsg
 from .qruwire import AskQru, QruState
-from .radiowire import RadioAdd, RadioAddedMsg, RadioChange, RadioKeyTest, RadioRemove, RadioScope, RadioTune, StationRadio
+from .radiowire import RadioAdd, RadioAddedMsg, RadioChange, RadioKeyTest, RadioLevel, RadioLevelMsg, RadioRemove, RadioScope, RadioTune, StationRadio
 from .replaywire import PositionHistory, PositionHistoryMsg
 from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly, StationAlertMsg, StationPref
 from .skedwire import SkedDelete, SkedPost, SkedsState, SkedsWanted
@@ -49,7 +49,7 @@ from .wirebase import _Command, _Message, _Model
 
 # ---- Client to server
 AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, SignalSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, SkedsWanted, SkedPost, SkedDelete, PageError,
-                   RadioAdd, RadioRemove, RadioChange, RadioTune, RadioKeyTest, RadioScope, StationRadio, Frequencies, StationTrack]
+                   RadioAdd, RadioRemove, RadioChange, RadioTune, RadioKeyTest, RadioScope, RadioLevel, StationRadio, Frequencies, StationTrack]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -90,7 +90,7 @@ TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"radios": TypeAdapter(RadioRow), "
 
 
 # ---- Server to client
-AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PositionHistoryMsg, SpeedSeriesMsg, SignalSeriesMsg, StationTrafficMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg, StationAlertMsg, RadioAddedMsg, StationTrackMsg]
+AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PositionHistoryMsg, SpeedSeriesMsg, SignalSeriesMsg, StationTrafficMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg, StationAlertMsg, RadioAddedMsg, StationTrackMsg, RadioLevelMsg]
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""
 

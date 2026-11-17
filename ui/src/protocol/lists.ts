@@ -35,6 +35,7 @@ export const MESSAGE_TYPES = [
   "ports",
   "position_history",
   "radio_added",
+  "radio_level",
   "radio_search",
   "release_notes",
   "signal_series",
