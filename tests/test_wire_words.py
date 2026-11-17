@@ -19,6 +19,7 @@ OWN = {
     "DecodedWeather.raw", "MessageRow.text", "NoteSection.text", "ObjectSet.comment", "OwnBulletinRow.text", "OwnObjectRow.comment", "PageError.message", "PageError.stack", "PositionFields.comment",
     "QruAsked.text", "QruServer.sent", "QueryStation.text", "SendMessage.text", "SkedPost.note", "SkedRow.note", "StationRow.last_comment", "StationRow.last_status", "Status.station_status", "TelemetryBit.name",
     "TelemetryChannel.name", "TelemetryChannel.unit", "TelemetryFields.comment", "TelemetryValues.comment", "TelemetryValues.project", "UpdateInfo.message",
+    "AircraftRow.description", "ShipRow.destination", "ShipRow.name",  # (the map's traffic: what a ship or the aircraft database says of itself)
 }
 # A name or a value: a call, a path, an id, a port or an address, a version, a setting's key and its text, a symbol, a frequency, a key of a topic's table.
 NAME = {
@@ -45,6 +46,8 @@ NAME = {
     "TelemetryFields.bits", "TopicValues.bulletins", "TopicValues.messages", "TopicValues.own_bulletins", "TopicValues.own_objects", "TopicValues.packets", "TopicValues.radios", "TopicValues.station_keys",
     "TopicValues.station_prefs", "TopicValues.stations", "Unsubscribe.topics", "UpdateInfo.url", "UpdateInfo.version", "UpdateNow.version", "UpdateResultMsg.version", "UpdateState.version",
     "WeatherSeries.call", "WeatherSeriesMsg.call",
+    "AircraftRow.category", "AircraftRow.emergency", "AircraftRow.flight", "AircraftRow.hex", "AircraftRow.registration", "AircraftRow.squawk", "AircraftRow.type_code", "ShipRow.call_sign",
+    "TopicValues.aircraft", "TopicValues.ships",
 }
 # The own words of a device or a program, as it says them: what the system calls a port or a sound card, the line of a TNC (its TNC2 text and the Terminal's lines), what a station's device is, the first line an
 # alert command wrote.

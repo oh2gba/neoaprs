@@ -26,6 +26,7 @@ import { useAnswers } from "@/composables/useAnswers";
 import { useOwnTables } from "@/composables/useOwnTables";
 import { useScopeRows } from "@/composables/useScopeRows";
 import { useStationTables } from "@/composables/useStationTables";
+import { useTrafficTables } from "@/composables/useTrafficTables";
 import { usePageErrorReport } from "@/composables/usePageErrorReport";
 import { probe } from "@/lib/access";
 import { Hub, type Connection, type Store } from "@/lib/hub";
@@ -145,8 +146,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const messages = shallowReactive(new Map<string, MessageRow>());
   const messagesLoaded = ref(false); // the daemon has told the messages once: `messages` is then what was there, not a part of it
   const board = useBulletinTable();
-  const own = useOwnTables();
-  const station = useStationTables();
+  const [own, station, traffic] = [useOwnTables(), useStationTables(), useTrafficTables()]; // (the objects and bulletins of ours, the stations' own prefs and keys, the map's ships and aircraft)
   const answers = useAnswers();
   const whole = useWholeTopics();
   const scope = useScopeRows(packets);
@@ -170,6 +170,7 @@ export function useDaemon(url: () => string = socketUrl) {
     replaceBulletins: (rows) => fill(board.bulletins, rows, board.bulletinsLoaded),
     ...own.handlers,
     ...station.handlers,
+    ...traffic.handlers,
     ...answers.handlers,
     ...whole.handlers,
     hfScopeRow: scope.hfScopeRow,
@@ -210,6 +211,7 @@ export function useDaemon(url: () => string = socketUrl) {
     stationKeys: station.stationKeys,
     ownObjects: own.ownObjects,
     ownBulletins: own.ownBulletins,
+    ...traffic.refs,
     ...whole.refs,
     scopeOf: scope.of,
     status,

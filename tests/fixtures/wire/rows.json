@@ -24,6 +24,14 @@
  "config": [
   {
    "defaults": {
+    "adsb/enabled": "false",
+    "adsb/radius_km": "450",
+    "adsb/track_min": "30",
+    "ais/enabled": "false",
+    "ais/hide_still": "false",
+    "ais/radius_km": "450",
+    "ais/track_min": "30",
+    "ais/types": "cargo,tanker,passenger,highspeed,fishing,pleasure,special,other",
     "beacon/antenna_direction": "omni",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_height_m": "0",
@@ -126,6 +134,14 @@
    },
    "urls": [],
    "values": {
+    "adsb/enabled": "false",
+    "adsb/radius_km": "450",
+    "adsb/track_min": "30",
+    "ais/enabled": "false",
+    "ais/hide_still": "false",
+    "ais/radius_km": "450",
+    "ais/track_min": "30",
+    "ais/types": "cargo,tanker,passenger,highspeed,fishing,pleasure,special,other",
     "beacon/antenna_direction": "omni",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_height_m": "0",
@@ -169,6 +185,14 @@
   },
   {
    "defaults": {
+    "adsb/enabled": "false",
+    "adsb/radius_km": "450",
+    "adsb/track_min": "30",
+    "ais/enabled": "false",
+    "ais/hide_still": "false",
+    "ais/radius_km": "450",
+    "ais/track_min": "30",
+    "ais/types": "cargo,tanker,passenger,highspeed,fishing,pleasure,special,other",
     "beacon/antenna_direction": "omni",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_height_m": "0",
@@ -273,6 +297,14 @@
     "http://192.168.1.2:8730"
    ],
    "values": {
+    "adsb/enabled": "false",
+    "adsb/radius_km": "450",
+    "adsb/track_min": "30",
+    "ais/enabled": "false",
+    "ais/hide_still": "false",
+    "ais/radius_km": "450",
+    "ais/track_min": "30",
+    "ais/types": "cargo,tanker,passenger,highspeed,fishing,pleasure,special,other",
     "beacon/antenna_direction": "omni",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_height_m": "0",

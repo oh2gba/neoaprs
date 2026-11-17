@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, the call with its SSID dropdown, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it, and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
+// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, a tickbox for each of a list whose value is the ones ticked separated by commas (`multi`), the call with its SSID dropdown, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it, and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
 // when a choice is made (a list, a switch), `commit` when a typed field is finished with Enter or left (with the element focus went to), `cancel` for Esc in a field that holds a change or a complaint.
 // A `disabled` field is shown greyed with its value, as the My station tab shows what belongs to a beacon that is Off. A typed field with a limit (`count`: the beacon's comment, the status) has the counter of every text with a limit right of it (LeftCounter, as the
 // box to write a message in has), and takes no more than the limit (lib/textlimit.ts typedInto, as every field with a counter): what goes beyond it is cut there, and a value that is already longer can only be made shorter. A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
@@ -38,7 +38,7 @@ const placeholder = computed(() => props.info.empty ?? (props.fallback !== "" ? 
 /** The options of a choice: the words for each value, and the value in force when it is none of them (a setting changed from the shell). */
 const options = computed<Choice[]>(() => {
   const listed = (props.info.choices ?? []).map((c) => (typeof c === "string" ? { value: c, label: c } : c));
-  return props.modelValue === "" || listed.some((c) => c.value === props.modelValue)
+  return props.info.kind === "multi" || props.modelValue === "" || listed.some((c) => c.value === props.modelValue)
     ? listed
     : [...listed, { value: props.modelValue, label: props.info.other?.(props.modelValue) ?? props.modelValue }];
 });
@@ -71,6 +71,18 @@ function onInput(event: Event): void {
   if (choice) emit("choose", value);
 }
 
+/** A tickbox of a list (`multi`): the values ticked, separated by commas, in the order of the choices. */
+const ticked = computed(() => new Set(props.modelValue.split(",").filter((v) => v !== "")));
+function onTick(value: string, event: Event): void {
+  const on = event.target instanceof HTMLInputElement && event.target.checked;
+  const text = options.value
+    .map((c) => c.value)
+    .filter((v) => (v === value ? on : ticked.value.has(v)))
+    .join(",");
+  emit("update:modelValue", text);
+  emit("choose", text);
+}
+
 function onEnter(event: KeyboardEvent): void {
   if (!props.apply) return;
   event.preventDefault();
@@ -86,7 +98,8 @@ function onEscape(event: KeyboardEvent): void {
 
 <template>
   <div class="field" :class="{ changed, invalid: error !== '', disabled }" :title="info.title">
-    <label :for="id">{{ info.label }}</label>
+    <span v-if="info.kind === 'multi'" :id="`${id}-label`" class="field-label">{{ info.label }}</span>
+    <label v-else :for="id">{{ info.label }}</label>
     <div class="field-control">
       <input
         v-if="info.kind === 'bool'"
@@ -120,6 +133,12 @@ function onEscape(event: KeyboardEvent): void {
           </template>
         </template>
       </select>
+      <div v-else-if="info.kind === 'multi'" :id="id" class="multi" role="group" :aria-labelledby="`${id}-label`" :aria-describedby="describedBy">
+        <label v-for="choice in options" :key="choice.value" class="check">
+          <input type="checkbox" :checked="ticked.has(choice.value)" :disabled="disabled" @change="onTick(choice.value, $event)" />
+          {{ choice.label }}
+        </label>
+      </div>
       <CallInput
         v-else-if="info.kind === 'call'"
         :id="id"

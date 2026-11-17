@@ -25,6 +25,8 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/radius_km": "150", "map/maxzoom": "12", "map/station_hours": "3", "map/source": "",
         "update/url": "https://neo.oh2gba.eu/version.php", "digi/enabled": "false", "igate/enabled": "false", "igate/server": "rotate.aprs2.net:14580", "igate/password": "",
+        "ais/enabled": "false", "ais/types": "cargo,tanker,passenger,highspeed,fishing,pleasure,special,other", "ais/hide_still": "false", "ais/radius_km": "450", "ais/track_min": "30",
+        "adsb/enabled": "false", "adsb/radius_km": "450", "adsb/track_min": "30",
         "gps/source": "off", "gps/host": "127.0.0.1:2947", "gps/device": "", "gps/baud": "4800", "beacon/travel": "car"}
     assert Config() == DEFAULTS
 

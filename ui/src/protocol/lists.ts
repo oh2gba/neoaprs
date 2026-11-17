@@ -22,6 +22,9 @@ export const TOPIC_NAMES = [
   "qru",
   "skeds",
   "general",
+  "ships",
+  "aircraft",
+  "traffic",
 ] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
@@ -86,6 +89,14 @@ export const CONFIG_KEYS = [
   "igate/enabled",
   "igate/server",
   "igate/password",
+  "ais/enabled",
+  "ais/types",
+  "ais/hide_still",
+  "ais/radius_km",
+  "ais/track_min",
+  "adsb/enabled",
+  "adsb/radius_km",
+  "adsb/track_min",
   "gps/source",
   "gps/host",
   "gps/device",

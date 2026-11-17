@@ -122,6 +122,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group
   - behind the arrow of the status line are the **Radio type**, the fields of that type (a **Port** and **Speed**, an **Address** and **Port**, a **Sound card** and **Keying**) and what the type can do (**Find my radio**, **Suggested frequencies**, **Tune**, **Transmit level**, **Receive level**, **Spectrum**, **Terminal**);
   - the Enable of the only radio that is on is greyed, with the hover text "The station's only radio that is on";
 - **Internet stations**: the one tickbox **Enable**, which shows the stations of APRS-IS within the map's radius, and its status row under it ([igate.md](igate.md)); without a call it says **Set your call first**;
+- **Ships (AIS)** and **Aircraft (ADS-B)**: one tickbox **Enable** each, which shows the ships or the aircraft round you on the map, receive only, then which ships, how far and how long a track ([traffic.md](traffic.md)), and the status row;
 - **Digipeater**: the tickbox **Enable** of the fill-in digipeater, one for each FM radio that is on, each in a box named after its radio while several radios are on ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the code a phone opens the page from once it is on, and the secure connection ([network.md](network.md));
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser**, in the app's own window **On this computer** and **In this window** ([notifications.md](notifications.md));
