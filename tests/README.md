@@ -410,6 +410,9 @@
 * `test_desktop_startup.py`: the desktop app's start: the loading page (`neoaprs/desktop/loading.py`: the page's icon and colours, nothing that moves), the session
   opened in a thread of its own, the wait for the page every 0.05 s that looks at the lock only once the page answers, and `neoaprs app` on a slow daemon and on
   one that never comes in virtual time (the wait's clock and sleep are the test's); the Windows shell's window before the page and with no page.
+* `test_update_e2e_app.py`: the desktop app's part of the end-to-end test of Update now (`scripts/update-e2e.py --app`): its copies of the app's file names, flag and log lines, its readers of
+  /proc (the app and the daemon of a data folder by their command lines, sockets, locks, mounts, what the test left running) on a made-up /proc and on this kernel's, the question that tells an app
+  with no restart as the new version from one that has it, and what is held of the app after the update, on stand-ins of its processes.
 * `test_release.py`: the release's files as far as a test can see them: the notes `scripts/release-notes.py` takes from a changelog, the ten files the workflow
   assembles (the wheel taken out), the `macos` job, the workflow's pins by commit with the tag beside each and its one `contents: write`, the
   installer script's promises (per user, the autostart task on by default, the uninstaller order), that the Windows app carries no pmtiles program and an update removes the one of an earlier version, the AppImage job on the oldest Ubuntu the manual promises for it, and that the

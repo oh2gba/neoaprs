@@ -5,7 +5,7 @@ its own against a fake KISS TNC, a fake version page announces the new version a
 page's WebSocket, as the page does it, the test asks the update check, sends `update_now` and follows the topic `update`; then the new daemon must come up by itself on the same data folder.
 
   scripts/update-e2e.py windows OLD/NeoAPRS-Setup-A.exe NEW/NeoAPRS-Setup-B.exe [--work DIR] [--known-old]
-  scripts/update-e2e.py appimage OLD/NeoAPRS-A-x86_64.AppImage NEW/NeoAPRS-B-x86_64.AppImage [--work DIR] [--extract-and-run] [--known-old]
+  scripts/update-e2e.py appimage OLD/NeoAPRS-A-x86_64.AppImage NEW/NeoAPRS-B-x86_64.AppImage [--work DIR] [--extract-and-run] [--app] [--known-old]
 
 The versions are read from the names of the files, and B must be newer than A. The daemon gets `NEOAPRS_UPDATE_TEST=1` and `NEOAPRS_UPDATE_FROM` (the fake server: CONVENTIONS.md), so that it updates for real
 from the loopback; nothing leaves the loopback and no radio or serial device is used. What is asserted:
@@ -20,14 +20,31 @@ from the loopback; nothing leaves the loopback and no radio or serial device is 
   appimage the file in the same place is now B (its SHA-256), executable, no `.old` or `.part` is left beside it once B runs, the same process (the test's child) went on as B, and nothing was written to
            the home folder; with --extract-and-run the file is started the way a system without FUSE starts it. B runs the way A ran, read from the daemon's own process (its `$APPDIR`): mounted when A
            was mounted (never unpacked into the temporary folder, which is memory on many systems), unpacked when A was unpacked. What the temporary folder holds while B runs and after the stop is said
+--app (AppImage only): the desktop app takes the place of the bare daemon, the way a user runs the file. A is started as `app --data DIR`, which starts its own daemon, on Qt's offscreen platform
+(QT_QPA_PLATFORM=offscreen, the web engine without its GPU): there is no tray icon and no window on a screen, but the app's own logic runs, its window's page and its watch of the daemon and of its own file
+included. The daemon it starts gets the test's environment through the app's (the app starts it with its own environment). Without FUSE (--extract-and-run) the app is started with
+APPIMAGE_EXTRACT_AND_RUN=1, not the flag: the runtime takes the flag away, the daemon the app starts is a run of the file itself and would try to mount it, and the variable is what reaches it. The page's
+port is the one the daemon writes into the data folder (`neoaprs-web.url`), which the app follows. Held besides everything above, read from the processes (`/proc`: the command line, `$APPDIR`, the program
+file, the sockets, `/proc/locks`, the mounts):
+  before   A's app runs its window and started its own daemon (neoaprs-app.log); one app and one daemon run on the data folder, each mounted or unpacked as started; the app's pid, port and lock files
+           in the data folder are its own (its process id, a socket it listens on, the lock it holds)
+  after    once B's daemon runs, A's app ends as Quit would but leaves the daemon and runs B's file in its own place (neoaprs/desktop/renew.py, `--owns-daemon`): mounted, the same process goes on as B's app;
+           unpacked, that process runs B's runtime and B's app is its child. The app's program is B's (its `$APPDIR` holds B's VERSION, its program file is in it), it runs mounted or unpacked as A's app did,
+           exactly one app and one daemon are left for the data folder, the app's files there are the new app's, and every mount in the temporary folder is the one of a program that runs (A's are gone); the home folder is held for NeoAPRS's own files alone (its data, its start at sign-in, its menu entries): Qt and the web engine write there as they run, and what they wrote is said. A mount of A that stays beyond 30 s is said, and held gone at the end
+  the end  `app --quit` of the file (B by then) ends the app and the daemon within its time with exit code 0 (the app started again owns the daemon), the daemon's log ends with its clean end, and no
+           process of the test and no mount is left; what the temporary folder holds is said. Unpacked, the app, its daemon and `--quit` are each a run of the same file and share one unpacked folder,
+           which the first runtime that ends removes: an exit code 1 with the runtime's own "Failed to clean up cache directory" is said, not failed
 --known-old: A is a release of 0.20.1 or before, of which this is known and only said, not a failure: its AppImage starts B unpacked though A was mounted, and its restart names no port (B finds the port
-of an AppImage in A's log; on Windows, and when B is such a release too, the page comes back on the port of the settings). It changes nothing for an A of 0.20.2 or later.
+of an AppImage in A's log; on Windows, and when B is such a release too, the page comes back on the port of the settings). It changes nothing for an A of 0.20.2 or later. With --app it is also for an A
+of 0.20.2 or before whose app does not start again as B (it has no renew.py): what A's program is is asked of it, not of its name (a build of 0.20.2's tree has it, the release 0.20.2 has not), by
+`app --owns-daemon --quit` on an empty folder, which it refuses as an unknown argument. Its app stays A's program; held is that the daemon came back as B, that the app goes on, and that Quit still ends both.
 This runs an installer and replaces files: run it on a CI runner, never on a computer of your own (the release workflow runs it; docs/development.md, "Update now"). Run it with a Python that has Tornado.
 Exit code 0: all is well; 1: the first thing that was not, said on stderr; the work folder keeps the logs.
 """
 import argparse
 import asyncio
 import base64
+import contextlib
 import hashlib
 import json
 import os
@@ -40,6 +57,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -360,6 +378,7 @@ class Install:
     def __init__(self, work: Path, old: Path, new: Path, known_old: bool = False) -> None:
         self.work, self.old, self.new = work, old, new
         self.known_old = known_old and numbers(version_of(self.kind, old)) < KEPT_FROM       # --known-old, for an old version it is known of
+        self.before: dict[str, Any] = {}                                                     # what is outside the data folder before the update (`outside`), compared at the end
 
     def put_old(self) -> None: ...
     def before_update(self, data: Path) -> None: ...
@@ -373,6 +392,8 @@ class Install:
     def stop(self, daemon: subprocess.Popen[bytes], data: Path) -> None: ...
     def leftovers(self) -> list[str]: return []
     def env(self, env: dict[str, str]) -> dict[str, str]: return env
+    def page_ports(self, data: Path, ports: range, alive: Callable[[], bool]) -> range: return ports      # where the page is looked for
+    def clean_up(self) -> None: ...                                                                     # after a failure: what the test left running
 
     def run(self, *args: str, timeout: float = 120) -> subprocess.CompletedProcess[str]:
         return subprocess.run([*self.command(), *args], capture_output=True, text=True, timeout=timeout, env=self.env(dict(os.environ)), stdin=subprocess.DEVNULL)
@@ -503,15 +524,21 @@ class AppImageInstall(Install):
         except OSError:
             return []
 
+    unpack_way = "--appimage-extract-and-run"                    # how the test starts the file unpacked
+
     def old_runs(self, daemon: subprocess.Popen[bytes]) -> None:
         """The old daemon is up: where its program runs from, which must be the way the test started it."""
         self.old_folder = program_folder(daemon.pid, str(self.file))
         if not self.old_folder:
             raise Failure(f"no process under the test's child {daemon.pid} says it was started from {self.file} (its APPIMAGE and APPDIR)")
-        mounted = os.path.ismount(self.old_folder)
+        self.held_start("daemon", self.old_folder)
+
+    def held_start(self, who: str, folder: str) -> None:
+        """The old version's `who` runs from `folder` the way the test started the file: mounted, or unpacked."""
+        mounted = os.path.ismount(folder)
         if mounted == self.extract_and_run:
-            raise Failure(f"the old daemon runs {how(mounted)} from {self.old_folder}, though the test started it {'with' if self.extract_and_run else 'without'} --appimage-extract-and-run")
-        say(f"the old daemon runs {how(mounted)}, from {self.old_folder}")
+            raise Failure(f"the old {who} runs {how(mounted)} from {folder}, though the test started it {'with' if self.extract_and_run else 'without'} {self.unpack_way}")
+        say(f"the old {who} runs {how(mounted)}, from {folder}")
 
     def env(self, env: dict[str, str]) -> dict[str, str]:
         tmp = self.work / "tmp"
@@ -554,6 +581,12 @@ class AppImageInstall(Install):
     def check_new(self, daemon: subprocess.Popen[bytes], data: Path, new_version: str) -> None:
         if daemon.poll() is not None or daemon.pid != self.pid:
             raise Failure("the new version does not run in the process the old one ran in")
+        self.check_file(new_version)
+        say(f"the same process {daemon.pid} runs it")
+        self.check_how_it_runs(daemon)
+
+    def check_file(self, new_version: str) -> None:
+        """The file in its place is the new one, executable, alone in its folder (the .old gone once the new version runs)."""
         if sha256(self.file) != sha256(self.new):
             raise Failure(f"{self.file} is not the new AppImage")
         mode = self.file.stat().st_mode
@@ -562,22 +595,24 @@ class AppImageInstall(Install):
         wait_until(lambda: not (self.folder / (self.file.name + ".old")).exists(), 60, "the old AppImage kept as .old deleted once the new one runs")
         if (left := sorted(p.name for p in self.folder.iterdir())) != [self.file.name]:
             raise Failure(f"the folder of the AppImage holds {left}, not the AppImage alone")
-        say(f"{self.file.name} is now the AppImage of {new_version} ({stat.filemode(mode)}), the .old is gone, and the same process {daemon.pid} runs it")
-        self.check_how_it_runs(daemon)
+        say(f"{self.file.name} is now the AppImage of {new_version} ({stat.filemode(mode)}) and the .old is gone")
 
     def check_how_it_runs(self, daemon: subprocess.Popen[bytes]) -> None:
         """The new daemon runs the way the old one did: mounted when that one was mounted, unpacked when it was unpacked (read from the newest process of the AppImage under the test's child)."""
-        folder = program_folder(daemon.pid, str(self.file))
-        if not folder or folder == self.old_folder:
-            raise Failure(f"the new daemon's process does not say where it runs from (its APPDIR is {folder!r}; the old one's was {self.old_folder!r})")
+        self.held_how("daemon", program_folder(daemon.pid, str(self.file)), self.old_folder)
+        say(f"the temporary folder holds {self.temporary() or 'nothing'} while the new daemon runs; the old version's {Path(self.old_folder).name} is {'still there' if Path(self.old_folder).exists() else 'gone'}")
+
+    def held_how(self, who: str, folder: str, old_folder: str) -> None:
+        """The new version's `who` runs from `folder` the way the old one ran from `old_folder`: mounted when that one was mounted, unpacked when it was unpacked."""
+        if not folder or folder == old_folder:
+            raise Failure(f"the new {who}'s process does not say where it runs from (its APPDIR is {folder!r}; the old one's was {old_folder!r})")
         mounted, wanted = os.path.ismount(folder), not self.extract_and_run
         if mounted == wanted:
-            say(f"the new daemon runs {how(mounted)}, as the old one did, from {folder}")
+            say(f"the new {who} runs {how(mounted)}, as the old one did, from {folder}")
         elif self.known_old and wanted:
-            say(f"known of {version_of('appimage', self.old)} (--known-old): the new daemon runs unpacked, from {folder}, though the old one was mounted")
+            say(f"known of {version_of('appimage', self.old)} (--known-old): the new {who} runs unpacked, from {folder}, though the old one was mounted")
         else:
-            raise Failure(f"the new daemon runs {how(mounted)}, from {folder}, though the old one ran {how(wanted)}, from {self.old_folder}")
-        say(f"the temporary folder holds {self.temporary() or 'nothing'} while the new daemon runs; the old version's {Path(self.old_folder).name} is {'still there' if Path(self.old_folder).exists() else 'gone'}")
+            raise Failure(f"the new {who} runs {how(mounted)}, from {folder}, though the old one ran {how(wanted)}, from {old_folder}")
 
     def stop(self, daemon: subprocess.Popen[bytes], data: Path) -> None:
         (data / "neoaprs.stop").write_text("stop\n", encoding="ascii")          # (neoaprs/stopfile.py: what `neoaprs stop` writes; a second run of the file would unpack it again beside the daemon's)
@@ -593,6 +628,447 @@ class AppImageInstall(Install):
             raise Failure(f"{self.file.name} --version says {version!r}")
 
 
+# ---- the desktop app in the place of the daemon (--app) ----------------------------------------------------------------------------------------------------
+APP_LOG = "neoaprs-app.log"
+APP_PID, APP_PORT, APP_LOCK = "neoaprs-app.pid", "neoaprs-app.port", "neoaprs-app.lock"    # the app's own files in the data folder (neoaprs/desktop/single.py)
+DAEMON_LOCK = "neoaprs.lock"                                                              # (neoaprs/instancelock.py)
+PAGE_FILE = "neoaprs-web.url"                                                             # where the daemon says its page is, which the app follows (neoaprs/cli/logfile.py)
+OWNS_DAEMON = "--owns-daemon"                                                             # what the app started again after Update now is started with (neoaprs/desktop/renew.py)
+SHELL_RUNS = "the Qt shell runs ("                                                        # the app's log once its window is up (neoaprs/desktop/qtshell.py)
+APP_SESSION = "NeoAPRS app on "                                                           # the app's log line of its session, which says whose daemon it shows (neoaprs/desktop/shell.py)
+OWN_DAEMON = " its own daemon;"
+RENEWS = "NeoAPRS was updated: the app starts again as the new version"                  # the old app's last line (neoaprs/desktop/renew.py)
+LAST_WITHOUT_RENEW = (0, 20, 2)                       # the last release whose app does not start again as the new version (renew.py came after it); --known-old with --app is for one up to it
+APP_ENV = {"QT_QPA_PLATFORM": "offscreen", "QTWEBENGINE_CHROMIUM_FLAGS": "--disable-gpu"}      # Qt with no display (scripts/smoke-appimage starts the app so too)
+EXTRACT_AND_RUN = "APPIMAGE_EXTRACT_AND_RUN"
+RUNTIME_CLEANUP = "Failed to clean up cache directory"                                   # what the runtime of an unpacked file says when its folder was removed before it removed it
+RENEW_SEC = 120.0                                     # the new daemon running to the new app's window: two looks of the app's watch (2 s apart), the end of the window, the exec, the new window
+STAYS_SEC = 12.0                                      # how long an app that does not start again is watched staying the old program (six looks of its watch)
+QUIT_SEC = 60.0                                       # `app --quit` waits 40 s for the app (neoaprs/desktop/cmd.py QUIT_WAIT_SEC)
+MOUNTS_SEC = 30.0
+OUR_FILE = re.compile(r"neoaprs|autostart|\.desktop$", re.IGNORECASE)             # what an update could write into the home folder that is NeoAPRS's: its data, its start at sign-in, its menu entries
+
+
+@dataclass(frozen=True)
+class Running:
+    """A NeoAPRS program of the data folder, read from its process: the Python that the AppImage's AppRun runs (`python3 -I -m neoaprs <role> ...`), `role` "app" or "run" (the daemon)."""
+    pid: int
+    parent: int
+    role: str
+    args: tuple[str, ...]                             # what follows `-m neoaprs`
+    folder: str                                       # its $APPDIR: the mount, or the folder it was unpacked into
+    appimage: str                                     # its $APPIMAGE
+    exe: str                                          # the program file the process runs
+
+    def describe(self) -> str:
+        return f"{'the app' if self.role == 'app' else 'the daemon'} {self.pid} ({version_in(self.folder) or 'no version'} from {self.folder or 'no APPDIR'})"
+
+
+def read_proc(path: Path) -> bytes:
+    try:
+        return path.read_bytes()
+    except OSError:
+        return b""
+
+
+def state_of(pid: int, proc: Path = Path("/proc")) -> tuple[str, int]:
+    """(its state, its parent); ("", 0) for a process that is gone."""
+    fields = read_proc(proc / str(pid) / "stat").decode("utf-8", errors="replace").rsplit(")", 1)
+    parts = fields[1].split() if len(fields) == 2 else []
+    return (parts[0], int(parts[1])) if len(parts) > 1 and parts[1].isdigit() else ("", 0)
+
+
+def exe_of(pid: int, proc: Path = Path("/proc")) -> str:
+    try:
+        return os.readlink(proc / str(pid) / "exe")
+    except OSError:
+        return ""
+
+
+def neoaprs_processes(data: Path, proc: Path = Path("/proc")) -> list[Running]:
+    """The app and the daemon processes of the data folder `data`, by their command line (`--data` naming it): no `--quit` that asks one to end, no command, no process that has ended (a zombie)."""
+    wanted = os.path.realpath(data)
+    found = []
+    for entry in sorted(proc.iterdir(), key=lambda e: (len(e.name), e.name)):
+        if not entry.name.isdigit():
+            continue
+        line = [a.decode("utf-8", errors="replace") for a in read_proc(entry / "cmdline").removesuffix(b"\0").split(b"\0")]     # (each argument ends with a NUL)
+        at = next((i for i in range(len(line) - 1) if line[i] == "-m" and line[i + 1] == "neoaprs"), None)
+        args = tuple(line[at + 2:] if at is not None else ())
+        if not args or args[0] not in ("app", "run") or "--quit" in args or "--data" not in args[:-1]:
+            continue
+        if os.path.realpath(args[args.index("--data") + 1]) != wanted:
+            continue
+        state, parent = state_of(int(entry.name), proc)
+        if state in ("", "Z", "X"):
+            continue
+        env = environ_of(int(entry.name), proc)
+        found.append(Running(int(entry.name), parent, args[0], args, env.get("APPDIR", ""), env.get("APPIMAGE", ""), exe_of(int(entry.name), proc)))
+    return found
+
+
+def version_in(folder: str) -> str:
+    """The VERSION of the NeoAPRS a folder of the AppImage holds (`usr/lib/python3.*/site-packages/neoaprs/__init__.py`, the line that `scripts/build-appimage --retag` changes); "" when it has none."""
+    for init in sorted(Path(folder).glob("usr/lib/python3.*/site-packages/neoaprs/__init__.py")) if folder else []:
+        found = re.search(r'^VERSION = "([^"]+)"', init.read_text(encoding="utf-8", errors="replace"), re.MULTILINE)
+        if found:
+            return found.group(1)
+    return ""
+
+
+def listening(port: int, proc: Path = Path("/proc")) -> set[int]:
+    """The inodes of the sockets that listen on `port` of the loopback (`/proc/net/tcp` and `tcp6`: the local address and port in hex, the state 0A, the inode tenth)."""
+    inodes = set()
+    for name in ("tcp", "tcp6"):
+        for line in read_proc(proc / "net" / name).decode("ascii", errors="replace").splitlines()[1:]:
+            fields = line.split()
+            if len(fields) > 9 and fields[3] == "0A" and ":" in fields[1] and int(fields[1].rsplit(":", 1)[1], 16) == port and fields[9].isdigit():
+                inodes.add(int(fields[9]))
+    return inodes
+
+
+def sockets_of(pid: int, proc: Path = Path("/proc")) -> set[int]:
+    """The inodes of the sockets a process holds (its descriptors that link to `socket:[inode]`)."""
+    found: set[int] = set()
+    try:
+        fds = list((proc / str(pid) / "fd").iterdir())
+    except OSError:
+        return found
+    for fd in fds:
+        try:
+            target = os.readlink(fd)
+        except OSError:
+            continue
+        if target.startswith("socket:[") and target.endswith("]") and target[8:-1].isdigit():
+            found.add(int(target[8:-1]))
+    return found
+
+
+def lock_holders(path: Path, proc: Path = Path("/proc")) -> set[int]:
+    """The processes that hold a lock on the file `path`, from `/proc/locks` (`1: FLOCK  ADVISORY  WRITE <pid> <major>:<minor>:<inode> 0 EOF`; a waiter's line has `->`). The inode alone is matched:
+    the device a file system reports to stat is not always the one the list names (btrfs)."""
+    try:
+        inode = os.stat(path).st_ino
+    except OSError:
+        return set()
+    holders = set()
+    for line in read_proc(proc / "locks").decode("ascii", errors="replace").splitlines():
+        fields = line.split()
+        if len(fields) > 5 and fields[1] != "->" and fields[4].isdigit() and fields[5].rsplit(":", 1)[-1] == str(inode):
+            holders.add(int(fields[4]))
+    return holders
+
+
+def mounts_under(folder: Path, proc: Path = Path("/proc")) -> list[str]:
+    """The mount points inside `folder`, from `/proc/self/mountinfo` (the fifth field, a blank written `\\040`)."""
+    inside = os.path.realpath(folder) + os.sep
+    points = []
+    for line in read_proc(proc / "self" / "mountinfo").decode("utf-8", errors="replace").splitlines():
+        fields = line.split()
+        if len(fields) > 4:
+            point = re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), fields[4])
+            if point.startswith(inside):
+                points.append(point)
+    return sorted(points)
+
+
+def processes_from(work: Path, appimage: Path, proc: Path = Path("/proc")) -> list[str]:
+    """Every process that runs from the test's work folder (its program file, or its first argument, is in it: the AppImage's runtimes, the processes that serve its mounts, NeoAPRS's Pythons and
+    the web engine's helpers) or that was started from the AppImage (its $APPIMAGE), this process and those that have ended aside: "<pid> <its command line>"."""
+    inside = os.path.realpath(work) + os.sep
+    found = []
+    for entry in sorted(proc.iterdir(), key=lambda e: (len(e.name), e.name)):
+        if not entry.name.isdigit() or int(entry.name) == os.getpid() or state_of(int(entry.name), proc)[0] in ("", "Z", "X"):
+            continue
+        line = [a.decode("utf-8", errors="replace") for a in read_proc(entry / "cmdline").split(b"\0") if a]
+        if exe_of(int(entry.name), proc).startswith(inside) or (line and line[0].startswith(inside)) or environ_of(int(entry.name), proc).get("APPIMAGE") == str(appimage):
+            found.append(f"{entry.name} {' '.join(line)}")
+    return found
+
+
+def runs_from(running: Running) -> bool:
+    """Whether the process's program file is inside its $APPDIR (the link /proc gives is the real path)."""
+    return bool(running.folder) and running.exe.startswith(os.path.realpath(running.folder) + os.sep)
+
+
+def knows_renew(done: "subprocess.CompletedProcess[str]") -> bool:
+    """What the old app answered to `app --owns-daemon --quit` on an empty folder: True when it took the flag (it ends at once: no app runs there), False when it refused it as unknown (an app with no
+    renew.py); anything else is a Failure."""
+    if done.returncode == 0:
+        return True
+    if done.returncode == 2 and OWNS_DAEMON in done.stderr:
+        return False
+    raise Failure(f"the old app's answer to app {OWNS_DAEMON} --quit is neither: exit code {done.returncode}, {done.stdout.strip()} {done.stderr.strip()}")
+
+
+def page_port(data: Path) -> int | None:
+    """The port of the page the daemon says in the data folder, as the app reads it; None while there is none."""
+    found = re.fullmatch(r"http://127\.0\.0\.1:(\d{1,5})/", read_proc(data / PAGE_FILE).decode("ascii", errors="replace").strip())
+    return int(found.group(1)) if found else None
+
+
+def tail_of(file: Path, lines: int = 15) -> str:
+    return "\n".join(read_proc(file).decode("utf-8", errors="replace").splitlines()[-lines:])
+
+
+class AppImageAppInstall(AppImageInstall):
+    """--app: the desktop app of the AppImage, which starts its own daemon, in the place of the bare daemon (the description at the top)."""
+    unpack_way = f"{EXTRACT_AND_RUN}=1"
+
+    def __init__(self, work: Path, old: Path, new: Path, extract_and_run: bool, known_old: bool = False) -> None:
+        super().__init__(work, old, new, extract_and_run, known_old)
+        self.asked_known_old = known_old
+        self.app_stays_old = False                    # the old app has no renew.py (--known-old): it stays the old program after the update
+        self.data = work
+        self.old_app: Running | None = None
+        self.old_app_folder = ""
+        self.app: Running | None = None
+
+    def app_env(self, env: dict[str, str]) -> dict[str, str]:
+        env = self.env(env)
+        env.update(APP_ENV)
+        if self.extract_and_run:
+            env[EXTRACT_AND_RUN] = "1"
+        return env
+
+    def home_files(self) -> list[str]:
+        return sorted(str(p.relative_to(self.home)) for p in self.home.rglob("*"))
+
+    def outside(self) -> dict[str, Any]:
+        """The home folder is held for what is NeoAPRS's alone: the toolkits (Qt, the web engine's Chromium: caches, its certificate database) write there as they run and as they end."""
+        found = super().outside()
+        found["the home folder"] = [p for p in self.home_files() if OUR_FILE.search(p)]
+        return found
+
+    def app_log(self) -> str:
+        return read_proc(self.data / APP_LOG).decode("utf-8", errors="replace")
+
+    def app_command(self) -> list[str]:
+        return [str(self.file)]                       # (unpacked by the variable of app_env, which reaches the daemon the app starts and the app started again)
+
+    def put_old(self) -> None:
+        super().put_old()
+        probe = self.work / "probe"                   # (empty, and never made: `--quit` looks for an app there and finds none)
+        renews = knows_renew(self.run("app", OWNS_DAEMON, "--quit", "--data", str(probe)))
+        old_version = version_of("appimage", self.old)
+        if renews:
+            say(f"the old app takes {OWNS_DAEMON}: it starts again as the new version after Update now")
+        elif self.asked_known_old and numbers(old_version) <= LAST_WITHOUT_RENEW:
+            self.app_stays_old = True
+            say(f"known of {old_version} (--known-old): its app refuses {OWNS_DAEMON}, it has no restart as the new version; held: the daemon comes back as the new version, the app goes on, Quit ends both")
+        else:
+            raise Failure(f"the old app refuses {OWNS_DAEMON}: it does not start again as the new version after Update now"
+                          + ("" if numbers(old_version) <= LAST_WITHOUT_RENEW else f", though {old_version} is after {'.'.join(map(str, LAST_WITHOUT_RENEW))}") + " (--known-old is for a release of 0.20.2 or before)")
+
+    def start(self, data: Path, env: dict[str, str]) -> subprocess.Popen[bytes]:
+        self.data = data
+        app = subprocess.Popen([*self.app_command(), "app", "--data", str(data)], stdin=subprocess.DEVNULL, stdout=self.out("app.out"), stderr=subprocess.STDOUT, env=self.app_env(env))
+        self.pid = app.pid
+        say(f"the app is started on Qt's offscreen platform: {self.file.name} app --data DIR{' with ' + self.unpack_way if self.extract_and_run else ''}")
+        return app
+
+    def page_ports(self, data: Path, ports: range, alive: Callable[[], bool]) -> range:
+        """The port the daemon writes into the data folder, which the app follows: one of `ports`."""
+        wait_until(lambda: page_port(data) is not None or not alive(), NEW_DAEMON_SEC, f"the daemon's {PAGE_FILE} in the data folder")
+        port = page_port(data)
+        if port is None:
+            raise Failure(f"the app ended before its daemon wrote {PAGE_FILE} (app.out: {tail_of(self.work / 'app.out')})")
+        if port not in ports:
+            raise Failure(f"{PAGE_FILE} names port {port}, none of {ports.start} to {ports[-1]}")
+        say(f"{PAGE_FILE} in the data folder, which the app follows, names port {port}")
+        return ports if self.known_old else range(port, port + 1)           # (a release of before the fix may bring the page back on another port than the file says now)
+
+    def one_each(self, what: str, seconds: float, good: Callable[[Running, Running], bool] = lambda app, daemon: True) -> tuple[Running, Running]:
+        """Exactly one app and one daemon on the data folder, `good` of them, within `seconds`: (the app, the daemon); a Failure that names what runs."""
+        seen: list[Running] = []
+
+        def found() -> bool:
+            seen[:] = neoaprs_processes(self.data)
+            apps, daemons = [p for p in seen if p.role == "app"], [p for p in seen if p.role == "run"]
+            return len(apps) == 1 and len(daemons) == 1 and good(apps[0], daemons[0])
+        try:
+            wait_until(found, seconds, what)
+        except Failure as e:
+            raise Failure(f"{e}; running on the data folder: {', '.join(p.describe() for p in seen) or 'nothing'}; the app's log ends: {tail_of(self.data / APP_LOG, 8)}") from None
+        return next(p for p in seen if p.role == "app"), next(p for p in seen if p.role == "run")
+
+    def check_app_files(self, app: Running, daemon: Running) -> None:
+        """The app's pid, port and lock files in the data folder are the ones of the app that runs (its process id, a socket it listens on, the lock it holds), and the daemon holds the daemon's lock."""
+        def files() -> str:
+            pid = read_proc(self.data / APP_PID).decode("ascii", errors="replace").strip()
+            port = read_proc(self.data / APP_PORT).decode("ascii", errors="replace").strip()
+            if pid != str(app.pid):
+                return f"{APP_PID} says {pid or 'nothing'}"
+            if not port.isdigit() or not listening(int(port)) & sockets_of(app.pid):
+                return f"{APP_PORT} says {port or 'nothing'}, where the app {app.pid} does not listen"
+            if (holders := lock_holders(self.data / APP_LOCK)) != {app.pid}:
+                return f"{APP_LOCK} is held by {sorted(holders) or 'nothing'}"
+            if daemon.pid not in lock_holders(self.data / DAEMON_LOCK):
+                return f"{DAEMON_LOCK} is held by {sorted(lock_holders(self.data / DAEMON_LOCK)) or 'nothing'}"
+            return ""
+        wrong = [""]
+
+        def right() -> bool:
+            wrong[0] = files()
+            return not wrong[0]
+        try:
+            wait_until(right, 15, "the app's files in the data folder")             # (a look at a lock by a command takes it for a moment)
+        except Failure:
+            raise Failure(f"the app's files in the data folder are not the ones of the app {app.pid} that runs: {wrong[0]}") from None
+        say(f"{APP_PID}, {APP_PORT} and {APP_LOCK} are the app {app.pid}'s (its id, a socket it listens on, its lock); {DAEMON_LOCK} is held by the daemon {daemon.pid}")
+
+    def old_runs(self, daemon: subprocess.Popen[bytes]) -> None:
+        """The old app is up with its window and started its daemon: both run from the file the way the test started it, and the app's files are its own."""
+        wait_until(lambda: SHELL_RUNS in self.app_log() or daemon.poll() is not None, PAGE_SEC, f"'{SHELL_RUNS}' in {APP_LOG}")
+        if daemon.poll() is not None:
+            raise Failure(f"the app ended with exit code {daemon.returncode} before its window ran (app.out: {tail_of(self.work / 'app.out')})")
+        log = self.app_log()
+        session = next((line for line in reversed(log.splitlines()) if APP_SESSION in line), "")
+        if OWN_DAEMON not in session:
+            raise Failure(f"the app did not start its own daemon: {session.strip() or f'no session in {APP_LOG}'}")
+        app, own = self.one_each("one app and one daemon on the data folder", 30)
+        for running in (app, own):
+            if running.appimage != str(self.file) or not runs_from(running):
+                raise Failure(f"{running.describe()} does not run from {self.file}: its APPIMAGE is {running.appimage!r}, its program {running.exe!r}")
+        self.held_start("app", app.folder)
+        self.held_start("daemon", own.folder)
+        self.check_app_files(app, own)
+        self.old_app, self.old_app_folder, self.old_folder = app, app.folder, own.folder
+        wrote = self.home_files()
+        self.toolkits = set(wrote)
+        self.before = self.outside()
+        say(f"the app {app.pid} runs its window ({next(line for line in log.splitlines() if SHELL_RUNS in line).split(SHELL_RUNS, 1)[1].rstrip(')')}) with its own daemon {own.pid}; "
+            f"its start wrote {', '.join(wrote[:12]) or 'nothing'}{' ...' if len(wrote) > 12 else ''} into the home folder; held from here on: nothing of NeoAPRS's (its data, its start at sign-in, its menu entries) is written there")
+
+    def old_ended(self, daemon: subprocess.Popen[bytes], data: Path) -> None:
+        wait_until(lambda: "NeoAPRS ended" in read_log(data) or daemon.poll() is not None, 120, "the old daemon's end in the log")
+        if daemon.poll() is not None:
+            raise Failure(f"the app ended with exit code {daemon.returncode} when its daemon ended to start again (app.out: {tail_of(self.work / 'app.out')})")
+        say("the old daemon ended to start again; the app goes on")
+
+    def check_new(self, daemon: subprocess.Popen[bytes], data: Path, new_version: str) -> None:
+        assert self.old_app is not None
+        self.check_file(new_version)
+        new_daemon = lambda app, own: own.folder != self.old_folder and version_in(own.folder) == new_version     # noqa: E731
+        if self.app_stays_old:
+            app, own = self.check_app_stays(new_daemon)
+        else:
+            app, own = self.check_app_renewed(new_daemon, new_version)
+        self.held_how("daemon", own.folder, self.old_folder)
+        self.check_app_files(app, own)
+        self.app = app
+        self.check_mounts(app, own)
+
+    def check_app_renewed(self, new_daemon: Callable[[Running, Running], bool], new_version: str) -> tuple[Running, Running]:
+        """The old app ended and ran the new file in its own place: the app of the data folder is the new version's, from a folder of its own, the owner of the daemon."""
+        assert self.old_app is not None
+        old = self.old_app
+        app, own = self.one_each(f"the app of {new_version} with {OWNS_DAEMON} and the daemon of {new_version}", RENEW_SEC,
+                                 lambda app, own: new_daemon(app, own) and app.folder != old.folder and version_in(app.folder) == new_version and OWNS_DAEMON in app.args)
+        if not runs_from(app) or app.appimage != str(self.file):
+            raise Failure(f"{app.describe()} does not run its program from its folder: its program is {app.exe!r}, its APPIMAGE {app.appimage!r}")
+        if not self.extract_and_run and app.pid != old.pid:
+            raise Failure(f"the new app is the process {app.pid}, not {old.pid}, in whose place the old app was to run the new file (mounted, the same process goes on)")
+        if self.extract_and_run and app.parent != old.pid:
+            raise Failure(f"the new app {app.pid} is a child of {app.parent}, not of {old.pid}, the old app's process, in which the new file's runtime was to run (unpacked, the runtime waits for its child)")
+        if RENEWS not in self.app_log():
+            raise Failure(f"{APP_LOG} does not say '{RENEWS}'")
+        wait_until(lambda: SHELL_RUNS in self.app_log().split(RENEWS, 1)[1], PAGE_SEC, f"the new app's window ('{SHELL_RUNS}' after '{RENEWS}' in {APP_LOG})")
+        after = self.app_log().split(RENEWS, 1)[1]
+        session = next((line for line in after.splitlines() if APP_SESSION in line), "")
+        if OWN_DAEMON not in session:
+            raise Failure(f"the app started again does not own its daemon: {session.strip() or 'no session after the restart'}")
+        how_new = "in the same process" if app.pid == old.pid else f"as the child {app.pid} of the old app's process {old.pid}, which runs the new file's runtime"
+        say(f"the old app ran the new file in its place ({RENEWS}): the app of {new_version} runs {how_new}, with {OWNS_DAEMON}, owning the daemon {own.pid}")
+        self.held_how("app", app.folder, old.folder)
+        return app, own
+
+    def check_app_stays(self, new_daemon: Callable[[Running, Running], bool]) -> tuple[Running, Running]:
+        """--known-old, an app with no renew.py: the daemon of the new version runs and the app goes on as the old program; it is watched for a while doing so."""
+        assert self.old_app is not None
+        old = self.old_app
+        app, own = self.one_each("the old app and the new daemon", RENEW_SEC, new_daemon)
+        deadline = time.monotonic() + STAYS_SEC
+        while time.monotonic() < deadline:
+            app, own = self.one_each("the old app and the new daemon", 5, new_daemon)
+            if (app.pid, app.folder) != (old.pid, old.folder):
+                raise Failure(f"the app of {version_of('appimage', self.old)} was to stay as it was, and is {app.describe()} now: the old app's question of {OWNS_DAEMON} was answered wrong")
+            time.sleep(1)
+        say(f"known of {version_of('appimage', self.old)} (--known-old): the app {app.pid} stays the old program, from {app.folder}, beside the daemon {own.pid} of the new version")
+        return app, own
+
+    def check_mounts(self, app: Running, own: Running) -> None:
+        """Every mount in the temporary folder is the folder of the app or of the daemon that run: the old version's are gone (unpacked, there are none)."""
+        folders = {app.folder, own.folder} if not self.extract_and_run else set()
+        tmp = self.work / "tmp"
+        try:
+            wait_until(lambda: set(mounts_under(tmp)) <= folders, MOUNTS_SEC, "the old version's mounts gone")
+        except Failure:
+            say(f"the temporary folder still has the mounts {sorted(set(mounts_under(tmp)) - folders)} {MOUNTS_SEC:g} s after the update, besides those of the programs that run (the old app's was {self.old_app_folder}, the old daemon's {self.old_folder}); "
+                "held: none is left once the test has ended")
+            return
+        say(f"the mounts in the temporary folder are {mounts_under(tmp) or 'none'}, of the programs that run, none of the old version's left beside them; it holds {self.temporary() or 'nothing'}, "
+            f"the old app's {Path(self.old_app_folder).name} {'still there' if Path(self.old_app_folder).exists() else 'gone'}, the old daemon's {Path(self.old_folder).name} {'still there' if Path(self.old_folder).exists() else 'gone'}")
+
+    def stop(self, daemon: subprocess.Popen[bytes], data: Path) -> None:
+        """`app --quit` of the file, as the uninstaller and a user end the app: it must end the app and the daemon the app owns, within its time and with exit code 0."""
+        started = time.monotonic()
+        with self.out("quit.out") as out:
+            quit_ = subprocess.Popen([*self.app_command(), "app", "--quit", "--data", str(data)], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=self.app_env(dict(os.environ)))
+        while quit_.poll() is None:
+            daemon.poll()                                 # (the app is the test's child: ended, it is let go of at once, or `--quit` would see its process there until the test waits for it)
+            if time.monotonic() - started > QUIT_SEC:
+                quit_.kill()
+                raise Failure(f"app --quit did not end within {QUIT_SEC:g} s ({tail_of(self.work / 'quit.out')})")
+            time.sleep(0.1)
+        took = time.monotonic() - started
+        said = tail_of(self.work / "quit.out")
+        self.exit_code("app --quit", quit_.returncode, said)
+        try:
+            daemon.wait(30)
+        except subprocess.TimeoutExpired:
+            raise Failure(f"the app's process {daemon.pid} still runs 30 s after app --quit said: {said}") from None
+        self.exit_code("the app", daemon.returncode, tail_of(self.work / "app.out"))
+        if left := neoaprs_processes(data):
+            raise Failure(f"after app --quit there still run on the data folder: {', '.join(p.describe() for p in left)}")
+        say(f"app --quit ended the app and its daemon in {took:.1f} s ({said.strip().splitlines()[-1] if said.strip() else 'it said nothing'})")
+        say(f"the temporary folder holds {self.temporary() or 'nothing'} after the stop")
+        later = [p for p in self.home_files() if p not in self.toolkits]
+        say(f"the toolkits wrote {', '.join(later[:12]) or 'nothing'}{' ...' if len(later) > 12 else ''} into the home folder since the old app was up; only NeoAPRS's own files there are held")
+        version = self.run("--version").stdout.strip()
+        if version != f"NeoAPRS {version_of('appimage', self.new)}":
+            raise Failure(f"{self.file.name} --version says {version!r}")
+
+    def exit_code(self, what: str, code: int, said: str) -> None:
+        """0; or, unpacked, the 1 of the runtime alone when it found the folder it shares with another run of the same file removed by that one first (it says so): said, not failed."""
+        if code == 0:
+            return
+        if self.extract_and_run and code == 1 and RUNTIME_CLEANUP in said:
+            say(f"{what} ended with exit code 1 from the unpacked file's runtime alone: '{RUNTIME_CLEANUP}' (another run of the same file, which shares the folder, had removed it first)")
+            return
+        raise Failure(f"{what} ended with exit code {code}, not 0: {said}")
+
+    def leftovers(self) -> list[str]:
+        return processes_from(self.work, self.file) + [f"the mount {m}" for m in mounts_under(self.work)]
+
+    def clean_up(self) -> None:
+        """After a failure: what the test started and left running ends (SIGTERM, then SIGKILL), and its mounts are let go of."""
+        import signal
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            pids = [int(line.split(" ", 1)[0]) for line in processes_from(self.work, self.file)]
+            if not pids:
+                break
+            say(f"ending what the test left running: {pids}")
+            for pid in pids:
+                with contextlib.suppress(OSError):
+                    os.kill(pid, sig)
+            with contextlib.suppress(Failure):
+                wait_until(lambda: not processes_from(self.work, self.file), 10, "the test's processes ended")
+        fusermount = shutil.which("fusermount3") or shutil.which("fusermount") or ""
+        for point in mounts_under(self.work) if fusermount else []:
+            subprocess.run([fusermount, "-u", "-z", point], stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False)
+
+
 def daemon_env(release: Release) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG", "NEOAPRS_INSTALL_KIND")}
     env.update(NEOAPRS_UPDATE_TEST="1", NEOAPRS_UPDATE_FROM=release.url, NEOAPRS_UPDATE_KEY=release.public_key, NEOAPRS_UPDATE_CHECK="0", NEOAPRS_NO_DEVICES="1", NEOAPRS_SERIAL_PATTERN="/dev/neoaprs-update-e2e-no-such-port*")
@@ -602,7 +1078,8 @@ def daemon_env(release: Release) -> dict[str, str]:
 async def update(install: Install, data: Path, web_port: int, holder: socket.socket, old_version: str, new_version: str, release: Release, daemon: subprocess.Popen[bytes]) -> tuple[int, int]:
     """The old daemon's page up, the update check, update_now and its steps until the daemon lets go of the socket; (the number of packets it had, the port its page was on). `holder` has the port of
     the settings while the old daemon starts, so that its page is on a later one, and is closed before the update, so that the port of the settings is free when the new daemon starts."""
-    page, served = await Page.among(range(web_port + 1, web_port + PORT_TRIES + 1), old_version, PAGE_SEC, lambda: daemon.poll() is None)      # (not the port the test holds: nothing answers there)
+    alive = lambda: daemon.poll() is None                                                                                                       # noqa: E731
+    page, served = await Page.among(install.page_ports(data, range(web_port + 1, web_port + PORT_TRIES + 1), alive), old_version, PAGE_SEC, alive)   # (not the port the test holds: nothing answers there)
     install.check_hello(page.hello)
     install.old_runs(daemon)
     say(f"the daemon of {old_version} is up: {page.hello['install']}; its page is on port {served}, the port of its settings, {web_port}, being taken")
@@ -658,7 +1135,7 @@ def check_port(install: Install, web_port: int, served: int, now: int, new_versi
 
 
 async def after(install: Install, data: Path, web_port: int, served: int, new_version: str, packets: int, daemon: subprocess.Popen[bytes]) -> None:
-    page, now = await Page.among(range(web_port, web_port + PORT_TRIES + 1), new_version, NEW_DAEMON_SEC)
+    page, now = await Page.among(install.page_ports(data, range(web_port, web_port + PORT_TRIES + 1), lambda: daemon.poll() is None), new_version, NEW_DAEMON_SEC)
     try:
         install.check_hello(page.hello)
         check_port(install, web_port, served, now, new_version)
@@ -683,13 +1160,13 @@ def run(args: argparse.Namespace) -> None:
         raise Failure(f"the work folder {work} is not empty")
     work.mkdir(parents=True, exist_ok=True)
     data = work / "data folder"                              # (a blank in the path, as a user's may have)
-    install: Install = WindowsInstall(work, old, new, args.known_old) if args.kind == "windows" else AppImageInstall(work, old, new, args.extract_and_run, args.known_old)
+    install: Install = WindowsInstall(work, old, new, args.known_old) if args.kind == "windows" else (AppImageAppInstall if args.app else AppImageInstall)(work, old, new, args.extract_and_run, args.known_old)
     tnc = FakeTnc(FIXTURE.read_bytes())
     release = Release(new_version, new)
     daemon: subprocess.Popen[bytes] | None = None
     holder: socket.socket | None = None
     try:
-        say(f"{args.kind}: {old.name} -> {new.name}")
+        say(f"{args.kind}{' with the desktop app' if args.app else ''}: {old.name} -> {new.name}")
         install.put_old()
         say(f"the old version is in place: {' '.join(install.command())}")
         holder, web_port = held_port()                       # the port of the settings, which another program (the test) has while the old daemon starts
@@ -700,7 +1177,7 @@ def run(args: argparse.Namespace) -> None:
             if done.returncode != 0:
                 raise Failure(f"db set {key}: {done.stdout.strip()} {done.stderr.strip()}")
         install.before_update(data)
-        before = install.outside()
+        install.before = install.outside()
         daemon = install.start(data, daemon_env(release))
         packets, served = asyncio.run(update(install, data, web_port, holder, old_version, new_version, release, daemon))
         asyncio.run(after(install, data, web_port, served, new_version, packets, daemon))
@@ -722,6 +1199,7 @@ def run(args: argparse.Namespace) -> None:
         if tnc.url not in (got := get_port(install, data)):
             raise Failure(f"the FM radio's port ({port_key} before the update) is {got!r} after it, not {tnc.url!r}")
         say(f"the settings are still there: the FM radio's port, {', '.join(settings)}")
+        before = install.before
         if (later := install.outside()) != before:
             changed = [name for name in before if before[name] != later.get(name)]
             raise Failure(f"the update changed {', '.join(changed)}: {[(before[n], later.get(n)) for n in changed]}")
@@ -741,6 +1219,7 @@ def run(args: argparse.Namespace) -> None:
                 daemon.wait(30)
             except subprocess.TimeoutExpired:
                 daemon.kill()
+        install.clean_up()
         if holder is not None:
             holder.close()
         tnc.close()
@@ -754,10 +1233,14 @@ def main() -> int:
     parser.add_argument("new", help="the one of the newer version, which the fake release serves")
     parser.add_argument("--work", default="update-e2e", help="an empty folder for the data folder, the AppImage, the home and the logs; default %(default)s")
     parser.add_argument("--extract-and-run", action="store_true", help="AppImage: start it with --appimage-extract-and-run, as a system without FUSE does")
-    parser.add_argument("--known-old", action="store_true", help="the old file is a release of 0.20.1 or before: what is known of its restart (the new AppImage unpacked though the old one was mounted; no note of the page's port) is said and is not a failure")
+    parser.add_argument("--app", action="store_true", help="AppImage: the desktop app (on Qt's offscreen platform) in the place of the bare daemon: it starts its daemon, starts again as the new version after the update, and its --quit ends both")
+    parser.add_argument("--known-old", action="store_true", help="the old file is a release of 0.20.1 or before: what is known of its restart (the new AppImage unpacked though the old one was mounted; no note of the page's port) is said and is not a failure; "
+                        "with --app, also one of 0.20.2 or before whose app does not start again as the new version")
     args = parser.parse_args()
     if args.kind == "windows" and not WINDOWS:
         parser.error("windows runs on Windows only")
+    if args.app and args.kind != "appimage":
+        parser.error("--app is for the AppImage (the Windows installer of Update now ends the app and starts it again itself)")
     try:
         run(args)
     except Failure:
