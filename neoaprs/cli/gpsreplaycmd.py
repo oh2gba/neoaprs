@@ -9,7 +9,9 @@ The drive goes on only while a client watches, and from where it stopped. Ctrl-C
 import argparse
 import asyncio
 import json
-from collections.abc import Mapping
+import signal
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -113,6 +115,22 @@ class FakeGpsd:
                     self.watchers.remove(client)
 
 
+@contextmanager
+def break_as_interrupt() -> Iterator[None]:
+    """Windows: Ctrl+Break, while the loop runs, is handled as asyncio.run handles Ctrl+C, by cancelling the drive at its next wait; raised as KeyboardInterrupt at whatever line the loop is on, it can land inside
+    the loop's own wait for the system's completions, lose one of them, and the loop's close then waits for it for ever."""
+    number = getattr(signal, "SIGBREAK", None)
+    on_interrupt = signal.getsignal(signal.SIGINT)
+    if number is None or not callable(on_interrupt):
+        yield
+        return
+    before = signal.signal(number, on_interrupt)
+    try:
+        yield
+    finally:
+        signal.signal(number, before)
+
+
 def main(argv: list[str]) -> int:
     args = parser().parse_args(argv)
     ctrl_break_is_ctrl_c()
@@ -133,9 +151,10 @@ def main(argv: list[str]) -> int:
         if task.done():
             task.result()                                           # (the port could not be listened on: the error is raised here)
         port = ready.result()
-        print(f"{HOST}:{port}", flush=True)
-        say(f"gps-replay: a drive from {lat:g},{lon:g} at {args.kmh:g} km/h; give the daemon gps/source gpsd, gps/host {HOST}:{port}; Ctrl-C ends it")
-        await task
+        with break_as_interrupt():
+            print(f"{HOST}:{port}", flush=True)
+            say(f"gps-replay: a drive from {lat:g},{lon:g} at {args.kmh:g} km/h; give the daemon gps/source gpsd, gps/host {HOST}:{port}; Ctrl-C ends it")
+            await task
 
     try:
         asyncio.run(serve())

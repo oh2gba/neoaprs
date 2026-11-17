@@ -2,6 +2,7 @@
 command as a process."""
 import asyncio
 import json
+import signal
 import socket
 import subprocess
 import sys
@@ -250,6 +251,29 @@ def test_as_a_process_it_prints_the_address_and_reports_the_drive_to_a_plain_soc
             proc.kill()
             raise AssertionError(f"gps-replay did not end {STOP_PATIENCE_SEC:g} s after the interrupt; it said: {proc.communicate()[1]}") from None
     assert proc.returncode == 0 and "a drive from 61.5,25.5 at 50 km/h" in err and "a client connected" in err and "stopped" in err
+
+
+def test_ctrl_break_while_it_drives_ends_it_at_its_next_wait_and_never_in_the_middle_of_a_line(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    number = getattr(signal, "SIGBREAK", None) or signal.SIGUSR1  # type: ignore[attr-defined, unused-ignore]  # (where the system has no Ctrl+Break, a signal of its own stands for it)
+    monkeypatch.setattr(signal, "SIGBREAK", number, raising=False)
+    before = signal.getsignal(number)
+    interrupt_before = signal.signal(signal.SIGINT, signal.default_int_handler)  # (Ctrl+C as a console gives it, whoever started the tests, so that asyncio.run puts its own handler on it)
+    said: list[str] = []
+
+    def saying(text: str) -> None:
+        if text.startswith("gps-replay: a drive from"):
+            signal.raise_signal(number)                                          # Ctrl+Break comes while the program is on this line
+            said.append("the line after the break ran")
+        said.append(text)
+    monkeypatch.setattr(gpsreplaycmd, "say", saying)
+    try:
+        assert gpsreplaycmd.main(["--port", "0", "--interval", "0.01"]) == 0
+        assert said[0] == "the line after the break ran" and said[-1] == "gps-replay: stopped", said
+        assert signal.getsignal(number) is signal.default_int_handler, "and Ctrl+Break is Ctrl+C again once the drive has ended"
+    finally:
+        signal.signal(number, before)
+        signal.signal(signal.SIGINT, interrupt_before)
+    assert capsys.readouterr().out.startswith("127.0.0.1:")
 
 
 def test_the_default_port_is_2948_and_the_host_the_loopback() -> None:
