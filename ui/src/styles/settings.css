@@ -53,6 +53,20 @@ fieldset.composebox > legend {
 .pathbox.disabled .rfonly {
   opacity: 0.5;
 }
+/* the tickboxes of a list (`multi` of SettingsField, the ship types): one under the other, their words not bold as a field's label is */
+.field-control .multi {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+.field .multi label {
+  font-weight: normal;
+  white-space: normal;
+}
+.field:has(.multi) {
+  align-items: start;
+}
 .field-control {
   display: flex;
   align-items: center;

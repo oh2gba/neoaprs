@@ -5,7 +5,7 @@
 // left empty shows the default as a placeholder. The Map group has the Radius row and, under it, the Detailed map row with the button that makes the map (MapFetchButton, plain) and under the button the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. Every action that is a row of its own (this one, Check now, Download logs) is an ActionRow. On the Settings tab a link at the top opens the first-run guide again; the default slot is
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The My station tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. The beacon's comment, the status text and the status template have the counter of a text with a limit and take no more (`count` of SettingsField, lib/textlimit.ts). While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The Radio group is SettingsRadio: a box for each radio, the state of its link in view and its fields behind a fold, with Add radio under them; the Digipeater group has an Enable (and its counts) for each radio that may repeat, in a box with the radio's legend where there are several; and the fields of the page's own alert end the
-// Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
+// Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The groups Ships (AIS) and Aircraft (ADS-B) have one tickbox each, Enable, and while it is on the status row of their feed (TrafficStatus). The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and, under it, the code a phone's camera opens the page from, logged in (PhoneCode). The group Encrypted messages (our key's fingerprint, with a New key button and the (i) that says what the feature is) is there only while the daemon runs with --encryption and so has a key; the Update check group follows, then the Help group (SettingsHelp), and the About group (SettingsAbout) is the last.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import TwoWords from "@/components/TwoWords.vue";
@@ -15,6 +15,7 @@ import MapFetchNotes from "@/components/MapFetchNotes.vue";
 import ActionRow from "@/components/ActionRow.vue";
 import DigipeaterStatus from "@/components/DigipeaterStatus.vue";
 import IgateStatus from "@/components/IgateStatus.vue";
+import TrafficStatus from "@/components/TrafficStatus.vue";
 import UpdateRow from "@/components/UpdateRow.vue";
 import { internetStations } from "@/lib/igatestatus";
 import InfoTip from "@/components/InfoTip.vue";
@@ -278,7 +279,7 @@ function typed(key: string, text: string): void {
         :values="config.values"
         :stations="internetStations(stations.values())"
       />
-
+      <TrafficStatus v-if="group.id === 'ais' || group.id === 'adsb'" :feed="group.id" :draft="draft" />
       <template v-if="scope === 'beacon'">
         <SettingsFold
           v-for="fold in BEACON_FOLDS.filter((f) => f.group === group.id)"

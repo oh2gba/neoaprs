@@ -1,5 +1,5 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the radios (the registry, `radios`, with each radio's driver, line and beacon), the station book, the GPS and its service, the beacon, the status, the message alert, messaging, the message board,
-the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the receive-only iGate and its connection to APRS-IS, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
+the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the receive-only iGate and its connection to APRS-IS, the ships and the aircraft of the map, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 
 The radios are made from the settings (`Config.radios`): from the defaults here, and again by the controller once the stored radios are read. Each radio's driver makes its line and its modem (a test may
 hand in a line of its own for a radio, by its id: `lines`). Every service that sends or answers takes the registry itself, and our frames are made by one maker (`beacon_frames`).
@@ -34,6 +34,8 @@ from .radioregistry import LiveRadio, RadioRegistry, make_driver
 from .radiospec import RadioId, RadioSpec, modem_radio
 from .route import Deliveries
 from .serialprobe import search_pattern
+from .services.adsb import AircraftFeed
+from .services.ais import ShipFeed
 from .services.alerts import Alerts
 from .services.aloha import Aloha
 from .services.beacon import Beacon, BeaconError
@@ -132,6 +134,9 @@ class Services:
         self.digipeater = Digipeater(self.radios, lambda: self.config, clock)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the radio that heard it, where that radio's type may repeat and its own digipeater is on (services/digipeater.py `digi_rows`); each radio's own duplicates, burst and counts; nothing to start
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
         self.igate.made_up = lambda: any(radio.line.is_dummy for radio in self.radios.enabled())       # (a Dummy radio that is on makes up its traffic: neither it nor our position goes to APRS-IS)
+        user = f"NeoAPRS/{VERSION}"
+        self.ships = ShipFeed(lambda: self.config, lambda: self.stationbook.me_position, user, clock=clock)            # the ships round us on the map (ais/enabled): read from Digitraffic, never sent anywhere; started by the controller
+        self.aircraft = AircraftFeed(lambda: self.config, lambda: self.stationbook.me_position, user, clock=clock)     # the aircraft round us on the map (adsb/enabled): read from adsb.fi, never sent anywhere; started by the controller
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
         self.db: Db | None = None                                       # its thread, once the controller has opened it

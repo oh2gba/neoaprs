@@ -49,6 +49,8 @@ describe("SettingsForm", () => {
       "Radio",
       "FM radio", // (the radio's box is in the Radio group)
       "Internet stations",
+      "Ships (AIS)",
+      "Aircraft (ADS-B)",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -62,6 +64,8 @@ describe("SettingsForm", () => {
     expect(wrapper.findAll("form > fieldset").map((f) => f.find("legend").text())).toEqual([
       "Radio",
       "Internet stations",
+      "Ships (AIS)",
+      "Aircraft (ADS-B)",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -492,7 +496,11 @@ describe("SettingsForm", () => {
       expect(wrapper.find("[id$='-hint']").exists()).toBe(false);
       for (const field of wrapper.findAll(".field")) {
         if (field.classes().includes("location-field")) continue; // (the row Location: a button, the place, a closed heading; its coordinate fields are checked on their own)
-        const text = field.find("select").exists() ? field.find("label").text() : field.text(); // (the options of a select are its choices, not words about it; the (i) is closed and says "i")
+        const text = field.find("select").exists()
+          ? field.find("label").text()
+          : field.find(".multi").exists()
+            ? field.find(".field-label").text()
+            : field.text(); // (the options of a select and the tickboxes of a list are its choices, not words about it; the (i) is closed and says "i")
         expect(text.length, text).toBeLessThan(42);
       }
     }

@@ -79,6 +79,9 @@ function memory() {
     qru: null as unknown,
     general: null as unknown,
     skeds: null as unknown,
+    ships: new Map<string, unknown>(),
+    aircraft: new Map<string, unknown>(),
+    traffic: null as unknown,
     hello: 0,
     statuses: 0,
     stale: 0,
@@ -121,6 +124,9 @@ function memory() {
     replaceQru: (v) => (seen.qru = v),
     replaceGeneral: (v) => (seen.general = v),
     replaceSkeds: (v) => (seen.skeds = v),
+    replaceShips: (rows) => (seen.ships = new Map(Object.entries(rows))),
+    replaceAircraft: (rows) => (seen.aircraft = new Map(Object.entries(rows))),
+    replaceTraffic: (v) => (seen.traffic = v),
     setStation: (k, r) => void seen.stations.set(k, r),
     setPacket: (k, r) => void seen.packets.set(k, r),
     setRadio: (k, r) => void seen.radios.set(k, r),
@@ -130,6 +136,8 @@ function memory() {
     setStationKey: (k, v) => void seen.keys.set(k, v),
     setOwnObject: (k, r) => void seen.ownObjects.set(k, r),
     setOwnBulletin: (k, r) => void seen.ownBulletins.set(k, r),
+    setShip: (k, r) => void seen.ships.set(k, r),
+    setAircraft: (k, r) => void seen.aircraft.set(k, r),
     delStation: (k) => void seen.stations.delete(k),
     delPacket: (k) => void seen.packets.delete(k),
     delRadio: (k) => void seen.radios.delete(k),
@@ -139,6 +147,8 @@ function memory() {
     delStationKey: (k) => void seen.keys.delete(k),
     delOwnObject: (k) => void seen.ownObjects.delete(k),
     delOwnBulletin: (k) => void seen.ownBulletins.delete(k),
+    delShip: (k) => void seen.ships.delete(k),
+    delAircraft: (k) => void seen.aircraft.delete(k),
   };
   return { seen, store };
 }

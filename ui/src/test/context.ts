@@ -17,7 +17,7 @@ import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
 import { listensOnly } from "@/lib/radios";
 import type { Connection } from "@/lib/hub";
-import type { Command, PacketRow, RadioRow, RadioSearchMessage, StationKey, StationPref, StationRow } from "@/protocol/protocol";
+import type { AircraftRow, Command, PacketRow, RadioRow, RadioSearchMessage, ShipRow, StationKey, StationPref, StationRow } from "@/protocol/protocol";
 import { NOW, configValues, radiosOf, radiosTopic } from "@/test/fixtures";
 
 /** The context as a test changes it: the parts that are refs are writable. */
@@ -43,6 +43,11 @@ function radiosPart(given: RadioTopic | Ref<RadioTopic> | undefined, connected: 
     get: () => (told.value === "default" ? radiosOf(connected.value) : told.value),
     set: (value: RadioTopic) => (told.value = value),
   });
+}
+
+/** The ships and the aircraft of the map: the tables a test gave, else empty ones that it can fill. */
+function trafficTables(over: Given): Pick<DaemonContext, "ships" | "aircraft"> {
+  return { ships: over.ships ?? shallowReactive(new Map<string, ShipRow>()), aircraft: over.aircraft ?? shallowReactive(new Map<string, AircraftRow>()) };
 }
 
 /** The context a test mounts a pane in; a part given as a value is put in a ref. */
@@ -77,6 +82,8 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     qru: part(over.qru, null),
     general: part(over.general, null),
     skeds: part(over.skeds, null),
+    ...trafficTables(over),
+    traffic: part(over.traffic, null),
     map,
     selfUpdate: part(over.selfUpdate, null),
     ports,

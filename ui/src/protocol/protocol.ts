@@ -5,6 +5,43 @@ export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | Rele
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage;
 
+/** An aircraft of the ADS-B feed (adsb.fi). */
+export interface AircraftRow {
+  /** the ICAO address of its transponder, six hex digits in lower case (a `~` in front: one made up by the ground station) */
+  hex: string;
+  /** the call sign it flies under (`FIN1336`); empty when it gives none */
+  flight: string;
+  /** `OH-LZR`; empty when unknown */
+  registration: string;
+  /** the ICAO type designator (`A321`); empty when unknown */
+  type_code: string;
+  /** what the type is (`AIRBUS A-321`); empty when unknown */
+  description: string;
+  /** the emitter category of ADS-B (`A3`); empty when it gives none */
+  category: string;
+  /** the icon, by the category */
+  kind: "light" | "small" | "jet" | "heavy" | "rotor" | "glider" | "balloon" | "drone" | "other";
+  lat: number;
+  lon: number;
+  /** the barometric altitude in feet, else the geometric one; null on the ground and when not given */
+  altitude_ft: number | null;
+  on_ground: boolean;
+  /** the ground speed in knots */
+  speed_kn: number | null;
+  /** where it is going (the icon points this way) */
+  track_deg: number | null;
+  /** the rate of climb in feet a minute, negative in a descent */
+  vertical_fpm: number | null;
+  squawk: string;
+  /** the emergency it declares (`general`, `lifeguard`, `minfuel`, `nordo`, `unlawful`, `downed`); empty for none */
+  emergency: string;
+  /** when the position was last received */
+  position_at: string;
+  distance_km: number;
+  /** the places it has been at, [lat, lon] from the oldest, within the minutes of `ais/track_min` or `adsb/track_min` (a place kept when it had moved 30 m for a ship, 200 m for an aircraft; at most 150, to five decimals); empty when that is 0 */
+  track: [number, number][];
+}
+
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
   type: "alert_result";
@@ -362,6 +399,24 @@ export interface ExtensionValues {
   dfs: DfsValues | null;
   df_bearing: DfBearingValues | null;
   area: AreaValues | null;
+}
+
+/** One feed of the map's traffic. */
+export interface FeedState {
+  /** its switch as in force */
+  enabled: boolean;
+  /** `off`: the switch is off; `waiting`: there is no position to ask round (`problem` says so); `connecting`: the first answer has not come; `receiving`: the latest answer was read; `failing`: the latest question failed (`problem` says why), and it is asked again later */
+  state: "off" | "waiting" | "connecting" | "receiving" | "failing";
+  /** why it is waiting or failing: `no_position` (neither a place nor a GPS fix), `unreachable` (no answer came), `http` (the server answered `http_status`), `bad_answer` (the answer could not be read); empty otherwise */
+  problem: "" | "no_position" | "unreachable" | "http" | "bad_answer";
+  /** the status of the server's HTTP error while `problem` is `http`; null otherwise */
+  http_status: number | null;
+  /** how many it shows now */
+  count: number;
+  /** how far round our position it reads (`ais/radius_km`, `adsb/radius_km`) */
+  radius_km: number;
+  /** when the latest answer was read; null before the first */
+  updated_at: string | null;
 }
 
 /** Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running. One search runs at a time, so `radio` changes nothing: it is taken so that the page names the radio in every command of its box. */
@@ -1506,6 +1561,48 @@ export interface SetStationRfOnlyCommand {
   on: boolean;
 }
 
+/** A ship of the AIS feed (Digitraffic): where it is and what it said of itself. A field AIS gives as "not available" is null (or empty). */
+export interface ShipRow {
+  /** the Maritime Mobile Service Identity, nine digits */
+  mmsi: number;
+  /** the name it gives, in full; empty until its voyage data has come */
+  name: string;
+  /** its radio call sign (`OJAA`); empty when it gives none */
+  call_sign: string;
+  /** its IMO number; null when it gives none */
+  imo: number | null;
+  /** the ship type of AIS, two digits (70 to 79 cargo, 80 to 89 tanker ...); null when it gives none */
+  ship_type: number | null;
+  /** what the ship is, by its type, for the words of the page */
+  kind: "cargo" | "tanker" | "passenger" | "highspeed" | "fishing" | "sailing" | "pleasure" | "tug" | "towing" | "pilot" | "sar" | "military" | "law" | "dredging" | "diving" | "tender" | "antipollution" | "medical" | "wig" | "other";
+  /** the group of kinds whose colour the map draws it in */
+  category: "cargo" | "tanker" | "passenger" | "highspeed" | "fishing" | "pleasure" | "special" | "other";
+  lat: number;
+  lon: number;
+  /** the speed over ground in knots */
+  speed_kn: number | null;
+  /** the course over ground */
+  course_deg: number | null;
+  /** where the bow points */
+  heading_deg: number | null;
+  /** where the icon points: the heading, else the course of a ship that moves; null for a still ship without a heading (a round icon) */
+  bearing_deg: number | null;
+  /** the navigational status of AIS (0 under way using engine, 1 at anchor, 5 moored ...); null when it is not given or not defined */
+  nav_status: number | null;
+  length_m: number | null;
+  beam_m: number | null;
+  draught_m: number | null;
+  /** the destination as the crew typed it */
+  destination: string;
+  /** the estimated time of arrival (AIS gives no year: the nearest year to now) */
+  eta: string | null;
+  /** when the position was received */
+  position_at: string;
+  distance_km: number;
+  /** the places it has been at, [lat, lon] from the oldest, within the minutes of `ais/track_min` or `adsb/track_min` (a place kept when it had moved 30 m for a ship, 200 m for an aircraft; at most 150, to five decimals); empty when that is 0 */
+  track: [number, number][];
+}
+
 /** Asks for the readings of a station's signal in the last `hours` hours: the SNR and the RSSI its radio measured of each packet heard direct from it (`snr` and `rssi` of a packet). Answered with a `signal_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a station heard on no radio that measures is answered with no points. */
 export interface SignalSeriesCommand {
   cmd: "signal_series";
@@ -2026,6 +2123,20 @@ export interface TopicValues {
   skeds: SkedsState;
   /** asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes */
   general: GeneralState;
+  /** the ships of the AIS feed round us (`ais/enabled`) by MMSI (as text): one that came, moved or was named is a `set`, one that went a `del`; empty while the switch is off. Only received, never sent anywhere */
+  ships: { [key: string]: ShipRow };
+  /** the aircraft of the ADS-B feed round us (`adsb/enabled`) by ICAO address: one that came or moved is a `set`, one that went a `del`; empty while the switch is off. Only received, never sent anywhere */
+  aircraft: { [key: string]: AircraftRow };
+  /** the state of the two feeds of ships and aircraft; told whole as it changes, at most once a second */
+  traffic: TrafficState;
+}
+
+/** The two feeds of the map's traffic, told whole as either changes. */
+export interface TrafficState {
+  /** the ships (Digitraffic's AIS, `ais/enabled`) */
+  ais: FeedState;
+  /** the aircraft (adsb.fi's ADS-B, `adsb/enabled`) */
+  adsb: FeedState;
 }
 
 /** Stop following these topics. A topic that was not followed is ignored. */

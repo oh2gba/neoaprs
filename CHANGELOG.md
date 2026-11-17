@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **New:** **Ships (AIS)** in the Settings tab draws the ships within 450 km on the map, turned by their heading, with name and voyage data.
+- **New:** **Aircraft (ADS-B)** in the Settings tab draws the aircraft within 450 km on the map. Both are received only: nothing is sent.
+- **New:** Ships can be filtered by type or hidden when still; both feeds have a radius and draw tracks of up to 12 hours.
+- **New:** An aircraft's label on the map has its height: a flight level from 5000 ft up, feet below.
+
 ## 0.20.3
 
 Sliders for the sound card's levels, a receive level that follows the audio at once, and no radio sending through another's modem.

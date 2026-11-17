@@ -22,6 +22,9 @@
     qru        the last request for local info and the QRU servers that answered    changed by QruAsk.changed (a request sent, a server heard, a note forgotten)
     skeds      the sked board: its state, the suggested dials and the skeds to come    changed by Skeds.changed (a read, a post, a delete, a sked that ends, the suggested dials) and every save of the settings
     general    the last general query of each kind sent from here, and who spoke after it    changed by GeneralAsk.changed (a query sent, a station that had been quiet heard after it)
+    ships      the ships of the AIS feed by MMSI     changed by ShipFeed.changed (a ship that came, moved, was named or went) and .cleared (`ais/enabled` turned off); only received, never sent anywhere
+    aircraft   the aircraft of the ADS-B feed by ICAO address     changed by AircraftFeed.changed and .cleared (`adsb/enabled` turned off); only received, never sent anywhere
+    traffic    the state of the two feeds            changed by their .state_changed, their items and every save of the settings; at most once a second
 
 Each row's values are built in neoaprs/web/views.py and typed in `TopicValues` of neoaprs/web/protocol.py. Nothing is built for a topic nobody follows, and a patch holds the items that changed, as they are when it is made.
 
@@ -54,6 +57,7 @@ from .packetwindow import PACKETS_KEPT, PacketWindow
 from .scopefeed import RadioScopes, ScopeFeed
 from .views import NO_PLAN
 from .skedview import skeds_state
+from .traffictopics import TrafficTopics
 from .updatewire import UpdateState
 from .radioview import radio_row
 from .views import StationRadios, bulletin_row, config_values, general_state, gps_state, igate_state, key_row, message_row, on_their_way, own_bulletin_row, own_object_row, pref_row, qru_state, station_alert_message, station_row
@@ -105,6 +109,7 @@ class Topics:
         hub.add(Topic("qru", lambda: qru_state(ctl.qruask)))
         hub.add(Topic("skeds", lambda: skeds_state(ctl.skeds)))
         hub.add(Topic("general", lambda: general_state(ctl.generalask.asked(), ctl.generalask.sent_on())))
+        self.traffic = TrafficTopics(hub, ctl.ships, ctl.aircraft)   # ships, aircraft, traffic (neoaprs/web/traffictopics.py)
         self.connected = False
 
     def _gps(self) -> dict[str, Any]:
@@ -213,6 +218,7 @@ class Topics:
             (ctl.ownbulletins.changed, self._own_bulletin_changed), (ctl.ownbulletins.removed, self._own_bulletin_changed),
             (ctl.prefbook.changed, self._pref_changed), (ctl.keyring.changed, self._key_changed), (ctl.keyring.own_changed, self._own_key_changed), (ctl.qruask.changed, self._qru_changed), (ctl.generalask.changed, self._general_changed), (ctl.skeds.changed, self._skeds_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.selfupdate.changed, self._update_changed),
             (ctl.stationalerts.fired, self._station_alert),
+            *self.traffic.followed(),
         ]
 
     def connect(self) -> None:
@@ -357,6 +363,7 @@ class Topics:
         self.hub.changed("config")
         self.hub.changed("gps")
         self.hub.changed("igate")
+        self.traffic.config_changed(keys)
         self.hub.changed("skeds")                   # (a call that the server blocked is a closed board only for that call)
         self.hub.changed("map")                     # (the area and the zoom it asks for, and whether there is a position)
         if moved:

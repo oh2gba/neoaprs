@@ -1,6 +1,7 @@
 // Rows of the protocol for the tests: every field present, the ones a test cares about given. A field the daemon works out of others (a row's radio by its id beside its word of before) is made from them, as the
 // daemon of the station of before sends it (radio 1 the FM radio, radio 2 the HF radio), unless the test gives it.
 import type {
+  AircraftRow,
   AttemptRow,
   BulletinRow,
   ConfigValues,
@@ -28,6 +29,8 @@ import type {
   TncStats,
   WeatherSeriesMessage,
   WeatherValues,
+  FeedState,
+  ShipRow,
 } from "@/protocol/protocol";
 import type { Toast } from "@/composables/useDaemon";
 import { PROTOCOL, RADIO_STATION_KEYS, RADIO_TYPES } from "@/protocol/lists";
@@ -543,6 +546,14 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
     "map/source": "",
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
     "igate/enabled": "false",
+    "ais/enabled": "false",
+    "ais/types": "cargo,tanker,passenger,highspeed,fishing,pleasure,special,other",
+    "ais/hide_still": "false",
+    "ais/radius_km": "450",
+    "ais/track_min": "30",
+    "adsb/enabled": "false",
+    "adsb/radius_km": "450",
+    "adsb/track_min": "30",
     "igate/server": "rotate.aprs2.net:14580",
     "igate/password": "",
     "gps/source": "off",
@@ -770,4 +781,64 @@ export function radioRow(id: number, type: string, extra: Partial<RadioRow> = {}
     holds: [],
     ...extra,
   };
+}
+
+/** A ship of the topic `ships`: a tug moored at Helsinki, named and with its voyage data. */
+export function ship(extra: Partial<ShipRow> = {}): ShipRow {
+  return {
+    mmsi: 230145760,
+    name: "DUNKER",
+    call_sign: "OJSU",
+    imo: 8701014,
+    ship_type: 52,
+    kind: "tug",
+    category: "special",
+    lat: 60.16,
+    lon: 24.95,
+    speed_kn: 0,
+    course_deg: 145.2,
+    heading_deg: 101,
+    bearing_deg: 101,
+    nav_status: 5,
+    length_m: 31,
+    beam_m: 10,
+    draught_m: 5,
+    destination: "HARBOUR ASSISTANCE",
+    eta: "2026-10-22T17:15:00Z",
+    position_at: ago(60),
+    distance_km: 1.2,
+    track: [],
+    ...extra,
+  };
+}
+
+/** An aircraft of the topic `aircraft`: an airliner climbing out of Helsinki. */
+export function aircraftRow(extra: Partial<AircraftRow> = {}): AircraftRow {
+  return {
+    hex: "461fa7",
+    flight: "FIN1336",
+    registration: "OH-LZR",
+    type_code: "A321",
+    description: "AIRBUS A-321",
+    category: "A3",
+    kind: "jet",
+    lat: 60.45,
+    lon: 24.75,
+    altitude_ft: 3850,
+    on_ground: false,
+    speed_kn: 220.2,
+    track_deg: 84,
+    vertical_fpm: -640,
+    squawk: "1144",
+    emergency: "",
+    position_at: ago(5),
+    distance_km: 31.6,
+    track: [],
+    ...extra,
+  };
+}
+
+/** The state of a feed of the topic `traffic`. */
+export function feedState(extra: Partial<FeedState> = {}): FeedState {
+  return { enabled: true, state: "receiving", problem: "", http_status: null, count: 3, radius_km: 450, updated_at: "2026-10-21T11:59:00Z", ...extra };
 }
