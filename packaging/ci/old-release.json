@@ -1,7 +1,7 @@
 {
-  "version": "0.20.3",
+  "version": "0.20.4",
   "amd64": {
-    "url": "https://github.com/oh2gba/neoaprs/releases/download/v0.20.3/neoaprs_0.20.3_amd64.deb",
-    "sha256": "8d2c2427c5c7241ae8561878ed2f9952866153207a2421a2dd08fa6102fd3738"
+    "url": "https://github.com/oh2gba/neoaprs/releases/download/v0.20.4/neoaprs_0.20.4_amd64.deb",
+    "sha256": "93d2e28d46f809302fdac9cfc1a79223b2e03e2f3f65c8c30805747d8924663f"
   }
 }
