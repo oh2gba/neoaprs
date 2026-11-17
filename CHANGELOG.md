@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.20.4
+
+The sound card's sliders look as they should, and a handful of open ends are closed.
+
+- **Changed:** the sound card's two sliders are the same length, each shows its percent, and they look like the rest of the page.
+- **Fixed:** a Sound card or Mercury radio no longer says in its Terminal that it is waiting and trying again each time it starts.
+- **Fixed:** on Windows, an installer run by hand over a running NeoAPRS no longer gives up halfway.
+- **Fixed:** the app of an AppImage run unpacked no longer loses its files when its NeoAPRS stops before it.
+- **Fixed:** on Windows, `neoaprs gps-replay` ends at Ctrl+Break.
+
 ## 0.20.3
 
 Sliders for the sound card's levels, a receive level that follows the audio at once, and no radio sending through another's modem.
