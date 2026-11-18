@@ -6,6 +6,7 @@ export const packets: Record<keyof typeof source, Message> = {
   "packets.filter": "Suodatin",
   "packets.filter_title": "Kutsu, teksti, laji",
   "packets.about_label": "Tietoa paketeista",
+  "packets.card_label": "Pakettikortti",
   "packets.about1": "Jokainen kuultu (rx) tai itse lähettämäsi (tx) paketti, uusin ensin, sellaisena kuin se kulki ilmassa.",
   "packets.about2": "Napsauta pakettia nähdäksesi, mitä NeoAPRS siitä ymmärsi.",
   "packets.filter_label": "Suodata paketteja",

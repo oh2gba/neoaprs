@@ -9,6 +9,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.me": "Dit station",
   "help.picture.object":
     "Een kaart met je station in de auto en twee objecten die je verzendt: een repeater met zijn frequentie en een verzamelpunt; beide verschijnen op de kaarten van twee andere stations.",
+  "help.picture.bulletingroup":
+    "Eén station verzendt een groepsbulletin, BLN3HAMS, naar drie stations: de twee die de groep HAMS tonen zetten het op hun bord, het derde heeft andere groepen gekozen, hoort het en toont niets.",
   "help.picture.bulletin": "Eén station verzendt een bulletin, BLN1, en hetzelfde bericht verschijnt op het bord van drie andere stations.",
   "help.picture.beacon": "Je station verzendt keer op keer zijn positie, met een klok tussen de bakens, en verschijnt op de kaart van de anderen.",
   "help.picture.path":
@@ -40,7 +42,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.dummy":
     "Verzonnen stations in een onderbroken kader geven je station antwoord, en wat je station verzendt, gaat de lucht niet in: de golven zijn doorgestreept.",
   "help.picture.notifications":
-    "Er komt een bericht van een station binnen, en dit apparaat speelt een geluid af, de luidspreker, en toont een pop-up, het kaartje.",
+    "Er komt een bericht van een station binnen, en dit apparaat speelt een geluid af, de luidspreker, en toont een melding, het kaartje.",
   "help.picture.encrypt":
     "Twee stations geven elkaar hun sleutels. Daarna leest het station met de sleutel ons versleutelde bericht, terwijl een derde station dat het hoort alleen het slot ziet.",
   "help.picture.qru":
@@ -79,8 +81,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.cert.firefox1": "Open Instellingen → Privacy & Beveiliging → Certificaten → Certificaten bekijken → Autoriteiten.",
   "help.cert.firefox2": "Klik op Importeren, kies {file} en vink “Deze CA vertrouwen voor het identificeren van websites” aan.",
 
-  "help.popup.title": "Pop-ups inschakelen",
-  "help.popup.title_in": "Pop-ups inschakelen in {browser}",
+  "help.popup.title": "Meldingen inschakelen",
+  "help.popup.title_in": "Meldingen inschakelen in {browser}",
   "help.popup.secure_page": "Open de beveiligde pagina: {link}",
   "help.popup.remove_warning": "Browserwaarschuwing verwijderen",
   "help.popup.keep_http": "Of bij http blijven",
@@ -93,10 +95,11 @@ export const help: Record<keyof typeof source, Message> = {
   "help.popup.chromium3": "Klik onderaan op “Relaunch”.",
   "help.popup.back": "Kom hier terug en klik op {reload}",
   "help.popup.reload": "Opnieuw laden",
-  "help.popup.phone": "Telefoons tonen pop-ups alleen voor https-pagina's, en deze pagina is er geen. Het geluid en de melding op het tabblad werken hier wel.",
+  "help.popup.phone":
+    "Telefoons tonen meldingen alleen voor https-pagina's, en deze pagina is er geen. Het geluid en het signaal op het tabblad werken hier wel.",
   "help.popup.other":
-    "Deze browser kan pop-ups voor dit adres op geen enkele manier toestaan. Het geluid en de melding op het tabblad werken hier wel. Firefox, Chrome en Edge op een computer kunnen dat wel.",
-  "help.popup.still": "Als de pop-up nog steeds niet verschijnt",
+    "Deze browser kan meldingen voor dit adres op geen enkele manier toestaan. Het geluid en het signaal op het tabblad werken hier wel. Firefox, Chrome en Edge op een computer kunnen dat wel.",
+  "help.popup.still": "Als de melding nog steeds niet verschijnt",
   "help.popup.flatpak": "Voor Firefox, geïnstalleerd als Flatpak (KDE), zijn deze twee opdrachten in een terminal nodig, en daarna een herstart van Firefox:",
 
   "help.update.title": "NeoAPRS {version} is beschikbaar",

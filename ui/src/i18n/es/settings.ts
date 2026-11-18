@@ -217,7 +217,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.radius.label": "Radio",
   "settings.radius.tip_label": "Acerca del radio",
   "settings.radius.tip1": "Hasta dónde llega, desde tu estación, el mapa detallado con calles y nombres. El mapa mundial siempre está.",
-  "settings.radius.tip2": "Un radio mayor es una descarga mayor: 150 km son una región, 500 km gran parte de un país.",
+  "settings.radius.tip2": "Un radio mayor es una descarga mayor: 150 km son una región, 300 km una región grande.",
 
   "settings.digipeater.name": "Digipeater",
   "settings.digipeater.tip_label": "Qué hace el digipeater",
@@ -261,7 +261,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.alerts.text_app": "En este ordenador",
   "settings.alerts.title": "La alerta propia de NeoAPRS: el comando que se ejecuta en el ordenador de NeoAPRS",
   "settings.alerts.title_app": "La alerta propia de NeoAPRS: el comando que se ejecuta en este ordenador",
-  "settings.alerts.tip_label": "Acerca de las alertas",
+  "settings.alerts.tip_label": "Acerca de las notificaciones",
   "settings.alerts.tip1": "La alerta del ordenador de NeoAPRS: ejecuta el comando con cada mensaje nuevo, por defecto un sonido y una notificación.",
   "settings.alerts.tip1_app": "La alerta de este ordenador: ejecuta el comando con cada mensaje nuevo, por defecto un sonido y una notificación.",
   "settings.alerts.tip2": "El grupo siguiente es este navegador. Usa uno de los dos, o los dos para que te avisen dos veces.",
@@ -273,7 +273,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.browser.heading": "En este navegador",
   "settings.browser.heading_app": "En esta ventana",
-  "settings.browser.mode": "Alerta",
+  "settings.browser.mode": "Notificarme",
   "settings.browser.mode_tip": "Avisa de un mensaje nuevo en este navegador, con sonido o notificación. Cada dispositivo elige el suyo.",
   "settings.browser.mode_tip_app": "Avisa de un mensaje nuevo en esta ventana, con sonido. Cada dispositivo elige el suyo.",
   "settings.browser.enable_popups": "Activar notificaciones…",
@@ -515,6 +515,5 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.about.modem": "El módem de una radio Mercury es {modem}, de Rhizomatica.",
   "settings.about.direwolf": "El módem de una radio del tipo Tarjeta de sonido es {modem}, de John Langner, WB2OSZ.",
   "settings.about.thanks": "Gracias a todos los que lo probaron y enviaron sus comentarios.",
-  "settings.about.feedback": "Las ideas y los informes de errores también pueden ir a {issues} o a {mail}.",
-  "settings.about.issues": "incidencias en GitHub",
+  "settings.about.feedback": "Ideas e informes de errores: {button}, arriba.",
 };

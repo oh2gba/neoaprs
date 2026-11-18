@@ -204,7 +204,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.https.name": "Connessione sicura",
   "settings.https.label": "Connessione sicura (https)",
   "settings.https.tip_label": "Informazioni sulla connessione sicura",
-  "settings.https.tip1": "Necessario per i pop-up sui telefoni e per installare NeoAPRS come app.",
+  "settings.https.tip1": "Necessario per le notifiche sui telefoni e per installare NeoAPRS come app.",
   "settings.https.tip2": "La prima volta il browser avvisa del certificato: puoi continuare lo stesso.",
   "settings.https.reason.no_library": "la connessione sicura non è possibile in questa installazione",
   "settings.https.reason.clock": "l’orologio di questo computer non è impostato; la connessione sicura parte quando lo sarà",
@@ -216,7 +216,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.radius.label": "Raggio",
   "settings.radius.tip_label": "Informazioni sul raggio",
   "settings.radius.tip1": "Fin dove arriva, dalla tua stazione, la mappa dettagliata con strade e nomi. La mappa del mondo c’è sempre.",
-  "settings.radius.tip2": "Un raggio maggiore è un download maggiore: 150 km sono una regione, 500 km gran parte di un paese.",
+  "settings.radius.tip2": "Un raggio maggiore è un download maggiore: 150 km sono una regione, 300 km una grande regione.",
 
   "settings.digipeater.name": "Digipeater",
   "settings.digipeater.tip_label": "Cosa fa il digipeater",
@@ -260,7 +260,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.alerts.text_app": "Su questo computer",
   "settings.alerts.title": "L’avviso di NeoAPRS stesso: il comando eseguito sul computer di NeoAPRS",
   "settings.alerts.title_app": "L’avviso di NeoAPRS stesso: il comando eseguito su questo computer",
-  "settings.alerts.tip_label": "Informazioni sugli avvisi",
+  "settings.alerts.tip_label": "Informazioni sulle notifiche",
   "settings.alerts.tip1": "L’avviso del computer di NeoAPRS: esegue il comando a ogni nuovo messaggio, di norma un suono e una notifica.",
   "settings.alerts.tip1_app": "L’avviso di questo computer: esegue il comando a ogni nuovo messaggio, di norma un suono e una notifica.",
   "settings.alerts.tip2": "Il gruppo seguente è questo browser. Usa uno dei due, o entrambi per essere avvisato due volte.",
@@ -273,7 +273,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.browser.heading": "In questo browser",
   "settings.browser.heading_app": "In questa finestra",
-  "settings.browser.mode": "Avviso",
+  "settings.browser.mode": "Avvisami",
   "settings.browser.mode_tip": "Avvisa di un nuovo messaggio in questo browser, con un suono o una notifica. Ogni dispositivo sceglie per sé.",
   "settings.browser.mode_tip_app": "Avvisa di un nuovo messaggio in questa finestra, con un suono. Ogni dispositivo sceglie per sé.",
   "settings.browser.enable_popups": "Attiva le notifiche…",
@@ -515,6 +515,5 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.about.modem": "Il modem di una radio Mercury è {modem}, di Rhizomatica.",
   "settings.about.direwolf": "Il modem di una radio di tipo Scheda audio è {modem}, di John Langner, WB2OSZ.",
   "settings.about.thanks": "Grazie a tutti quelli che l’hanno provato e hanno mandato i loro riscontri.",
-  "settings.about.feedback": "Idee e segnalazioni di errori possono andare anche su {issues} o a {mail}.",
-  "settings.about.issues": "segnalazioni su GitHub",
+  "settings.about.feedback": "Idee e segnalazioni di errori: {button}, qui sopra.",
 };

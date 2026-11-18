@@ -31,6 +31,18 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.group": "Groep",
   "bulletins.group_placeholder": "Naam",
   "bulletins.text": "Tekst",
+  "bulletins.tip.hours": { one: "{n} uur", other: "{n} uur" },
+  "bulletins.tip.days": { one: "{n} dag", other: "{n} dagen" },
+  "bulletins.tip.kind1":
+    "Een bulletin en een aankondiging worden getoond door elk station dat ze hoort. Een bulletin is voor wat nu telt en wordt {hours} lang verzonden; een aankondiging is voor wat blijft gelden en wordt {days} lang verzonden.",
+  "bulletins.tip.kind2": "Een groepsbulletin wordt {hours} lang verzonden; elk station toont het, tenzij de operator andere groepen koos om te tonen.",
+  "bulletins.tip.id1": "Het nummer is de naam van het bericht, bij een aankondiging een letter; een nieuw bericht eronder vervangt het.",
+  "bulletins.tip.id2": "Opnieuw plaatsen onder hetzelfde nummer of dezelfde letter verzendt de nieuwe tekst vanaf het begin.",
+  "bulletins.tip.group1":
+    "De naam is deel van het adres, zoals in BLN3HAMS, zodat elk station het bulletin hoort en toont, tenzij de operator andere groepen koos om te tonen.",
+  "bulletins.tip.group2": "NeoAPRS toont de bulletins van elke groep die het hoort, onder Groepsberichten.",
+  "bulletins.tip.text1": "Tot {max} tekens, afdrukbaar, geen van {forbidden}.",
+  "bulletins.tip.text2": "Het gaat uit in één radiopakket, herhaald voor de duur van de soort.",
   "bulletins.post": "Plaatsen",
   "bulletins.replace": "Vervangen",
 } as const;

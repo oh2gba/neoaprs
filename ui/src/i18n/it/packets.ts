@@ -5,6 +5,7 @@ export const packets: Readonly<Record<keyof typeof en, Message>> = {
   "packets.filter": "Filtro",
   "packets.filter_title": "Nominativo, testo, tipo",
   "packets.about_label": "Sui pacchetti",
+  "packets.card_label": "Scheda dei pacchetti",
   "packets.about1": "Ogni pacchetto ascoltato (rx) o inviato da te (tx), il più recente per primo, come è passato via radio.",
   "packets.about2": "Fai clic su un pacchetto per vedere cosa ne ha ricavato NeoAPRS.",
   "packets.filter_label": "Filtra i pacchetti",

@@ -6,6 +6,7 @@ export const packets: Record<keyof typeof source, Message> = {
   "packets.filter": "Filtrar",
   "packets.filter_title": "Indicativo, texto, tipo",
   "packets.about_label": "Sobre os pacotes",
+  "packets.card_label": "Cartão de pacotes",
   "packets.about1": "Cada pacote ouvido (rx) ou enviado por você (tx), o mais novo primeiro, como passou pelo ar.",
   "packets.about2": "Clique em um pacote para ver o que o NeoAPRS fez dele.",
   "packets.filter_label": "Filtrar os pacotes",

@@ -31,6 +31,18 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.group": "Ryhmä",
   "bulletins.group_placeholder": "Nimi",
   "bulletins.text": "Teksti",
+  "bulletins.tip.hours": { one: "{n} tunnin", other: "{n} tunnin" },
+  "bulletins.tip.days": { one: "{n} päivän", other: "{n} päivän" },
+  "bulletins.tip.kind1":
+    "Tiedote ja ilmoitus näkyvät jokaisella asemalla, joka ne kuulee. Tiedote on sille, mikä on tärkeää nyt, ja sitä lähetetään {hours} ajan; ilmoitus on sille, mikä pysyy totena, ja sitä lähetetään {days} ajan.",
+  "bulletins.tip.kind2": "Ryhmätiedotetta lähetetään {hours} ajan; jokainen asema näyttää sen, ellei sen käyttäjä ole valinnut näytettäväksi muita ryhmiä.",
+  "bulletins.tip.id1": "Numero nimeää julkaisun, ilmoituksella kirjain; sen alle tehty uusi julkaisu korvaa sen.",
+  "bulletins.tip.id2": "Uusi julkaisu samalla numerolla tai kirjaimella lähettää uuden tekstin alusta.",
+  "bulletins.tip.group1":
+    "Nimi on osa osoitetta, kuten BLN3HAMS, joten jokainen asema kuulee tiedotteen ja näyttää sen, ellei sen käyttäjä ole valinnut näytettäväksi muita ryhmiä.",
+  "bulletins.tip.group2": "NeoAPRS näyttää jokaisen kuulemansa ryhmän tiedotteet kohdassa Ryhmätiedotteet.",
+  "bulletins.tip.text1": "Enintään {max} merkkiä, tulostettavia, ei yhtään näistä: {forbidden}.",
+  "bulletins.tip.text2": "Se lähtee yhdessä radiopaketissa, jota toistetaan lajin ajan.",
   "bulletins.post": "Julkaise",
   "bulletins.replace": "Korvaa",
 } as const;

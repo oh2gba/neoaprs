@@ -5,6 +5,7 @@ import type { Message } from "@/i18n/message";
 export const packets: Record<keyof typeof source, Message> = {
   "packets.filter": "Filter",
   "packets.filter_title": "Roepnaam, tekst, soort",
+  "packets.card_label": "Pakkettenkaart",
   "packets.about_label": "Over de pakketten",
   "packets.about1": "Elk gehoord (in) of door jou verzonden (uit) pakket, nieuwste eerst, zoals het door de ether ging.",
   "packets.about2": "Klik op een pakket om te zien wat NeoAPRS ervan maakte.",

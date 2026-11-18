@@ -6,6 +6,7 @@ export const packets: Record<keyof typeof source, Message> = {
   "packets.filter": "絞り込み",
   "packets.filter_title": "コールサイン、テキスト、種類",
   "packets.about_label": "パケットについて",
+  "packets.card_label": "パケットのカード",
   "packets.about1": "受信または送信したすべてのパケットを、新しい順に、電波に載ったままの形で表示します。",
   "packets.about2": "パケットをクリックすると、NeoAPRS が何と解釈したかが分かります。",
   "packets.filter_label": "パケットを絞り込む",

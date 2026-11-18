@@ -10,6 +10,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.object":
     "Kartta, jolla on autoasemasi ja kaksi lähettämääsi kohdetta, toistin taajuuksineen ja kokoontumispaikka; molemmat näkyvät kahden muun aseman kartoilla.",
   "help.picture.bulletin": "Yksi asema lähettää tiedotteen, BLN1, ja sama viesti näkyy kolmen muun aseman ilmoitustaululla.",
+  "help.picture.bulletingroup":
+    "Yksi asema lähettää ryhmätiedotteen, BLN3HAMS, kolmelle asemalle: kaksi, jotka näyttävät ryhmän HAMS, panevat sen taulullensa, kolmas on valinnut muita ryhmiä, kuulee sen eikä näytä mitään.",
   "help.picture.beacon": "Asemasi lähettää sijaintinsa yhä uudelleen, majakoiden välissä kello, ja näkyy muiden kartalla.",
   "help.picture.path":
     "Pakettisi kulkee autostasi täydentävälle digipeaterille, WIDE1-1, ja sieltä laajan alueen digipeaterille, WIDE2-1: kaksi hyppyä, ennen kuin muut asemat kuulevat sen.",
@@ -37,7 +39,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.tworadios":
     "Asemasi kahdella radiolla: FM-radio tavoittaa lähellä olevan auton ja digipeaterin maanpintaa pitkin, Mercury-radio kaukaisen aseman signaalilla, joka nousee ylös ja tulee alas.",
   "help.picture.dummy": "Katkoviivakehyksessä olevat keksityt asemat vastaavat asemallesi, eikä asemasi lähettämä lähde ilmaan: aallot on yliviivattu.",
-  "help.picture.notifications": "Asemalta tulee viesti, ja tämä laite soittaa äänen, kaiuttimen, ja näyttää ponnahdusilmoituksen, kortin.",
+  "help.picture.notifications": "Asemalta tulee viesti, ja tämä laite soittaa äänen, kaiuttimen, ja näyttää ilmoituksen, kortin.",
   "help.picture.encrypt":
     "Kaksi asemaa antaa toisilleen avaimensa. Sen jälkeen lukitun viestimme lukee asema, jolla on avain, kun taas kolmas asema, joka sen kuulee, näkee vain lukon.",
   "help.picture.qru": "Asemasi pyytää paikallista tietoa, ja palvelinasema vastaa kohteilla, toistimella ja tapahtumalla, jotka näkyvät kartallasi.",
@@ -73,8 +75,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.cert.firefox1": "Avaa Asetukset → Tietosuoja ja turvallisuus → Varmenteet → Näytä varmenteet → Myöntäjät.",
   "help.cert.firefox2": 'Napsauta Tuo, valitse {file} ja rastita "Luota tähän myöntäjään verkkosivustojen tunnistamisessa".',
 
-  "help.popup.title": "Salli ponnahdusilmoitukset",
-  "help.popup.title_in": "Salli ponnahdusilmoitukset selaimessa {browser}",
+  "help.popup.title": "Salli ilmoitukset",
+  "help.popup.title_in": "Salli ilmoitukset selaimessa {browser}",
   "help.popup.secure_page": "Avaa suojattu sivu: {link}",
   "help.popup.remove_warning": "Poista selaimen varoitus",
   "help.popup.keep_http": "Tai jatka http:llä",
@@ -87,10 +89,10 @@ export const help: Record<keyof typeof source, Message> = {
   "help.popup.chromium3": 'Napsauta alareunassa "Relaunch".',
   "help.popup.back": "Palaa tänne ja paina {reload}",
   "help.popup.reload": "Lataa uudelleen",
-  "help.popup.phone": "Puhelimet näyttävät ponnahdusilmoituksia vain https-sivuille, eikä tämä sivu ole sellainen. Ääni ja välilehden hälytys toimivat täällä.",
+  "help.popup.phone": "Puhelimet näyttävät ilmoituksia vain https-sivuille, eikä tämä sivu ole sellainen. Ääni ja välilehden hälytys toimivat täällä.",
   "help.popup.other":
-    "Tämä selain ei voi sallia ponnahdusilmoituksia tälle osoitteelle. Ääni ja välilehden hälytys toimivat täällä. Firefox, Chrome ja Edge tietokoneella voivat sallia ne.",
-  "help.popup.still": "Jos ponnahdusilmoitus ei vieläkään näy",
+    "Tämä selain ei voi sallia ilmoituksia tälle osoitteelle. Ääni ja välilehden hälytys toimivat täällä. Firefox, Chrome ja Edge tietokoneella voivat sallia ne.",
+  "help.popup.still": "Jos ilmoitus ei vieläkään näy",
   "help.popup.flatpak": "Flatpakina asennettu Firefox (KDE) tarvitsee nämä kaksi komentoa päätteessä ja sitten Firefoxin uudelleenkäynnistyksen:",
 
   "help.update.title": "NeoAPRS {version} on saatavilla",

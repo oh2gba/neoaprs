@@ -9,6 +9,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.object":
     "Un mapa con tu estación en el coche y dos objetos que envías, un repetidor con su frecuencia y un punto de encuentro; ambos aparecen en los mapas de otras dos estaciones.",
   "help.picture.bulletin": "Una estación envía un boletín, BLN1, y el mismo mensaje aparece en el tablón de otras tres estaciones.",
+  "help.picture.bulletingroup":
+    "Una estación envía un boletín de grupo, BLN3HAMS, a tres estaciones: las dos que muestran el grupo HAMS lo ponen en su tablón, la tercera ha elegido otros grupos, lo escucha y no muestra nada.",
   "help.picture.beacon": "Tu estación envía su posición una y otra vez, con un reloj entre las balizas, y aparece en el mapa de los demás.",
   "help.picture.path":
     "Tu paquete va de tu coche a un digipeater de relleno, WIDE1-1, y luego a uno de área amplia, WIDE2-1: dos saltos antes de que las demás estaciones lo escuchen.",

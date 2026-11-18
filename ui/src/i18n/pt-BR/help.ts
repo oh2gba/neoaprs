@@ -10,6 +10,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.object":
     "Um mapa com a sua estação no carro e dois objetos que você envia, um repetidor com a sua frequência e um ponto de encontro; os dois aparecem nos mapas de outras duas estações.",
   "help.picture.bulletin": "Uma estação envia um boletim, BLN1, e a mesma mensagem aparece no mural de outras três estações.",
+  "help.picture.bulletingroup":
+    "Uma estação envia um boletim de grupo, BLN3HAMS, para três estações: as duas que exibem o grupo HAMS o põem no mural, a terceira escolheu outros grupos, recebe o boletim e não exibe nada.",
   "help.picture.beacon": "A sua estação envia a posição repetidamente, com um relógio entre as balizas, e aparece no mapa dos outros.",
   "help.picture.path":
     "O seu pacote vai do seu carro até um digipeater de preenchimento, WIDE1-1, e depois a um de área ampla, WIDE2-1: dois saltos antes de as outras estações o receberem.",
@@ -36,7 +38,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.tworadios":
     "Sua estação com dois rádios: o rádio FM alcança o carro e o digipeater próximos rente ao chão, o rádio Mercury alcança uma estação distante pelo sinal que sobe e volta a descer.",
   "help.picture.dummy": "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
-  "help.picture.notifications": "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra um pop-up, o cartão.",
+  "help.picture.notifications": "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra uma notificação, o cartão.",
   "help.picture.encrypt":
     "Duas estações trocam suas chaves. Depois, nossa mensagem trancada é lida pela estação que tem a chave, enquanto uma terceira que a ouvir vê só o cadeado.",
   "help.picture.qru": "Sua estação pede info local, e uma estação servidora responde com objetos, uma repetidora e um evento, que aparecem no seu mapa.",
@@ -74,8 +76,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.cert.firefox1": "Abra Configurações → Privacidade e Segurança → Certificados → Ver certificados → Autoridades.",
   "help.cert.firefox2": 'Clique em Importar, escolha {file} e marque "Confiar nesta AC para identificar sites".',
 
-  "help.popup.title": "Ativar pop-ups",
-  "help.popup.title_in": "Ativar pop-ups no {browser}",
+  "help.popup.title": "Ativar notificações",
+  "help.popup.title_in": "Ativar notificações no {browser}",
   "help.popup.secure_page": "Abra a página segura: {link}",
   "help.popup.remove_warning": "Remover o aviso do navegador",
   "help.popup.keep_http": "Ou continuar com http",
@@ -88,10 +90,10 @@ export const help: Record<keyof typeof source, Message> = {
   "help.popup.chromium3": 'Clique em "Reiniciar" na parte de baixo.',
   "help.popup.back": "Volte aqui e clique em {reload}",
   "help.popup.reload": "Recarregar",
-  "help.popup.phone": "Os celulares só mostram pop-ups para páginas https, e esta página não é uma. O som e o alerta na aba funcionam aqui.",
+  "help.popup.phone": "Os celulares só mostram notificações para páginas https, e esta página não é uma. O som e o alerta na aba funcionam aqui.",
   "help.popup.other":
-    "Este navegador não tem como permitir pop-ups para este endereço. O som e o alerta na aba funcionam aqui. Firefox, Chrome e Edge em um computador podem permiti-los.",
-  "help.popup.still": "Se o pop-up ainda não aparecer",
+    "Este navegador não tem como permitir notificações para este endereço. O som e o alerta na aba funcionam aqui. Firefox, Chrome e Edge em um computador podem permiti-las.",
+  "help.popup.still": "Se a notificação ainda não aparecer",
   "help.popup.flatpak": "O Firefox instalado como Flatpak (KDE) precisa destes dois comandos em um terminal, e depois reiniciar o Firefox:",
 
   "help.update.title": "NeoAPRS {version} está disponível",

@@ -9,6 +9,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.me": "この局",
   "help.picture.object": "自分の車の局と、送信する2つのオブジェクト(周波数つきのリピーターと集合場所)を示す地図。どちらも他の2局の地図に表示されます。",
   "help.picture.bulletin": "1つの局が掲示 BLN1 を送ると、同じメッセージが他の3局の掲示板に表示されます。",
+  "help.picture.bulletingroup":
+    "1つの局がグループ掲示 BLN3HAMS を3局に送ります。グループ HAMS を表示する2局は掲示板に載せ、3局目は他のグループを選んでいるため、受信しても何も表示しません。",
   "help.picture.beacon": "自局は位置を繰り返し送信し(ビーコンの間に時計)、他の局の地図に表示されます。",
   "help.picture.path": "パケットは車からフィルインのデジピーター(WIDE1-1)、次に広域のデジピーター(WIDE2-1)へと、2ホップして他の局に届きます。",
   "help.picture.status": "短いステータス文(QRV 145.500)が、他の局の地図でコールサインの下に表示されます。",
@@ -33,7 +35,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.tworadios":
     "2台の無線機を持つ自局：FM無線機は近くの車とデジピーターに地表沿いに届き、Mercury無線機は上がって下りてくる信号で遠くの局に届きます。",
   "help.picture.dummy": "破線の枠の中の作り物の局が自局に応答しますが、自局が送るものは出ません。電波に×が付いています。",
-  "help.picture.notifications": "局からメッセージが届くと、この端末がスピーカーで音を鳴らし、カードでポップアップを表示します。",
+  "help.picture.notifications": "局からメッセージが届くと、この端末がスピーカーで音を鳴らし、カードで通知を表示します。",
   "help.picture.encrypt":
     "2つの局が互いの鍵を渡します。すると自局の暗号化メッセージは鍵を持つ局だけが読め、それを受信した第三の局には錠前のマークしか見えません。",
   "help.picture.qru": "自局がローカル情報を問い合わせると、サーバー局がオブジェクト(レピータとイベント)で答え、地図に表示されます。",
@@ -70,8 +72,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.cert.firefox1": "「設定」→「プライバシーとセキュリティ」→「証明書」→「証明書を表示」→「認証局」を開きます。",
   "help.cert.firefox2": "「インポート」をクリックして{file}を選び、「この認証局によるウェブサイトの識別を信頼する」にチェックを入れます。",
 
-  "help.popup.title": "ポップアップを有効にする",
-  "help.popup.title_in": "{browser}でポップアップを有効にする",
+  "help.popup.title": "通知を有効にする",
+  "help.popup.title_in": "{browser}で通知を有効にする",
   "help.popup.secure_page": "セキュアなページを開きます: {link}",
   "help.popup.remove_warning": "ブラウザの警告を消す",
   "help.popup.keep_http": "またはhttpのまま使う",
@@ -84,10 +86,9 @@ export const help: Record<keyof typeof source, Message> = {
   "help.popup.chromium3": "下の「再起動」をクリックします。",
   "help.popup.back": "ここに戻って{reload}を押します",
   "help.popup.reload": "再読み込み",
-  "help.popup.phone": "スマートフォンでポップアップが表示されるのはhttpsのページだけで、このページはそうではありません。音とタブの通知は使えます。",
-  "help.popup.other":
-    "このブラウザでは、このアドレスのポップアップを許可できません。音とタブの通知は使えます。パソコンのFirefox、Chrome、Edgeなら許可できます。",
-  "help.popup.still": "それでもポップアップが表示されない場合",
+  "help.popup.phone": "スマートフォンで通知が表示されるのはhttpsのページだけで、このページはそうではありません。音とタブのアラートは使えます。",
+  "help.popup.other": "このブラウザでは、このアドレスの通知を許可できません。音とタブのアラートは使えます。パソコンのFirefox、Chrome、Edgeなら許可できます。",
+  "help.popup.still": "それでも通知が表示されない場合",
   "help.popup.flatpak": "Flatpakでインストールした Firefox(KDE)では、ターミナルで次の2つのコマンドを実行し、Firefoxを再起動する必要があります:",
 
   "help.update.title": "NeoAPRS {version} が利用できます",
