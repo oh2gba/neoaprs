@@ -397,6 +397,12 @@ button,
   .cardstack {
     --row-top: 150px;
   }
+  /* a finger needs more: the handles of a card that is sized (composables/useCardSize.ts) are thicker, and the ones at the top right stay clear of the close cross (40 px) */
+  .card {
+    --sizer: 12px;
+    --sizer-corner: 24px;
+    --sizer-clear: 48px;
+  }
   /* a long press on a row of the Stations table opens its menu, one on a row, a bubble or a head that has a copy menu (CopyMenu) opens that, and one on the monitor card's body (its picture and its receive level) opens the card's menu: the page does not select text or show the system's callout instead (not in the field under a row, whose path field is typed in) */
   .grid.stations tbody tr:not(.detail),
   .copysource,

@@ -13,6 +13,7 @@ export const stations = {
 
   "station.card.label": "Station",
   "station.card.qrz_title": "Open the QRZ page of this call",
+  "station.card.size_title": "Drag to move the card, its edges to size it (Alt+arrow keys move the focused card, Ctrl+Alt+arrow keys size it)",
   "station.card.drag_title": "Drag to move the card (Alt+arrow keys move the focused card)",
   "station.card.edit": "Edit",
   "station.card.kill": "Kill",

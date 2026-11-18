@@ -34,21 +34,22 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
     const parent = el?.parentElement;
     if (!el || !parent) return null;
     if (place.value) return place.value;
-    const box = el.getBoundingClientRect();
-    const room = parent.getBoundingClientRect();
+    const [box, room] = [el.getBoundingClientRect(), parent.getBoundingClientRect()];
     return { x: box.left - room.left, y: box.top - room.top };
   }
 
+  /** Puts the card at the place as it is, not kept inside (a sized card keeps itself inside with its size: composables/useCardSize.ts), and remembers it (`keep`; a sizing in progress keeps it at its end). */
+  const setPlace = (next: Place, keep = true): void => {
+    if (keep) writeStored(key, `${next.x},${next.y}`);
+    place.value = next;
+  };
   /** Puts the card at the place, kept inside its parent, and remembers it. */
   function put(next: Place): void {
     const el = card.value;
     const parent = el?.parentElement;
     if (!el || !parent) return;
     const box = el.getBoundingClientRect();
-    const clamped = clampPlace(next, { width: box.width, height: box.height }, { left: 0, top: 0, right: parent.clientWidth, bottom: parent.clientHeight });
-    if (place.value?.x === clamped.x && place.value?.y === clamped.y) return;
-    place.value = clamped;
-    writeStored(key, `${clamped.x},${clamped.y}`);
+    setPlace(clampPlace(next, { width: box.width, height: box.height }, { left: 0, top: 0, right: parent.clientWidth, bottom: parent.clientHeight }));
   }
 
   function stop(): void {
@@ -103,7 +104,7 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
     put({ x: at.x + step.x, y: at.y + step.y });
   }
 
-  /** The map or the card changed size: a card that was moved is kept inside the map. */
+  /** The map or the card changed size: the card is kept inside the map. */
   const keepInside = (): void => {
     if (enabled() && place.value) put(place.value);
   };
@@ -114,11 +115,11 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
   useResized(card, keepInside);
   onBeforeUnmount(stop);
 
-  /** Where the card stands, as its style, while it was moved and moving is on. */
+  /** The place as the card's style. */
   const style = computed(() => (enabled() && place.value ? { left: `${place.value.x}px`, top: `${place.value.y}px` } : undefined));
   const moved = computed(() => enabled() && place.value !== null);
   /** The listeners of the card (`v-on="on"`). */
   const on = { pointerdown: down, pointermove: move, pointerup: up, pointercancel: up, keydown };
 
-  return { place, moved, style, on };
+  return { place, moved, style, on, current, setPlace };
 }

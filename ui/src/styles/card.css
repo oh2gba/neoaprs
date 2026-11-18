@@ -345,18 +345,99 @@
   height: min(480px, calc(100% - 114px));
 }
 .packetscard .card-body {
+  margin-right: var(--sizer);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-/* open together, the cards stand side by side from the right edge of the map: the statistics card, the Packets card, the monitor (composables/useAppShell.ts opens one only where the map has room for it) */
+/* a card that was sized (composables/useCardSize.ts) has the width and height its style gives; its handles lie over its own edges, a strip along each side and a square at each corner, so that nothing moves while one is dragged */
+.card {
+  --sizer: 8px; /* the strips' thickness, and the room the Packets list leaves at its right for its scrollbar */
+  --sizer-corner: 14px;
+  --sizer-clear: 14px; /* where the strips at the top right begin and end, clear of the close cross */
+}
+.sizer {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+.sizer-n,
+.sizer-s {
+  left: 14px;
+  right: var(--sizer-clear);
+  height: var(--sizer);
+  cursor: ns-resize;
+}
+.sizer-e,
+.sizer-w {
+  top: var(--sizer-clear);
+  bottom: 14px;
+  width: var(--sizer);
+  cursor: ew-resize;
+}
+.sizer-n,
+.sizer-ne,
+.sizer-nw {
+  top: 0;
+}
+.sizer-s,
+.sizer-se,
+.sizer-sw {
+  bottom: 0;
+}
+.sizer-e,
+.sizer-ne,
+.sizer-se {
+  right: 0;
+}
+.sizer-w,
+.sizer-nw,
+.sizer-sw {
+  left: 0;
+}
+.sizer-ne,
+.sizer-nw,
+.sizer-se,
+.sizer-sw {
+  width: var(--sizer-corner);
+  height: var(--sizer-corner);
+}
+.sizer-ne {
+  width: var(--sizer);
+  height: var(--sizer);
+}
+.sizer-ne,
+.sizer-sw {
+  cursor: nesw-resize;
+}
+.sizer-nw,
+.sizer-se {
+  cursor: nwse-resize;
+}
+/* the page does not select text or move the map while a card is sized */
+.card-sizing,
+.card-sizing * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+/* the monitor card that was sized: the picture takes the height that is left under the head and over the level */
+.monitorcard.sized .card-body {
+  display: flex;
+  flex-direction: column;
+}
+.monitorcard.sized .monitor-picture {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 80px;
+}
+/* open together, the cards stand side by side (a Packets card that was sized has a place of its own and still counts, so that the monitor does not move across the map when it is first sized) from the right edge of the map: the statistics card, the Packets card, the monitor (composables/useAppShell.ts opens one only where the map has room for it) */
 .app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)) :is(.packetscard, .monitorcard):not(.moved) {
   right: 360px;
 }
-.app:not(.size-phone) .mapwrap:has(.packetscard:not(.moved)) .monitorcard:not(.moved) {
+.app:not(.size-phone) .mapwrap:has(:is(.packetscard:not(.moved), .packetscard.sized)) .monitorcard:not(.moved) {
   right: 580px;
 }
-.app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)):has(.packetscard:not(.moved)) .monitorcard:not(.moved) {
+.app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)):has(:is(.packetscard:not(.moved), .packetscard.sized)) .monitorcard:not(.moved) {
   right: 930px;
 }
 /* the packets of the station by the hour on its card (components/StationPackets.vue), the speed of a moving one (components/StationSpeed.vue) and the signal of one that was measured (components/StationSignal.vue), between the facts and Details */

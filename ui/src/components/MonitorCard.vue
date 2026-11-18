@@ -1,15 +1,18 @@
 <script setup lang="ts">
 // The monitor card over the map, opened from the map's menu (components/MapMenu.vue, Monitor): a radio's scope larger than the box in Settings, the same waterfall (components/HfWaterfall.vue) over the same receive level
 // (components/HfLevelBar.vue). It follows the statistics card (components/StatsCard.vue) in everything: at the bottom right of the map, its cross closes it and so does Esc, whether it is open is remembered by this browser (composables/useAppShell.ts),
-// it is dragged by its head or moved with Alt and the arrow keys where moving is on (`movable`: a tablet and a desktop; composables/useFreeDrag.ts) and remembers where it was left, and on a phone it is a card at the bottom of the screen.
+// it is dragged by its head or moved with Alt and the arrow keys where moving is on (`movable`: a tablet and a desktop; composables/useFreeDrag.ts) and remembers where it was left, and on a phone it is a card at the bottom of the screen. Its edges and corners size it, or Ctrl and Alt with the arrow keys (composables/useCardSize.ts), and it remembers its size too:
+// the picture takes the height that is given.
 // The rows are asked of the daemon while it is there (composables/useScopeLooks.ts counts who looks), and not while the page is hidden. A right-click on the card (a long press on its body, the menu key on its picture, which takes the
 // focus) opens its menu (components/MonitorMenu.vue, composables/useMonitorMenu.ts): the speed of its waterfall, remembered by this browser; the menu is put at the end of the page's body, so that nothing over the map covers it.
 // Its radio is the one chosen in the map's menu while it has a scope, else the first that has one (composables/useScopeLooks.ts, `monitor`); where several radios are on, its head says which ("20 m: Monitor").
 import { computed, ref } from "vue";
+import CardSizer from "@/components/CardSizer.vue";
 import HfLevelBar from "@/components/HfLevelBar.vue";
 import HfWaterfall from "@/components/HfWaterfall.vue";
 import IconButton from "@/components/IconButton.vue";
 import MonitorMenu from "@/components/MonitorMenu.vue";
+import { SIZE_KEYS, useCardSize } from "@/composables/useCardSize";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useFreeDrag } from "@/composables/useFreeDrag";
 import { useMonitorMenu } from "@/composables/useMonitorMenu";
@@ -24,6 +27,9 @@ const { scope } = useDaemonContext();
 const radios = useRadios();
 const root = ref<HTMLElement | null>(null);
 const drag = useFreeDrag(root, "monitorplace", () => props.movable);
+/** The least the picture, its level and the head can be read at. */
+const LEAST = { width: 340, height: 300 };
+const sizing = useCardSize(root, "monitorsize", LEAST, drag, () => props.movable);
 const shown = ref(false); // its picture has room (components/HfWaterfall.vue says): on a phone the card stays mounted under a panel tab and shows nothing
 const radio = computed(() => scope.monitor.value);
 scope.look(
@@ -40,12 +46,20 @@ const title = computed(() => {
 const speed = usePersisted("monitorspeed", "normal", SPEEDS);
 const picture = ref<HTMLElement | null>(null);
 const menu = useMonitorMenu(() => picture.value);
-const listeners = { ...drag.on, ...menu.on };
+const listeners = { ...drag.on, ...menu.on, keydown: (event: KeyboardEvent) => (drag.on.keydown(event), sizing.keydown(event)) };
 </script>
 
 <template>
-  <section ref="root" class="card monitorcard" :class="{ moved: drag.moved.value, movable }" :style="drag.style.value" :aria-label="title" v-on="listeners">
-    <header class="card-head" :title="movable ? t('station.card.drag_title') : undefined">
+  <section
+    ref="root"
+    class="card monitorcard"
+    :class="{ moved: drag.moved.value, movable, sized: sizing.sized.value }"
+    :style="{ ...drag.style.value, ...sizing.style.value }"
+    :aria-keyshortcuts="movable ? SIZE_KEYS : undefined"
+    :aria-label="title"
+    v-on="listeners"
+  >
+    <header class="card-head" :title="movable ? t('station.card.size_title') : undefined">
       <div class="card-title">
         <span class="card-call"
           ><strong>{{ title }}</strong></span
@@ -57,6 +71,7 @@ const listeners = { ...drag.on, ...menu.on };
       <div ref="picture" class="monitor-picture" tabindex="0" aria-haspopup="menu"><HfWaterfall :speed="speed" :radio="radio" @shown="shown = $event" /></div>
       <HfLevelBar :on="on" :radio="radio" />
     </div>
+    <CardSizer :sizing="sizing" />
     <Teleport to="body">
       <MonitorMenu v-if="menu.menu.value" :key="menu.key.value" v-bind="menu.menu.value" :speed="speed" @speed="speed = $event" @close="menu.close()" />
     </Teleport>
