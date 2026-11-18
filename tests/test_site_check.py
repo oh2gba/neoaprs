@@ -64,7 +64,7 @@ class Host:
         def answer(handler: Handler, path: str) -> None:
             if path in host.moved:
                 handler.send_response(301)
-                handler.send_header("Location", "https://elsewhere.invalid" + path)
+                handler.send_header("Location", "https://elsewhere.invalid/moved")
                 handler.send_header("Content-Length", "0")
                 handler.end_headers()
                 return

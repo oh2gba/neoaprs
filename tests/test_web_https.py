@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
+from tornado.httputil import HTTPHeaders, HTTPServerRequest, RequestStartLine
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest, HTTPResponse
 from tornado.websocket import websocket_connect
 
@@ -19,6 +20,7 @@ from neoaprs.web import access as web_access
 from neoaprs.web import secureside
 from neoaprs.web.access import COOKIE
 from neoaprs.web.listen import PORT_TRIES
+from neoaprs.web.pagefiles import same_place
 from neoaprs.web.tls import fingerprint_of
 from tests.support.env import Env, until, until_async
 from tests.support.wsclient import WsClient
@@ -182,6 +184,30 @@ async def test_a_device_on_the_plain_port_is_sent_to_the_same_address_on_the_sec
     assert (await plain(e, "/", host=f"{local}:{e.port}")).headers["Location"] == f"https://{local}:{secure_port(e)}/", "by name as well"
     assert (await plain(e, "/", host=f"{LAN}:{e.port}", method="HEAD")).code == 307
     assert (await plain(e, "/", host="evil.example")).code == 403, "a name that is not ours is refused before it is redirected"
+
+
+async def test_a_request_line_with_an_absolute_address_is_not_sent_anywhere(tmp_path: Path, away: None) -> None:
+    e = await served(tmp_path, HTTPS)
+    reader, writer = await asyncio.open_connection("127.0.0.1", e.port)
+    writer.write(f"GET http://evil.example/x?y=1 HTTP/1.1\r\nHost: {LAN}:{e.port}\r\nConnection: close\r\n\r\n".encode())
+    head = (await asyncio.wait_for(reader.read(), 5)).decode("latin-1")
+    writer.close()
+    assert " 404 " in head.splitlines()[0]
+    assert not any(line.lower().startswith("location:") for line in head.splitlines())
+
+
+def asked(uri: str) -> HTTPServerRequest:
+    return HTTPServerRequest(start_line=RequestStartLine("GET", uri, "HTTP/1.1"), headers=HTTPHeaders({"Host": LAN}))
+
+
+def test_a_redirect_keeps_the_path_and_the_query_of_an_honest_request_line() -> None:
+    assert same_place(asked("/a/b?c=d")) == "/a/b?c=d"
+    assert same_place(asked("/")) == "/"
+
+
+def test_a_redirect_never_takes_a_host_from_the_request_line() -> None:
+    assert same_place(asked("http://evil.example/x?y=1")) == "/?y=1"
+    assert same_place(asked("//evil.example/x")) == "//evil.example/x"
 
 
 async def test_an_address_in_brackets_is_redirected_in_brackets(tmp_path: Path, away: None) -> None:

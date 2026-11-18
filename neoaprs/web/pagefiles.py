@@ -32,6 +32,12 @@ class HostGate(Protocol):
     def this_computer_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None: ...
 
 
+def same_place(request: tornado.httputil.HTTPServerRequest) -> str:
+    """The path and the query of a request, for a redirect to the same place on another address: always begins with a slash, so that whatever the request line held (an absolute URI, a name) cannot move the host of the target."""
+    path = request.path if request.path.startswith("/") else "/"
+    return f"{path}?{request.query}" if request.query else path
+
+
 def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
     """Answers 403 and returns True when the request was made for a host name that is not ours (DNS rebinding: a page of another site whose name was moved to this address)."""
     header = handler.request.headers.get("Host", "")
@@ -55,7 +61,7 @@ def refuse_plain(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
     if target is None:
         return False
     if request.method in ("GET", "HEAD") and request.headers.get("Upgrade", "").lower() != "websocket":
-        handler.redirect(f"{target}{request.uri or '/'}", status=307)
+        handler.redirect(f"{target}{same_place(request)}", status=307)
         return True
     handler.set_status(403)
     handler.set_header("Content-Type", "text/plain; charset=utf-8")
@@ -70,7 +76,7 @@ def send_to_this_computer(handler: tornado.web.RequestHandler, server: HostGate)
     target = server.this_computer_target(request)
     if target is None or request.method not in ("GET", "HEAD") or request.headers.get("Upgrade", "").lower() == "websocket":
         return False
-    handler.redirect(f"{target}{request.uri or '/'}", status=307)
+    handler.redirect(f"{target}{same_place(request)}", status=307)
     return True
 
 

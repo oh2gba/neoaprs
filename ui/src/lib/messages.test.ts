@@ -194,6 +194,7 @@ describe("messages: overheard", () => {
     expect(isOverheard("OH2AAA>OH2BBB")).toBe(true);
     expect(isOverheard("OH2AAA")).toBe(false);
     expect([conversationName("OH2AAA>OH2BBB"), conversationName("OH2RDG")]).toEqual(["OH2AAA > OH2BBB", "OH2RDG"]);
+    expect(conversationName("OH2AAA>OH2BBB>OH2CCC")).toBe("OH2AAA > OH2BBB > OH2CCC");
     expect(replyTo("OH2AAA>OH2BBB")).toBe("OH2AAA");
     expect(replyTo("OH2RDG")).toBe("OH2RDG");
     expect(conversations([heard, incoming(1, "OH2RDG")], none)).toHaveLength(1);

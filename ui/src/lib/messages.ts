@@ -55,7 +55,7 @@ export function overheardPair(call: string): [string, string] | null {
 
 /** A conversation as its row and its thread name it: the call, or the pair of an overheard one with room round the arrow, "OH2AAA > OH2BBB". */
 export function conversationName(call: string): string {
-  return call.replace(">", " > ");
+  return call.replaceAll(">", " > ");
 }
 
 const QUERY_TEXT: Record<string, QueryKind> = { "?APRSP": "position", "?APRSS": "status", "?APRSD": "heard", "?APRST": "trace", "?WX?": "weather" };
