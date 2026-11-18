@@ -64,6 +64,28 @@ The table below is made from the program, so it lists every setting there is, wi
 | `beacon/travel` | `car` | My station tab, Beacon (Travelling) | how you travel while the beacon follows the GPS: `car`, `bicycle`, `foot` or `boat`. It decides when SmartBeaconing beacons: `car` every 60 seconds from 100 km/h, a turn of more than 30 degrees (at least 15 seconds after the last beacon); `bicycle` every 60 seconds from 30 km/h, a turn of more than 35 degrees (at least 20 seconds after the last beacon); `foot` every 120 seconds from 7 km/h, a turn of more than 45 degrees (at least 60 seconds after the last beacon); `boat` every 60 seconds from 40 km/h, a turn of more than 20 degrees (at least 30 seconds after the last beacon). Below the slow speed a station counts as standing still, so there is a beacon only every 30 minutes and no turn is beaconed. The car's numbers are Dire Wolf's; the others are NeoAPRS's own choice |
 <!-- /doc-settings -->
 
+## Aircraft and ships
+
+In Settings, Map, under the Radius, are two rows that choose where the map's aircraft and ships come from. Out of the box both are **None**: the Layers box of the map has no row for them and nothing is asked. A row is in the Layers box only once a source is chosen here ([page.md](page.md#aircraft-and-ships)).
+
+| row | the choices | key |
+|---|---|---|
+| **Aircraft** | **None**, **adsb.fi**, **adsb.lol**, **My own receiver** | `map/aircraft` |
+| **Ships** | **None**, **Fintraffic**, **My own receiver** | `map/ships` |
+
+- adsb.fi and adsb.lol are services on the internet, asked for the map's circle round your position (the Radius, at most 300 km). Fintraffic's feed of Finnish waters is in the list only where the map's circle reaches those waters (57.7 to 65.8 N, 16.5 to 32.5 E). Where it does not, the list has only **None** and **My own receiver**, and a Fintraffic stored earlier counts as None until the station is back in range.
+- **My own receiver** shows a row **Receiver's address** under it, with a state line. Your own receiver is not cut by the Radius: everything it hears is shown.
+- **The address** is the name or the address of the computer the receiver runs on, such as `pi.local` or `192.168.1.20`. Left empty, the receiver is looked for on this computer.
+  - For aircraft a whole `http://` or `https://` address of the receiver's `aircraft.json` is taken as typed, and a name or address is tried with the known places of that file (on ports 80 and 8080); a `:port` after the name is allowed, and an IPv6 address goes in brackets (`[fe80::1]`).
+  - For ships it is the name or address of the computer that sends the AIS sentences, with a `:port` if it is not 10110.
+  - A text that is not an address is refused with a message and not saved. Any device that has the access key can set it.
+- **The state line** is a word and a line, as a GPS receiver's: **looking** (**Looking for the receiver**), **receiving** (for aircraft how many it gave with a position and how long ago, for ships how many are held and how long since the last sentence, or **Receiving, no aircraft yet** and **Connected, no ship heard yet**) and **no answer** (**No answer from the receiver**).
+
+- **For a receiver on a Raspberry Pi**: choose **My own receiver** in the row, type the Pi's name or address (`pi.local`) and watch the state line turn to receiving; then, on the map, tick **Aircraft** (or **Ships**) in the Layers box. The tick is off out of the box and is each browser's own, so it is made once on every phone and desktop that should show them.
+- The receiver must be reachable from the computer NeoAPRS runs on, not only from the one the page is open on: the daemon is the one that asks. A **:port** typed after the name is tried with the same known places of `aircraft.json`, on that port only.
+
+Changes apply as they are made, with no restart.
+
 ## The radios' own settings
 
 Each radio keeps settings of its own, under `radio/<id>/<key>`. `neoaprs db radios` lists the radios with theirs, and `neoaprs db get` and `neoaprs db set` take such a key as they take a setting (`neoaprs db set radio/1/port /dev/ttyUSB0`). Which settings a radio has is its type's.

@@ -125,7 +125,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group
 - **Digipeater**: the tickbox **Enable** of the fill-in digipeater, one for each FM radio that is on, each in a box named after its radio while several radios are on ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the code a phone opens the page from once it is on, and the secure connection ([network.md](network.md));
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser**, in the app's own window **On this computer** and **In this window** ([notifications.md](notifications.md));
-- **Map**: the **Radius**, and on the row under it **Detailed map** with the **Download map** button ([The base map](#the-base-map));
+- **Map**: the **Radius**, on the row under it **Detailed map** with the **Download map** button ([The base map](#the-base-map)), and the rows **Aircraft** and **Ships**, where those on the map come from ([Layers](#layers));
 - **Update check**: **Check now** ([install.md](install.md#the-update-check));
 - **Help**: one line, and the row **Feedback** with **Send feedback / logs** and an (i) beside it, which sends your words and the logs to the project ([support.md](support.md));
 - **About**: what NeoAPRS is, the version, who made it, the licence and the source code as links, the modems that come inside (Mercury, Dire Wolf) and their versions, a thanks, the other ways to reach the project, and as the last line **Download logs**, which saves the same file ([support.md](support.md#saving-the-file)).
@@ -141,7 +141,7 @@ A marker for every station that has a position shows the APRS symbol with the ca
 - The track of a station that moved is a line that fades with age along its length: the newest stretch full, the oldest faint. The track of the station you pick is drawn above the others, orange, heavier and solid whatever its age, on a pale edge so that it shows on any ground, with a dot at each position the station was heard at; the dots fade with the age of the position, so the trail of a moving station is read at a glance, each beacon on it.
 - The selected station, when it is a digipeater of the Nearby tab that gave a range, has a pale blue circle of that range round it, under the markers (one at a time; the map is fitted to the circle when the station is picked).
 - Your own station, when it is the selected one, has the same pale circle at the distance of the farthest station you have heard direct on a radio that may carry a path (FM, LoRa): your simplex reach as far as the stations heard tell it. A station heard direct on a Mercury radio, hundreds of kilometres away, does not count. The map is fitted to it when you pick your station, and the circle goes with the selection. There is none until a station has been heard direct.
-- A thin dashed circle round your own station is the ALOHA circle of Bob Bruninga, WB4APR: the distance within which the stations an FM radio hears would fill its channel (1200 baud takes about 60 packets a minute), so a packet meant for a station beyond it is hard to receive reliably. Each FM radio that is on has its own, from the stations it heard. The pointer resting on a line shows its radius, after the radio's name while several radios are on ("FM 2: ALOHA circle: 12 km").
+- A thin dashed circle round your own station is the ALOHA circle of Bob Bruninga, WB4APR: the distance within which the stations an FM radio hears would fill its channel (1200 baud takes about 60 packets a minute), so a packet meant for a station beyond it is hard to receive reliably. Each FM radio that is on has its own, from the stations it heard. The statistics card gives each circle's radius ([below](#the-statistics-card)).
 - NeoAPRS works the circle out every minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour: a moving car 15 packets, a parked one 7, a weather station 6, a digipeater 3, a home station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more. The circle ends at the station where the sum reaches 1800. Stations an iGate put on the air from the internet do not count.
 - There is no circle until your position is set and enough stations are heard to fill the channel, and none while no FM radio is on.
 - A marker dims in four steps on the way to the station's timeout.
@@ -158,6 +158,47 @@ A station whose last position is older than its timeout is left off the map, mar
 The timeout is chosen in the Stations tab, in the filter row: **On map for** 1, 3, 6, 12 or 24 hours (3 by default). It applies at once, with an Undo, to the map, the track and the dimming of the table, and it is the same for every station and for every browser and device that shows this daemon (the setting `map/station_hours`; it replaces the fixed 3 hours of earlier versions). Your own station and your own objects never time out.
 
 The map has the world from the first start. With only the world, a line over the map says "No detailed map" with a Download button (not while the setup guide is open or a download runs). If no map at all can be shown, or a map file cannot be read, the line says "No base map" or "The map file cannot be read" over a blank background, above the setup guide too, and the stations are drawn all the same ([The base map](#the-base-map)).
+
+## Layers
+
+The **Layers** button is in the map's top left corner, under + and −. It opens a box with a tickbox row for each thing the map can draw, each row with the mark it is drawn by, so the box is the map's key. A tick is kept by the browser, so a phone and a desktop that show the same station can have different ones.
+
+| row | what the tick does | ticked out of the box |
+|---|---|---|
+| **Tracks** | the lines that fade with age, behind the stations that moved. Off, only the tracks of the stations whose card is open stay | yes |
+| **ALOHA circle** | the dashed circles above | yes |
+| **Locator grid** | the Maidenhead grid, below | no |
+| **Aircraft** | the aircraft, below | no |
+| **Ships** | the ships, below | no |
+
+### The locator grid
+
+Lines of the Maidenhead locator cells, with the name of each cell in it. The names are the ones **Copy locator** gives. The grid has three steps: fields (two letters, 20 by 10 degrees) while the map is zoomed out, squares (four characters) from zoom 5, and subsquares (six characters) from zoom 10.
+
+At most 400 cells are named at a time; when more would be in view the grid uses the next coarser step. Between zoom 7 and 9 the subsquares are too many to name, and their lines are drawn without names once they are wide enough on the screen to be told apart. The cell under the middle of the map always has its name in sight.
+
+### Aircraft and ships
+
+The two rows under the thin line are there only once a source is chosen for them in **Settings, Map** ([settings.md](settings.md#aircraft-and-ships)). Out of the box both are **None**: nothing is listed, nothing is asked and nothing is fetched. With a source chosen, the row is in the box, after its name the service's name where the source is a service, and it is ticked there like the others. The tick is what makes the map show them.
+
+- **Aircraft** come from adsb.fi, adsb.lol or your own ADS-B receiver. **Ships** come from Fintraffic or your own AIS receiver. Fintraffic is in the list only while the map's circle (the **Radius** of the Map group, 10 to 300 km) reaches Finnish waters. A station elsewhere is not offered it, and a Fintraffic that was chosen before the station moved counts as None.
+- A service shows what is inside the map's circle, the 300 nearest at most (an aircraft with an emergency is kept beyond them). Your own receiver shows everything it hears with a position, whatever its distance (at most 2000, the newest, if a receiver sends more than that). An aircraft on the ground, and a vehicle or obstacle an ADS-B receiver lists, are left out.
+- **A mark** is a dart for an aircraft, a ship's hull for a ship and a diamond for one with no direction. It points where the thing is heading and fades in four steps as its position gets old: an aircraft is dropped after 60 seconds from your own receiver or 90 from a service, a ship after 30 minutes. An aircraft that has declared an emergency is drawn in the page's warning colour, over the others. From zoom 10 the name or flight is written beside the mark, giving way to the base map's names. A mark is never hidden by another mark or by a name.
+- **The count** stands in the row, after its name. It is empty until the first answer, and a dash (–) while the source does not answer: the last question failed or was not in the form expected, the connection is down, or there is no position of yours to ask with.
+- **A mouse** resting on a mark shows a small box with what the source says at a glance: for an aircraft the altitude, the speed and the age of the position, for a ship the speed, the course, the destination and the age. A touch screen has no resting pointer.
+- **A click** on a mark opens a card on the map, one at a time, with the flight (else the registration, else the hex code, the aircraft's own address) or the ship's name (else its MMSI, its transmitter's number) as the title, then the rows the source gave: for an aircraft the registration, type, altitude, speed, heading and age, for a ship its kind, speed, course, destination and age, and last the **Source**. Its cross, **Close all**, Esc, a click on the map elsewhere, or the thing leaving the map close it. That is all: no message, no path, no packets, and nothing opens in a tab.
+- **Nothing of them is kept.** Aircraft and ships are held in memory only, and are not in the Stations table, the tabs, the Packets tab, the statistics, the replay or the database, and are never sent on a radio or to APRS-IS. A restart starts them empty.
+- **The credit** of a service (adsb.fi, adsb.lol, Fintraffic) is in the map's (i) while its things are on the map, with its links ([Credits](#credits)). Your own receiver is owed none.
+
+A page asks for aircraft and ships only while the layer's tick is on, the page is in front, it is connected and the replay is closed. The one exception is your own AIS receiver, whose connection is kept for as long as it is the source of Ships, ticked or not and looked at or not. A service is asked while that holds, no more often than its limit below; a failed question is repeated after a longer and longer wait, and a service that answers that it will not serve (400, 401, 403 or 404) is not asked again until NeoAPRS starts again.
+
+What each source is asked, in the form of [the update check](install.md#the-update-check):
+
+- **adsb.fi**: asks `https://opendata.adsb.fi/api/v3/lat/<latitude>/lon/<longitude>/dist/<nautical miles>`, at most every 30 seconds. The address carries your latitude and longitude to one decimal and the radius of the map's circle (a little more than the circle, at most 250 nautical miles, a nautical mile being 1.852 km); a User-Agent, the line by which a program names itself to a server, with the version of NeoAPRS and the kind of system comes with it. Back come the aircraft in that circle with their position, altitude, speed, heading, flight, registration and type.
+- **adsb.lol**: asks `https://api.adsb.lol/v2/lat/<latitude>/lon/<longitude>/dist/<nautical miles>`, at most every 60 seconds, carrying the same and answered in the same way.
+- **Fintraffic**: asks `https://meri.digitraffic.fi/api/ais/v1/locations` every minute and `https://meri.digitraffic.fi/api/ais/v1/vessels` every 15 minutes. These are the feed for all ships in Finnish waters and carry no position of yours, only the User-Agent and a header `Digitraffic-User: NeoAPRS`. Back come the positions, and the ships' names, kinds and destinations; NeoAPRS keeps those inside the map's circle.
+- **Your own aircraft receiver** is asked for its `aircraft.json` (tar1090, dump1090 and SkyAware keep it) every 5 seconds, on the address given in Settings. That is a computer of yours, not the internet.
+- **Your own AIS receiver** is not asked: NeoAPRS opens a connection to the TCP port that sends its AIS sentences (the lines in which ships' transmitters report where they are) and keeps it for as long as My own receiver is the source of Ships, whether the tick is on or not. A lost connection is tried again after 5 seconds, then after longer, up to 5 minutes. NeoAPRS itself listens on no port for it.
 
 ## Replay
 
