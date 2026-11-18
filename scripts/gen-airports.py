@@ -2,7 +2,7 @@
 """Refreshes neoaprs/airportdata.py, the snapshot of the airports that a card names the place of an aircraft's departure and destination from (neoaprs/airports.py).
 
 The list is airports.csv of OurAirports (https://ourairports.com/data/, public domain). This script is the only thing that fetches it: the daemon never does. It reads the file (from the list's own address, or
-`--from FILE`), keeps each large or medium airport that has a four-character ICAO code (`icao_code`, else `gps_code`, else `ident`) with its place (the `municipality`, or the airport's `name` where there is none)
+`--from FILE`), keeps each large or medium airport that has a four-character ICAO code (`icao_code`, else `gps_code`, else `ident`) with its place (the `municipality` without what it adds in brackets, or the airport's `name` where there is none)
 and writes the module, with the source and the licence in its head. Run it with the venv's python from the repository root:  .venv/bin/python scripts/gen-airports.py
 `--check FILE` writes nothing and exits 1 when the module is not what FILE would make (the module's date aside).
 """
@@ -10,6 +10,7 @@ import argparse
 import csv
 import hashlib
 import io
+import re
 import json
 import sys
 import urllib.request
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TARGET = ROOT / "neoaprs" / "airportdata.py"
 URL = "https://davidmegginson.github.io/ourairports-data/airports.csv"
 KINDS = {"large_airport", "medium_airport"}
+BRACKETED = re.compile(r"\([^()]*\)")            # what the list adds to a place in brackets
 PER_LINE = 3
 CODE_LENGTH = 4
 
@@ -30,12 +32,19 @@ def code_of(row: dict[str, str]) -> str:
     return code if len(code) == CODE_LENGTH and code.isascii() and code.isalnum() else ""
 
 
+def place_of(row: dict[str, str]) -> str:
+    """The place a card shows: the `municipality`, or the airport's `name` where there is none, without what the list adds in brackets ("Helsinki (Vantaa)" is Helsinki: the card puts the code in brackets
+    itself) and with single spaces; the text as it is where nothing would be left."""
+    whole = " ".join((row.get("municipality", "").strip() or row.get("name", "")).split())
+    return " ".join(BRACKETED.sub(" ", whole).split()) or whole
+
+
 def rows(text: str) -> list[tuple[str, str]]:
     """(code, place) of every large or medium airport with a code, in the order of the codes; the first row of a code wins."""
     seen: dict[str, str] = {}
     for row in csv.DictReader(io.StringIO(text)):
         code = code_of(row)
-        place = " ".join((row.get("municipality", "").strip() or row.get("name", "")).split())
+        place = place_of(row)
         if row.get("type") in KINDS and code and place and code not in seen:
             seen[code] = place
     return sorted(seen.items())

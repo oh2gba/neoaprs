@@ -63,7 +63,7 @@ def test_the_radarcapes_list_has_the_same_aircraft_with_one_on_the_ground_one_in
 
 def test_the_radarcapes_list_gives_the_airports_of_some_aircraft_one_with_both_known_one_with_an_unknown_code_one_with_a_destination_only_and_most_with_neither() -> None:
     shown = {a.id: a for a in radarcape.read_aircraft(json.dumps(traffic.radarcape_list(T)).encode(), from_unix(T)) or []}
-    assert [(place(shown[i].origin), place(shown[i].destination)) for i in ("461f2a", "4ab822", "3c4b2f")] == [("Stockholm", "Helsinki (Vantaa)"), ("", "Helsinki (Vantaa)"), ("", "London")]
+    assert [(place(shown[i].origin), place(shown[i].destination)) for i in ("461f2a", "4ab822", "3c4b2f")] == [("Stockholm", "Helsinki"), ("", "Helsinki"), ("", "London")]
     assert (shown["4ab822"].origin, shown["3c4b2f"].origin) == ("ESXX", "")
     assert sum(1 for a in shown.values() if a.origin or a.destination) == 3
 

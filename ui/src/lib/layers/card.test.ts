@@ -63,12 +63,12 @@ describe("the card of a thing: its rows", () => {
   });
 
   it("says where an aircraft came from and where it goes as the place with the code in brackets, after its type and before its altitude", () => {
-    const flying = aircraft({ at: ago(12), origin: "ESSA", origin_place: "Stockholm", destination: "EFHK", destination_place: "Helsinki (Vantaa)" });
+    const flying = aircraft({ at: ago(12), origin: "ESSA", origin_place: "Stockholm", destination: "EFHK", destination_place: "Helsinki" });
     expect(pairs(cardRows("aircraft", flying, "radarcape", NOW))).toEqual([
       ["Registration", "OH-LZA"],
       ["Type", "AIRBUS A-321"],
       ["From", "Stockholm (ESSA)"],
-      ["To", "Helsinki (Vantaa) (EFHK)"],
+      ["To", "Helsinki (EFHK)"],
       ["Altitude", "2438 m"],
       ["Speed", "421 km/h"],
       ["Heading", "225° SW"],
@@ -80,11 +80,11 @@ describe("the card of a thing: its rows", () => {
   it("says an airport the table does not know by its code alone, and leaves out From or To where there is no code", () => {
     const rows = (extra: Parameters<typeof aircraft>[0]) =>
       pairs(cardRows("aircraft", aircraft({ at: ago(1), ...extra }), "radarcape", NOW)).filter(([label]) => label === "From" || label === "To");
-    expect(rows({ origin: "ZZZZ", destination: "EFHK", destination_place: "Helsinki (Vantaa)" })).toEqual([
+    expect(rows({ origin: "ZZZZ", destination: "EFHK", destination_place: "Helsinki" })).toEqual([
       ["From", "ZZZZ"],
-      ["To", "Helsinki (Vantaa) (EFHK)"],
+      ["To", "Helsinki (EFHK)"],
     ]);
-    expect(rows({ destination: "EFHK", destination_place: "Helsinki (Vantaa)" })).toEqual([["To", "Helsinki (Vantaa) (EFHK)"]]);
+    expect(rows({ destination: "EFHK", destination_place: "Helsinki" })).toEqual([["To", "Helsinki (EFHK)"]]);
     expect(rows({})).toEqual([]);
   });
 

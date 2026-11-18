@@ -125,7 +125,7 @@ async def test_a_page_that_closes_looks_no_more(tmp_path: Path) -> None:
 def test_an_aircraft_is_sent_with_the_places_of_its_two_airports_and_a_ship_never_with_one() -> None:
     flying = replace(PLANE, origin="ESSA", destination="EFHK")
     row = thing_row(flying, "aircraft")
-    assert (row["origin"], row["origin_place"], row["destination"], row["destination_place"]) == ("ESSA", "Stockholm", "EFHK", "Helsinki (Vantaa)")
+    assert (row["origin"], row["origin_place"], row["destination"], row["destination_place"]) == ("ESSA", "Stockholm", "EFHK", "Helsinki")
     unknown = thing_row(replace(PLANE, origin="ZZZZ", destination=""), "aircraft")
     assert (unknown["origin"], unknown["origin_place"], unknown["destination"], unknown["destination_place"]) == ("ZZZZ", "", "", ""), "a code the table does not know has no place; none has none"
     ship = thing_row(replace(PLANE, destination="EFHK"), "ships")

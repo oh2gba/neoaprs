@@ -87,7 +87,8 @@ describe("the aircraft and ships on the map", () => {
     for (const [side, drop] of [
       [16, 0.9],
       [26, 1.35],
-      [14, 0.81],
+      [30, 1.54],
+      [17, 0.95],
     ] as const)
       expect(offset, `${side}`).toContain(`${side},["literal",[0,${drop}]]`);
     for (const free of ["text-ignore-placement", "text-allow-overlap"]) expect(names?.layout?.[free]).toBeUndefined();

@@ -57,18 +57,18 @@ describe("an aircraft's kind", () => {
 });
 
 describe("the aircraft's shapes", () => {
-  it("are drawn at 1.3 times the sizes they had, rounded, so that the proportions between the kinds stay and the largest is a station's 26", () => {
+  it("are drawn at one and a half times the sizes tar1090's proportions gave them at 11 to 20 px, rounded, so that the proportions between the kinds stay and the largest is 30", () => {
     const before = { airliner: 17, heavy: 19, heavy4: 20, bizjet: 14, twin: 14, light: 14, helicopter: 16, glider: 18, balloon: 11, drone: 15, unknown: 14 };
-    for (const [name, size] of Object.entries(before)) expect(AIRCRAFT_SHAPES[name as keyof typeof before].size, name).toBe(Math.round(size * 1.3));
-    expect(Math.max(...Object.values(AIRCRAFT_SHAPES).map((shape) => shape.size))).toBe(26);
+    for (const [name, size] of Object.entries(before)) expect(AIRCRAFT_SHAPES[name as keyof typeof before].size, name).toBe(Math.round(size * 1.5));
+    expect(Math.max(...Object.values(AIRCRAFT_SHAPES).map((shape) => shape.size))).toBe(30);
   });
 
-  it("are each a path on a box of four numbers, at most 26 px, a station's size, and only the balloon is not turned", () => {
+  it("are each a path on a box of four numbers, at most 30 px and only the balloon is not turned", () => {
     for (const [name, shape] of Object.entries(AIRCRAFT_SHAPES)) {
       expect(shape.viewBox.split(" ").map(Number).every(Number.isFinite), name).toBe(true);
       expect(shape.viewBox.split(" ")).toHaveLength(4);
       expect(shape.d).toMatch(/^[Mm]/);
-      expect(shape.size).toBeLessThanOrEqual(26);
+      expect(shape.size).toBeLessThanOrEqual(30);
       expect(shape.turns, name).toBe(name !== "balloon");
     }
   });

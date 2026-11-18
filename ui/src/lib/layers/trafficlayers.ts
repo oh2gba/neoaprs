@@ -1,5 +1,5 @@
 // The map's layer of aircraft and ships (lib/layers/traffic.ts): each thing a flat mark in the layers' own colour (`--map-layer`; an emergency in `--bad`) with a thin halo so that it shows on any ground, an aircraft
-// the shape of its kind at its own size (lib/layers/aircraftshapes.ts, 14 to 26 px), a ship's hull and the diamond 16 px, turned to where it heads, faded by its age; from zoom 10 its name under it, as far under as its mark is large, in the regular face
+// the shape of its kind at its own size (lib/layers/aircraftshapes.ts, 17 to 30 px), a ship's hull and the diamond 16 px, turned to where it heads, faded by its age; from zoom 10 its name under it, as far under as its mark is large, in the regular face
 // and the muted colour of the map's text, giving way to the base map's names and to each other. The marks are images the map is given, one for each shape and colour, drawn from the shapes of the Layers box
 // (lib/layers/marks.ts) at the density of the screen the page opened on (twice at least, three times at most) and given again with the layers, which are made again whenever the style is set (the
 // colour scheme changed: the colours are read from styles/tokens.css then).

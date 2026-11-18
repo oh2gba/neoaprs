@@ -36,7 +36,7 @@ def run_generator(monkeypatch: pytest.MonkeyPatch, target: Path, *arguments: str
 
 
 def test_the_place_of_an_airport_is_its_municipality_and_the_places_of_the_examples_are_in_the_table() -> None:
-    assert [place(code) for code in ("EFHK", "ESSA", "LIRF", "ZBAD", "EGLL")] == ["Helsinki (Vantaa)", "Stockholm", "Rome", "Beijing", "London"]
+    assert [place(code) for code in ("EFHK", "ESSA", "LIRF", "ZBAD", "EGLL")] == ["Helsinki", "Stockholm", "Rome", "Beijing", "London"]
 
 
 @pytest.mark.parametrize("code", ["", "ZZZZ", "efhk", "EFH", "EFHKX", "  "])
@@ -52,7 +52,7 @@ def test_the_table_holds_the_large_and_medium_airports_in_the_order_of_their_cod
 
 def test_the_generator_keeps_large_and_medium_airports_with_a_four_character_code_and_names_each_by_its_municipality_else_its_name() -> None:
     made = generator().rows(LIST)
-    assert made == [("EFHK", "Helsinki (Vantaa)"), ("ESSA", "Stockholm"), ("XX01", "Lonely Field"), ("YYGP", "Gpsville")], "the ICAO code, else the GPS code; the first row of a code wins; no small airport, heliport or five-letter code"
+    assert made == [("EFHK", "Helsinki"), ("ESSA", "Stockholm"), ("XX01", "Lonely Field"), ("YYGP", "Gpsville")], "the ICAO code, else the GPS code; the first row of a code wins; no small airport, heliport or five-letter code"
 
 
 def test_the_generator_writes_the_module_from_a_file_and_checks_it_against_that_file_and_not_against_another(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
@@ -67,9 +67,11 @@ def test_the_generator_writes_the_module_from_a_file_and_checks_it_against_that_
     assert run_generator(monkeypatch, target, "--check", str(other)) == 1 and "run scripts/gen-airports.py" in capsys.readouterr().err
 
 
-def test_a_place_is_written_with_single_spaces() -> None:
-    made = generator().rows(HEAD + "1,ZUKJ,medium_airport,Kaili Airport,26.0,107.0,1,AS,CN,CN-GZ,Kaili  (Huangping),no,ZUKJ,,ZUKJ,,,,\n")
-    assert made == [("ZUKJ", "Kaili (Huangping)")]
+def test_a_place_is_written_with_single_spaces_and_without_what_the_list_adds_in_brackets() -> None:
+    row = "1,{code},medium_airport,{name},26.0,107.0,1,AS,CN,CN-GZ,{town},no,{code},,{code},,,,\n"
+    made = generator().rows(HEAD + row.format(code="ZUKJ", name="Kaili Airport", town="Kaili  (Huangping)") + row.format(code="LFPG", name="Charles de Gaulle", town='"Paris (Roissy-en-France, Val-d\'Oise)"')
+                            + row.format(code="XXAA", name="Santa  Cruz (closed) Field", town="") + row.format(code="XXBB", name="(Old) (Field)", town=""))
+    assert made == [("LFPG", "Paris"), ("XXAA", "Santa Cruz Field"), ("XXBB", "(Old) (Field)"), ("ZUKJ", "Kaili")], "the card puts the code in brackets itself; a text that is brackets alone stays as it is"
 
 
 def test_importing_the_places_does_not_read_the_table_until_a_place_is_asked() -> None:
