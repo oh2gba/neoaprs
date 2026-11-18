@@ -2530,6 +2530,17 @@
           ],
           "description": "an aircraft's height"
         },
+        "vertical_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "an aircraft's vertical speed in metres a second, above zero climbing; null when not told (a ship's is null)"
+        },
         "registration": {
           "description": "an aircraft's registration (`OH-LZA`); empty when not known",
           "type": "string"
@@ -2573,7 +2584,19 @@
           "description": "a ship's course over ground"
         },
         "destination": {
-          "description": "a ship's destination; empty when not known",
+          "description": "a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case; empty when not known",
+          "type": "string"
+        },
+        "origin": {
+          "description": "an aircraft's departure: the ICAO code of the airport it left, upper case; empty when not known",
+          "type": "string"
+        },
+        "origin_place": {
+          "description": "the place of the airport `origin` names, from the table the program carries; empty when `origin` is empty or not in the table",
+          "type": "string"
+        },
+        "destination_place": {
+          "description": "the place of the airport `destination` names, from the table the program carries; empty for a ship, and when `destination` is empty or not in the table",
           "type": "string"
         }
       },
@@ -2587,13 +2610,17 @@
         "name",
         "emergency",
         "altitude_m",
+        "vertical_ms",
         "registration",
         "type",
         "category",
         "designator",
         "ship_type",
         "course_deg",
-        "destination"
+        "destination",
+        "origin",
+        "origin_place",
+        "destination_place"
       ],
       "title": "LayerThing",
       "type": "object"

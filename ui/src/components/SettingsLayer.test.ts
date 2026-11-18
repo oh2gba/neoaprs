@@ -31,7 +31,7 @@ describe("Settings, Map: aircraft and ships", () => {
 
   it("lists the sources the daemon offers, in its order, by the services' own names", () => {
     const { wrapper } = make();
-    expect(options(wrapper, "#set-map-aircraft")).toEqual(["None", "adsb.fi", "adsb.lol", "Radarcape", "tar1090 or dump1090"]);
+    expect(options(wrapper, "#set-map-aircraft")).toEqual(["None", "adsb.fi", "adsb.lol", "Radarcape", "My own receiver"]);
     expect(options(wrapper, "#set-map-ships")).toEqual(["None", "Fintraffic", "My own receiver"]);
   });
 
@@ -85,7 +85,7 @@ describe("Settings, Map: aircraft and ships", () => {
     expect(note).not.toMatch(/aircraft\.json|port|file|\//i);
   });
 
-  it("keeps This computer in the address box of tar1090 or dump1090 and of ships", () => {
+  it("keeps This computer in the address box of My own receiver for aircraft and for ships", () => {
     const { wrapper } = make({ "map/aircraft": "receiver", "map/ships": "receiver" });
     expect(wrapper.find("#set-map-aircraft_host").attributes("placeholder")).toBe("This computer");
     expect(wrapper.find("#set-map-ships_host").attributes("placeholder")).toBe("This computer");

@@ -37,6 +37,17 @@ describe("the card of a thing: its rows", () => {
     ]);
   });
 
+  it("says an aircraft's vertical speed straight after its altitude with its sign, level flight as 0, and has no row where its source told none", () => {
+    const rows = (v: number | null) => pairs(cardRows("aircraft", aircraft({ at: ago(12), vertical_ms: v }), "radarcape", NOW));
+    expect(rows(3.2)).toContainEqual(["Vertical speed", "+3.2 m/s"]);
+    expect(rows(-10.7)).toContainEqual(["Vertical speed", "\u221210.7 m/s"]);
+    expect(rows(0)).toContainEqual(["Vertical speed", "0 m/s"]);
+    const labels = rows(3.2).map(([label]) => label);
+    expect(labels.indexOf("Vertical speed")).toBe(labels.indexOf("Altitude") + 1);
+    expect(rows(null).map(([label]) => label)).not.toContain("Vertical speed");
+    expect(pairs(hoverRows("aircraft", aircraft({ at: ago(12), vertical_ms: 3.2 }), NOW)).map(([label]) => label)).not.toContain("Vertical speed");
+  });
+
   it("leaves out a row that has nothing, and the registration where it is the title", () => {
     const bare = aircraft({ name: "", type: "", altitude_m: null, speed_kmh: null, heading_deg: null, at: ago(3) });
     expect(pairs(cardRows("aircraft", bare, "receiver", NOW))).toEqual([
@@ -45,9 +56,40 @@ describe("the card of a thing: its rows", () => {
     ]);
   });
 
-  it("names a Radarcape's aircraft as My own receiver too", () => {
+  it("ends a Radarcape's aircraft with Radarcape and the other own receiver's with My own receiver", () => {
     const bare = aircraft({ name: "", type: "", altitude_m: null, speed_kmh: null, heading_deg: null, at: ago(3) });
-    expect(pairs(cardRows("aircraft", bare, "radarcape", NOW)).at(-1)).toEqual(["Source", "My own receiver"]);
+    expect(pairs(cardRows("aircraft", bare, "radarcape", NOW)).at(-1)).toEqual(["Source", "Radarcape"]);
+    expect(pairs(cardRows("aircraft", bare, "receiver", NOW)).at(-1)).toEqual(["Source", "My own receiver"]);
+  });
+
+  it("says where an aircraft came from and where it goes as the place with the code in brackets, after its type and before its altitude", () => {
+    const flying = aircraft({ at: ago(12), origin: "ESSA", origin_place: "Stockholm", destination: "EFHK", destination_place: "Helsinki (Vantaa)" });
+    expect(pairs(cardRows("aircraft", flying, "radarcape", NOW))).toEqual([
+      ["Registration", "OH-LZA"],
+      ["Type", "AIRBUS A-321"],
+      ["From", "Stockholm (ESSA)"],
+      ["To", "Helsinki (Vantaa) (EFHK)"],
+      ["Altitude", "2438 m"],
+      ["Speed", "421 km/h"],
+      ["Heading", "225° SW"],
+      ["Age", "12 s"],
+      ["Source", "Radarcape"],
+    ]);
+  });
+
+  it("says an airport the table does not know by its code alone, and leaves out From or To where there is no code", () => {
+    const rows = (extra: Parameters<typeof aircraft>[0]) =>
+      pairs(cardRows("aircraft", aircraft({ at: ago(1), ...extra }), "radarcape", NOW)).filter(([label]) => label === "From" || label === "To");
+    expect(rows({ origin: "ZZZZ", destination: "EFHK", destination_place: "Helsinki (Vantaa)" })).toEqual([
+      ["From", "ZZZZ"],
+      ["To", "Helsinki (Vantaa) (EFHK)"],
+    ]);
+    expect(rows({ destination: "EFHK", destination_place: "Helsinki (Vantaa)" })).toEqual([["To", "Helsinki (Vantaa) (EFHK)"]]);
+    expect(rows({})).toEqual([]);
+  });
+
+  it("prints a Radarcape's 16 050 ft, which the daemon sends as 4892 m, as 4892 m", () => {
+    expect(pairs(cardRows("aircraft", aircraft({ altitude_m: 4892, at: ago(1) }), "radarcape", NOW))).toContainEqual(["Altitude", "4892 m"]);
   });
 
   it("has a ship's kind, speed, course, destination and age, then the source", () => {

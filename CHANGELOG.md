@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+An aircraft's card says more, and aircraft are larger on the map.
+
+- **New:** the card of an aircraft from a Radarcape says where it comes from and where it goes: From Stockholm (ESSA), To Helsinki (EFHK).
+- **New:** an aircraft's card shows its vertical speed.
+- **Changed:** aircraft are drawn larger on the map.
+- **Changed:** in Settings, Map your own aircraft receiver is called My own receiver, as for ships.
+
 ## 0.21.1
 
 Aircraft from a Radarcape, drawn by their kind and with a track, and cards on the map that can be resized.

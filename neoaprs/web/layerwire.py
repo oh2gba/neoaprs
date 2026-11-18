@@ -37,13 +37,17 @@ class LayerThing(_Model):
     name: str = Field(description="an aircraft's flight, a ship's name; empty when none")
     emergency: bool = Field(description="an aircraft that says it is in an emergency (or squawks 7500, 7600 or 7700)")
     altitude_m: int | None = Field(description="an aircraft's height")
+    vertical_ms: float | None = Field(description="an aircraft's vertical speed in metres a second, above zero climbing; null when not told (a ship's is null)")
     registration: str = Field(description="an aircraft's registration (`OH-LZA`); empty when not known")
     type: str = Field(description="an aircraft's type as the source names it; empty when not known")
     category: str = Field(description="an aircraft's emitter category as the source gives it, upper case (`A3`, `A7`, `B1`); empty when not known")
     designator: str = Field(description="an aircraft's ICAO type designator, upper case (`A321`, `EC35`); empty when not known")
     ship_type: int | None = Field(ge=1, le=99, description="a ship's AIS type of ship and cargo; null when not known")
     course_deg: int | None = Field(ge=0, le=359, description="a ship's course over ground")
-    destination: str = Field(description="a ship's destination; empty when not known")
+    destination: str = Field(description="a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case; empty when not known")
+    origin: str = Field(description="an aircraft's departure: the ICAO code of the airport it left, upper case; empty when not known")
+    origin_place: str = Field(description="the place of the airport `origin` names, from the table the program carries; empty when `origin` is empty or not in the table")
+    destination_place: str = Field(description="the place of the airport `destination` names, from the table the program carries; empty for a ship, and when `destination` is empty or not in the table")
 
 
 class LayerLook(_Command):

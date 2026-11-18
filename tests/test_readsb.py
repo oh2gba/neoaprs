@@ -165,3 +165,11 @@ def test_a_whole_address_is_used_as_typed() -> None:
     assert receiver_urls("HTTP://pi.local/my/aircraft.json") == ["HTTP://pi.local/my/aircraft.json"]
     assert receiver_urls("http://pi.local:8080/my/aircraft.json") == ["http://pi.local:8080/my/aircraft.json"]
     assert receiver_urls("https://adsb.example.org/tar1090/data/aircraft.json") == ["https://adsb.example.org/tar1090/data/aircraft.json"]
+
+
+@pytest.mark.parametrize(("extra", "metres"), [({"baro_rate": 700}, 3.6), ({"baro_rate": -2112}, -10.7), ({"baro_rate": 0}, 0.0), ({"geom_rate": 1800}, 9.1), ({"baro_rate": 700, "geom_rate": -600}, 3.6),
+                                                ({"baro_rate": None, "geom_rate": -600}, -3.0), ({"baro_rate": None}, None), ({"baro_rate": "700"}, None), ({"baro_rate": 30000}, None), ({"geom_rate": -30000}, None), ({}, None)],
+                         ids=["climbing", "descending", "level", "geom only", "baro first", "geom where baro is null", "null", "a string", "too fast up", "too fast down", "missing"])
+def test_the_vertical_rate_of_a_receivers_file_is_the_barometric_one_else_the_geometric_one_in_metres_a_second(extra: dict[str, Any], metres: float | None) -> None:
+    (plane,) = read_aircraft(receiver_file(flying(**extra))) or []
+    assert plane.vertical_ms == metres

@@ -1,13 +1,14 @@
 """The pages that look at a layer of traffic (neoaprs/web/layerfeed.py, `layer_look` and `layer_things`): a page that begins to look is sent the table at once, the service is told when the first page looks and the last
 one stops (three pages are one look), a page that is behind is skipped, a page that leaves is forgotten. On the wire: the topic `map` says each layer, `layer_look` is never refused, and a daemon with a fake receiver on
 the loopback sends its aircraft to the page that looks and to no other."""
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from neoaprs.layerthing import Layer, LayerTable, Thing
 from neoaprs.web.hub import BEHIND
-from neoaprs.web.layerfeed import LayerLooks, table_message
+from neoaprs.web.layerfeed import LayerLooks, table_message, thing_row
 from tests.support.env import Env, until
 from tests.support.fakelayers import layers_server
 from tests.test_layers import plane, sky
@@ -39,8 +40,9 @@ def test_a_page_that_looks_is_sent_the_table_at_once_and_every_table_after_it() 
     conn, client = page()
     looks.look(conn, "aircraft", True)
     assert sent(client) == [{"type": "layer_things", "layer": "aircraft", "source": "receiver", "away": False, "things": [{
-        "id": "461f2a", "lat": 60.3, "lon": 24.9, "at": "2026-11-18T12:00:00Z", "heading_deg": 225, "speed_kmh": 420.4, "name": "FIN7AB", "emergency": False, "altitude_m": 2438, "registration": "OH-LZA",
-        "type": "AIRBUS A-321", "category": "", "designator": "", "ship_type": None, "course_deg": None, "destination": ""}]}]
+        "id": "461f2a", "lat": 60.3, "lon": 24.9, "at": "2026-11-18T12:00:00Z", "heading_deg": 225, "speed_kmh": 420.4, "name": "FIN7AB", "emergency": False, "altitude_m": 2438, "vertical_ms": None, "registration": "OH-LZA",
+        "type": "AIRBUS A-321", "category": "", "designator": "", "ship_type": None, "course_deg": None, "destination": "",
+        "origin": "", "origin_place": "", "destination_place": ""}]}]
     looks.told(LayerTable("aircraft", "receiver", True, ()))
     looks.told(LayerTable("ships", "fintraffic", False, ()))
     assert [m["away"] for m in sent(client)] == [False, True], "the ships' table goes to nobody: this page does not look at them"
@@ -118,3 +120,18 @@ async def test_a_page_that_closes_looks_no_more(tmp_path: Path) -> None:
     await tab.aclose()
     await until(lambda: e.ctl.layers._watched == set())
     await e.stop()
+
+
+def test_an_aircraft_is_sent_with_the_places_of_its_two_airports_and_a_ship_never_with_one() -> None:
+    flying = replace(PLANE, origin="ESSA", destination="EFHK")
+    row = thing_row(flying, "aircraft")
+    assert (row["origin"], row["origin_place"], row["destination"], row["destination_place"]) == ("ESSA", "Stockholm", "EFHK", "Helsinki (Vantaa)")
+    unknown = thing_row(replace(PLANE, origin="ZZZZ", destination=""), "aircraft")
+    assert (unknown["origin"], unknown["origin_place"], unknown["destination"], unknown["destination_place"]) == ("ZZZZ", "", "", ""), "a code the table does not know has no place; none has none"
+    ship = thing_row(replace(PLANE, destination="EFHK"), "ships")
+    assert (ship["destination"], ship["destination_place"], ship["origin_place"]) == ("EFHK", "", ""), "a ship's destination is its own words, never looked up as an airport"
+
+
+def test_an_aircraft_is_sent_with_its_vertical_speed_in_metres_a_second_and_null_when_not_told_and_for_a_ship() -> None:
+    assert thing_row(replace(PLANE, vertical_ms=-10.7), "aircraft")["vertical_ms"] == -10.7
+    assert thing_row(PLANE, "aircraft")["vertical_ms"] is None and thing_row(PLANE, "ships")["vertical_ms"] is None

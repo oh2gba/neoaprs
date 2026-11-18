@@ -20,7 +20,7 @@ AIRCRAFT_SOURCES: tuple[Source, ...] = ("none", "adsbfi", "adsblol", "radarcape"
 SHIP_SOURCES: tuple[Source, ...] = ("none", "fintraffic", "receiver")
 SOURCES: dict[Layer, tuple[Source, ...]] = {"aircraft": AIRCRAFT_SOURCES, "ships": SHIP_SOURCES}
 SERVICES: frozenset[Source] = frozenset({"adsbfi", "adsblol", "fintraffic"})     # a source on the internet
-OWN_RECEIVERS: frozenset[Source] = frozenset({"radarcape", "receiver"})         # a receiver of the operator's own: a Radarcape, or readsb's file as tar1090 and dump1090 serve it (aircraft); an AIS receiver (ships)
+OWN_RECEIVERS: frozenset[Source] = frozenset({"radarcape", "receiver"})         # a receiver of the operator's own: a Radarcape, or readsb's file as a receiver of the operator's own serves it (aircraft); an AIS receiver (ships)
 
 FINTRAFFIC_BOX = (57.7, 65.8, 16.5, 32.5)                      # the waters Fintraffic's feed covers: south, north, west, east, in degrees
 ADSBFI_URL = "https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{nm}"
@@ -77,7 +77,9 @@ class Thing:
     designator: str = ""            # aircraft only: the ICAO type designator, upper case ("A321"); "" when none
     ship_type: int | None = None    # ships only: the AIS type of ship and cargo, 1..99; None when not known or 0
     course_deg: int | None = None   # ships only: course over ground, 0..359
-    destination: str = ""           # ships only
+    destination: str = ""           # a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case ("" when not told)
+    origin: str = ""                # aircraft only: the ICAO code of the airport it left, upper case ("" when not told)
+    vertical_ms: float | None = None  # aircraft only: metres a second, above zero while it climbs, one decimal; None when not told
 
 
 @dataclass(frozen=True)

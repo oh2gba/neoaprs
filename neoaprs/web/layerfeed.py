@@ -4,6 +4,7 @@ all); a page that leaves is forgotten. The layers' service (neoaprs/services/lay
 looks."""
 from typing import Any, Protocol
 
+from neoaprs.airports import place
 from neoaprs.clock import iso
 from neoaprs.layerthing import LAYERS, Layer, LayerTable, Thing
 
@@ -17,16 +18,17 @@ class Watched(Protocol):
     def table(self, layer: Layer) -> LayerTable: ...
 
 
-def thing_row(thing: Thing) -> dict[str, Any]:
-    """A thing as `LayerThing` says it: every field, the time in ISO."""
+def thing_row(thing: Thing, layer: Layer) -> dict[str, Any]:
+    """A thing of the layer as `LayerThing` says it: every field, the time in ISO, and the places of an aircraft's two airports (a ship's destination is no airport)."""
     return {"id": thing.id, "lat": thing.lat, "lon": thing.lon, "at": iso(thing.at), "heading_deg": thing.heading_deg, "speed_kmh": thing.speed_kmh, "name": thing.name, "emergency": thing.emergency,
-            "altitude_m": thing.altitude_m, "registration": thing.registration, "type": thing.type, "category": thing.category, "designator": thing.designator,
-            "ship_type": thing.ship_type, "course_deg": thing.course_deg, "destination": thing.destination}
+            "altitude_m": thing.altitude_m, "vertical_ms": thing.vertical_ms, "registration": thing.registration, "type": thing.type, "category": thing.category, "designator": thing.designator,
+            "ship_type": thing.ship_type, "course_deg": thing.course_deg, "destination": thing.destination,
+            "origin": thing.origin, "origin_place": place(thing.origin), "destination_place": place(thing.destination) if layer == "aircraft" else ""}
 
 
 def table_message(table: LayerTable) -> dict[str, Any]:
     """The `layer_things` message of a layer's table."""
-    return {"type": "layer_things", "layer": table.layer, "source": table.source, "away": table.away, "things": [thing_row(thing) for thing in table.things]}
+    return {"type": "layer_things", "layer": table.layer, "source": table.source, "away": table.away, "things": [thing_row(thing, table.layer) for thing in table.things]}
 
 
 class LayerLooks:

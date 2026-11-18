@@ -18,6 +18,7 @@ import {
   processText,
   silentText,
   speedText,
+  verticalText,
   untilText,
 } from "@/lib/format";
 import { NOW, ago } from "@/test/fixtures";
@@ -91,6 +92,14 @@ describe("numbers", () => {
     expect(positionText(-33.5, -70.25)).toBe("33.50000 S 70.25000 W");
     expect(positionText(null, 24)).toBe("-");
     expect(positionText(60.42951, 24.14519, 4)).toBe("60.4295 N 24.1452 E");
+  });
+  it("writes a vertical speed with one decimal and its sign, level flight as 0", () => {
+    expect(verticalText(3.2)).toBe("+3.2 m/s");
+    expect(verticalText(-10.7)).toBe("\u221210.7 m/s");
+    expect(verticalText(0)).toBe("0 m/s");
+    expect(verticalText(-0.04)).toBe("0 m/s");
+    expect(verticalText(3)).toBe("+3.0 m/s");
+    expect(verticalText(null)).toBe("-");
   });
   it("writes speed, path and bytes", () => {
     expect(speedText(12.6)).toBe("13 km/h");

@@ -82,6 +82,14 @@ describe("the aircraft and ships on the map", () => {
     const names = map.specs.get("traffic-names");
     expect(names?.minzoom).toBe(10);
     expect(names?.layout).toMatchObject({ "text-field": ["get", "name"] });
+    const offset = JSON.stringify(names?.layout?.["text-offset"]);
+    expect(offset).toContain('["get","side"]');
+    for (const [side, drop] of [
+      [16, 0.9],
+      [26, 1.35],
+      [14, 0.81],
+    ] as const)
+      expect(offset, `${side}`).toContain(`${side},["literal",[0,${drop}]]`);
     for (const free of ["text-ignore-placement", "text-allow-overlap"]) expect(names?.layout?.[free]).toBeUndefined();
     const marks = map.specs.get("traffic");
     expect(marks?.layout?.["text-field"]).toBeUndefined();

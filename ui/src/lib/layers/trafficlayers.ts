@@ -1,16 +1,15 @@
 // The map's layer of aircraft and ships (lib/layers/traffic.ts): each thing a flat mark in the layers' own colour (`--map-layer`; an emergency in `--bad`) with a thin halo so that it shows on any ground, an aircraft
-// the shape of its kind at its own size (lib/layers/aircraftshapes.ts, 11 to 20 px), a ship's hull and the diamond 16 px, turned to where it heads, faded by its age; from zoom 10 its name under it, in the regular face
+// the shape of its kind at its own size (lib/layers/aircraftshapes.ts, 14 to 26 px), a ship's hull and the diamond 16 px, turned to where it heads, faded by its age; from zoom 10 its name under it, as far under as its mark is large, in the regular face
 // and the muted colour of the map's text, giving way to the base map's names and to each other. The marks are images the map is given, one for each shape and colour, drawn from the shapes of the Layers box
 // (lib/layers/marks.ts) at the density of the screen the page opened on (twice at least, three times at most) and given again with the layers, which are made again whenever the style is set (the
 // colour scheme changed: the colours are read from styles/tokens.css then).
-import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { paletteColor } from "@/lib/alohalayers";
 import { FONT_REGULAR } from "@/lib/basemapstyle";
-import { AIRCRAFT_SHAPES } from "@/lib/layers/aircraftshapes";
-import { MARKS, MARK_SIZE, markBox } from "@/lib/layers/marks";
+import { MARKS, markBox } from "@/lib/layers/marks";
 import { NO_TRAIL } from "@/lib/layers/trail";
 import type { TrackCollection } from "@/lib/tracks";
-import { NO_TRAFFIC, THING_SHAPES, imageName, type ThingShape, type TrafficCollection } from "@/lib/layers/traffic";
+import { NO_TRAFFIC, THING_SHAPES, imageName, sideOf, type ThingShape, type TrafficCollection } from "@/lib/layers/traffic";
 
 const TRAFFIC_SOURCE = "traffic";
 const TRAIL_SOURCE = "traffic-trail";
@@ -26,8 +25,17 @@ const HALO = 2;
 /** How many image pixels a pixel of the page has: the screen's density, twice at least and three times at most; read once, so that an image given again has its size. */
 const RATIO = Math.min(3, Math.max(2, Math.ceil(globalThis.devicePixelRatio || 1)));
 
-/** The side of a shape's image in pixels of the page: an aircraft's own size, else a mark's 16. */
-const sideOf = (shape: ThingShape): number => (shape === "hull" || shape === "diamond" ? MARK_SIZE : AIRCRAFT_SHAPES[shape].size);
+/** The name's size in pixels, and the room between the foot of a mark and the top of its name. */
+const NAME_SIZE = 11;
+const NAME_GAP = 1.9;
+
+/** How far under its place a name stands, for each size of mark a thing has: the mark's half and the gap, in the name's ems (0.9 under a mark of 16). */
+const NAME_OFFSET: ExpressionSpecification = [
+  "match",
+  ["get", "side"],
+  ...[...new Set(THING_SHAPES.map(sideOf))].flatMap((side) => [side, ["literal", [0, Math.round(((side / 2 + NAME_GAP) / NAME_SIZE) * 100) / 100]]]),
+  ["literal", [0, 0.9]],
+] as unknown as ExpressionSpecification;
 
 /** A shape drawn in a colour with its halo, its box fitted to the middle of a square of its side, as the map takes an image; null where the browser draws nothing (no canvas). */
 function drawShape(shape: ThingShape, fill: string, halo: string): ImageData | null {
@@ -112,9 +120,9 @@ export function addTrafficLayers(map: MapLibreMap, data: TrafficCollection = NO_
       layout: {
         "text-field": ["get", "name"],
         "text-font": [FONT_REGULAR],
-        "text-size": 11,
+        "text-size": NAME_SIZE,
         "text-anchor": "top",
-        "text-offset": [0, 0.9],
+        "text-offset": NAME_OFFSET,
         "symbol-sort-key": ["-", ["get", "rank"]],
       },
       paint: {

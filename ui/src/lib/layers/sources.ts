@@ -15,6 +15,9 @@ export type OwnName = "receiver" | "radarcape";
 /** The catalogue's id of each layer's name. */
 export const LAYER_NAMES: Readonly<Record<LayerName, MessageId>> = { aircraft: "layers.aircraft", ships: "layers.ships" };
 
+/** The Radarcape's name, which no language translates. */
+export const RADARCAPE_NAME = "Radarcape";
+
 /** The services by their own names, which no language translates. */
 export const SOURCE_NAMES: Readonly<Record<ServiceName, string>> = { adsbfi: "adsb.fi", adsblol: "adsb.lol", fintraffic: "Fintraffic" };
 
@@ -36,7 +39,7 @@ export const CREDITS: Readonly<Record<ServiceName, readonly CreditPart[]>> = {
   ],
 };
 
-/** Whether a source is a device of the station's own (a Radarcape, or a receiver whose file tar1090 or dump1090 serves, or an AIS receiver). */
+/** Whether a source is a device of the station's own (a Radarcape, an aircraft receiver of the operator's own, or an AIS receiver). */
 export const isOwn = (source: string): source is OwnName => source === "receiver" || source === "radarcape";
 
 /** Whether a source is a service on the internet (one with its own name and a credit). */

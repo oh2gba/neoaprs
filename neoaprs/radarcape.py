@@ -2,8 +2,9 @@
 readsb's file; `radarcape_url` says where it is asked. No I/O.
 
 The fields, by jetvision's own description (wiki.jetvision.de, Radarcape:Software_Features): `hex` the ICAO address; `fli` the flight; `lat`, `lon`; `lla` the age of the last position in seconds (null when not
-known: then `uti`, seconds since 1970 of the last message, gives the time); `alt` barometric feet; `spd` knots; `trk` the true track; `gda` G (or g, TIS-B) on the ground, A (or a) in the air; `alr` 3 a
-permanent alert (7500, 7600, 7700) and `squ` the squawk; `reg` the registration; `typ` the ICAO type designator; `cat` the emitter category. `dis` is km or nautical miles by the device's own setting and is
+known: then `uti`, seconds since 1970 of the last message, gives the time); `alt` barometric feet; `vrt` the vertical rate in feet a minute; `spd` knots; `trk` the true track; `gda` G (or g, TIS-B) on the ground, A (or a) in the air; `alr` 3 a
+permanent alert (7500, 7600, 7700) and `squ` the squawk; `reg` the registration; `typ` the ICAO type designator; `cat` the emitter category; `org` and `dst` the ICAO codes of the airports of departure and destination (a code is kept when it is four letters
+or digits, upper case; the list does not carry the airports' names). `dis` is km or nautical miles by the device's own setting and is
 not read.
 
 An aircraft on the ground, a vehicle or an obstacle (a `cat` that begins with C), one without a position and one whose position is a day old or older are left out. A field that is null, missing, a string where
@@ -14,9 +15,16 @@ from urllib.parse import urlsplit
 
 from .clock import from_unix
 from .layerthing import RADARCAPE_PLACE, Thing
-from .readsb import ALTITUDE_M_RANGE, EMERGENCY_SQUAWKS, FEET_M, KNOT_KMH, SEEN_MAX_SEC, SPEED_KMH_RANGE, converted, host_port, is_whole_address, loads, number, text_of
+from .readsb import ALTITUDE_M_RANGE, EMERGENCY_SQUAWKS, FEET_M, KNOT_KMH, SEEN_MAX_SEC, SPEED_KMH_RANGE, converted, host_port, is_whole_address, loads, number, text_of, vertical_ms
 
+AIRPORT_CODE_LENGTH = 4
 PERMANENT_ALERT = 3                                          # `alr`: a squawk of 7500, 7600 or 7700
+
+
+def _airport(value: Any) -> str:
+    """An airport's ICAO code, upper case: four letters or digits once trimmed; anything else is none."""
+    code = text_of(value).upper()
+    return code if len(code) == AIRPORT_CODE_LENGTH and code.isascii() and code.isalnum() else ""
 
 
 def _squawk(value: Any) -> str:
@@ -51,7 +59,8 @@ def _thing(row: Any, received_at: datetime) -> Thing | None:
     designator = text_of(row.get("typ")).upper()
     return Thing(id=id, lat=lat, lon=lon, at=at, heading_deg=None if track is None else int(round(track)) % 360, speed_kmh=None if speed is None else round(speed, 1),
                  name=text_of(row.get("fli")), emergency=number(row.get("alr")) == PERMANENT_ALERT or _squawk(row.get("squ")) in EMERGENCY_SQUAWKS,
-                 altitude_m=None if metres is None else int(round(metres)), registration=text_of(row.get("reg")), type=designator, category=category, designator=designator)
+                 altitude_m=None if metres is None else int(round(metres)), vertical_ms=vertical_ms(row.get("vrt")), registration=text_of(row.get("reg")), type=designator, category=category, designator=designator,
+                 destination=_airport(row.get("dst")), origin=_airport(row.get("org")))
 
 
 def read_aircraft(body: bytes, received_at: datetime) -> list[Thing] | None:

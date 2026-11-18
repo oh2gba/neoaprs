@@ -66,6 +66,7 @@ describe("traffic: the map's features", () => {
     expect(byId.get("c")).toMatchObject({ icon: "traffic-airliner-bad", rank: 1 });
     expect(byId.get("s")).toMatchObject({ icon: "traffic-hull", rotate: 182, layer: "ships", key: "ships:s" });
     expect(byId.get("t")).toMatchObject({ icon: "traffic-diamond" });
+    expect([...byId.values()].map((one) => one.side)).toEqual([22, 16, 22, 16, 16]);
     expect(data.features.find((feature) => feature.properties.id === "a")?.geometry.coordinates).toEqual([24.9633, 60.3172]);
   });
 

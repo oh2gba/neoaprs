@@ -630,6 +630,8 @@ export interface LayerThing {
   emergency: boolean;
   /** an aircraft's height */
   altitude_m: number | null;
+  /** an aircraft's vertical speed in metres a second, above zero climbing; null when not told (a ship's is null) */
+  vertical_ms: number | null;
   /** an aircraft's registration (`OH-LZA`); empty when not known */
   registration: string;
   /** an aircraft's emitter category as the source gives it, upper case (`A3`, `A7`, `B1`); empty when not known */
@@ -640,8 +642,14 @@ export interface LayerThing {
   ship_type: number | null;
   /** a ship's course over ground */
   course_deg: number | null;
-  /** a ship's destination; empty when not known */
+  /** a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case; empty when not known */
   destination: string;
+  /** an aircraft's departure: the ICAO code of the airport it left, upper case; empty when not known */
+  origin: string;
+  /** the place of the airport `origin` names, from the table the program carries; empty when `origin` is empty or not in the table */
+  origin_place: string;
+  /** the place of the airport `destination` names, from the table the program carries; empty for a ship, and when `destination` is empty or not in the table */
+  destination_place: string;
 }
 
 /** A layer's whole table, to each page that looks at it and is not behind: at once on `layer_look`, after every answer of the source, at most every 5 s for an AIS receiver, when things grow too old, and when the source in force changes (then with the new `source` and no things). */

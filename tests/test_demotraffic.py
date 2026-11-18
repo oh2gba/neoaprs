@@ -14,6 +14,7 @@ import pytest
 
 from neoaprs.geo import distance_km
 from neoaprs import radarcape
+from neoaprs.airports import place
 from neoaprs.clock import from_unix
 from neoaprs.readsb import read_aircraft
 from tests.test_scripts import load_script
@@ -58,6 +59,20 @@ def test_the_radarcapes_list_has_the_same_aircraft_with_one_on_the_ground_one_in
     assert [(a.speed_kmh, a.heading_deg) for a in shown if a.id == "4608a3"] == [(None, None)]
     assert {a.id for a in shown if not a.name} == {"460f11", "4690c2", "4690d3"}
     assert {(a.id, a.category, a.designator) for a in shown} == {(a.id, a.category, a.designator) for a in readsb_shown}
+
+
+def test_the_radarcapes_list_gives_the_airports_of_some_aircraft_one_with_both_known_one_with_an_unknown_code_one_with_a_destination_only_and_most_with_neither() -> None:
+    shown = {a.id: a for a in radarcape.read_aircraft(json.dumps(traffic.radarcape_list(T)).encode(), from_unix(T)) or []}
+    assert [(place(shown[i].origin), place(shown[i].destination)) for i in ("461f2a", "4ab822", "3c4b2f")] == [("Stockholm", "Helsinki (Vantaa)"), ("", "Helsinki (Vantaa)"), ("", "London")]
+    assert (shown["4ab822"].origin, shown["3c4b2f"].origin) == ("ESXX", "")
+    assert sum(1 for a in shown.values() if a.origin or a.destination) == 3
+
+
+def test_three_aircraft_tell_a_vertical_rate_in_both_forms_one_climbing_one_descending_one_level_and_the_rest_tell_none() -> None:
+    from_readsb = {a.id: a.vertical_ms for a in read_aircraft(json.dumps(traffic.receiver_file(T)).encode()) or []}
+    from_radarcape = {a.id: a.vertical_ms for a in radarcape.read_aircraft(json.dumps(traffic.radarcape_list(T)).encode(), from_unix(T)) or []}
+    assert from_readsb == from_radarcape
+    assert {i: v for i, v in from_readsb.items() if v is not None} == {"461f2a": 9.1, "4ab822": 0.0, "3c4b2f": -10.7}
 
 
 @pytest.mark.parametrize(("path", "form"), [("/tar1090/data/aircraft.json", "aircraft"), ("/api/v3/lat/60.2/lon/24.7/dist/86", "ac"), ("/v2/lat/60.2/lon/24.7/dist/86", "ac"), ("/v2/lat/-0.5/lon/-120.0/dist/250", "ac"),

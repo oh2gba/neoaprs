@@ -5,6 +5,7 @@
 import { MARKER_STEPS, fadeFraction } from "@/lib/aging";
 import { aircraftShape } from "@/lib/layers/aircraftkinds";
 import { AIRCRAFT_SHAPES, type AircraftShape } from "@/lib/layers/aircraftshapes";
+import { MARK_SIZE } from "@/lib/layers/marks";
 import { ageSeconds } from "@/lib/format";
 import { isOwn, type LayerName, type SourceName } from "@/lib/layers/sources";
 import { LIMITS } from "@/protocol/lists";
@@ -40,6 +41,9 @@ export type ThingShape = AircraftShape | "hull" | "diamond";
 /** Every shape the map draws things with. */
 export const THING_SHAPES: readonly ThingShape[] = [...(Object.keys(AIRCRAFT_SHAPES) as AircraftShape[]), "hull", "diamond"];
 
+/** The side of a shape's image on the map in pixels of the page: an aircraft's own size, else a mark's 16. */
+export const sideOf = (shape: ThingShape): number => (shape === "hull" || shape === "diamond" ? MARK_SIZE : AIRCRAFT_SHAPES[shape].size);
+
 /** Whether a shape is turned to where the thing heads. */
 const turns = (shape: ThingShape): boolean => shape === "hull" || (shape !== "diamond" && AIRCRAFT_SHAPES[shape].turns);
 
@@ -64,6 +68,8 @@ interface ThingProperties {
   layer: LayerName;
   id: string;
   icon: string;
+  /** the side of its mark in pixels, which says how far under it its name stands */
+  side: number;
   rotate: number;
   opacity: number;
   name: string;
@@ -99,6 +105,7 @@ export function trafficFeatures(tables: Iterable<LayerThingsMessage>, nowMs: num
           layer: table.layer,
           id: thing.id,
           icon: imageName(shape, thing.emergency),
+          side: sideOf(shape),
           rotate: turns(shape) ? (thing.heading_deg ?? 0) : 0,
           opacity: fadeOpacity(ageSeconds(thing.at, nowMs), max),
           name: thing.name,

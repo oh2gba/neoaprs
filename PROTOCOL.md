@@ -1699,13 +1699,17 @@ An aircraft or a ship, as its source tells it. Every field is always there; one 
 | `name` | string |  | an aircraft's flight, a ship's name; empty when none |
 | `emergency` | boolean |  | an aircraft that says it is in an emergency (or squawks 7500, 7600 or 7700) |
 | `altitude_m` | integer \| null |  | an aircraft's height |
+| `vertical_ms` | number \| null |  | an aircraft's vertical speed in metres a second, above zero climbing; null when not told (a ship's is null) |
 | `registration` | string |  | an aircraft's registration (`OH-LZA`); empty when not known |
 | `type` | string |  | an aircraft's type as the source names it; empty when not known |
 | `category` | string |  | an aircraft's emitter category as the source gives it, upper case (`A3`, `A7`, `B1`); empty when not known |
 | `designator` | string |  | an aircraft's ICAO type designator, upper case (`A321`, `EC35`); empty when not known |
 | `ship_type` | integer \| null |  | a ship's AIS type of ship and cargo; null when not known (>= 1, <= 99) |
 | `course_deg` | integer \| null |  | a ship's course over ground (>= 0, <= 359) |
-| `destination` | string |  | a ship's destination; empty when not known |
+| `destination` | string |  | a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case; empty when not known |
+| `origin` | string |  | an aircraft's departure: the ICAO code of the airport it left, upper case; empty when not known |
+| `origin_place` | string |  | the place of the airport `origin` names, from the table the program carries; empty when `origin` is empty or not in the table |
+| `destination_place` | string |  | the place of the airport `destination` names, from the table the program carries; empty for a ship, and when `destination` is empty or not in the table |
 
 ### LocatorValues
 

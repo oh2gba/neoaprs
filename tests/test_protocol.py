@@ -136,10 +136,12 @@ MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_cal
 PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio_id": 1, "snr": None, "rssi": None, "gate": "", "kind": "position",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
 STATS: dict[str, Any] = {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0}
-AIRCRAFT: dict[str, Any] = {"id": "461f2a", "lat": 60.3172, "lon": 24.9633, "at": NOW, "heading_deg": 225, "speed_kmh": 420.5, "name": "FIN7AB", "emergency": False, "altitude_m": 2438, "registration": "OH-LZA",
-                             "type": "AIRBUS A-321", "category": "A3", "designator": "A321", "ship_type": None, "course_deg": None, "destination": ""}
-SHIP: dict[str, Any] = {"id": "230123456", "lat": 60.1512, "lon": 24.9601, "at": NOW, "heading_deg": None, "speed_kmh": 0.0, "name": "MADE UP STAR", "emergency": False, "altitude_m": None, "registration": "", "type": "",
-                        "category": "", "designator": "", "ship_type": 60, "course_deg": 182, "destination": "HELSINKI"}
+AIRCRAFT: dict[str, Any] = {"id": "461f2a", "lat": 60.3172, "lon": 24.9633, "at": NOW, "heading_deg": 225, "speed_kmh": 420.5, "name": "FIN7AB", "emergency": False, "altitude_m": 2438, "vertical_ms": 3.2, "registration": "OH-LZA",
+                             "type": "AIRBUS A-321", "category": "A3", "designator": "A321", "ship_type": None, "course_deg": None, "destination": "",
+                             "origin": "", "origin_place": "", "destination_place": ""}
+SHIP: dict[str, Any] = {"id": "230123456", "lat": 60.1512, "lon": 24.9601, "at": NOW, "heading_deg": None, "speed_kmh": 0.0, "name": "MADE UP STAR", "emergency": False, "altitude_m": None, "vertical_ms": None, "registration": "", "type": "",
+                        "category": "", "designator": "", "ship_type": 60, "course_deg": 182, "destination": "HELSINKI",
+                        "origin": "", "origin_place": "", "destination_place": ""}
 RADIO: dict[str, Any] = {"id": 1, "kind": "fm", "type": "kiss", "name": "Mobile", "number": 1, "enabled": True, "position": 1, "removed": False, "dummy": False, "state": "connected", "problem": None, "stats": STATS,
                          "lines": [{"at": NOW, "text": "NeoAPRS: opened /dev/brainbox_3"}], "limits": {"max_frame": None, "beacon_min_min": 20}, "allowed": {"paths": True, "digipeat": True, "smart_beacon": True, "gateway_heard": True, "shared_channel": True},
                          "can": {"find": True, "terminal": True, "tune": False, "key_test": False, "scope": False, "tx_gain": False, "frequencies": False, "transmit": True, "rx_level": False}, "choices": {"beacon": True, "status": True, "ask": True, "local_info": False, "path": "", "digipeat": False},

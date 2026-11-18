@@ -21,6 +21,7 @@ export function aircraft(extra: Partial<LayerThing> = {}): LayerThing {
     name: "FIN7AB",
     emergency: false,
     altitude_m: 2438,
+    vertical_ms: null,
     registration: "OH-LZA",
     type: "AIRBUS A-321",
     category: "A3",
@@ -28,6 +29,9 @@ export function aircraft(extra: Partial<LayerThing> = {}): LayerThing {
     ship_type: null,
     course_deg: null,
     destination: "",
+    origin: "",
+    origin_place: "",
+    destination_place: "",
     ...extra,
   };
 }
@@ -44,6 +48,7 @@ export function ship(extra: Partial<LayerThing> = {}): LayerThing {
     name: "MADE UP STAR",
     emergency: false,
     altitude_m: null,
+    vertical_ms: null,
     registration: "",
     type: "",
     category: "",
@@ -51,6 +56,9 @@ export function ship(extra: Partial<LayerThing> = {}): LayerThing {
     ship_type: 60,
     course_deg: 182,
     destination: "TALLINN",
+    origin: "",
+    origin_place: "",
+    destination_place: "",
     ...extra,
   };
 }

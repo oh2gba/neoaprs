@@ -16,12 +16,14 @@ from .layerthing import AIRCRAFT_HOST, AIRCRAFT_PLACES, AIRCRAFT_PORTS, Thing
 
 FEET_M = 0.3048
 KNOT_KMH = 1.852
+FPM_MS = 0.00508                                             # one foot a minute in metres a second
 EMERGENCY_SQUAWKS = frozenset({"7500", "7600", "7700"})      # unlawful interference, radio failure, emergency
 MILLISECONDS_FROM = 1e11                                     # a `now` above this is in milliseconds (the services), below it in seconds (a receiver's file)
 TEXT_MAX = 64                                                # the longest flight, registration or type kept
 SEEN_MAX_SEC = 86400.0                                       # a position older than this is taken as none
 SPEED_KMH_RANGE = (0.0, 4000.0)                              # a speed outside it is taken as none (no aircraft of the map flies faster)
 ALTITUDE_M_RANGE = (-1000.0, 40000.0)                        # a height outside it is taken as none
+VERTICAL_MS_RANGE = (-150.0, 150.0)                          # a vertical speed outside it, in metres a second, is taken as none
 _SPACE = re.compile(r"[ \t\n\r]*")
 # json's own scanner of one value: (text, where it begins) -> (the value, where it ends)
 _SCAN: Callable[[str, int], tuple[Any, int]] = json.JSONDecoder().scan_once     # type: ignore[attr-defined]
@@ -128,6 +130,17 @@ def _altitude_m(aircraft: dict[str, Any]) -> int | None:
     return None if metres is None else int(round(metres))
 
 
+def vertical_ms(rate: Any) -> float | None:
+    """A climb rate in feet a minute as metres a second, one decimal, above zero while it climbs; None when it is none or out of range."""
+    metres = converted(rate, FPM_MS, VERTICAL_MS_RANGE)
+    return None if metres is None else round(metres, 1) + 0.0     # (+ 0.0: a small descent is level, not -0.0)
+
+
+def _vertical(aircraft: dict[str, Any]) -> float | None:
+    found = vertical_ms(aircraft.get("baro_rate"))
+    return vertical_ms(aircraft.get("geom_rate")) if found is None else found
+
+
 def _emergency(aircraft: dict[str, Any]) -> bool:
     said = aircraft.get("emergency")
     return (isinstance(said, str) and said.strip().lower() not in ("", "none")) or text_of(aircraft.get("squawk")) in EMERGENCY_SQUAWKS
@@ -148,7 +161,7 @@ def _thing(aircraft: Any, base: datetime) -> Thing | None:
     speed = converted(aircraft.get("gs"), KNOT_KMH, SPEED_KMH_RANGE)
     return Thing(id=id, lat=lat, lon=lon, at=base - timedelta(seconds=max(seen or 0.0, 0.0)), heading_deg=_heading(aircraft),
                  speed_kmh=None if speed is None else round(speed, 1), name=text_of(aircraft.get("flight")), emergency=_emergency(aircraft),
-                 altitude_m=_altitude_m(aircraft), registration=text_of(aircraft.get("r")), type=text_of(aircraft.get("desc")) or text_of(aircraft.get("t")),
+                 altitude_m=_altitude_m(aircraft), vertical_ms=_vertical(aircraft), registration=text_of(aircraft.get("r")), type=text_of(aircraft.get("desc")) or text_of(aircraft.get("t")),
                  category=text_of(aircraft.get("category")).upper(), designator=text_of(aircraft.get("t")).upper())
 
 

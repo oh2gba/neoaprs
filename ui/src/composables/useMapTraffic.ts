@@ -8,13 +8,12 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import type { HoverCard, HoverContent } from "@/lib/hovercard";
 import { hoverRows, thingSub, thingTitle } from "@/lib/layers/card";
 import { isService, type LayerName, type ServiceName } from "@/lib/layers/sources";
-import { MARKS, markBox } from "@/lib/layers/marks";
-import { kindShape, liveThings, trafficCounts, trafficFeatures } from "@/lib/layers/traffic";
+import { MARKS, MARK_SIZE, markBox } from "@/lib/layers/marks";
+import { kindShape, liveThings, sideOf, thingShape, trafficCounts, trafficFeatures } from "@/lib/layers/traffic";
 import { NO_TRAIL, trailKey, trailLines } from "@/lib/layers/trail";
 import type { TrackCollection } from "@/lib/tracks";
 import { TRAFFIC_LAYER, addTrafficLayers, setTrafficData, setTrailData } from "@/lib/layers/trafficlayers";
 
-const HALF = 8; // half a mark, in pixels: the box the hover card stands beside
 const REACH = 6; // in pixels each way round a click or a tap: a finger finds a mark it nearly touched (the topmost found is the one meant)
 
 /** The box round a point of the map that a click reaches. */
@@ -75,12 +74,13 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
     };
   }
 
-  /** Where a thing is on the screen: the box of its mark round its place now. */
+  /** Where a thing is on the screen: the box of its mark (as large as the map draws it) round its place now. */
   function boxOf(to: MapLibreMap, layer: LayerName, id: string): DOMRect {
     const thing = traffic.tables.value.get(layer)?.things.find((one) => one.id === id);
     const frame = to.getContainer().getBoundingClientRect();
     const at = thing ? to.project([thing.lon, thing.lat]) : { x: 0, y: 0 };
-    return new DOMRect(frame.left + at.x - HALF, frame.top + at.y - HALF, 2 * HALF, 2 * HALF);
+    const side = thing ? sideOf(thingShape(layer, thing)) : MARK_SIZE;
+    return new DOMRect(frame.left + at.x - side / 2, frame.top + at.y - side / 2, side, side);
   }
 
   function listen(to: MapLibreMap, card: HoverCard | null): void {

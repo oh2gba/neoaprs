@@ -22,6 +22,7 @@ OWN = {
 }
 # A name or a value: a call, a path, an id, a port or an address, a version, a setting's key and its text, a symbol, a frequency, a key of a topic's table.
 NAME = {
+    "LayerThing.origin_place", "LayerThing.destination_place",          # the place of an airport, from the table the program carries
     "AskQru.path", "AttemptRow.internet", "BulletinDelete.sender", "BulletinDelete.slot", "BulletinPost.slot", "BulletinRow.group", "BulletinRow.sender", "BulletinRow.slot", "BulletinUnpost.slot",
     "ClearStationPath.call", "ConfigValues.defaults", "ConfigValues.radio_defaults", "ConfigValues.radio_values", "ConfigValues.urls", "ConfigValues.values", "ConversationDelete.call", "DecodedItem.name",
     "DecodedMessage.ack_id", "DecodedMessage.addressee", "DecodedMessage.msg_id", "DecodedMessage.rej_id", "DecodedObject.name", "DecodedObject.timestamp", "DecodedOther.items", "DecodedOther.timestamp",
@@ -50,7 +51,7 @@ NAME = {
 # alert command wrote.
 DEVICE = {
     "AlertResultMsg.line", "PacketRow.tnc2", "PortRow.description", "PortRow.hwid", "SoundCardRow.name", "StationRow.device", "TncLine.text",
-    "LayerThing.destination", "LayerThing.id", "LayerThing.name", "LayerThing.registration", "LayerThing.type", "LayerThing.category", "LayerThing.designator",          # what an aircraft or a ship says of itself, as its source gave it
+    "LayerThing.destination", "LayerThing.origin", "LayerThing.id", "LayerThing.name", "LayerThing.registration", "LayerThing.type", "LayerThing.category", "LayerThing.designator",          # what an aircraft or a ship says of itself, as its source gave it
 }
 # A route as the daemon writes it (`direct`, `via A → B`, `via G (internet)`): the page takes it apart and says it in its words (lib/routes.ts `routeWords`).
 ROUTE = {"MessageRow.route", "PacketRow.route", "StationRow.best_route", "StationRow.last_route"}

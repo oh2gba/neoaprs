@@ -33,7 +33,8 @@ def test_an_aircraft_is_read_with_its_place_height_speed_heading_names_and_kind(
     assert (plane.altitude_m, plane.speed_kmh, plane.heading_deg) == (2438, 420.4, 225), "feet to metres, knots to km/h, the track rounded"
     assert (plane.name, plane.registration, plane.emergency) == ("FIN7AB", "OH-LZA", False)
     assert (plane.type, plane.designator, plane.category) == ("A321", "A321", "A3"), "the type designator is the card's type too; both upper-cased"
-    assert (plane.ship_type, plane.course_deg, plane.destination) == (None, None, "")
+    assert (plane.ship_type, plane.course_deg) == (None, None)
+    assert (plane.origin, plane.destination) == ("ESSA", "EFHK")
 
 
 def test_without_the_age_of_its_position_the_time_of_its_last_message_gives_the_time_and_never_one_after_the_answer() -> None:
@@ -126,3 +127,35 @@ def test_an_answer_of_a_megabyte_is_read_whole() -> None:
                          ids=["ip", "port", "port80", "ipv6", "ipv6port", "whole", "noplace", "upper", "blanks", "empty", "blank"])
 def test_a_radarcape_is_asked_at_its_one_place_and_one_with_no_address_is_not_looked_for(address: str, url: str | None) -> None:
     assert radarcape_url(address) == url
+
+
+@pytest.mark.parametrize(("extra", "origin", "destination"), [
+    ({}, "ESSA", "EFHK"), ({"org": None}, "", "EFHK"), ({"dst": None}, "ESSA", ""), ({"org": None, "dst": None}, "", ""), ({"org": 1234, "dst": 5678}, "", ""),
+    ({"org": "ESSAX", "dst": "EFH"}, "", ""), ({"org": "essa", "dst": "efhk"}, "ESSA", "EFHK"), ({"org": " ESSA ", "dst": "  efhk"}, "ESSA", "EFHK"), ({"org": "E S", "dst": "----"}, "", ""),
+    ({"org": "", "dst": "    "}, "", ""), ({"org": "ÄÖÅÄ", "dst": ["EFHK"]}, "", "")],
+    ids=["both", "no origin", "no destination", "null both", "numbers", "too long or short", "lower case", "spaces", "not letters", "empty", "not ASCII"])
+def test_the_airports_of_departure_and_destination_are_kept_as_four_character_upper_case_codes_and_none_otherwise(extra: dict[str, Any], origin: str, destination: str) -> None:
+    (plane,) = read(row(**extra))
+    assert (plane.origin, plane.destination) == (origin, destination)
+
+
+def test_an_aircraft_whose_list_row_has_no_airports_at_all_has_none() -> None:
+    (plane,) = read({k: v for k, v in row().items() if k not in ("org", "dst")})
+    assert (plane.origin, plane.destination) == ("", "")
+
+
+def test_the_height_of_the_lists_own_example_row_is_read_as_4892_metres() -> None:
+    (plane,) = read(row(hex="4CAD87", fli="SAS728", alt=16050, org="ESSA", dst="EFHK", typ="A20N", reg="EI-SIS", cat="A3"))
+    assert (plane.altitude_m, plane.origin, plane.destination) == (4892, "ESSA", "EFHK"), "16 050 ft is 4892.04 m, to the whole metre"
+
+
+@pytest.mark.parametrize(("vrt", "metres"), [(700, 3.6), (-2112, -10.7), (0, 0.0), (-3, 0.0), (None, None), ("700", None), (float("nan"), None), (True, None), (30000, None), (-30000, None)],
+                         ids=["climbing", "descending", "level", "a trace of descent", "null", "a string", "not a number", "a boolean", "too fast up", "too fast down"])
+def test_the_vertical_rate_of_a_list_row_is_read_in_metres_a_second_with_one_decimal_and_none_when_it_is_none_or_out_of_range(vrt: Any, metres: float | None) -> None:
+    (plane,) = read(row(vrt=vrt))
+    assert plane.vertical_ms == metres and (metres is None or str(plane.vertical_ms) != "-0.0")
+
+
+def test_a_row_without_a_vertical_rate_has_none() -> None:
+    (plane,) = read({k: v for k, v in row().items() if k != "vrt"})
+    assert plane.vertical_ms is None
