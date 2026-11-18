@@ -123,10 +123,14 @@ describe("the rows of the box", () => {
     expect(place.querySelectorAll(".layers-rule")).toHaveLength(1);
     expect(row("aircraft")?.querySelector(".layers-name")?.textContent).toBe("Aircraft");
     expect(row("aircraft")?.querySelector(".layers-source")?.textContent).toBe("adsb.fi");
-    expect(row("aircraft")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.dart.d);
+    expect(row("aircraft")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.airliner.d);
     expect(row("ships")?.querySelector(".layers-name")?.textContent).toBe("Ships");
     expect(row("ships")?.querySelector(".layers-source")).toBeNull();
     expect(row("ships")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.hull.d);
+  });
+
+  it("give a Radarcape's aircraft no source word, as any own receiver", () => {
+    expect(layerRows([mapLayer("aircraft", { source: "radarcape" }), mapLayer("ships")]).map((one) => one.source)).toEqual([null, null, null, null]);
   });
 
   it("name adsb.lol and Fintraffic by their own names", () => {

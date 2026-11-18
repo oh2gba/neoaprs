@@ -31,7 +31,7 @@ describe("Settings, Map: aircraft and ships", () => {
 
   it("lists the sources the daemon offers, in its order, by the services' own names", () => {
     const { wrapper } = make();
-    expect(options(wrapper, "#set-map-aircraft")).toEqual(["None", "adsb.fi", "adsb.lol", "My own receiver"]);
+    expect(options(wrapper, "#set-map-aircraft")).toEqual(["None", "adsb.fi", "adsb.lol", "Radarcape", "tar1090 or dump1090"]);
     expect(options(wrapper, "#set-map-ships")).toEqual(["None", "Fintraffic", "My own receiver"]);
   });
 
@@ -70,6 +70,25 @@ describe("Settings, Map: aircraft and ships", () => {
     await wrapper.find("#set-map-aircraft").setValue("adsbfi");
     expect(wrapper.find("#set-map-aircraft_host").exists()).toBe(false);
     expect(wrapper.find(".receiverstatus").exists()).toBe(false);
+  });
+
+  it("shows the address field and its state with a Radarcape chosen, with an empty box and an (i) of one line", async () => {
+    const { wrapper } = make({ "map/aircraft": "radarcape" }, [mapLayer("aircraft", { source: "radarcape", receiver: receiving(30) }), mapLayer("ships")]);
+    const input = wrapper.find("#set-map-aircraft_host");
+    expect(input.exists()).toBe(true);
+    expect(input.attributes("placeholder")).toBe("");
+    expect(wrapper.find(".receiverstatus").text()).toContain("Receiving: 30 aircraft");
+    input.element.closest(".field")?.querySelector<HTMLElement>(".info-toggle")?.click();
+    await wrapper.vm.$nextTick();
+    const note = input.element.closest(".field")?.textContent ?? "";
+    expect(note).toContain("The address of your Radarcape on your network.");
+    expect(note).not.toMatch(/aircraft\.json|port|file|\//i);
+  });
+
+  it("keeps This computer in the address box of tar1090 or dump1090 and of ships", () => {
+    const { wrapper } = make({ "map/aircraft": "receiver", "map/ships": "receiver" });
+    expect(wrapper.find("#set-map-aircraft_host").attributes("placeholder")).toBe("This computer");
+    expect(wrapper.find("#set-map-ships_host").attributes("placeholder")).toBe("This computer");
   });
 
   it("saves the typed address when the field is left", async () => {

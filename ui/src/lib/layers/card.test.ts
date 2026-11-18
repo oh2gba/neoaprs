@@ -45,6 +45,11 @@ describe("the card of a thing: its rows", () => {
     ]);
   });
 
+  it("names a Radarcape's aircraft as My own receiver too", () => {
+    const bare = aircraft({ name: "", type: "", altitude_m: null, speed_kmh: null, heading_deg: null, at: ago(3) });
+    expect(pairs(cardRows("aircraft", bare, "radarcape", NOW)).at(-1)).toEqual(["Source", "My own receiver"]);
+  });
+
   it("has a ship's kind, speed, course, destination and age, then the source", () => {
     expect(pairs(cardRows("ships", ship({ at: ago(120) }), "fintraffic", NOW))).toEqual([
       ["Kind", "Passenger ship"],

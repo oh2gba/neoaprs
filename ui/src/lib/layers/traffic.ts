@@ -1,9 +1,12 @@
 // The aircraft and ships as the map draws them, from the tables the daemon sends (`layer_things`): what is still young enough to be drawn (a thing older than its layer's age, LIMITS.layers, is dropped between two tables
-// as the daemon drops it when it tells one), how faded each is (the four steps of a station's marker, lib/aging.ts, over its layer's age), its mark (a dart turned to where an aircraft heads, a hull for a ship, a small
-// diamond for a thing that gives no direction; an emergency in the page's bad colour: lib/layers/trafficlayers.ts makes the images) and its name, and how many each layer has drawn now (a dash while its source is away).
+// as the daemon drops it when it tells one), how faded each is (the four steps of a station's marker, lib/aging.ts, over its layer's age), its mark (an aircraft the shape of its kind, lib/layers/aircraftkinds.ts,
+// turned to where it heads; a hull for a ship; a small diamond for a thing that gives no direction, save a balloon, which has none of its own; an emergency in the page's bad colour: lib/layers/trafficlayers.ts
+// makes the images) and its name, and how many each layer has drawn now (a dash while its source is away).
 import { MARKER_STEPS, fadeFraction } from "@/lib/aging";
+import { aircraftShape } from "@/lib/layers/aircraftkinds";
+import { AIRCRAFT_SHAPES, type AircraftShape } from "@/lib/layers/aircraftshapes";
 import { ageSeconds } from "@/lib/format";
-import type { LayerName, SourceName } from "@/lib/layers/sources";
+import { isOwn, type LayerName, type SourceName } from "@/lib/layers/sources";
 import { LIMITS } from "@/protocol/lists";
 import type { LayerThing, LayerThingsMessage } from "@/protocol/protocol";
 
@@ -13,7 +16,7 @@ export type LayerTables = ReadonlyMap<LayerName, LayerThingsMessage>;
 /** How old a thing of that layer and source may be, in seconds, before it is dropped. */
 export function maxAgeSec(layer: LayerName, source: SourceName): number {
   if (layer === "ships") return LIMITS.layers.shipsAgeSec;
-  return source === "receiver" ? LIMITS.layers.aircraftReceiverAgeSec : LIMITS.layers.aircraftServiceAgeSec;
+  return isOwn(source) ? LIMITS.layers.aircraftReceiverAgeSec : LIMITS.layers.aircraftServiceAgeSec;
 }
 
 /** The things of a table that are young enough to be drawn now. */
@@ -32,11 +35,23 @@ export function fadeOpacity(ageSec: number, maxSec: number): number {
 }
 
 /** The shapes the map draws things with (lib/layers/marks.ts). */
-export type ThingShape = "dart" | "hull" | "diamond";
+export type ThingShape = AircraftShape | "hull" | "diamond";
 
-/** The shape of a thing: a dart or a hull pointing where it heads, a diamond where it gives no direction. */
-export const thingShape = (layer: LayerName, thing: LayerThing): ThingShape =>
-  thing.heading_deg === null ? "diamond" : layer === "aircraft" ? "dart" : "hull";
+/** Every shape the map draws things with. */
+export const THING_SHAPES: readonly ThingShape[] = [...(Object.keys(AIRCRAFT_SHAPES) as AircraftShape[]), "hull", "diamond"];
+
+/** Whether a shape is turned to where the thing heads. */
+export const turns = (shape: ThingShape): boolean => shape === "hull" || (shape !== "diamond" && AIRCRAFT_SHAPES[shape].turns);
+
+/** What kind of thing it is, as a shape pointing north: an aircraft's kind, a ship's hull (the hover box and the card's head show it). */
+export const kindShape = (layer: LayerName, thing: LayerThing): AircraftShape | "hull" =>
+  layer === "aircraft" ? aircraftShape(thing.category, thing.designator) : "hull";
+
+/** The shape of a thing on the map: its kind, a diamond where it gives no direction and its kind has one. */
+export function thingShape(layer: LayerName, thing: LayerThing): ThingShape {
+  const kind = kindShape(layer, thing);
+  return thing.heading_deg === null && turns(kind) ? "diamond" : kind;
+}
 
 /** The name of the map's image of a shape, in the layers' colour or in the bad colour of an emergency. */
 export const imageName = (shape: ThingShape, emergency: boolean): string => `traffic-${shape}${emergency ? "-bad" : ""}`;
@@ -75,6 +90,7 @@ export function trafficFeatures(tables: Iterable<LayerThingsMessage>, nowMs: num
   for (const table of tables) {
     const max = maxAgeSec(table.layer, table.source);
     for (const thing of liveThings(table, nowMs)) {
+      const shape = thingShape(table.layer, thing);
       features.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [thing.lon, thing.lat] },
@@ -82,8 +98,8 @@ export function trafficFeatures(tables: Iterable<LayerThingsMessage>, nowMs: num
           key: thingKey(table.layer, thing.id),
           layer: table.layer,
           id: thing.id,
-          icon: imageName(thingShape(table.layer, thing), thing.emergency),
-          rotate: thing.heading_deg ?? 0,
+          icon: imageName(shape, thing.emergency),
+          rotate: turns(shape) ? (thing.heading_deg ?? 0) : 0,
           opacity: fadeOpacity(ageSeconds(thing.at, nowMs), max),
           name: thing.name,
           rank: thing.emergency ? 1 : 0,

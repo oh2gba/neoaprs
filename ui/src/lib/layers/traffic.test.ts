@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { FADE_OPACITY, fadeOpacity, liveThings, maxAgeSec, trafficCounts, trafficFeatures, type LayerTables } from "@/lib/layers/traffic";
+import {
+  FADE_OPACITY,
+  THING_SHAPES,
+  fadeOpacity,
+  kindShape,
+  liveThings,
+  maxAgeSec,
+  thingShape,
+  trafficCounts,
+  trafficFeatures,
+  type LayerTables,
+} from "@/lib/layers/traffic";
 import { LIMITS } from "@/protocol/lists";
 import { NOW, ago } from "@/test/fixtures";
 import { aircraft, layerThings, ship } from "@/test/layerfixtures";
@@ -9,6 +20,7 @@ const ids = (things: { id: string }[]) => things.map((thing) => thing.id);
 describe("traffic: what is young enough to be drawn", () => {
   it("gives each layer and source the age the daemon drops its things at", () => {
     expect(maxAgeSec("aircraft", "receiver")).toBe(LIMITS.layers.aircraftReceiverAgeSec);
+    expect(maxAgeSec("aircraft", "radarcape")).toBe(LIMITS.layers.aircraftReceiverAgeSec);
     expect(maxAgeSec("aircraft", "adsbfi")).toBe(LIMITS.layers.aircraftServiceAgeSec);
     expect(maxAgeSec("aircraft", "adsblol")).toBe(90);
     expect(maxAgeSec("ships", "fintraffic")).toBe(LIMITS.layers.shipsAgeSec);
@@ -36,7 +48,7 @@ describe("traffic: how faded a thing is", () => {
 });
 
 describe("traffic: the map's features", () => {
-  it("draws an aircraft as a dart turned to its heading, a ship as a hull, a thing without a direction as a diamond, and an emergency in the bad colour", () => {
+  it("draws an aircraft as the shape of its kind turned to its heading, a ship as a hull, a thing without a direction as a diamond, and an emergency in the bad colour", () => {
     const data = trafficFeatures(
       [
         layerThings("aircraft", [
@@ -49,12 +61,74 @@ describe("traffic: the map's features", () => {
       Date.parse("2026-10-21T12:00:00Z"),
     );
     const byId = new Map(data.features.map((feature) => [feature.properties.id, feature.properties]));
-    expect(byId.get("a")).toMatchObject({ icon: "traffic-dart", rotate: 225, layer: "aircraft", key: "aircraft:a", rank: 0 });
+    expect(byId.get("a")).toMatchObject({ icon: "traffic-airliner", rotate: 225, layer: "aircraft", key: "aircraft:a", rank: 0 });
     expect(byId.get("b")).toMatchObject({ icon: "traffic-diamond", rotate: 0 });
-    expect(byId.get("c")).toMatchObject({ icon: "traffic-dart-bad", rank: 1 });
+    expect(byId.get("c")).toMatchObject({ icon: "traffic-airliner-bad", rank: 1 });
     expect(byId.get("s")).toMatchObject({ icon: "traffic-hull", rotate: 182, layer: "ships", key: "ships:s" });
     expect(byId.get("t")).toMatchObject({ icon: "traffic-diamond" });
     expect(data.features.find((feature) => feature.properties.id === "a")?.geometry.coordinates).toEqual([24.9633, 60.3172]);
+  });
+
+  it("draws each aircraft by its kind: a helicopter, a glider, a heavy with four engines, one of which nothing is known", () => {
+    const data = trafficFeatures(
+      [
+        layerThings("aircraft", [
+          aircraft({ id: "h", category: "A7", designator: "EC35", heading_deg: 90 }),
+          aircraft({ id: "g", category: "B1", designator: "", heading_deg: 10 }),
+          aircraft({ id: "4", category: "A5", designator: "A388", heading_deg: 300 }),
+          aircraft({ id: "u", category: "", designator: "", heading_deg: 45 }),
+        ]),
+      ],
+      NOW,
+    );
+    expect(data.features.map((feature) => [feature.properties.id, feature.properties.icon, feature.properties.rotate])).toEqual([
+      ["h", "traffic-helicopter", 90],
+      ["g", "traffic-glider", 10],
+      ["4", "traffic-heavy4", 300],
+      ["u", "traffic-unknown", 45],
+    ]);
+  });
+
+  it("never turns a balloon, and draws it as a balloon where it gives no direction; any other aircraft without one is the diamond", () => {
+    const data = trafficFeatures(
+      [
+        layerThings("aircraft", [
+          aircraft({ id: "b", category: "B2", designator: "", heading_deg: 130 }),
+          aircraft({ id: "still", category: "B2", designator: "", heading_deg: null }),
+          aircraft({ id: "h", category: "A7", designator: "", heading_deg: null }),
+        ]),
+      ],
+      NOW,
+    );
+    expect(data.features.map((feature) => [feature.properties.id, feature.properties.icon, feature.properties.rotate])).toEqual([
+      ["b", "traffic-balloon", 0],
+      ["still", "traffic-balloon", 0],
+      ["h", "traffic-diamond", 0],
+    ]);
+  });
+
+  it("says a thing's kind for its card and hover box whether or not it gives a direction, and has an image for every shape the map draws", () => {
+    expect(kindShape("aircraft", aircraft({ category: "A7", designator: "", heading_deg: null }))).toBe("helicopter");
+    expect(thingShape("aircraft", aircraft({ category: "A7", designator: "", heading_deg: null }))).toBe("diamond");
+    expect(kindShape("ships", ship({ heading_deg: null }))).toBe("hull");
+    expect(new Set(THING_SHAPES).size).toBe(THING_SHAPES.length);
+    expect(THING_SHAPES).toEqual(
+      expect.arrayContaining([
+        "airliner",
+        "heavy",
+        "heavy4",
+        "bizjet",
+        "twin",
+        "light",
+        "helicopter",
+        "glider",
+        "balloon",
+        "drone",
+        "unknown",
+        "hull",
+        "diamond",
+      ]),
+    );
   });
 
   it("gives each thing its name and the opacity of its age, and leaves out what is too old", () => {
