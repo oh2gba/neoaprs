@@ -3,8 +3,9 @@ never more often than its feed allows, its things kept in memory by id and nothi
 `changed`). The rules and the numbers are neoaprs/layerthing.py's; one source is a small object made from SOURCES, keyed by (layer, source).
 
 - A service on the internet (adsb.fi, adsb.lol) is asked for the map's circle round our position, rounded (layerthing.service_url), and its answer is cut to the true circle and to the LIMIT nearest.
-- The own aircraft receiver is cut by nothing but the guard of RECEIVER_BOUND; it is asked once at the start and at a save that chooses it or changes its address, for its state in Settings, and otherwise only
-  while a page looks. Its address is tried in the known places (readsb.receiver_urls), the first that answers is kept and asked from then on, and the search begins again after a failure.
+- An own aircraft receiver (readsb's file, as tar1090 and dump1090 serve it, or a Radarcape's list) is cut by nothing but the guard of RECEIVER_BOUND; it is asked once at the start and at a save that chooses
+  it or changes its address, for its state in Settings, and otherwise only while a page looks. readsb's file is tried in the known places (readsb.receiver_urls), the first that answers is kept and asked from
+  then on, and the search begins again after a failure; a Radarcape is asked in its one place (radarcape.radarcape_url), and one with no address is not looked for.
 - An answer is read and cut on a thread of its own (it may be some megabytes): the daemon's loop goes on meanwhile.
 - Silence: no failure reaches the page but the own receiver's state; a source that fails keeps its things, which age out, and its table says `away`.
 - The doors: `NEOAPRS_NO_DEVICES=1` refuses what is not on this computer (updatefetch, nodevices); `NEOAPRS_UPDATE_CHECK=0` asks no service; `NEOAPRS_LAYERS_URL`, a server on this computer, is asked in the
@@ -18,9 +19,9 @@ from urllib.parse import urlsplit
 
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
-from neoaprs.layerthing import AGE_CHECK_SEC, EVERY_SEC, LAYERS, MAX_PACKED, MAX_UNPACKED, Layer, LayerState, LayerTable, ReceiverState, Source, Thing, in_force, max_age_sec, nearest, newest, offered, \
-    service_url, within
-from neoaprs.readsb import read_aircraft, receiver_urls
+from neoaprs import radarcape, readsb
+from neoaprs.layerthing import AGE_CHECK_SEC, EVERY_SEC, LAYERS, MAX_PACKED, MAX_UNPACKED, OWN_RECEIVERS, Layer, LayerState, LayerTable, ReceiverState, Source, Thing, in_force, max_age_sec, nearest, newest, \
+    offered, service_url, within
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 from neoaprs.updatefetch import fetch_feed
@@ -39,15 +40,18 @@ SERVICE_NAMES = {"adsbfi": "adsb.fi", "adsblol": "adsb.lol", "fintraffic": "Fint
 NO_WAIT_SEC = 1.0                               # the pause of a round that found its feed taken by another question just now
 
 
+Reader = Callable[[bytes, datetime], list[Thing] | None]
+
+
 def _served(body: bytes, at: datetime, position: tuple[float, float], radius_km: float) -> list[Thing] | None:
     """A service's answer read and cut to the true circle and the nearest; None when it is not readsb's JSON."""
-    things = read_aircraft(body, at)
+    things = readsb.read_aircraft(body, at)
     return None if things is None else nearest(within(things, position, radius_km), position)
 
 
-def _received(body: bytes, at: datetime) -> tuple[int, list[Thing]] | None:
-    """An own receiver's answer read: how many aircraft it gave with a position, and the ones kept (RECEIVER_BOUND, the newest); None when it is not readsb's JSON."""
-    things = read_aircraft(body, at)
+def _received(read: Reader, body: bytes, at: datetime) -> tuple[int, list[Thing]] | None:
+    """An own receiver's answer read: how many aircraft it gave with a position, and the ones kept (RECEIVER_BOUND, the newest); None when it is not in the receiver's form."""
+    things = read(body, at)
     return None if things is None else (len(things), newest(things))
 
 
@@ -79,14 +83,23 @@ class AircraftService(AskedSource):
         return things
 
 
+def _radarcape_urls(address: str) -> list[str]:
+    url = radarcape.radarcape_url(address)
+    return [] if url is None else [url]
+
+
 class AircraftReceiver(AskedSource):
-    """The operator's own aircraft receiver (map/aircraft_host): every aircraft it gives with a position, its state for Settings."""
+    """The operator's own aircraft receiver of readsb's file (map/aircraft_host): every aircraft it gives with a position, its state for Settings. A kind of receiver is its name for the log, the places its
+    address is tried in, and its reader."""
+    name = "the aircraft receiver"
+    places: Callable[[str], list[str]] = staticmethod(readsb.receiver_urls)
+    read: Reader = staticmethod(readsb.read_aircraft)
 
     def __init__(self, ctx: SourceContext) -> None:
         super().__init__(ctx)
-        self.feed = AskedFeed("the aircraft receiver", EVERY_SEC["aircraft_receiver"], ctx.monotonic, stops=False, backoff_max_sec=RECEIVER_BACKOFF_MAX_SEC)     # (a new one with each address)
-        self.urls = receiver_urls(ctx.config().map_aircraft_host)
-        self.host = urlsplit(self.urls[0]).hostname or "?"                # (for the log: never the address as typed)
+        self.feed = AskedFeed(self.name, EVERY_SEC["aircraft_receiver"], ctx.monotonic, stops=False, backoff_max_sec=RECEIVER_BACKOFF_MAX_SEC)     # (a new one with each address)
+        self.urls = self.places(ctx.config().map_aircraft_host)
+        self.host = (urlsplit(self.urls[0]).hostname or "?") if self.urls else ""      # (for the log: never the address as typed)
         self.found: str | None = None                                       # the place that answered last
         self.state: ReceiverState = ReceiverState("looking", 0, None)
 
@@ -102,7 +115,7 @@ class AircraftReceiver(AskedSource):
         for url in [self.found] if self.found is not None else self.urls:
             answer = await self.ctx.fetch(url, self.ctx.version, self.ctx.platform, {}, MAX_PACKED, MAX_UNPACKED, timeout_sec=RECEIVER_TIMEOUT_SEC)
             now = self.ctx.clock()
-            read = await asyncio.to_thread(_received, answer.body, now) if answer is not None and answer.status == 200 else None
+            read = await asyncio.to_thread(_received, self.read, answer.body, now) if answer is not None and answer.status == 200 else None
             if read is not None:
                 self.found = url
                 self._state(ReceiverState("receiving", read[0], now))
@@ -114,15 +127,22 @@ class AircraftReceiver(AskedSource):
 
     def _state(self, state: ReceiverState) -> None:
         if state.state != self.state.state:
-            log.info("the aircraft receiver at %s: %s", self.host, {"receiving": "receiving", "no_answer": "no answer", "looking": "looking"}[state.state])
+            log.info("%s %s: %s", self.name, f"at {self.host}" if self.host else "without an address", {"receiving": "receiving", "no_answer": "no answer", "looking": "looking"}[state.state])
         if state != self.state:
             self.state = state
             self.ctx.changed()
 
 
+class Radarcape(AircraftReceiver):
+    """The operator's own Radarcape (map/aircraft_host): its own list asked in its one place; with no address nothing is asked and its state is no answer."""
+    name = "the Radarcape"
+    places = staticmethod(_radarcape_urls)
+    read = staticmethod(radarcape.read_aircraft)
+
+
 Maker = Callable[[SourceContext], LayerSource]
-SOURCES: dict[tuple[Layer, Source], Maker] = {("aircraft", "adsbfi"): AircraftService, ("aircraft", "adsblol"): AircraftService, ("aircraft", "receiver"): AircraftReceiver, ("ships", "fintraffic"): FintrafficShips,
-                                              ("ships", "receiver"): ShipReceiver}
+SOURCES: dict[tuple[Layer, Source], Maker] = {("aircraft", "adsbfi"): AircraftService, ("aircraft", "adsblol"): AircraftService, ("aircraft", "radarcape"): Radarcape, ("aircraft", "receiver"): AircraftReceiver,
+                                              ("ships", "fintraffic"): FintrafficShips, ("ships", "receiver"): ShipReceiver}
 Key = tuple[Source, str]                        # the source in force and, for a receiver, its address: a source is made again when either changes
 
 
@@ -163,7 +183,7 @@ class Layers:
             source = in_force(layer, chosen(config, layer), offer)
             held = self._held.get(layer)
             made = held[1] if held is not None and held[0][0] == source else None
-            found.append(LayerState(layer, source, offer, made.receiver() if made is not None and source == "receiver" else None))
+            found.append(LayerState(layer, source, offer, made.receiver() if made is not None and source in OWN_RECEIVERS else None))
         return found
 
     def table(self, layer: Layer) -> LayerTable:
@@ -196,7 +216,7 @@ class Layers:
 
     def _key(self, config: Config, layer: Layer) -> Key:
         source = in_force(layer, chosen(config, layer), offered(layer, self._where(), config.map_radius_km))
-        return source, _address(config, layer) if source == "receiver" else ""
+        return source, _address(config, layer) if source in OWN_RECEIVERS else ""
 
     def _refresh(self) -> None:
         config = self._config()

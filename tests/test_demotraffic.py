@@ -1,5 +1,5 @@
-"""The made-up traffic of the demo daemon (scripts/demotraffic.py, scripts/demo-daemon --traffic): a dozen aircraft round Espoo that move each second and that the daemon's reader takes in both forms (one on the
-ground left out, one in an emergency, one without a track, one with a registration only); the server answers the receiver's file and the services' paths and nothing else; a port in use is a refusal that says so;
+"""The made-up traffic of the demo daemon (scripts/demotraffic.py, scripts/demo-daemon --traffic): sixteen aircraft round Espoo that move each second and that the daemon's readers take in all three forms (one on the
+ground left out, one in an emergency, one without a track, one with a registration only); the server answers the receiver's file, the Radarcape's list and the services' paths and nothing else; a port in use is a refusal that says so;
 and demo-daemon starts it, points the daemon's services at it and stops it with the daemon."""
 import json
 import socket
@@ -13,6 +13,8 @@ from typing import Any
 import pytest
 
 from neoaprs.geo import distance_km
+from neoaprs import radarcape
+from neoaprs.clock import from_unix
 from neoaprs.readsb import read_aircraft
 from tests.test_scripts import load_script
 
@@ -21,10 +23,10 @@ T = 1794812336.0
 ESPOO = (60.2231, 24.7152)
 
 
-def test_a_dozen_aircraft_round_espoo_of_which_the_reader_shows_eleven_with_an_emergency_a_diamond_and_a_registration_alone() -> None:
-    assert len(traffic.aircraft(T)) == 12
+def test_sixteen_aircraft_round_espoo_of_which_the_reader_shows_fifteen_with_an_emergency_a_diamond_and_a_registration_alone() -> None:
+    assert len(traffic.aircraft(T)) == 16
     shown = read_aircraft(json.dumps(traffic.receiver_file(T)).encode()) or []
-    assert len(shown) == 11 and "4601a9" not in {a.id for a in shown}, "the one on the ground is not shown"
+    assert len(shown) == 15 and "4601a9" not in {a.id for a in shown}, "the one on the ground is not shown"
     assert [a.id for a in shown if a.emergency] == ["461e1a"]
     assert [a.id for a in shown if a.heading_deg is None] == ["4608a3"]
     assert [(a.name, a.registration) for a in shown if a.id == "460f11"] == [("", "OH-CEX")]
@@ -37,6 +39,25 @@ def test_they_move_each_second_and_the_service_answer_has_the_same_aircraft_in_t
     answer = traffic.service_answer(T)
     assert set(answer) == {"ac", "msg", "now", "total", "ctime", "ptime"} and answer["now"] == int(T * 1000)
     assert {a.id for a in read_aircraft(json.dumps(answer).encode()) or []} == {a.id for a in read_aircraft(json.dumps(traffic.receiver_file(T)).encode()) or []}
+
+
+def test_every_aircraft_has_a_kind_and_every_kind_of_mark_is_there() -> None:
+    shown = read_aircraft(json.dumps(traffic.receiver_file(T)).encode()) or []
+    assert all(a.category and a.designator for a in shown)
+    assert {"A1", "A2", "A3", "A5", "A7", "B1", "B2", "B6"} <= {a.category for a in shown}
+    assert [a.designator for a in shown if a.category == "A7"] == ["EC35"] and "B748" in {a.designator for a in shown}
+
+
+def test_the_radarcapes_list_has_the_same_aircraft_with_one_on_the_ground_one_in_emergency_one_without_a_flight_and_one_without_speed_and_track() -> None:
+    listed = traffic.radarcape_list(T)
+    assert isinstance(listed, list) and len(listed) == 16 and all(row["hex"] == row["hex"].upper() for row in listed)
+    shown = radarcape.read_aircraft(json.dumps(listed).encode(), from_unix(T)) or []
+    readsb_shown = read_aircraft(json.dumps(traffic.receiver_file(T)).encode()) or []
+    assert {a.id for a in shown} == {a.id for a in readsb_shown} and "4601a9" not in {a.id for a in shown}, "the one on the ground is not shown"
+    assert [a.id for a in shown if a.emergency] == ["461e1a"]
+    assert [(a.speed_kmh, a.heading_deg) for a in shown if a.id == "4608a3"] == [(None, None)]
+    assert {a.id for a in shown if not a.name} == {"460f11", "4690c2", "4690d3"}
+    assert {(a.id, a.category, a.designator) for a in shown} == {(a.id, a.category, a.designator) for a in readsb_shown}
 
 
 @pytest.mark.parametrize(("path", "form"), [("/tar1090/data/aircraft.json", "aircraft"), ("/api/v3/lat/60.2/lon/24.7/dist/86", "ac"), ("/v2/lat/60.2/lon/24.7/dist/86", "ac"), ("/v2/lat/-0.5/lon/-120.0/dist/250", "ac"),
@@ -54,7 +75,9 @@ def test_the_server_answers_over_http_on_this_computer() -> None:
     try:
         port = server.server_address[1]
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/tar1090/data/aircraft.json", timeout=5) as response:  # noqa: S310  (the test's own server)
-            assert len(json.loads(response.read())["aircraft"]) == 12
+            assert len(json.loads(response.read())["aircraft"]) == 16
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/aircraftlist.json?knownposonly=1", timeout=5) as response:  # noqa: S310
+            assert len(json.loads(response.read())) == 16
         with pytest.raises(urllib.error.HTTPError) as gone:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/nothing", timeout=5)  # noqa: S310
         assert gone.value.code == 404

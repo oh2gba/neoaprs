@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Made-up traffic for the map's layers of the demo daemon (scripts/demo-daemon --traffic), so that the layers can be looked at in the browser pane without a receiver and without asking any service: an HTTP
-server on 127.0.0.1:7391 that answers an own aircraft receiver's file (`/tar1090/data/aircraft.json`, readsb's form: `now` in seconds and the list `aircraft`) and the paths of the two aircraft services
+server on 127.0.0.1:7391 that answers an own aircraft receiver's file (`/tar1090/data/aircraft.json`, readsb's form: `now` in seconds and the list `aircraft`), a Radarcape's list (`/aircraftlist.json`, a JSON
+array in jetvision's form) and the paths of the two aircraft services
 (`/api/v3/lat/../lon/../dist/..` of adsb.fi, `/v2/lat/../lon/../dist/..` of adsb.lol: `now` in milliseconds and the list `ac`), which the daemon asks in their place with NEOAPRS_LAYERS_URL=http://127.0.0.1:7391.
 
 Ships as well: Fintraffic's two paths (`/api/ais/v1/locations`, `/api/ais/v1/vessels`) are answered by the same server with eight made-up ships off Helsinki (scripts/demoships.py), and an own AIS receiver listens on
 127.0.0.1:7392 and sends `!AIVDM` lines for six of them.
 
-Twelve aircraft fly circles round the demo's Espoo (60.2231 N 24.7152 E) and move each second: one stands on the ground (it must not show), one squawks 7700, one says no track (the diamond), one has no flight, only
-its registration.
+Sixteen aircraft fly circles round the demo's Espoo (60.2231 N 24.7152 E) and move each second: one stands on the ground (it must not show), one squawks 7700, one says no track (the diamond; in the Radarcape's
+form no speed either), one has no flight, only its registration. Each has an emitter category and a type designator, so that every kind of mark can be looked at: airliners (A3), a turboprop (A2), heavies (A5, one
+of them four-engined), light aircraft (A1), a helicopter (A7), a glider (B1), a balloon (B2) and a drone (B6).
 
   scripts/demotraffic.py [--port PORT] [--ais-port PORT]
 
@@ -31,6 +33,7 @@ PORT = 7391
 CENTRE = (60.2231, 24.7152)                       # the demo's station (scripts/demoscene.py)
 KM_PER_DEG_LAT = 111.2
 RECEIVER_PATH = "/tar1090/data/aircraft.json"           # the first place the daemon tries (neoaprs/layerthing.py AIRCRAFT_PLACES)
+RADARCAPE_PATH = "/aircraftlist.json"                   # a Radarcape's list (neoaprs/layerthing.py RADARCAPE_PLACE, without its question)
 SERVICE_PATH = re.compile(r"^/(api/v3|v2)/lat/-?\d+(\.\d+)?/lon/-?\d+(\.\d+)?/dist/\d+$")
 
 
@@ -65,7 +68,7 @@ class Flight:
 
 
 FLIGHTS = (
-    Flight("461f2a", 10, 15, 25, 900, 8000, (("flight", "FIN7AB  "), ("r", "OH-LZA"), ("t", "A321"), ("desc", "AIRBUS A-321"))),
+    Flight("461f2a", 10, 15, 25, 900, 8000, (("flight", "FIN7AB  "), ("r", "OH-LZA"), ("t", "A321"), ("desc", "AIRBUS A-321"), ("category", "A3"))),
     Flight("4601f6", -15, 5, 20, -700, 3500, (("flight", "FIN50A  "), ("r", "OH-ATI"), ("t", "AT75"), ("desc", "ATR-72-500"), ("category", "A2"))),
     Flight("4ab822", 30, -20, 35, 1500, 34000, (("flight", "SAS1734 "), ("r", "SE-RJA"), ("t", "A20N"), ("desc", "AIRBUS A-320neo"))),
     Flight("3c4b2f", -25, 40, 40, -1800, 37000, (("flight", "DLH2RT  "), ("r", "D-AINK"), ("t", "A20N"), ("desc", "AIRBUS A-320neo"))),
@@ -74,9 +77,13 @@ FLIGHTS = (
     Flight("4ca7b1", 45, 30, 30, -1200, 39000, (("flight", "RYR8QP  "), ("r", "EI-EBA"), ("t", "B738"), ("desc", "BOEING 737-800"))),
     Flight("440d11", -35, -30, 25, 1100, 12000, (("flight", "AUA7HK  "), ("r", "OE-LBA"), ("t", "A320"), ("desc", "AIRBUS A-320"))),
     Flight("4601a9", 0, 0, 0.001, 3600, "ground", (("flight", "FIN3GR  "), ("r", "OH-LVA"), ("t", "A319"), ("desc", "AIRBUS A-319"), ("gs", 0.0))),          # on the ground at the field: never shown
-    Flight("461e1a", 20, 50, 20, 800, 6000, (("flight", "FIN9XE  "), ("r", "OH-LWB"), ("t", "A359"), ("desc", "AIRBUS A-350-900"), ("squawk", "7700"), ("emergency", "general"))),
-    Flight("4608a3", -40, 10, 15, -900, 4500, (("flight", "NOR77   "), ("r", "OH-NOR"), ("t", "PA28"), ("desc", "PIPER PA-28")), track=False),       # says no track: the diamond
+    Flight("461e1a", 20, 50, 20, 800, 6000, (("flight", "FIN9XE  "), ("r", "OH-LWB"), ("t", "A359"), ("desc", "AIRBUS A-350-900"), ("squawk", "7700"), ("emergency", "general"), ("category", "A5"))),
+    Flight("4608a3", -40, 10, 15, -900, 4500, (("flight", "NOR77   "), ("r", "OH-NOR"), ("t", "PA28"), ("desc", "PIPER PA-28"), ("category", "A1")), track=False),       # says no track: the diamond
     Flight("460f11", 15, -50, 12, 500, 3000, (("r", "OH-CEX"), ("t", "DA40"), ("desc", "DIAMOND DA-40"), ("category", "A1"))),                     # no flight, only its registration
+    Flight("3c4dd1", 50, -10, 30, 1600, 36000, (("flight", "DLH4CX  "), ("r", "D-ABYA"), ("t", "B748"), ("desc", "BOEING 747-8"), ("category", "A5"))),
+    Flight("4690b1", -20, -45, 4, 700, 2500, (("flight", "OH829   "), ("r", "OH-829"), ("t", "AS21"), ("desc", "SCHLEICHER ASK-21"), ("category", "B1"))),
+    Flight("4690c2", 8, 25, 2, 3000, 1500, (("r", "OH-BAL"), ("t", "BALL"), ("desc", "BALLOON"), ("category", "B2"))),
+    Flight("4690d3", -8, 20, 1, 300, 300, (("t", "ZZZZ"), ("desc", "UNMANNED AIRCRAFT"), ("category", "B6"))),
 )
 
 
@@ -89,6 +96,21 @@ def receiver_file(t: float) -> dict[str, Any]:
     return {"now": round(t, 1), "messages": int(t) % 1_000_000, "aircraft": aircraft(t)}
 
 
+def radarcape_row(row: dict[str, Any], t: float) -> dict[str, Any]:
+    """One aircraft of readsb's form in a Radarcape's: the hex in capitals, feet and knots as they are, A or G, an alert of 3 with an emergency squawk; a row without a track has no speed either."""
+    ground = row["alt_baro"] == "ground"
+    flight = row.get("flight", "").strip() or None
+    alert = row["squawk"] in ("7500", "7600", "7700")
+    return {"uti": int(t), "ns": int(t * 1e9) % 1_000_000_000, "hex": row["hex"].upper(), "fli": flight, "src": "A", "ava": "A", "lat": row["lat"], "lon": row["lon"], "alt": 0 if ground else row["alt_baro"],
+            "gda": "G" if ground else "A", "spd": round(row["gs"]) if "track" in row else None, "trk": round(row["track"]) if "track" in row else None, "vrt": 0, "cat": row.get("category"),
+            "typ": row.get("t"), "reg": row.get("r"), "dis": None, "squ": row["squawk"], "lla": 0, "alr": 3 if alert else 0}
+
+
+def radarcape_list(t: float) -> list[dict[str, Any]]:
+    """A Radarcape's aircraftlist.json at the time t."""
+    return [radarcape_row(row, t) for row in aircraft(t)]
+
+
 def service_answer(t: float) -> dict[str, Any]:
     """The answer of adsb.fi or adsb.lol at the time t."""
     ms = int(t * 1000)
@@ -96,10 +118,12 @@ def service_answer(t: float) -> dict[str, Any]:
     return {"ac": listed, "msg": "No error", "now": ms, "total": len(listed), "ctime": ms, "ptime": 0}
 
 
-def answer(path: str, t: float) -> dict[str, Any] | None:
+def answer(path: str, t: float) -> Any:
     """What a path answers at the time t; None: not found."""
     if path == RECEIVER_PATH:
         return receiver_file(t)
+    if path == RADARCAPE_PATH:
+        return radarcape_list(t)
     if SERVICE_PATH.match(path):
         return service_answer(t)
     return None
@@ -153,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
         server.server_close()
         return 2
     print(f"listening on {HOST}:{args.port}", flush=True)
-    print(f"demotraffic: in Settings, Map, Aircraft, My own receiver: {HOST}:{args.port}; Ships, My own receiver: {HOST}:{args.ais_port}", file=sys.stderr, flush=True)
+    print(f"demotraffic: in Settings, Map, Aircraft, Radarcape or tar1090 or dump1090: {HOST}:{args.port}; Ships, My own receiver: {HOST}:{args.ais_port}", file=sys.stderr, flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

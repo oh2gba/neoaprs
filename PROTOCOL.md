@@ -1045,7 +1045,7 @@ when the source in force changes (then with the new `source` and no things).
 | field | type | | description |
 |---|---|---|---|
 | `layer` | "aircraft" \| "ships" |  |  |
-| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "receiver" |  | the source in force that the things are from |
+| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "radarcape" \| "receiver" |  | the source in force that the things are from |
 | `away` | boolean |  | true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then |
 | `things` | LayerThing[] |  |  |
 
@@ -1701,6 +1701,8 @@ An aircraft or a ship, as its source tells it. Every field is always there; one 
 | `altitude_m` | integer \| null |  | an aircraft's height |
 | `registration` | string |  | an aircraft's registration (`OH-LZA`); empty when not known |
 | `type` | string |  | an aircraft's type as the source names it; empty when not known |
+| `category` | string |  | an aircraft's emitter category as the source gives it, upper case (`A3`, `A7`, `B1`); empty when not known |
+| `designator` | string |  | an aircraft's ICAO type designator, upper case (`A321`, `EC35`); empty when not known |
 | `ship_type` | integer \| null |  | a ship's AIS type of ship and cargo; null when not known (>= 1, <= 99) |
 | `course_deg` | integer \| null |  | a ship's course over ground (>= 0, <= 359) |
 | `destination` | string |  | a ship's destination; empty when not known |
@@ -1738,9 +1740,9 @@ One layer of traffic in the topic `map`: where its things come from now and what
 | field | type | | description |
 |---|---|---|---|
 | `layer` | "aircraft" \| "ships" |  |  |
-| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "receiver" |  | the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) |
-| `offered` | ("none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "receiver")[] |  | the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters |
-| `receiver` | LayerReceiver \| null |  | the own receiver's state while `source` is `receiver`; else null |
+| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "radarcape" \| "receiver" |  | the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) |
+| `offered` | ("none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "radarcape" \| "receiver")[] |  | the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters |
+| `receiver` | LayerReceiver \| null |  | the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null |
 
 ### MapProblem
 

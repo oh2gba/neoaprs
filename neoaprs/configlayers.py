@@ -48,7 +48,7 @@ def _plain(text: str) -> str:
 
 
 def receiver_address(text: str) -> str:
-    """The address of an own aircraft receiver: empty (this computer), a name or address, the same with `:port`, or a whole http or https address (used as typed)."""
+    """The address of an own aircraft receiver (a Radarcape, or readsb's file): empty (this computer for readsb's file; a Radarcape is then not looked for), a name or address, the same with `:port`, or a whole http or https address (used as typed)."""
     value = _plain(text)
     if not value:
         return ""
@@ -87,7 +87,7 @@ def ais_host_port(value: str) -> tuple[str, int]:
 @dataclass(frozen=True)
 class LayerFields:
     """The fields of `Config` that the layers' settings are."""
-    map_aircraft: str = "none"           # map/aircraft: none, adsbfi, adsblol or receiver
+    map_aircraft: str = "none"           # map/aircraft: none, adsbfi, adsblol, radarcape or receiver
     map_aircraft_host: str = ""          # map/aircraft_host: the own aircraft receiver's address (receiver_address)
     map_ships: str = "none"              # map/ships: none, fintraffic or receiver
     map_ships_host: str = ""             # map/ships_host: the own AIS receiver's address (ais_address)

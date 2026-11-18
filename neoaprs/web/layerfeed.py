@@ -20,7 +20,8 @@ class Watched(Protocol):
 def thing_row(thing: Thing) -> dict[str, Any]:
     """A thing as `LayerThing` says it: every field, the time in ISO."""
     return {"id": thing.id, "lat": thing.lat, "lon": thing.lon, "at": iso(thing.at), "heading_deg": thing.heading_deg, "speed_kmh": thing.speed_kmh, "name": thing.name, "emergency": thing.emergency,
-            "altitude_m": thing.altitude_m, "registration": thing.registration, "type": thing.type, "ship_type": thing.ship_type, "course_deg": thing.course_deg, "destination": thing.destination}
+            "altitude_m": thing.altitude_m, "registration": thing.registration, "type": thing.type, "category": thing.category, "designator": thing.designator,
+            "ship_type": thing.ship_type, "course_deg": thing.course_deg, "destination": thing.destination}
 
 
 def table_message(table: LayerTable) -> dict[str, Any]:

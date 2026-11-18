@@ -25,7 +25,7 @@ def test_the_four_settings_come_straight_after_the_maps_source_with_their_defaul
     assert (DEFAULTS.map_aircraft, DEFAULTS.map_aircraft_host, DEFAULTS.map_ships, DEFAULTS.map_ships_host) == ("none", "", "none", "")
 
 
-@pytest.mark.parametrize(("key", "words"), [("map/aircraft", ("none", "adsbfi", "adsblol", "receiver")), ("map/ships", ("none", "fintraffic", "receiver"))])
+@pytest.mark.parametrize(("key", "words"), [("map/aircraft", ("none", "adsbfi", "adsblol", "radarcape", "receiver")), ("map/ships", ("none", "fintraffic", "receiver"))])
 def test_a_source_is_one_of_its_layers_words_in_any_case(key: str, words: tuple[str, ...]) -> None:
     for word in words:
         assert Config.check(key, f" {word.upper()} ") == word

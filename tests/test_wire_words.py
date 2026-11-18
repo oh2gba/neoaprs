@@ -50,7 +50,7 @@ NAME = {
 # alert command wrote.
 DEVICE = {
     "AlertResultMsg.line", "PacketRow.tnc2", "PortRow.description", "PortRow.hwid", "SoundCardRow.name", "StationRow.device", "TncLine.text",
-    "LayerThing.destination", "LayerThing.id", "LayerThing.name", "LayerThing.registration", "LayerThing.type",          # what an aircraft or a ship says of itself, as its source gave it
+    "LayerThing.destination", "LayerThing.id", "LayerThing.name", "LayerThing.registration", "LayerThing.type", "LayerThing.category", "LayerThing.designator",          # what an aircraft or a ship says of itself, as its source gave it
 }
 # A route as the daemon writes it (`direct`, `via A → B`, `via G (internet)`): the page takes it apart and says it in its words (lib/routes.ts `routeWords`).
 ROUTE = {"MessageRow.route", "PacketRow.route", "StationRow.best_route", "StationRow.last_route"}

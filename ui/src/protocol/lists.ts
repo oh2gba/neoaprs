@@ -103,7 +103,7 @@ export const CONFIG_KEYS = [
 export const RADIO_STATION_KEYS = ["email/radio"] as const;
 
 /** Where the map's aircraft may come from, the list of Settings, Map in its order (AIRCRAFT_SOURCES of neoaprs/layerthing.py): `map.layers` says which a station is offered. */
-export const AIRCRAFT_SOURCES = ["none", "adsbfi", "adsblol", "receiver"] as const;
+export const AIRCRAFT_SOURCES = ["none", "adsbfi", "adsblol", "radarcape", "receiver"] as const;
 
 /** Where the map's ships may come from (SHIP_SOURCES of neoaprs/layerthing.py); `fintraffic` is offered only where the map's circle reaches its waters (`map.layers`). */
 export const SHIP_SOURCES = ["none", "fintraffic", "receiver"] as const;

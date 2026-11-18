@@ -7,7 +7,7 @@ import pytest
 
 from neoaprs.clock import utc
 from neoaprs.geo import distance_km
-from neoaprs.layerthing import (AIRCRAFT_SOURCES, FINTRAFFIC_BOX, LAYERS, LIMIT, MAX_AGE_SEC, SERVICES, SHIP_SOURCES, Layer, Source, Thing, backoff_sec, in_force, max_age_sec, nearest, newest, offered, reaches_box,
+from neoaprs.layerthing import (AIRCRAFT_SOURCES, FINTRAFFIC_BOX, LAYERS, LIMIT, MAX_AGE_SEC, OWN_RECEIVERS, SERVICES, SHIP_SOURCES, Layer, Source, Thing, backoff_sec, in_force, max_age_sec, nearest, newest, offered, reaches_box,
                                 request_nm, request_point, service_url, within)
 from neoaprs.web.layerwire import LayerName, SourceName
 
@@ -24,6 +24,7 @@ def test_the_wire_names_the_layers_and_the_sources_as_the_program_does() -> None
     assert get_args(SourceName) == get_args(Source)
     assert set(AIRCRAFT_SOURCES) | set(SHIP_SOURCES) == set(get_args(Source)) and AIRCRAFT_SOURCES[0] == SHIP_SOURCES[0] == "none"
     assert SERVICES == {"adsbfi", "adsblol", "fintraffic"}
+    assert OWN_RECEIVERS == {"radarcape", "receiver"} and not OWN_RECEIVERS & SERVICES, "a Radarcape is an own receiver: no credit, never a service"
 
 
 def test_fintraffic_is_offered_at_helsinki_and_not_at_frankfurt_and_every_aircraft_source_everywhere() -> None:
@@ -31,7 +32,7 @@ def test_fintraffic_is_offered_at_helsinki_and_not_at_frankfurt_and_every_aircra
     assert offered("ships", FRANKFURT, 300) == ("none", "receiver")
     assert offered("ships", None, 300) == ("none", "receiver"), "without a position no Fintraffic"
     for where in (HELSINKI, FRANKFURT, None):
-        assert offered("aircraft", where, 10) == ("none", "adsbfi", "adsblol", "receiver")
+        assert offered("aircraft", where, 10) == ("none", "adsbfi", "adsblol", "radarcape", "receiver")
 
 
 def test_the_box_is_reached_when_its_nearest_point_is_within_the_radius() -> None:
@@ -81,6 +82,7 @@ def test_an_own_receivers_things_are_kept_but_for_the_oldest_beyond_the_guard() 
 
 
 def test_how_old_a_thing_may_be_and_how_long_a_failing_feed_waits() -> None:
-    assert (max_age_sec("aircraft", "receiver"), max_age_sec("aircraft", "adsbfi"), max_age_sec("aircraft", "adsblol"), max_age_sec("ships", "fintraffic"), max_age_sec("ships", "receiver")) == (60, 90, 90, 1800, 1800)
+    assert (max_age_sec("aircraft", "receiver"), max_age_sec("aircraft", "radarcape"), max_age_sec("aircraft", "adsbfi"), max_age_sec("aircraft", "adsblol"), max_age_sec("ships", "fintraffic"),
+            max_age_sec("ships", "receiver")) == (60, 60, 90, 90, 1800, 1800)
     assert MAX_AGE_SEC == {"aircraft_receiver": 60, "aircraft_service": 90, "ships": 1800}
     assert [backoff_sec(30, n) for n in (1, 2, 3, 4, 5, 6)] == [60, 120, 240, 480, 900, 900]

@@ -10,6 +10,7 @@ from neoaprs.store import DB_NAME
 from tests.support.env import Env
 from tests.support.fakelayers import layers_server
 from tests.test_layers import plane, sky
+from tests.test_layers_radarcape import PLACE, cape, cape_row
 
 IDS = ("4a0b1c", "4a0b1d", "~2f0c1a")
 
@@ -20,10 +21,20 @@ def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(nodevices.ENV, "1")
 
 
-async def test_the_aircraft_of_a_receiver_reach_the_page_and_nothing_else(tmp_path: Path, under_the_switch: None) -> None:
+def readsb_file() -> tuple[str, bytes]:
+    return "/tar1090/data/aircraft.json", sky(plane(IDS[0], flight="FIN7AB"), plane(IDS[1], r="OH-LZA", lat=60.18, lon=24.95), plane(IDS[2], lat=59.0, lon=20.0))
+
+
+def radarcape_list() -> tuple[str, bytes]:
+    return PLACE, cape(cape_row(IDS[0], fli="FIN7AB"), cape_row(IDS[1], fli=None, reg="OH-LZA", lat=60.18, lon=24.95), cape_row(IDS[2], fli=None, lat=59.0, lon=20.0))
+
+
+@pytest.mark.parametrize("source", ["receiver", "radarcape"])
+async def test_the_aircraft_of_a_receiver_reach_the_page_and_nothing_else(source: str, tmp_path: Path, under_the_switch: None) -> None:
     receiver = await layers_server()
-    receiver.route("/tar1090/data/aircraft.json", body=sky(plane(IDS[0], flight="FIN7AB"), plane(IDS[1], r="OH-LZA", lat=60.18, lon=24.95), plane(IDS[2], lat=59.0, lon=20.0)))
-    e = Env(tmp_path / "data", web=True, settings={"map/aircraft": "receiver", "map/aircraft_host": receiver.address})
+    path, body = readsb_file() if source == "receiver" else radarcape_list()
+    receiver.route(path, body=body)
+    e = Env(tmp_path / "data", web=True, settings={"map/aircraft": source, "map/aircraft_host": receiver.address})
     await e.start()
     tab = await e.ws()
     await tab.expect("state", "stations")

@@ -13,13 +13,14 @@ from typing import Literal
 from .geo import distance_km
 
 Layer = Literal["aircraft", "ships"]
-Source = Literal["none", "adsbfi", "adsblol", "fintraffic", "receiver"]
+Source = Literal["none", "adsbfi", "adsblol", "fintraffic", "radarcape", "receiver"]
 Feed = Literal["adsbfi", "adsblol", "aircraft_receiver", "fintraffic_locations", "fintraffic_vessels"]
 LAYERS: tuple[Layer, ...] = ("aircraft", "ships")             # in the order the topic `map` tells them
-AIRCRAFT_SOURCES: tuple[Source, ...] = ("none", "adsbfi", "adsblol", "receiver")
+AIRCRAFT_SOURCES: tuple[Source, ...] = ("none", "adsbfi", "adsblol", "radarcape", "receiver")
 SHIP_SOURCES: tuple[Source, ...] = ("none", "fintraffic", "receiver")
 SOURCES: dict[Layer, tuple[Source, ...]] = {"aircraft": AIRCRAFT_SOURCES, "ships": SHIP_SOURCES}
 SERVICES: frozenset[Source] = frozenset({"adsbfi", "adsblol", "fintraffic"})     # a source on the internet
+OWN_RECEIVERS: frozenset[Source] = frozenset({"radarcape", "receiver"})         # a receiver of the operator's own: a Radarcape, or readsb's file as tar1090 and dump1090 serve it (aircraft); an AIS receiver (ships)
 
 FINTRAFFIC_BOX = (57.7, 65.8, 16.5, 32.5)                      # the waters Fintraffic's feed covers: south, north, west, east, in degrees
 ADSBFI_URL = "https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{nm}"
@@ -53,6 +54,7 @@ AIS_LINES_PER_SEC = 200                                        # the most AIS li
 AIRCRAFT_PLACES = ("/tar1090/data/aircraft.json", "/data/aircraft.json", "/skyaware/data/aircraft.json", "/dump1090/data/aircraft.json")     # where a receiver keeps readsb's JSON
 AIRCRAFT_PORTS = (80, 8080)
 AIRCRAFT_HOST = "127.0.0.1"                                    # the own aircraft receiver while its address is empty: this computer
+RADARCAPE_PLACE = "/aircraftlist.json?knownposonly=1"          # a Radarcape's own list of the aircraft whose position it knows (a Radarcape with no address is not looked for: it is a device of its own)
 AIS_PORT = 10110
 AIS_HOST = "127.0.0.1"                                         # the own AIS receiver while its address is empty, on AIS_PORT
 
@@ -70,7 +72,9 @@ class Thing:
     emergency: bool = False         # aircraft only
     altitude_m: int | None = None   # aircraft only
     registration: str = ""          # aircraft only ("OH-LZA")
-    type: str = ""                  # aircraft only: readsb's `desc`, else `t`, else ""
+    type: str = ""                  # aircraft only: readsb's `desc`, else `t`; a Radarcape's `typ`; else ""
+    category: str = ""              # aircraft only: the emitter category as given, upper case ("A3"); "" when none
+    designator: str = ""            # aircraft only: the ICAO type designator, upper case ("A321"); "" when none
     ship_type: int | None = None    # ships only: the AIS type of ship and cargo, 1..99; None when not known or 0
     course_deg: int | None = None   # ships only: course over ground, 0..359
     destination: str = ""           # ships only
@@ -90,7 +94,7 @@ class LayerState:
     layer: Layer
     source: Source                  # in force (in_force)
     offered: tuple[Source, ...]     # what the Settings list holds, "none" first
-    receiver: ReceiverState | None  # while `source` is "receiver"; else None
+    receiver: ReceiverState | None  # while `source` is an own receiver (OWN_RECEIVERS); else None
 
 
 @dataclass(frozen=True)
@@ -151,7 +155,7 @@ def max_age_sec(layer: Layer, source: Source) -> int:
     """How old a thing of the layer from the source may be before it is dropped."""
     if layer == "ships":
         return MAX_AGE_SEC["ships"]
-    return MAX_AGE_SEC["aircraft_receiver" if source == "receiver" else "aircraft_service"]
+    return MAX_AGE_SEC["aircraft_receiver" if source in OWN_RECEIVERS else "aircraft_service"]
 
 
 def backoff_sec(every_sec: float, failures: int) -> float:

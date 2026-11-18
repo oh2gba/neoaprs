@@ -5,6 +5,7 @@ An aircraft on the ground (`alt_baro` "ground") and a vehicle or an obstacle (a 
 
 The lists of the answer are read one item at a time (`loads`), so that a long answer read on a thread of its own lets the daemon's loop run between the items."""
 import json
+import math
 import re
 from collections.abc import Callable
 from datetime import datetime, timedelta
@@ -19,6 +20,8 @@ EMERGENCY_SQUAWKS = frozenset({"7500", "7600", "7700"})      # unlawful interfer
 MILLISECONDS_FROM = 1e11                                     # a `now` above this is in milliseconds (the services), below it in seconds (a receiver's file)
 TEXT_MAX = 64                                                # the longest flight, registration or type kept
 SEEN_MAX_SEC = 86400.0                                       # a position older than this is taken as none
+SPEED_KMH_RANGE = (0.0, 4000.0)                              # a speed outside it is taken as none (no aircraft of the map flies faster)
+ALTITUDE_M_RANGE = (-1000.0, 40000.0)                        # a height outside it is taken as none
 _SPACE = re.compile(r"[ \t\n\r]*")
 # json's own scanner of one value: (text, where it begins) -> (the value, where it ends)
 _SCAN: Callable[[str, int], tuple[Any, int]] = json.JSONDecoder().scan_once     # type: ignore[attr-defined]
@@ -48,9 +51,14 @@ def _list(text: str, at: int) -> tuple[list[Any], int]:
 
 
 def loads(body: bytes) -> Any:
-    """What `json.loads` gives for `body`, the lists of a top-level object read item by item (each item by json's own scanner); ValueError for what is not JSON."""
+    """What `json.loads` gives for `body`, a top-level list and the lists of a top-level object read item by item (each item by json's own scanner); ValueError for what is not JSON."""
     text = body.decode(json.detect_encoding(body), "surrogatepass")
     at = _after_space(text, 0)
+    if text.startswith("[", at):
+        items, at = _list(text, at)
+        if _after_space(text, at) != len(text):
+            raise ValueError("more after the JSON")
+        return items
     if not text.startswith("{", at):
         return json.loads(text)
     data: dict[str, Any] = {}
@@ -80,50 +88,68 @@ def loads(body: bytes) -> Any:
     return data
 
 
-def _number(value: Any) -> float | None:
-    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) and value == value and abs(value) != float("inf") else None
+def number(value: Any) -> float | None:
+    """A JSON number that is finite; None for anything else (null, a string, true or false, an integer too large for a float)."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    try:
+        found = float(value)
+    except OverflowError:
+        return None
+    return found if math.isfinite(found) else None
 
 
-def _text(value: Any) -> str:
+def converted(value: Any, factor: float, within: tuple[float, float]) -> float | None:
+    """A JSON number times `factor` (feet to metres, knots to km/h); None when it is none or the result is not finite or lies outside `within`."""
+    found = number(value)
+    if found is None:
+        return None
+    result = found * factor
+    return result if within[0] <= result <= within[1] else None
+
+
+def text_of(value: Any) -> str:
+    """A JSON string trimmed, its unprintable characters left out, at most TEXT_MAX long; "" for anything else."""
     return "".join(c for c in value.strip() if c.isprintable())[:TEXT_MAX] if isinstance(value, str) else ""
 
 
 def _heading(aircraft: dict[str, Any]) -> int | None:
     """Where the mark points: the track over the ground, else the true heading, else the magnetic one."""
     for key in ("track", "true_heading", "mag_heading"):
-        if (degrees := _number(aircraft.get(key))) is not None:
+        if (degrees := number(aircraft.get(key))) is not None:
             return int(round(degrees)) % 360
     return None
 
 
 def _altitude_m(aircraft: dict[str, Any]) -> int | None:
-    feet = _number(aircraft.get("alt_baro"))
-    if feet is None:
-        feet = _number(aircraft.get("alt_geom"))
-    return None if feet is None else int(round(feet * FEET_M))
+    metres = converted(aircraft.get("alt_baro"), FEET_M, ALTITUDE_M_RANGE)
+    if metres is None:
+        metres = converted(aircraft.get("alt_geom"), FEET_M, ALTITUDE_M_RANGE)
+    return None if metres is None else int(round(metres))
 
 
 def _emergency(aircraft: dict[str, Any]) -> bool:
     said = aircraft.get("emergency")
-    return (isinstance(said, str) and said.strip().lower() not in ("", "none")) or _text(aircraft.get("squawk")) in EMERGENCY_SQUAWKS
+    return (isinstance(said, str) and said.strip().lower() not in ("", "none")) or text_of(aircraft.get("squawk")) in EMERGENCY_SQUAWKS
 
 
 def _thing(aircraft: Any, base: datetime) -> Thing | None:
     """One aircraft of the list, or None for one that is not shown (no position, on the ground, a vehicle or an obstacle, not an object with a `hex`)."""
-    if not isinstance(aircraft, dict) or not (id := _text(aircraft.get("hex")).lower()):
+    if not isinstance(aircraft, dict) or not (id := text_of(aircraft.get("hex")).lower()):
         return None
-    lat, lon = _number(aircraft.get("lat")), _number(aircraft.get("lon"))
+    lat, lon = number(aircraft.get("lat")), number(aircraft.get("lon"))
     if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return None
-    if aircraft.get("alt_baro") == "ground" or _text(aircraft.get("category")).upper().startswith("C"):
+    if aircraft.get("alt_baro") == "ground" or text_of(aircraft.get("category")).upper().startswith("C"):
         return None
-    seen = _number(aircraft.get("seen_pos"))
+    seen = number(aircraft.get("seen_pos"))
     if seen is not None and seen >= SEEN_MAX_SEC:
         return None
-    speed = _number(aircraft.get("gs"))
+    speed = converted(aircraft.get("gs"), KNOT_KMH, SPEED_KMH_RANGE)
     return Thing(id=id, lat=lat, lon=lon, at=base - timedelta(seconds=max(seen or 0.0, 0.0)), heading_deg=_heading(aircraft),
-                 speed_kmh=None if speed is None or speed < 0 else round(speed * KNOT_KMH, 1), name=_text(aircraft.get("flight")), emergency=_emergency(aircraft),
-                 altitude_m=_altitude_m(aircraft), registration=_text(aircraft.get("r")), type=_text(aircraft.get("desc")) or _text(aircraft.get("t")))
+                 speed_kmh=None if speed is None else round(speed, 1), name=text_of(aircraft.get("flight")), emergency=_emergency(aircraft),
+                 altitude_m=_altitude_m(aircraft), registration=text_of(aircraft.get("r")), type=text_of(aircraft.get("desc")) or text_of(aircraft.get("t")),
+                 category=text_of(aircraft.get("category")).upper(), designator=text_of(aircraft.get("t")).upper())
 
 
 def read_aircraft(body: bytes, received_at: datetime | None = None) -> list[Thing] | None:
@@ -137,7 +163,7 @@ def read_aircraft(body: bytes, received_at: datetime | None = None) -> list[Thin
     if not isinstance(data, dict):
         return None
     listed = data.get("aircraft") if isinstance(data.get("aircraft"), list) else data.get("ac")
-    now = _number(data.get("now"))
+    now = number(data.get("now"))
     if not isinstance(listed, list) or now is None:
         return None
     if received_at is not None:
@@ -158,7 +184,7 @@ def read_aircraft(body: bytes, received_at: datetime | None = None) -> list[Thin
     return list(kept.values())
 
 
-def _host_port(address: str) -> tuple[str, int | None]:
+def host_port(address: str) -> tuple[str, int | None]:
     """`host` or `host:port` (an IPv6 address in brackets) as the host, as an address writes it, and the port (None when none is given)."""
     host, colon, port = address.rpartition(":") if not address.endswith("]") else ("", "", address)
     if not colon or not (port.isascii() and port.isdigit()):
@@ -168,12 +194,17 @@ def _host_port(address: str) -> tuple[str, int | None]:
     return host.replace("%", "%25") if host.startswith("[") and "%25" not in host else host, number
 
 
+def is_whole_address(value: str) -> bool:
+    """Whether an address is typed whole, with its http or https (in any case)."""
+    return value.lower().startswith(("http://", "https://"))
+
+
 def receiver_urls(address: str) -> list[str]:
     """Where an own aircraft receiver's file is tried, in order: a whole http or https address as typed; on a `host:port` each of the known places on that port; on a bare host each of them on port 80 and
     then on 8080; empty, the same on this computer."""
     value = address.strip()
-    if value.startswith(("http://", "https://")):
+    if is_whole_address(value):
         return [value]
-    host, port = _host_port(value or AIRCRAFT_HOST)
+    host, port = host_port(value or AIRCRAFT_HOST)
     ports = (port,) if port is not None else AIRCRAFT_PORTS
     return [f"http://{host}{'' if number == 80 else f':{number}'}{place}" for number in ports for place in AIRCRAFT_PLACES]

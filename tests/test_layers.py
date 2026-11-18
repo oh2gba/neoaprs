@@ -387,7 +387,7 @@ async def test_the_states_say_the_source_in_force_and_what_is_offered_and_a_stor
         where: dict[str, tuple[float, float] | None] = {"at": (60.17, 24.94)}
         service = await layers(Net(), settings, where=lambda: where["at"])
         aircraft, ships = service.states()
-        assert (aircraft.layer, aircraft.source, aircraft.offered, aircraft.receiver) == ("aircraft", "none", ("none", "adsbfi", "adsblol", "receiver"), None)
+        assert (aircraft.layer, aircraft.source, aircraft.offered, aircraft.receiver) == ("aircraft", "none", ("none", "adsbfi", "adsblol", "radarcape", "receiver"), None)
         assert (ships.layer, ships.source, ships.offered) == ("ships", "fintraffic", ("none", "fintraffic", "receiver"))
         changed: list[int] = []
         service.changed.connect(lambda: changed.append(1))

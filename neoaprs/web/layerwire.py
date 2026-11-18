@@ -7,7 +7,7 @@ from pydantic import Field
 from .wirebase import Iso, _Command, _Message, _Model
 
 LayerName = Literal["aircraft", "ships"]
-SourceName = Literal["none", "adsbfi", "adsblol", "fintraffic", "receiver"]
+SourceName = Literal["none", "adsbfi", "adsblol", "fintraffic", "radarcape", "receiver"]
 
 
 class LayerReceiver(_Model):
@@ -23,7 +23,7 @@ class MapLayer(_Model):
     layer: LayerName
     source: SourceName = Field(description="the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row)")
     offered: list[SourceName] = Field(description="the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters")
-    receiver: LayerReceiver | None = Field(description="the own receiver's state while `source` is `receiver`; else null")
+    receiver: LayerReceiver | None = Field(description="the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null")
 
 
 class LayerThing(_Model):
@@ -39,6 +39,8 @@ class LayerThing(_Model):
     altitude_m: int | None = Field(description="an aircraft's height")
     registration: str = Field(description="an aircraft's registration (`OH-LZA`); empty when not known")
     type: str = Field(description="an aircraft's type as the source names it; empty when not known")
+    category: str = Field(description="an aircraft's emitter category as the source gives it, upper case (`A3`, `A7`, `B1`); empty when not known")
+    designator: str = Field(description="an aircraft's ICAO type designator, upper case (`A321`, `EC35`); empty when not known")
     ship_type: int | None = Field(ge=1, le=99, description="a ship's AIS type of ship and cargo; null when not known")
     course_deg: int | None = Field(ge=0, le=359, description="a ship's course over ground")
     destination: str = Field(description="a ship's destination; empty when not known")

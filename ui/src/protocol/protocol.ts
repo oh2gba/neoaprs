@@ -632,6 +632,10 @@ export interface LayerThing {
   altitude_m: number | null;
   /** an aircraft's registration (`OH-LZA`); empty when not known */
   registration: string;
+  /** an aircraft's emitter category as the source gives it, upper case (`A3`, `A7`, `B1`); empty when not known */
+  category: string;
+  /** an aircraft's ICAO type designator, upper case (`A321`, `EC35`); empty when not known */
+  designator: string;
   /** a ship's AIS type of ship and cargo; null when not known */
   ship_type: number | null;
   /** a ship's course over ground */
@@ -645,7 +649,7 @@ export interface LayerThingsMessage {
   type: "layer_things";
   layer: "aircraft" | "ships";
   /** the source in force that the things are from */
-  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "receiver";
+  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "radarcape" | "receiver";
   /** true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then */
   away: boolean;
   things: LayerThing[];
@@ -703,10 +707,10 @@ export interface MapFileInfo {
 export interface MapLayer {
   layer: "aircraft" | "ships";
   /** the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) */
-  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "receiver";
+  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "radarcape" | "receiver";
   /** the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters */
-  offered: ("none" | "adsbfi" | "adsblol" | "fintraffic" | "receiver")[];
-  /** the own receiver's state while `source` is `receiver`; else null */
+  offered: ("none" | "adsbfi" | "adsblol" | "fintraffic" | "radarcape" | "receiver")[];
+  /** the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null */
   receiver: LayerReceiver | null;
 }
 

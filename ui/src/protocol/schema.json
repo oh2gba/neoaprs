@@ -2538,6 +2538,14 @@
           "description": "an aircraft's type as the source names it; empty when not known",
           "type": "string"
         },
+        "category": {
+          "description": "an aircraft's emitter category as the source gives it, upper case (`A3`, `A7`, `B1`); empty when not known",
+          "type": "string"
+        },
+        "designator": {
+          "description": "an aircraft's ICAO type designator, upper case (`A321`, `EC35`); empty when not known",
+          "type": "string"
+        },
         "ship_type": {
           "anyOf": [
             {
@@ -2581,6 +2589,8 @@
         "altitude_m",
         "registration",
         "type",
+        "category",
+        "designator",
         "ship_type",
         "course_deg",
         "destination"
@@ -2610,6 +2620,7 @@
             "adsbfi",
             "adsblol",
             "fintraffic",
+            "radarcape",
             "receiver"
           ],
           "type": "string"
@@ -2828,6 +2839,7 @@
             "adsbfi",
             "adsblol",
             "fintraffic",
+            "radarcape",
             "receiver"
           ],
           "type": "string"
@@ -2840,6 +2852,7 @@
               "adsbfi",
               "adsblol",
               "fintraffic",
+              "radarcape",
               "receiver"
             ],
             "type": "string"
@@ -2855,7 +2868,7 @@
               "type": "null"
             }
           ],
-          "description": "the own receiver's state while `source` is `receiver`; else null"
+          "description": "the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null"
         }
       },
       "required": [

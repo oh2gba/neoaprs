@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from neoaprs.readsb import loads, read_aircraft, receiver_urls
+from neoaprs.readsb import loads, number, read_aircraft, receiver_urls
 
 NOW = 1794812336.0
 AT = datetime.fromtimestamp(NOW, UTC)
@@ -57,6 +57,17 @@ def test_one_on_the_ground_a_vehicle_an_obstacle_and_one_without_a_position_are_
 def test_an_emergency_is_one_it_declares_or_a_squawk_of_7500_7600_or_7700(extra: dict[str, Any], emergency: bool) -> None:
     (plane,) = read_aircraft(receiver_file(flying(**extra))) or []
     assert plane.emergency is emergency
+
+
+@pytest.mark.parametrize("huge", [1e308, 10 ** 400, 1e7], ids=["1e308", "10e400", "1e7"])
+def test_a_height_or_a_speed_too_large_to_be_one_is_none_and_the_aircraft_stays(huge: float) -> None:
+    body = json.dumps({"now": 1794812336, "aircraft": [{"hex": "aaaaaa", "lat": 60.3, "lon": 24.9, "alt_baro": huge, "alt_geom": huge, "gs": huge}]}).encode()
+    (plane,) = read_aircraft(body) or []
+    assert (plane.altitude_m, plane.speed_kmh) == (None, None)
+
+
+def test_a_number_too_large_for_a_float_is_none() -> None:
+    assert number(10 ** 400) is None and number(-(10 ** 400)) is None and number(12) == 12.0
 
 
 def test_the_heading_is_the_track_else_the_true_heading_else_the_magnetic_one_else_none() -> None:
@@ -110,6 +121,21 @@ def test_an_empty_sky_is_an_empty_list_and_a_list_of_things_that_are_not_aircraf
     assert read_aircraft(json.dumps({"now": NOW, "aircraft": [1, "x", None, {"lat": 60, "lon": 24}]}).encode()) == []
 
 
+def test_the_kind_of_an_aircraft_is_its_emitter_category_and_its_type_designator_upper_cased_and_empty_when_none() -> None:
+    (plane,) = read_aircraft(receiver_file(flying(category="a7", t="ec35", desc="EUROCOPTER EC-135"))) or []
+    assert (plane.category, plane.designator, plane.type) == ("A7", "EC35", "EUROCOPTER EC-135")
+    (bare,) = read_aircraft(receiver_file({k: v for k, v in flying().items() if k not in ("category", "t", "desc")})) or []
+    assert (bare.category, bare.designator, bare.type) == ("", "", "")
+
+
+def test_a_top_level_list_is_read_item_by_item_as_json_reads_it() -> None:
+    body = b' [ {"a": [1, 2]}, 3, "x" , [] ] '
+    assert loads(body) == json.loads(body) and loads(b"[]") == []
+    for broken in (b"[1, 2", b"[1 2]", b"[1] [2]"):
+        with pytest.raises((ValueError, StopIteration)):
+            loads(broken)
+
+
 def test_a_name_from_the_feed_is_trimmed_cut_and_has_no_control_characters() -> None:
     (plane,) = read_aircraft(receiver_file(flying(flight="  FIN\x007AB\n ", r="X" * 200))) or []
     assert plane.name == "FIN7AB" and len(plane.registration) == 64
@@ -136,5 +162,6 @@ def test_a_zone_of_an_ipv6_address_is_written_as_an_address_writes_it() -> None:
 
 
 def test_a_whole_address_is_used_as_typed() -> None:
+    assert receiver_urls("HTTP://pi.local/my/aircraft.json") == ["HTTP://pi.local/my/aircraft.json"]
     assert receiver_urls("http://pi.local:8080/my/aircraft.json") == ["http://pi.local:8080/my/aircraft.json"]
     assert receiver_urls("https://adsb.example.org/tar1090/data/aircraft.json") == ["https://adsb.example.org/tar1090/data/aircraft.json"]

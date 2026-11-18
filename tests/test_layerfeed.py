@@ -40,7 +40,7 @@ def test_a_page_that_looks_is_sent_the_table_at_once_and_every_table_after_it() 
     looks.look(conn, "aircraft", True)
     assert sent(client) == [{"type": "layer_things", "layer": "aircraft", "source": "receiver", "away": False, "things": [{
         "id": "461f2a", "lat": 60.3, "lon": 24.9, "at": "2026-11-18T12:00:00Z", "heading_deg": 225, "speed_kmh": 420.4, "name": "FIN7AB", "emergency": False, "altitude_m": 2438, "registration": "OH-LZA",
-        "type": "AIRBUS A-321", "ship_type": None, "course_deg": None, "destination": ""}]}]
+        "type": "AIRBUS A-321", "category": "", "designator": "", "ship_type": None, "course_deg": None, "destination": ""}]}]
     looks.told(LayerTable("aircraft", "receiver", True, ()))
     looks.told(LayerTable("ships", "fintraffic", False, ()))
     assert [m["away"] for m in sent(client)] == [False, True], "the ships' table goes to nobody: this page does not look at them"
@@ -88,7 +88,7 @@ async def test_the_topic_map_says_both_layers_and_a_look_at_a_layer_without_a_so
     await e.start()
     tab = await e.ws()
     value = (await tab.expect("state", "map"))["value"]
-    assert value["layers"] == [{"layer": "aircraft", "source": "none", "offered": ["none", "adsbfi", "adsblol", "receiver"], "receiver": None},
+    assert value["layers"] == [{"layer": "aircraft", "source": "none", "offered": ["none", "adsbfi", "adsblol", "radarcape", "receiver"], "receiver": None},
                                {"layer": "ships", "source": "none", "offered": ["none", "fintraffic", "receiver"], "receiver": None}], "the station of the tests is at Helsinki: Fintraffic is offered"
     await tab.send({"cmd": "layer_look", "layer": "aircraft", "on": True})
     first = await tab.expect("layer_things")
