@@ -41,7 +41,7 @@ export type ThingShape = AircraftShape | "hull" | "diamond";
 export const THING_SHAPES: readonly ThingShape[] = [...(Object.keys(AIRCRAFT_SHAPES) as AircraftShape[]), "hull", "diamond"];
 
 /** Whether a shape is turned to where the thing heads. */
-export const turns = (shape: ThingShape): boolean => shape === "hull" || (shape !== "diamond" && AIRCRAFT_SHAPES[shape].turns);
+const turns = (shape: ThingShape): boolean => shape === "hull" || (shape !== "diamond" && AIRCRAFT_SHAPES[shape].turns);
 
 /** What kind of thing it is, as a shape pointing north: an aircraft's kind, a ship's hull (the hover box and the card's head show it). */
 export const kindShape = (layer: LayerName, thing: LayerThing): AircraftShape | "hull" =>

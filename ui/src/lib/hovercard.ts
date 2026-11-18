@@ -55,7 +55,7 @@ function element(tag: string, className: string, text = ""): HTMLElement {
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(high, value));
 
 /** A mark drawn before the title: a path on its box, in the layers' colour or the bad colour. */
-export interface HoverMark {
+interface HoverMark {
   d: string;
   viewBox: string;
   bad: boolean;
