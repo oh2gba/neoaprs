@@ -6,6 +6,8 @@ import type { LayerTraffic, OpenThing } from "@/composables/useLayerThings";
 import type { SizeClass } from "@/lib/layout";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { NOW, ago, station } from "@/test/fixtures";
+import { AIRCRAFT_SHAPES } from "@/lib/layers/aircraftshapes";
+import { MARKS } from "@/lib/layers/marks";
 import { aircraft, ship } from "@/test/layerfixtures";
 
 const car = station("OH2ZMA-9", { lat: 60.1, lon: 24.8, distance_km: 11, bearing_deg: 126, last_heard: ago(120) });
@@ -18,7 +20,14 @@ function fakeTraffic(first: OpenThing | null) {
     open.value = null;
     return was;
   });
-  const traffic: LayerTraffic = { looked: computed(() => []), tables: computed(() => new Map()), card: open, open: () => undefined, close };
+  const traffic: LayerTraffic = {
+    looked: computed(() => []),
+    tables: computed(() => new Map()),
+    card: open,
+    trail: computed(() => []),
+    open: () => undefined,
+    close,
+  };
   return { traffic, open, close };
 }
 
@@ -52,6 +61,15 @@ describe("the card of an aircraft or a ship", () => {
       "Age: 12 s",
       "Source: adsb.lol",
     ]);
+  });
+
+  it("has the aircraft's own shape in its head, pointing north, also where it gives no direction, and a ship's hull", () => {
+    const glider: OpenThing = { layer: "aircraft", thing: aircraft({ category: "B1", designator: "", heading_deg: null }), source: "radarcape" };
+    const head = (thing: OpenThing) => make(thing).wrapper.find(".layercard .card-head .layercard-mark svg");
+    expect(head(glider).find("path").attributes("d")).toBe(AIRCRAFT_SHAPES.glider.d);
+    expect(head(glider).attributes("viewBox")).toBe(AIRCRAFT_SHAPES.glider.viewBox);
+    expect(head(plane).find("path").attributes("d")).toBe(AIRCRAFT_SHAPES.airliner.d);
+    expect(head(boat).find("path").attributes("d")).toBe(MARKS.hull.d);
   });
 
   it("has a ship's rows, named by its MMSI where it gave no name, from the own receiver", () => {

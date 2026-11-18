@@ -13,7 +13,7 @@ const source = en as Record<string, Message>;
 const NAMES = new Set(
   `NeoAPRS APRS Mercury Direwolf LoRa iGate Bluetooth Winlink Kenwood Kantronics Yaesu soundmodem OpenStreetMap Mobilinkd NinoTNC
   Firefox Chrome Chromium Edge Safari Android iOS Windows macOS Linux Keychain Raspberry Nominatim Dummy Internet GitHub gpsd rigctld
-  PMTiles MHz kHz dBFS dB Mic-E https http Heikki Hannikainen John Langner`
+  PMTiles MHz kHz dBFS dB Mic-E https http Heikki Hannikainen John Langner tar1090 Matthias Wirth GPL`
     .split(/\s+/)
     .map((w) => w.toLowerCase()),
 );

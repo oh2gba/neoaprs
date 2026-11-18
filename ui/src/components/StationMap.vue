@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
       {{ t("map.follow_me") }}
     </button>
     <MapLayers :place="box.place.value" :counts="box.counts.value" />
-    <MapAttribution :credits="box.credits.value" />
+    <MapAttribution :credits="box.credits.value" :aircraft="box.shapes.value" />
   </div>
   <div v-if="note" class="mapnote" role="status">
     <div class="mapnote-box">

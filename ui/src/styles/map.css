@@ -174,6 +174,15 @@
 .hc-call {
   font-size: 13px;
 }
+/* an aircraft's or a ship's mark before its name, as its card's head has it */
+.hc-mark {
+  flex: none;
+  align-self: center;
+  fill: var(--map-layer);
+}
+.hc-mark.emergency {
+  fill: var(--bad);
+}
 .hc-symbol,
 .hc-key {
   color: var(--muted);

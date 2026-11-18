@@ -6,6 +6,9 @@ Source: https://github.com/oh2gba/neoaprs
 Files: opt/neoaprs/lib/python3.13/site-packages/neoaprs/*
 Copyright: OH2GBA
 License: GPL-3.0-or-later
+Comment: The shapes the page's map draws aircraft with are from tar1090 by Matthias
+ Wirth (https://github.com/wiedehopf/tar1090, itself based on FlightAware's dump1090),
+ licensed under the GPL, version 2 or later, and used here under version 3 or later.
 
 Files: opt/neoaprs/lib/python3.13/site-packages/*
 Copyright: the authors of the libraries listed here; the licence of each is in its .dist-info folder

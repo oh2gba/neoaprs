@@ -3,7 +3,8 @@ import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { forgetLayerTicks } from "@/composables/useMapLayers";
-import type { TrafficCollection } from "@/lib/layers/traffic";
+import { AIRCRAFT_SHAPES } from "@/lib/layers/aircraftshapes";
+import { THING_SHAPES, type TrafficCollection } from "@/lib/layers/traffic";
 import { FakeMap, resetFakes } from "@/test/fakemap";
 import { tell, type FakeDaemon } from "@/test/context";
 import { mountStationMap } from "@/test/stationmap";
@@ -91,6 +92,7 @@ describe("the aircraft and ships on the map", () => {
     const drawnWith: string[] = [];
     const context = {
       scale: vi.fn(),
+      translate: vi.fn(),
       stroke: vi.fn(),
       fill: vi.fn(() => drawnWith.push(String(context.fillStyle))),
       getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) })),
@@ -102,18 +104,14 @@ describe("the aircraft and ships on the map", () => {
     vi.stubGlobal("Path2D", class {});
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context as unknown as CanvasRenderingContext2D);
     await mounted();
-    expect([...FakeMap.last().images.keys()].sort()).toEqual([
-      "traffic-dart",
-      "traffic-dart-bad",
-      "traffic-diamond",
-      "traffic-diamond-bad",
-      "traffic-hull",
-      "traffic-hull-bad",
-    ]);
-    expect(FakeMap.last().images.get("traffic-dart")).toMatchObject({ width: 32, height: 32 });
+    expect([...FakeMap.last().images.keys()].sort()).toEqual(THING_SHAPES.flatMap((shape) => [`traffic-${shape}`, `traffic-${shape}-bad`]).sort());
+    expect(THING_SHAPES).toHaveLength(13);
+    expect(FakeMap.last().images.get("traffic-diamond")).toMatchObject({ width: 32, height: 32 });
+    expect(FakeMap.last().images.get("traffic-heavy4")).toMatchObject({ width: 2 * AIRCRAFT_SHAPES.heavy4.size, height: 2 * AIRCRAFT_SHAPES.heavy4.size });
+    expect(FakeMap.last().images.get("traffic-balloon")).toMatchObject({ width: 2 * AIRCRAFT_SHAPES.balloon.size });
     const before = drawnWith.length;
     FakeMap.last().fire("style.load");
-    expect(drawnWith.length).toBe(before + 6);
+    expect(drawnWith.length).toBe(before + 26);
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -125,7 +123,7 @@ describe("the aircraft and ships on the map", () => {
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "layer_look", layer: "aircraft", on: true });
     await told(daemon, layerThings("aircraft", [aircraft({ id: "a" }), aircraft({ id: "b", heading_deg: null })], { source: "adsbfi" }));
     expect(drawnIds()).toEqual(["a", "b"]);
-    expect(drawn().features.map((feature) => feature.properties.icon)).toEqual(["traffic-dart", "traffic-diamond"]);
+    expect(drawn().features.map((feature) => feature.properties.icon)).toEqual(["traffic-airliner", "traffic-diamond"]);
     await setTick("aircraft", false);
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "layer_look", layer: "aircraft", on: false });
     expect(drawnIds()).toEqual([]);
@@ -209,6 +207,47 @@ describe("a click on an aircraft or a ship", () => {
   });
 });
 
+describe("the trail of the thing whose card is open", () => {
+  type Drawn = { features: { properties: { call: string }; geometry: { coordinates: number[][] } }[] };
+  const trail = (): Drawn | undefined => {
+    const last: unknown = FakeMap.last().getSource("traffic-trail")?.setData.mock.calls.at(-1)?.[0];
+    return last as Drawn | undefined;
+  };
+
+  it("is drawn under the marks for the open card's thing only, one update when a table comes, and gone when the card closes", async () => {
+    const { daemon } = await mounted();
+    await setTick("aircraft", true);
+    await told(
+      daemon,
+      layerThings("aircraft", [aircraft({ id: "a", lat: 60.1, at: ago(20) }), aircraft({ id: "b", lat: 60.5, at: ago(20) })], { source: "adsbfi" }),
+    );
+    const layers = FakeMap.last()
+      .getStyle()
+      .layers.map((layer) => layer.id);
+    expect(layers.indexOf("traffic-trail")).toBeGreaterThan(layers.indexOf("aloha-line"));
+    expect(layers.indexOf("traffic-trail")).toBeLessThan(layers.indexOf("traffic"));
+    expect(trail()).toBeUndefined();
+    daemon.traffic.open("aircraft", "a");
+    await nextTick();
+    expect(trail()?.features).toEqual([]);
+    await told(
+      daemon,
+      layerThings("aircraft", [aircraft({ id: "a", lat: 60.2, at: ago(10) }), aircraft({ id: "b", lat: 60.6, at: ago(10) })], { source: "adsbfi" }),
+    );
+    const calls = FakeMap.last().getSource("traffic-trail")?.setData.mock.calls.length ?? 0;
+    expect(trail()?.features.map((feature) => feature.properties.call)).toEqual(["aircraft:a"]);
+    expect(trail()?.features[0]?.geometry.coordinates.map((point) => point[1])).toEqual([60.1, 60.2]);
+    await told(daemon, layerThings("aircraft", [aircraft({ id: "a", lat: 60.3, at: ago(5) })], { source: "adsbfi" }));
+    expect(FakeMap.last().getSource("traffic-trail")?.setData.mock.calls.length).toBe(calls + 1);
+    await tell(daemon, { now: NOW + 5_000 });
+    await tell(daemon, { now: NOW + 10_000 });
+    expect(FakeMap.last().getSource("traffic-trail")?.setData.mock.calls.length).toBe(calls + 1);
+    daemon.traffic.close();
+    await nextTick();
+    expect(trail()?.features).toEqual([]);
+  });
+});
+
 describe("a mouse resting on an aircraft or a ship", () => {
   function rest(layer: string, id: string, pointerType = "mouse"): void {
     const event = new Event("pointermove");
@@ -234,6 +273,30 @@ describe("a mouse resting on an aircraft or a ship", () => {
     expect(hovercard()?.hidden).toBe(true);
   });
 
+  it("shows the aircraft's own shape before its name, in the bad colour for an emergency, and a ship's hull", async () => {
+    const { daemon } = await mounted();
+    await setTick("aircraft", true);
+    await setTick("ships", true);
+    await told(
+      daemon,
+      layerThings("aircraft", [aircraft({ id: "h", category: "A7", designator: "", heading_deg: null, emergency: true, at: ago(4) })], { source: "adsbfi" }),
+      layerThings("ships", [ship({ id: "s", at: ago(4) })], { source: "fintraffic" }),
+    );
+    vi.useFakeTimers();
+    rest("aircraft", "h");
+    vi.advanceTimersByTime(300);
+    const mark = () => hovercard()?.querySelector(".hc-head > svg.hc-mark");
+    expect(mark()?.querySelector("path")?.getAttribute("d")).toBe(AIRCRAFT_SHAPES.helicopter.d);
+    expect(mark()?.getAttribute("viewBox")).toBe(AIRCRAFT_SHAPES.helicopter.viewBox);
+    expect(mark()?.classList.contains("emergency")).toBe(true);
+    expect(mark()?.getAttribute("aria-hidden")).toBe("true");
+    FakeMap.last().fire("mouseleave", {}, "traffic");
+    rest("ships", "s");
+    vi.advanceTimersByTime(300);
+    expect(mark()?.classList.contains("emergency")).toBe(false);
+    expect(mark()?.getAttribute("viewBox")).toBe("0 0 16 16");
+  });
+
   it("shows nothing for a finger: a tap opens the card", async () => {
     const { daemon } = await mounted();
     await setTick("ships", true);
@@ -242,6 +305,23 @@ describe("a mouse resting on an aircraft or a ship", () => {
     rest("ships", "s", "touch");
     vi.advanceTimersByTime(1000);
     expect(hovercard()?.hidden).toBe(true);
+  });
+});
+
+describe("the credit of the aircraft's shapes", () => {
+  const shapes = () => document.querySelector<HTMLElement>(".attrib-shapes")?.textContent ?? null;
+
+  it("is in the map's (i) while aircraft are drawn, from a service or an own receiver, and goes when their tick is off", async () => {
+    await mounted([mapLayer("aircraft", { source: "radarcape" }), mapLayer("ships", { source: "fintraffic" })]);
+    document.querySelector<HTMLButtonElement>(".attrib-toggle")?.click();
+    await nextTick();
+    expect(shapes()).toBeNull();
+    await setTick("ships", true);
+    expect(shapes()).toBeNull();
+    await setTick("aircraft", true);
+    expect(shapes()).toBe("Aircraft shapes: tar1090 by Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 or later");
+    await setTick("aircraft", false);
+    expect(shapes()).toBeNull();
   });
 });
 

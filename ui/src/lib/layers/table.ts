@@ -22,7 +22,7 @@ export const LAYER_TABLE: readonly LayerEntry[] = [
   { id: "tracks", name: "layers.box.tracks", mark: "track", part: "own", tick: true },
   { id: "aloha", name: "layers.box.aloha", mark: "circle", part: "own", tick: true },
   { id: "grid", name: "layers.box.grid", mark: "grid", part: "own", tick: false },
-  { id: "aircraft", name: LAYER_NAMES.aircraft, mark: "dart", part: "outside", tick: false },
+  { id: "aircraft", name: LAYER_NAMES.aircraft, mark: "airliner", part: "outside", tick: false },
   { id: "ships", name: LAYER_NAMES.ships, mark: "hull", part: "outside", tick: false },
 ];
 

@@ -871,7 +871,7 @@ async def counted(page: Any, layer: str) -> None:
 
 async def shot_layers(s: Shots, _: str) -> None:
     """The map with the Layers box open: Tracks and the ALOHA circle ticked, the Locator grid not, and Aircraft and Ships ticked, each with the number it has drawn, from the made-up receiver of scripts/demotraffic.py
-    (the daemon of this shot reads it); the darts and hulls are among the stations."""
+    (the daemon of this shot reads it); the aircraft, each by its kind, and the hulls are among the stations."""
     page = await s.page(DESKTOP, view=LAYERS_VIEW, panel=480, url=s.layers_url, stored=LAYERS_TICKED, wait_ms=3000)
     await page.locator(".layers-toggle").click()
     await page.locator(".layers-box").wait_for(state="visible", timeout=10000)

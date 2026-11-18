@@ -1,14 +1,18 @@
 // The aircraft and ships on the map of the stations (composables/useLayerThings.ts has the tables of the layers this page looks at): the map's layer of them (lib/layers/trafficlayers.ts), drawn again when a table
 // comes and as the clock moves on (they fade and are dropped by their age); a mouse resting on one shows the page's hover box (lib/hovercard.ts, its rows lib/layers/card.ts), a click on one opens its card and a
-// click elsewhere on the map closes it (`clicked`, which the map asks first); how many each layer draws (`counts`, for the Layers box) and the credits of the services drawn (`credits`, for the map's (i)).
+// click elsewhere on the map closes it (`clicked`, which the map asks first); how many each layer draws (`counts`, for the Layers box), the credits of the services drawn (`credits`, for the map's (i)) and whether
+// the aircraft are drawn (`shapes`: the (i) names where their shapes are from then).
 import { computed, watch } from "vue";
 import type { MapGeoJSONFeature, MapLayerMouseEvent, Map as MapLibreMap } from "maplibre-gl";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import type { HoverCard, HoverContent } from "@/lib/hovercard";
 import { hoverRows, thingSub, thingTitle } from "@/lib/layers/card";
 import { isService, type LayerName, type ServiceName } from "@/lib/layers/sources";
-import { liveThings, trafficCounts, trafficFeatures } from "@/lib/layers/traffic";
-import { TRAFFIC_LAYER, addTrafficLayers, setTrafficData } from "@/lib/layers/trafficlayers";
+import { MARKS, markBox } from "@/lib/layers/marks";
+import { kindShape, liveThings, trafficCounts, trafficFeatures } from "@/lib/layers/traffic";
+import { NO_TRAIL, trailKey, trailLines } from "@/lib/layers/trail";
+import type { TrackCollection } from "@/lib/tracks";
+import { TRAFFIC_LAYER, addTrafficLayers, setTrafficData, setTrailData } from "@/lib/layers/trafficlayers";
 
 const HALF = 8; // half a mark, in pixels: the box the hover card stands beside
 const REACH = 6; // in pixels each way round a click or a tap: a finger finds a mark it nearly touched (the topmost found is the one meant)
@@ -26,6 +30,26 @@ function thingOf(feature: MapGeoJSONFeature | undefined): { layer: LayerName; id
   return (layer === "aircraft" || layer === "ships") && typeof id === "string" ? { layer, id } : null;
 }
 
+/** The way the thing whose card is open has gone, on the map (nothing without a card): one update when a table comes or the card changes, and none while there is no trail on the map and none is to come. Gives the lines now. */
+function useOpenTrail(map: () => MapLibreMap | null): () => TrackCollection {
+  const page = useDaemonContext();
+  const traffic = page.traffic;
+  const lines = (): TrackCollection => {
+    const open = traffic.card.value;
+    return open ? trailLines(trailKey(open.layer, open.thing.id), traffic.trail.value, page.now.value) : NO_TRAIL;
+  };
+  const openKey = computed(() => (traffic.card.value ? trailKey(traffic.card.value.layer, traffic.card.value.thing.id) : null));
+  let drawn = false;
+  watch([traffic.trail, openKey], () => {
+    const to = map();
+    const open = openKey.value !== null;
+    if (!to || !(open || drawn)) return;
+    setTrailData(to, lines());
+    drawn = open;
+  });
+  return lines;
+}
+
 export function useMapTraffic(map: () => MapLibreMap | null) {
   const page = useDaemonContext();
   let hover: HoverCard | null = null; // (the map's, given with `listen`)
@@ -35,12 +59,20 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
     if (to) setTrafficData(to, trafficFeatures(traffic.tables.value.values(), page.now.value));
   };
   watch([traffic.tables, page.now], draw);
+  const trail = useOpenTrail(map);
 
   /** What the hover box says of a thing as it is now; null when it has gone. */
   function content(layer: LayerName, id: string): HoverContent | null {
     const table = traffic.tables.value.get(layer);
     const thing = table ? liveThings(table, page.now.value).find((one) => one.id === id) : undefined;
-    return thing ? { title: thingTitle(layer, thing), sub: thingSub(layer), rows: hoverRows(layer, thing, page.now.value) } : null;
+    if (!thing) return null;
+    const mark = MARKS[kindShape(layer, thing)];
+    return {
+      title: thingTitle(layer, thing),
+      sub: thingSub(layer),
+      rows: hoverRows(layer, thing, page.now.value),
+      mark: { d: mark.d, viewBox: markBox(mark), bad: thing.emergency },
+    };
   }
 
   /** Where a thing is on the screen: the box of its mark round its place now. */
@@ -85,7 +117,7 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   }
 
   return {
-    add: (to: MapLibreMap): void => addTrafficLayers(to, trafficFeatures(traffic.tables.value.values(), page.now.value)),
+    add: (to: MapLibreMap): void => addTrafficLayers(to, trafficFeatures(traffic.tables.value.values(), page.now.value), trail()),
     listen,
     clicked,
     counts: computed(() => trafficCounts(traffic.tables.value, page.now.value)),
@@ -95,5 +127,6 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
         return isService(source) ? [source] : [];
       }),
     ),
+    shapes: computed(() => traffic.looked.value.includes("aircraft")),
   };
 }

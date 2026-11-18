@@ -1,6 +1,6 @@
 // The card that follows the pointer to a station's marker on the map: after a short delay it shows what matters at a glance (who, how long ago, status, comment, how far and in which direction, the
 // temperature of a weather station, how the packets reach us) and goes when the pointer leaves. One element serves every marker, and the aircraft and ships the map draws itself too (`rest`: the map says where
-// the thing is and what its box says, lib/layers/card.ts). A touch screen has no pointer to rest on a marker, so only a mouse shows it, and a tap opens the full card as ever.
+// the thing is and what its box says, lib/layers/card.ts, with the thing's mark before its name). A touch screen has no pointer to rest on a marker, so only a mouse shows it, and a tap opens the full card as ever.
 import { t } from "@/i18n";
 import { heardWords } from "@/lib/channels";
 import { agoWords, bearingText, distanceText } from "@/lib/format";
@@ -54,11 +54,35 @@ function element(tag: string, className: string, text = ""): HTMLElement {
 
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(high, value));
 
-/** What the card says: a head of two parts and its rows. */
+/** A mark drawn before the title: a path on its box, in the layers' colour or the bad colour. */
+export interface HoverMark {
+  d: string;
+  viewBox: string;
+  bad: boolean;
+}
+
+/** What the card says: a head of two parts (a mark before them, for an aircraft or a ship) and its rows. */
 export interface HoverContent {
   title: string;
   sub: string;
   rows: HoverRow[];
+  mark?: HoverMark;
+}
+
+const SVG = "http://www.w3.org/2000/svg";
+
+/** A mark as the card's head shows it: 16 px, saying nothing to a screen reader (the title does). */
+function markElement(mark: HoverMark): SVGSVGElement {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("class", mark.bad ? "hc-mark emergency" : "hc-mark");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("viewBox", mark.viewBox);
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS(SVG, "path");
+  path.setAttribute("d", mark.d);
+  svg.append(path);
+  return svg;
 }
 
 /** Where on the screen the card's thing is. */
@@ -130,6 +154,7 @@ export class HoverCard {
       return;
     }
     const head = element("div", "hc-head");
+    if (content.mark) head.append(markElement(content.mark));
     head.append(element("b", "hc-call", content.title), element("span", "hc-symbol", content.sub));
     const rows = content.rows.map(({ label, text }) => {
       const line = element("div", "hc-row");
