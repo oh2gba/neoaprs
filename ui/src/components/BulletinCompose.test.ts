@@ -44,7 +44,7 @@ describe("BulletinCompose", () => {
     expect(kind.element.value).toBe("bulletin");
   });
 
-  it("has a kind, a number, the group, the text and Post, and no sentence of help: no (i), no line under a field", () => {
+  it("has a kind, a number, the group, the text and Post, and no line of help under a field: the help is behind each row's (i)", () => {
     const { wrapper, id, group, post } = compose();
     expect(rows(wrapper)).toEqual([
       { label: "Kind", control: "post-kind", greyed: false },
@@ -56,8 +56,43 @@ describe("BulletinCompose", () => {
     expect(id.element.value).toBe("1");
     expect(group.element.disabled).toBe(true);
     expect(shown(post)).toBe("Post");
-    expect(wrapper.find(".infotip").exists()).toBe(false);
     expect(wrapper.find("p").exists()).toBe(false);
+  });
+
+  it("has an (i) at the end of each of the four rows, named after the row, and none on Send on", async () => {
+    const { wrapper, kind } = compose();
+    const names = () => wrapper.findAll(".composebar-fields > .field").map((row) => row.find(".info-toggle").attributes("aria-label"));
+    expect(names()).toEqual(["About Kind", "About Number", "About Group", "About Text"]);
+    for (const row of wrapper.findAll(".composebar-fields > .field")) expect(row.find(".field-control .info-toggle").exists()).toBe(true);
+    await kind.setValue("announcement");
+    expect(names()[1]).toBe("About Letter");
+  });
+
+  it("explains each row in at most two lines, with the daemon's numbers, and the kind's and the group's notes have their pictures", async () => {
+    const { wrapper } = compose();
+    const open = async (label: string) => {
+      await wrapper.find(`.info-toggle[aria-label='About ${label}']`).trigger("click");
+      const note = wrapper.find(".info-text");
+      return {
+        lines: note.findAll(".info-line").map((line) => line.text()),
+        picture: note.find("svg.hp").exists() ? note.find("svg.hp").attributes("data-picture") : undefined,
+      };
+    };
+    const kind = await open("Kind");
+    expect(kind.picture).toBe("bulletin");
+    expect(kind.lines).toHaveLength(2);
+    expect(kind.lines.join(" ")).toContain(`sent for ${many(HOURS, "hour")}`);
+    expect(kind.lines.join(" ")).toContain(`sent for ${many(DAYS, "day")}`);
+    const number = await open("Number");
+    expect(number.picture).toBeUndefined();
+    expect(number.lines.join(" ")).toContain("replaces it");
+    const group = await open("Group");
+    expect(group.picture).toBe("bulletingroup");
+    expect(group.lines).toHaveLength(2);
+    expect(group.lines.join(" ")).toContain("part of the address");
+    const text = await open("Text");
+    expect(text.lines).toHaveLength(2);
+    expect(text.lines[0]).toContain(`${LIMITS.message.textMax} characters`);
   });
 
   it("moves nothing when the kind changes: the same four rows in the same places, the number's row lettered for an announcement, the group's greyed unless it is a group bulletin", async () => {

@@ -2,6 +2,7 @@
 export const PICTURE_NAMES = [
   "object",
   "bulletin",
+  "bulletingroup",
   "beacon",
   "path",
   "status",

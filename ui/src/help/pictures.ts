@@ -2,6 +2,7 @@
 import type { Component } from "vue";
 import BeaconPicture from "@/help/BeaconPicture.vue";
 import BulletinPicture from "@/help/BulletinPicture.vue";
+import BulletinGroupPicture from "@/help/BulletinGroupPicture.vue";
 import ObjectPicture from "@/help/ObjectPicture.vue";
 import PathPicture from "@/help/PathPicture.vue";
 import RangePicture from "@/help/RangePicture.vue";
@@ -32,6 +33,7 @@ import type { PictureName } from "@/help/names";
 export const PICTURES: Record<PictureName, Component> = {
   object: ObjectPicture,
   bulletin: BulletinPicture,
+  bulletingroup: BulletinGroupPicture,
   beacon: BeaconPicture,
   path: PathPicture,
   status: StatusPicture,

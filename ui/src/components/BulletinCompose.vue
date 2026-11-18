@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The group box to post to the message board, at the bottom of the Bulletins tab (ComposeBar, as everywhere; the fields are rows like those of the Objects form). No field has an (i): each says what it is by itself.
+// The group box to post to the message board, at the bottom of the Bulletins tab (ComposeBar, as everywhere; the fields are rows like those of the Objects form). Each row has its (i) after the control, as the object form's rows have (InfoTip): what the kind, the place, the group and the text are, the kind's and the group's with a small picture.
 // The kind is a choice whose options say what each does (a bulletin and an announcement differ in how long they are repeated, a group bulletin in whom it is for: lib/bulletins.ts `kindTitle`, with the daemon's own
 // numbers); under it the number the post has (a capital letter for an announcement, the same row), the group of a group bulletin (its row is always there, greyed for the other kinds, so that choosing a kind moves
 // nothing) and the text, with the characters it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits; it says Replace while the
@@ -17,9 +17,11 @@ import type { RadioId } from "@/lib/radios";
 import { radiosBlockedReason } from "@/lib/sendon";
 import { computed, inject, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
+import InfoTip from "@/components/InfoTip.vue";
 import SendOn from "@/components/SendOn.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import { t } from "@/i18n";
+import type { MessageId } from "@/i18n/catalogue";
 import { leftTitle } from "@/lib/compose";
 import { LIMITS } from "@/protocol/lists";
 import type { OwnBulletinRow } from "@/protocol/protocol";
@@ -28,6 +30,11 @@ import { GROUP_MAX, POST_KINDS, canPost, groupOf, groupOk, idsOf, kindTitle, pos
 
 const props = defineProps<{ ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
 const emit = defineEmits<{ post: [slot: string, text: string, radios?: RadioId[]] }>();
+const about = (field: MessageId) => t("settings.about", { label: t(field) });
+const forbidden = [...LIMITS.message.forbidden].join(" ");
+/** How long a bulletin and an announcement are sent, in the words of the page (the daemon's own numbers). */
+const hours = computed(() => t("bulletins.tip.hours", { n: LIMITS.bulletin.repeatHours }));
+const days = computed(() => t("bulletins.tip.days", { n: LIMITS.bulletin.announcementRepeatDays }));
 const draft = reactive<PostDraft>({ kind: "bulletin", id: "1", group: "", text: "" });
 
 /** The characters of a message; the field takes no more (lib/textlimit.ts, as every field with a counter). */
@@ -104,6 +111,10 @@ function submit(): void {
         <select id="post-kind" v-model="draft.kind" class="input">
           <option v-for="k in POST_KINDS" :key="k.kind" :value="k.kind">{{ kindTitle(k.kind) }}</option>
         </select>
+        <InfoTip :label="about('bulletins.kind')" picture="bulletin">
+          <span class="info-line">{{ t("bulletins.tip.kind1", { hours, days }) }}</span>
+          <span class="info-line">{{ t("bulletins.tip.kind2", { hours }) }}</span>
+        </InfoTip>
       </div>
     </div>
     <div class="field">
@@ -112,6 +123,10 @@ function submit(): void {
         <select id="post-id" v-model="draft.id" class="input mono">
           <option v-for="c in idsOf(draft.kind)" :key="c" :value="c">{{ c }}</option>
         </select>
+        <InfoTip :label="about(draft.kind === 'announcement' ? 'bulletins.letter' : 'bulletins.number')">
+          <span class="info-line">{{ t("bulletins.tip.id1") }}</span>
+          <span class="info-line">{{ t("bulletins.tip.id2") }}</span>
+        </InfoTip>
       </div>
     </div>
     <div class="field" :class="{ invalid: badGroup, disabled: !grouped }">
@@ -129,6 +144,10 @@ function submit(): void {
           autocomplete="off"
           spellcheck="false"
         />
+        <InfoTip :label="about('bulletins.group')" picture="bulletingroup">
+          <span class="info-line">{{ t("bulletins.tip.group1") }}</span>
+          <span class="info-line">{{ t("bulletins.tip.group2") }}</span>
+        </InfoTip>
       </div>
     </div>
     <div class="field">
@@ -143,6 +162,10 @@ function submit(): void {
           @input="draft.text = typedInto($event, draft.text, limit)"
           @compositionend="draft.text = typedInto($event, draft.text, limit)"
         />
+        <InfoTip :label="about('bulletins.text')">
+          <span class="info-line">{{ t("bulletins.tip.text1", { max: LIMITS.message.textMax, forbidden }) }}</span>
+          <span class="info-line">{{ t("bulletins.tip.text2") }}</span>
+        </InfoTip>
       </div>
     </div>
     <SendOn v-if="ticks.length > 0" id="post-send-on" class="send-on" :ticks="ticks" error="" @tick="tick" />

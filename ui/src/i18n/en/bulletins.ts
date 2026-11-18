@@ -28,6 +28,18 @@ export const bulletins = {
   "bulletins.group": "Group",
   "bulletins.group_placeholder": "Name",
   "bulletins.text": "Text",
+  "bulletins.tip.hours": { one: "{n} hour", other: "{n} hours" },
+  "bulletins.tip.days": { one: "{n} day", other: "{n} days" },
+  "bulletins.tip.kind1":
+    "A bulletin and an announcement are shown by every station that hears them. A bulletin is for what matters now and is sent for {hours}; an announcement is for what stays true and is sent for {days}.",
+  "bulletins.tip.kind2": "A group bulletin is sent for {hours}; every station shows it unless its operator picked other groups to show.",
+  "bulletins.tip.id1": "The number names the post, a letter for an announcement; a new post under it replaces it.",
+  "bulletins.tip.id2": "Posting again under the same number or letter sends the new text from the start.",
+  "bulletins.tip.group1":
+    "The name is part of the address, as in BLN3HAMS, so every station hears the bulletin and shows it, unless its operator picked other groups to show.",
+  "bulletins.tip.group2": "NeoAPRS shows the bulletins of every group it hears, under Group messages.",
+  "bulletins.tip.text1": "Up to {max} characters, printable, none of {forbidden}.",
+  "bulletins.tip.text2": "It goes out in one radio packet, repeated for the time of the kind.",
   "bulletins.post": "Post",
   "bulletins.replace": "Replace",
 } as const;

@@ -31,13 +31,15 @@ A badge on the tab counts the entries whose text was first heard since the tab w
 
 ## Posting
 
-The box has a row for each field. The **Kind** says in its own words what each of the three does:
+The box has a row for each field, and each row has its (i) after it that says in two lines what the field is for; the Kind's and the Group's have a small picture. The **Kind** says in its own words what each of the three does:
 
 | Kind | who shows it | how long it is sent | what it is for |
 |---|---|---|---|
 | **Bulletin (sent for 4 hours)** | every station that hears it | at once, twice more in the first minutes, then every 20 minutes, for 4 hours | what matters now: a road closed, a net tonight |
 | **Announcement (sent for 3 days)** | every station that hears it | at once, twice more in the first minutes, then every hour, for 3 days | what stays true for days: a meeting next week, a digipeater off the air |
 | **Group bulletin (to one group, sent for 4 hours)** | every station that hears it, unless its operator has picked other groups to show and not this one; NeoAPRS shows every group's | as a bulletin | news for one group: a club, a weather net |
+
+How a group bulletin works: the group's name is part of the address (`BLN3HAMS`), so every station that hears the packet receives it, and every station shows it unless its operator picked other groups to show and not `HAMS`. NeoAPRS shows the group bulletins of every group it hears, under Group messages.
 
 Nobody acknowledges any of them, which is why they are sent more than once. To reach particular stations, with an acknowledgement from each, send them a message instead (Messages tab, Stations).
 
