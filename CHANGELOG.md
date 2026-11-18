@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.21.1
+
 Aircraft from a Radarcape, drawn by their kind and with a track, and cards on the map that can be resized.
 
 - **New:** aircraft on the map can come from your own Radarcape: choose Radarcape in Settings, Map and type its address.
