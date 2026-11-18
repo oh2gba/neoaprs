@@ -314,6 +314,7 @@ def test_a_page_that_the_daemon_serves_at_another_address_is_loaded_there_and_th
     thread = launch(rig)
     window = rig.toolkits.windows[0]
     assert rig.ctx.watch is not None and rig.ctx.watch.moved is not None
+    until(lambda: window.loaded == [PAGE + "#app"])           # (the window's own first load, which the shell's thread makes: on a busy machine it can come after the watch is there)
     rig.ctx.watch.moved("http://127.0.0.1:7310/")
     assert window.loaded == [PAGE + "#app", "http://127.0.0.1:7310/#app"]
     api = window.kwargs["js_api"]
