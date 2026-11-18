@@ -10,6 +10,7 @@ import MapPickBar from "@/components/MapPickBar.vue";
 import MessagesPane from "@/components/MessagesPane.vue";
 import NearbyPane from "@/components/NearbyPane.vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
+import PacketsCard from "@/components/PacketsCard.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
 import SkedsPane from "@/components/SkedsPane.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -29,6 +30,7 @@ import UpdateDialog from "@/components/UpdateDialog.vue";
 import VersionMismatch from "@/components/VersionMismatch.vue";
 import WhatsNewLine from "@/components/WhatsNewLine.vue";
 import { useAppShell } from "@/composables/useAppShell";
+import type { MapCard } from "@/composables/useMapMenu";
 
 const {
   daemon,
@@ -48,7 +50,10 @@ const {
   layout,
   cards,
   statsOpen,
+  packetsOpen,
   monitorOpen,
+  statsShown,
+  packetsShown,
   monitorShown,
   mapwrap,
   replayOpen,
@@ -61,6 +66,9 @@ const {
 
 /** A mark of the header: its tab, and the group of the control it leads to brought into view and flashed. */
 const goTo = (target: PillTarget, control: string): void => openSetting(panel, target, control);
+/** A card the map's menu opened over the map. */
+const cardsOpen = { stats: statsOpen, packets: packetsOpen, monitor: monitorOpen };
+const openCard = (name: MapCard): void => void (cardsOpen[name].value = true);
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError, mismatch } = daemon;
 const { stationPick, pickingTab } = picks;
 const { selected, focus } = cards;
@@ -94,11 +102,11 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           @pick="picks.onPick"
           @move="objects.move"
           @download="panel.show('settings')"
-          @stats="statsOpen = true"
-          @monitor="monitorOpen = true"
+          @card="openCard"
           @replay="(open) => (replayOpen = open)"
         />
-        <StatsCard v-if="statsOpen" :packets="packets" :movable="!layout.phone.value" @close="statsOpen = false" />
+        <StatsCard v-if="statsShown" :packets="packets" :movable="!layout.phone.value" @close="statsOpen = false" />
+        <PacketsCard v-if="packetsShown" :packets="packets" :movable="!layout.phone.value" @close="packetsOpen = false" />
         <MonitorCard v-if="monitorShown" :movable="!layout.phone.value" @close="monitorOpen = false" />
         <SetupGuide />
         <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="picks.cancel" />

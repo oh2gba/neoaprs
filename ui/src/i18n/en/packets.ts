@@ -3,6 +3,7 @@ export const packets = {
   "packets.filter": "Filter",
   "packets.filter_title": "Call, text, kind",
   "packets.about_label": "About the packets",
+  "packets.card_label": "Packets card",
   "packets.about1": "Every packet heard (in) or sent by you (out), newest first, as it went over the air.",
   "packets.about2": "Click a packet to see what NeoAPRS made of it.",
   "packets.filter_label": "Filter the packets",

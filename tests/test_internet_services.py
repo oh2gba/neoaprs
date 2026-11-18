@@ -46,6 +46,7 @@ async def test_the_igate_puts_a_packet_of_the_radio_on_the_server_and_not_the_sa
     w.igate.on_packet(internet(heard))
     w.igate.on_packet(replace(heard, via="dummy"))
     assert w.igate.gated == 1 and w.igate.dropped["not_air"] == 2, "only the radio's copy was gated, and the other two are counted"
+    assert w.igate.gated_hour.count(w.igate.clock()) == 1, "and counted in the last hour, for the statistics card"
     await w.until_sent(2)
     await idle_for(0.1)
     assert [line for line in server.packets if line.startswith("OH2XYZ-9>")] == ["OH2XYZ-9>APZ123,WIDE1-1*,WIDE2-1,qAO,OH2GBA-10:!6010.00N/02456.00E>Test"]

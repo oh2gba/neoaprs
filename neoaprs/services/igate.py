@@ -31,6 +31,7 @@ from neoaprs.aprsis import FILTER_MOVE_KM, UNVERIFIED, AprsIs, range_filter
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
 from neoaprs.geo import distance_km
+from neoaprs.hourcount import HourCount
 from neoaprs.igaterules import DUPLICATE, FRAME, NOT_AIR, OFFLINE, REASON_WORDS, Dropped, gate_of
 from neoaprs.packet import GATEABLE, DuplicateKey, Packet
 from neoaprs.policy import DIGI_DUPLICATE_SEC
@@ -89,6 +90,7 @@ class Igate:
         self.last_gated_at: datetime | None = None
         self._hour_gated = 0
         self._hour_dropped: Counter[str] = Counter()
+        self.gated_hour = HourCount()                                # what was gated in the last 60 minutes, for the statistics card
         self._summary_due: datetime | None = None
         self._seen: Recent[DuplicateKey] = Recent(duplicate_sec)              # what was gated lately, for the duplicate check
         self.made_up: Callable[[], bool] = lambda: dummy_on(self._config())      # whether a radio that is on only makes up its traffic (a Dummy radio): then nothing of ours goes to APRS-IS, for the position would say a station is on the air that is not
@@ -256,6 +258,7 @@ class Igate:
             return self._drop(OFFLINE)                          # (the connection went down between the check and the write)
         self.gated += 1
         self._hour_gated += 1
+        self.gated_hour.note(now)
         self.last_gated_at = now
         log.debug("igate: gated %s", line.decode("latin-1"))
         self.changed.emit()

@@ -26,7 +26,14 @@ describe("StatsCard", () => {
       attachTo: document.body,
     });
     expect(wrapper.find(".card-head strong").text()).toBe("Statistics");
-    expect(wrapper.findAll("h3.stats-section").map((h) => h.text())).toEqual(["Stations", "Reach", "Packets", "Since NeoAPRS started"]);
+    expect(wrapper.findAll("summary.stats-section").map((h) => h.text())).toEqual([
+      "Stations",
+      "Reach",
+      "Packets",
+      "The last 24 hours",
+      "Sent by us, the last 24 hours",
+      "Since NeoAPRS started",
+    ]);
     const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
     expect(rows["Heard"]).toBe("2");
     expect(rows["Farthest direct"]).toBe("OH2PU-9, 16 km");
@@ -62,29 +69,61 @@ describe("StatsCard", () => {
     expect(heard()).toBe("3");
   });
 
-  it("asks the daemon for the packets by the hour when it opens and every minute, and draws them as bars once they came", async () => {
+  it("asks the daemon for its counts when it opens and every minute, and draws the bars of each radio and the internet once they came, in the empty frame before", async () => {
     const now = shallowRef(NOW);
-    const daemon = fakeDaemon({ stations: stations(), now });
+    const radios = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
+    const daemon = fakeDaemon({ stations: stations(), now, radios });
     const wrapper = mount(StatsCard, { props: { packets: new Map() }, global: withDaemon(daemon) });
-    expect(daemon.send).toHaveBeenCalledWith({ cmd: "packet_history", hours: 24 });
-    expect(wrapper.find(".stats-chart").exists()).toBe(false);
-    daemon.packetHistory.value = {
-      type: "packet_history",
-      hours: 24,
-      call: null,
+    expect(daemon.send).toHaveBeenCalledWith({ cmd: "packet_stats" });
+    expect(wrapper.find(".stats-chart .trend-head").text()).toContain("Packets an hour, the last 24 hours");
+    expect(wrapper.findAll(".stats-chart .trend-bar")).toHaveLength(0);
+    daemon.packetStats.value = {
+      type: "packet_stats",
       start: "2026-10-20T13:00:00Z",
-      counts: Array.from({ length: 24 }, (_, i) => i + 1),
+      hours: 24,
+      heard: [
+        { radio: 1, counts: Array.from({ length: 24 }, (_, i) => i + 1) },
+        { radio: null, counts: Array.from({ length: 24 }, () => 3) },
+      ],
+      sent: [{ radio: 1, beacons: 5, messages: 1, acks: 0, objects: 0, other: 0, repeated: 2 }],
+      packets: 300,
+      frames: 320,
+      repeated_hour: 1,
+      gated_hour: null,
     };
     await wrapper.vm.$nextTick();
-    expect(wrapper.find(".stats-chart .trend-head").text()).toContain("Packets an hour, the last 24 hours");
-    expect(wrapper.findAll(".stats-chart .trend-bar")).toHaveLength(24);
-    expect(wrapper.find(".stats-chart .trend-read").text()).toMatch(/^24 packets\s+\d\d:\d\d:\d\d$/);
+    expect(wrapper.findAll(".stats-chart .trend-bar.series-0")).toHaveLength(24);
+    expect(wrapper.findAll(".stats-chart .trend-bar.series-net")).toHaveLength(24);
+    expect(wrapper.find(".stats-chart .trend-read").text()).toMatch(/^27 packets\s+\d\d:\d\d:\d\d$/);
+    const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
+    expect(rows["FM"]).toBe("300 heard · 8 sent");
+    expect(rows["Internet"]).toBe("72 heard");
+    expect(rows["Beacons"]).toBe("5");
+    expect(wrapper.find("dt .stats-swatch.series-0").exists()).toBe(true);
     now.value = NOW + 30_000;
     await wrapper.vm.$nextTick();
     expect(daemon.send).toHaveBeenCalledTimes(1);
     now.value = NOW + 61_000;
     await wrapper.vm.$nextTick();
     expect(daemon.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("folds a section when its heading is closed, and remembers it in this browser", async () => {
+    const mounted = () =>
+      mount(StatsCard, { props: { packets: new Map() }, global: withDaemon(fakeDaemon({ stations: stations() })), attachTo: document.body });
+    const first = mounted();
+    const reach = () => first.findAll("details.stats-fold").find((d) => d.find("summary").text() === "Reach")?.element as HTMLDetailsElement;
+    expect(reach().open).toBe(true);
+    reach().open = false;
+    reach().dispatchEvent(new Event("toggle"));
+    await first.vm.$nextTick();
+    first.unmount();
+    const again = mounted();
+    const folded = again.findAll("details.stats-fold").map((d) => [d.find("summary").text(), (d.element as HTMLDetailsElement).open]);
+    expect(folded).toContainEqual(["Reach", false]);
+    expect(folded).toContainEqual(["Stations", true]);
+    again.unmount();
+    localStorage.clear();
   });
 
   it("is dragged by its head where moving is on, stays inside the map, remembers where it was left, and moves with Alt and the arrows", async () => {

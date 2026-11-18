@@ -1,7 +1,8 @@
-// The statistics card (components/StatsCard.vue): what the page knows, counted up in a few lines a person would ask for. All of it is made from what the page has already, the station book, the latest packets, the
-// status and the radios' counters; nothing is asked of the daemon. Four sections: the stations (how many, how heard, what they run), how far we reach (the farthest heard direct and on the radio, the digipeaters most
-// used, the ALOHA circle), the packets (the database, the last hour, the busiest station, and the latest 200 by kind and by channel), and the radio since the daemon started. A line with nothing to say is left out, and so is an empty section.
-// The graph of the packets by the hour is the daemon's answer to `packet_history` (`historyPoints` makes the bars of it).
+// The statistics card (components/StatsCard.vue): what the page knows, counted up in a few lines a person would ask for, in sections: the stations (how many, how heard, what they run), how far we reach (the farthest
+// heard direct and on the radio, the digipeaters most used, the ALOHA circle), the packets (the database, the last hour, the five busiest stations, the busiest and the quietest hour of the day, and the latest 200 by kind
+// and by channel), each radio by its name over the last 24 hours, what we sent ourselves, what went through us (the digipeater's copies and the iGate's, the last hour and since the start), and the radios since the
+// daemon started. Most of it is made from what the page has already, the station book, the latest packets, the status and the radios' counters; what the station book cannot say is the daemon's answer to
+// `packet_stats` (lib/packetstats.ts), whose sections and lines keep their shape from before the first answer on. A line with nothing to say is left out, and so is an empty section.
 // Plain functions of what the page has; the words are the `stats.*` messages.
 import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
@@ -13,13 +14,18 @@ import { hasPosition } from "@/lib/stations";
 import { isWeatherStation } from "@/lib/weather";
 import type { Point } from "@/lib/chart";
 import { enabledRadios, type PageRadio } from "@/lib/radios";
-import type { IgateState, MapState, PacketHistoryMessage, PacketRow, StationRow, StatusMessage, TncStats } from "@/protocol/protocol";
+import { channelLines, dayHourLines, ownLines, throughLines } from "@/lib/packetstats";
+import type { IgateState, MapState, PacketHistoryMessage, PacketRow, PacketStatsMessage, StationRow, StatusMessage, TncStats } from "@/protocol/protocol";
 
-interface StatLine {
+export interface StatLine {
   label: MessageId;
   /** what the label's message takes ("Latest {n} by kind") */
   params?: Record<string, string | number>;
   value: string;
+  /** the colour of the line's part of the graph (a radio's, the internet's: lib/packetstats.ts) */
+  tone?: string;
+  /** what tells the line from the others of its label (a radio's line: its channel's key, `radio-1`, `is`); else the label does */
+  key?: string;
 }
 
 export interface StatSection {
@@ -38,10 +44,13 @@ export interface StatsInput {
   map: MapState | null;
   aging: Aging;
   now: number;
+  /** the daemon's answer to `packet_stats`; null until one came */
+  packetStats: PacketStatsMessage | null;
 }
 
-/** How many of a list are named: the devices most run, the digipeaters most used. */
+/** How many of a list are named: the devices most run, the digipeaters most used; the busiest stations. */
 const TOP = 3;
+const BUSIEST = 5;
 const KINDS = ["position", "message", "object", "item", "status", "other", "undecoded"] as const satisfies readonly PacketRow["kind"][];
 
 const whole = (n: number): string => formatNumber(n, 0);
@@ -49,11 +58,11 @@ const whole = (n: number): string => formatNumber(n, 0);
 const heard = (row: StationRow): boolean => !row.is_me && !row.own;
 const isStation = (row: StationRow): boolean => row.kind === "station" && heard(row);
 
-/** "OH2RCH-2 (120), OH2RCH-1 (45)": the `TOP` most counted, the most first, ties by the name. */
-function topText(counts: ReadonlyMap<string, number>): string {
+/** "OH2RCH-2 (120), OH2RCH-1 (45)": the `top` most counted, the most first, ties by the name. */
+function topText(counts: ReadonlyMap<string, number>, top = TOP): string {
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, TOP)
+    .slice(0, top)
     .map(([name, n]) => t("stats.counted", { name, n: whole(n) }))
     .join(", ");
 }
@@ -148,11 +157,11 @@ function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly P
 function packetLines(rows: readonly StationRow[], status: StatusMessage | null): StatLine[] {
   const stations = rows.filter(heard);
   const hour = stations.reduce((sum, row) => sum + row.packets_hour, 0);
-  const busiest = stations.filter((row) => row.packets_hour > 0).sort((a, b) => b.packets_hour - a.packets_hour || a.call.localeCompare(b.call))[0];
+  const busiest = new Map(stations.filter((row) => row.packets_hour > 0).map((row) => [row.call, row.packets_hour] as const));
   return [
     ...line("stats.packets_total", status === null ? null : whole(status.packets)),
     ...line("stats.packets_hour", whole(hour)),
-    ...line("stats.busiest", busiest === undefined ? null : t("stats.busiest_value", { call: busiest.call, n: whole(busiest.packets_hour) })),
+    ...line("stats.busiest", busiest.size > 0 ? topText(busiest, BUSIEST) : "–"),
   ];
 }
 
@@ -165,8 +174,7 @@ function radioTotals(counted: readonly TncStats[]): Totals | null {
   return { frames_in: sum("frames_in"), rejected: sum("rejected"), bytes_in: sum("bytes_in"), bytes_out: sum("bytes_out"), digipeated: sum("digipeated") };
 }
 
-function radioLines(status: StatusMessage | null, counted: readonly TncStats[], igate: IgateState | null, now: number): StatLine[] {
-  const stats = radioTotals(counted);
+function sinceLines(status: StatusMessage | null, stats: Totals | null, now: number): StatLine[] {
   return [
     ...line("stats.running", status === null ? null : ageText(status.started_at, now)),
     ...line(
@@ -174,8 +182,6 @@ function radioLines(status: StatusMessage | null, counted: readonly TncStats[], 
       stats === null ? null : stats.rejected > 0 ? t("stats.frames_value", { n: whole(stats.frames_in), bad: whole(stats.rejected) }) : whole(stats.frames_in),
     ),
     ...line("stats.bytes", stats === null ? null : t("stats.in_out", { in: bytesText(stats.bytes_in), out: bytesText(stats.bytes_out) })),
-    ...some("stats.digipeated", stats?.digipeated ?? 0),
-    ...line("stats.gated", igate !== null && igate.enabled ? whole(igate.gated) : null),
   ];
 }
 
@@ -183,12 +189,24 @@ function radioLines(status: StatusMessage | null, counted: readonly TncStats[], 
 export function mapStats(input: StatsInput): StatSection[] {
   const rows = [...input.stations.values()];
   const radios = input.radios;
-  const counted = enabledRadios(radios).map((radio) => radio.row.stats);
+  const totals = radioTotals(enabledRadios(radios).map((radio) => radio.row.stats));
+  const day = input.packetStats;
+  const igate = input.igate;
   const sections: StatSection[] = [
     { title: "stats.section.stations", lines: stationLines(rows, input.aging, input.now) },
     { title: "stats.section.reach", lines: reachLines(rows, input.map, radios) },
-    { title: "stats.section.packets", lines: [...packetLines(rows, input.status), ...latestLines(input.packets, radios)] },
-    { title: "stats.section.radio", lines: radioLines(input.status, counted, input.igate, input.now) },
+    { title: "stats.section.packets", lines: [...packetLines(rows, input.status), ...dayHourLines(day), ...latestLines(input.packets, radios)] },
+    { title: "stats.section.day", lines: channelLines(day, radios, igate?.enabled ?? false) },
+    { title: "stats.section.own", lines: ownLines(day) },
+    {
+      title: "stats.section.through",
+      lines: throughLines(day, {
+        repeated: totals?.digipeated ?? 0,
+        gated: igate !== null && igate.enabled ? igate.gated : null,
+        digipeater: enabledRadios(radios).some((radio) => radio.row.choices.digipeat === true),
+      }),
+    },
+    { title: "stats.section.radio", lines: sinceLines(input.status, totals, input.now) },
   ];
   return sections.filter((section) => section.lines.length > 0);
 }

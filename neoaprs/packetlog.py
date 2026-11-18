@@ -19,6 +19,7 @@ from .dblog import DbLog
 from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
+from .packetstats import PacketCounts
 from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_by_radio, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since,
                         position_packets, prune_packets_slice, radio_position_packets, radio_routes, recent_packets, station_positions, station_readings, station_traffic, upsert_station, window_packets)
 from .radiospec import RadioHeard, RadioId
@@ -107,6 +108,11 @@ class PacketLog(DbLog):
         super().__init__(db, clock, log, "the packet log could not be read")
         self._dirty: dict[str, Station] = {}           # the stations that changed since the last flush, by call, each the live object (its row is made when it is written)
         self._history: dict[tuple[datetime, bool], tuple[datetime, dict[datetime, int]]] = {}       # (since, internet) -> (when counted, the counts): the answer for all stations
+        self.stats = PacketCounts(db, clock)             # the statistics card's counts, on the same database
+
+    def use(self, db: Db) -> None:
+        super().use(db)
+        self.stats.use(db)
 
     # ---- appends: nobody waits
     def append(self, packet: Packet) -> bool:
@@ -287,6 +293,7 @@ class PacketLog(DbLog):
         self._dirty = {call: station for call, station in self._dirty.items() if call == keep_call}
         gone = await self._write(lambda conn: delete_heard(conn, keep_call), -1, "the heard packets could not be forgotten")
         self._history.clear()
+        self.stats.clear()
         return gone
 
     async def prune(self, keep_days: int, internet_keep_days: int | None = None) -> int:

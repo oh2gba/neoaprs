@@ -151,7 +151,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-62 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+63 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -461,6 +461,11 @@ Asks how many packets were heard (not sent by us) in each of the last `hours` ho
 | `hours` | integer |  | how far back to go: 24 for a day, 168 for a week (>= 1, <= 168) |
 | `call` | string \| null | optional | only the packets whose sender (the source of the frame heard) is this station, as the `stations` topic has it; absent or null for every packet heard (default `null`; max 64 chars, min 1 chars) |
 
+### `packet_stats`
+
+Asks for what the statistics card counts from the packet log: the packets heard by the hour by radio, what went out on each radio, the packets that came by several ways and the copies sent and gated
+in the last hour. Answered with a `packet_stats` message to the page that asked.
+
 ### `position_history`
 
 Asks where the stations were in the last `hours` hours, for the replay of the map. Answered with a `position_history` message to the page that asked, or an `error` for hours out of range.
@@ -750,7 +755,7 @@ a page that shows it asks again when the row changes.
 
 ## Server to client
 
-21 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+22 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -873,6 +878,23 @@ it counts what has come since the top of the hour.
 | `start` | time |  | the top of the first hour counted, UTC |
 | `counts` | integer[] |  | the packets heard in each hour from `start`, the oldest first (an hour with none is 0) |
 
+### `packet_stats`
+
+The answer to `packet_stats`. The packets heard (not sent by us; none from APRS-IS while `igate/enabled` is off) by the hour of the clock over the week the log keeps, or since its oldest packet when that is
+younger, for each radio and the internet that heard any, the running hour last; what went out and the packets heard more than once over the last 24 hours; the copies of the last 60 minutes. Hours that
+are over are counted once; the answer is at most a minute behind.
+
+| field | type | | description |
+|---|---|---|---|
+| `start` | time |  | the top of the first hour counted, UTC |
+| `hours` | integer |  | how many hours each list of `heard` has: from `start` to the running one (>= 1, <= 168) |
+| `heard` | ChannelHours[] |  | by radio, in the order of their ids, the internet last; one that heard nothing in the span is left out |
+| `sent` | RadioSent[] |  | by radio, in the order of their ids; one that sent nothing in the last 24 hours is left out |
+| `packets` | integer |  | the packets the radios heard in the last 24 hours, a packet heard by several ways counted once (the same source, destination and information field within a minute of the clock) (>= 0) |
+| `frames` | integer |  | the frames those packets came in: `frames` less `packets` is how many came again by another way (>= 0) |
+| `repeated_hour` | integer |  | the copies the digipeater sent in the last 60 minutes (>= 0) |
+| `gated_hour` | integer \| null |  | the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/enabled` is off |
+
 ### `position_history`
 
 The positions of the stations over the span asked for, the answer to `position_history`, from the packet log: every position heard in it (a station's own, or the one inside a third-party packet), the
@@ -970,7 +992,7 @@ How `find_radio` goes, to the page that asked.
 
 ### `station_alert`
 
-An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the pop-up, the browser tab, as its own choice says) and shows it in its toast.
+An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the notification, the browser tab, as its own choice says) and shows it in its toast.
 
 | field | type | | description |
 |---|---|---|---|
@@ -1449,6 +1471,15 @@ The radio's sound card's own levels (the radio's `tx_card` and `rx_card` set the
 | `tx` | integer \| null |  | the card's playback level in percent, what the radio is given to transmit (ALSA's Speaker, PCM or Master control; the playing device's master volume on Windows); null where the card has no such control, the radio has no sound card or its card was never read (>= 0, <= 100) |
 | `rx` | integer \| null |  | the card's capture level in percent, what it takes from the radio (ALSA's Capture or Mic control; the recording device's master volume on Windows); null as `tx` (>= 0, <= 100) |
 | `read` | boolean |  | the levels are the card's: its card was read in this run of the daemon, or there is nothing to wait for (this system has no mixer, the radio has no sound card of its own); false while an enabled radio's card was not read yet, and for a radio that is off and was never read in this run. While false the page draws neither the slider nor the modem's - and +, so that the row has one shape from its first paint |
+
+### ChannelHours
+
+The packets one radio, or the internet, heard in each hour.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer \| null |  | the radio that heard them, its id (a row of the topic `radios`, a removed one too); null for the internet |
+| `counts` | integer[] |  | the packets heard in each hour from the message's `start`, the oldest first, `hours` of them (an hour with none is 0) |
 
 ### DfBearingValues
 
@@ -1961,6 +1992,20 @@ times a second; a change of the settings tells the topic whole.
 | `modem` | ModemState \| null |  | its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio |
 | `card` | CardLevelsRow |  | its sound card's own levels, read every two seconds while it runs and kept as read last while it is stopped or its card cannot be read; both null for a radio without a sound card of its own and before its card was read (`read` says which) |
 | `holds` | RadioHold[] |  | the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none |
+
+### RadioSent
+
+What went out on one radio in the last 24 hours, by what it was.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio` | integer \| null |  | the radio it went out on, its id; null for what went to the internet |
+| `beacons` | integer |  | our positions and statuses (>= 0) |
+| `messages` | integer |  | our messages, bulletins among them (>= 0) |
+| `acks` | integer |  | our acks and rejects of messages (>= 0) |
+| `objects` | integer |  | our objects and items (>= 0) |
+| `other` | integer |  | anything else of ours: answers to queries, telemetry (>= 0) |
+| `repeated` | integer |  | the digipeater's copies of other stations' packets (>= 0) |
 
 ### RadioStatusState
 

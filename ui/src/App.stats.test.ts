@@ -33,8 +33,18 @@ describe("App: the statistics card", () => {
     );
     expect(rows["Heard"]).toBe("3");
     expect(rows["In the database"]).toBe("2");
-    expect(socket.sent).toContainEqual({ cmd: "packet_history", hours: 24 });
-    socket.say({ type: "packet_history", hours: 24, call: null, start: "2026-10-20T13:00:00Z", counts: Array.from({ length: 24 }, () => 3) });
+    expect(socket.sent).toContainEqual({ cmd: "packet_stats" });
+    socket.say({
+      type: "packet_stats",
+      start: "2026-10-20T13:00:00Z",
+      hours: 24,
+      heard: [{ radio: null, counts: Array.from({ length: 24 }, () => 3) }],
+      sent: [],
+      packets: 0,
+      frames: 0,
+      repeated_hour: 0,
+      gated_hour: null,
+    });
     await flushPromises();
     expect(document.querySelectorAll(".statscard .trend-bar")).toHaveLength(24);
     expect(localStorage.getItem("NeoAPRS.stats")).toBe("open");

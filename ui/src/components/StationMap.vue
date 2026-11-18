@@ -6,7 +6,7 @@
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
-// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, Statistics, which opens the statistics card over the map (`stats`, the page's), Monitor, a radio's scope as a card (`monitor`, the page's; one for each radio that has a scope, the radio chosen kept by composables/useScopeLooks.ts), and Replay, which plays back how the stations moved over the last hours, the live markers, tracks and route giving way to it while it is open (`replay`, the page's: composables/useMapReplay.ts, components/ReplayBar.vue). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
+// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, Statistics, which opens the statistics card over the map, Packets, the Packets tab as a card over the map, Monitor, a radio's scope as a card (each a `card` of the page's, by its name; Monitor one for each radio that has a scope, the radio chosen kept by composables/useScopeLooks.ts), and Replay, which plays back how the stations moved over the last hours, the live markers, tracks and route giving way to it while it is open (`replay`, the page's: composables/useMapReplay.ts, components/ReplayBar.vue). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
 // a range (PHG or RNG), has a pale circle of that range under the markers too (lib/rangecircles.ts), one at a time; when such a station is picked the map fits itself to the whole circle instead of flying to the point (composables/useMapFollow.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix (composables/useFollowMe.ts).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
@@ -35,7 +35,7 @@ import { addRouteLayers, ROUTE_SOURCE } from "@/lib/routelayers";
 import { addTrackLayers, setTrackData } from "@/lib/tracklayers";
 import { placePin } from "@/lib/pinmarker";
 import MapMenu from "@/components/MapMenu.vue";
-import { useMapMenu } from "@/composables/useMapMenu";
+import { useMapMenu, type MapCard } from "@/composables/useMapMenu";
 import ReplayBar from "@/components/ReplayBar.vue";
 import { useMapReplay } from "@/composables/useMapReplay";
 import { hasPosition } from "@/lib/stations";
@@ -64,8 +64,7 @@ const emit = defineEmits<{
   download: [];
   pick: [at: Home];
   move: [call: string, lat: number, lon: number];
-  stats: [];
-  monitor: [];
+  card: [name: MapCard];
   replay: [open: boolean];
 }>();
 const [page, radios] = [useDaemonContext(), useRadios()]; // (the radios: the hover card names each radio by its name where radios are named)
@@ -207,7 +206,7 @@ function pickAt(lat: number, lon: number): void {
 }
 
 const mapMenu = useMapMenu(host, () => ({ map, hover }));
-const menuEvents = { close: () => mapMenu.close(), stats: () => emit("stats"), monitor: () => emit("monitor"), replay: () => emit("replay", true) };
+const menuEvents = { close: () => mapMenu.close(), card: (name: MapCard) => emit("card", name), replay: () => emit("replay", true) };
 const replay = useMapReplay(() => ({ map, engine, open: props.replay }));
 
 function showLabels(): void {

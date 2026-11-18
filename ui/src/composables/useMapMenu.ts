@@ -5,6 +5,9 @@ import { ref, type Ref } from "vue";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useLongPress } from "@/composables/useLongPress";
 
+/** A card the map's menu opens over the map: the statistics card, the Packets card, the monitor (composables/useAppShell.ts keeps which are open). */
+export type MapCard = "stats" | "packets" | "monitor";
+
 export interface MapMenuState {
   lat: number;
   lon: number;

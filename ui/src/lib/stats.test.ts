@@ -92,6 +92,7 @@ const input = (extra = {}) => ({
   map: mapState({ aloha: [{ radio: 1, km: 37.4 }] }),
   aging: AGING,
   now: NOW,
+  packetStats: null,
   ...extra,
 });
 
@@ -131,11 +132,13 @@ describe("the statistics of the map", () => {
     ]);
   });
 
-  it("counts the packets: the database, the last hour, the busiest station, and the latest heard by kind, channel, direct share and rate", () => {
+  it("counts the packets: the database, the last hour, the five busiest stations, and the latest heard by kind, channel, direct share and rate", () => {
     expect(lines(mapStats(input()), "stats.section.packets")).toEqual([
       "stats.packets_total=1234",
       "stats.packets_hour=26",
-      "stats.busiest=OH2PU-9, 12 in the last hour",
+      "stats.busiest=OH2PU-9 (12), OH2MUI (6), OH2NET (4), OH2RDG (2), CLUB (1)",
+      "stats.busiest_hour=–",
+      "stats.quietest_hour=–",
       "stats.by_kind=3 positions · 1 messages · 1 status",
       "stats.by_channel=4 FM · 1 Internet",
       "stats.direct_share=50 % of those on the radio",
@@ -148,14 +151,13 @@ describe("the statistics of the map", () => {
     ).toEqual({ n: "5" });
   });
 
-  it("says what the radio did since the daemon started", () => {
+  it("says what the radio did since the daemon started, and what went through us since then", () => {
     const stats = lineStats({ frames_in: 2500, rejected: 12, bytes_in: 300_000, bytes_out: 2048, digipeated: 9 });
-    expect(lines(mapStats(input({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { stats })) })), "stats.section.radio")).toEqual([
-      "stats.running=3 h",
-      "stats.frames=2500, 12 unreadable",
-      "stats.bytes=293.0 kB · 2.0 kB",
-      "stats.digipeated=9",
-      "stats.gated=42",
+    const sections = mapStats(input({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { stats })) }));
+    expect(lines(sections, "stats.section.radio")).toEqual(["stats.running=3 h", "stats.frames=2500, 12 unreadable", "stats.bytes=293.0 kB · 2.0 kB"]);
+    expect(lines(sections, "stats.section.through")).toEqual([
+      "stats.digipeated=– in the last hour · 9 since the start",
+      "stats.gated=– in the last hour · 42 since the start",
     ]);
   });
 
@@ -167,19 +169,29 @@ describe("the statistics of the map", () => {
       "stats.running=3 h",
       "stats.frames=120, 3 unreadable",
       "stats.bytes=2.0 kB · 1.0 kB",
-      "stats.digipeated=3",
-      "stats.gated=42",
     ]);
+    expect(lines(mapStats(input({ radios: radiosOf(fm(), hf) })), "stats.section.through")[0]).toBe("stats.digipeated=– in the last hour · 3 since the start");
     expect(lines(mapStats(input({ radios: radiosOf(fm({ enabled: false, state: "stopped" }), hf) })), "stats.section.radio").slice(0, 2)).toEqual([
       "stats.running=3 h",
       "stats.frames=20, 3 unreadable",
     ]);
   });
 
-  it("leaves out a line with nothing to say, and a section with no line", () => {
-    const sections = mapStats({ stations: new Map(), packets: new Map(), status: null, radios: [], igate: null, map: null, aging: AGING, now: NOW });
-    expect(sections.map((s) => s.title)).toEqual(["stats.section.stations", "stats.section.packets"]);
-    expect(lines(sections, "stats.section.packets")).toEqual(["stats.packets_hour=0"]);
+  it("leaves out a line that cannot apply and a section with no line, and keeps the lines of the daemon's counts, a dash before its answer", () => {
+    const sections = mapStats({
+      stations: new Map(),
+      packets: new Map(),
+      status: null,
+      radios: [],
+      igate: null,
+      map: null,
+      aging: AGING,
+      now: NOW,
+      packetStats: null,
+    });
+    expect(sections.map((s) => s.title)).toEqual(["stats.section.stations", "stats.section.packets", "stats.section.day", "stats.section.own"]);
+    expect(lines(sections, "stats.section.packets")).toEqual(["stats.packets_hour=0", "stats.busiest=–", "stats.busiest_hour=–", "stats.quietest_hour=–"]);
+    expect(lines(sections, "stats.section.day")).toEqual(["stats.copies=–"]);
     expect(lines(sections, "stats.section.stations")).toEqual([
       "stats.stations=0",
       "stats.on_map=0",
@@ -188,8 +200,8 @@ describe("the statistics of the map", () => {
       "stats.igates=0",
     ]);
     const quiet = mapStats(input({ igate: igateState({ enabled: false }), packets: new Map([["6", packet(6, { direction: "out" })]]) }));
-    expect(lines(quiet, "stats.section.radio").some((l) => l.startsWith("stats.gated"))).toBe(false);
-    expect(lines(quiet, "stats.section.packets")).toHaveLength(3);
+    expect(lines(quiet, "stats.section.through").some((l) => l.startsWith("stats.gated"))).toBe(false);
+    expect(lines(quiet, "stats.section.packets")).toHaveLength(5);
   });
 
   it("gives no rate for packets that came within a minute, and no direct share without a packet on the radio", () => {
@@ -250,11 +262,11 @@ describe("the statistics of the map with several radios", () => {
   });
 
   it("adds up the counters of the radios that are on, and not of one that is off", () => {
-    expect(lines(mapStats(input({ radios: SIX })), "stats.section.radio").slice(1, 4)).toEqual([
+    expect(lines(mapStats(input({ radios: SIX })), "stats.section.radio").slice(1, 3)).toEqual([
       "stats.frames=130, 4 unreadable",
       "stats.bytes=5.0 kB · 5.0 kB",
-      "stats.digipeated=3",
     ]);
+    expect(lines(mapStats(input({ radios: SIX })), "stats.section.through")[0]).toBe("stats.digipeated=– in the last hour · 3 since the start");
   });
 
   it("never adds two radios together, even where they are said by the same word (a removed radio beside the live one that took its place)", () => {

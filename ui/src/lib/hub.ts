@@ -30,6 +30,7 @@ import type {
   StationTrafficMessage,
   WeatherSeriesMessage,
   PacketHistoryMessage,
+  PacketStatsMessage,
   PositionHistoryMessage,
 } from "@/protocol/protocol";
 import { MESSAGE_TYPES, TOPIC_NAMES } from "@/protocol/lists";
@@ -45,6 +46,7 @@ const CHECK_MS = 5000;
 const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   weather_series: "weatherSeries",
   packet_history: "packetHistory",
+  packet_stats: "packetStats",
   speed_series: "speedSeries",
   signal_series: "signalSeries",
   station_traffic: "stationTraffic",
@@ -69,6 +71,7 @@ export interface Store {
   error(message: ErrorMessage): void;
   weatherSeries(message: WeatherSeriesMessage): void;
   packetHistory(message: PacketHistoryMessage): void;
+  packetStats(message: PacketStatsMessage): void;
   speedSeries(message: SpeedSeriesMessage): void;
   signalSeries(message: SignalSeriesMessage): void;
   stationTraffic(message: StationTrafficMessage): void;

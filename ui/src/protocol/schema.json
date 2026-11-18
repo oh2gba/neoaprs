@@ -507,6 +507,36 @@
       "title": "CardLevelsRow",
       "type": "object"
     },
+    "ChannelHours": {
+      "additionalProperties": false,
+      "description": "The packets one radio, or the internet, heard in each hour.",
+      "properties": {
+        "radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio that heard them, its id (a row of the topic `radios`, a removed one too); null for the internet"
+        },
+        "counts": {
+          "description": "the packets heard in each hour from the message's `start`, the oldest first, `hours` of them (an hour with none is 0)",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "radio",
+        "counts"
+      ],
+      "title": "ChannelHours",
+      "type": "object"
+    },
     "CheckUpdate": {
       "additionalProperties": false,
       "description": "Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked.",
@@ -3928,6 +3958,95 @@
       "title": "PacketRow",
       "type": "object"
     },
+    "PacketStats": {
+      "additionalProperties": false,
+      "description": "Asks for what the statistics card counts from the packet log: the packets heard by the hour by radio, what went out on each radio, the packets that came by several ways and the copies sent and gated\nin the last hour. Answered with a `packet_stats` message to the page that asked.",
+      "properties": {
+        "cmd": {
+          "const": "packet_stats",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "PacketStatsCommand",
+      "type": "object"
+    },
+    "PacketStatsMsg": {
+      "additionalProperties": false,
+      "description": "The answer to `packet_stats`. The packets heard (not sent by us; none from APRS-IS while `igate/enabled` is off) by the hour of the clock over the week the log keeps, or since its oldest packet when that is\nyounger, for each radio and the internet that heard any, the running hour last; what went out and the packets heard more than once over the last 24 hours; the copies of the last 60 minutes. Hours that\nare over are counted once; the answer is at most a minute behind.",
+      "properties": {
+        "type": {
+          "const": "packet_stats",
+          "type": "string"
+        },
+        "start": {
+          "description": "the top of the first hour counted, UTC",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "hours": {
+          "description": "how many hours each list of `heard` has: from `start` to the running one",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "heard": {
+          "description": "by radio, in the order of their ids, the internet last; one that heard nothing in the span is left out",
+          "items": {
+            "$ref": "#/$defs/ChannelHours"
+          },
+          "type": "array"
+        },
+        "sent": {
+          "description": "by radio, in the order of their ids; one that sent nothing in the last 24 hours is left out",
+          "items": {
+            "$ref": "#/$defs/RadioSent"
+          },
+          "type": "array"
+        },
+        "packets": {
+          "description": "the packets the radios heard in the last 24 hours, a packet heard by several ways counted once (the same source, destination and information field within a minute of the clock)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "frames": {
+          "description": "the frames those packets came in: `frames` less `packets` is how many came again by another way",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "repeated_hour": {
+          "description": "the copies the digipeater sent in the last 60 minutes",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gated_hour": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/enabled` is off"
+        }
+      },
+      "required": [
+        "type",
+        "start",
+        "hours",
+        "heard",
+        "sent",
+        "packets",
+        "frames",
+        "repeated_hour",
+        "gated_hour"
+      ],
+      "title": "PacketStatsMessage",
+      "type": "object"
+    },
     "PageError": {
       "additionalProperties": false,
       "description": "An error that happened in the page itself (the browser's script, not a refusal of the daemon): the daemon writes it to its log as a warning, `page error (vue) on page BUILD: MESSAGE | FIRST LINE OF THE STACK`, and keeps the latest 100 for\nthe support bundle. At most 20 of a connection are logged in a minute; the rest are counted in one line. No answer: a page that cannot report must not fail twice.",
@@ -5532,6 +5651,64 @@
       "title": "RadioSearchMessage",
       "type": "object"
     },
+    "RadioSent": {
+      "additionalProperties": false,
+      "description": "What went out on one radio in the last 24 hours, by what it was.",
+      "properties": {
+        "radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio it went out on, its id; null for what went to the internet"
+        },
+        "beacons": {
+          "description": "our positions and statuses",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "messages": {
+          "description": "our messages, bulletins among them",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "acks": {
+          "description": "our acks and rejects of messages",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "objects": {
+          "description": "our objects and items",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "other": {
+          "description": "anything else of ours: answers to queries, telemetry",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "repeated": {
+          "description": "the digipeater's copies of other stations' packets",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "radio",
+        "beacons",
+        "messages",
+        "acks",
+        "objects",
+        "other",
+        "repeated"
+      ],
+      "title": "RadioSent",
+      "type": "object"
+    },
     "RadioStatusState": {
       "additionalProperties": false,
       "description": "The status report on the radio (services/rigstatus.py `on_radio`).",
@@ -6443,7 +6620,7 @@
     },
     "StationAlertMsg": {
       "additionalProperties": false,
-      "description": "An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the pop-up, the browser tab, as its own choice says) and shows it in its toast.",
+      "description": "An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the notification, the browser tab, as its own choice says) and shows it in its toast.",
       "properties": {
         "type": {
           "const": "station_alert",
@@ -8573,6 +8750,7 @@
           "object_set": "#/$defs/ObjectSet",
           "overheard_delete": "#/$defs/OverheardDelete",
           "packet_history": "#/$defs/PacketHistory",
+          "packet_stats": "#/$defs/PacketStats",
           "page_error": "#/$defs/PageError",
           "ping": "#/$defs/Ping",
           "position_history": "#/$defs/PositionHistory",
@@ -8709,6 +8887,9 @@
           "$ref": "#/$defs/PacketHistory"
         },
         {
+          "$ref": "#/$defs/PacketStats"
+        },
+        {
           "$ref": "#/$defs/PositionHistory"
         },
         {
@@ -8808,6 +8989,7 @@
           "error": "#/$defs/Error",
           "hello": "#/$defs/Hello",
           "packet_history": "#/$defs/PacketHistoryMsg",
+          "packet_stats": "#/$defs/PacketStatsMsg",
           "patch": "#/$defs/PatchMsg",
           "pong": "#/$defs/Pong",
           "ports": "#/$defs/PortsMsg",
@@ -8855,6 +9037,9 @@
         },
         {
           "$ref": "#/$defs/PacketHistoryMsg"
+        },
+        {
+          "$ref": "#/$defs/PacketStatsMsg"
         },
         {
           "$ref": "#/$defs/PositionHistoryMsg"

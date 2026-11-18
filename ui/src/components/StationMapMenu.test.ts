@@ -45,31 +45,31 @@ beforeEach(() => {
 afterEach(() => document.body.replaceChildren());
 
 describe("the menu of the map", () => {
-  it("opens on a right-click where the pointer is, with the place to copy, the locator, then Statistics and Replay (no Monitor without a scope)", async () => {
+  it("opens on a right-click where the pointer is, with the place to copy, the locator, then Statistics, Packets and Replay (no Monitor without a scope)", async () => {
     await mounted();
     const { originalEvent, preventDefault } = rightClick(60.17345, 24.94123);
     await flushPromises();
     expect(preventDefault).toHaveBeenCalled();
     expect(originalEvent.defaultPrevented).toBe(true);
     expect(menu()).not.toBeNull();
-    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "replay"]);
-    expect(items().map((b) => b.textContent?.trim())).toEqual(["Copy position 60.17345, 24.94123", "Copy locator KP20le", "Statistics", "Replay"]);
+    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "packets", "replay"]);
+    expect(items().map((b) => b.textContent?.trim())).toEqual(["Copy position 60.17345, 24.94123", "Copy locator KP20le", "Statistics", "Packets", "Replay"]);
     expect(menu()?.style.left).toBe("300px");
     expect(menu()?.style.top).toBe("200px");
     expect(document.activeElement).toBe(item("position"));
   });
 
-  it("has Monitor between Statistics and Replay while the Mercury radio has a scope, and says so to the page when it is chosen", async () => {
+  it("has Monitor between Packets and Replay while the Mercury radio has a scope, and says so to the page when it is chosen", async () => {
     const { wrapper, daemon } = await mounted();
     const modem = modemState({ scope: true });
     await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { modem })) });
     rightClick(60.17345, 24.94123);
     await flushPromises();
-    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "monitor", "replay"]);
+    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "packets", "monitor", "replay"]);
     expect(item("monitor")?.textContent?.trim()).toBe("Monitor");
     item("monitor")?.click();
     await flushPromises();
-    expect(wrapper.emitted("monitor")).toEqual([[]]);
+    expect(wrapper.emitted("card")).toEqual([["monitor"]]);
     expect(menu()).toBeNull();
   });
 
@@ -92,14 +92,19 @@ describe("the menu of the map", () => {
     vi.unstubAllGlobals();
   });
 
-  it("asks the page for the statistics card with its last item, and closes", async () => {
+  it("asks the page for the statistics card and for the Packets card, and closes", async () => {
     const { wrapper } = await mounted();
     rightClick(60.1, 24.9);
     await flushPromises();
     item("stats")?.click();
     await flushPromises();
-    expect(wrapper.emitted("stats")).toEqual([[]]);
+    expect(wrapper.emitted("card")).toEqual([["stats"]]);
     expect(menu()).toBeNull();
+    rightClick(60.1, 24.9);
+    await flushPromises();
+    item("packets")?.click();
+    await flushPromises();
+    expect(wrapper.emitted("card")).toEqual([["stats"], ["packets"]]);
     expect(wrapper.emitted("select")).toBeUndefined(); // (the cards stay)
   });
 
@@ -155,7 +160,7 @@ describe("the menu's Monitor by radio", () => {
     );
     rightClick(60.17345, 24.94123);
     await flushPromises();
-    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "monitor", "monitor", "replay"]);
+    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "packets", "monitor", "monitor", "replay"]);
     expect(monitors().map((b) => [b.dataset.radio, b.textContent?.trim()])).toEqual([
       ["3", "20 m: Monitor"],
       ["4", "40 m: Monitor"],
@@ -188,11 +193,13 @@ describe("the menu's Monitor by radio", () => {
     key("ArrowUp");
     expect(document.activeElement).toBe(monitors()[0]);
     key("ArrowUp");
+    expect(document.activeElement).toBe(item("packets"));
+    key("ArrowUp");
     expect(document.activeElement).toBe(item("stats"));
     monitors()[1]?.click();
     await flushPromises();
     expect(daemon.scope.monitor.value).toBe(5);
-    expect(wrapper.emitted("monitor")).toEqual([[]]);
+    expect(wrapper.emitted("card")).toEqual([["monitor"]]);
     expect(menu()).toBeNull();
   });
 

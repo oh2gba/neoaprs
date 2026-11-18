@@ -247,20 +247,20 @@
 }
 
 /* the statistics card (components/StatsCard.vue): at the bottom right of the map, clear of the station cards at the left, with its sections; dragged by its head (on a tablet and a desktop), it stands where it was put, in the map's pixels */
-:is(.statscard, .monitorcard) {
+:is(.statscard, .packetscard, .monitorcard) {
   left: auto;
   right: 10px;
 }
-:is(.statscard, .monitorcard).moved {
+:is(.statscard, .packetscard, .monitorcard).moved {
   right: auto;
   bottom: auto;
   max-height: calc(100% - 20px);
 }
-:is(.statscard, .monitorcard).movable .card-head {
+:is(.statscard, .packetscard, .monitorcard).movable .card-head {
   cursor: grab;
   touch-action: none;
 }
-:is(.statscard, .monitorcard).movable .card-head button {
+:is(.statscard, .packetscard, .monitorcard).movable .card-head button {
   cursor: pointer;
 }
 .stats-section {
@@ -273,7 +273,8 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.stats-section:first-child {
+/* the first section has no line above it when nothing stands before it; under the graph it has its line, as every other section has */
+.stats-fold:first-child > summary.stats-section {
   margin-top: 2px;
   border-top: 0;
 }
@@ -282,6 +283,40 @@
 }
 .stats-chart {
   padding: 0 10px 4px;
+}
+/* each section of the statistics card is a heading that folds what is under it (DisclosureBox): the heading's look above, with the browser's own arrow */
+.stats-fold > summary.stats-section {
+  display: list-item;
+  cursor: pointer;
+}
+/* the colour of a radio's part of the bars of the statistics card, in the order of the radios, and the internet's; the line of each radio has its mark */
+.series-0 {
+  --tone: var(--accent);
+}
+.series-1 {
+  --tone: var(--wx-wind);
+}
+.series-2 {
+  --tone: var(--wx-pressure);
+}
+.series-3 {
+  --tone: var(--speed);
+}
+.series-4 {
+  --tone: var(--signal);
+}
+.series-5 {
+  --tone: var(--wx-temp);
+}
+.series-net {
+  --tone: var(--muted);
+}
+.stats-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  background: var(--tone);
 }
 /* the monitor card (components/MonitorCard.vue) has the statistics card's place and moving above, wider, with the scope's picture at a height of its own, so that nothing moves while it draws; both open, it stands left of it */
 .monitorcard {
@@ -303,8 +338,26 @@
 .monitorcard .field {
   margin: 0 10px 10px;
 }
-.app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)) .monitorcard:not(.moved) {
+/* the Packets card (components/PacketsCard.vue) has the statistics card's place and moving, the monitor's width (the Packets tab's table fits it) and a height of its own, so that it does not grow as the packets come;
+   the tab's log in it fills it and scrolls its lines */
+.packetscard {
+  width: min(560px, calc(100% - 20px));
+  height: min(480px, calc(100% - 114px));
+}
+.packetscard .card-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* open together, the cards stand side by side from the right edge of the map: the statistics card, the Packets card, the monitor (composables/useAppShell.ts opens one only where the map has room for it) */
+.app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)) :is(.packetscard, .monitorcard):not(.moved) {
   right: 360px;
+}
+.app:not(.size-phone) .mapwrap:has(.packetscard:not(.moved)) .monitorcard:not(.moved) {
+  right: 580px;
+}
+.app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)):has(.packetscard:not(.moved)) .monitorcard:not(.moved) {
+  right: 930px;
 }
 /* the packets of the station by the hour on its card (components/StationPackets.vue), the speed of a moving one (components/StationSpeed.vue) and the signal of one that was measured (components/StationSignal.vue), between the facts and Details */
 .station-packets,

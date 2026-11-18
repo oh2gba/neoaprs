@@ -26,6 +26,7 @@ import type {
   IgateState,
   MapState,
   PacketHistoryMessage,
+  PacketStatsMessage,
   PacketRow,
   PortsMessage,
   PositionHistoryMessage,
@@ -97,6 +98,8 @@ export interface DaemonContext {
   weatherSeries: Read<ReadonlyMap<string, WeatherSeriesMessage>>;
   /** the packets heard by the hour, the answer to the statistics card's `packet_history`; null until one came */
   packetHistory: Read<PacketHistoryMessage | null>;
+  /** what the statistics card counts from the packet log, the answer to its `packet_stats`; null until one came */
+  packetStats: Read<PacketStatsMessage | null>;
   /** the packets of each station by the hour, the answers to the station cards' `packet_history` with a call */
   packetHistoryByCall: Read<ReadonlyMap<string, PacketHistoryMessage>>;
   /** the speeds of each moving station, the answers to the station cards' `speed_series` */

@@ -97,6 +97,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     local: part(over.local, true),
     weatherSeries: part(over.weatherSeries, new Map()),
     packetHistory: part(over.packetHistory, null),
+    packetStats: part(over.packetStats, null),
     packetHistoryByCall: part(over.packetHistoryByCall, new Map()),
     speedSeriesByCall: part(over.speedSeriesByCall, new Map()),
     signalSeriesByCall: part(over.signalSeriesByCall, new Map()),

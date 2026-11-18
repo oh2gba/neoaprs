@@ -1,7 +1,7 @@
 // The page put together (App.vue is its layout): the daemon, the clock, the settings that apply as they are changed, the first-run guide, the panel, the tabs' models, the station cards, the statistics card, the replay of the map and the places picked on the map, with what the shell itself decides:
 // the ports are asked for each time the daemon is connected, the guide opens once by itself when the daemon has no call, the steps of an update are open on purpose and go with the newer version, the notes of the version that runs open from Settings and from the
 // line shown once after an update (useWhatsNew), and the mail of the header opens the tab that has the messages not seen. What the panes share is provided to them (`useDaemonContext`); what only the layout needs is returned.
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, ref, watch, type Ref, type WritableComputedRef } from "vue";
 import { provideDaemon } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useBulletins } from "@/composables/useBulletins";
@@ -139,24 +139,40 @@ function useUpdateWindows(daemon: ReturnType<typeof useDaemon>) {
   return { updateOpen, newer, whatsNew };
 }
 
-/** The width of the map that has room for the monitor card (560 px) and the statistics card (340 px) side by side, with the margins between and beside them (card.css: the monitor card stands 360 px from the right edge). */
-const ROOM_FOR_BOTH_PX = 920;
+/** The cards that open over the map from its menu, in the order they stand from the map's right edge, and the width of each (card.css); each takes its width and the margin at its right. */
+const OVERLAYS = ["stats", "packets", "monitor"] as const;
+type Overlay = (typeof OVERLAYS)[number];
+const CARD_PX: Record<Overlay, number> = { stats: 340, packets: 560, monitor: 560 };
+const MARGIN_PX = 10;
 
-/** What opens over the map from its menu: the statistics card, the monitor and the replay; closeOverlays closes them (an Esc the station cards pass on) and says whether one was open. Where the map has no room for the two cards
- * side by side (a phone, a narrow map) opening one closes the other, and a monitor that is remembered open beside a statistics card that is too is not shown until there is room or the statistics card is closed. */
+/** What opens over the map from its menu: the statistics card, the Packets card, the monitor and the replay; closeOverlays closes them (an Esc the station cards pass on) and says whether one was open. The cards
+ * stand side by side where the map has room for them; where it has not (a phone, a narrow map) opening one closes those that leave it no room, and of those remembered open the ones that do not fit beside the
+ * ones before them (in OVERLAYS' order) are not shown until there is room or those are closed. The monitor is shown only while a radio has a scope. */
 function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<Ref<boolean>>, mapWidth: Readonly<Ref<number>>) {
-  // the statistics card over the map (components/StatsCard.vue): open from the map's menu, closed by its cross or Esc, and remembered by this browser
-  const statsOpen = usePersistedFlag("stats", ["open", "closed"], false);
-  // the monitor card over the map (components/MonitorCard.vue, the HF radio's scope larger): the statistics card's way, remembered by this browser too
-  const monitorOpen = usePersistedFlag("monitor", ["open", "closed"], false);
-  const roomForBoth = computed(() => !phone.value && (mapWidth.value === 0 || mapWidth.value >= ROOM_FOR_BOTH_PX)); // (a width not yet measured is room)
-  const monitorShown = computed(() => monitorOpen.value && scopeAvailable.value && (roomForBoth.value || !statsOpen.value));
-  watch(statsOpen, (on) => {
-    if (on && !roomForBoth.value && monitorOpen.value && scopeAvailable.value) monitorOpen.value = false;
-  });
-  watch(monitorOpen, (on) => {
-    if (on && !roomForBoth.value) statsOpen.value = false;
-  });
+  // each open from the map's menu, closed by its cross or Esc, and remembered by this browser
+  const open: Record<Overlay, WritableComputedRef<boolean>> = {
+    stats: usePersistedFlag("stats", ["open", "closed"], false), // components/StatsCard.vue
+    packets: usePersistedFlag("packets", ["open", "closed"], false), // components/PacketsCard.vue
+    monitor: usePersistedFlag("monitor", ["open", "closed"], false), // components/MonitorCard.vue, a radio's scope larger
+  };
+  const available = (card: Overlay): boolean => card !== "monitor" || scopeAvailable.value;
+  /** Whether the cards fit side by side: one always does; a width not yet measured is room. */
+  const fits = (cards: readonly Overlay[]): boolean =>
+    cards.length <= 1 || (!phone.value && (mapWidth.value === 0 || cards.reduce((px, card) => px + CARD_PX[card] + MARGIN_PX, 0) <= mapWidth.value));
+  const shown = computed(() =>
+    OVERLAYS.reduce<Overlay[]>((kept, card) => (open[card].value && available(card) && fits([...kept, card]) ? [...kept, card] : kept), []),
+  );
+  for (const card of OVERLAYS) {
+    watch(open[card], (on) => {
+      if (!on) return;
+      const kept: Overlay[] = [card];
+      for (const other of OVERLAYS) {
+        if (other === card || !open[other].value || !available(other)) continue;
+        if (fits([...kept, other])) kept.push(other);
+        else open[other].value = false;
+      }
+    });
+  }
   // the replay of the map (components/StationMap.vue runs it, composables/useMapReplay.ts): open from the map's menu, closed by its cross or Esc, the statistics card's way; not remembered, it is a look back for now
   const replayOpen = ref(false);
   const closeReplay = (): boolean => {
@@ -165,12 +181,21 @@ function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<
     return was;
   };
   const closeOverlays = (): boolean => {
-    const [stats, monitor] = [statsOpen.value, monitorShown.value]; // (what is shown now: a card that is hidden stays remembered)
-    statsOpen.value = false;
-    if (monitor) monitorOpen.value = false;
-    return [stats, monitor, closeReplay()].some(Boolean);
+    const cards = shown.value; // (what is shown now: a card that is hidden stays remembered)
+    for (const card of cards) open[card].value = false;
+    return [cards.length > 0, closeReplay()].some(Boolean);
   };
-  return { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays };
+  const isShown = (card: Overlay) => computed(() => shown.value.includes(card));
+  return {
+    statsOpen: open.stats,
+    packetsOpen: open.packets,
+    monitorOpen: open.monitor,
+    statsShown: isShown("stats"),
+    packetsShown: isShown("packets"),
+    monitorShown: isShown("monitor"),
+    replayOpen,
+    closeOverlays,
+  };
 }
 
 /** What the radios hold now, and which of them there are, as one text: the list of ports and sound cards says who holds each, so it is asked again when this changes. */
@@ -242,8 +267,8 @@ export function useAppShell() {
   const level = useRadioAsks("radio_level", send, connection, pageVisible(), () => null);
   const mapwrap = ref<HTMLElement | null>(null); // (the map's box, bound by App.vue)
   const mapWidth = useElementWidth(mapwrap);
-  const { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays } = useMapOverlays(scope.available, layout.phone, mapWidth);
-  const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, closeOverlays);
+  const overlays = useMapOverlays(scope.available, layout.phone, mapWidth); // (what opens over the map from its menu: the cards, the replay)
+  const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, overlays.closeOverlays);
   // the notices (a toast that is no error), what the menu of a row of the Stations table sends or copies, and the alerts set on stations that fire
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);
@@ -272,11 +297,8 @@ export function useAppShell() {
     picks,
     layout,
     cards,
-    statsOpen,
-    monitorOpen,
-    monitorShown,
+    ...overlays,
     mapwrap,
-    replayOpen,
     guide,
     panel,
     notice,

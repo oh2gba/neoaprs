@@ -1,10 +1,10 @@
 """The packets by the hour on the wire: the command that asks how many were heard in each of the last hours and the message that answers it, for the graph of the statistics card (all the packets heard) and
-for the one of a station's card (the packets of that station); the speeds a moving station reported, for the speed graph of its card; and the readings of a station's signal, for the signal graph of its card. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+for the one of a station's card (the packets of that station); what the statistics card counts beyond that (the packets by radio, what we sent, the packets that came by several ways); the speeds a moving station reported, for the speed graph of its card; and the readings of a station's signal, for the signal graph of its card. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
 from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import HISTORY_MAX_HOURS, Call, Iso, _Command, _Message
+from .wirebase import HISTORY_MAX_HOURS, Call, Iso, _Command, _Message, _Model
 
 
 class PacketHistory(_Command):
@@ -57,3 +57,41 @@ class SignalSeriesMsg(_Message):
     call: str = Field(description="the station asked about: a page with several cards open tells the answers apart by it")
     hours: int = Field(ge=1, le=HISTORY_MAX_HOURS, description="the hours asked for")
     points: list[tuple[Iso, float | None, float | None]] = Field(description="[time, snr_db, rssi_dbm] for each packet with a reading, the oldest first; a reading the radio does not give is null (Mercury gives the SNR alone)")
+
+
+class PacketStats(_Command):
+    """Asks for what the statistics card counts from the packet log: the packets heard by the hour by radio, what went out on each radio, the packets that came by several ways and the copies sent and gated
+    in the last hour. Answered with a `packet_stats` message to the page that asked."""
+    cmd: Literal["packet_stats"]
+
+
+class ChannelHours(_Model):
+    """The packets one radio, or the internet, heard in each hour."""
+    radio: int | None = Field(description="the radio that heard them, its id (a row of the topic `radios`, a removed one too); null for the internet")
+    counts: list[int] = Field(description="the packets heard in each hour from the message's `start`, the oldest first, `hours` of them (an hour with none is 0)")
+
+
+class RadioSent(_Model):
+    """What went out on one radio in the last 24 hours, by what it was."""
+    radio: int | None = Field(description="the radio it went out on, its id; null for what went to the internet")
+    beacons: int = Field(ge=0, description="our positions and statuses")
+    messages: int = Field(ge=0, description="our messages, bulletins among them")
+    acks: int = Field(ge=0, description="our acks and rejects of messages")
+    objects: int = Field(ge=0, description="our objects and items")
+    other: int = Field(ge=0, description="anything else of ours: answers to queries, telemetry")
+    repeated: int = Field(ge=0, description="the digipeater's copies of other stations' packets")
+
+
+class PacketStatsMsg(_Message):
+    """The answer to `packet_stats`. The packets heard (not sent by us; none from APRS-IS while `igate/enabled` is off) by the hour of the clock over the week the log keeps, or since its oldest packet when that is
+    younger, for each radio and the internet that heard any, the running hour last; what went out and the packets heard more than once over the last 24 hours; the copies of the last 60 minutes. Hours that
+    are over are counted once; the answer is at most a minute behind."""
+    type: Literal["packet_stats"]
+    start: Iso = Field(description="the top of the first hour counted, UTC")
+    hours: int = Field(ge=1, le=HISTORY_MAX_HOURS, description="how many hours each list of `heard` has: from `start` to the running one")
+    heard: list[ChannelHours] = Field(description="by radio, in the order of their ids, the internet last; one that heard nothing in the span is left out")
+    sent: list[RadioSent] = Field(description="by radio, in the order of their ids; one that sent nothing in the last 24 hours is left out")
+    packets: int = Field(ge=0, description="the packets the radios heard in the last 24 hours, a packet heard by several ways counted once (the same source, destination and information field within a minute of the clock)")
+    frames: int = Field(ge=0, description="the frames those packets came in: `frames` less `packets` is how many came again by another way")
+    repeated_hour: int = Field(ge=0, description="the copies the digipeater sent in the last 60 minutes")
+    gated_hour: int | None = Field(description="the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/enabled` is off")

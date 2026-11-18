@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import PacketsLog from "@/components/PacketsLog.vue";
+import { usePacketFilter } from "@/composables/usePacketFilter";
 import { PACKETS_TABLE } from "@/lib/layout";
 import { cssRule } from "@/test/css";
 import type { RadioRow } from "@/protocol/protocol";
@@ -21,6 +22,10 @@ const packets = new Map([
   ],
   ["3", packet(3, { source: "OH2GBA", direction: "out", tnc2: "OH2GBA>APZNEO:!6007.47N/02429.82E- our beacon" })],
 ]);
+
+afterEach(() => {
+  usePacketFilter().value = "";
+});
 
 describe("PacketsLog", () => {
   it("has the (i) of the tab at the top, which says what the list is", async () => {
@@ -141,6 +146,16 @@ describe("PacketsLog", () => {
     await wrapper.find("input").setValue("on air");
     expect(wrapper.findAll("tbody tr")).toHaveLength(1);
     expect(wrapper.find(".foot").text()).toBe("1 of 3 packets");
+  });
+
+  it("has one filter for the page: the tab and the card over the map show the same list, and one opened later starts with the text", async () => {
+    const tab = mount(PacketsLog, { props: { packets } });
+    const card = mount(PacketsLog, { props: { packets } });
+    await tab.find("input").setValue("on air");
+    expect(card.find(".foot").text()).toBe("1 of 3 packets");
+    expect((card.find("input").element as HTMLInputElement).value).toBe("on air");
+    const later = mount(PacketsLog, { props: { packets } });
+    expect(later.find(".foot").text()).toBe("1 of 3 packets");
   });
 
   it("shows a readable summary on a click, the raw JSON only under Raw, and hides both on the next", async () => {

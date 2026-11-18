@@ -89,6 +89,7 @@ function memory() {
     status: () => seen.statuses++,
     error: (e) => seen.errors.push(e),
     packetHistory: () => undefined,
+    packetStats: () => undefined,
     speedSeries: () => undefined,
     signalSeries: () => undefined,
     stationTraffic: () => undefined,

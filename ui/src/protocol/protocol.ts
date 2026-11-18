@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -140,6 +140,14 @@ export interface CardLevelsRow {
   rx: number | null;
   /** the levels are the card's: its card was read in this run of the daemon, or there is nothing to wait for (this system has no mixer, the radio has no sound card of its own); false while an enabled radio's card was not read yet, and for a radio that is off and was never read in this run. While false the page draws neither the slider nor the modem's - and +, so that the row has one shape from its first paint */
   read: boolean;
+}
+
+/** The packets one radio, or the internet, heard in each hour. */
+export interface ChannelHours {
+  /** the radio that heard them, its id (a row of the topic `radios`, a removed one too); null for the internet */
+  radio: number | null;
+  /** the packets heard in each hour from the message's `start`, the oldest first, `hours` of them (an hour with none is 0) */
+  counts: number[];
 }
 
 /** Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked. */
@@ -960,6 +968,32 @@ export interface PacketRow {
   decoded: DecodedPosition | DecodedMessage | DecodedObject | DecodedItem | DecodedStatus | DecodedTelemetry | DecodedOther | DecodedUndecoded;
 }
 
+/** Asks for what the statistics card counts from the packet log: the packets heard by the hour by radio, what went out on each radio, the packets that came by several ways and the copies sent and gated in the last hour. Answered with a `packet_stats` message to the page that asked. */
+export interface PacketStatsCommand {
+  cmd: "packet_stats";
+}
+
+/** The answer to `packet_stats`. The packets heard (not sent by us; none from APRS-IS while `igate/enabled` is off) by the hour of the clock over the week the log keeps, or since its oldest packet when that is younger, for each radio and the internet that heard any, the running hour last; what went out and the packets heard more than once over the last 24 hours; the copies of the last 60 minutes. Hours that are over are counted once; the answer is at most a minute behind. */
+export interface PacketStatsMessage {
+  type: "packet_stats";
+  /** the top of the first hour counted, UTC */
+  start: string;
+  /** how many hours each list of `heard` has: from `start` to the running one */
+  hours: number;
+  /** by radio, in the order of their ids, the internet last; one that heard nothing in the span is left out */
+  heard: ChannelHours[];
+  /** by radio, in the order of their ids; one that sent nothing in the last 24 hours is left out */
+  sent: RadioSent[];
+  /** the packets the radios heard in the last 24 hours, a packet heard by several ways counted once (the same source, destination and information field within a minute of the clock) */
+  packets: number;
+  /** the frames those packets came in: `frames` less `packets` is how many came again by another way */
+  frames: number;
+  /** the copies the digipeater sent in the last 60 minutes */
+  repeated_hour: number;
+  /** the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/enabled` is off */
+  gated_hour: number | null;
+}
+
 /** An error that happened in the page itself (the browser's script, not a refusal of the daemon): the daemon writes it to its log as a warning, `page error (vue) on page BUILD: MESSAGE | FIRST LINE OF THE STACK`, and keeps the latest 100 for the support bundle. At most 20 of a connection are logged in a minute; the rest are counted in one line. No answer: a page that cannot report must not fail twice. */
 export interface PageErrorCommand {
   cmd: "page_error";
@@ -1379,6 +1413,24 @@ export interface RadioSearchMessage {
   radio_type: string;
 }
 
+/** What went out on one radio in the last 24 hours, by what it was. */
+export interface RadioSent {
+  /** the radio it went out on, its id; null for what went to the internet */
+  radio: number | null;
+  /** our positions and statuses */
+  beacons: number;
+  /** our messages, bulletins among them */
+  messages: number;
+  /** our acks and rejects of messages */
+  acks: number;
+  /** our objects and items */
+  objects: number;
+  /** anything else of ours: answers to queries, telemetry */
+  other: number;
+  /** the digipeater's copies of other stations' packets */
+  repeated: number;
+}
+
 /** The status report on the radio (services/rigstatus.py `on_radio`). */
 export interface RadioStatusState {
   /** when our status report last went out on it; null before one */
@@ -1634,7 +1686,7 @@ export interface StateMessage {
   value: unknown;
 }
 
-/** An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the pop-up, the browser tab, as its own choice says) and shows it in its toast. */
+/** An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the notification, the browser tab, as its own choice says) and shows it in its toast. */
 export interface StationAlertMessage {
   type: "station_alert";
   /** the station */

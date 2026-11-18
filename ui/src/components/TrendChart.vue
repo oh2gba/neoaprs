@@ -1,10 +1,24 @@
 <script setup lang="ts">
-// One trend graph as inline SVG in the page's colours (the weather card's, the packets by the hour of the statistics card and of a station's card, the speed of a moving station and the signal of a station): a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
+// One trend graph as inline SVG in the page's colours (the weather card's, the packets by the hour of the statistics card and of a station's card, the speed of a moving station and the signal of a station): a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain, or bars stacked of several parts: the packets of each radio), labelled ticks on both axes, and a line under the pointer with the value and the
 // time of the nearest observation in the heading (the latest observation's while no pointer is on the graph: the heading has the same shape either way, so nothing moves). The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
 // stations can be compared: it is rounded to round numbers as the graph's own range would be.
 import { computed, ref } from "vue";
 import { formatNumber, t } from "@/i18n";
-import { bandPath, bars, extent, lastIndex, linePath, linearScale, nearestIndex, niceTicks, tickDecimals, timeTicks, usualGap, type Point } from "@/lib/chart";
+import {
+  bandPath,
+  bars,
+  extent,
+  stackedBars,
+  lastIndex,
+  linePath,
+  linearScale,
+  nearestIndex,
+  niceTicks,
+  tickDecimals,
+  timeTicks,
+  usualGap,
+  type Point,
+} from "@/lib/chart";
 import { clockText } from "@/lib/format";
 
 const props = withDefaults(
@@ -20,6 +34,8 @@ const props = withDefaults(
     band?: readonly Point[];
     /** the series is drawn as bars (rain) */
     asBars?: boolean;
+    /** with `asBars`, the parts each bar is made of, stacked in this order from the bottom, each in its tone (a class that sets `--tone`): the packets of each radio; `main` is their sum */
+    parts?: readonly { key: string; tone: string; points: readonly Point[] }[];
     /** the value axis includes 0 (wind, rain) */
     zero?: boolean;
     tone: "temp" | "pressure" | "wind" | "rain" | "packets" | "speed" | "signal";
@@ -30,7 +46,7 @@ const props = withDefaults(
     /** how a value is written in the heading and on the axis (the locale's number by default) */
     numberText?: (value: number, decimals: number) => string;
   }>(),
-  { band: () => [], asBars: false, zero: false, range: undefined, valueDecimals: 1, numberText: formatNumber },
+  { band: () => [], asBars: false, parts: () => [], zero: false, range: undefined, valueDecimals: 1, numberText: formatNumber },
 );
 
 const W = 320;
@@ -60,7 +76,8 @@ const barWidth = computed(() => {
   const span = Math.max(1, props.to - props.from);
   return Math.min(8, Math.max(1.5, (usualGap(props.main) * 0.8 * (RIGHT - LEFT)) / span));
 });
-const columns = computed(() => (props.asBars ? bars(props.main, x.value, y.value, 0, barWidth.value) : []));
+const columns = computed(() => (props.asBars && props.parts.length === 0 ? bars(props.main, x.value, y.value, 0, barWidth.value) : []));
+const stacked = computed(() => (props.asBars ? stackedBars(props.parts, x.value, y.value, barWidth.value) : []));
 
 const shown = computed(() => {
   const i = hover.value ?? lastIndex(props.main);
@@ -112,6 +129,7 @@ function move(event: PointerEvent): void {
       <path v-if="upper" class="trend-upper" :d="upper" />
       <path v-if="line" class="trend-line" :d="line" />
       <rect v-for="(b, i) in columns" :key="i" class="trend-bar" :x="b.x" :y="b.y" :width="b.width" :height="b.height" />
+      <rect v-for="(b, i) in stacked" :key="`s${i}`" class="trend-bar" :class="b.tone" :x="b.x" :y="b.y" :width="b.width" :height="b.height" />
       <g v-if="shown && shown.hovered">
         <line class="trend-cursor" :x1="shown.at" :x2="shown.at" :y1="TOP" :y2="BOTTOM" />
         <circle class="trend-dot" :cx="shown.at" :cy="shown.top" r="3" />

@@ -197,6 +197,25 @@ export function bars(points: readonly Point[], x: (t: number) => number, y: (v: 
   });
 }
 
+/** Bars of several series stacked one on the other, the first at the bottom, each part with its series' tone; the series have their points at the same times (the hours of a graph). A part of 0 is left out. */
+export function stackedBars(
+  series: readonly { tone: string; points: readonly Point[] }[],
+  x: (t: number) => number,
+  y: (v: number) => number,
+  width: number,
+): (Bar & { tone: string })[] {
+  const below = new Map<number, number>();
+  return series.flatMap(({ tone, points }) =>
+    points.flatMap((p) => {
+      if (p.v === null || p.v <= 0) return [];
+      const base = below.get(p.t) ?? 0;
+      below.set(p.t, base + p.v);
+      const [top, floor] = [y(base + p.v), y(base)];
+      return [{ x: x(p.t) - width / 2, y: top, width, height: floor - top, tone }];
+    }),
+  );
+}
+
 /** The index of the point nearest in time to `t` among those that have a value; -1 when none has. */
 export function nearestIndex(points: readonly Point[], t: number): number {
   let best = -1;

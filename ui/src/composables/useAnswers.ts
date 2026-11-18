@@ -1,9 +1,10 @@
-// The latest answer to each command that is answered with a message of its own, kept for the component that asked: `weather_series`, `packet_history`, `speed_series`, `signal_series`, `station_traffic`, `position_history`, `alert_test`, `list_ports`, `find_radio`, `update_check` and `release_notes`; and what the hub (lib/hub.ts) does with them: keep the message.
+// The latest answer to each command that is answered with a message of its own, kept for the component that asked: `weather_series`, `packet_history`, `packet_stats`, `speed_series`, `signal_series`, `station_traffic`, `position_history`, `alert_test`, `list_ports`, `find_radio`, `update_check` and `release_notes`; and what the hub (lib/hub.ts) does with them: keep the message.
 import { shallowRef } from "vue";
 import type { Store } from "@/lib/hub";
 import type {
   AlertResultMessage,
   PacketHistoryMessage,
+  PacketStatsMessage,
   PortsMessage,
   PositionHistoryMessage,
   RadioSearchMessage,
@@ -19,6 +20,7 @@ type AnswerHandlers = Pick<
   Store,
   | "weatherSeries"
   | "packetHistory"
+  | "packetStats"
   | "speedSeries"
   | "signalSeries"
   | "stationTraffic"
@@ -37,6 +39,8 @@ export function useAnswers() {
   /** The packets heard by the hour, for the graph of the statistics card (the answer that has no call: every packet heard). */
   const packetHistory = shallowRef<PacketHistoryMessage | null>(null);
   /** The packets of one station by the hour, the latest answer for each: several station cards are open at once, each with its own graph. */
+  /** What the statistics card counts from the packet log beyond the station book (`packet_stats`). */
+  const packetStats = shallowRef<PacketStatsMessage | null>(null);
   const packetHistoryByCall = shallowRef<ReadonlyMap<string, PacketHistoryMessage>>(new Map());
   /** The speeds of each moving station whose card is open, the latest answer for each. */
   const speedSeriesByCall = shallowRef<ReadonlyMap<string, SpeedSeriesMessage>>(new Map());
@@ -65,6 +69,7 @@ export function useAnswers() {
       if (message.call === null) packetHistory.value = message;
       else packetHistoryByCall.value = new Map(packetHistoryByCall.value).set(message.call, message);
     },
+    packetStats: (message) => (packetStats.value = message),
     speedSeries: (message) => (speedSeriesByCall.value = new Map(speedSeriesByCall.value).set(message.call, message)),
     signalSeries: (message) => (signalSeriesByCall.value = new Map(signalSeriesByCall.value).set(message.call, message)),
     stationTraffic: (message) => (stationTrafficByCall.value = new Map(stationTrafficByCall.value).set(message.call, message)),
@@ -83,6 +88,7 @@ export function useAnswers() {
     weatherSeries,
     weatherSeriesByCall,
     packetHistory,
+    packetStats,
     packetHistoryByCall,
     speedSeriesByCall,
     signalSeriesByCall,

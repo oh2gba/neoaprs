@@ -1,4 +1,4 @@
-"""The handlers of the commands that are answered from the daemon's logs with a message of their own (neoaprs/web/dispatch.py): the weather of a station, the packets heard by the hour, the speeds of a
+"""The handlers of the commands that are answered from the daemon's logs with a message of their own (neoaprs/web/dispatch.py): the weather of a station, the packets heard by the hour, what the statistics card counts beyond them, the speeds of a
 station, the readings of a station's signal, the latest packets of a station and the positions of the replay of the map; and a station's track as its row has it. Importing this module registers them; neoaprs/web/handlers.py imports it, so importing that one registers every handler.
 """
 from datetime import timedelta
@@ -7,7 +7,7 @@ from neoaprs.clock import iso
 from neoaprs.geo import Thinning
 
 from .dispatch import Ctx, UserError, command
-from .historywire import PacketHistory, SignalSeries, SpeedSeries
+from .historywire import PacketHistory, PacketStats, SignalSeries, SpeedSeries
 from .packetwire import TRAFFIC_KEPT, StationTraffic
 from .replaywire import PositionHistory
 from .stationwire import StationTrack
@@ -30,6 +30,20 @@ async def packet_history(ctx: Ctx, cmd: PacketHistory) -> None:
     counted = await ctx.ctl.packetlog.heard_by_hour(start, cmd.call, internet=ctx.ctl.config.igate_enabled)
     counts = [counted.get(start + timedelta(hours=i), 0) for i in range(cmd.hours)]
     ctx.conn.send({"type": "packet_history", "hours": cmd.hours, "call": cmd.call, "start": iso(start), "counts": counts})
+
+
+@command(PacketStats)
+async def packet_stats(ctx: Ctx, cmd: PacketStats) -> None:
+    """What the statistics card counts from the packet log (neoaprs/packetstats.py), and what the iGate gated in the last hour while it is on."""
+    config, igate = ctx.ctl.config, ctx.ctl.igate
+    counted = await ctx.ctl.packetlog.stats.counted(config.station_call, config.igate_enabled)
+    heard = sorted(counted.heard.items(), key=lambda item: (item[0] is None, item[0] or 0))
+    sent = sorted(counted.sent.items(), key=lambda item: (item[0] is None, item[0] or 0))
+    ctx.conn.send({"type": "packet_stats", "start": iso(counted.start), "hours": counted.hours, "heard": [{"radio": radio, "counts": counts} for radio, counts in heard],
+                   "sent": [{"radio": radio, "beacons": kinds["beacon"], "messages": kinds["message"], "acks": kinds["ack"], "objects": kinds["object"], "other": kinds["other"], "repeated": kinds["repeated"]}
+                            for radio, kinds in sent],
+                   "packets": counted.packets, "frames": counted.frames, "repeated_hour": counted.repeated_hour,
+                   "gated_hour": igate.gated_hour.count(ctx.ctl.clock()) if config.igate_enabled else None})
 
 
 @command(SpeedSeries)
