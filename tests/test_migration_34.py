@@ -169,10 +169,10 @@ def test_the_runner_takes_a_file_of_version_33_to_34_with_a_copy_first(tmp_path:
     clock = FixedClock()
     path = version_33(tmp_path / DB_NAME, Old((fm(1), hf(2)), chosen=2), clock)
     s = opened(path, clock)
-    assert s.version() == SCHEMA_VERSION == 34 and [(n, name, sha) for n, name, sha, *_ in s.history()][-1] == (34, "_v34", GOLDEN[34])
+    assert s.version() == SCHEMA_VERSION >= 34 and [(n, name, sha) for n, name, sha, *_ in s.history()][33] == (34, "_v34", GOLDEN[34])
     assert places(s.db) == {2: 1, 1: 2}
     s.close()
-    assert [p.name for p in (tmp_path / "backup").glob("premigrate-*.sqlite")] == ["premigrate-v33-to-v34-20261021-120000.sqlite"]
+    assert [p.name for p in (tmp_path / "backup").glob("premigrate-*.sqlite")] == [f"premigrate-v33-to-v{SCHEMA_VERSION}-20261021-120000.sqlite"]
 
 
 def test_a_file_of_0_18_2_comes_through_steps_27_to_34_in_one_start_with_one_copy(tmp_path: Path) -> None:
@@ -181,8 +181,8 @@ def test_a_file_of_0_18_2_comes_through_steps_27_to_34_in_one_start_with_one_cop
     path = tmp_path / DB_NAME
     version_twenty_six(path, clock, {"station/call": "OH2GBA", "tnc/profile": "kiss", "hf/enabled": "true", "hf/profile": "dummy-hf", "status/last_sent_at": LAST})
     s = opened(path, clock)
-    assert s.version() == 34 and [n for n, *_ in s.history()][-8:] == list(range(27, 35))
+    assert s.version() == SCHEMA_VERSION and [n for n, *_ in s.history()][26:34] == list(range(27, 35))
     assert each(s.db) == dict.fromkeys(KEYS, {1: "true"}) and places(s.db) == {1: 1, 2: 2}
     assert settings(s.db)["status/last_sent_at"] == LAST and "radio/2/status_last_sent_at" not in settings(s.db) and settings(s.db)["email/radio"] == "1"
     s.close()
-    assert [p.name for p in (tmp_path / "backup").glob("premigrate-*.sqlite")] == ["premigrate-v26-to-v34-20261021-120000.sqlite"], "one copy, of the file as 0.18.2 left it"
+    assert [p.name for p in (tmp_path / "backup").glob("premigrate-*.sqlite")] == [f"premigrate-v26-to-v{SCHEMA_VERSION}-20261021-120000.sqlite"], "one copy, of the file as 0.18.2 left it"

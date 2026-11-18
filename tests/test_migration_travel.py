@@ -42,7 +42,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> tuple[dict[str, tuple[str, 
     version_eighteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 20
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][18:] == [(19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][18:] == [(19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     radios = [(int(r), str(k), str(v), int(rev)) for r, k, v, rev in migrated.db.execute("SELECT radio_id, key, value, rev FROM radio_setting ORDER BY radio_id, key")]
     migrated.close()

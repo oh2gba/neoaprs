@@ -458,6 +458,8 @@ new default, which shows `NEOAPRS_TITLE`, counts, with one INFO line in the log;
 
 **No main radio** (migration 34, `neoaprs/migrationsteps34.py`). A bulletin of ours names its radios in `own_bulletin.radios`, as an object does. The step writes the ticks the main radio (`station/main_radio` while it was on and could send, else the first that was) stood for and deletes the setting: the main radio's box first where it was not; the status, Ask around and Local info ticked for it where several radios send (a key a radio already had a row for left, the others unticked, and the main radio ticked while several are on and none of them is); the beacon and every object on it where several are on and none of their radios is; every bulletin on it; where several radios send, `email/radio` the radio 0.20.0 sent a mail on and `objects/send_on`, `bulletins/send_on` the radio a new object and a new bulletin start with. The station's last status stays the station's: a radio with no status of its own counts from it. Any doubt raises, and the file is as it was.
 
+**The map's radius** (migration 35, `neoaprs/migrationsteps35.py`). `map/radius_km` is 10 to 300 km (it was 10 to 1000): a stored radius above 300 becomes 300, with one INFO line in the log; the map file the station has is not touched, and a radius from 10 to 300 stays. The radius sets the detailed map's download, the circle asked of APRS-IS and the default of the objects' QRU box; no station a radio heard is ever cut by it (`tests/test_radius_never_cuts.py`).
+
 ## What the parser reads
 
 `neoaprs/aprs*.py`, tested against captured frames (`tests/fixtures/aprs/`).

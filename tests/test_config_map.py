@@ -10,7 +10,7 @@ def test_the_defaults_are_150_km_zoom_12_and_the_latest_daily_build() -> None:
     assert (DEFAULTS.map_radius_km, DEFAULTS.map_maxzoom, DEFAULTS.map_source) == (150, 12, "")
 
 
-@pytest.mark.parametrize(("key", "good", "bad"), [("map/radius_km", ["10", "150", "1000", " 60 "], ["9", "1001", "0", "-5", "far", "1.5", ""]),
+@pytest.mark.parametrize(("key", "good", "bad"), [("map/radius_km", ["10", "150", "300", " 60 "], ["9", "301", "1000", "0", "-5", "far", "1.5", ""]),
                                                    ("map/maxzoom", ["6", "12", "15"], ["5", "16", "high", ""])])
 def test_the_radius_and_the_zoom_are_whole_numbers_in_their_ranges(key: str, good: list[str], bad: list[str]) -> None:
     for text in good:

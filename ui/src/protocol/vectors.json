@@ -452,7 +452,7 @@
   {"key": "map/radius_km", "input": "10", "ok": true},
   {"key": "map/radius_km", "input": "299", "ok": true},
   {"key": "map/radius_km", "input": "300", "ok": true},
-  {"key": "map/radius_km", "input": "1000", "ok": true},
+  {"key": "map/radius_km", "input": "1000", "ok": false},
   {"key": "map/radius_km", "input": "1001", "ok": false},
   {"key": "map/radius_km", "input": "9999", "ok": false},
   {"key": "map/radius_km", "input": "10000", "ok": false},

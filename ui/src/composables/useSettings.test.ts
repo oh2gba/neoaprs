@@ -69,7 +69,7 @@ describe("useSettings: when a change applies", () => {
     expect(settings.errors["station/lat"]).toBe("Between -90 and 90");
     settings.edit("map/radius_km", "5");
     settings.commit(["map/radius_km"]);
-    expect(settings.errors["map/radius_km"]).toBe("10 to 1000");
+    expect(settings.errors["map/radius_km"]).toBe("10 to 300");
     settings.edit("radio/1/tcp_port", "");
     settings.commit(["radio/1/tcp_port"]);
     expect(settings.errors["radio/1/tcp_port"]).toBe("1 to 65535");
