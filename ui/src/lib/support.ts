@@ -8,7 +8,6 @@ import { sizeOf, type SizeClass } from "@/lib/layout";
 import type { Connection } from "@/lib/hub";
 import type { PageErrorEntry } from "@/lib/pageerrors";
 
-export const SUPPORT_ADDRESS = "neoaprs@oh2gba.eu";
 /** The daemon takes a body of 256 KB at the most; the page keeps under it and cuts the errors, not the facts. */
 export const BODY_MAX_BYTES = 240_000;
 /** The longest note of Send logs; the daemon and the server cut at the same number of characters. */

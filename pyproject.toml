@@ -8,7 +8,7 @@ dynamic = ["version"]                      # the one version is VERSION in neoap
 description = "NeoAPRS: a modern, easy-to-use APRS client with a map, messages and a web page, as a desktop app or a service"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
-authors = [{ name = "OH2GBA", email = "john@oh2gba.eu" }]
+authors = [{ name = "OH2GBA", email = "neo@oh2gba.eu" }]
 requires-python = ">=3.13"
 # What the daemon imports at run time (neoaprs/, the page's server neoaprs/web/ included): the standard library, pyserial for the radio's serial port (neoaprs/serialport.py), Tornado for the page, pydantic for the messages of the page (neoaprs/web/protocol.py), cryptography for the certificates of the secure connection (neoaprs/web/tls.py), and certifi, Mozilla's list of root certificates, trusted beside the system's for every https request NeoAPRS makes (neoaprs/httpstrust.py): a fresh Windows fetches a missing root only when a browser asks for it, so its own list may lack GitHub's.
 dependencies = [

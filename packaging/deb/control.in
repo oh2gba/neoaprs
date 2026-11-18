@@ -1,7 +1,7 @@
 Package: neoaprs
 Version: @DEB_VERSION@
 Architecture: @ARCH@
-Maintainer: OH2GBA <john@oh2gba.eu>
+Maintainer: OH2GBA <neo@oh2gba.eu>
 Installed-Size: @SIZE@
 Depends: libc6 (>= @GLIBC@), libgcc-s1
 Section: hamradio

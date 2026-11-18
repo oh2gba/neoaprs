@@ -63,7 +63,7 @@ describe("the About group", () => {
     expect(license?.attributes("href")).toBe("https://www.gnu.org/licenses/gpl-3.0.html");
     expect(source?.text()).toBe("Source code");
     expect(source?.attributes("href")).toBe("https://github.com/oh2gba/neoaprs");
-    expect(wrapper.findAll("a")).toHaveLength(5); // (the licence, the source, the modem, and the two of the feedback line)
+    expect(wrapper.findAll("a")).toHaveLength(3); // (the licence, the source and the modem)
     for (const link of [license, source]) {
       expect(link?.attributes("target")).toBe("_blank");
       expect(link?.attributes("rel")).toContain("noopener");
@@ -93,7 +93,7 @@ describe("the About group", () => {
     expect(link?.attributes("target")).toBe("_blank");
     expect(link?.attributes("rel")).toContain("noopener");
     expect(wrapper.findAll("p")[3]?.text()).toContain("The modem of a Mercury radio is Mercury");
-    expect(wrapper.findAll("a")).toHaveLength(6);
+    expect(wrapper.findAll("a")).toHaveLength(4);
   });
 
   it("does not name the sound card modem where this installation does not carry it, nor before the status has said", () => {
@@ -101,7 +101,7 @@ describe("the About group", () => {
       expect(wrapper.text()).not.toContain("Dire Wolf");
       expect(wrapper.text()).not.toContain("WB2OSZ");
       expect(wrapper.findAll("p")[4]?.classes()).toContain("muted");
-      expect(wrapper.findAll("a")).toHaveLength(5);
+      expect(wrapper.findAll("a")).toHaveLength(3);
     }
   });
 
@@ -114,14 +114,14 @@ describe("the About group", () => {
 });
 
 describe("the feedback line", () => {
-  it("says ideas and bug reports can also go to GitHub issues or the address, both links, under the thanks line (Send feedback / logs of Help is the way first)", () => {
+  it("sends the reader to the Send feedback / logs button above, as plain text with the button's own label and no link or address, under the thanks line", () => {
     const wrapper = make();
     const paragraphs = wrapper.findAll("p");
     const line = paragraphs[paragraphs.length - 2];
-    expect(line?.text()).toBe("Ideas and bug reports can also go to GitHub issues or neoaprs@oh2gba.eu.");
-    const links = line?.findAll("a");
-    expect(links?.map((a) => a.attributes("href"))).toEqual(["https://github.com/oh2gba/neoaprs/issues", "mailto:neoaprs@oh2gba.eu"]);
-    expect(links?.[0]?.attributes("target")).toBe("_blank");
+    expect(line?.text()).toBe(`Ideas and bug reports: ${en["settings.help.send"]}, above.`);
+    expect(line?.text()).toBe("Ideas and bug reports: Send feedback / logs, above.");
+    expect(line?.findAll("a, button")).toHaveLength(0);
+    expect(wrapper.html()).not.toMatch(/oh2gba\.eu|mailto:|github\.com\/oh2gba\/neoaprs\/issues/);
     expect(wrapper.get("p.muted").element.nextElementSibling).toBe(line?.element);
   });
 });
@@ -140,8 +140,8 @@ describe("the words of the group in every language", () => {
   const english = en as Record<string, unknown>;
   const ids = Object.keys(english).filter((id) => id.startsWith("settings.about."));
 
-  it("has the ten ids of the group in English", () => {
-    expect(ids).toHaveLength(10);
+  it("has the nine ids of the group in English", () => {
+    expect(ids).toHaveLength(9);
   });
 
   for (const locale of LOCALES.filter((l) => l.code !== "en")) {

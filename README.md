@@ -47,7 +47,7 @@ A GPS through gpsd or a serial port. [The radio guide](docs/RADIOS.md) has the s
 
 In the page, *Settings*, *Help*, **Send feedback / logs** sends your words and the logs to the project with one press ([Getting help](docs/manual/support.md)).
 
-Feedback and ideas: [GitHub issues](https://github.com/oh2gba/neoaprs/issues) (preferred) or [neoaprs@oh2gba.eu](mailto:neoaprs@oh2gba.eu).
+Feedback and ideas: the button above first, then [GitHub issues](https://github.com/oh2gba/neoaprs/issues) or [neo@oh2gba.eu](mailto:neo@oh2gba.eu).
 
 ## More
 

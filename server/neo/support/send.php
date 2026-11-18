@@ -27,7 +27,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 
-const SUPPORT_TO       = 'neoaprs@oh2gba.eu';
+const SUPPORT_TO       = 'neo@oh2gba.eu';
 const SUPPORT_FROM     = 'NeoAPRS <noreply@oh2gba.eu>';          // the apex, which the domain's SPF record covers (as the status application's mails)
 const MAX_FILE         = 10 * 1024 * 1024;                        // of the bundle
 const MAX_BODY         = MAX_FILE + 64 * 1024;                    // of the request: the file and the few small fields beside it

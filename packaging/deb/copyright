@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: NeoAPRS
-Upstream-Contact: OH2GBA <john@oh2gba.eu>
+Upstream-Contact: OH2GBA <neo@oh2gba.eu>
 Source: https://github.com/oh2gba/neoaprs
 
 Files: opt/neoaprs/lib/python3.13/site-packages/neoaprs/*

@@ -4,7 +4,7 @@ from datetime import datetime
 from .supportbundle import Member
 from .supportsummary import stamp
 
-MAIL = "neoaprs@oh2gba.eu"
+MAIL = "neo@oh2gba.eu"
 SEND_WORDS = "what you did, what you expected, what happened instead, and roughly when (the time finds it in the log)"
 
 FILE_HELP: dict[str, str] = {

@@ -19,7 +19,7 @@ While it is sent the button reads "Sending…". Then the page says "Sent" with a
 
 ## Saving the file
 
-The last line of the About group, under Help, is **Download logs**. The button reads "Collecting…" while the file is made, and your browser then saves a zip like any download, in its download folder; the line then says "Saved" and the name of the file, which holds your call and the time in UTC. E-mail it to **neoaprs@oh2gba.eu** with a few words, or open an issue on GitHub; both are links in the line above it.
+The last line of the About group, under Help, is **Download logs**. The button reads "Collecting…" while the file is made, and your browser then saves a zip like any download, in its download folder; the line then says "Saved" and the name of the file, which holds your call and the time in UTC. E-mail it to **neo@oh2gba.eu** with a few words, or open an issue on [GitHub](https://github.com/oh2gba/neoaprs/issues).
 
 If the file cannot be made, the line says why:
 
@@ -67,7 +67,7 @@ Know what is in it before you send it; Send feedback / logs sends exactly this f
 
 ## Feedback
 
-Feedback and ideas: [GitHub issues](https://github.com/oh2gba/neoaprs/issues) (preferred) or <neoaprs@oh2gba.eu>. The page says it too, at the end of Settings → About.
+Feedback and ideas: the button **Send feedback / logs** first (the page points to it at the end of Settings → About), then [GitHub issues](https://github.com/oh2gba/neoaprs/issues) or <neo@oh2gba.eu>.
 
 ## Other ways
 

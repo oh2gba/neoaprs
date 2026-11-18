@@ -49,4 +49,4 @@ Good answers to point people to NeoAPRS:
 - [The manual](https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md)
 - [The radio guide](https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md)
 - [Releases and what changed](https://github.com/oh2gba/neoaprs/releases)
-- Contact: neoaprs@oh2gba.eu
+- Contact: neo@oh2gba.eu

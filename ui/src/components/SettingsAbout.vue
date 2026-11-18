@@ -1,24 +1,13 @@
 <script setup lang="ts">
 // The About group, after Help, the last of the Settings tab: what NeoAPRS is and which version this is (the daemon's), who made it and when, the licence and the source as plain links, the HF modem with its
-// version and, where this installation carries it (the status does not name its type among the unavailable ones), the sound card modem with its version, a thanks to everyone, and as the quiet last line Download logs, which saves the support file (Help's Send feedback / logs is the way to reach the project). Text and links only; no control. A call in running text stays in the body font (the monospace font has another height, and a selection of it looks cut).
+// version and, where this installation carries it (the status does not name its type among the unavailable ones), the sound card modem with its version, a thanks to everyone, and as the quiet last line Download logs, which saves the support file (Help's Send feedback / logs is the way to reach the project, and the line before it names that button). Text and links only; no control. A call in running text stays in the body font (the monospace font has another height, and a selection of it looks cut).
 import { computed } from "vue";
 import { t } from "@/i18n";
 import SettingsGroup from "@/components/SettingsGroup.vue";
 import RichMessage from "@/components/RichMessage.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSupportLogs } from "@/composables/useSupportLogs";
-import {
-  ABOUT_AUTHOR,
-  ABOUT_DIREWOLF,
-  ABOUT_DIREWOLF_URL,
-  ABOUT_ISSUES_URL,
-  ABOUT_LICENSE_URL,
-  ABOUT_MODEM,
-  ABOUT_MODEM_URL,
-  ABOUT_SOURCE_URL,
-  ABOUT_YEAR,
-} from "@/lib/about";
-import { SUPPORT_ADDRESS } from "@/lib/support";
+import { ABOUT_AUTHOR, ABOUT_DIREWOLF, ABOUT_DIREWOLF_URL, ABOUT_LICENSE_URL, ABOUT_MODEM, ABOUT_MODEM_URL, ABOUT_SOURCE_URL, ABOUT_YEAR } from "@/lib/about";
 import { LIMITS } from "@/protocol/lists";
 
 const { version, call, connection, panel, status } = useDaemonContext();
@@ -61,13 +50,7 @@ const downloadLabel = computed(() => (logs.running.value ? t("settings.help.coll
     </p>
     <p class="muted">{{ t("settings.about.thanks") }}</p>
     <p>
-      <RichMessage id="settings.about.feedback"
-        ><template #issues
-          ><a :href="ABOUT_ISSUES_URL" target="_blank" rel="noopener noreferrer">{{ t("settings.about.issues") }}</a></template
-        ><template #mail
-          ><a :href="`mailto:${SUPPORT_ADDRESS}`">{{ SUPPORT_ADDRESS }}</a></template
-        ></RichMessage
-      >
+      {{ t("settings.about.feedback", { button: t("settings.help.send") }) }}
     </p>
     <p class="about-download muted">
       <button id="set-help-logs" type="button" class="linkbtn" :disabled="logs.running.value" @click="logs.collect">{{ downloadLabel }}</button>
