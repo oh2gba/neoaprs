@@ -3,6 +3,7 @@ how often each is asked, how old a thing may be, and how many are kept. Plain va
 page those it needs (LIMITS.layers, AIRCRAFT_SOURCES, SHIP_SOURCES of ui/src/protocol/lists.ts).
 
 Nothing of a layer is a station: a thing lives in the memory of the layers' service by its id, and never reaches the station book, the database, the packets, the statistics, the replay, the iGate or a radio."""
+import heapq
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
@@ -178,5 +179,5 @@ def newest(things: Iterable[Thing], bound: int = RECEIVER_BOUND) -> list[Thing]:
     listed = list(things)
     if len(listed) <= bound:
         return listed
-    kept = {id(thing) for thing in sorted(listed, key=lambda thing: thing.at, reverse=True)[:bound]}
+    kept = {id(thing) for thing in heapq.nlargest(bound, listed, key=lambda thing: thing.at)}          # (a heap, not a sort of them all: other threads run between its steps)
     return [thing for thing in listed if id(thing) in kept]

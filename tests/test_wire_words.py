@@ -48,7 +48,10 @@ NAME = {
 }
 # The own words of a device or a program, as it says them: what the system calls a port or a sound card, the line of a TNC (its TNC2 text and the Terminal's lines), what a station's device is, the first line an
 # alert command wrote.
-DEVICE = {"AlertResultMsg.line", "PacketRow.tnc2", "PortRow.description", "PortRow.hwid", "SoundCardRow.name", "StationRow.device", "TncLine.text"}
+DEVICE = {
+    "AlertResultMsg.line", "PacketRow.tnc2", "PortRow.description", "PortRow.hwid", "SoundCardRow.name", "StationRow.device", "TncLine.text",
+    "LayerThing.destination", "LayerThing.id", "LayerThing.name", "LayerThing.registration", "LayerThing.type",          # what an aircraft or a ship says of itself, as its source gave it
+}
 # A route as the daemon writes it (`direct`, `via A → B`, `via G (internet)`): the page takes it apart and says it in its words (lib/routes.ts `routeWords`).
 ROUTE = {"MessageRow.route", "PacketRow.route", "StationRow.best_route", "StationRow.last_route"}
 # The English of a refusal, for the log and the support bundle: the page says a refusal by its `code` (ui/src/i18n/errortext.ts) and never shows this.

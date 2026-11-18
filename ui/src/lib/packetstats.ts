@@ -12,13 +12,13 @@ import type { PacketStatsMessage, RadioSent } from "@/protocol/protocol";
 
 /** The hours of the graph. */
 export const CHART_HOURS = 24;
-/** The colours a radio's part of a bar may have, in the order of the radios (styles/card.css `series-0` and on); the internet's is `series-net`. */
-const SERIES = 6;
+/** The colours a radio's part of a bar may have, in the order of the radios (the classes of styles/card.css); the internet's is `series-net`. */
+const SERIES = ["series-0", "series-1", "series-2", "series-3", "series-4", "series-5"] as const;
 /** The value of a line before the daemon's first answer. */
 const NONE = "–";
 
 /** A radio's colour: by its place among the page's radios (those that heard nothing counted), so that it keeps it whoever hears first. */
-const toneOf = (radio: PageRadio, radios: readonly PageRadio[]): string => `series-${radios.indexOf(radio) % SERIES}`;
+const toneOf = (radio: PageRadio, radios: readonly PageRadio[]): string => SERIES[radios.indexOf(radio) % SERIES.length] ?? "series-net";
 
 /** One radio's or the internet's part of the graph and of the lines: its name, its colour, and what it heard in each of the last CHART_HOURS hours. */
 export interface Channel {

@@ -442,22 +442,29 @@ async def test_the_loop_answers_within_50_ms_while_a_receiver_answers_some_16_me
     body = sky(*many)
     assert 12_000_000 < len(body) <= MAX_UNPACKED
     receiver.route("/tar1090/data/aircraft.json", body=gzip.compress(body), headers={"Content-Encoding": "gzip"})       # (packed here, not by the fake server on the loop)
-    service = Layers(Settings(map_aircraft="receiver", map_aircraft_host=receiver.address), lambda: HOME, "0.21.0", "linux", environ={})
-    remember_stop(service.stop)
-    worst = 0.0
 
-    async def ping() -> None:
-        nonlocal worst
-        while True:
-            sent = time.perf_counter()
-            await asyncio.sleep(0.005)
-            worst = max(worst, time.perf_counter() - sent - 0.005)
-    pinging = asyncio.create_task(ping())
-    try:
-        await service.start()
-        await until(lambda: (state := service.states()[0].receiver) is not None and state.state == "receiving", 30.0)
-    finally:
-        pinging.cancel()
-    state = service.states()[0].receiver
-    assert state is not None and state.things == 75000
-    assert worst < 0.05, f"the loop was held {worst * 1000:.0f} ms"
+    async def held() -> float:
+        """The longest the loop was kept from a ping while one answer was fetched, read and cut."""
+        service = Layers(Settings(map_aircraft="receiver", map_aircraft_host=receiver.address), lambda: HOME, "0.21.0", "linux", environ={})
+        worst = 0.0
+
+        async def ping() -> None:
+            nonlocal worst
+            while True:
+                sent = time.perf_counter()
+                await asyncio.sleep(0.005)
+                worst = max(worst, time.perf_counter() - sent - 0.005)
+        pinging = asyncio.create_task(ping())
+        try:
+            await service.start()
+            await until(lambda: (state := service.states()[0].receiver) is not None and state.state == "receiving", 30.0)
+            state = service.states()[0].receiver
+            assert state is not None and state.things == 75000
+        finally:
+            pinging.cancel()
+            await service.stop()
+        return worst
+
+    # (A machine busy with the other tests can keep any loop waiting for a moment, so the best of three goes counts; an answer read on the loop holds it for most of a second in every one of them.)
+    best = min([await held() for _ in range(3)])
+    assert best < 0.05, f"the loop was held {best * 1000:.0f} ms"
