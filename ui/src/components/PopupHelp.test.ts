@@ -29,10 +29,10 @@ afterEach(() => {
   writeText.mockClear();
 });
 
-describe("the steps to allow pop-ups", () => {
+describe("the steps to allow notifications", () => {
   it("gives Firefox four steps, with the host to put in", () => {
     const wrapper = panel(FIREFOX_WINDOWS);
-    expect(wrapper.find("h4").text()).toBe("Enable pop-ups in Firefox");
+    expect(wrapper.find("h4").text()).toBe("Enable notifications in Firefox");
     expect(steps(wrapper)).toEqual([
       'Open a new tab, type about:config and press Enter, then click "Accept the Risk and Continue".',
       "Search for dom.securecontext.allowlist.",
@@ -43,7 +43,7 @@ describe("the steps to allow pop-ups", () => {
 
   it("gives Chrome the flags address and the origin of the page, with the port", () => {
     const wrapper = panel(CHROME, "192.168.1.20");
-    expect(wrapper.find("h4").text()).toBe("Enable pop-ups in Chrome");
+    expect(wrapper.find("h4").text()).toBe("Enable notifications in Chrome");
     expect(wrapper.findAll(".copyfield code").map((c) => c.text())).toEqual([
       "chrome://flags/#unsafely-treat-insecure-origin-as-secure",
       "http://192.168.1.20:7303",
@@ -57,7 +57,7 @@ describe("the steps to allow pop-ups", () => {
     expect(flag(panel(EDGE))).toBe("edge://flags/#unsafely-treat-insecure-origin-as-secure");
     expect(flag(panel(OPERA))).toBe("opera://flags/#unsafely-treat-insecure-origin-as-secure");
     const brave = panel(CHROME, "neoaprs-pi.local", { brave: {} });
-    expect(brave.find("h4").text()).toBe("Enable pop-ups in Brave");
+    expect(brave.find("h4").text()).toBe("Enable notifications in Brave");
     expect(flag(brave)).toBe("brave://flags/#unsafely-treat-insecure-origin-as-secure");
   });
 
@@ -66,7 +66,7 @@ describe("the steps to allow pop-ups", () => {
       const wrapper = panel(userAgent);
       expect(wrapper.find("ol").exists()).toBe(false);
       expect(wrapper.find(".copyfield").exists()).toBe(false);
-      expect(wrapper.text()).toContain("Phones show pop-ups only for https pages");
+      expect(wrapper.text()).toContain("Phones show notifications only for https pages");
       expect(wrapper.text()).toContain("sound and the tab alert work");
     }
   });
@@ -74,7 +74,7 @@ describe("the steps to allow pop-ups", () => {
   it("has no steps for a browser that cannot allow them", () => {
     const wrapper = panel(SAFARI);
     expect(wrapper.find("ol").exists()).toBe(false);
-    expect(wrapper.text()).toContain("no way to allow pop-ups for this address");
+    expect(wrapper.text()).toContain("no way to allow notifications for this address");
   });
 
   it("copies the host alone for Firefox, whatever the port", async () => {
@@ -109,7 +109,7 @@ describe("the steps to allow pop-ups", () => {
   it("has the two flatpak commands, to copy, in a fold for Firefox on Linux only", async () => {
     const wrapper = panel(FIREFOX_LINUX);
     const fold = wrapper.find("details");
-    expect(fold.find("summary").text()).toBe("If the pop-up still doesn't show");
+    expect(fold.find("summary").text()).toBe("If the notification still doesn't show");
     expect(fold.findAll("code").map((c) => c.text())).toEqual([
       "flatpak override --user --talk-name=org.freedesktop.Notifications org.mozilla.firefox",
       "flatpak override --user --env=NOTIFY_IGNORE_PORTAL=1 org.mozilla.firefox",

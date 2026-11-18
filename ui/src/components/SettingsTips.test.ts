@@ -48,7 +48,7 @@ describe("the (i) of the Settings tab", () => {
     expect(wrapper.find(".info-text").exists()).toBe(false);
   });
 
-  it("explains the two alerts under the heading of the NeoAPRS computer: its own command, and the browser's sound and pop-up", async () => {
+  it("explains the two alerts under the heading of the NeoAPRS computer: its own command, and the browser's sound and notification", async () => {
     const wrapper = make();
     await wrapper.find<HTMLButtonElement>("fieldset.subbox > legend .info-toggle").trigger("click");
     const text = wrapper.find(".info-text").text();

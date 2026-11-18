@@ -64,7 +64,7 @@ class SetStationAlert(_Command):
 
 
 class StationAlertMsg(_Message):
-    """An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the pop-up, the browser tab, as its own choice says) and shows it in its toast."""
+    """An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the notification, the browser tab, as its own choice says) and shows it in its toast."""
     type: Literal["station_alert"]
     call: str = Field(description="the station")
     kind: Literal["on_air", "within", "direct"] = Field(description="what happened: it came on the air, it came within the distance, it was heard direct")

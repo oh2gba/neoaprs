@@ -20,7 +20,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/hf-tests.md` | the HF tests tab: meeting another station on HF to try APRS, the board on the project page, planning, joining and deleting a test |
 | `docs/manual/objects.md` | objects and items of your own, the QRU server |
 | `docs/manual/weather.md` | weather stations and what else NeoAPRS reads |
-| `docs/manual/notifications.md` | the alert command, the alert in the browser, pop-ups |
+| `docs/manual/notifications.md` | the alert command, the alert in the browser, notifications |
 | `docs/manual/network.md` | opening the page from another device, the access key, https, installing the page as an app |
 | `docs/manual/settings.md` | every setting with its default, made from the code, and the values that are fixed |
 | `docs/manual/commands.md` | the `neoaprs` command line, `neoaprs doctor`, troubleshooting |

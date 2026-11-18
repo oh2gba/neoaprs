@@ -1,11 +1,11 @@
 # Being told of a new message, or of a station
 
-A new message can alert you in two places, and both are in the **Notifications** group of the Settings tab, each in a box of its own with its name on it, so that it is plain which device it is for:
+A new message can tell you in two places in a browser, and both are in the **Notifications** group of the Settings tab, each in a box of its own named by where you notice it:
 
 - **On the NeoAPRS computer:** the daemon runs a command of yours.
-- **In this browser:** the page alerts by itself, in whatever browser has it open.
+- **In this browser:** the page tells you by itself, in whatever browser has it open, with a sound or a notification.
 
-In the desktop app's own window the two are on the computer you are at, and the boxes say so: **On this computer** and **In this window** ([below](#in-the-apps-window)).
+In the desktop app's own window it is one computer and one person, so the group has one box, **On this computer** ([below](#in-the-apps-window)).
 
 Both alert for the same messages: a message to you, the first copy only. Not a bulletin or a group message, an ack, a reject, a query that NeoAPRS answers, a message you only overheard, or one of your own. A repeat of a retry or another digipeater's copy does not alert again.
 
@@ -49,59 +49,59 @@ The answer is shown under the field until the next edit: `ran` when it worked, e
 
 The command runs on the computer the daemon runs on, which is not where you are when NeoAPRS is a service on a Raspberry Pi and the page is open on a laptop or a phone. So the page alerts by itself, once for each message that arrives while the page is open, in a background tab too. What the page loaded with, and what it is told again after a reconnect, is not new.
 
-**Alert for a new message** is one choice, kept in this browser and not on the daemon, so each device decides. The rows **Sound** and **Pop-up** with their tests show only what the choice uses: both are hidden while it is off, and each of the two is hidden when the choice does not play it:
+**Notify me** is one choice, kept in this browser and not on the daemon, so each device decides. The rows **Sound** and **Notification** with their tests show only what the choice uses: both are hidden while it is off, and each of the two is hidden when the choice does not play it:
 
 | choice | what a new message does |
 |---|---|
 | **off** | nothing |
 | **sound** | a short chime (made by the page, no sound file) and, while the page is hidden or not in focus, the alert of the browser tab: its title alternates between "✉ OH2DPN" and the usual one and its icon has a dot, until the page is seen again. The count of messages not seen stays in the title |
-| **sound and pop-up** | the chime and a pop-up of the browser, "APRS message from OH2DPN" with the text. A click on it brings the page to the front and opens that conversation. Where no pop-up is shown after all (no permission, or the browser refuses), the tab alert takes its place |
-| **pop-up only** | the pop-up without the chime, and the tab alert where it cannot be shown |
+| **sound and notification** | the chime and a notification of the browser, "APRS message from OH2DPN" with the text. A click on it brings the page to the front and opens that conversation. Where no notification is shown after all (no permission, or the browser refuses), the tab alert takes its place |
+| **notification only** | the notification without the chime, and the tab alert where it cannot be shown |
 
-- A page opened from another device starts at **sound and pop-up** where the browser can show pop-ups, else at **sound**.
-- A page on the computer itself (`localhost`, `127.0.0.1`, `[::1]` and the desktop app), where the command already notifies, starts at **off**, so that nothing alerts twice.
-- The two choices with a pop-up are off, with the reason as their hover title, where the browser cannot show one: "Pop-ups are off in this browser for this address" or "Pop-ups are blocked for this page in the browser".
-- Where the reason is the address (a page opened over plain http from another computer), **Enable pop-ups…** stands beside the choice and opens the steps for your browser, inside the page ([below](#pop-ups-need-a-secure-address)).
-- Choosing one is the click that asks the browser for the permission. The page never asks by itself. When it is refused the choice goes back to **sound** and the words "pop-ups refused: sound only" stand beside it. "pop-ups not allowed yet" or "pop-ups blocked" next to the choice say that a pop-up is chosen but the permission is not there.
+- A page opened from another device starts at **sound and notification** where the browser can show notifications, else at **sound**.
+- A page on the computer itself (`localhost`, `127.0.0.1`, `[::1]`, and the desktop app on Linux and Windows, where its own group is the only one), where the command already notifies, starts at **off**, so that nothing alerts twice.
+- The two choices with a notification are off, with the reason as their hover title, where the browser cannot show one: "Notifications are off in this browser for this address" or "Notifications are blocked for this page in the browser".
+- Where the reason is the address (a page opened over plain http from another computer), **Enable notifications…** stands beside the choice and opens the steps for your browser, inside the page ([below](#notifications-need-a-secure-address)).
+- Choosing one is the click that asks the browser for the permission. The page never asks by itself. When it is refused the choice goes back to **sound** and the words "notifications refused: sound only" stand beside it. "notifications not allowed yet" or "notifications blocked" next to the choice say that a notification is chosen but the permission is not there.
 - A browser lets a page make a sound only after you have clicked or pressed a key in it, so the chime is silent until then and the tab alert is all there is.
-- An alert set on a station follows the same choice: the chime, a pop-up "APRS alert: OH2XYZ" with what happened (a click brings the page to the front), and a tab title with a bell, "🔔 OH2XYZ". Whatever the choice, the toast at the bottom of the page says what happened, with the time.
+- An alert set on a station follows the same choice: the chime, a notification "APRS alert: OH2XYZ" with what happened (a click brings the page to the front), and a tab title with a bell, "🔔 OH2XYZ". Whatever the choice, the toast at the bottom of the page says what happened, with the time.
 
 Each test beside the choice says what happened in the toast at the bottom of the page (not beside the button, so that nothing moves):
 
 | button | what it does | what the toast says |
 |---|---|---|
 | **Test sound** | plays the chime now | `played`; `sound locked: click the page once` when the browser will not let the audio run yet |
-| **Test pop-up** | shows a pop-up now, "APRS message from NEOAPRS", asking for the permission first if the browser has not been asked. Where none can be shown it flashes the browser tab for a few seconds | `pop-up sent`; `pop-up blocked` when the permission is refused or the browser will not show it; `pop-ups are off for this address` with **Enable pop-ups…** beside it |
+| **Test notification** | shows a notification now, "APRS message from NEOAPRS", asking for the permission first if the browser has not been asked. Where none can be shown it flashes the browser tab for a few seconds | `notification sent`; `notification blocked` when the permission is refused or the browser will not show it; `notifications are off for this address` with **Enable notifications…** beside it |
 | **Test** (on the NeoAPRS computer) | runs the alert command as it is saved | the command's result |
 
 ### In the app's window
 
-The desktop app (the AppImage, the .deb, the Windows and the macOS app) shows the page in a window of its own, on the computer NeoAPRS runs on. There the first box is **On this computer** and the second **In this window**:
+The desktop app (the AppImage, the .deb, the Windows and the macOS app) shows the page in a window of its own, on the computer NeoAPRS runs on. On Linux and on Windows the group has one box, **On this computer**: the command above, unchanged, which by default shows a notification and plays a sound of the system. The window has no alert of its own there, and a choice an earlier version kept in the window stays silent.
 
-- **On this computer** is the command above, unchanged: by default a notification and a sound of the system, on Linux and on Windows.
-- **In this window** is the chime alone. The window cannot show a pop-up, so the row **Pop-up** and its test are not there, and a choice kept with a pop-up plays the chime (**sound and pop-up**) or nothing (**pop-up only**). It starts at **off**, since the command already tells you on this computer; tick **Alert** for the chime as well.
-- A browser opened on the same computer, or on a phone, has the boxes of a browser, with its own choice.
+On a Mac that command has no program to run, so the window keeps its own alert, and the group has the second box, **In this window**: the chime alone. The window cannot show a notification, so the row **Notification** and its test are not there, and a choice kept with a notification plays the chime (**sound and notification**) or nothing (**notification only**). It starts at **sound**; untick **Notify me** to silence it.
 
-### Pop-ups need a secure address
+A browser opened on the same computer, or on a phone, has the boxes of a browser, with its own choice.
 
-Browsers show pop-ups only on `localhost`, over HTTPS, or at an address you have told the browser to treat as secure. A page opened at `http://<pi-address>:7303` is not one. Two ways out:
+### Notifications need a secure address
+
+Browsers show notifications only on `localhost`, over HTTPS, or at an address you have told the browser to treat as secure. A page opened at `http://<pi-address>:7303` is not one. Two ways out:
 
 - Switch on the secure connection ([network.md](network.md#the-secure-connection-https)), and install NeoAPRS's certificate on the device, or continue past the browser's warning.
-- Tell the browser to treat the address as secure. **Enable pop-ups…** shows these steps in the page, for the browser in use, with the host or the address ready to copy.
+- Tell the browser to treat the address as secure. **Enable notifications…** shows these steps in the page, for the browser in use, with the host or the address ready to copy.
 
 1. **Firefox** (a computer): open a new tab, type `about:config`, press Enter and click "Accept the Risk and Continue". Search for `dom.securecontext.allowlist`. If it is not there choose "String", click "+", put in the host name or address alone, without the port (`neoaprs-pi.local` or `192.168.1.20`) and click the tick. If it has text already, add a comma and the host at the end. Come back to the page and reload it.
 2. **Chrome, Edge, Brave and Opera** (a computer): paste `chrome://flags/#unsafely-treat-insecure-origin-as-secure` (`edge://flags/...`, `brave://flags/...`, `opera://flags/...`) in the address bar. A page cannot open it for you. In the box put the origin of the page with its port (`http://192.168.1.20:7303`), set the choice to Enabled, click Relaunch, and reload the page.
-3. **On a phone** the sound and the tab alert work. Pop-ups need HTTPS (and many phone browsers want a service worker for them), which a page served on plain http does not have.
+3. **On a phone** the sound and the tab alert work. Notifications need HTTPS (and many phone browsers want a service worker for them), which a page served on plain http does not have.
 
-After the reload, the two choices with a pop-up are there and **Test pop-up** works. Choose **sound and pop-up** and answer the browser's question.
+After the reload, the two choices with a notification are there and **Test notification** works. Choose **sound and notification** and answer the browser's question.
 
-### Pop-ups do not appear?
+### Notifications do not appear?
 
-When Test pop-up says `pop-up sent` and nothing shows, the browser has handed the pop-up on and something outside the page holds it back. Look at, in this order:
+When Test notification says `notification sent` and nothing shows, the browser has handed the notification on and something outside the page holds it back. Look at, in this order:
 
 1. the site's permission in the browser (the padlock of the address bar: notifications must be Allow);
 2. the desktop's do-not-disturb or focus mode;
-3. for **Firefox installed as a Flatpak on KDE Plasma**, the desktop portal. Firefox hands its pop-ups to it, and the KDE portal accepts them and never shows them (seen with Plasma 6.3).
+3. for **Firefox installed as a Flatpak on KDE Plasma**, the desktop portal. Firefox hands its notifications to it, and the KDE portal accepts them and never shows them (seen with Plasma 6.3).
 
 The cure for the portal is to let Firefox talk to the notification service itself and tell it not to use the portal, then restart Firefox:
 

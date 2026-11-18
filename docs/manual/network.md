@@ -57,7 +57,7 @@ The page is on port 7303 (`web/port`, not on the page; `neoaprs db set web/port 
 
 ## The secure connection (https)
 
-Tick **Secure connection (https)**, with **Allow access from the network**, in the same group. It is off by default. It is what a phone needs for pop-ups and what installing the page as an app needs, apart from `localhost`.
+Tick **Secure connection (https)**, with **Allow access from the network**, in the same group. It is off by default. It is what a phone needs for notifications and what installing the page as an app needs, apart from `localhost`.
 
 - NeoAPRS makes its own small certificate authority, "NeoAPRS local CA", and a certificate of this computer that it signs. They are made once, in `tls/` of the data folder (readable only by you), and renewed by themselves. The authority lasts ten years and is made only once, so a device that has trusted it stays trusted. The computer's certificate lasts at most 800 days and is made again when it has less than 30 days left, or when the computer has a name or address it does not name.
 - The page and its socket are served over TLS on the port after the plain one (7304 for 7303; if that is taken, the next free one of the ten after it). The plain port stays open.

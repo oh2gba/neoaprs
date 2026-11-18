@@ -177,8 +177,8 @@ def check_firefox_flatpak() -> Finding | None:
     if check is None:
         return None
     if check.status == "ok":
-        return Finding("ok", "Firefox is a Flatpak: its web pop-ups go to the desktop's notification service")
-    return Finding("warn", "Firefox is a Flatpak: on KDE its web pop-ups can go missing (the desktop portal accepts them and shows none)", check.fix)
+        return Finding("ok", "Firefox is a Flatpak: its web notifications go to the desktop's notification service")
+    return Finding("warn", "Firefox is a Flatpak: on KDE its web notifications can go missing (the desktop portal accepts them and shows none)", check.fix)
 
 
 def check_daemon(data: Path) -> Finding:

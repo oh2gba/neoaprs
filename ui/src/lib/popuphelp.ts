@@ -1,4 +1,4 @@
-// What the page tells a person who opened it over plain http (the Raspberry Pi's address) and wants pop-ups: which browser this is, and the few things to type into it. A browser shows pop-ups only for https, localhost or an address
+// What the page tells a person who opened it over plain http (the Raspberry Pi's address) and wants notifications: which browser this is, and the few things to type into it. A browser shows notifications only for https, localhost or an address
 // it was told to trust, and only the person can tell it (Firefox in about:config, Chrome and its relatives in chrome://flags): a page can neither open those pages nor change them.
 
 export type BrowserKind = "firefox" | "chrome" | "edge" | "brave" | "opera" | "phone" | "other";
@@ -28,7 +28,7 @@ export function browserKind(userAgent: string, brave = false): BrowserKind {
 /** The address a person pastes in the address bar for the flag. */
 export const flagAddress = (scheme: string): string => `${scheme}://flags/#unsafely-treat-insecure-origin-as-secure`;
 
-/** Firefox as a Flatpak (KDE) hands its pop-ups to a portal that may hide them: the two commands that let it use the notification service itself. */
+/** Firefox as a Flatpak (KDE) hands its notifications to a portal that may hide them: the two commands that let it use the notification service itself. */
 export const FLATPAK_COMMANDS: readonly string[] = [
   "flatpak override --user --talk-name=org.freedesktop.Notifications org.mozilla.firefox",
   "flatpak override --user --env=NOTIFY_IGNORE_PORTAL=1 org.mozilla.firefox",

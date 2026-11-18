@@ -1,5 +1,5 @@
 """What on this computer keeps a serial port from working, as `neoaprs doctor` and `neoaprs service install` say it: the user is not in the group that owns the serial devices, and the programs
-(brltty, ModemManager) that take a USB serial adapter for a braille display or a modem as soon as it is plugged in, and Firefox as a Flatpak on KDE, whose web pop-ups (what the page's alert shows) go to a desktop
+(brltty, ModemManager) that take a USB serial adapter for a braille display or a modem as soon as it is plugged in, and Firefox as a Flatpak on KDE, whose web notifications (what the page's alert shows) go to a desktop
 portal that accepts them and shows nothing. Linux only; elsewhere there is nothing to say."""
 import glob
 import os
@@ -103,7 +103,7 @@ FlatpakRun = Callable[[list[str]], tuple[int, str]]
 
 @dataclass(frozen=True)
 class FlatpakFirefox:
-    status: str                 # "ok" (pop-ups go to the desktop's notification service) or "missing" (they go to a portal that may show none)
+    status: str                 # "ok" (notifications go to the desktop's notification service) or "missing" (they go to a portal that may show none)
     fix: str                    # the commands that cure it, one after the other; empty when ok
 
 
@@ -116,7 +116,7 @@ def run_flatpak(args: list[str]) -> tuple[int, str]:
 
 
 def firefox_flatpak(run: FlatpakRun = run_flatpak, desktop: str | None = None, flatpak_installed: bool | None = None) -> FlatpakFirefox | None:
-    """Whether Firefox is a Flatpak that, on KDE, may lose its web pop-ups: it hands them to the desktop portal, and the KDE portal accepts them and never shows them. The cure is to let Firefox talk to the
+    """Whether Firefox is a Flatpak that, on KDE, may lose its web notifications: it hands them to the desktop portal, and the KDE portal accepts them and never shows them. The cure is to let Firefox talk to the
     notification service itself and to tell it not to use the portal. None where this does not apply: not Linux, not KDE, no `flatpak`, or Firefox is not installed as a Flatpak. Read-only: only `flatpak info` and
     `flatpak override --show` run."""
     if not _linux():

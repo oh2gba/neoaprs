@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// "Enable pop-ups in Firefox": the steps, for the browser this is, to let it show pop-ups for the address the page was opened at (BrowserAlerts opens it from Enable pop-ups…). The host and the origin come from the address of the page,
-// each with a Copy button, as the person types them into a page of the browser that this page cannot open. Once the page is reloaded as a secure context the pop-up choices are there and this panel is not shown.
+// "Enable notifications in Firefox": the steps, for the browser this is, to let it show notifications for the address the page was opened at (BrowserAlerts opens it from Enable notifications…). The host and the origin come from the address of the page,
+// each with a Copy button, as the person types them into a page of the browser that this page cannot open. Once the page is reloaded as a secure context the notification choices are there and this panel is not shown.
 // While the daemon serves https (`https.on`) the first step is the secure page, with the guide to install its certificate (HttpsGuide) below it, and the steps of http stay for whoever keeps it.
 import { computed } from "vue";
 import CopyField from "@/components/CopyField.vue";

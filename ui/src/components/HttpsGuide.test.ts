@@ -1,4 +1,4 @@
-// The guide to install NeoAPRS's certificate, the Web page group's part of it (switch, (i), link, problem) and the pop-up guide's first step while the daemon serves https.
+// The guide to install NeoAPRS's certificate, the Web page group's part of it (switch, (i), link, problem) and the notification guide's first step while the daemon serves https.
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import HttpsGuide from "@/components/HttpsGuide.vue";
@@ -107,7 +107,7 @@ describe("the Web page group", () => {
     expect(box.element.checked).toBe(false);
     await wrapper.find("button[aria-label='About the secure connection']").trigger("click");
     expect(wrapper.findAll(".info-text .info-line").map((l) => l.text())).toEqual([
-      "Needed for pop-ups on phones and to install NeoAPRS as an app.",
+      "Needed for notifications on phones and to install NeoAPRS as an app.",
       "The browser warns about the certificate the first time: you can continue past it.",
     ]);
     expect(settings(OFF, {}).find("#set-web-https").exists()).toBe(false);
@@ -141,7 +141,7 @@ describe("the Web page group", () => {
   });
 });
 
-describe("the pop-up guide", () => {
+describe("the notification guide", () => {
   function popup(https: HttpsState | null, userAgent = FIREFOX) {
     vi.stubGlobal("navigator", { userAgent, clipboard: { writeText: vi.fn(() => Promise.resolve()) } });
     openedAt("192.168.1.20");

@@ -8,6 +8,8 @@ export const help = {
   "help.picture.object":
     "A map with your car station and two objects you send, a repeater with its frequency and a meeting point; both appear on the maps of two other stations.",
   "help.picture.bulletin": "One station sends a bulletin, BLN1, and the same message appears on the board of three other stations.",
+  "help.picture.bulletingroup":
+    "One station sends a group bulletin, BLN3HAMS, to three stations: the two that show the group HAMS put it on their board, the third has picked other groups, hears it and shows nothing.",
   "help.picture.beacon": "Your station sends its position again and again, with a clock between the beacons, and appears on the map of the others.",
   "help.picture.path":
     "Your packet goes from your car to a fill-in digipeater, WIDE1-1, then to a wide-area one, WIDE2-1: two hops before the other stations hear it.",
@@ -35,7 +37,7 @@ export const help = {
   "help.picture.tworadios":
     "Your station with two radios: the FM radio reaches the car and the digipeater nearby along the ground, the Mercury radio reaches a distant station by the signal that goes up and comes down.",
   "help.picture.dummy": "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
-  "help.picture.notifications": "A message from a station arrives, and this device plays a sound, the speaker, and shows a pop-up, the card.",
+  "help.picture.notifications": "A message from a station arrives, and this device plays a sound, the speaker, and shows a notification, the card.",
   "help.picture.encrypt":
     "Two stations give each other their keys. Then our locked message is read by the station that has the key, while a third station that hears it sees only the lock.",
   "help.picture.qru": "Your station asks for local info, and a server station answers with objects, a repeater and an event, which appear on your map.",
@@ -72,8 +74,8 @@ export const help = {
   "help.cert.firefox1": "Open Settings → Privacy & Security → Certificates → View Certificates → Authorities.",
   "help.cert.firefox2": 'Click Import, choose {file} and tick "Trust this CA to identify websites".',
 
-  "help.popup.title": "Enable pop-ups",
-  "help.popup.title_in": "Enable pop-ups in {browser}",
+  "help.popup.title": "Enable notifications",
+  "help.popup.title_in": "Enable notifications in {browser}",
   "help.popup.secure_page": "Open the secure page: {link}",
   "help.popup.remove_warning": "Remove the browser's warning",
   "help.popup.keep_http": "Or keep http",
@@ -86,10 +88,10 @@ export const help = {
   "help.popup.chromium3": 'Click "Relaunch" at the bottom.',
   "help.popup.back": "Come back here and {reload}",
   "help.popup.reload": "Reload",
-  "help.popup.phone": "Phones show pop-ups only for https pages, and this page is not one. The sound and the tab alert work here.",
+  "help.popup.phone": "Phones show notifications only for https pages, and this page is not one. The sound and the tab alert work here.",
   "help.popup.other":
-    "This browser has no way to allow pop-ups for this address. The sound and the tab alert work here. Firefox, Chrome and Edge on a computer can allow them.",
-  "help.popup.still": "If the pop-up still doesn't show",
+    "This browser has no way to allow notifications for this address. The sound and the tab alert work here. Firefox, Chrome and Edge on a computer can allow them.",
+  "help.popup.still": "If the notification still doesn't show",
   "help.popup.flatpak": "Firefox installed as a Flatpak (KDE) needs these two commands in a terminal, then a restart of Firefox:",
 
   "help.update.title": "NeoAPRS {version} is available",

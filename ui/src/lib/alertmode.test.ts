@@ -24,8 +24,8 @@ describe("a choice without its pop-up", () => {
 
 describe("why a pop-up cannot be chosen", () => {
   it("is the address outside a secure context, or the block in the browser, else nothing", () => {
-    expect(popupWhy(false, "default")).toBe("Pop-ups are off in this browser for this address");
-    expect(popupWhy(true, "denied")).toBe("Pop-ups are blocked for this page in the browser");
+    expect(popupWhy(false, "default")).toBe("Notifications are off in this browser for this address");
+    expect(popupWhy(true, "denied")).toBe("Notifications are blocked for this page in the browser");
     expect(popupWhy(true, "default")).toBeUndefined();
     expect(popupWhy(true, "granted")).toBeUndefined();
   });
@@ -37,10 +37,12 @@ describe("the default", () => {
     expect(defaultMode(true, "blocked")).toBe("off");
     expect(defaultMode(false, undefined)).toBe("both");
     expect(defaultMode(false, "blocked")).toBe("sound");
+    expect(defaultMode(true, "blocked", true)).toBe("sound");
   });
   it("is what storedMode gives when nothing was kept, and writes nothing", () => {
     expect(storedMode(false, undefined)).toBe("both");
     expect(storedMode(true, undefined)).toBe("off");
+    expect(storedMode(true, "blocked", true)).toBe("sound");
     expect(readStored("alert.mode")).toBeNull();
   });
 });

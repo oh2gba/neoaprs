@@ -48,7 +48,7 @@ It checks:
 - **The radios**: each by its name (`FM`, `Mercury`, `LoRa`, `FM 2`, or the one you gave it), with its type and its port, server or sound card and keying, or that it is off. It warns when no radio is on, and fails when the radios cannot be read from the database.
 - **The serial ports** the system lists, with the description and the USB `VID:PID` of each. That is also what to paste into a bug report.
 - **On Linux**, whether you are in the group that owns the serial devices (`dialout`, `uucp` on Arch), and whether **brltty** or **ModemManager** are installed. They take USB serial adapters: brltty makes a CH340, CP210x or FTDI port vanish as it is plugged in, and ModemManager probes new ports as modems. It gives the way to remove or stop them.
-- **On Linux with KDE**, whether Firefox is a Flatpak whose pop-ups can go missing. It prints the two `flatpak override` commands and never runs them ([notifications.md](notifications.md#pop-ups-do-not-appear)).
+- **On Linux with KDE**, whether Firefox is a Flatpak whose notifications can go missing. It prints the two `flatpak override` commands and never runs them ([notifications.md](notifications.md#notifications-do-not-appear)).
 - Whether a daemon holds the data folder, where its page is, and whether it answers.
 - The base map files and their sizes.
 - Whether the service is set up.

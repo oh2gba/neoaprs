@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The way to make a device trust NeoAPRS's certificate: the download, the fingerprint to compare with what the device shows, and the steps for the device this is (from its user agent; the choice can be changed), each
-// short, in the systems' own words. Shown by the Settings tab's Web page group (SettingsHttps) and by the pop-up guide (PopupHelp) while the daemon serves https. The line at the end is the other way: open the secure page and
+// short, in the systems' own words. Shown by the Settings tab's Web page group (SettingsHttps) and by the notification guide (PopupHelp) while the daemon serves https. The line at the end is the other way: open the secure page and
 // continue past the browser's warning (not shown on the secure page itself, or where the caller has said the link is above).
 import { computed, ref } from "vue";
 import CopyField from "@/components/CopyField.vue";

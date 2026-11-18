@@ -21,7 +21,7 @@ function make(extra: Record<string, string> = {}, scope: Scope = "settings", mor
   return { wrapper, send: daemon.send, daemon };
 }
 
-/** This browser alerts with the sound and a pop-up, so that the page shows both tests (a page on the loopback starts at off, which shows none). */
+/** This browser alerts with the sound and a notification, so that the page shows both tests (a page on the loopback starts at off, which shows none). */
 const alertWithBoth = () => localStorage.setItem("NeoAPRS.alert.mode", "both");
 afterEach(() => localStorage.clear());
 
@@ -92,7 +92,7 @@ describe("SettingsForm", () => {
         3 + // (the radio's own fields behind its status: its type, its port and its speed)
         1 + // (the radio's digipeater in the Digipeater group, radio/1/digipeat)
         3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
-        3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
+        3 + // (the browser's own: Alert for a new message, Sound, Notification)
         1 + // (Language)
         1, // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list"; one radio has no Name)
     );
@@ -955,7 +955,7 @@ describe("SettingsForm", () => {
       expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
       expect(boxes[0]?.find("legend .info-toggle").exists()).toBe(true);
       expect(boxes[1]?.find("legend").text()).toBe("In this browser");
-      expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Sound", "Pop-up"]);
+      expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Sound", "Notification"]);
       expect(boxes[1]?.find("#alert-mode").exists()).toBe(true);
       expect(group?.findAll(":scope > .field")).toHaveLength(0); // (every field of the group is in one of the two boxes)
       expect(group?.find("h3").exists()).toBe(false);
@@ -967,7 +967,9 @@ describe("SettingsForm", () => {
       const wrapper = mount(SettingsForm, { global: withDaemon() });
       const [computer, browser] = notificationBoxes(wrapper);
       expect(computer?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => b.text())).toEqual(["Test"]);
-      expect(browser?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => b.text())).toEqual(expect.arrayContaining(["Test sound", "Test pop-up"]));
+      expect(browser?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => b.text())).toEqual(
+        expect.arrayContaining(["Test sound", "Test notification"]),
+      );
       expect(computer?.find("#set-messages-alert_command").exists()).toBe(true);
       expect(browser?.find("#set-messages-alert_command").exists()).toBe(false);
     });
@@ -1138,8 +1140,8 @@ describe("SettingsForm", () => {
         "Add",
         "Test",
         "Test sound",
-        "Test pop-up",
-        "Enable pop-ups…",
+        "Test notification",
+        "Enable notifications…",
         "Check now",
         "Send feedback / logs",
       ]);

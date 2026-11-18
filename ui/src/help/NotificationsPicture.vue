@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// An alert for a new message: a station's message arrives, and this device plays a sound (the speaker) and shows a pop-up (the card).
+// An alert for a new message: a station's message arrives, and this device plays a sound (the speaker) and shows a notification (the card).
 import { CALLS } from "@/help/calls";
 import { arrow, waves } from "@/help/draw";
 import HelpBubble from "@/help/HelpBubble.vue";

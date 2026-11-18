@@ -382,10 +382,10 @@ def test_the_doctor_warns_with_the_commands_for_firefox_as_a_flatpak(tmp_path: P
     monkeypatch.setattr(doctor, "firefox_flatpak", lambda: hostcheck.FlatpakFirefox("missing", fix))
     code, out = run(tmp_path / "data", capsys)
     assert code == 0
-    assert "warn  Firefox is a Flatpak: on KDE its web pop-ups can go missing" in out
+    assert "warn  Firefox is a Flatpak: on KDE its web notifications can go missing" in out
     assert "fix: flatpak override --user --talk-name=org.freedesktop.Notifications org.mozilla.firefox" in out
     monkeypatch.setattr(doctor, "firefox_flatpak", lambda: hostcheck.FlatpakFirefox("ok", ""))
-    assert "ok    Firefox is a Flatpak: its web pop-ups go to the desktop's notification service" in run(tmp_path / "data", capsys)[1]
+    assert "ok    Firefox is a Flatpak: its web notifications go to the desktop's notification service" in run(tmp_path / "data", capsys)[1]
 
 
 # ---- the radios, each by the name the log gives it

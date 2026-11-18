@@ -43,14 +43,14 @@ describe("the default of this browser", () => {
     }
   });
 
-  it("is sound and pop-up for a page from another device where a pop-up is allowed", () => {
+  it("is sound and notification for a page from another device where a notification is allowed", () => {
     openedAt("192.168.1.20");
     const alerts = make();
     expect(alerts.mode.value).toBe("both");
     expect(alerts.why.value).toBeUndefined();
   });
 
-  it("is sound alone where the address does not allow a pop-up, or the browser blocked it", () => {
+  it("is sound alone where the address does not allow a notification, or the browser blocked it", () => {
     openedAt("192.168.1.20");
     stubBrowser({ secure: false });
     expect(make().mode.value).toBe("sound");
@@ -83,7 +83,7 @@ describe("the default of this browser", () => {
 describe("a message to us", () => {
   beforeEach(() => openedAt("192.168.1.20"));
 
-  it("is a pop-up when one can be shown, with the chime for sound and pop-up, and no flash of the tab", async () => {
+  it("is a notification when one can be shown, with the chime for sound and notification, and no flash of the tab", async () => {
     FakeNotification.permission = "granted";
     const alerts = make();
     await click();
@@ -94,7 +94,7 @@ describe("a message to us", () => {
     expect(alerts.tabTitle.value).toBeNull();
   });
 
-  it("is a pop-up without the chime for pop-up only", async () => {
+  it("is a notification without the chime for notification only", async () => {
     FakeNotification.permission = "granted";
     localStorage.setItem("NeoAPRS.alert.mode", "popup");
     const alerts = make();
@@ -104,7 +104,7 @@ describe("a message to us", () => {
     expect(FakeAudioContext.played()).toBe(0);
   });
 
-  it("is the chime and the alert of the browser tab, and no pop-up, for sound", async () => {
+  it("is the chime and the alert of the browser tab, and no notification, for sound", async () => {
     FakeNotification.permission = "granted";
     localStorage.setItem("NeoAPRS.alert.mode", "sound");
     const alerts = make();
@@ -126,7 +126,7 @@ describe("a message to us", () => {
     expect(alerts.tabTitle.value).toBeNull();
   });
 
-  it("alerts the browser tab when the browser could not show the pop-up after all", async () => {
+  it("alerts the browser tab when the browser could not show the notification after all", async () => {
     FakeNotification.permission = "granted";
     const alerts = make();
     await click();
@@ -137,7 +137,7 @@ describe("a message to us", () => {
     expect(alerts.tabTitle.value).not.toBeNull();
   });
 
-  it("is the chime and the tab alert where no pop-up can be shown, and where the permission was not given", async () => {
+  it("is the chime and the tab alert where no notification can be shown, and where the permission was not given", async () => {
     stubBrowser({ secure: false });
     const alerts = make();
     await click();
@@ -164,7 +164,7 @@ describe("a message to us", () => {
     expect(alerts.popupOn.value).toBe(false);
   });
 
-  it("is the chime again when the browser refuses the pop-up", async () => {
+  it("is the chime again when the browser refuses the notification", async () => {
     FakeNotification.permission = "granted";
     FakeNotification.refuses = true;
     const alerts = make();
@@ -182,7 +182,7 @@ describe("a message to us", () => {
     expect(alerts.tabTitle.value).toBe("✉ OH2DPN");
   });
 
-  it("opens the conversation when the pop-up is clicked", () => {
+  it("opens the conversation when the notification is clicked", () => {
     FakeNotification.permission = "granted";
     const open = vi.fn();
     const focus = vi.spyOn(window, "focus").mockImplementation(() => undefined);
@@ -195,7 +195,7 @@ describe("a message to us", () => {
     expect(open).toHaveBeenCalledWith("OH2DPN");
   });
 
-  it("is one pop-up for each message, the same tag for the same one", () => {
+  it("is one notification for each message, the same tag for the same one", () => {
     FakeNotification.permission = "granted";
     make().announce([incoming(5, "OH2DPN"), incoming(6, "OH2RDG")]);
     expect(FakeNotification.shown.map((n) => n.options.tag)).toEqual(["neoaprs-5", "neoaprs-6"]);
@@ -213,7 +213,7 @@ describe("an alert set on a station", () => {
     km: 8.2,
   };
 
-  it("is a pop-up of its own, not a message's, with the chime for sound and pop-up", async () => {
+  it("is a notification of its own, not a message's, with the chime for sound and notification", async () => {
     FakeNotification.permission = "granted";
     const alerts = make();
     await click();
@@ -222,7 +222,7 @@ describe("an alert set on a station", () => {
     expect(FakeAudioContext.played()).toBeGreaterThan(0);
   });
 
-  it("flashes the browser tab with a bell, not the envelope of a message, where no pop-up is shown", async () => {
+  it("flashes the browser tab with a bell, not the envelope of a message, where no notification is shown", async () => {
     localStorage.setItem("NeoAPRS.alert.mode", "sound");
     const alerts = make();
     await click();
@@ -244,14 +244,14 @@ describe("an alert set on a station", () => {
   });
 });
 
-describe("the choice of a pop-up", () => {
+describe("the choice of a notification", () => {
   beforeEach(() => openedAt("192.168.1.20"));
 
   it("is impossible outside a secure context, or in a browser without the API, and says why", () => {
     stubBrowser({ secure: false });
     const insecure = make();
     expect(insecure.possible).toBe(false);
-    expect(insecure.why.value).toBe("Pop-ups are off in this browser for this address");
+    expect(insecure.why.value).toBe("Notifications are off in this browser for this address");
     vi.unstubAllGlobals();
     stubBrowser({ notifications: false });
     vi.stubGlobal("Notification", undefined);
@@ -260,7 +260,7 @@ describe("the choice of a pop-up", () => {
 
   it("is impossible once the browser says denied, and says why", () => {
     FakeNotification.permission = "denied";
-    expect(make().why.value).toBe("Pop-ups are blocked for this page in the browser");
+    expect(make().why.value).toBe("Notifications are blocked for this page in the browser");
   });
 
   it("never asks for the permission by itself, only in the click that chooses it", async () => {
@@ -277,7 +277,7 @@ describe("the choice of a pop-up", () => {
     expect(alerts.note.value).toBe("");
   });
 
-  it("does not ask for the choices without a pop-up", async () => {
+  it("does not ask for the choices without a notification", async () => {
     const alerts = make();
     await alerts.choose("sound");
     await alerts.choose("off");
@@ -298,17 +298,17 @@ describe("the choice of a pop-up", () => {
     await alerts.choose("both");
     expect(alerts.mode.value).toBe("sound");
     expect(localStorage.getItem("NeoAPRS.alert.mode")).toBe("sound");
-    expect(alerts.note.value).toBe("pop-ups refused: sound only");
-    expect(alerts.why.value).toBe("Pop-ups are blocked for this page in the browser");
+    expect(alerts.note.value).toBe("notifications refused: sound only");
+    expect(alerts.why.value).toBe("Notifications are blocked for this page in the browser");
     await alerts.choose("off");
     expect(alerts.note.value).toBe("");
   });
 
-  it("says in a few words that a pop-up is chosen but not yet allowed, or blocked", () => {
-    expect(make().note.value).toBe("pop-ups not allowed yet");
+  it("says in a few words that a notification is chosen but not yet allowed, or blocked", () => {
+    expect(make().note.value).toBe("notifications not allowed yet");
     FakeNotification.permission = "denied";
     localStorage.setItem("NeoAPRS.alert.mode", "popup");
-    expect(make().note.value).toBe("pop-ups blocked");
+    expect(make().note.value).toBe("notifications blocked");
     FakeNotification.permission = "granted";
     expect(make().note.value).toBe("");
   });
@@ -337,7 +337,7 @@ describe("Test sound", () => {
     expect(alerts.soundStatus.value).toBe("sound locked: click the page once");
   });
 
-  it("neither shows a pop-up nor flashes the tab", async () => {
+  it("neither shows a notification nor flashes the tab", async () => {
     FakeNotification.permission = "granted";
     const alerts = make();
     await alerts.testSound();
@@ -346,10 +346,10 @@ describe("Test sound", () => {
   });
 });
 
-describe("Test pop-up", () => {
+describe("Test notification", () => {
   beforeEach(() => openedAt("192.168.1.20"));
 
-  it("shows a pop-up now, whatever the choice is, and says pop-up sent; a click on it opens no conversation", async () => {
+  it("shows a notification now, whatever the choice is, and says notification sent; a click on it opens no conversation", async () => {
     FakeNotification.permission = "granted";
     localStorage.setItem("NeoAPRS.alert.mode", "off");
     const open = vi.fn();
@@ -357,7 +357,7 @@ describe("Test pop-up", () => {
     setSeen(true);
     await alerts.testPopup();
     expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS message from NEOAPRS", "This is a test of the NeoAPRS alert"]]);
-    expect(alerts.popupStatus.value).toBe("pop-up sent");
+    expect(alerts.popupStatus.value).toBe("notification sent");
     expect(FakeAudioContext.played()).toBe(0);
     FakeNotification.shown[0]?.onclick?.();
     expect(open).not.toHaveBeenCalled();
@@ -367,33 +367,33 @@ describe("Test pop-up", () => {
     const alerts = make();
     await alerts.testPopup();
     expect(FakeNotification.asked).toBe(1);
-    expect(alerts.popupStatus.value).toBe("pop-up sent");
+    expect(alerts.popupStatus.value).toBe("notification sent");
   });
 
-  it("says pop-up blocked, and flashes the tab, when the permission is refused or the browser refuses", async () => {
+  it("says notification blocked, and flashes the tab, when the permission is refused or the browser refuses", async () => {
     FakeNotification.answer = "denied";
     const refused = make();
     setSeen(true);
     await refused.testPopup();
     expect(FakeNotification.shown).toEqual([]);
-    expect(refused.popupStatus.value).toBe("pop-up blocked");
+    expect(refused.popupStatus.value).toBe("notification blocked");
     expect(refused.tabTitle.value).toBe("✉ NEOAPRS");
     FakeNotification.reset("granted");
     FakeNotification.refuses = true;
     const broken = make();
     await broken.testPopup();
-    expect(broken.popupStatus.value).toBe("pop-up blocked");
+    expect(broken.popupStatus.value).toBe("notification blocked");
   });
 
-  it("says why where the address does not allow pop-ups", async () => {
+  it("says why where the address does not allow notifications", async () => {
     stubBrowser({ secure: false });
     const alerts = make();
     await alerts.testPopup();
-    expect(alerts.popupStatus.value).toBe("pop-ups are off for this address");
+    expect(alerts.popupStatus.value).toBe("notifications are off for this address");
     expect(FakeNotification.asked).toBe(0);
   });
 
-  it("gives every test a pop-up of its own, so that a second one is not a silent replacement", async () => {
+  it("gives every test a notification of its own, so that a second one is not a silent replacement", async () => {
     FakeNotification.permission = "granted";
     const alerts = make();
     await alerts.testPopup();
@@ -406,14 +406,14 @@ describe("Test pop-up", () => {
 });
 
 describe("the alert of the desktop app's own window", () => {
-  it("is off by default, as on the loopback, and is never a pop-up: the window cannot show one, so none is asked for", async () => {
+  it("is off by default, as on the loopback (the sound on a Mac, where the daemon's command has nothing to run), and is never a notification: the window cannot show one, so none is asked for", async () => {
     for (const [name, agent] of Object.entries(APP_WINDOWS)) {
       localStorage.clear();
       stubBrowser();
       FakeNotification.permission = "granted"; // (even an engine that would say yes is not asked)
       openedInApp(agent);
       const alerts = make();
-      expect([alerts.app, alerts.possible, alerts.mode.value], name).toEqual([true, false, "off"]);
+      expect([alerts.app, alerts.possible, alerts.mode.value], name).toEqual([true, false, name.startsWith("macOS") ? "sound" : "off"]);
       await alerts.choose("both");
       expect(FakeNotification.asked, name).toBe(0);
       await alerts.testPopup();
@@ -421,12 +421,27 @@ describe("the alert of the desktop app's own window", () => {
     }
   });
 
-  it("is the chime for a message to us, where a kept choice had the sound and a pop-up", async () => {
+  it("is nothing where the daemon's own alert tells (Linux and Windows), whatever the window kept before, and keeps what it had kept", async () => {
+    for (const stored of ["sound", "both", "popup"]) {
+      localStorage.setItem("NeoAPRS.alert.mode", stored);
+      FakeNotification.permission = "granted";
+      openedInApp(APP_WINDOWS["Windows, WebView2"]);
+      const alerts = make();
+      expect([alerts.daemonAlone, alerts.mode.value], stored).toEqual([true, "off"]);
+      await click();
+      alerts.announce([incoming(5, "OH2DPN")]);
+      expect(FakeNotification.shown, stored).toEqual([]);
+      expect(FakeAudioContext.played(), stored).toBe(0);
+      expect(localStorage.getItem("NeoAPRS.alert.mode"), stored).toBe(stored);
+    }
+  });
+
+  it("is the chime for a message to us on a Mac, where a kept choice had the sound and a notification", async () => {
     localStorage.setItem("NeoAPRS.alert.mode", "both");
     FakeNotification.permission = "granted";
-    openedInApp(APP_WINDOWS["Windows, WebView2"]);
+    openedInApp(APP_WINDOWS["macOS, Qt"]);
     const alerts = make();
-    expect(alerts.mode.value).toBe("sound");
+    expect([alerts.daemonAlone, alerts.mode.value]).toEqual([false, "sound"]);
     expect(alerts.note.value).toBe("");
     await click();
     alerts.announce([incoming(5, "OH2DPN")]);
@@ -434,9 +449,9 @@ describe("the alert of the desktop app's own window", () => {
     expect(FakeAudioContext.played()).toBe(2);
   });
 
-  it("is nothing where a kept choice was the pop-up alone", () => {
+  it("is nothing on a Mac where a kept choice was the notification alone", () => {
     localStorage.setItem("NeoAPRS.alert.mode", "popup");
-    openedInApp(APP_WINDOWS["Linux, Qt"]);
+    openedInApp(APP_WINDOWS["macOS, Qt"]);
     expect(make().mode.value).toBe("off");
   });
 

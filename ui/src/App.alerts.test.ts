@@ -23,40 +23,74 @@ describe("App: the alert of this browser", () => {
     const boxes = groups[0]?.findAll("fieldset.subbox") ?? [];
     expect(boxes.map((b) => b.find("legend").text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
     expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
-    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert"]); // (the loopback starts unticked: no tests)
+    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me"]); // (the loopback starts unticked: no tests)
     expect(boxes[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
     expect(boxes[1]?.findAll("button:not(.info-toggle)")).toHaveLength(0);
     await boxes[1]?.find("#alert-mode").setValue(true);
     await flushPromises();
-    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Sound", "Pop-up"]);
-    expect(boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test pop-up"]);
+    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Sound", "Notification"]);
+    expect(boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test notification"]);
     expect(groups[0]?.findAll("h3")).toHaveLength(0);
   });
 
-  it("in the desktop app's own window names this computer and this window, and offers the window's sound with no pop-up, on every system", async () => {
-    for (const [name, agent] of Object.entries(APP_WINDOWS)) {
-      localStorage.clear();
-      stubBrowser();
-      openedInApp(agent);
-      const { wrapper, socket } = await open();
-      await tabButton(wrapper, "Settings")?.trigger("click");
-      const group = wrapper.findAll("#pane-settings fieldset").find((g) => g.find("legend").text() === "Notifications");
-      const boxes = group?.findAll("fieldset.subbox") ?? [];
+  /** The Notifications group of the Settings tab in the app's window of `agent`. */
+  async function appGroup(agent: string) {
+    localStorage.clear();
+    stubBrowser();
+    openedInApp(agent);
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    const group = wrapper.findAll("#pane-settings fieldset").find((g) => g.find("legend").text() === "Notifications");
+    return { wrapper, socket, group, boxes: group?.findAll("fieldset.subbox") ?? [] };
+  }
+
+  it("in the desktop app's own window on Linux and Windows has one box, On this computer, and no box for the window", async () => {
+    for (const name of ["Linux, Qt", "Windows, WebView2", "Linux, WebKitGTK"] as const) {
+      const { wrapper, socket, group, boxes } = await appGroup(APP_WINDOWS[name]);
       expect(
         boxes.map((b) => b.find("legend").text().replace(/ i$/, "")),
         name,
-      ).toEqual(["On this computer", "In this window"]);
+      ).toEqual(["On this computer"]);
       expect(boxes[0]?.find("legend").attributes("title"), name).toBe("NeoAPRS's own alert: the command run on this computer");
       expect(
         boxes[0]?.findAll("label").map((l) => l.text()),
         name,
       ).toEqual(["Alert", "Command"]);
+      await boxes[0]?.find("legend .info-toggle").trigger("click");
+      expect(
+        boxes[0]?.findAll(".info-text .info-line").map((l) => l.text()),
+        name,
+      ).toEqual(["The alert of this computer: it runs the Command for each new message, by default a sound and a notification."]);
+      expect(group?.text(), name).not.toMatch(/browser|server|window|pop-up/i);
+      expect(FakeNotification.asked, name).toBe(0);
+      socket.hangUp();
+      wrapper.unmount();
+    }
+  });
+
+  it("makes no sound in the app's window for a message to us, whatever the window kept earlier: the daemon's alert tells", async () => {
+    localStorage.setItem("NeoAPRS.alert.mode", "sound");
+    stubBrowser();
+    openedInApp(APP_WINDOWS["Windows, WebView2"]);
+    const { socket } = await open();
+    patch(socket, 1, "4", incoming(4, "OH2DPN"));
+    await flushPromises();
+    expect(FakeAudioContext.played()).toBe(0);
+  });
+
+  it("in the desktop app's own window on a Mac names this computer and this window, and offers the window's sound with no notification", async () => {
+    for (const name of ["macOS, Qt", "macOS, WKWebView"] as const) {
+      const { wrapper, socket, group, boxes } = await appGroup(APP_WINDOWS[name]);
+      expect(
+        boxes.map((b) => b.find("legend").text().replace(/ i$/, "")),
+        name,
+      ).toEqual(["On this computer", "In this window"]);
       await boxes[1]?.find("#alert-mode").setValue(true);
       await flushPromises();
       expect(
         boxes[1]?.findAll("label").map((l) => l.text()),
         name,
-      ).toEqual(["Alert", "Sound"]);
+      ).toEqual(["Notify me", "Sound"]);
       expect(
         boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text()),
         name,
@@ -111,7 +145,7 @@ describe("App: the alert of this browser", () => {
     expect(FakeAudioContext.played()).toBe(2);
   });
 
-  it("alerts for an alert set on a station as for a message, with a pop-up of its own and the toast with the time, and counts no message", async () => {
+  it("alerts for an alert set on a station as for a message, with a notification of its own and the toast with the time, and counts no message", async () => {
     stubBrowser();
     FakeNotification.permission = "granted";
     openedAt("192.168.1.20");
