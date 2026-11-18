@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.21.2
+
 An aircraft's card says more, and aircraft are larger on the map.
 
 - **New:** the card of an aircraft from a Radarcape says where it comes from and where it goes: From Stockholm (ESSA), To Helsinki (EFHK).
