@@ -113,6 +113,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_direction": "「{value}」は omni でも N NE E SE S SW W NW のいずれでもありません",
   "error.setting.not_globs": "「{value}」は、スペースで区切った1つ以上の絶対パスのパターン(例: /dev/ttyUSB*)ではありません",
   "error.setting.not_host": "「{value}」はアドレスでも名前でもありません",
+  "error.setting.not_receiver": "「{value}」は受信機のアドレスではありません",
   "error.setting.not_hostport": "「{value}」は ホスト:ポート ではありません(rigctldのポートは4532です)",
   "error.setting.not_server": "「{value}」は ホスト:ポート ではありません(APRS-ISサーバーの一般的なポートは14580です)",
   "error.setting.not_passcode": "コールサインのパスコードは0〜{max}の数字です",

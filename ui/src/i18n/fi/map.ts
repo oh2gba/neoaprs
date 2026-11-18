@@ -12,7 +12,6 @@ export const map: Record<keyof typeof source, Message> = {
   "map.note.no_engine": "Karttaa ei voitu ladata",
   "map.note.unreadable": "Karttatiedostoa ei voi lukea",
   "map.follow_me": "Seuraa sijaintiani",
-  "map.aloha": "ALOHA-ympyrä: {km} km",
 
   "map.credits.hide": "Piilota tekijätiedot",
   "map.credits.show": "Kartan ja symbolien tekijätiedot",

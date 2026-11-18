@@ -1,0 +1,35 @@
+// This translation has not yet been reviewed by a native-speaking ham; corrections are welcome.
+import type { layertraffic as source } from "@/i18n/en/layertraffic";
+import type { Message } from "@/i18n/message";
+
+export const layertraffic: Record<keyof typeof source, Message> = {
+  "layers.card.ship": "Alus",
+  "layers.card.mmsi": "MMSI {id}",
+  "layers.card.registration": "Rekisteritunnus",
+  "layers.card.type": "Tyyppi",
+  "layers.card.heading": "Suunta",
+  "layers.card.destination": "Määränpää",
+  "layers.card.age": "Ikä",
+  "layers.card.source": "Lähde",
+  "layers.kind.wing_in_ground": "Pintaliitäjä",
+  "layers.kind.fishing": "Kalastus",
+  "layers.kind.towing": "Hinaus",
+  "layers.kind.dredging": "Ruoppaus tai vedenalainen työ",
+  "layers.kind.diving": "Sukellus",
+  "layers.kind.military": "Sotilasalus",
+  "layers.kind.sailing": "Purjealus",
+  "layers.kind.pleasure": "Huvivene",
+  "layers.kind.high_speed": "Pikaalus",
+  "layers.kind.pilot": "Luotsi",
+  "layers.kind.rescue": "Etsintä ja pelastus",
+  "layers.kind.tug": "Hinaaja",
+  "layers.kind.tender": "Satamapalvelualus",
+  "layers.kind.anti_pollution": "Öljyntorjunta",
+  "layers.kind.law": "Viranomaisalus",
+  "layers.kind.medical": "Sairaankuljetus",
+  "layers.kind.noncombatant": "Ei-sotilasalus",
+  "layers.kind.passenger": "Matkustaja-alus",
+  "layers.kind.cargo": "Rahtialus",
+  "layers.kind.tanker": "Säiliöalus",
+  "layers.kind.other": "Muu",
+};

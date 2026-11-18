@@ -12,7 +12,6 @@ export const map: Record<keyof typeof source, Message> = {
   "map.note.no_engine": "地図を読み込めませんでした",
   "map.note.unreadable": "地図ファイルを読み取れません",
   "map.follow_me": "現在地を追従",
-  "map.aloha": "ALOHA サークル: {km} km",
 
   "map.credits.hide": "クレジットを隠す",
   "map.credits.show": "地図とシンボルのクレジット",

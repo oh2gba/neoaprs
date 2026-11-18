@@ -117,6 +117,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_globs": "'{value}' ei ole yksi tai useampi välilyönnein erotettu absoluuttinen kuvio, kuten /dev/ttyUSB*",
   "error.setting.not_host": "'{value}' ei ole osoite eikä nimi",
   "error.setting.not_hostport": "'{value}' ei ole muotoa palvelin:portti (4532 on rigctld:n portti)",
+  "error.setting.not_receiver": "'{value}' ei ole vastaanottimen osoite",
   "error.setting.not_server": "'{value}' ei ole muotoa palvelin:portti (14580 on APRS-IS-palvelimen tavallinen portti)",
   "error.setting.not_passcode": "kutsusi pääsykoodi on luku väliltä 0–{max}",
   "error.setting.passcode_read_only": "-1 on pelkän lukemisen pääsykoodi; iGate tarvitsee kutsunsa pääsykoodin",

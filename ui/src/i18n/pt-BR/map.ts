@@ -12,7 +12,6 @@ export const map: Record<keyof typeof source, Message> = {
   "map.note.no_engine": "Não foi possível carregar o mapa",
   "map.note.unreadable": "Não foi possível ler o arquivo do mapa",
   "map.follow_me": "Seguir minha posição",
-  "map.aloha": "Círculo ALOHA: {km} km",
 
   "map.credits.hide": "Ocultar os créditos",
   "map.credits.show": "Créditos do mapa e dos símbolos",

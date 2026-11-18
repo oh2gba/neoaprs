@@ -117,6 +117,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_globs": "‘{value}’ bestaat niet uit een of meer absolute patronen, gescheiden door spaties, zoals /dev/ttyUSB*",
   "error.setting.not_host": "‘{value}’ is geen adres of naam",
   "error.setting.not_hostport": "‘{value}’ is geen host:poort (4532 is de poort van rigctld)",
+  "error.setting.not_receiver": "‘{value}’ is niet het adres van een ontvanger",
   "error.setting.not_server": "‘{value}’ is geen host:poort (14580 is de gangbare poort van een APRS-IS-server)",
   "error.setting.not_passcode": "de passcode van je roepnaam is een getal van 0 tot {max}",
   "error.setting.passcode_read_only": "-1 is de passcode om alleen te lezen; een iGate heeft de passcode van zijn roepnaam nodig",

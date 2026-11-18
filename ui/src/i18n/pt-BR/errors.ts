@@ -116,6 +116,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_globs": "'{value}' não é um ou mais padrões absolutos separados por espaços, como /dev/ttyUSB*",
   "error.setting.not_host": "'{value}' não é um endereço nem um nome",
   "error.setting.not_hostport": "'{value}' não é host:porta (4532 é a porta do rigctld)",
+  "error.setting.not_receiver": "'{value}' não é o endereço de um receptor",
   "error.setting.not_server": "'{value}' não é host:porta (14580 é a porta usual de um servidor APRS-IS)",
   "error.setting.not_passcode": "o código do seu indicativo é um número de 0 a {max}",
   "error.setting.passcode_read_only": "-1 é o código somente de leitura; um iGate precisa do código do seu indicativo",

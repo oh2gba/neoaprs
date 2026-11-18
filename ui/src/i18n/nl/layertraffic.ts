@@ -1,0 +1,35 @@
+// This translation has not yet been reviewed by a native-speaking ham; corrections are welcome.
+import type { layertraffic as source } from "@/i18n/en/layertraffic";
+import type { Message } from "@/i18n/message";
+
+export const layertraffic: Record<keyof typeof source, Message> = {
+  "layers.card.ship": "Schip",
+  "layers.card.mmsi": "MMSI {id}",
+  "layers.card.registration": "Registratie",
+  "layers.card.type": "Type",
+  "layers.card.heading": "Richting",
+  "layers.card.destination": "Bestemming",
+  "layers.card.age": "Leeftijd",
+  "layers.card.source": "Bron",
+  "layers.kind.wing_in_ground": "Grondeffectvaartuig",
+  "layers.kind.fishing": "Visserij",
+  "layers.kind.towing": "Sleepvaart",
+  "layers.kind.dredging": "Baggeren of onderwaterwerk",
+  "layers.kind.diving": "Duiken",
+  "layers.kind.military": "Militair",
+  "layers.kind.sailing": "Zeilschip",
+  "layers.kind.pleasure": "Pleziervaartuig",
+  "layers.kind.high_speed": "Snel vaartuig",
+  "layers.kind.pilot": "Loodsboot",
+  "layers.kind.rescue": "Reddingsboot",
+  "layers.kind.tug": "Sleepboot",
+  "layers.kind.tender": "Havendienst",
+  "layers.kind.anti_pollution": "Milieubestrijding",
+  "layers.kind.law": "Handhaving",
+  "layers.kind.medical": "Medisch transport",
+  "layers.kind.noncombatant": "Niet-strijdend",
+  "layers.kind.passenger": "Passagiersschip",
+  "layers.kind.cargo": "Vrachtschip",
+  "layers.kind.tanker": "Tanker",
+  "layers.kind.other": "Overig",
+};

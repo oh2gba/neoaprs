@@ -11,7 +11,6 @@ export const map: Readonly<Record<keyof typeof en, Message>> = {
   "map.note.no_engine": "No se pudo cargar el mapa",
   "map.note.unreadable": "No se puede leer el archivo del mapa",
   "map.follow_me": "Seguir mi posición",
-  "map.aloha": "Círculo ALOHA: {km} km",
 
   "map.credits.hide": "Ocultar los créditos",
   "map.credits.show": "Créditos del mapa y los símbolos",

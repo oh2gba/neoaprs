@@ -1,0 +1,35 @@
+// This translation has not yet been reviewed by a native-speaking ham; corrections are welcome.
+import type { layertraffic as source } from "@/i18n/en/layertraffic";
+import type { Message } from "@/i18n/message";
+
+export const layertraffic: Record<keyof typeof source, Message> = {
+  "layers.card.ship": "船舶",
+  "layers.card.mmsi": "MMSI {id}",
+  "layers.card.registration": "登録記号",
+  "layers.card.type": "機種",
+  "layers.card.heading": "機首方位",
+  "layers.card.destination": "目的地",
+  "layers.card.age": "経過",
+  "layers.card.source": "情報源",
+  "layers.kind.wing_in_ground": "地面効果翼船",
+  "layers.kind.fishing": "漁船",
+  "layers.kind.towing": "曳航船",
+  "layers.kind.dredging": "浚渫・水中作業船",
+  "layers.kind.diving": "潜水作業船",
+  "layers.kind.military": "軍用船",
+  "layers.kind.sailing": "帆船",
+  "layers.kind.pleasure": "プレジャーボート",
+  "layers.kind.high_speed": "高速船",
+  "layers.kind.pilot": "水先船",
+  "layers.kind.rescue": "捜索救助船",
+  "layers.kind.tug": "タグボート",
+  "layers.kind.tender": "港内支援船",
+  "layers.kind.anti_pollution": "汚染防止船",
+  "layers.kind.law": "法執行船",
+  "layers.kind.medical": "医療輸送船",
+  "layers.kind.noncombatant": "非戦闘船",
+  "layers.kind.passenger": "旅客船",
+  "layers.kind.cargo": "貨物船",
+  "layers.kind.tanker": "タンカー",
+  "layers.kind.other": "その他",
+};

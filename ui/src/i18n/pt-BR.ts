@@ -5,6 +5,10 @@ import { bulletins } from "@/i18n/pt-BR/bulletins";
 import { email } from "@/i18n/pt-BR/email";
 import { errors } from "@/i18n/pt-BR/errors";
 import { help } from "@/i18n/pt-BR/help";
+import { layerbox } from "@/i18n/pt-BR/layerbox";
+import { layers } from "@/i18n/pt-BR/layers";
+import { layersettings } from "@/i18n/pt-BR/layersettings";
+import { layertraffic } from "@/i18n/pt-BR/layertraffic";
 import { map } from "@/i18n/pt-BR/map";
 import { stats } from "@/i18n/pt-BR/stats";
 import { messages } from "@/i18n/pt-BR/messages";
@@ -34,12 +38,16 @@ export const ptBR: Catalogue = {
   ...stations,
   ...nearby,
   ...map,
+  ...layers,
+  ...layerbox,
+  ...layertraffic,
   ...stats,
   ...packets,
   ...weather,
   ...symbols,
   ...radio,
   ...settings,
+  ...layersettings,
   ...phone,
   ...beacon,
   ...setup,

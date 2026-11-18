@@ -5,6 +5,10 @@ import { bulletins } from "@/i18n/fi/bulletins";
 import { email } from "@/i18n/fi/email";
 import { errors } from "@/i18n/fi/errors";
 import { help } from "@/i18n/fi/help";
+import { layerbox } from "@/i18n/fi/layerbox";
+import { layers } from "@/i18n/fi/layers";
+import { layersettings } from "@/i18n/fi/layersettings";
+import { layertraffic } from "@/i18n/fi/layertraffic";
 import { map } from "@/i18n/fi/map";
 import { stats } from "@/i18n/fi/stats";
 import { messages } from "@/i18n/fi/messages";
@@ -34,12 +38,16 @@ export const fi: Catalogue = {
   ...stations,
   ...nearby,
   ...map,
+  ...layers,
+  ...layerbox,
+  ...layertraffic,
   ...stats,
   ...packets,
   ...weather,
   ...symbols,
   ...radio,
   ...settings,
+  ...layersettings,
   ...phone,
   ...beacon,
   ...setup,

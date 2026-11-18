@@ -12,7 +12,6 @@ export const map: Record<keyof typeof source, Message> = {
   "map.note.no_engine": "De kaart kon niet worden geladen",
   "map.note.unreadable": "Het kaartbestand is onleesbaar",
   "map.follow_me": "Mijn positie volgen",
-  "map.aloha": "ALOHA-cirkel: {km} km",
 
   "map.credits.hide": "Bronnen verbergen",
   "map.credits.show": "Bronnen van kaart en symbolen",
