@@ -90,7 +90,7 @@ async def test_direwolf_is_started_in_the_radios_folder_with_its_configuration_h
     await m.start(CARD, "rts:/dev/ttyUSB7", -6)
     await running(m)
     home = radio_folder(tmp_path, 3)
-    assert (home / CONF_FILE).read_text(encoding="utf-8") == (f"# written by NeoAPRS at every start\nADEVICE {adevice(CARD, m._numbers)}\nACHANNELS 1\nCHANNEL 0\nMODEM 1200\nPTT /dev/ttyUSB7 RTS\n"
+    assert (home / CONF_FILE).read_text(encoding="utf-8") == (f"# written by NeoAPRS at every start\nADEVICE {adevice(CARD, m._numbers)}\nACHANNELS 1\nCHANNEL 0\nMODEM 1200\nTXTAIL 20\nPTT /dev/ttyUSB7 RTS\n"
                                                               f"KISSPORT 0\nKISSPORT {m.kiss_port}\nAGWPORT 0\nDNSSD 0\n")
     assert fakedirewolf.runs(home)[-1][-14:] == ["-c", str(home / CONF_FILE), "-t", "0", "-q", "d", "-a", "2", "-R", "100", "-d", "on", "-Q", "-G", "50"][-14:]
     assert set(m.held()) == {Claim("sound_card", CARD, 3), Claim("keying", port("/dev/ttyUSB7"), 3), Claim("modem_ports", str(m.kiss_port), 3)}

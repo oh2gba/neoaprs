@@ -109,6 +109,8 @@ The two sliders are the sound card's own levels, the ones the desktop's sound se
 
 A slider changes nothing else: Direwolf is not restarted. The card's own switches, a mute or an automatic gain, stay as they are; with the automatic gain on, the receive slider does less. Several presses of **-** and **+** in a row make the radio stop listening once, when you stop pressing.
 
+Each transmission is the same for every keying: from the moment the radio is keyed, 300 ms of flags (the steady sound before the packet, in which the radio comes up to power), the packet, then 200 ms of flags before the radio is let go.
+
 **When it works:** the status line says *connected*, and a packet Direwolf decodes is on the map a moment later.
 
 On a Mac there is no *Sound card* type: run Direwolf yourself ([`docs/RADIOS.md`](../RADIOS.md#your-own-direwolf) has its few lines of setup) and add a radio of the type *Your own Direwolf or soundmodem* with **Port** 8001. The same holds for a Direwolf of your own on any computer.

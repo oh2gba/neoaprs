@@ -23,12 +23,26 @@ starts: the system's default device may be the computer's speakers.
 |---|---|
 | `ADEVICE <card>` | the card's id (Linux: its stable ALSA name, `plughw:CARD=CODEC,DEV=0`; never `default`); on Windows the WinMM numbers of its input and output (`ADEVICE 1 3`) |
 | `ACHANNELS 1`, `CHANNEL 0`, `MODEM 1200` | one channel of AFSK 1200; one stereo card as two radios is not offered, the claims hold a card whole |
+| `TXTAIL 20` | 200 ms of flags after the last frame before the key goes off, twice Direwolf's own 100 ms: room for the sound card's output delay on Windows ([Keying times](#keying-times)) |
 | `PTT CM108`, `PTT <port> RTS`, `PTT <port> DTR`, none | the keying `cm108`, `rts:PORT`, `dtr:PORT`, `vox`; after ADEVICE, because `PTT CM108` looks up the HID of the output device set before it (`config.c:2140-2145`) |
 | `KISSPORT 0`, `KISSPORT <port>` | slot 0 holds 8001 until it is cleared, and a new port takes the first empty slot (`config.c:877-884`, `4985-5020`) |
 | `AGWPORT 0`, `DNSSD 0` | no AGW server (`server.c:468-472`), no announcement on the LAN (`dns_sd_enabled = 1` by default, `config.c:889`) |
 
-No `MYCALL`: Direwolf asks for it only before it digipeats or gates (`config.c:5690-5720`), and sends KISS frames as given, so a change of the station's call restarts no radio. TXDELAY, TXTAIL, SLOTTIME and PERSIST
-are Direwolf's defaults (300 ms, 100 ms, 100 ms and 63, `audio.h:497-500`); whether 300 ms suits a VOX radio is to be looked at on the air.
+No `MYCALL`: Direwolf asks for it only before it digipeats or gates (`config.c:5690-5720`), and sends KISS frames as given, so a change of the station's call restarts no radio. TXDELAY, SLOTTIME and PERSIST
+are Direwolf's defaults (300 ms, 100 ms and 63, `audio.h:497-500`); whether 300 ms suits a VOX radio is to be looked at on the air.
+
+### Keying times
+
+A transmission (`xmit.c` `xmit_ax25_frames`): the key goes on; at once TXDELAY of flags (300 ms), the frames, TXTAIL of flags (200 ms); Direwolf waits for the card (`audio_wait`) and then until the time the
+transmission's bits take has passed since the key went on; the key goes off. There is no silence after the key: the flags are the preamble, and the radio's own time from the key to power on the air comes off
+them. On Linux `audio_wait` is `snd_pcm_drain`, which returns when the card has played the sound, so the key goes off after the sound. On Windows it only hands the last buffer to WinMM (`audio_win.c`
+`audio_wait` is `audio_flush`, and up to a second of audio is queued ahead), so the key goes off by the clock: the sound starts the card's output delay after the key and ends that delay after the clock says,
+and the tail of flags is all the room that delay has. With Direwolf's own 100 ms a card slower than that would cut the end of the frame; 200 ms cost 100 ms of keying a transmission.
+
+Measured on 18 November 2026 with this Direwolf on ALSA's `file` plugin over `null` (no card: the samples go to a file as fast as they come, so the key is held by the clock, as on Windows), our configuration and
+command line, ten transmissions each, with Direwolf's own 100 ms tail: a frame of 80 bytes was keyed 950.6 ms (it alone needs 537 ms) and one of 250 bytes 2090.1 ms (1677 ms), the least and the most within
+0.1 ms; in the audio no silence before the first tone, 46 flags before the frame (307 ms: 300 ms and the opening flag) and 16 after it (107 ms); the key went off 0.1 to 0.7 ms after the last sample. With
+`TXTAIL 20` the same frames take 100 ms more and 31 flags follow the frame. What this cannot show is a card's own output delay.
 
 The command (`direwolf.command`): `direwolf -c <conf> -t 0 -q d -a 2 -R 100 -d on -Q -G <pct>`. `-t 0` no colours; `-q d` no description of each packet (NeoAPRS decodes); `-a 2` the audio statistics every two seconds
 (the log, DEBUG, and the radio's row: its `rx_level`); `-R 100` the receive level every 100 ms of audio read, `RXLEVEL 0 = N` (rxlevel.patch), which never reaches the log; `-d o` prints `PTT 0 = 1/0` at each key and unkey, VOX too (`ptt.c:1341-1343`), and `DCD 0 = 1/0` at each carrier; `-d n` prints each frame the line hands it ("<<< Data frame from KISS client application",
@@ -116,4 +130,4 @@ Direwolf, nor does a wheel installed with pip or a checkout: the type is not off
 
 The SHA-256 of the source archive (taken once by the maintainer: [MAINTAINING.md](MAINTAINING.md#moving-the-direwolf-pin)); that the MinGW cross-build configures and links; that `winmm.dll` and `hid.dll` are on
 Windows 11 N; that WinMM names are the WASAPI names cut to 31 characters; that Ubuntu 22.04's libudev reads a newer system's udev database; the name ALSA and Windows give an AIOC; whether 300 ms of TXDELAY suits a
-VOX radio; the sizes the build prints.
+VOX radio; the output delay of a Windows sound card, which the 200 ms of tail must cover; the sizes the build prints.

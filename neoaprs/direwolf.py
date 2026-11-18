@@ -2,8 +2,8 @@
 program with, the keying it proposes for an FM interface, the level of a packet heard on Direwolf's own scale, and what the program prints. No I/O: the program is started and watched by direwolfprogram.py and
 direwolfmodem.py, and the Tnc reaches its KISS port as it reaches any KISS server over TCP.
 
-Direwolf is AFSK 1200 on FM (MODEM 1200), keying the radio itself (a CM108 pin, RTS or DTR of a serial port, or nothing: VOX), with its own carrier sense and its defaults for TXDELAY, TXTAIL, SLOTTIME and
-PERSIST. It is given no call (it digipeats and gates nothing: NeoAPRS's own digipeater and beacon go over KISS as for any TNC), so a change of the station's call restarts no radio. Every listener of the Direwolf
+Direwolf is AFSK 1200 on FM (MODEM 1200), keying the radio itself (a CM108 pin, RTS or DTR of a serial port, or nothing: VOX), with its own carrier sense, its defaults for TXDELAY, SLOTTIME and PERSIST, and
+a TXTAIL of NeoAPRS's own (TXTAIL_MS). It is given no call (it digipeats and gates nothing: NeoAPRS's own digipeater and beacon go over KISS as for any TNC), so a change of the station's call restarts no radio. Every listener of the Direwolf
 NeoAPRS builds binds 127.0.0.1 (packaging/direwolf/loopback.patch), it ends cleanly when its standard input closes (`-Q`, quit.patch), its transmit level is a percentage (`-G`, txlevel.patch), it says the receive level ten times a second (`-R`, rxlevel.patch)
 and it takes a configuration path of any length (confpath.patch).
 docs/direwolf.md says where each number comes from."""
@@ -31,6 +31,11 @@ CONF_FILE = "direwolf.conf"
 PID_FILE = "direwolf.pid"
 STATS_SEC = 2                          # `-a`: a line every two seconds with the sample rate, the audio errors and the receive level as it is now (the radio's row follows it), to the log at DEBUG
 LEVEL_NOW_MS = 100                     # `-R`: the receive level of channel 0 every 100 ms of audio read, "RXLEVEL 0 = N" (rxlevel.patch), for the pages that show it (web/levelfeed.py); never in the log
+
+# The flags sent after the last frame before the radio is let go. Direwolf's own 100 ms (audio.h) are all the room the sound card's output delay has on Windows, where the key goes off by Direwolf's clock alone
+# (audio_win.c: audio_wait only hands the last buffer over, so the sound ends that delay after the clock says): a delay of more than 100 ms would cut the end of the frame. 200 ms leave room for a slow card and cost
+# 100 ms of keying a transmission; on Linux the key waits for the card (snd_pcm_drain), and the longer tail is only flags. TXDELAY is Direwolf's 300 ms of flags from the key (docs/direwolf.md, "Keying times").
+TXTAIL_MS = 200
 
 # The level of a packet heard, on Direwolf's own scale (direwolf.c:1329-1349): about 50 for most stations, "too high" over 110, "too low" under 5, 199 with the input cranked all the way up. The good band is a choice
 # round Direwolf's 50, not a measurement, as Mercury's good range is (docs/direwolf.md).
@@ -82,12 +87,14 @@ def adevice(sound_card: str, numbers: tuple[int, int] | None = None) -> str:
 
 def conf_text(device: str, keying: Keying, kiss_port: int) -> str:
     """Direwolf's configuration as the daemon writes it at every start: the sound card, one channel of AFSK 1200, the keying, the KISS port (slot 0 cleared first: it holds 8001 until it is, and a new port takes
-    the first empty slot), the AGW server and the announcement on the LAN off. The audio device comes before the PTT line, because `PTT CM108` looks up the HID of the output device set before it."""
+    the first empty slot), the AGW server and the announcement on the LAN off, and the tail of every transmission (TXTAIL_MS, in Direwolf's tens of milliseconds). The audio device comes before the PTT line,
+    because `PTT CM108` looks up the HID of the output device set before it."""
     return ("# written by NeoAPRS at every start\n"
             f"ADEVICE {device}\n"
             "ACHANNELS 1\n"
             "CHANNEL 0\n"
             "MODEM 1200\n"
+            f"TXTAIL {TXTAIL_MS // 10}\n"
             f"{ptt_line(keying)}"
             "KISSPORT 0\n"
             f"KISSPORT {kiss_port}\n"

@@ -19,7 +19,7 @@ def test_the_source_is_pinned_by_its_commit_and_its_sha256() -> None:
 
 
 def test_the_configuration_names_the_card_the_keying_and_the_one_kiss_port_and_turns_the_rest_off() -> None:
-    head = "# written by NeoAPRS at every start\nADEVICE plughw:CARD=CODEC,DEV=0\nACHANNELS 1\nCHANNEL 0\nMODEM 1200\n"
+    head = "# written by NeoAPRS at every start\nADEVICE plughw:CARD=CODEC,DEV=0\nACHANNELS 1\nCHANNEL 0\nMODEM 1200\nTXTAIL 20\n"
     tail = "KISSPORT 0\nKISSPORT 8002\nAGWPORT 0\nDNSSD 0\n"
     card = adevice("plughw:CARD=CODEC,DEV=0")
     assert conf_text(card, Keying("vox"), 8002) == head + tail, "VOX: no PTT line"
@@ -27,7 +27,7 @@ def test_the_configuration_names_the_card_the_keying_and_the_one_kiss_port_and_t
     assert conf_text(card, Keying("rts", "/dev/ttyUSB0"), 8002) == head + "PTT /dev/ttyUSB0 RTS\n" + tail
     assert conf_text(card, Keying("dtr", "/dev/ttyUSB1"), 8002) == head + "PTT /dev/ttyUSB1 DTR\n" + tail
     windows = conf_text(adevice("{0.0.1.x}|{0.0.0.y}", (1, 3)), Keying("rts", "COM4"), 8003)
-    assert windows.splitlines()[1:6] == ["ADEVICE 1 3", "ACHANNELS 1", "CHANNEL 0", "MODEM 1200", "PTT COM4 RTS"] and "KISSPORT 8003" in windows
+    assert windows.splitlines()[1:7] == ["ADEVICE 1 3", "ACHANNELS 1", "CHANNEL 0", "MODEM 1200", "TXTAIL 20", "PTT COM4 RTS"] and "KISSPORT 8003" in windows
     with pytest.raises(ValueError):
         adevice("")                                                    # (never the system's default device, which may be the computer's speakers)
     for text in (windows, conf_text(card, Keying("cm108"), 8002)):
@@ -35,6 +35,15 @@ def test_the_configuration_names_the_card_the_keying_and_the_one_kiss_port_and_t
         assert lines.index("KISSPORT 0") < lines.index(next(line for line in lines if line.startswith("KISSPORT ") and line != "KISSPORT 0")), "slot 0 cleared before the port is given"
         assert lines.index(next(line for line in lines if line.startswith("ADEVICE"))) < lines.index(next(line for line in lines if line.startswith("PTT"))), "the card before the keying (PTT CM108 looks up its HID)"
         assert not any(word in text for word in ("MYCALL", "DIGIPEAT", "BEACON", "IGSERVER", "GPSD")), "no call, no digipeater, beacon, iGate or GPS of Direwolf's own"
+
+
+def test_every_transmission_holds_the_key_200_ms_after_its_last_frame_and_starts_with_direwolfs_own_300_ms() -> None:
+    card = adevice("plughw:CARD=CODEC,DEV=0")
+    for keying in (Keying("vox"), Keying("cm108"), Keying("rts", "COM6"), Keying("dtr", "/dev/ttyUSB1")):
+        lines = conf_text(card, keying, 8002).splitlines()
+        assert lines.count("TXTAIL 20") == 1 and lines.index("CHANNEL 0") < lines.index("TXTAIL 20"), "the tail in tens of milliseconds, for channel 0"
+        assert not any(line.startswith(("TXDELAY", "SLOTTIME", "PERSIST", "DWAIT")) for line in lines), "Direwolf's own TXDELAY of 300 ms and its channel access"
+    assert direwolf.TXTAIL_MS == 200
 
 
 @pytest.mark.parametrize("device", ["/dev/ttyUSB0\nMYCALL OH2X", "COM4\rDIGIPEAT 0 0 WIDE", "/dev/tty USB0", "COM4\x00", "/dev/ttyUSB0\u2028PTT"])
