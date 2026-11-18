@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+Aircraft from a Radarcape, drawn by their kind and with a track, and cards on the map that can be resized.
+
+- **New:** aircraft on the map can come from your own Radarcape: choose Radarcape in Settings, Map and type its address.
+- **New:** an aircraft is drawn by its kind: airliner, light aircraft, helicopter, glider, balloon or drone.
+- **New:** the track of the aircraft or ship whose card is open is drawn on the map.
+- **New:** the Packets and Monitor cards on the map can be resized, and remember their size.
+- **Changed:** in Settings, Map the receiver that reads tar1090 or dump1090 is named so.
+- **Changed:** a Sound card radio holds its key 200 ms after a packet, so a slow sound card on Windows cannot cut the packet's end.
+- **Fixed:** a radio's box in Settings no longer moves its levels and buttons while the radio receives.
+
 ## 0.21.0
 
 Layers on the map: a locator grid, and aircraft and ships from your own receiver or the internet.
