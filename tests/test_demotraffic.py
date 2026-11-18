@@ -103,7 +103,7 @@ def test_demo_daemon_with_traffic_starts_it_points_the_daemons_services_at_it_an
 
     assert demo.main(["--data", str(tmp_path / "demo"), "--traffic"], run, start) == 0
     ((command, process),) = made
-    assert command[-1].endswith("scripts/demotraffic.py") and running == [True] and process.ended == ["terminate", "wait"], "the traffic runs while the daemon does, and ends with it"
+    assert Path(command[-1]).parts[-2:] == ("scripts", "demotraffic.py") and running == [True] and process.ended == ["terminate", "wait"], "the traffic runs while the daemon does, and ends with it"
     assert ran[0]["NEOAPRS_LAYERS_URL"] == "http://127.0.0.1:7391" and ran[0]["NEOAPRS_UPDATE_CHECK"] == "0" and ran[0]["NEOAPRS_NO_DEVICES"] == "1"
     assert demo.main(["--data", str(tmp_path / "demo")], run, start) == 0 and len(made) == 1 and "NEOAPRS_LAYERS_URL" not in ran[1], "without --traffic: nothing of it"
 

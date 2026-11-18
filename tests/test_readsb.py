@@ -82,7 +82,7 @@ def test_one_hex_twice_is_one_aircraft_at_its_newest_position() -> None:
 
 
 @pytest.mark.parametrize("body", [b"", b"not json", b"\xff\xfe", b"[]", b'"aircraft"', b'{"aircraft": []}', b'{"now": 1, "aircraft": {}}', b'{"now": "soon", "aircraft": []}', b'{"now": true, "ac": []}',
-                                  b"<html><body>tar1090</body></html>", b'{"now": 1e400, "aircraft": []}', b"[" * 100000])
+                                  b"<html><body>tar1090</body></html>", b'{"now": 1e400, "aircraft": []}', b"[" * 100000], ids=lambda body: f"{len(body)} bytes" if isinstance(body, bytes) and len(body) > 80 else None)
 def test_anything_that_is_not_readsbs_json_is_none(body: bytes) -> None:
     assert read_aircraft(body) is None
 
@@ -100,7 +100,7 @@ def test_the_answer_read_item_by_item_is_what_json_reads(body: bytes) -> None:
     assert loads(body) == json.loads(body)
 
 
-@pytest.mark.parametrize("body", [b'{"ac": [1,]}', b'{"now": 1,}', b'{"now" 1}', b'{1: 2}', b'{"ac": [1] x', b'{"ac": [1', b'{"ac": [1]} {}', b'{"ac": [' + b"[" * 100000 + b"]"])
+@pytest.mark.parametrize("body", [b'{"ac": [1,]}', b'{"now": 1,}', b'{"now" 1}', b'{1: 2}', b'{"ac": [1] x', b'{"ac": [1', b'{"ac": [1]} {}', b'{"ac": [' + b"[" * 100000 + b"]"], ids=lambda body: f"{len(body)} bytes" if isinstance(body, bytes) and len(body) > 80 else None)
 def test_an_answer_that_is_not_json_is_still_none_when_read_item_by_item(body: bytes) -> None:
     assert read_aircraft(body) is None
 

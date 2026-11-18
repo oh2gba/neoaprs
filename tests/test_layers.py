@@ -436,7 +436,7 @@ async def test_after_the_stop_a_save_starts_and_stops_nothing() -> None:
         assert len(service._tasks) == 0, "no task that nobody awaits"
 
 
-async def test_the_loop_answers_within_50_ms_while_a_receiver_answers_some_16_megabytes() -> None:
+async def test_the_loop_is_not_held_while_a_receiver_answers_some_16_megabytes() -> None:
     receiver = await layers_server()
     many = [plane(f"{n:06x}", lat=60 + (n % 1000) / 1000, lon=24 + (n // 1000) / 100, flight="FIN123  ", r="OH-ABC", t="A320", squawk="1234", category="A3") for n in range(75000)]
     body = sky(*many)
@@ -465,6 +465,7 @@ async def test_the_loop_answers_within_50_ms_while_a_receiver_answers_some_16_me
             await service.stop()
         return worst
 
-    # (A machine busy with the other tests can keep any loop waiting for a moment, so the best of three goes counts; an answer read on the loop holds it for most of a second in every one of them.)
+    # (An answer read on the loop holds it for most of a second on a fast machine and longer on a slow one; read on a thread, item by item, the loop waited 10 ms here, 60 ms in the Windows machine
+    # and 80 ms in the runner-sized container. A machine busy with the other tests can keep any loop waiting for a moment, so the best of three goes counts.)
     best = min([await held() for _ in range(3)])
-    assert best < 0.05, f"the loop was held {best * 1000:.0f} ms"
+    assert best < 0.25, f"the loop was held {best * 1000:.0f} ms"
