@@ -161,12 +161,12 @@ describe("every form of fields is a group box, a chat line is not", () => {
     expect(chat.classes()).not.toContain("boxed");
   });
 
-  it("gives every field of the Bulletins and Email boxes the row of the Settings fields: a label and the control, and in the Email box its (i) (the fields of Bulletins say what they are themselves)", () => {
+  it("gives every field of the Bulletins and Email boxes the row of the Settings fields: a label, the control and its (i)", () => {
     const rows = [...barOf(bulletins()).findAll(".field")];
     expect(rows.map((r) => r.find("label").text())).toEqual(["Kind", "Number", "Group", "Text"]);
     for (const row of rows) {
       expect(row.find(".field-control > .input").exists()).toBe(true);
-      expect(row.find(".infotip").exists()).toBe(false);
+      expect(row.find(".field-control .infotip").exists()).toBe(true);
     }
     const mail = email();
     const mailRows = [...barOf(mail).findAll(".field")];
