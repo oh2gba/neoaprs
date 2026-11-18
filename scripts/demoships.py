@@ -45,14 +45,14 @@ class Craft:
 
 
 CRAFT = (
-    Craft(230111000, "FINLANDIA", 60, "TALLINN", 5, 5, 8, 900),
-    Craft(230222000, "AURA", 70, "ROSTOCK", -8, 12, 10, -1200),
-    Craft(230333000, "BOTNIA", 80, "HELSINKI", 12, -10, 6, 700),
-    Craft(230444000, "SEA LARK", 37, "", -4, -6, 3, 500, class_b=True),
-    Craft(230555000, "ULLA", 30, "PORVOO", 15, 20, 9, -800),
+    Craft(230111000, "FINLANDIA", 60, "TALLINN", 5, 5, 8, 10800),
+    Craft(230222000, "AURA", 70, "ROSTOCK", -8, 12, 10, -14400),
+    Craft(230333000, "BOTNIA", 80, "HELSINKI", 12, -10, 6, 8400),
+    Craft(230444000, "SEA LARK", 37, "", -4, -6, 3, 6000, class_b=True),
+    Craft(230555000, "ULLA", 30, "PORVOO", 15, 20, 9, -9600),
     Craft(230666000, "WAVE RIDER", 36, "", 0, 0, 0, 1, class_b=True),
     Craft(230777000, "HAMINA", 70, "KOTKA", -15, -20, 0, 1),
-    Craft(230888000, "TOLLO", 52, "HELSINKI", 20, -25, 5, 600),
+    Craft(230888000, "TOLLO", 52, "HELSINKI", 20, -25, 5, 7200),
 )
 AT_SEA = CRAFT[:6]                                # the six that the receiver sends (one at anchor: WAVE RIDER)
 
