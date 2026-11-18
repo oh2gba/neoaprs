@@ -244,8 +244,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.fold.filter": "Filtro: estações a menos de {km} km da sua posição",
   "settings.igate.fold.named": "{name} ({server})",
 
-  "settings.alert.label": "Alerta",
-  "settings.alert.tip1": "Com o alerta ligado, o comando é executado quando chega uma mensagem.",
+  "settings.alert.tip1": "Com Notificar-me ligado, o comando é executado quando chega uma mensagem.",
   "settings.alert_command.name": "Comando de alerta",
   "settings.alert_command.label": "Comando",
   "settings.alert_command.tip1": "Executado a cada mensagem nova e aviso de estação; NEOAPRS_TITLE e NEOAPRS_TEXT trazem o título e o texto.",

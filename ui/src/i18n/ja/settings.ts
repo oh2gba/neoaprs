@@ -240,8 +240,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.fold.filter": "フィルター: あなたの位置から半径{km} km以内の局",
   "settings.igate.fold.named": "{name}({server})",
 
-  "settings.alert.label": "アラート",
-  "settings.alert.tip1": "アラートをオンにすると、メッセージが届いたときにコマンドを実行します。",
+  "settings.alert.tip1": "「通知」をオンにすると、メッセージが届いたときにコマンドを実行します。",
   "settings.alert_command.name": "アラートのコマンド",
   "settings.alert_command.label": "コマンド",
   "settings.alert_command.tip1": "新着メッセージと局の通知ごとに実行されます。NEOAPRS_TITLE と NEOAPRS_TEXT にタイトルと本文が入ります。",

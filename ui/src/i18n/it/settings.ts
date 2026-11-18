@@ -245,8 +245,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.igate.fold.filter": "Filtro: stazioni entro {km} km dalla tua posizione",
   "settings.igate.fold.named": "{name} ({server})",
 
-  "settings.alert.label": "Avviso",
-  "settings.alert.tip1": "Con l’avviso attivo, il comando viene eseguito quando arriva un messaggio.",
+  "settings.alert.tip1": "Con Avvisami attivo, il comando viene eseguito quando arriva un messaggio.",
   "settings.alert_command.name": "Comando di avviso",
   "settings.alert_command.label": "Comando",
   "settings.alert_command.tip1": "Eseguito per ogni nuovo messaggio e avviso di stazione; NEOAPRS_TITLE e NEOAPRS_TEXT contengono il titolo e il testo.",

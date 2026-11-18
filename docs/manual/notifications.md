@@ -13,7 +13,7 @@ Both also alert for an alert you set on a station (**Alert me when…** in the S
 
 ## On the NeoAPRS computer
 
-When a message to you arrives and **Alert** (`messages/alert`) is on, which it is by default, NeoAPRS runs the shell line in **Command** (`messages/alert_command`, at most 1000 characters; empty runs nothing). While **Alert** is off, and on a page of another device, **Command** and its Test button are hidden. The default on Linux is a notification and a sound:
+When a message to you arrives and **Notify me** (`messages/alert`) is on, which it is by default, NeoAPRS runs the shell line in **Command** (`messages/alert_command`, at most 1000 characters; empty runs nothing). While **Notify me** is off, and on a page of another device, **Command** and its Test button are hidden. The default on Linux is a notification and a sound:
 
 ```
 (notify-send -- "$NEOAPRS_TITLE" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "$NEOAPRS_TITLE" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga
@@ -41,7 +41,7 @@ Up to 0.12 the default titled every notification "APRS message from …". A stor
 
 **On Windows** the command is a PowerShell script. Read the variables as `$env:NEOAPRS_TITLE`, `$env:NEOAPRS_TEXT` and so on. A step that fails ends the script with status 1, and `exit N` gives its own status. The default is a PowerShell toast with the title and the text, and the system's sound.
 
-**The Test button** to the right of the Command field runs the command as it is saved, exactly as for a real message. `NEOAPRS_KIND` is `message`, `NEOAPRS_TITLE` is `APRS message from NEOAPRS`, `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. It works whatever **Alert** says. Its result is said in the toast at the bottom of the page.
+**The Test button** to the right of the Command field runs the command as it is saved, exactly as for a real message. `NEOAPRS_KIND` is `message`, `NEOAPRS_TITLE` is `APRS message from NEOAPRS`, `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. It works whatever **Notify me** says. Its result is said in the toast at the bottom of the page.
 
 The answer is shown under the field until the next edit: `ran` when it worked, else orange with the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed. An empty command answers `no alert command`. The button waits while a test runs, and is off, with the title "Save first", while the field differs from the saved command.
 

@@ -22,7 +22,7 @@ describe("App: the alert of this browser", () => {
     expect(groups).toHaveLength(1);
     const boxes = groups[0]?.findAll("fieldset.subbox") ?? [];
     expect(boxes.map((b) => b.find("legend").text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
-    expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
+    expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Command"]);
     expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me"]); // (the loopback starts unticked: no tests)
     expect(boxes[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
     expect(boxes[1]?.findAll("button:not(.info-toggle)")).toHaveLength(0);
@@ -55,7 +55,7 @@ describe("App: the alert of this browser", () => {
       expect(
         boxes[0]?.findAll("label").map((l) => l.text()),
         name,
-      ).toEqual(["Alert", "Command"]);
+      ).toEqual(["Notify me", "Command"]);
       await boxes[0]?.find("legend .info-toggle").trigger("click");
       expect(
         boxes[0]?.findAll(".info-text .info-line").map((l) => l.text()),

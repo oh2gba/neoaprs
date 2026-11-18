@@ -244,8 +244,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.fold.filter": "Suodatin: asemat {km} km:n säteellä sijainnistasi",
   "settings.igate.fold.named": "{name} ({server})",
 
-  "settings.alert.label": "Hälytys",
-  "settings.alert.tip1": "Kun hälytys on päällä, komento suoritetaan viestin saapuessa.",
+  "settings.alert.tip1": "Kun Ilmoita minulle on päällä, komento suoritetaan viestin saapuessa.",
   "settings.alert_command.name": "Hälytyskomento",
   "settings.alert_command.label": "Komento",
   "settings.alert_command.tip1": "Suoritetaan jokaisesta uudesta viestistä ja asemahälytyksestä; NEOAPRS_TITLE ja NEOAPRS_TEXT sisältävät otsikon ja tekstin.",

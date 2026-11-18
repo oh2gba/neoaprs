@@ -32,7 +32,7 @@ Switching the network off closes the pages that came in by it. On a page opened 
 
 The alert command runs on the NeoAPRS computer, and the page alerts in the browser it is open in ([notifications.md](notifications.md)).
 
-A page on another device changes every setting but the ones that name a program or an address NeoAPRS runs or fetches from: the alert command (and its **Test**), `update/url`, `map/source` and `web/allowed_hosts`. It does not show them, and keeps the Alert tickbox. On a computer without a screen set them there, for example `neoaprs db set messages/alert_command "LINE"`, then restart NeoAPRS.
+A page on another device changes every setting but the ones that name a program or an address NeoAPRS runs or fetches from: the alert command (and its **Test**), `update/url`, `map/source` and `web/allowed_hosts`. It does not show them, and keeps the Notify me tickbox. On a computer without a screen set them there, for example `neoaprs db set messages/alert_command "LINE"`, then restart NeoAPRS.
 
 ### What is refused
 

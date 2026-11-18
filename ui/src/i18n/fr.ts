@@ -1528,8 +1528,7 @@ export const fr: Catalogue = {
   "settings.igate.fold.filter": "Filtre : stations dans un rayon de {km} km autour de votre position",
   "settings.igate.fold.named": "{name} ({server})",
 
-  "settings.alert.label": "Alerte",
-  "settings.alert.tip1": "Avec l'alerte activée, la commande est lancée quand un message arrive.",
+  "settings.alert.tip1": "Avec « Me prévenir » activé, la commande est lancée quand un message arrive.",
   "settings.alert_command.name": "Commande d'alerte",
   "settings.alert_command.label": "Commande",
   "settings.alert_command.tip1": "Lancé pour chaque nouveau message et alerte de station ; NEOAPRS_TITLE et NEOAPRS_TEXT contiennent le titre et le texte.",

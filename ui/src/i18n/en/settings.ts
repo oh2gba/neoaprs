@@ -240,8 +240,7 @@ export const settings = {
   "settings.igate.fold.filter": "Filter: stations within {km} km of your position",
   "settings.igate.fold.named": "{name} ({server})",
 
-  "settings.alert.label": "Alert",
-  "settings.alert.tip1": "With Alert on, the Command is run when a message arrives.",
+  "settings.alert.tip1": "With Notify me on, the Command is run when a message arrives.",
   "settings.alert_command.name": "Alert command",
   "settings.alert_command.label": "Command",
   "settings.alert_command.tip1": "Run for each new message and station alert; NEOAPRS_TITLE and NEOAPRS_TEXT hold the title and the text.",

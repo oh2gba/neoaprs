@@ -92,7 +92,7 @@ describe("SettingsForm", () => {
         3 + // (the radio's own fields behind its status: its type, its port and its speed)
         1 + // (the radio's digipeater in the Digipeater group, radio/1/digipeat)
         3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
-        3 + // (the browser's own: Alert for a new message, Sound, Notification)
+        3 + // (the browser's own: Notify me, Sound, Notification)
         1 + // (Language)
         -2 + // (the two receivers' addresses of the Map group: shown only with My own receiver)
         1, // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list"; one radio has no Name)
@@ -953,7 +953,7 @@ describe("SettingsForm", () => {
       expect(boxes.map((b) => b.element.parentElement)).toEqual([group?.find(".group-body").element, group?.find(".group-body").element]);
       expect(boxes[0]?.find("legend").text()).toBe("On the NeoAPRS computer i");
       expect(boxes[0]?.find("legend").attributes("title")).toBeTruthy();
-      expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
+      expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Command"]);
       expect(boxes[0]?.find("legend .info-toggle").exists()).toBe(true);
       expect(boxes[1]?.find("legend").text()).toBe("In this browser");
       expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Sound", "Notification"]);
@@ -974,7 +974,7 @@ describe("SettingsForm", () => {
       expect(computer?.find("#set-messages-alert_command").exists()).toBe(true);
       expect(browser?.find("#set-messages-alert_command").exists()).toBe(false);
     });
-    it("hides the Command and its Test button while the Alert is off, and shows them the moment it is ticked", async () => {
+    it("hides the Command and its Test button while Notify me is off, and shows them the moment it is ticked", async () => {
       const { wrapper } = make({ "messages/alert": "false" });
       const box = () => notificationBoxes(wrapper)[0];
       expect(box()?.find("legend").text()).toBe("On the NeoAPRS computer i");
@@ -982,7 +982,7 @@ describe("SettingsForm", () => {
         box()
           ?.findAll("label")
           .map((l) => l.text()),
-      ).toEqual(["Alert"]);
+      ).toEqual(["Notify me"]);
       expect(box()?.find("legend .info-toggle").exists()).toBe(true);
       expect(wrapper.find("#set-messages-alert_command").exists()).toBe(false);
       expect(box()?.findAll("button:not(.info-toggle):not(.groupfold)")).toHaveLength(0);
@@ -991,7 +991,7 @@ describe("SettingsForm", () => {
         box()
           ?.findAll("label")
           .map((l) => l.text()),
-      ).toEqual(["Alert", "Command"]);
+      ).toEqual(["Notify me", "Command"]);
       expect(
         box()
           ?.findAll("button:not(.info-toggle):not(.groupfold)")
@@ -1000,7 +1000,7 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-messages-alert").setValue(false);
       expect(wrapper.find("#set-messages-alert_command").exists()).toBe(false);
     });
-    it("shows the Command and its Test button while the Alert is on", () => {
+    it("shows the Command and its Test button while Notify me is on", () => {
       const { wrapper } = make({ "messages/alert": "true" });
       expect(wrapper.find("#set-messages-alert_command").exists()).toBe(true);
       expect(
@@ -1009,11 +1009,11 @@ describe("SettingsForm", () => {
           .map((b) => b.text()),
       ).toEqual(["Test"]);
     });
-    it("has no Command and no Test button on a page of another device, which keeps the Alert tickbox", () => {
+    it("has no Command and no Test button on a page of another device, which keeps the Notify me tickbox", () => {
       const { wrapper } = make({ "messages/alert": "true" }, "settings", { local: false });
       const box = notificationBoxes(wrapper)[0];
       expect(wrapper.find("#set-messages-alert_command").exists()).toBe(false);
-      expect(box?.findAll("label").map((l) => l.text())).toEqual(["Alert"]);
+      expect(box?.findAll("label").map((l) => l.text())).toEqual(["Notify me"]);
       expect(box?.findAll("button:not(.info-toggle):not(.groupfold)")).toHaveLength(0);
       expect(wrapper.find("#set-messages-alert").exists()).toBe(true);
     });

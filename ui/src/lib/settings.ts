@@ -263,7 +263,7 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.igate.tip1"],
     picture: "internet",
   },
-  "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool", tip: ["settings.alert.tip1"] },
+  "messages/alert": { name: "settings.browser.mode", label: "settings.browser.mode", kind: "bool", tip: ["settings.alert.tip1"] },
   "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label", tip: ["settings.alert_command.tip1"] },
   "status/source": {
     label: "settings.status_source.label",
