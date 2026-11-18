@@ -2,11 +2,12 @@
 // socket is open and the map's replay is closed; when any of them goes it says so (off) and forgets the layer's table; and it looks again when the socket was opened anew, since the daemon forgets a page that left.
 // The tables are the daemon's `layer_things`, the latest of each layer (`useLayerTables`, kept by the store of composables/useDaemon.ts as a radio's level is), and only those of the layers looked at count.
 // Here too is the card of a thing that is open over the map (components/LayerCard.vue): one at a time, opened by a click on the thing, closed by its cross, Close all, Esc, a click on the map, and by itself
-// when its thing has left the table. Nothing of it reaches the stations, the packets, the statistics or the replay.
+// when its thing has left the table. The way each thing has gone is kept here as the tables bring it (lib/layers/trail.ts: this page's own memory, begun with the look at the layer); the card's thing has its trail drawn. Nothing of it reaches the stations, the packets, the statistics or the replay.
 import { computed, shallowRef, watch, type Ref } from "vue";
 import { useMapLayers } from "@/composables/useMapLayers";
 import type { Connection, Store } from "@/lib/hub";
 import type { LayerName, SourceName } from "@/lib/layers/sources";
+import { growTrails, trailKey, type TrailPoint, type Trails } from "@/lib/layers/trail";
 import { liveThings, type LayerTables } from "@/lib/layers/traffic";
 import type { Command, LayerThing, MapState } from "@/protocol/protocol";
 
@@ -42,6 +43,8 @@ export interface LayerTraffic {
   tables: Readonly<Ref<LayerTables>>;
   /** the thing whose card is open; null while none is */
   card: Readonly<Ref<OpenThing | null>>;
+  /** The places the thing whose card is open has been seen at, the oldest first; none while no card is open. */
+  trail: Readonly<Ref<readonly TrailPoint[]>>;
   /** Opens the card of that thing (in place of the one that is open). */
   open: (layer: LayerName, id: string) => void;
   /** Closes the card; whether one was open. */
@@ -100,10 +103,28 @@ export function useLayerThings(parts: TrafficParts): LayerTraffic {
     },
     { flush: "sync" },
   );
+  // the trails of every thing looked at, grown as each table comes and forgotten with the thing and with the look
+  const trails: Trails = new Map();
+  const grown = shallowRef(0);
+  watch(
+    tables,
+    (now) => {
+      growTrails(trails, now.values(), parts.now.value);
+      grown.value++;
+    },
+    { flush: "sync" },
+  );
+  // (the key is a plain string, so the trail does not change with the clock's tick that makes the card anew)
+  const openKey = computed(() => (card.value ? trailKey(card.value.layer, card.value.thing.id) : null));
+  const trail = computed<readonly TrailPoint[]>(() => {
+    void grown.value;
+    return openKey.value ? [...(trails.get(openKey.value) ?? [])] : [];
+  });
   return {
     looked,
     tables,
     card,
+    trail,
     open: (layer, id) => void (opened.value = find(layer, id) ? { layer, id } : null),
     close: () => {
       const was = opened.value !== null;

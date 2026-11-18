@@ -173,3 +173,67 @@ describe("useLayerThings: the card of a thing", () => {
     expect(page.traffic.card.value).toBeNull();
   });
 });
+
+describe("useLayerThings: the trail of the thing whose card is open", () => {
+  const seen = (page: ReturnType<typeof make>, id: string, lat: number, at: string, layer: "aircraft" | "ships" = "aircraft") =>
+    page.store.handlers.layerThings(
+      layerThings(layer, [layer === "aircraft" ? aircraft({ id, lat, at }) : ship({ id, lat, at })], layer === "ships" ? { source: "fintraffic" } : {}),
+    );
+
+  it("has none without a card, and the places the open thing was seen at with one, beginning when the card's thing was first in a table", () => {
+    const page = make();
+    page.ticks.setTicked("aircraft", true);
+    seen(page, "a", 60.1, ago(20));
+    expect(page.traffic.trail.value).toEqual([]);
+    seen(page, "a", 60.2, ago(10));
+    page.traffic.open("aircraft", "a");
+    seen(page, "a", 60.3, ago(5));
+    expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.1, 60.2, 60.3]);
+    page.traffic.close();
+    expect(page.traffic.trail.value).toEqual([]);
+  });
+
+  it("does not add a point for a table that brings the same place", () => {
+    const page = make();
+    page.ticks.setTicked("aircraft", true);
+    seen(page, "a", 60.1, ago(20));
+    page.traffic.open("aircraft", "a");
+    seen(page, "a", 60.1, ago(10));
+    expect(page.traffic.trail.value).toHaveLength(1);
+  });
+
+  it("is the trail of the next thing when the card moves to it, ships included", () => {
+    const page = make();
+    page.ticks.setTicked("aircraft", true);
+    page.ticks.setTicked("ships", true);
+    seen(page, "a", 60.1, ago(5));
+    seen(page, "s", 60.5, ago(5), "ships");
+    seen(page, "s", 60.6, ago(2), "ships");
+    page.traffic.open("aircraft", "a");
+    expect(page.traffic.trail.value).toHaveLength(1);
+    page.traffic.open("ships", "s");
+    expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.5, 60.6]);
+  });
+
+  it("is forgotten when the thing leaves its table, and a thing that comes back begins a new trail", () => {
+    const page = make();
+    page.ticks.setTicked("aircraft", true);
+    seen(page, "a", 60.1, ago(5));
+    seen(page, "b", 60.1, ago(5));
+    page.store.handlers.layerThings(layerThings("aircraft", [aircraft({ id: "b", lat: 60.2, at: ago(2) })]));
+    seen(page, "a", 60.4, ago(1));
+    page.traffic.open("aircraft", "a");
+    expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.4]);
+  });
+
+  it("is forgotten with the look at its layer, and begins anew when the look does", () => {
+    const page = make();
+    page.ticks.setTicked("aircraft", true);
+    seen(page, "a", 60.1, ago(8));
+    page.ticks.setTicked("aircraft", false);
+    page.ticks.setTicked("aircraft", true);
+    seen(page, "a", 60.2, ago(2));
+    page.traffic.open("aircraft", "a");
+    expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.2]);
+  });
+});
