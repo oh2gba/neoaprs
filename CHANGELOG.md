@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+Layers on the map: a locator grid, and aircraft and ships from your own receiver or the internet.
+
+- **New:** the map has a Layers button: Tracks, the ALOHA circle and a locator grid, each with its tick.
+- **New:** aircraft on the map, from your own ADS-B receiver, adsb.fi or adsb.lol: choose the source in Settings, Map.
+- **New:** ships on the map, from your own AIS receiver or, in Finnish waters, Fintraffic.
+- **New:** a click on an aircraft or a ship opens its card on the map; they are never in the tabs.
+- **New:** the map's menu has Packets: the Packets tab as a card over the map.
+- **New:** the Statistics card shows each radio, what you sent, copies, the five busiest stations and the busiest hours.
+- **New:** each field of Post a bulletin has an (i), with a picture of how a group bulletin works.
+- **Changed:** Settings has one notification group in the app, and says notification and sound throughout.
+- **Changed:** the map's Radius is at most 300 km; a larger one becomes 300 and the map already downloaded stays.
+- **Changed:** the tray's Open in browser shows only while Allow access from the network is on.
+- **Changed:** About sends ideas and bug reports to the Send feedback / logs button; the project's address is neo@oh2gba.eu.
+
 ## 0.20.4
 
 The sound card's sliders look as they should, and a handful of open ends are closed.
