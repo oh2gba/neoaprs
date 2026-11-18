@@ -15,7 +15,7 @@
     own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
     station_prefs  the path, RF only and alert of each station by call       changed by PrefBook.changed (one of them set or cleared)
     station_keys   the key each station announced, by call                   changed by Keyring.changed (a key heard, or forgotten)
-    map        the base map: files, estimate, the job, and the radius of the ALOHA circle   changed by MapFetch.changed and Aloha.changed, and by every save of the settings (the area follows our position); at most four times a second
+    map        the base map: files, estimate, the job, the radius of the ALOHA circle, and the layers of traffic (each layer's source, offer and receiver)   changed by MapFetch.changed, Aloha.changed and Layers.changed, and by every save of the settings (the area follows our position); at most four times a second
     update     Update now: whether it can, its steps    changed by SelfUpdate.changed; at most four times a second
     gps        the GPS fix, its state, and the moving station's beacon    changed by Gps.changed (a fix, a state or a problem) and by every packet of ours (the beacon went out) and every save of the settings; at most once a second
     igate      the receive-only iGate: connected or not, the packets gated and not gated    changed by Igate.changed (a connection state, a packet gated or not) and every save of the settings; at most once a second
@@ -26,6 +26,7 @@
 Each row's values are built in neoaprs/web/views.py and typed in `TopicValues` of neoaprs/web/protocol.py. Nothing is built for a topic nobody follows, and a patch holds the items that changed, as they are when it is made.
 
 One message is no topic: `station_alert`, told to every page that is open when StationAlerts.fired (an alert set on a station fired), and to nobody later.
+Nor is `layer_things`: a layer's whole table, told by Layers.told to the pages that look at that layer (neoaprs/web/layerfeed.py).
 """
 import logging
 import time
@@ -48,6 +49,7 @@ from neoaprs.signal import Signal
 from neoaprs.station import Station
 
 from .hub import StateHub, Topic
+from .layerfeed import LayerLooks
 from .levelfeed import LevelFeed, Leveled, RadioLevels
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
@@ -84,6 +86,7 @@ class Topics:
         self.window = PacketWindow()
         self.scopes = RadioScopes(self._wire_scope)              # the pages that have a radio's scope open (`radio_scope`): the rows are sent to them, not to every page
         self.levels = RadioLevels(self._wire_level)                           # the pages that show a Sound card radio's receive level (`radio_level`): its level ten times a second goes to them alone
+        self.layers = LayerLooks(ctl.layers)                    # the pages that look at a layer of traffic on the map (`layer_look`): its table goes to them alone
         self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
         self._config = ctl.config                   # the settings the stations were last told with
         self.window.internet = ctl.config.igate_enabled
@@ -98,7 +101,7 @@ class Topics:
         hub.add(Topic("bulletins", lambda: {b.key: bulletin_row(b) for b in ctl.bulletins.records()}, self._bulletin))
         hub.add(Topic("own_objects", lambda: {o.name: self._own_object_row(o) for o in ctl.ownobjects.records()}, self._own_object))
         hub.add(Topic("own_bulletins", lambda: {b.slot: self._own_bulletin_row(b) for b in ctl.ownbulletins.records()}, self._own_bulletin))
-        hub.add(Topic("map", lambda: map_state(ctl.mapfetch.status(), ctl.aloha.radii), interval=TNC_EVERY_SEC))
+        hub.add(Topic("map", lambda: map_state(ctl.mapfetch.status(), ctl.aloha.radii, ctl.layers.states()), interval=TNC_EVERY_SEC))
         hub.add(Topic("update", lambda: UpdateState.row(ctl.selfupdate.status()), interval=TNC_EVERY_SEC))
         hub.add(Topic("gps", self._gps, interval=GPS_EVERY_SEC))
         hub.add(Topic("igate", lambda: igate_state(ctl.config, ctl.igate), interval=IGATE_EVERY_SEC))
@@ -211,7 +214,7 @@ class Topics:
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),
             (ctl.ownobjects.changed, self._own_object_changed), (ctl.ownobjects.removed, self._own_object_changed),
             (ctl.ownbulletins.changed, self._own_bulletin_changed), (ctl.ownbulletins.removed, self._own_bulletin_changed),
-            (ctl.prefbook.changed, self._pref_changed), (ctl.keyring.changed, self._key_changed), (ctl.keyring.own_changed, self._own_key_changed), (ctl.qruask.changed, self._qru_changed), (ctl.generalask.changed, self._general_changed), (ctl.skeds.changed, self._skeds_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.selfupdate.changed, self._update_changed),
+            (ctl.prefbook.changed, self._pref_changed), (ctl.keyring.changed, self._key_changed), (ctl.keyring.own_changed, self._own_key_changed), (ctl.qruask.changed, self._qru_changed), (ctl.generalask.changed, self._general_changed), (ctl.skeds.changed, self._skeds_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.layers.changed, self._map_changed), (ctl.layers.told, self.layers.told), (ctl.selfupdate.changed, self._update_changed),
             (ctl.stationalerts.fired, self._station_alert),
         ]
 

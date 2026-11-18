@@ -1,0 +1,52 @@
+"""The wall round the map's layers of traffic, held on a whole daemon (the architecture test holds it on the imports): under the no-devices switch, with a fake aircraft receiver on the loopback and a page that
+looks at the layer, the aircraft reach the page, and none of them is in the station book, the page's packets, the topic `stations`, or any table of the database."""
+import sqlite3
+from pathlib import Path
+
+import pytest
+
+from neoaprs import nodevices
+from neoaprs.store import DB_NAME
+from tests.support.env import Env
+from tests.support.fakelayers import layers_server
+from tests.test_layers import plane, sky
+
+IDS = ("4a0b1c", "4a0b1d", "~2f0c1a")
+
+
+@pytest.fixture
+def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name)."""
+    monkeypatch.setenv(nodevices.ENV, "1")
+
+
+async def test_the_aircraft_of_a_receiver_reach_the_page_and_nothing_else(tmp_path: Path, under_the_switch: None) -> None:
+    receiver = await layers_server()
+    receiver.route("/tar1090/data/aircraft.json", body=sky(plane(IDS[0], flight="FIN7AB"), plane(IDS[1], r="OH-LZA", lat=60.18, lon=24.95), plane(IDS[2], lat=59.0, lon=20.0)))
+    e = Env(tmp_path / "data", web=True, settings={"map/aircraft": "receiver", "map/aircraft_host": receiver.address})
+    await e.start()
+    tab = await e.ws()
+    await tab.expect("state", "stations")
+    await tab.send({"cmd": "layer_look", "layer": "aircraft", "on": True})
+    await tab.until(lambda: any(m["type"] == "layer_things" and len(m["things"]) == 3 for m in tab.messages), 10.0)
+    await tab.quiet(0.5)
+    assert {t["id"] for m in tab.messages if m["type"] == "layer_things" for t in m["things"]} == set(IDS)
+    names = {name.lower() for name in ("FIN7AB", "OH-LZA", *IDS)}                 # (compared case-blind: a leak may well write a hex in capitals, as a call is written)
+
+    def leaks(text: str) -> bool:
+        return any(name in text.lower() for name in names)
+    assert not any(leaks(station.call) for station in e.ctl.stationbook.stations()), "the station book"
+    assert not leaks(repr(tab.topics["stations"])) and not leaks(repr(tab.topics["packets"])), "the topics stations and packets"
+    assert e.server is not None and not leaks(repr(e.server.api.topics.window.whole())), "the page's packets"
+    assert await e.ctl.packetlog.count() == 0
+    await e.settled()
+    await e.stop()
+    db = sqlite3.connect(tmp_path / "data" / DB_NAME)
+    try:
+        tables = [row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")]
+        assert tables
+        for table in tables:
+            for row in db.execute(f'SELECT * FROM "{table}"'):          # noqa: S608  (the names of the database's own tables)
+                assert not leaks(repr(row)), f"the table {table}: {row!r}"
+    finally:
+        db.close()

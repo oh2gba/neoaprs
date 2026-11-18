@@ -111,7 +111,7 @@ class Controller(Services):
         self.start_tnc()                                                # (last of the parts that take its packets: the source after its consumers)
         await self._start_web()
         await self.mapauto.start()
-        for asks in (self.updatecheck, self.frequencies, self.skeds):       # (what asks the project's server: the update check, the suggested frequencies and the sked board)
+        for asks in (self.updatecheck, self.frequencies, self.skeds, self.layers):       # (what asks a server: the update check, the suggested frequencies and the sked board the project's, the map's layers their sources)
             await asks.start()
         self.tasks.spawn(self._prune_daily(), "prune")
         self.tasks.spawn(self._sweep_backup(), "backup-sweep")
@@ -152,7 +152,7 @@ class Controller(Services):
     def _stops(self) -> list[tuple[str, Callable[[], Awaitable[None]]]]:
         """What the stop ends and in which order: the page, Find my radio and the Tnc first (the source of the packets, so that no packet comes to a part that is stopped), then the parts that take its packets, the
         others, and last the Controller's own tasks."""
-        return [("the page", self._stop_web), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_radios), ("the update check", self.updatecheck.stop), ("the suggested frequencies", self.frequencies.stop), ("the HF test board", self.skeds.stop), ("the ALOHA circle", self.aloha.stop),
+        return [("the page", self._stop_web), ("the map's layers", self.layers.stop), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_radios), ("the update check", self.updatecheck.stop), ("the suggested frequencies", self.frequencies.stop), ("the HF test board", self.skeds.stop), ("the ALOHA circle", self.aloha.stop),
                 ("Update now", self.selfupdate.stop), ("the automatic map", self.mapauto.stop), ("the map job", self.mapfetch.stop), ("the queries", self.queries.stop), ("the QRU server", self.qru.stop),
                 ("asking QRU", self.qruask.stop), ("messaging", self.messaging.stop), ("the alerts", self.alerts.stop), ("the status", self.rigstatus.stop), ("the bulletins of ours", self.ownbulletins.stop),
                 ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), *((BEACON_NAMES.get(radio.id) or f"the {radio.name} beacon", radio.beacon.stop) for radio in reversed(self.radios.all())), ("the GPS", self.gps.stop), ("the radio choices", self.radios.flush), ("the tasks", self.tasks.cancel_all)]

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs import nodevices
 from neoaprs.coded import CodedError
 from neoaprs.config import DEFAULTS, KEYS, Config, SettingError
 from neoaprs.configlayers import LAYER_ROWS, ais_address, ais_host_port, receiver_address
@@ -102,7 +103,14 @@ def from_another_device(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(web_access, "is_loopback", lambda ip: False)
 
 
-async def test_a_page_of_another_device_with_the_key_sets_every_setting_of_the_layers(tmp_path: Path, from_another_device: None) -> None:
+@pytest.fixture
+def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name): the receivers saved here are asked at the save
+    (services/layers.py), and the addresses are made up."""
+    monkeypatch.setenv(nodevices.ENV, "1")
+
+
+async def test_a_page_of_another_device_with_the_key_sets_every_setting_of_the_layers(tmp_path: Path, from_another_device: None, under_the_switch: None) -> None:
     e = Env(tmp_path, web=True, settings={"web/network": "true", "web/key": KEY})
     await e.start()
     answer = await e.fetch("/access", method="POST", body=json.dumps({"key": KEY}))

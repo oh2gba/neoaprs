@@ -1,8 +1,9 @@
-"""The `map` topic's value, made from the map service's status (the models are in neoaprs/web/mapwire.py)."""
-from collections.abc import Mapping
+"""The `map` topic's value, made from the map service's status and the layers' states (the models are in neoaprs/web/mapwire.py and neoaprs/web/layerwire.py)."""
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from neoaprs.clock import iso
+from neoaprs.layerthing import LayerState
 from neoaprs.mapstate import Estimate, MapError, MapFile, MapStatus
 
 
@@ -22,9 +23,15 @@ def _problem(problem: MapError | None) -> dict[str, Any] | None:
     return None if problem is None else {"code": problem.problem, "params": dict(problem.params)}
 
 
-def map_state(status: MapStatus, aloha: Mapping[int, float] | None = None) -> dict[str, Any]:
-    """The topic's value; `aloha` the radius of each radio's ALOHA circle by its id (services/aloha.py `radii`)."""
+def layer_row(state: LayerState) -> dict[str, Any]:
+    """A layer of traffic as `MapLayer` says it; the receiver's state says nothing of its address."""
+    receiver = None if state.receiver is None else {"state": state.receiver.state, "things": state.receiver.things, "heard_at": iso(state.receiver.heard_at)}
+    return {"layer": state.layer, "source": state.source, "offered": list(state.offered), "receiver": receiver}
+
+
+def map_state(status: MapStatus, aloha: Mapping[int, float] | None = None, layers: Iterable[LayerState] = ()) -> dict[str, Any]:
+    """The topic's value; `aloha` the radius of each radio's ALOHA circle by its id (services/aloha.py `radii`), `layers` the layers of traffic (services/layers.py `states`)."""
     return {"state": status.state, "step": status.step, "percent": status.percent, "downloaded": status.downloaded, "retry": None if status.retry is None else {"attempt": status.retry[0], "tries": status.retry[1]},
             "blocked": status.blocked_code, "problem": _problem(status.failure), "estimate": _estimate(status.estimate),
             "radius_km": status.radius_km, "maxzoom": status.maxzoom, "box": list(status.box) if status.box else None, "detail": _file(status.detail), "world": _file(status.world), "later": status.later,
-            "aloha": [{"radio": radio, "km": km} for radio, km in (aloha or {}).items()], "layers": []}
+            "aloha": [{"radio": radio, "km": km} for radio, km in (aloha or {}).items()], "layers": [layer_row(state) for state in layers]}

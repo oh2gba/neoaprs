@@ -1,5 +1,5 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the radios (the registry, `radios`, with each radio's driver, line and beacon), the station book, the GPS and its service, the beacon, the status, the message alert, messaging, the message board,
-the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the receive-only iGate and its connection to APRS-IS, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
+the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the receive-only iGate and its connection to APRS-IS, the base map, the map's layers of traffic, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 
 The radios are made from the settings (`Config.radios`): from the defaults here, and again by the controller once the stored radios are read. Each radio's driver makes its line and its modem (a test may
 hand in a line of its own for a radio, by its id: `lines`). Every service that sends or answers takes the registry itself, and our frames are made by one maker (`beacon_frames`).
@@ -45,6 +45,7 @@ from .services.generalask import GeneralAsk
 from .services.gps import Gps
 from .services.igate import Igate
 from .services.keyring import Keyring
+from .services.layers import Layers
 from .services.mapauto import MapAuto
 from .services.mapfetch import MapFetch
 from .services.messaging import Messaging
@@ -204,7 +205,7 @@ class Services:
                                messages=self.messaging, heard=self.packetlog, igate=self.igate, budget=answer_budget)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH, ?APRS? and (while the iGate gates) ?IGATE?, by the asker's path
 
     def _make_map_and_update(self, data_dir: Path, install: InstallInfo, auto_map: bool, clock: Clock) -> None:
-        """The base map, the ALOHA circle, Find my radio and the update parts."""
+        """The base map, the ALOHA circle, the layers of traffic, Find my radio and the update parts."""
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.mapauto = MapAuto(self.mapfetch, lambda: self.config, self.store, auto_map)    # the detailed map made once without a click, when a place is first set (only where the process asks for it: the daemon); started by the controller
         self.aloha = Aloha(self.stationbook, clock, radios=self.radios.enabled)      # the ALOHA circles round our station (rule 3.8), one for each radio that is on whose type shares a 1200 baud channel, worked out again every minute and when our position moves; started by the controller
@@ -213,6 +214,7 @@ class Services:
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store, developer=install.kind == "source")   # once a day: which version is the latest (update/check); started by the controller
         self.frequencies = Frequencies(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), memory=self.store)       # the frequencies the project suggests: a small file asked a minute after the start and when a page shows the HF radio's box; started by the controller
         self.skeds = Skeds(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), lambda: self.config, lambda: self.suggested_frequencies, memory=self.store)       # the sked board: when people will be on the air, read from the project's server a minute after the start, every six hours and when a page shows the Skeds tab; started by the controller
+        self.layers = Layers(lambda: self.config, lambda: self.stationbook.me_position, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), clock=clock)       # the map's layers of traffic: aircraft and ships, asked while a page looks, kept in memory and nowhere else; started by the controller
         self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into, encryption=self.encryption, leaving=self.note_page_port), self._announced, release_source(), end=self._end_for_restart, key=release_key)      # Update now: on the page's request only; nothing to start
         self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
 

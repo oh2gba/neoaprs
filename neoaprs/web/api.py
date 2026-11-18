@@ -17,7 +17,7 @@ from neoaprs.controller import Controller
 from neoaprs.radioregistry import unavailable_types
 from neoaprs.tasks import TaskSet
 
-from . import handlers  # noqa: F401  (importing the module registers the handlers)
+from . import handlers, layerhandlers  # noqa: F401  (importing the modules registers the handlers)
 from .dispatch import Dispatcher
 from .hub import StateHub
 from .hubwire import PROTOCOL
@@ -45,7 +45,7 @@ class Api:
         self.hub = StateHub()
         self.topics = Topics(controller, self.hub, self._packet_sent, reach, secure, tell=self.out.broadcast)
         self.page_errors = PageErrors(controller.clock)  # what the pages report about themselves (neoaprs/web/pageerrors.py)
-        self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors, scopes=self.topics.scopes, levels=self.topics.levels)
+        self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors, scopes=self.topics.scopes, levels=self.topics.levels, layers=self.topics.layers)
         self.started_at = controller.clock()
         self.meter = ProcessMeter()
         self.tasks = TaskSet(log, "web")
@@ -110,6 +110,7 @@ class Api:
             self.page_errors.forget(conn)
             self.topics.scopes.forget(conn)
             self.topics.levels.forget(conn)
+            self.topics.layers.forget(conn)
         self.out.close(client)
 
     # ---- the commands

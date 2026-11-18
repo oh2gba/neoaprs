@@ -84,6 +84,8 @@ def wire(parts: Services) -> None:
     parts.gps.moved.connect(lambda: place_me(parts))
     parts.gps.moved.connect(parts.aloha.refresh)
     parts.mapfetch.changed.connect(parts.mapauto.fetch_changed)                         # (a job it began has ended: done, or to be tried again at the next start)
+    parts.config_changed.connect(parts.layers.config_changed)                           # the map's layers of traffic follow the settings (the source of each, a receiver's address, the radius)
+    parts.gps.moved.connect(parts.layers.moved)                                          # and our position (after place_me: the station book's)
 
 
 def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:

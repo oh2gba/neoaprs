@@ -18,6 +18,7 @@ from .hub import StateHub
 from .pageerrors import PageErrors
 from .problems import describe_errors
 from .protocol import COMMAND_NAMES, COMMANDS, AnyCommand
+from .layerfeed import LayerLooks
 from .levelfeed import RadioLevels
 from .scopefeed import RadioScopes
 from .session import Connection
@@ -46,6 +47,7 @@ class Ctx:
     page_errors: PageErrors | None = None                    # where the errors the pages report about themselves are noted
     scopes: RadioScopes | None = None                        # the scopes asked for by radio
     levels: RadioLevels | None = None                        # the receive levels asked for by radio
+    layers: LayerLooks | None = None                         # the pages that look at a layer of traffic on the map
 
 
 type Fn[M: BaseModel] = Callable[[Ctx, M], Awaitable[None]]
@@ -82,12 +84,12 @@ class Dispatcher:
     """Looks the command up, validates it, runs it, and answers a failure."""
 
     def __init__(self, ctl: Controller, hub: StateHub, status: Callable[[], Awaitable[dict[str, Any]]], registry: dict[str, Handler] | None = None, page_errors: PageErrors | None = None,
-                 scopes: RadioScopes | None = None, levels: RadioLevels | None = None) -> None:
+                 scopes: RadioScopes | None = None, levels: RadioLevels | None = None, layers: LayerLooks | None = None) -> None:
         self.ctl = ctl
         self.hub = hub
         self.status = status
         self.page_errors = page_errors
-        self.scopes, self.levels = scopes, levels
+        self.scopes, self.levels, self.layers = scopes, levels, layers
         self.registry = REGISTRY if registry is None else registry
 
     async def run(self, conn: Connection, raw: dict[str, Any]) -> None:
@@ -114,4 +116,4 @@ class Dispatcher:
             conn.error(f"{name}: {FAILED}", name, code="failed")                     # (the page says it in its language by the code; the exception is for the log, not the operator)
 
     async def _call(self, conn: Connection, name: str, cmd: AnyCommand) -> None:
-        await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status, self.page_errors, self.scopes, self.levels), cmd)
+        await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status, self.page_errors, self.scopes, self.levels, self.layers), cmd)

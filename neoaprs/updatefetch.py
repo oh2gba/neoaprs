@@ -1,14 +1,26 @@
 """One request of the update check: a GET of the version page with the program's version and platform and the number of this installation (when there is one) in the query and nothing else, in a thread of its own so that it works on every event loop (and a request that hangs does not hold up the
 program's end). A failure of any kind is None: the check is asked again the next day. `fetch_url` is the same GET of any https address (the changelog of the latest release, for What's new), with a limit of its own. `post_form` is the one POST of the
-program, multipart/form-data, for Send feedback / logs of the Help group: it answers the status and the body of whatever the server said (a refusal carries its reason in the body), and None only when the server could not be reached. `get_answer` is the GET that says the status too (the sked board: a 404 is a board that has not been made yet), and `post_json` the POST of a JSON body that the sked board takes."""
+program, multipart/form-data, for Send feedback / logs of the Help group: it answers the status and the body of whatever the server said (a refusal carries its reason in the body), and None only when the server could not be reached. `get_answer` is the GET that says the status too (the sked board: a 404 is a board that has not been made yet), and `post_json` the POST of a JSON body that the sked board takes.
+
+`get_feed` is the GET of the map's layers of traffic (an aircraft or ships service, an own aircraft receiver): it asks for a packed answer, unpacks it within a bound, and says the status, the body and how long a
+`Retry-After` asks to wait; None when the address is not http(s), the server could not be reached, the answer is larger than its bounds or it did not come within its time. A `user:password@` in the
+address (a receiver behind a password) is sent as basic authentication to that host only, never as a part of the host's name."""
+import asyncio
+import base64
+import email.utils
 import http.client
 import logging
 import secrets
+import time
+import zlib
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import IO
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 from . import nodevices
 from .updatedownload import in_thread
@@ -19,6 +31,11 @@ log = logging.getLogger("neoaprs.update")
 TIMEOUT_SEC = 30.0
 MAX_BYTES = 8192                     # the answer is a few lines
 SEND_TIMEOUT_SEC = 60.0              # of each wait for the server while the support file goes up (a megabyte or two over a slow line)
+FEED_TIMEOUT_SEC = 10.0              # of a layer's question to its service or receiver, its whole answer included
+FEED_GRACE_SEC = 1.0                 # beyond it, the most the daemon waits for the question's thread (a server that drips its head)
+FEED_CHUNK = 65536                   # the answer is read in pieces of at most this, the time looked at between them
+AUTHORIZATION = "Authorization"
+PACKED = ("gzip", "x-gzip")
 
 
 class _NotDowngraded(urllib.request.HTTPRedirectHandler):
@@ -29,6 +46,48 @@ class _NotDowngraded(urllib.request.HTTPRedirectHandler):
             raise urllib.error.HTTPError(req.full_url, code, "redirect from https to http", headers, fp)
         nodevices.check_url(newurl, level=logging.DEBUG)             # (under the no-devices switch a server of this computer sends nobody on to another one)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+class _FeedRedirect(_NotDowngraded):
+    """A layer's redirect: the basic authentication goes on only to the same scheme, host and port."""
+
+    def redirect_request(self, req: urllib.request.Request, fp: IO[bytes], code: int, msg: str, headers: http.client.HTTPMessage, newurl: str) -> urllib.request.Request | None:
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        said = req.get_header(AUTHORIZATION)
+        if new is not None and said is not None and _origin(new.full_url) == _origin(req.full_url):
+            new.add_unredirected_header(AUTHORIZATION, said)
+        return new
+
+
+def _origin(url: str) -> tuple[str, str, int | None]:
+    parts = urlsplit(url)
+    return parts.scheme, (parts.hostname or "").lower(), parts.port or (443 if parts.scheme == "https" else 80)
+
+
+def without_password(url: str) -> tuple[str, str | None]:
+    """The address without its `user:password@`, and the `Authorization` header that carries them (None when it has none)."""
+    parts = urlsplit(url)
+    if "@" not in parts.netloc:
+        return url, None
+    userinfo, _, hostport = parts.netloc.rpartition("@")
+    user, _, password = userinfo.partition(":")
+    token = base64.b64encode(f"{unquote(user)}:{unquote(password)}".encode()).decode("ascii")
+    return urlunsplit(parts._replace(netloc=hostport)), f"Basic {token}"
+
+
+def _read_by(response: http.client.HTTPResponse, limit: int, deadline: float) -> bytes | None:
+    """At most `limit` + 1 bytes of the answer, read in pieces; None when `deadline` (time.monotonic) passes before it has all come."""
+    pieces: list[bytes] = []
+    size = 0
+    while size <= limit:
+        if time.monotonic() > deadline:
+            return None
+        piece = response.read1(min(FEED_CHUNK, limit + 1 - size))
+        if not piece:
+            break
+        pieces.append(piece)
+        size += len(piece)
+    return b"".join(pieces)
 
 
 class _NotFollowed(urllib.request.HTTPRedirectHandler):
@@ -160,4 +219,85 @@ async def post_board(url: str, body: bytes, version: str, platform: str, max_byt
         return await in_thread(lambda: post_json(url, body, version, platform, max_bytes=max_bytes), "sked-post")
     except Exception:
         log.exception("posting to the HF test board failed")
+        return None
+
+
+@dataclass(frozen=True)
+class FeedAnswer:
+    """What a layer's service or receiver answered: the status, the body unpacked (empty for a refusal) and the seconds its `Retry-After` asks to wait (None when it says none)."""
+    status: int
+    body: bytes
+    retry_after_sec: float | None = None
+
+
+def retry_after(value: str | None, now: datetime | None = None) -> float | None:
+    """The seconds a `Retry-After` asks to wait: a number of seconds, or a date (from `now`, at least 0); None for none or one that cannot be read."""
+    text = (value or "").strip()
+    if not text:
+        return None
+    if text.isascii() and text.isdigit():
+        return float(int(text))
+    try:
+        when = email.utils.parsedate_to_datetime(text)
+    except (TypeError, ValueError, IndexError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return max(0.0, (when - (now or datetime.now(UTC))).total_seconds())
+
+
+def unpacked(body: bytes, encoding: str, max_unpacked: int) -> bytes | None:
+    """The body as it was before it was packed (gzip, or none); None when it is larger than `max_unpacked` unpacked, is cut short, is not gzip after all or is packed another way."""
+    if encoding in ("", "identity"):
+        return body if len(body) <= max_unpacked else None
+    if encoding not in PACKED:
+        return None
+    unpacker = zlib.decompressobj(16 + zlib.MAX_WBITS)
+    try:
+        out = unpacker.decompress(body, max_unpacked + 1)
+    except zlib.error:
+        return None
+    return out if len(out) <= max_unpacked and unpacker.eof else None
+
+
+def get_feed(url: str, version: str, platform: str, headers: Mapping[str, str], max_packed: int, max_unpacked: int, timeout_sec: float = FEED_TIMEOUT_SEC) -> FeedAnswer | None:
+    """The answer to a GET of a layer's `url` with the program's User-Agent, `headers` and a packed answer asked for; None when the address is not http(s), the server could not be reached, or the answer is
+    larger than `max_packed` as it travels or `max_unpacked` unpacked, or it has not all come `timeout_sec` after the start. The log names the host, never the address as typed (an own receiver's may carry more)."""
+    if not url.startswith(("http://", "https://")):
+        return None
+    deadline = time.monotonic() + timeout_sec
+    url, authorization = without_password(url)
+    request = urllib.request.Request(url, headers={**headers, "User-Agent": f"NeoAPRS/{version} ({platform})", "Accept-Encoding": "gzip"})  # noqa: S310  (http or https only: the lines above)
+    if authorization is not None:
+        request.add_unredirected_header(AUTHORIZATION, authorization)
+    host = urlsplit(url).hostname or "?"
+    try:
+        nodevices.check_url(url, level=logging.DEBUG)                # (under the no-devices switch a server that is not on this computer is not there)
+        with urllib.request.build_opener(https_handler(), _FeedRedirect, *nodevices.direct()).open(request, timeout=timeout_sec) as response:
+            packed = _read_by(response, max_packed, deadline)
+            if packed is None:
+                log.debug("the answer of %s did not come within %g s", host, timeout_sec)
+                return None
+            body = None if len(packed) > max_packed else unpacked(packed, str(response.headers.get("Content-Encoding", "")).strip().lower(), max_unpacked)
+            if body is None:
+                log.debug("the answer of %s is larger than its bounds or cannot be unpacked", host)
+                return None
+            return FeedAnswer(int(response.status), body, retry_after(response.headers.get("Retry-After")))
+    except urllib.error.HTTPError as e:
+        return FeedAnswer(int(e.code), b"", retry_after(e.headers.get("Retry-After") if e.headers is not None else None))
+    except (OSError, ValueError, http.client.HTTPException) as e:
+        log.debug("%s could not be reached: %r", host, e)
+        return None
+
+
+async def fetch_feed(url: str, version: str, platform: str, headers: Mapping[str, str], max_packed: int, max_unpacked: int, timeout_sec: float = FEED_TIMEOUT_SEC) -> FeedAnswer | None:
+    """`get_feed` on a thread of its own, awaited for `timeout_sec` and a little more at most (the thread of a server that drips its head is left to end on its own); an error it did not expect is logged and
+    is None too."""
+    try:
+        return await asyncio.wait_for(in_thread(lambda: get_feed(url, version, platform, headers, max_packed, max_unpacked, timeout_sec), "layer-fetch"), timeout_sec + FEED_GRACE_SEC)
+    except TimeoutError:
+        log.debug("the question of %s did not end within %g s", urlsplit(url).hostname or "?", timeout_sec + FEED_GRACE_SEC)
+        return None
+    except Exception:
+        log.exception("a question of the map's layers failed")
         return None

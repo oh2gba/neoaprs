@@ -3,10 +3,12 @@
 sound card, starts no Mercury or Direwolf of the machine, plays and notifies nothing and connects to nothing but this computer (neoaprs/nodevices.py). The Dummy radios, the loopback and the page stay, which is all a
 page to look at needs. Its search for a radio looks at ports that match nothing, and it does not ask the version page.
 
-  scripts/demo-daemon --data DIR [--web-port PORT]
+  scripts/demo-daemon --data DIR [--web-port PORT] [--traffic]
 
   --data DIR        the data folder (made when it is not there); never the operator's own (the system's data folder of NeoAPRS, or a folder `data` of a checkout)
   --web-port PORT   the page's port (default 7390)
+  --traffic         made-up traffic for the map's layers: scripts/demotraffic.py in a process of its own (an aircraft receiver and the services' answers on 127.0.0.1:7391), which the daemon asks in the
+                    services' place (NEOAPRS_LAYERS_URL); for My own receiver type what its line says in Settings, Map
 
 It runs `python -m neoaprs --data DIR --web-port PORT` in the checkout it is in, with the checkout's .venv when there is one, and ends with the daemon (Ctrl+C stops both)."""
 import argparse
@@ -14,6 +16,7 @@ import os
 import subprocess
 import sys
 from collections.abc import Callable, Mapping
+from typing import Any
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -23,6 +26,8 @@ from neoaprs.paths import default_data_dir  # noqa: E402
 
 WEB_PORT = 7390
 NO_PORT = "/nonexistent/neoaprs-demo-no-such-port*"        # the search for the radio finds no serial device of the machine
+TRAFFIC = ROOT / "scripts" / "demotraffic.py"
+TRAFFIC_URL = "http://127.0.0.1:7391"                      # where demotraffic.py listens: the services' place for the daemon
 
 
 def environment(base: Mapping[str, str]) -> dict[str, str]:
@@ -63,21 +68,43 @@ def own_data_folder() -> Path:
             os.environ["NEOAPRS_DATA_DIR"] = saved
 
 
-def main(argv: list[str] | None = None, run: Callable[..., int] = subprocess.call) -> int:
+def start_traffic(start: Callable[..., Any]) -> Any:
+    """demotraffic.py started and listening (it says so in one line); None when it ended instead (a port in use: it said why)."""
+    process = start([python(), str(TRAFFIC)], cwd=ROOT, stdout=subprocess.PIPE, text=True)
+    if process.stdout is None or not process.stdout.readline():
+        process.wait()
+        return None
+    return process
+
+
+def main(argv: list[str] | None = None, run: Callable[..., int] = subprocess.call, start: Callable[..., Any] = subprocess.Popen) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data", required=True, type=Path, help="the data folder (never the operator's own)")
     parser.add_argument("--web-port", type=int, default=WEB_PORT, help=f"the page's port (default {WEB_PORT})")
+    parser.add_argument("--traffic", action="store_true", help="made-up aircraft for the map's layers (scripts/demotraffic.py)")
     args = parser.parse_args(argv)
     why = operators_folder(args.data, own_data_folder())
     if why:
         print(f"demo-daemon: refused: {why}; give a folder of its own (for example work/demo)", file=sys.stderr)
         return 2
     command = [python(), "-m", "neoaprs", "--data", str(args.data.expanduser().resolve()), "--web-port", str(args.web_port)]
+    env = environment(os.environ)
+    traffic = None
+    if args.traffic:
+        traffic = start_traffic(start)
+        if traffic is None:
+            print("demo-daemon: refused: the made-up traffic could not be started (its line above says why)", file=sys.stderr)
+            return 2
+        env["NEOAPRS_LAYERS_URL"] = TRAFFIC_URL
     print("demo-daemon: " + " ".join(command), file=sys.stderr)
     try:
-        return run(command, cwd=ROOT, env=environment(os.environ))
+        return run(command, cwd=ROOT, env=env)
     except KeyboardInterrupt:
         return 130
+    finally:
+        if traffic is not None:
+            traffic.terminate()
+            traffic.wait()
 
 
 if __name__ == "__main__":
