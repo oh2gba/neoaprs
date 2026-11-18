@@ -96,6 +96,7 @@ Each step says in one line what it does, and every one is skipped when it is don
 
 1. **checks**: on `master`, the tree clean (only the files of an earlier stop of this same release may be changed), up to date with origin, notes under `## Unreleased`, the version new and greater than the newest release,
    and no tag `v<version>` on another commit.
+   Straight after it the step **switches** reads the repository's switches on GitHub back, read only through `gh api`, and stops with the name of each one that is off or that GitHub's answer does not let it read: secret scanning and its push protection, Dependabot's alerts, code scanning (default setup), unchangeable releases, actions pinned by commit required (`aprs-reference/security-plan.md`). It runs in a dry run too, since it changes nothing, and on every resume, even when the release is far on. A permission that is missing (403) is named at once and is not waited out as a rate limit.
 2. **version**, **changelog**: `VERSION` in `neoaprs/__init__.py` (the one place it is written), and `## Unreleased` renamed to `## <version>` (the notes of the release are that section) with a fresh empty one above.
 3. **page**: only when `ui/` changed since the last tag, the page is built and must be what is committed. A version bump changes nothing in `neoaprs/page/` (the page has no version in it, `ui/` is what it is built from),
    so the release commit holds no page; a committed page that is not what `ui/` builds stops the release, with the tree as it was: run `scripts/build-page`, commit `neoaprs/page/`, run the command again.
@@ -116,7 +117,7 @@ Each step says in one line what it does, and every one is skipped when it is don
 11. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
     ten minutes (`curl 'https://neo.oh2gba.eu/version.php?v=0.0.1&os=linux'` says the new version), and a copy of the new version does not offer itself.
 
-`--dry-run` prints the steps and what is done already, names what a real run would refuse, and changes nothing (it does not ask GitHub). `scripts/release` has tests with a fake `gh` and a fake origin
+`--dry-run` prints the steps and what is done already, names what a real run would refuse, and changes nothing (it asks GitHub only for the switches of the repository, read only). `scripts/release` has tests with a fake `gh` and a fake origin
 (`tests/test_release_script.py`): the order of the steps, the dry run, the resume after a failure at each step and the refusals; the step sign and `--verify` with a fake `bws` and a key the test makes
 (`tests/test_release_sign.py`).
 

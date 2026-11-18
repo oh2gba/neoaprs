@@ -4,12 +4,12 @@
   scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS]
   scripts/release VERSION --verify
 
-On master, with a clean tree that is up to date with origin and has notes under `## Unreleased` in CHANGELOG.md, it: writes VERSION and the changelog section, builds the page to compare it with the committed one only when ui/
+On master, with the repository's switches on GitHub on (secret scanning and push protection, Dependabot alerts, code scanning, immutable releases, actions pinned by commit: read back through `gh api`, and refused by name when one is off), a clean tree that is up to date with origin and has notes under `## Unreleased` in CHANGELOG.md, it: writes VERSION and the changelog section, builds the page to compare it with the committed one only when ui/
 changed since the last tag, runs scripts/check, commits, pushes, waits for the CI run of that commit, tags v<VERSION> on that commit and pushes the tag (when a fix came after the release commit and no tag is made yet, HEAD is the release: its CI run, the tag on it, if it
 has the same VERSION and changelog section; a tag is never moved), waits for the release run, which leaves the release a draft, signs its SHA256SUMS (the key is read from Bitwarden Secrets Manager by `bws` at that moment, into memory only),
 uploads SHA256SUMS.sig, checks it with the program's public key and publishes the release, checks that the release is published (not a draft, its 15 files, the signature holding, every download link answering), and with --deploy uploads the version page (server/deploy.sh, which needs the operator's Bitwarden session; without it the command is printed).
 
-  --dry-run   print the steps, what is done already and what would refuse, and change nothing (nothing is asked of GitHub; origin is asked with `git ls-remote`)
+  --dry-run   print the steps, what is done already and what would refuse, and change nothing (GitHub is asked only for the repository's switches, read only; origin is asked with `git ls-remote`)
   --rerun     a run of CI or of the release that failed gets its failed jobs run again, once (a flaky test); the tag is never moved or made again
   --deploy    upload the version page at the end
   --interval  seconds between two looks at GitHub (default 15), and the first wait after an answer of GitHub's rate limit, which doubles at each of five tries
@@ -59,6 +59,17 @@ COMMAND = "scripts/release"
 SIGNING_KEY_ID_VARIABLE = "NEOAPRS_SIGNING_SECRET_ID"                           # the id of the signing key's secret in Bitwarden Secrets Manager
 BWS_SEC = 60
 SIGNING_VARIABLES = ("BWS_ACCESS_TOKEN", SIGNING_KEY_ID_VARIABLE)                # what reads the signing key: bws alone is given them, no other program the script starts
+
+
+# The repository's switches on GitHub, read back before anything is tagged or pushed (aprs-reference/security-plan.md): the name each is told by, the API path (gh fills {owner}/{repo} from the repository) and how to read it.
+SWITCHES = (
+    ("secret scanning", "repos/{owner}/{repo}", ("security_and_analysis", "secret_scanning", "status"), "enabled"),
+    ("push protection of secret scanning", "repos/{owner}/{repo}", ("security_and_analysis", "secret_scanning_push_protection", "status"), "enabled"),
+    ("code scanning (default setup)", "repos/{owner}/{repo}/code-scanning/default-setup", ("state",), "configured"),
+    ("immutable releases", "repos/{owner}/{repo}/immutable-releases", ("enabled",), True),
+    ("actions pinned by commit (SHA pinning required)", "repos/{owner}/{repo}/actions/permissions", ("sha_pinning_required",), True),
+)
+ALERTS = ("Dependabot alerts", "repos/{owner}/{repo}/vulnerability-alerts")                                       # answers 204 when on, 404 when off
 
 
 class Refusal(Exception):
@@ -217,6 +228,44 @@ class Release:
             auth = self.run("gh", "auth", "status", check=False)
             if auth.returncode != 0:
                 raise Refusal("gh is not logged in: gh auth login (the script uses your own gh; the anonymous API hits GitHub's rate limit)")
+
+    def switch_answer(self, path: str) -> subprocess.CompletedProcess[str]:
+        """One answer, asked once: a 403 here is a missing permission and no rate limit, so it is not waited out as `gh` does."""
+        return self.run("gh", "api", path, check=False)
+
+    def switch_problems(self) -> list[str]:
+        """What is wrong with the repository's switches on GitHub, one text per switch that is off or that could not be read: an answer that cannot be read is no pass."""
+        problems, cache = [], {}
+        for name, path, field, wanted in SWITCHES:
+            if path not in cache:
+                done = self.switch_answer(path)
+                try:
+                    cache[path] = json.loads(done.stdout) if done.returncode == 0 else f"gh failed: {(done.stderr or done.stdout).strip()[:120]}"
+                except ValueError:
+                    cache[path] = "the answer is not JSON"
+            found = cache[path]
+            for key in field:
+                found = found.get(key) if isinstance(found, dict) else None
+            if isinstance(cache[path], str):
+                problems.append(f"{name}: cannot be read ({cache[path]})")
+            elif found is None or type(found) is not type(wanted):
+                problems.append(f"{name}: cannot be read (GitHub's answer has no {'.'.join(field)} of the form expected)")
+            elif found != wanted:
+                problems.append(f"{name} is off (GitHub says {json.dumps(found)})")
+        name, path = ALERTS
+        done = self.switch_answer(path)
+        if done.returncode != 0:
+            text = done.stderr + done.stdout
+            problems.append(f"{name} is off" if re.search(r"\b404\b|Not Found", text) else f"{name}: cannot be read (gh failed: {text.strip()[:120]})")
+        return problems
+
+    def step_switches(self) -> str:
+        """The repository's switches on GitHub are on, read only through `gh api`; it runs in a dry run too, since it changes nothing."""
+        problems = self.switch_problems()
+        if problems:
+            self.refuse("a switch of the repository on GitHub is not on: " + "; ".join(problems) + ". Switch it on in the repository's settings (Security) and run the same command again")
+            return ""
+        return f"all {len(SWITCHES) + 1} switches are on"
 
     def check_tree(self) -> None:
         mine = {"neoaprs/__init__.py", "CHANGELOG.md"} if self.current() == self.version else set()      # a run that stopped after the bump leaves exactly these
@@ -586,6 +635,7 @@ def steps(r: Release) -> list[tuple[str, str, Callable[[], str]]]:
         return ""
     return [
         ("checks", "on master, clean, up to date with origin, notes under Unreleased, the version new and greater, no tag elsewhere", checks),
+        ("switches", "the repository's switches on GitHub are on: secret scanning and its push protection, Dependabot alerts, code scanning, immutable releases, actions pinned by commit (read only)", r.step_switches),
         ("version", f'neoaprs/__init__.py: VERSION = "{r.version}"', r.step_bump),
         ("changelog", f"CHANGELOG.md: `## Unreleased` becomes `## {r.version}`, with an empty one above", r.step_changelog),
         ("page", "build the page only if ui/ changed since the last tag, and fail if the committed one is not what ui/ builds", r.step_page),
