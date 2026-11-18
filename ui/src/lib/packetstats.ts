@@ -42,7 +42,7 @@ function chartSpan(stats: PacketStatsMessage): { from: number; to: number; first
 }
 
 /** The channels that heard anything, each radio the page knows by its name (a removed one too), in the daemon's order, the internet last; a radio the page does not know yet is left out. */
-export function channels(stats: PacketStatsMessage, radios: readonly PageRadio[]): Channel[] {
+function channels(stats: PacketStatsMessage, radios: readonly PageRadio[]): Channel[] {
   const { from, first } = chartSpan(stats);
   const found: Channel[] = [];
   for (const { radio, counts } of stats.heard) {

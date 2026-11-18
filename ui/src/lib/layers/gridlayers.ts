@@ -6,8 +6,7 @@ import { paletteColor } from "@/lib/alohalayers";
 import { FONT_REGULAR } from "@/lib/basemapstyle";
 import type { GridCollection } from "@/lib/layers/grid";
 
-export const GRID_SOURCE = "grid";
-export const GRID_LAYERS: readonly string[] = ["grid-lines", "grid-names"];
+const GRID_SOURCE = "grid";
 
 export function addGridLayers(map: MapLibreMap, data: GridCollection): void {
   if (map.getSource(GRID_SOURCE)) return;

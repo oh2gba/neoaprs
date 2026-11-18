@@ -34,8 +34,5 @@ export const CREDITS: Readonly<Record<ServiceName, readonly CreditPart[]>> = {
   ],
 };
 
-/** A credit's whole text. */
-export const creditText = (source: ServiceName): string => CREDITS[source].map((part) => part.text).join("");
-
 /** Whether a source is a service on the internet (one with its own name and a credit). */
 export const isService = (source: SourceName): source is ServiceName => source in SOURCE_NAMES;
