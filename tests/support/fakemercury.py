@@ -352,7 +352,8 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
         await asyncio.wait_for(stop.wait(), die_after)
     except TimeoutError:
         say("[ERR] [engine] the fake Mercury dies as told")
-        return 3
+        sys.stdout.flush()
+        os._exit(3)             # (as a program that dies: at once, and with nothing after its last line. The loop's own end can print a traceback on Windows, which would then be its last lines)
     finally:
         kiss_server.close()
         control_server.close()

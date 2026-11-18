@@ -203,7 +203,8 @@ class Fake:
             await asyncio.wait_for(self.done.wait(), die_after)
         except TimeoutError:
             say("the fake Direwolf dies as told")
-            return 3
+            sys.stdout.flush()
+            os._exit(3)         # (as a program that dies: at once, and with nothing after its last line. The loop's own end can print a traceback on Windows, which would then be its last lines)
         finally:
             if server is not None:
                 server.close()
