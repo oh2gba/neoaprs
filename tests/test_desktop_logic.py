@@ -78,11 +78,11 @@ class FakeAutoStart:
 class FakeDaemon(Daemon):
     """The daemons of the app as a script: `up` is whether one holds the folder, `stops` what was asked to stop, `page` what the wait finds."""
 
-    def __init__(self, up: bool = False, page: str | None = PAGE, child_alive: bool = True, stops: bool = True) -> None:
-        self.up, self.page, self.child_alive, self.ends = up, page, child_alive, stops
+    def __init__(self, up: bool = False, page: str | None = PAGE, child_alive: bool = True, stops: bool = True, network: bool = True) -> None:
+        self.up, self.page, self.child_alive, self.ends, self.served_to_network = up, page, child_alive, stops, network
         self.started: list[Path] = []
         self.stopped: list[Path] = []
-        super().__init__(running=lambda data: self.up, start=self._start, wait=lambda data, child, seconds: self.page, stop=self._stop)
+        super().__init__(running=lambda data: self.up, start=self._start, wait=lambda data, child, seconds: self.page, stop=self._stop, network=lambda data: self.served_to_network)
 
     def _start(self, data: Path) -> "subprocess.Popen[bytes]":
         self.started.append(data)
@@ -122,6 +122,48 @@ def test_without_a_window_open_is_the_browser_and_without_autostart_there_is_no_
     assert labels(actions.items()) == ["Open NeoAPRS", "Collect support logs", "Stop and quit"], "Open in browser would only repeat Open"
     actions.run(OPEN)
     assert opened == [PAGE] and frame.shown == 0
+
+
+def test_open_in_browser_is_in_the_menu_only_while_the_page_is_served_to_the_network() -> None:
+    actions, _, daemon, _ = actions_for(owned=True)
+    assert BROWSER in [i.key for i in actions.items()]
+    daemon.served_to_network = False
+    assert labels(actions.items()) == ["Open NeoAPRS", "Collect support logs", "Stop and quit"], "the window is the one way in"
+    daemon.served_to_network = True
+    assert BROWSER in [i.key for i in actions.items()], "the menu follows the switch while the app runs"
+
+
+def test_the_watch_tells_the_menu_when_the_page_goes_to_the_network_or_off_it_and_not_before() -> None:
+    daemon = FakeDaemon(up=True, network=False)
+    changed = threading.Semaphore(0)
+    looked = threading.Semaphore(0)
+
+    def served(data: Path) -> bool:
+        looked.release()
+        return daemon.served_to_network
+
+    daemon.network = served
+    watch = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.02, network_moved=changed.release)
+    watch.start()
+    assert looked.acquire(timeout=5) and looked.acquire(timeout=5) and not changed.acquire(timeout=0.1), "the first look only remembers"
+    daemon.served_to_network = True
+    assert changed.acquire(timeout=5)
+    daemon.served_to_network = False
+    assert changed.acquire(timeout=5)
+    watch.cancel()
+    watch.thread.join(5)
+
+
+def test_the_note_of_the_daemon_on_the_network_is_read_from_the_data_folder(tmp_path: Path) -> None:
+    from neoaprs.cli.logfile import network_is_on, remove_page, write_network
+    assert not network_is_on(tmp_path)
+    write_network(tmp_path, True)
+    assert network_is_on(tmp_path)
+    write_network(tmp_path, False)
+    assert not network_is_on(tmp_path)
+    write_network(tmp_path, True)
+    remove_page(tmp_path)
+    assert not network_is_on(tmp_path), "a daemon that serves no page has no note"
 
 
 def test_open_shows_the_window_and_open_in_browser_opens_the_browser() -> None:
@@ -591,3 +633,14 @@ def test_the_webview2_runtime_is_looked_for_where_its_updater_writes_it() -> Non
     keys.clear()
     keys[("HKCU", r"SOFTWARE\Microsoft\EdgeUpdate\Clients" + "\\" + shell.WEBVIEW2_CLIENT)] = "126.0.2592.87"
     assert shell.webview2_runtime(registry), "a per-user install counts"
+
+
+def test_a_switch_flipped_after_the_menu_was_built_and_before_the_first_look_is_told() -> None:
+    daemon = FakeDaemon(up=True, network=False)
+    changed = threading.Semaphore(0)
+    watch = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.3, network_moved=changed.release)
+    watch.start()
+    daemon.served_to_network = True
+    assert changed.acquire(timeout=5)
+    watch.cancel()
+    watch.thread.join(5)

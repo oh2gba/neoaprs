@@ -12,6 +12,7 @@ START_FORMAT = "%s %s" + START_LINE + "%s"                  # program, version, 
 PAGE_FORMAT = "web page at %s"                              # the page's address (a logging format)
 PAGE_LINE = re.compile(r"web page at (http://\S+?/)(?:\s|$)")
 PAGE_FILE = "neoaprs-web.url"
+NETWORK_FILE = "neoaprs-web.network"                        # there while the page is served to the network too (`web/network` on and bound): the app's tray reads it to know whether the browser is a way in
 PAGE_URL = re.compile(r"http://\S+?/")
 LOG_SCAN_BYTES = 20_000_000                                # the end of the log that is read for the run before: a whole file of it (neoaprs/daemon.py setup_logging)
 _OWN_LINE = rb"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\dZ  INFO  "        # how a line the daemon says at INFO begins (the format of neoaprs/daemon.py setup_logging): words inside another line, a packet's text, are not such a line
@@ -27,11 +28,25 @@ def write_page(data_dir: Path, url: str) -> None:
 
 
 def remove_page(data_dir: Path) -> None:
-    """The page is not served (any more): its address is taken away."""
-    try:
-        (data_dir / PAGE_FILE).unlink(missing_ok=True)
-    except OSError:
-        pass
+    """The page is not served (any more): its address is taken away, and the note that it was served to the network."""
+    for name in (PAGE_FILE, NETWORK_FILE):
+        try:
+            (data_dir / name).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def write_network(data_dir: Path, on: bool) -> None:
+    """Says whether the page is served to the network: the file is there while it is, and gone while it is not."""
+    if on:
+        (data_dir / NETWORK_FILE).write_text("on\n", encoding="ascii")
+    else:
+        (data_dir / NETWORK_FILE).unlink(missing_ok=True)
+
+
+def network_is_on(data_dir: Path) -> bool:
+    """Whether the daemon says its page is served to the network (a daemon that does not say, an older one or none, is taken as not serving it)."""
+    return (data_dir / NETWORK_FILE).is_file()
 
 
 def page_of_the_run_before(data_dir: Path) -> str | None:

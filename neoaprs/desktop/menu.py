@@ -2,7 +2,7 @@
 tested with no tray: the toolkits are fakes of `Frame` there.
 
     Open NeoAPRS          shows the window (with no web engine to show one: the page in the browser)
-    Open in browser      the page in the system's browser (left out when that is what Open does)
+    Open in browser      the page in the system's browser (left out when that is what Open does, and while "Allow access from the network" is off: the window is then the one way in)
     Start at sign-in     a checkbox: the app, in the tray, starts when the user signs in (left out where the system has none)
     Collect support logs makes the support bundle (neoaprs/cli/supportmake.py) on the Desktop and shows it in the file manager
     Stop and quit        stops the daemon if the app started it, and ends the app; for a daemon that was already running (a service) it is "Quit (NeoAPRS keeps running as a service)" and only ends the app
@@ -63,7 +63,7 @@ class AppActions:
     def items(self) -> list[Item]:
         owned = self.session.owned
         items = [Item(OPEN, OPEN_LABEL)]
-        if self.frame.has_window:
+        if self.frame.has_window and self.daemon.network(self.session.data):
             items.append(Item(BROWSER, "Open in browser"))
         if self.autostart is not None:
             items.append(Item(AUTOSTART, "Start at sign-in", checked=self.autostart.enabled()))
@@ -126,6 +126,10 @@ class AppActions:
         elif not stop_owned(self.session, self.daemon):
             self.frame.tell("The NeoAPRS daemon did not stop; see neoaprs.log")
         self.frame.quit()
+
+    def network_moved(self) -> None:
+        """The daemon's page is served to the network now, or no longer is: the menu is drawn again (a toolkit that draws it only when asked)."""
+        self.frame.refresh()
 
     def page_moved(self, url: str) -> None:
         """The daemon serves its page at another address than before (it started again and could not have the port it had): the window shows it there, and Open in browser opens it there."""

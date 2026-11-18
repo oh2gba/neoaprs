@@ -24,7 +24,7 @@ import tornado.web
 import tornado.websocket
 from tornado.iostream import IOStream
 
-from neoaprs.cli.logfile import PAGE_FORMAT, remove_page, write_page
+from neoaprs.cli.logfile import PAGE_FORMAT, remove_page, write_network, write_page
 from neoaprs.config import Config
 from neoaprs.controller import Controller
 from neoaprs.worldmap import world_file
@@ -194,6 +194,14 @@ class WebServer:
             write_page(self.controller.data_dir, self.url())
         except OSError as e:
             log.warning("the page's address could not be written into the data folder (%s); the commands look for it in the log", e)
+        self._tell_the_network()
+
+    def _tell_the_network(self) -> None:
+        """Whether the page is served to the network goes into the data folder too (the app's tray offers the browser only while it is); a folder that cannot be written is logged quietly."""
+        try:
+            write_network(self.controller.data_dir, self.address == "")
+        except OSError as e:
+            log.info("the note that the page is served to the network could not be written (%s)", e)
 
     def _limited(self, context: ssl.SSLContext | None) -> LimitedHTTPServer:
         assert self._app is not None
@@ -214,6 +222,7 @@ class WebServer:
             await self._ensure_key()
             before = self.address
             self._relisten("" if self.controller.config.web_network else LOOPBACK)
+            self._tell_the_network()
             await self._follow_secure()
             for client in list(self.api.clients):                  # a device that is not let in any more (the key is new, or the network is off) is cut off
                 if isinstance(client, Socket) and not self.access.allowed(client.request):

@@ -179,7 +179,7 @@ class ShellContext:
     def ready(self, actions: AppActions) -> None:
         self.actions = actions
         self.single.handle(lambda command: actions.show() if command == "show" else actions.run(QUIT))
-        self.watch = DaemonWatch(self.session, actions.daemon_gone, self.daemon, moved=actions.page_moved, app_file=self.app_file, renewed=actions.renew)
+        self.watch = DaemonWatch(self.session, actions.daemon_gone, self.daemon, moved=actions.page_moved, app_file=self.app_file, renewed=actions.renew, network_moved=actions.network_moved)
         self.watch.start()
 
     def renewing(self) -> bool:

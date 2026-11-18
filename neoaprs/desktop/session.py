@@ -12,7 +12,7 @@ from pathlib import Path
 
 from neoaprs.cli import opencmd, stopcmd
 from neoaprs.cli.daemonstate import is_running
-from neoaprs.cli.logfile import read_page
+from neoaprs.cli.logfile import network_is_on, read_page
 from neoaprs import stopfile
 from .links import same_host
 from .renew import AppFile
@@ -43,13 +43,15 @@ def _start_detached(data: Path, encryption: bool = False) -> "subprocess.Popen[b
 @dataclass
 class Daemon:
     """What the app does to the daemons, as functions that a test replaces: `running(data)`, `start(data)` (a detached daemon; the process object), `wait(data, child, seconds)` (the page's address once the page answers, else None), `stop(data, seconds)`,
-    `restarting(data)` (it ended to start again) and `address(data)` (where its page is served now: what it wrote into the data folder, None while it serves none)."""
+    `restarting(data)` (it ended to start again), `address(data)` (where its page is served now: what it wrote into the data folder, None while it serves none) and `network(data)` (whether it serves the page to the network too:
+    the note it keeps in the data folder, which is read each time it is asked)."""
     running: Callable[[Path], bool] = is_running
     start: Callable[[Path], "subprocess.Popen[bytes]"] = _start_detached
     wait: Callable[[Path, "subprocess.Popen[bytes] | None", float], str | None] = opencmd.wait_for_page
     stop: Callable[[Path, float], bool] = stopcmd.stop_daemon
     restarting: Callable[[Path], bool] = stopfile.restarting
     address: Callable[[Path], str | None] = read_page
+    network: Callable[[Path], bool] = network_is_on
 
 
 def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC, encryption: bool = False, owns: bool = False) -> Session:
@@ -149,16 +151,19 @@ class DaemonWatch:
     Calls `moved(address)` each time the daemon, the app's own or one it attached to, serves its page at another address than the app last knew (it started again and could not have the port it had): the
     address is read from the file the daemon writes, which is not there while it serves no page, and nothing is asked of the daemon's lock for it. Only the port may be another: an address of
     another host than the one the session was opened on is not the daemon's page, whatever the file says, and the window is never sent there.
+    Calls `network_moved()` each time the daemon's note says its page is served to the network, or not any more, from what it was at the last look (a tray that draws its menu only when asked is asked again).
     Calls `renewed()` once when the app's own AppImage file (`app_file`) is a new version and the daemon the app owns runs again (renew.py): the app is to start again as the new version."""
 
     def __init__(self, session: Session, gone: Callable[[], None], daemon: Daemon | None = None, every: float = WATCH_SEC, moved: Callable[[str], None] | None = None,
-                 app_file: AppFile | None = None, renewed: Callable[[], None] | None = None) -> None:
+                 app_file: AppFile | None = None, renewed: Callable[[], None] | None = None, network_moved: Callable[[], None] | None = None) -> None:
         self.session = session
         self.gone = gone
         self.moved = moved
         self.app_file = app_file if renewed is not None else None
         self.renewed = renewed
         self.url = session.url                     # where the page is, as the app knows it
+        self.network_moved = network_moved
+        self.network: bool | None = None           # whether the page was served to the network at the last look (None: not looked yet)
         self.refused: str | None = None            # an address the file named that the app did not follow (said once)
         self.daemon = daemon or Daemon()
         self.every = every
@@ -166,7 +171,9 @@ class DaemonWatch:
         self.thread = threading.Thread(target=self._run, name="neoaprs-app-watch", daemon=True)
 
     def start(self) -> None:
-        if self.session.owned or self.moved is not None:
+        if self.session.owned or self.moved is not None or self.network_moved is not None:
+            if self.network_moved is not None:
+                self.network = self.daemon.network(self.session.data)          # (what the menu was built from: a flip before the first look is then seen)
             self.thread.start()
 
     def cancel(self) -> None:
@@ -186,6 +193,17 @@ class DaemonWatch:
                 if up and self._renewed():
                     return
             self._follow()
+            self._follow_network()
+
+    def _follow_network(self) -> None:
+        """Calls `network_moved` when the daemon's note on the network has changed since the last look; the first look only remembers."""
+        if self.network_moved is None:
+            return
+        now = self.daemon.network(self.session.data)
+        before, self.network = self.network, now
+        if before is not None and before != now:
+            log.info("the page of the daemon on %s is %s the network now", self.session.data, "served to" if now else "no longer served to")
+            self.network_moved()
 
     def _renewed(self) -> bool:
         """The app's file is a new version and its daemon, running, has no restart pending (it runs the new file): `renewed` is called, and the watch is over."""

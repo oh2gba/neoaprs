@@ -8,6 +8,7 @@ import logging
 import webbrowser
 from importlib import resources
 from pathlib import Path
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
@@ -37,6 +38,7 @@ class QtFrame(QObject):
     quit_requested = Signal()
     tell_requested = Signal(str)
     load_requested = Signal(str)
+    refresh_requested = Signal()
 
     def __init__(self, with_window: bool) -> None:
         super().__init__()
@@ -47,6 +49,8 @@ class QtFrame(QObject):
         self.quit_requested.connect(self._quit)
         self.tell_requested.connect(self._tell)
         self.load_requested.connect(self._load)
+        self.refresh_requested.connect(self._refresh)
+        self.rebuild: Callable[[], None] | None = None     # makes the tray menu again (set once the menu exists)
 
     def show_window(self) -> None:
         self.show_requested.emit()
@@ -55,7 +59,13 @@ class QtFrame(QObject):
         self.quit_requested.emit()
 
     def refresh(self) -> None:
-        """Nothing to do: the tray menu is made again each time it is about to show."""
+        """The tray menu is made again on the main thread (a tray that does not tell when its menu opens would otherwise keep the old one)."""
+        self.refresh_requested.emit()
+
+    @Slot()
+    def _refresh(self) -> None:
+        if self.rebuild is not None:
+            self.rebuild()
 
     def tell(self, text: str) -> None:
         self.tell_requested.emit(text)
@@ -127,6 +137,7 @@ def make_tray(built: Built, icon: QIcon) -> QSystemTrayIcon:
     built.menu.aboutToShow.connect(lambda: fill_menu(built))
     tray.activated.connect(lambda reason: built.actions.show() if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick) else None)
     built.frame.tray = tray
+    built.frame.rebuild = lambda: fill_menu(built)
     fill_menu(built)
     return tray
 
