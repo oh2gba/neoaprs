@@ -1,7 +1,7 @@
 """Takes the screenshots of the README and the project page (site/): a daemon of its own on a temporary data folder, a made-up day on the air (scripts/demoscene.py), Chromium through Playwright.
 
     uv run --with playwright --with pillow python scripts/screenshots.py                  # everything: every shot light and dark into site/shots/, their thumbnails and WebP copies, og.png,
-                                                                                          # seven of them into docs/screenshots/, and the sizes site/index.html declares made those of the files
+                                                                                          # eight of them into docs/screenshots/, and the sizes site/index.html declares made those of the files
     uv run --with playwright --with pillow python scripts/screenshots.py --only map weather    # these, with their thumbnails and WebP copies (og.png too when map is one of them)
     python scripts/screenshots.py --chromium /path/to/chrome --no-sandbox                  # a browser Playwright did not install, or one that cannot make its sandbox
     python scripts/screenshots.py --check                                                  # no browser: every shot has its files, and every picture of site/ is declared at the size of its file
@@ -11,7 +11,8 @@ is given its three radios, each of a Dummy type, which opens no device and makes
 the Dummy HF radio "40 m" and the Dummy LoRa radio are added (`neoaprs db radios add`), before any daemon of the shots starts. No shot uses the Mercury or the Direwolf type: either would start a modem on the
 machine's sound card. The fresh folder of the setup guide has no radio, as a new installation has none. The HF tests tab is given a board of two made-up tests by a server of the board on the loopback
 (made_up_board; its daemon's update check is on, and a version page on the loopback says this version is the latest), and the Monitor card a made-up waterfall of the Dummy HF radio, which has no scope
-of its own (SCOPE_PAGE: the page's socket in that shot's browser is told the radio has one, and its rows are made here with the daemon's own frames). The version
+of its own (SCOPE_PAGE: the page's socket in that shot's browser is told the radio has one, and its rows are made here with the daemon's own frames). The layers shot has a daemon
+of its own that reads aircraft and ships from the made-up receiver of scripts/demotraffic.py (started and stopped here, on its ports 7391 and 7392 of the loopback: a refusal when something holds them). The version
 beside Check now is hidden in every shot and the newer version of the update shot is made from VERSION, so the shots do not go old with a release: they are retaken when the page changes. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read): a run into site/shots/ or with no --only refuses to start without it, since the placeholder map would replace the site's. Needs Playwright and, to
 make the PNG files small, Pillow; `playwright install chromium` fetches the browser. Needs `uv sync` first (or `uv run`, which does it) so that `neoaprs` is importable.
 
@@ -48,6 +49,8 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 
 import demoscene                                                  # noqa: E402  (the scene needs the path above)
+import demotraffic                                                # noqa: E402  (the made-up aircraft and ships of the layers shot: its ports)
+import demoships                                                  # noqa: E402  (its receiver's port)
 from neoaprs import VERSION                                       # noqa: E402
 from neoaprs.controller import Controller                         # noqa: E402
 from neoaprs.mercury import SUGGESTED                             # noqa: E402
@@ -59,7 +62,7 @@ DESKTOP = {"width": 1440, "height": 900}
 PHONE = {"width": 390, "height": 844}
 TABLET = {"width": 1024, "height": 768}
 LIMIT_KB = 480                                                    # a PNG is made smaller than this (colours are reduced when it must be)
-README_SHOTS = ("map", "weather", "messages", "beacon", "objects", "bulletins", "setup")
+README_SHOTS = ("map", "weather", "messages", "beacon", "objects", "bulletins", "setup", "layers")
 SETTINGS = {
     "station/call": "OH2GBA", "station/lat": f"{demoscene.HOME[0]}", "station/lon": f"{demoscene.HOME[1]}", "station/symbol_table": "/", "station/symbol_code": "-",
     "station/comment": "NeoAPRS in Espoo", "beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "messages/alert": "false", "radio/1/tcp_host": demoscene.HOST,
@@ -122,6 +125,32 @@ class Daemon:
         except TimeoutError:
             self.proc.kill()
             await self.proc.wait()
+
+
+async def start_traffic() -> asyncio.subprocess.Process:
+    """`scripts/demotraffic.py`: the made-up aircraft receiver on 127.0.0.1:7391 and the made-up AIS receiver on 127.0.0.1:7392, listening (its first line says so); a refusal when it did not come up (a port is held)."""
+    process = await asyncio.create_subprocess_exec(sys.executable, str(HERE / "demotraffic.py"), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, cwd=ROOT)
+    assert process.stdout is not None
+    try:
+        line = (await asyncio.wait_for(process.stdout.readline(), 20)).decode(errors="replace").strip()
+    except TimeoutError:
+        line = ""
+    if not line.startswith("listening"):
+        await stop_process(process)
+        raise RuntimeError(f"the made-up aircraft and ships did not start on ports {demotraffic.PORT} and {demoships.AIS_PORT} of this computer: is another demotraffic or demo-daemon --traffic running?")
+    return process
+
+
+async def stop_process(process: asyncio.subprocess.Process) -> None:
+    """A child process ended: asked to, and killed when it does not within 10 s."""
+    if process.returncode is not None:
+        return
+    process.terminate()
+    try:
+        await asyncio.wait_for(process.wait(), 10)
+    except TimeoutError:
+        process.kill()
+        await process.wait()
 
 
 async def start_gps_replay() -> asyncio.subprocess.Process:
@@ -269,6 +298,7 @@ class Shots:
         self.receive_url = ""                                      # the page of the daemon that is set to RX only (the "beacon-rx" shot)
         self.moving_url = ""                                       # the page of the daemon that follows a GPS (the "beacon-gps" shot)
         self.skeds_url = ""                                        # the page of the daemon that reads the made-up HF test board (the "hf-tests" shot)
+        self.layers_url = ""                                       # the page of the daemon that reads aircraft and ships from the made-up receiver (the "layers" shot)
         self.radios: dict[str, int] = {}                           # the id of each radio of the shots, by its kind
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
         self.contexts: list[Any] = []                              # the browser contexts of the shot being taken (a shot that fails leaves its own open: they are closed after it)
@@ -828,6 +858,29 @@ async def shot_hf_tests(s: Shots, _: str) -> None:
     await s.save(page, "hf-tests")
 
 
+LAYERS_VIEW = (60.18, 24.82, 8.0)                                       # (140 km across: the made-up aircraft fly within 80 km of the station and the made-up ships sail within 35 km of the sea off Helsinki, 20 km south east of it)
+LAYERS_TICKED = {"layer.aircraft": "on", "layer.ships": "on"}           # (the browser's own ticks of the two rows that start off)
+LAYERS_SETTINGS = {"map/aircraft": "receiver", "map/aircraft_host": f"{demotraffic.HOST}:{demotraffic.PORT}", "map/ships": "receiver", "map/ships_host": f"{demotraffic.HOST}:{demoships.AIS_PORT}"}
+COUNT_IS_A_NUMBER = """(sel) => /^[0-9]+$/.test((document.querySelector(sel)?.textContent ?? '').trim()) && Number(document.querySelector(sel).textContent.trim()) > 0"""
+
+
+async def counted(page: Any, layer: str) -> None:
+    """Waits until the row of `layer` in the open Layers box has a count that is a number above 0: the layer has drawn things."""
+    await page.wait_for_function(COUNT_IS_A_NUMBER, arg=f'.layers-row[data-layer="{layer}"] .layers-count', timeout=60000)
+
+
+async def shot_layers(s: Shots, _: str) -> None:
+    """The map with the Layers box open: Tracks and the ALOHA circle ticked, the Locator grid not, and Aircraft and Ships ticked, each with the number it has drawn, from the made-up receiver of scripts/demotraffic.py
+    (the daemon of this shot reads it); the darts and hulls are among the stations."""
+    page = await s.page(DESKTOP, view=LAYERS_VIEW, panel=480, url=s.layers_url, stored=LAYERS_TICKED, wait_ms=3000)
+    await page.locator(".layers-toggle").click()
+    await page.locator(".layers-box").wait_for(state="visible", timeout=10000)
+    await counted(page, "aircraft")
+    await counted(page, "ships")
+    await settle(page, 2000)
+    await s.save(page, "layers")
+
+
 async def shot_phone_map(s: Shots, _: str) -> None:
     page = await s.page(PHONE, view=(60.19, 24.80, 9.4))
     await s.save(page, "phone-map")
@@ -957,9 +1010,9 @@ SHOTS: dict[str, Shot] = {
     "objects": shot_objects, "objects-form": shot_objects_form, "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
     "cards": shot_cards, "stations-menu": shot_stations_menu, "update": shot_update, "beacon-de": shot_beacon_de, "phone-messages": shot_phone_messages, "tablet": shot_tablet, "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
     "station-details": shot_station_details, "settings-tnc": shot_settings_tnc, "beacon-rx": shot_beacon_rx, "phone-beacon-rx": shot_phone_beacon_rx,
-    "nearby": shot_nearby, "beacon-gps": shot_beacon_gps, "settings-hf": shot_settings_hf, "stations-hf": shot_stations_hf, "hf-tests": shot_hf_tests,
+    "nearby": shot_nearby, "beacon-gps": shot_beacon_gps, "settings-hf": shot_settings_hf, "stations-hf": shot_stations_hf, "hf-tests": shot_hf_tests, "layers": shot_layers,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx", "nearby", "beacon-gps", "settings-hf", "stations-hf", "hf-tests")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx", "nearby", "beacon-gps", "settings-hf", "stations-hf", "hf-tests", "layers")
 
 
 def in_the_dark(shot: Shot) -> Shot:
@@ -1146,7 +1199,7 @@ def say_what_was_left(run: Run, out: Path, docs: Path | None) -> int:
 # ---- the run
 
 EXTRA_DAEMONS = {"updating": ("update", "update-dark"), "receiving": ("beacon-rx", "beacon-rx-dark", "phone-beacon-rx", "phone-beacon-rx-dark"), "moving": ("beacon-gps", "beacon-gps-dark"),
-                 "skeds": ("hf-tests", "hf-tests-dark")}       # the shots each extra daemon is for (a copy of the day's folder with its three radios, set otherwise)
+                 "skeds": ("hf-tests", "hf-tests-dark"), "layered": ("layers", "layers-dark")}       # the shots each extra daemon is for (a copy of the day's folder with its three radios, set otherwise)
 
 
 async def main(argv: list[str]) -> int:
@@ -1217,6 +1270,7 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
     daemons: list[Daemon] = []
     servers: list[asyncio.Server] = []
     gpsds: list[asyncio.subprocess.Process] = []
+    traffics: list[asyncio.subprocess.Process] = []
     try:
         data, ids = await prepare(work, radio, args.basemap if args.basemap.exists() else None)
         wanted = {key for key, shots in EXTRA_DAEMONS.items() if set(shots) & set(chosen)}
@@ -1264,7 +1318,13 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
             return await started(Daemon(work / "skeds", env={"NEOAPRS_UPDATE_CHECK": "1", "NEOAPRS_SKEDS_URL": f"http://{demoscene.HOST}:{port_of(board)}/skeds.json"}))
             # (the board is read with the update check, and only from a server on this computer: NEOAPRS_NO_DEVICES shuts every other door, the project's own list of frequencies too)
 
-        starts: dict[str, Callable[[], Awaitable[str]]] = {"updating": updating, "receiving": receiving, "moving": moving, "skeds": skeds}
+        async def layered() -> str:
+            traffics.append(await start_traffic())
+            for key, value in LAYERS_SETTINGS.items():
+                neoaprs_db_set(work / "layered", key, value)                                          # (Aircraft and Ships read My own receiver: the made-up one; the services are not used, so no NEOAPRS_LAYERS_URL)
+            return await started(Daemon(work / "layered"))
+
+        starts: dict[str, Callable[[], Awaitable[str]]] = {"updating": updating, "receiving": receiving, "moving": moving, "skeds": skeds, "layered": layered}
         urls: dict[str, str] = {}
         for key in sorted(wanted):
             try:
@@ -1278,7 +1338,7 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
             browser = await p.chromium.launch(**options)
             shots = Shots(browser, url, args.out)
             shots.update_url, shots.receive_url, shots.moving_url = urls.get("updating", ""), urls.get("receiving", ""), urls.get("moving", "")
-            shots.skeds_url, shots.radios = urls.get("skeds", ""), ids
+            shots.skeds_url, shots.radios, shots.layers_url = urls.get("skeds", ""), ids, urls.get("layered", "")
             for name in chosen:
                 if name in run.why_not:
                     continue
@@ -1302,6 +1362,8 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
             if gpsd.returncode is None:
                 gpsd.terminate()
                 await gpsd.wait()
+        for traffic in traffics:
+            await stop_process(traffic)
         for server in servers:
             server.close()
         await radio.stop()

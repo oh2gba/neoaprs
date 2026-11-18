@@ -28,6 +28,7 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four
 - **Your beacon**: fixed, or following a GPS (gpsd or a serial port) with SmartBeaconing for a car, a bicycle, a walker or a boat, on the radios you tick; receive only with one tick
 - **Nearby**: digipeaters, iGates, voice frequencies and the stations heard direct, nearest first, with the range of a digipeater drawn on the map
 - **Objects and items** of your own, placed and moved on the map; Local info, which asks the stations near you for theirs, and a QRU server for yours
+- **Layers** on the map: tracks, the ALOHA circle and a locator grid, and aircraft from your own ADS-B receiver (or adsb.fi, adsb.lol) and ships from your own AIS receiver (or Fintraffic in Finnish waters), only on the map and never mixed with APRS
 - **Weather** stations with their readings and 24 hour and 7 day graphs
 - **APRS over HF**: the waterfall of the channel and the signal of each packet heard, Tune and a keying Test, and **HF tests**, a board on neo.oh2gba.eu where you say when and on which frequency you will be on the air, so that another station can test with you
 - **A fill-in digipeater** and a receive-only **iGate**, both optional; the stations of APRS-IS on the map with a tick
