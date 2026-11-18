@@ -243,6 +243,25 @@
 .attrib-text p {
   margin: 2px 0;
 }
+.attrib-text a {
+  color: inherit;
+}
+
+/* the card of an aircraft or a ship (components/LayerCard.vue): its mark where a station's card has its symbol, an emergency's in the bad colour; its figures keep their width as they change */
+.layercard-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+.layercard-mark.emergency .layermark path {
+  fill: var(--bad);
+}
+.layercard .card-fields dd {
+  font-variant-numeric: tabular-nums;
+}
 
 .mapnote-box {
   display: flex;
@@ -351,4 +370,68 @@
 }
 .app:not(.size-phone) .mapwrap:has(.replaybar) :is(.cardstack, .statscard:not(.moved), .packetscard:not(.moved), .monitorcard:not(.moved)) {
   bottom: 70px;
+}
+
+/* the Layers button: under + and − in their group (a control of the map's, lib/layers/control.ts), its box beside it at the right; the box has the page's face, not the map's */
+.layers {
+  position: relative;
+}
+.maplibregl-ctrl-group .layers-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.layers-box {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 8px);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  max-width: calc(100vw - 80px);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-box);
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font: 14px/1.4 var(--font);
+}
+/* while the box is open the map's corner of controls lies above the station cards and the cards over the map (z-index 3), which would hide its lower rows: the map gives up its own stacking context for that time */
+.stationmap:has(.layers-box) {
+  z-index: auto;
+}
+.stationmap:has(.layers-box) .maplibregl-ctrl-top-left {
+  z-index: 4;
+}
+.layers-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.layers-row .layermark {
+  flex: none;
+}
+.layers-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.layers-source {
+  color: var(--muted);
+}
+/* the count of a layer of things: its room is kept at one width, in tabular figures, so that a changing number moves nothing */
+.layers-count {
+  flex: none;
+  min-width: 4ch;
+  margin-left: auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.layers-rule {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
 }

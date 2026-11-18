@@ -1,6 +1,6 @@
 // The layers of the tracks of the stations (lib/tracks.ts): a line that fades with age for every station that moved, and for the selected station (every open card) its trail drawn to be read: above the others, orange,
 // heavier and solid whatever its age, on a pale casing so that it shows on any ground, with a dot at each position the station was heard at, which fades with the age of the position as the stretches of the other tracks do.
-// `setTrackData` gives both sources what to draw; the colours are the map tokens of styles/tokens.css, read when the layers are made (the literals are what is used where a page has no style sheet).
+// `setTrackData` gives both sources what to draw: with the row Tracks of the Layers box not ticked (`all` false) only the selected stations' own tracks; the colours are the map tokens of styles/tokens.css, read when the layers are made (the literals are what is used where a page has no style sheet).
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import type { Aging } from "@/lib/aging";
 import { paletteColor } from "@/lib/alohalayers";
@@ -62,8 +62,17 @@ export function addTrackLayers(map: MapLibreMap): void {
   });
 }
 
-/** What the layers draw: the lines of the stations' tracks, `selected` among them marked, and the points of the selected ones. */
-export function setTrackData(map: MapLibreMap, rows: readonly StationRow[], selected: string | null | readonly string[], nowMs: number, aging: Aging): void {
-  void map.getSource<GeoJSONSource>(TRACKS_SOURCE)?.setData(trackLines(rows, selected, nowMs, aging));
+/** What the layers draw: the lines of the stations' tracks, `selected` among them marked, and the points of the selected ones; with `all` false the lines of the selected ones only. */
+export function setTrackData(
+  map: MapLibreMap,
+  rows: readonly StationRow[],
+  selected: string | null | readonly string[],
+  nowMs: number,
+  aging: Aging,
+  all = true,
+): void {
+  const picked = selected === null ? [] : typeof selected === "string" ? [selected] : selected;
+  const shown = all ? rows : rows.filter((row) => picked.includes(row.call));
+  void map.getSource<GeoJSONSource>(TRACKS_SOURCE)?.setData(trackLines(shown, selected, nowMs, aging));
   void map.getSource<GeoJSONSource>(TRACK_POINTS_SOURCE)?.setData(trackPoints(rows, selected, nowMs, aging));
 }

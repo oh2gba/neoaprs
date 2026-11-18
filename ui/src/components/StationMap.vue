@@ -6,17 +6,19 @@
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
-// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, Statistics, which opens the statistics card over the map, Packets, the Packets tab as a card over the map, Monitor, a radio's scope as a card (each a `card` of the page's, by its name; Monitor one for each radio that has a scope, the radio chosen kept by composables/useScopeLooks.ts), and Replay, which plays back how the stations moved over the last hours, the live markers, tracks and route giving way to it while it is open (`replay`, the page's: composables/useMapReplay.ts, components/ReplayBar.vue). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
+// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, Statistics, which opens the statistics card over the map, Packets, the Packets tab as a card over the map, Monitor, a radio's scope as a card (each a `card` of the page's, by its name; Monitor one for each radio that has a scope, the radio chosen kept by composables/useScopeLooks.ts), and Replay, which plays back how the stations moved over the last hours, the live markers, tracks and route giving way to it while it is open (`replay`, the page's: composables/useMapReplay.ts, components/ReplayBar.vue). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts). The Layers button under the zoom buttons opens a box whose ticks, this browser's own, take the
+// tracks (but the open cards' own), the ALOHA circle, the locator grid (composables/useMapGrid.ts) and the aircraft and ships (composables/useMapTraffic.ts: a click on one opens its card among the station cards) off the map or put them on (components/MapLayers.vue, composables/useMapBoxLayers.ts); the grid lies under everything else. The selected station, when it is a digipeater of the Nearby tab that gave
 // a range (PHG or RNG), has a pale circle of that range under the markers too (lib/rangecircles.ts), one at a time; when such a station is picked the map fits itself to the whole circle instead of flying to the point (composables/useMapFollow.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix (composables/useFollowMe.ts).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import { t } from "@/i18n";
 import MapAttribution from "@/components/MapAttribution.vue";
+import MapLayers from "@/components/MapLayers.vue";
 import { archiveUrl, archivesPresent, glyphsUrl, loadMapEngine } from "@/lib/basemap";
 import { BASEMAP_FILE, WORLD_FILE, basemapStyle, MAX_ZOOM, OPEN_ZOOM, type Archives } from "@/lib/basemapstyle";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
-import { useMapCircles } from "@/composables/useMapCircles";
+import { useMapBoxLayers } from "@/composables/useMapBoxLayers";
 import { useMapControlLabels } from "@/composables/useMapControlLabels";
 import { useClearOfCard } from "@/composables/useClearOfCard";
 import { useFollowMe } from "@/composables/useFollowMe";
@@ -70,12 +72,11 @@ const emit = defineEmits<{
 const [page, radios] = [useDaemonContext(), useRadios()]; // (the radios: the hover card names each radio by its name where radios are named)
 /** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
 const mapFiles = computed(() => filesKey(page.map.value));
-const root = ref<HTMLElement | null>(null);
-const host = ref<HTMLElement | null>(null);
+const [root, host] = [ref<HTMLElement | null>(null), ref<HTMLElement | null>(null)]; // (the page's box round the map, and the map's own)
 const card = useClearOfCard(root, host);
 const stationOf = (call: string): StationRow | undefined => page.stations.value.get(call);
 const selectedCall = (): string | null => props.selected;
-const circles = useMapCircles(() => map, host, selectedCall);
+const box = useMapBoxLayers(() => map, selectedCall);
 const labelControls = useMapControlLabels(host);
 useResized(host, () => map?.resize());
 const { following, canFollow, followAt, release } = useFollowMe(page.gps);
@@ -121,7 +122,7 @@ function drawRoute(): void {
 
 function addLayers(): void {
   if (!map) return;
-  circles.add(map); // (first: under the tracks and the route)
+  box.add(map); // (first: the grid and the circles, under the tracks and the route)
   addTrackLayers(map);
   drawTracks();
   addRouteLayers(map, routeFeatures(undefined, page.stations.value, null));
@@ -134,7 +135,7 @@ const drawn = (): StationRow[] =>
   [...page.stations.value.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(page.aging.value, row, page.now.value)));
 
 function drawTracks(): void {
-  if (map) setTrackData(map, drawn(), openCalls(), page.now.value, page.aging.value);
+  if (map) setTrackData(map, drawn(), openCalls(), page.now.value, page.aging.value, box.tracks());
 }
 
 function makePlaced(call: string): Placed | null {
@@ -194,7 +195,8 @@ function syncPin(): void {
   if (map && engine) pinMarker = placePin(engine, map, pinMarker, props.pin, pickAt); // (the pin dropped somewhere else is the place, as a click there would be)
 }
 
-function onClick(event?: { lngLat?: { lat: number; lng: number }; originalEvent?: MouseEvent }): void {
+function onClick(event?: { lngLat?: { lat: number; lng: number }; point?: { x: number; y: number }; originalEvent?: MouseEvent }): void {
+  if (!props.picking && box.clicked(event)) return; // (an aircraft or a ship: its card)
   if (!(event?.originalEvent?.ctrlKey || event?.originalEvent?.metaKey)) emit("select", null); // (a Ctrl+click beside a marker leaves the cards open)
   if (props.picking && event?.lngLat) pickAt(event.lngLat.lat, event.lngLat.lng);
 }
@@ -245,7 +247,7 @@ async function create(): Promise<void> {
   map.addControl(new engine.NavigationControl({ showCompass: false }), "top-left");
   labelControls();
   map.on("style.load", addLayers);
-  circles.listen(map);
+  box.listen(map, hover); // (the Layers button under the zoom buttons; the hover box of the aircraft and ships)
   map.on("movestart", () => hover?.hide());
   map.on("dragstart", release); // (a drag by the person; the map's own easing is none)
   map.on("click", onClick);
@@ -268,7 +270,7 @@ watch([() => [...page.stations.value.values()], () => [props.selected, props.oth
   drawRoute();
 });
 watch(() => page.now.value, syncMarkers);
-watch(minute, drawTracks);
+watch([minute, box.tracks], drawTracks);
 useMapFollow(() => map, card, {
   focus: () => props.focus,
   selected: () => props.selected,
@@ -327,7 +329,8 @@ onBeforeUnmount(() => {
     <button v-if="canFollow" class="btn followme" :class="{ primary: following }" type="button" :aria-pressed="following" @click="following = !following">
       {{ t("map.follow_me") }}
     </button>
-    <MapAttribution />
+    <MapLayers :place="box.place.value" :counts="box.counts.value" />
+    <MapAttribution :credits="box.credits.value" />
   </div>
   <div v-if="note" class="mapnote" role="status">
     <div class="mapnote-box">

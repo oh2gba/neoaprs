@@ -6,7 +6,7 @@ import { mountStationMap } from "@/test/stationmap";
 import { tell } from "@/test/context";
 import { NOW, mapState, radioRow, radiosTopic, station, table } from "@/test/fixtures";
 
-type Ring = { features: { properties: { km: number; title: string }; geometry: { coordinates: number[][] } }[] };
+type Ring = { features: { properties: { km: number }; geometry: { coordinates: number[][] } }[] };
 
 const props = (extra = {}) => ({
   stations: table(station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_code: "-" })),
@@ -37,7 +37,7 @@ describe("the ALOHA circles", () => {
   it("has layers of its own, under the tracks and the route", async () => {
     await mounted();
     const layers = FakeMap.last().layers;
-    expect(layers).toEqual(expect.arrayContaining(["aloha-halo", "aloha-line", "aloha-hit"]));
+    expect(layers).toEqual(expect.arrayContaining(["aloha-halo", "aloha-line"]));
     expect(layers.indexOf("aloha-line")).toBeLessThan(layers.indexOf("tracks-line"));
     expect(layers.indexOf("aloha-line")).toBeLessThan(layers.indexOf("route-casing"));
   });
@@ -70,25 +70,18 @@ describe("the ALOHA circles", () => {
     expect(FakeMap.last().layers).toContain("aloha-line");
   });
 
-  it("has its radius as a title while the pointer is on it, in the page's language", async () => {
+  it("has no title, under the pointer or anywhere", async () => {
     const { wrapper, daemon } = await mounted();
     await tell(daemon, { map: mapState({ aloha: [{ radio: 1, km: 42.4 }] }) });
+    expect(FakeMap.last().layers).not.toContain("aloha-hit");
+    FakeMap.last().fire("mouseenter", undefined, "aloha-line");
+    FakeMap.last().fire("mousemove", undefined, "aloha-line");
     expect(title(wrapper)).toBeUndefined();
-    FakeMap.last().fire("mouseenter", undefined, "aloha-hit");
-    expect(title(wrapper)).toBe("ALOHA circle: 42 km");
-    FakeMap.last().fire("mouseleave", undefined, "aloha-hit");
-    expect(title(wrapper)).toBeUndefined();
+    expect(drawn().features.map((feature) => feature.properties)).toEqual([{ km: 42.4 }]);
   });
 
-  it("gives a tenth of a kilometre below ten", async () => {
-    const { wrapper, daemon } = await mounted();
-    await tell(daemon, { map: mapState({ aloha: [{ radio: 1, km: 4.26 }] }) });
-    FakeMap.last().fire("mouseenter", undefined, "aloha-hit");
-    expect(title(wrapper)).toBe("ALOHA circle: 4.3 km");
-  });
-
-  it("is one for each radio the daemon worked one out for, in the map's one look, each naming its radio where several are on, the one under the pointer as the title", async () => {
-    const { wrapper, daemon } = await mounted();
+  it("is one for each radio the daemon worked one out for, in the map's one look", async () => {
+    const { daemon } = await mounted();
     await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { number: 2 })) });
     await tell(daemon, {
       map: mapState({
@@ -98,24 +91,7 @@ describe("the ALOHA circles", () => {
         ],
       }),
     });
-    expect(drawn().features.map((feature) => feature.properties)).toEqual([
-      { km: 42, title: "FM: ALOHA circle: 42 km" },
-      { km: 12.3, title: "FM 2: ALOHA circle: 12 km" },
-    ]);
-    expect(FakeMap.last().layers.filter((layer) => layer.startsWith("aloha"))).toEqual(["aloha-halo", "aloha-line", "aloha-hit"]); // (one source, one look for all)
-    FakeMap.last().fire("mousemove", { features: [{ properties: { title: "FM 2: ALOHA circle: 12 km" } }] }, "aloha-hit");
-    expect(title(wrapper)).toBe("FM 2: ALOHA circle: 12 km");
-    FakeMap.last().fire("mousemove", { features: [{ properties: { title: "FM: ALOHA circle: 42 km" } }] }, "aloha-hit");
-    expect(title(wrapper)).toBe("FM: ALOHA circle: 42 km");
-    FakeMap.last().fire("mouseleave", undefined, "aloha-hit");
-    expect(title(wrapper)).toBeUndefined();
-  });
-
-  it("names no radio with one radio on", async () => {
-    const { wrapper, daemon } = await mounted();
-    await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2")), map: mapState({ aloha: [{ radio: 1, km: 42 }] }) });
-    expect(drawn().features.map((feature) => feature.properties.title)).toEqual(["ALOHA circle: 42 km"]);
-    FakeMap.last().fire("mouseenter", { features: [{ properties: { title: "ALOHA circle: 42 km" } }] }, "aloha-hit");
-    expect(title(wrapper)).toBe("ALOHA circle: 42 km");
+    expect(drawn().features.map((feature) => feature.properties)).toEqual([{ km: 42 }, { km: 12.3 }]);
+    expect(FakeMap.last().layers.filter((layer) => layer.startsWith("aloha"))).toEqual(["aloha-halo", "aloha-line"]); // (one source, one look for all)
   });
 });

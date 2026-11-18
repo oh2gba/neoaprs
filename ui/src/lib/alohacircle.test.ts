@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { alohaFeatures } from "@/lib/alohacircle";
 
 const EARTH_RADIUS_KM = 6371.0088;
-const circle = (km: number, title = "") => [{ km, title }];
+const circle = (km: number) => [km];
 
 function km(a: [number, number], b: [number, number]): number {
   const rad = (d: number) => (d * Math.PI) / 180;
@@ -17,12 +17,9 @@ describe("the ring of the ALOHA circle", () => {
     expect(alohaFeatures({ lat: 60, lon: 24 }, circle(0)).features).toEqual([]);
   });
 
-  it("is one ring for each circle, each with its own radius and words", () => {
-    const features = alohaFeatures({ lat: 60, lon: 24 }, [...circle(40, "FM: ALOHA circle: 40 km"), ...circle(12, "FM 2: ALOHA circle: 12 km")]).features;
-    expect(features.map((feature) => feature.properties)).toEqual([
-      { km: 40, title: "FM: ALOHA circle: 40 km" },
-      { km: 12, title: "FM 2: ALOHA circle: 12 km" },
-    ]);
+  it("is one ring for each circle, each with its own radius", () => {
+    const features = alohaFeatures({ lat: 60, lon: 24 }, [40, 12]).features;
+    expect(features.map((feature) => feature.properties)).toEqual([{ km: 40 }, { km: 12 }]);
   });
 
   it("is a closed line of points, each at the radius from the position", () => {

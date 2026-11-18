@@ -28,7 +28,7 @@ export class FakeMap {
   removed = false;
   touchZoomRotate = { disableRotation: vi.fn() };
 
-  constructor(readonly options: { center: [number, number]; zoom: number; style: unknown }) {
+  constructor(readonly options: { center: [number, number]; zoom: number; style: unknown; container?: HTMLElement }) {
     this.zoom = options.zoom;
     this.center = { lng: options.center[0], lat: options.center[1] };
     this.styles.push(options.style);
@@ -53,7 +53,20 @@ export class FakeMap {
     for (const handler of this.handlers.get(layer === undefined ? event : `${event}:${layer}`) ?? []) handler(payload);
   }
 
-  addControl(): void {}
+  /** the boxes of the controls that make one (the page's own, as the Layers button's), put in the map's box */
+  controls: HTMLElement[] = [];
+  addControl(control?: { onAdd?: (map: unknown) => HTMLElement }): void {
+    const box = control?.onAdd?.(this);
+    if (!box) return;
+    this.controls.push(box);
+    this.options.container?.appendChild(box); // (as the engine puts its controls in the map's box)
+  }
+  /** the part of the map in view that `getBounds` gives; a test sets it */
+  bounds = { west: 24.2, south: 60.0, east: 25.2, north: 60.4 };
+  getBounds(): { getWest(): number; getSouth(): number; getEast(): number; getNorth(): number } {
+    const b = this.bounds;
+    return { getWest: () => b.west, getSouth: () => b.south, getEast: () => b.east, getNorth: () => b.north };
+  }
   resizes = 0;
   resize(): void {
     this.resizes += 1;
@@ -61,8 +74,25 @@ export class FakeMap {
   addSource(id: string, source?: { data?: unknown }): void {
     this.sources.set(id, { setData: vi.fn(), data: source?.data });
   }
-  addLayer(layer: { id: string }): void {
-    this.layers.push(layer.id);
+  /** the layers the page added, by id, as it gave them */
+  specs = new Map<string, { id: string; type?: string; minzoom?: number; layout?: Record<string, unknown> }>();
+  /** the page's layers put under one of the base map's, with the id of that one */
+  beneath = new Map<string, string>();
+  /** `before`: the id of the layer it is put under, as the engine does (one of the page's own, or of the base map's) */
+  addLayer(layer: { id: string; type?: string; minzoom?: number; layout?: Record<string, unknown> }, before?: string): void {
+    const at = before === undefined ? -1 : this.layers.indexOf(before);
+    if (at < 0) this.layers.push(layer.id);
+    else this.layers.splice(at, 0, layer.id);
+    if (before !== undefined && at < 0) this.beneath.set(layer.id, before);
+    this.specs.set(layer.id, layer);
+  }
+  /** the style's layers: those of the base map it was made with, the page's own put under one of them, then the page's others in their order */
+  getStyle(): { layers: { id: string; type?: string }[] } {
+    const style = this.styles[this.styles.length - 1] as { layers?: { id: string; type?: string }[] } | undefined;
+    const spec = (id: string) => this.specs.get(id) ?? { id };
+    const under = (id: string) => [...this.beneath].filter(([, before]) => before === id).map(([page]) => spec(page));
+    const base = (style?.layers ?? []).flatMap((layer) => [...under(layer.id), layer]);
+    return { layers: [...base, ...this.layers.filter((id) => !this.beneath.has(id)).map(spec)] };
   }
   getSource(id: string): { setData: ReturnType<typeof vi.fn>; data?: unknown } | undefined {
     return this.sources.get(id);
@@ -77,6 +107,33 @@ export class FakeMap {
   }
   getZoom(): number {
     return this.zoom;
+  }
+  /** the images the page gave the map, by name (the marks of the aircraft and ships) */
+  images = new Map<string, unknown>();
+  addImage(name: string, image: unknown): void {
+    this.images.set(name, image);
+  }
+  hasImage(name: string): boolean {
+    return this.images.has(name);
+  }
+  updateImage(name: string, image: unknown): void {
+    this.images.set(name, image);
+  }
+  /** what `queryRenderedFeatures` finds under any point, for the layers asked; a test sets it */
+  rendered: { layer: string; properties: Record<string, unknown> }[] = [];
+  /** the point or box each `queryRenderedFeatures` was asked of */
+  queried: unknown[] = [];
+  queryRenderedFeatures(where?: unknown, options: { layers?: string[] } = {}): { properties: Record<string, unknown> }[] {
+    this.queried.push(where);
+    return this.rendered.filter((feature) => options.layers === undefined || options.layers.includes(feature.layer));
+  }
+  private readonly canvas = document.createElement("canvas");
+  getCanvas(): HTMLCanvasElement {
+    return this.canvas;
+  }
+  private readonly frame = document.createElement("div");
+  getContainer(): HTMLElement {
+    return this.options.container ?? this.frame;
   }
   getCenter(): { lng: number; lat: number } {
     return this.center;

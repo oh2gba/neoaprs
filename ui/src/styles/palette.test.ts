@@ -32,7 +32,7 @@ function files(dir: string): string[] {
 const strip = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** Where a colour may be written besides tokens.css: the map's style, and the layers that give it a colour (they read the tokens, and keep a literal for where there is no style sheet). */
-const EXCEPTIONS = [/^lib\/basemapstyle\.ts$/, /^lib\/[a-z]+layers\.ts$/];
+const EXCEPTIONS = [/^lib\/basemapstyle\.ts$/, /^lib\/(layers\/)?[a-z]+layers\.ts$/];
 const LITERAL = /(?<![\w&])#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|hwb)\(/;
 
 /** The style the page is drawn with: the style sheets (but the tokens) and the <style> of every component, by path under ui/src. */

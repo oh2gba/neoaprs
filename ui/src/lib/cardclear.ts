@@ -18,8 +18,10 @@ export interface Point {
 const ROOM_SIDE = 22;
 const ROOM_ABOVE = 16;
 const ROOM_BELOW = 40;
-/** The map's zoom buttons are in the top left corner: a marker is not put higher than this. */
+/** The map's buttons are along its top (zoom, Follow me, Close all): a marker is not put higher than this. */
 const TOP_FREE = 84;
+/** The Layers button stands under the zoom buttons in the top left corner (to 141 px where a finger sizes them; the station cards' row begins at 150 px there, styles/responsive.css): a marker is not put in this corner. */
+const CORNER = { right: 72, bottom: 150 };
 /** The marker stands this far from the card once moved, and from the edge of the map. */
 const GAP = 40;
 const EDGE = 30;
@@ -34,7 +36,8 @@ export function moveClearOf(card: Box, marker: Point, view: Box): Point | null {
   if (!covers(card, marker)) return null;
   const ways: Point[] = [];
   const above = card.top - GAP;
-  if (above >= view.top + TOP_FREE) ways.push({ x: 0, y: above - marker.y });
+  const clearOfCorner = above >= view.top + CORNER.bottom || marker.x >= view.left + CORNER.right;
+  if (above >= view.top + TOP_FREE && clearOfCorner) ways.push({ x: 0, y: above - marker.y });
   const beside = card.right + GAP;
   if (beside <= view.right - EDGE) ways.push({ x: beside - marker.x, y: 0 });
   ways.sort((a, b) => Math.abs(a.x) + Math.abs(a.y) - (Math.abs(b.x) + Math.abs(b.y)));

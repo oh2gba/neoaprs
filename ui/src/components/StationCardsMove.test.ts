@@ -412,7 +412,7 @@ describe("StationCards: a card that grows where it stands", () => {
   });
 
   it("may be as tall as the map, not only as tall as the row", () => {
-    expect(cssRule(".cardstack .card.moved")).toContain("max-height: calc(100% + 114px)");
+    expect(cssRule(".cardstack .card.moved")).toContain("max-height: calc(100% + var(--row-top) + 30px)");
   });
 });
 

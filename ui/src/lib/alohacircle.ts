@@ -1,5 +1,5 @@
 // The ALOHA circles of the map: for each radio the daemon worked one out for (`aloha` of the topic `map`: a radio that is on and shares a 1200 baud channel), the ring of points at its radius round our own position, as
-// the line the layer draws (lib/alohalayers.ts), with the words its hover says.
+// the line the layer draws (lib/alohalayers.ts).
 import type { Home } from "@/lib/mapview";
 
 const EARTH_RADIUS_KM = 6371.0088; // the daemon's sphere (neoaprs/geo.py)
@@ -9,7 +9,7 @@ export type LonLat = [number, number];
 
 export interface AlohaCollection {
   type: "FeatureCollection";
-  features: { type: "Feature"; properties: { km: number; title: string }; geometry: { type: "LineString"; coordinates: LonLat[] } }[];
+  features: { type: "Feature"; properties: { km: number }; geometry: { type: "LineString"; coordinates: LonLat[] } }[];
 }
 
 /** The point `km` from `from` on the great circle that leaves it at `bearing` radians (north is 0). */
@@ -33,22 +33,16 @@ export function ringAround(center: Home, km: number): LonLat[] {
   });
 }
 
-/** One circle to draw: its radius, and what its hover says. */
-export interface AlohaRing {
-  km: number;
-  title: string;
-}
-
-/** The closed ring of each circle, or no feature at all without a position; a circle of no radius is left out. */
-export function alohaFeatures(home: Home | null, circles: readonly AlohaRing[]): AlohaCollection {
+/** The closed ring of each circle by its radius in km, or no feature at all without a position; a circle of no radius is left out. */
+export function alohaFeatures(home: Home | null, radii: readonly number[]): AlohaCollection {
   if (home === null) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
-    features: circles
-      .filter((one) => one.km > 0)
-      .map(({ km, title }) => ({
+    features: radii
+      .filter((km) => km > 0)
+      .map((km) => ({
         type: "Feature" as const,
-        properties: { km, title },
+        properties: { km },
         geometry: { type: "LineString" as const, coordinates: ringAround(home, km) },
       })),
   };

@@ -85,6 +85,8 @@
   --map-select-wash: rgba(255, 109, 0, 0.18);
   --map-plate: rgba(255, 255, 255, 0.88);
   --map-track: #2f80ed;
+  --map-layer: #8e24aa; /* the map: an aircraft or a ship (lib/layers/marks.ts), and its mark in the Layers box */
+  --map-control-ink: #333333; /* the map: the drawing on its own buttons (white in both themes), the Layers button's as the zoom buttons' */
   --wx-temp: #d84315;
   --wx-pressure: #7b1fa2;
   --wx-wind: #00838f;
@@ -157,6 +159,7 @@
     --map-route-old: #98a2ab;
     --map-internet: #4dc4de;
     --map-range: #6aa9ee;
+    --map-layer: #ce93d8;
     --wx-temp: #ff8a65;
     --wx-pressure: #ce93d8;
     --wx-wind: #4dd0e1;

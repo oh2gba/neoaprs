@@ -37,10 +37,18 @@ describe("moveClearOf", () => {
     expect(right).toEqual({ x: 350 + 40 - 340, y: 0 });
   });
 
-  it("does not put a marker under the zoom buttons: a card that reaches too high leaves the way beside it", () => {
-    const tall: Box = { left: 10, top: 84, right: 350, bottom: 830 };
+  it("does not put a marker under the zoom buttons and the Layers button: a card that reaches too high leaves the way beside it", () => {
+    const tall: Box = { left: 10, top: 120, right: 350, bottom: 830 };
     const move = moveClearOf(tall, { x: 180, y: 400 }, desk);
     expect(move).toEqual({ x: 350 + 40 - 180, y: 0 });
+  });
+
+  it("does not put a marker under the Layers button in the top left corner, but beside it as high as under the other buttons", () => {
+    const card: Box = { left: 10, top: 180, right: 350, bottom: 830 };
+    expect(moveClearOf(card, { x: 40, y: 400 }, desk)).toEqual({ x: 350 + 40 - 40, y: 0 });
+    expect(moveClearOf(card, { x: 180, y: 200 }, desk)).toEqual({ x: 0, y: 180 - 40 - 200 });
+    const lower: Box = { left: 10, top: 190, right: 350, bottom: 830 };
+    expect(moveClearOf(lower, { x: 40, y: 200 }, desk)).toEqual({ x: 0, y: 190 - 40 - 200 });
   });
 
   it("gives up when there is no way left: a card over the whole map", () => {
@@ -48,7 +56,7 @@ describe("moveClearOf", () => {
   });
 
   it("does not move a marker to the right out of the map", () => {
-    const wide: Box = { left: 10, top: 84, right: 700, bottom: 830 };
+    const wide: Box = { left: 10, top: 120, right: 700, bottom: 830 };
     expect(moveClearOf(wide, { x: 400, y: 400 }, { left: 0, top: 0, right: 760, bottom: 860 })).toBeNull();
   });
 });

@@ -9,7 +9,6 @@ export const map = {
   "map.note.no_engine": "The map could not be loaded",
   "map.note.unreadable": "The map file cannot be read",
   "map.follow_me": "Follow my position",
-  "map.aloha": "ALOHA circle: {km} km",
 
   "map.credits.hide": "Hide the credits",
   "map.credits.show": "Map and symbol credits",

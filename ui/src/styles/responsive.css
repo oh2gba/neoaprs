@@ -36,9 +36,10 @@ button,
 /* the station cards: a row over the map, from its left, side by side, the oldest at the left; every card is the whole card, as it is alone (its body scrolls if the map is too low for it), and none is made narrower: when the row does not fit
    the map the page closes the oldest card. "Close all" and "Message these 3" are at the top left of the map, beside the zoom buttons. */
 .cardstack {
+  /* the top of the map stays free for its zoom buttons and the Layers button under them (they end at 108 px, at 141 px where a finger sizes them 40 px high; lib/cardclear.ts keeps a marker below them too) */
+  --row-top: 120px;
   position: absolute;
-  /* the top 84 px of the map stay free for its zoom buttons */
-  top: 84px;
+  top: var(--row-top);
   right: 10px;
   bottom: 30px;
   left: 10px;
@@ -63,8 +64,8 @@ button,
 .cardstack .card.moved {
   position: absolute;
   bottom: auto; /* (not the card's own bottom: 30px, which would stretch it from its top to there) */
-  /* it may be as tall as the map (the row is the map less its 84 px above and 30 px below): a card that grows where it stands is moved up by the script until it fits, and only a card taller than the map scrolls */
-  max-height: calc(100% + 114px);
+  /* it may be as tall as the map (the row is the map less its top above and 30 px below): a card that grows where it stands is moved up by the script until it fits, and only a card taller than the map scrolls */
+  max-height: calc(100% + var(--row-top) + 30px);
   z-index: 1;
 }
 .cardstack:not(.sheet) .card-head {
@@ -281,9 +282,9 @@ button,
   box-shadow: var(--shadow);
 }
 
-/* phone: the bar of the map's replay is at the top of the map, under its zoom buttons, the width of the map less 16 px each side; the station's sheet and the credits are at the bottom */
+/* phone: the bar of the map's replay is at the top of the map, under its zoom buttons and the Layers button, the width of the map less 16 px each side; the station's sheet and the credits are at the bottom */
 .size-phone .replaybar {
-  top: 84px;
+  top: 150px;
   right: 16px;
   bottom: auto;
   left: 16px;
@@ -391,6 +392,10 @@ button,
   }
   .appheader {
     min-height: 44px;
+  }
+  /* the station cards' row begins under the Layers button, which ends at 141 px here */
+  .cardstack {
+    --row-top: 150px;
   }
   /* a long press on a row of the Stations table opens its menu, one on a row, a bubble or a head that has a copy menu (CopyMenu) opens that, and one on the monitor card's body (its picture and its receive level) opens the card's menu: the page does not select text or show the system's callout instead (not in the field under a row, whose path field is typed in) */
   .grid.stations tbody tr:not(.detail),
