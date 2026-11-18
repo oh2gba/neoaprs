@@ -35,7 +35,7 @@ LAYERS: dict[str, list[str]] = {
     "delivery": ["__main__", "daemon"],
 }
 # The modules that are placed before they are written (the map's layers: work/par/r5/layers/contract.md, section 5: a later piece adds no layer line); a name leaves this set when its module exists.
-PLANNED: set[str] = {"neoaprs.readsb", "neoaprs.aisdecode", "neoaprs.digitraffic", "neoaprs.shiptable", "neoaprs.aisfeed"}
+PLANNED: set[str] = set()
 # The packages that are one layer whole, by their folder: the services, and the descriptions of the types of radio (one module for each family, the registry in its __init__.py).
 PACKAGE_LAYERS: dict[str, str] = {"neoaprs.services": "services", "neoaprs.radiotypes": "domain"}
 MAY_IMPORT: dict[str, set[str]] = {

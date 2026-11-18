@@ -4,8 +4,10 @@
 // more of the cards are for stations that can be messaged (one text to all of them, in the group compose of the Messages tab). How many there may be is the page's (composables/useSelection.ts), and a row that is wider than the map has room for closes
 // its oldest card (`overflow`): a card is never made narrower. On a tablet and a desktop a card can be dragged by its head, or moved with Alt and the arrows (composables/useCardDrag.ts) anywhere over the map, and it keeps its place while it is open (`places`, the page's, for the session). Moving a card
 // never moves another: the first time one is moved every open card is pinned where it stands (the moved card leaves its slot empty), a card that closes leaves the others where they are, and a card that is opened goes to the first free slot of the row, never on top of a card. On a phone the one card is a bottom sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a
-// swipe down on the folded sheet closes it; its cross is there too.
+// swipe down on the folded sheet closes it; its cross is there too. The card of an aircraft or a ship the map has open (components/LayerCard.vue, composables/useLayerThings.ts) is one more card of the row, after the stations'
+// (it is not pinned or moved, and Close all closes it too); on a phone it is the one sheet: opening it closes a station's card, and opening a station's card closes it.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import LayerCard from "@/components/LayerCard.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import StationCard from "@/components/StationCard.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -29,7 +31,8 @@ const props = defineProps<{
   /** The calls of the pinned cards (a tablet and a desktop): they stay open past Esc and Close all, and keep their places. */
   pinned?: readonly string[];
 }>();
-const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, signalSeriesByCall, stations, prefs, send } = useDaemonContext();
+const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, signalSeriesByCall, stations, prefs, send, traffic } = useDaemonContext();
+const thing = traffic.card;
 /** A card asks for the packets of its station by the hour (when it opens, and each minute): the answer is kept by the call (packetHistoryByCall). */
 const askPackets = (call: string): boolean => send({ cmd: "packet_history", call, hours: HISTORY_HOURS });
 /** A moving station's card asks for its speeds over its trip (when it opens, and at each new position of the station, which may move where the trip begins). */
@@ -52,6 +55,12 @@ const emit = defineEmits<{
   weather: [call: string, hours: number];
   overflow: [];
 }>();
+
+/** Close all: the station cards (the page's) and the card of a thing. */
+function closeAll(): void {
+  traffic.close();
+  emit("closeAll");
+}
 
 /** The stations of the open cards that a message can go to: stations, not ourselves, and not one the daemon says cannot be messaged (the email gateway, an object...). */
 const askable = computed(() => props.rows.filter(canMessage).map((row) => row.call));
@@ -135,19 +144,31 @@ watch(
 onMounted(watchSizes);
 onBeforeUnmount(() => sizes?.disconnect());
 watch(
-  () => props.rows.length,
+  () => props.rows.length + (thing.value ? 1 : 0),
   () => void nextTick(fit),
 );
 onMounted(() => void nextTick(fit));
 
 const expanded = ref(false);
 const newest = (): string | undefined => props.rows.at(-1)?.call;
-// a card of another station starts folded
-watch(newest, () => (expanded.value = false));
+// a card of another station starts folded; on a phone it is the one sheet: a station's card and a thing's do not stand together
+watch(newest, (call) => {
+  expanded.value = false;
+  if (call !== undefined && props.size === "phone") traffic.close();
+});
+watch(
+  () => (thing.value ? `${thing.value.layer}:${thing.value.thing.id}` : null),
+  (key) => {
+    if (key === null) return;
+    expanded.value = false;
+    if (props.size === "phone" && props.rows.length > 0) emit("closeAll");
+  },
+);
 
 function apply(move: SheetMove): void {
   const call = newest();
-  if (move === "close" && call !== undefined) emit("close", call);
+  if (move === "close" && thing.value && props.size === "phone") traffic.close();
+  else if (move === "close" && call !== undefined) emit("close", call);
   else expanded.value = move === "toggle" ? !expanded.value : move === "expand";
 }
 
@@ -177,8 +198,8 @@ function tap(): void {
 </script>
 
 <template>
-  <div v-if="rows.length > 1 && size !== 'phone'" class="cards-actions">
-    <button v-if="rows.some((row) => !isPinned(row.call))" type="button" class="btn cards-closeall" @click="emit('closeAll')">
+  <div v-if="rows.length + (thing ? 1 : 0) > 1 && size !== 'phone'" class="cards-actions">
+    <button v-if="thing || rows.some((row) => !isPinned(row.call))" type="button" class="btn cards-closeall" @click="closeAll">
       {{ t("station.cards.close_all") }}
     </button>
     <button v-if="askable.length > 1" type="button" class="btn msgbtn cards-message" @click="emit('messageAll', askable)">
@@ -186,7 +207,7 @@ function tap(): void {
     </button>
   </div>
   <div
-    v-if="rows.length > 0"
+    v-if="rows.length > 0 || thing"
     ref="stack"
     class="cardstack"
     :class="{ sheet: size === 'phone', expanded }"
@@ -238,5 +259,6 @@ function tap(): void {
       @speed="askSpeed"
       @signal="askSignal"
     />
+    <LayerCard v-if="thing" :open="thing" :now="now" @close="traffic.close()" />
   </div>
 </template>

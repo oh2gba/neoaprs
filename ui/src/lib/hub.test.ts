@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FIRST_DELAY_MS, Hub, MAX_DELAY_MS, QUIET_MS, nextDelay, parseMessage, type Connection, type Store } from "@/lib/hub";
 import { PROTOCOL } from "@/protocol/lists";
 import type { ScopeHistory, ScopeRow } from "@/lib/scoperow";
+import { aircraft, layerThings } from "@/test/layerfixtures";
 import type {
+  LayerThingsMessage,
   AlertResultMessage,
   ErrorMessage,
   GpsState,
@@ -57,6 +59,7 @@ function memory() {
     searches: [] as RadioSearchMessage[],
     added: [] as RadioAddedMessage[],
     levels: [] as RadioLevelMessage[],
+    layerThings: [] as LayerThingsMessage[],
     stationAlerts: [] as StationAlertMessage[],
     rows: [] as ScopeRow[],
     histories: [] as ScopeHistory[],
@@ -100,6 +103,7 @@ function memory() {
     radioSearch: (m) => seen.searches.push(m),
     radioAdded: (m) => seen.added.push(m),
     radioLevel: (m) => seen.levels.push(m),
+    layerThings: (m) => seen.layerThings.push(m),
     stationAlert: (m) => seen.stationAlerts.push(m),
     hfScopeRow: (r) => seen.rows.push(r),
     hfScopeHistory: (history) => seen.histories.push(history),
@@ -322,6 +326,13 @@ describe("Hub", () => {
       { type: "radio_level", radio: 3, level: 48 },
       { type: "radio_level", radio: 3, level: null },
     ]);
+  });
+
+  it("hands each table of a layer looked at to the store, whole", () => {
+    const { seen, socket } = opened();
+    const table = layerThings("aircraft", [aircraft()], { source: "adsbfi" });
+    socket.say(table);
+    expect(seen.layerThings).toEqual([table]);
   });
 
   it("hands each alert of a station to the store as it comes, the same words twice as two", () => {

@@ -4,6 +4,7 @@ import { inject, provide, type InjectionKey, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import type { FindRadio } from "@/composables/useFindRadio";
+import type { LayerTraffic } from "@/composables/useLayerThings";
 import type { Panel } from "@/composables/usePanel";
 import type { RadioAsks } from "@/composables/useRadioAsks";
 import type { ScopeLooks } from "@/composables/useScopeLooks";
@@ -64,6 +65,8 @@ export interface DaemonContext {
   level: RadioAsks;
   /** the receive level of each Sound card radio asked for (`radio_level`), the latest by the radio's id; null while its Direwolf does not run */
   radioLevels: Read<ReadonlyMap<RadioId, number | null>>;
+  /** the aircraft and ships of the map's layers: the layers looked at, their tables (`layer_things`) and the card of a thing that is open */
+  traffic: LayerTraffic;
   /** the GPS receiver and the moving station's beacon; null until the daemon has told */
   gps: Read<GpsState | null>;
   /** the receive-only iGate: connected or not, what it gated; null until the daemon has told */

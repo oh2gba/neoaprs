@@ -7,6 +7,7 @@ import type {
   Command,
   ErrorMessage,
   HelloMessage,
+  LayerThingsMessage,
   Message,
   MessageRow,
   OwnBulletinRow,
@@ -58,6 +59,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   radio_search: "radioSearch",
   radio_added: "radioAdded",
   radio_level: "radioLevel",
+  layer_things: "layerThings",
 };
 
 type TopicName = keyof TopicValues;
@@ -84,6 +86,8 @@ export interface Store {
   radioAdded(message: RadioAddedMessage): void;
   /** a Sound card radio's receive level as it is now, told ten times a second to a page that asked (`radio_level`) */
   radioLevel(message: RadioLevelMessage): void;
+  /** a layer's whole table of aircraft or ships, told to a page that looks at the layer (`layer_look`) */
+  layerThings(message: LayerThingsMessage): void;
   /** an alert set on a station fired (not an answer: every page is told, once) */
   stationAlert(message: StationAlertMessage): void;
   /** a row of a radio's waterfall, told to a page that asked for its scope: a binary frame, not a message (PROTOCOL.md) */

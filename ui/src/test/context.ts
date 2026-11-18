@@ -5,6 +5,7 @@ import { vi, type Mock } from "vitest";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useFindRadio } from "@/composables/useFindRadio";
+import { useLayerTables, useLayerThings, type TrafficParts } from "@/composables/useLayerThings";
 import { usePanel } from "@/composables/usePanel";
 import { useRadioAsks } from "@/composables/useRadioAsks";
 import { useScopeLooks, type ScopeLooks } from "@/composables/useScopeLooks";
@@ -24,6 +25,10 @@ import { NOW, configValues, radiosOf, radiosTopic } from "@/test/fixtures";
 export type FakeDaemon = { [K in keyof DaemonContext]: DaemonContext[K] extends Readonly<Ref<infer T>> ? Ref<T> : DaemonContext[K] } & {
   send: Mock<(command: Command) => boolean>;
   say: Mock<(text: string) => void>;
+  /** the tables of the map's layers as the daemon told them (`layer_things`: a test hands them to `handlers.layerThings`) */
+  layerTables: ReturnType<typeof useLayerTables>;
+  /** the map's replay is open (what the page's traffic looks at) */
+  replayOpen: Ref<boolean>;
 };
 /** What a test gives: a plain value, or a ref it changes later. */
 export type Given = { [K in keyof DaemonContext]?: DaemonContext[K] extends Readonly<Ref<infer T>> ? T | Ref<T> : DaemonContext[K] };
@@ -34,6 +39,14 @@ function scopeOf(over: Given, send: FakeDaemon["send"], connection: Ref<Connecti
 }
 
 type RadioTopic = ReadonlyMap<string, RadioRow> | null;
+
+/** The aircraft and ships of the map's layers: the one a test gave, else the page's own over the fake's parts, with the tables a test tells (`layerTables`) and the replay a test opens (`replayOpen`). */
+function trafficOf(over: Given, parts: Pick<TrafficParts, "send" | "connection" | "map" | "now">) {
+  const layerTables = useLayerTables();
+  const replayOpen = shallowRef(false);
+  const traffic = over.traffic ?? useLayerThings({ ...parts, visible: pageVisible(), replay: replayOpen, store: layerTables });
+  return { layerTables, replayOpen, traffic };
+}
 
 /** The topic `radios`: the one a test gave, else radio 1 alone (fixtures `radiosOf`), connected while the context is, until a test tells its own (null: before the daemon told it). */
 function radiosPart(given: RadioTopic | Ref<RadioTopic> | undefined, connected: Ref<boolean>): Ref<RadioTopic> {
@@ -64,7 +77,10 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const settings = over.settings ?? useSettings(config, lastError, sender);
   const connection = part(over.connection, "open" as const);
   const radios = radiosPart(over.radios, connected);
+  const now = part(over.now, NOW);
+  const layers = trafficOf(over, { send: sender, connection, map, now });
   const context = {
+    ...layers,
     send: sender,
     say: over.say ?? vi.fn((_text: string) => undefined),
     config,
@@ -109,7 +125,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
       over.receiveOnly === undefined
         ? computed(() => config.value?.values["station/transmit"] === "false" || listensOnly(radios.value))
         : part(over.receiveOnly, false),
-    now: part(over.now, NOW),
+    now,
     dark: part(over.dark, false),
     call: part(over.call, "OH2GBA"),
     home: part(over.home, null),

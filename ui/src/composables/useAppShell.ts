@@ -1,4 +1,4 @@
-// The page put together (App.vue is its layout): the daemon, the clock, the settings that apply as they are changed, the first-run guide, the panel, the tabs' models, the station cards, the statistics card, the replay of the map and the places picked on the map, with what the shell itself decides:
+// The page put together (App.vue is its layout): the daemon, the clock, the settings that apply as they are changed, the first-run guide, the panel, the tabs' models, the station cards, the statistics card, the replay of the map, the aircraft and ships of the map's layers (composables/useLayerThings.ts: Esc closes a thing's card with the station cards) and the places picked on the map, with what the shell itself decides:
 // the ports are asked for each time the daemon is connected, the guide opens once by itself when the daemon has no call, the steps of an update are open on purpose and go with the newer version, the notes of the version that runs open from Settings and from the
 // line shown once after an update (useWhatsNew), and the mail of the header opens the tab that has the messages not seen. What the panes share is provided to them (`useDaemonContext`); what only the layout needs is returned.
 import { computed, ref, watch, type Ref, type WritableComputedRef } from "vue";
@@ -13,6 +13,7 @@ import { useFindRadio } from "@/composables/useFindRadio";
 import { useFormEsc } from "@/composables/useFormEsc";
 import { useHeardIndex } from "@/composables/useHeardIndex";
 import { useHome } from "@/composables/useHome";
+import { useLayerThings } from "@/composables/useLayerThings";
 import { useLayout } from "@/composables/useLayout";
 import { useMapPicks } from "@/composables/useMapPicks";
 import { useMessagesView } from "@/composables/useMessagesView";
@@ -268,7 +269,10 @@ export function useAppShell() {
   const mapwrap = ref<HTMLElement | null>(null); // (the map's box, bound by App.vue)
   const mapWidth = useElementWidth(mapwrap);
   const overlays = useMapOverlays(scope.available, layout.phone, mapWidth); // (what opens over the map from its menu: the cards, the replay)
-  const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, overlays.closeOverlays);
+  const traffic = useLayerThings({ ...daemon, visible: pageVisible(), replay: overlays.replayOpen, now: derived.now, store: daemon.layerTables }); // (the map's aircraft and ships)
+  const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, () =>
+    [overlays.closeOverlays(), traffic.close()].some(Boolean),
+  );
   // the notices (a toast that is no error), what the menu of a row of the Stations table sends or copies, and the alerts set on stations that fire
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);
@@ -279,6 +283,7 @@ export function useAppShell() {
     ...daemon,
     scope,
     level,
+    traffic,
     weatherSeries: daemon.weatherSeriesByCall,
     ...derived,
     guide,

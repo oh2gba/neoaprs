@@ -1,4 +1,4 @@
-// The daemon as the page sees it: the topics as reactive state (the stations' own paths, RF only and alerts are `stationPrefs`), the status, the latest alert of a station that fired (`stationAlert`), the latest answer to `weather_series`, to `alert_test`, to `list_ports` and to `radio_add`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
+// The daemon as the page sees it: the topics as reactive state (the stations' own paths, RF only and alerts are `stationPrefs`), the status, the latest alert of a station that fired (`stationAlert`), the latest table of each layer of aircraft or ships (`layer_things`), the latest answer to `weather_series`, to `alert_test`, to `list_ports` and to `radio_add`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
@@ -23,6 +23,7 @@ import type {
   UpdateState,
 } from "@/protocol/protocol";
 import { useAnswers } from "@/composables/useAnswers";
+import { useLayerTables } from "@/composables/useLayerThings";
 import { useOwnTables } from "@/composables/useOwnTables";
 import { useScopeRows } from "@/composables/useScopeRows";
 import { useStationTables } from "@/composables/useStationTables";
@@ -52,10 +53,12 @@ function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boole
 }
 
 /** The topics that are held as one value each: those told whole (the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around)),
- * and the radios (useRadioTopic). */
+ * the radios (useRadioTopic) and the tables of the map's layers looked at (composables/useLayerThings.ts). */
 function useWholeTopics() {
   const radios = useRadioTopic();
+  const layers = useLayerTables(); // (the aircraft and ships of the layers this page looks at: composables/useLayerThings.ts)
   const refs = {
+    layerTables: { told: layers.told, forget: layers.forget },
     radios: radios.radios,
     radioAdded: radios.radioAdded,
     radioLevels: radios.radioLevels,
@@ -83,6 +86,7 @@ function useWholeTopics() {
     | "delRadio"
     | "radioAdded"
     | "radioLevel"
+    | "layerThings"
   > = {
     replaceConfig: (value) => (refs.config.value = value),
     replaceMap: (value) => (refs.map.value = value),
@@ -93,6 +97,7 @@ function useWholeTopics() {
     replaceGeneral: (value) => (refs.general.value = value),
     replaceSkeds: (value) => (refs.skeds.value = value),
     ...radios.handlers,
+    ...layers.handlers,
   };
   return { refs, handlers };
 }

@@ -1,6 +1,6 @@
 // The card that follows the pointer to a station's marker on the map: after a short delay it shows what matters at a glance (who, how long ago, status, comment, how far and in which direction, the
-// temperature of a weather station, how the packets reach us) and goes when the pointer leaves. One element serves every marker. A touch screen has no pointer to rest on a marker, so only a mouse
-// shows it, and a tap opens the full card as ever.
+// temperature of a weather station, how the packets reach us) and goes when the pointer leaves. One element serves every marker, and the aircraft and ships the map draws itself too (`rest`: the map says where
+// the thing is and what its box says, lib/layers/card.ts). A touch screen has no pointer to rest on a marker, so only a mouse shows it, and a tap opens the full card as ever.
 import { t } from "@/i18n";
 import { heardWords } from "@/lib/channels";
 import { agoWords, bearingText, distanceText } from "@/lib/format";
@@ -54,10 +54,28 @@ function element(tag: string, className: string, text = ""): HTMLElement {
 
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(high, value));
 
+/** What the card says: a head of two parts and its rows. */
+export interface HoverContent {
+  title: string;
+  sub: string;
+  rows: HoverRow[];
+}
+
+/** Where on the screen the card's thing is. */
+export type HoverBox = Pick<DOMRect, "left" | "top" | "right" | "bottom" | "width">;
+
+/** What the card is shown for: its key (a station's call), where it is, and what it says now (null when it is gone). */
+interface Shown {
+  key: string;
+  box: () => HoverBox;
+  content: () => HoverContent | null;
+}
+
 export class HoverCard {
   private readonly card = element("div", "hovercard");
   private timer: ReturnType<typeof setTimeout> | null = null;
-  private shownFor: { call: string; target: HTMLElement } | null = null;
+  private shownFor: Shown | null = null;
+  private coming: string | null = null; // (the key the timer is for)
 
   constructor(
     private readonly container: HTMLElement,
@@ -73,47 +91,59 @@ export class HoverCard {
   /** Makes the marker show the card for the station when a mouse rests on it. */
   attach(target: HTMLElement, call: string): void {
     target.addEventListener("pointerenter", (event) => {
-      if (event.pointerType === "mouse") this.enter(target, call);
+      if (event.pointerType === "mouse") this.enter({ key: call, box: () => target.getBoundingClientRect(), content: () => this.station(call) });
     });
     target.addEventListener("pointerleave", () => this.hide());
     target.addEventListener("pointerdown", () => this.hide());
   }
 
-  private enter(target: HTMLElement, call: string): void {
-    this.cancel();
-    this.timer = setTimeout(() => this.show(target, call), DELAY_MS);
+  /** A mouse rests on a thing the map draws itself (an aircraft, a ship): the card is shown for it after the delay, and stays while the mouse is on the same thing. */
+  rest(key: string, box: () => HoverBox, content: () => HoverContent | null): void {
+    if (this.shownFor?.key === key || (this.timer !== null && this.coming === key)) return;
+    this.enter({ key, box, content });
   }
 
-  private show(target: HTMLElement, call: string): void {
+  private enter(shown: Shown): void {
+    this.cancel();
+    this.coming = shown.key;
+    this.timer = setTimeout(() => this.show(shown), DELAY_MS);
+  }
+
+  private show(shown: Shown): void {
     this.timer = null;
-    this.shownFor = { call, target };
+    this.shownFor = shown;
     this.refresh();
   }
 
-  /** Writes the card again from the station's row as it is now (the age moves on; the row may have changed or gone). */
+  /** What the card says of a station, from its row as it is now. */
+  private station(call: string): HoverContent | null {
+    const row = this.lookup(call);
+    return row ? { title: row.call, sub: symbolLabel(row), rows: hoverRows(row, this.now(), this.radios) } : null;
+  }
+
+  /** Writes the card again from what it is shown for as it is now (the age moves on; the row may have changed or gone). */
   refresh(): void {
     const open = this.shownFor;
-    const row = open ? this.lookup(open.call) : undefined;
-    if (!open || !row) {
+    const content = open ? open.content() : null;
+    if (!open || !content) {
       this.hide();
       return;
     }
     const head = element("div", "hc-head");
-    head.append(element("b", "hc-call", row.call), element("span", "hc-symbol", symbolLabel(row)));
-    const rows = hoverRows(row, this.now(), this.radios).map(({ label, text }) => {
+    head.append(element("b", "hc-call", content.title), element("span", "hc-symbol", content.sub));
+    const rows = content.rows.map(({ label, text }) => {
       const line = element("div", "hc-row");
       line.append(element("span", "hc-key", label), element("span", "hc-val", text));
       return line;
     });
     this.card.replaceChildren(head, ...rows);
     this.card.hidden = false;
-    this.place(open.target);
+    this.place(open.box());
   }
 
   /** Above the marker, or below it where there is no room, and inside the map either way. */
-  private place(target: HTMLElement): void {
+  private place(at: HoverBox): void {
     const box = this.container.getBoundingClientRect();
-    const at = target.getBoundingClientRect();
     const { offsetWidth: width, offsetHeight: height } = this.card;
     const above = at.top - box.top - height - GAP;
     const top = above >= MARGIN ? above : at.bottom - box.top + LABEL + GAP;
@@ -134,7 +164,7 @@ export class HoverCard {
 
   /** The marker of the station is gone: so is the card, if it was for that one. */
   release(call: string): void {
-    if (this.shownFor?.call === call) this.hide();
+    if (this.shownFor?.key === call) this.hide();
   }
 
   destroy(): void {

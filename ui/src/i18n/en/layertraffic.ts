@@ -1,2 +1,33 @@
-// The aircraft and ships on the map: their hover box, their card and the kinds of ship (components/LayerCard.vue).
-export const layertraffic = {} as const;
+// The aircraft and ships on the map: their hover box, their card and the kinds of ship (components/LayerCard.vue, lib/layers/card.ts, lib/layers/shipkinds.ts). The rows' words a station's card has already
+// (Kind, Speed, Altitude, Course) are the station's and the object's own ids; the receiver's name is Settings' (layers.receiver.own).
+export const layertraffic = {
+  "layers.card.ship": "Ship",
+  "layers.card.mmsi": "MMSI {id}",
+  "layers.card.registration": "Registration",
+  "layers.card.type": "Type",
+  "layers.card.heading": "Heading",
+  "layers.card.destination": "Destination",
+  "layers.card.age": "Age",
+  "layers.card.source": "Source",
+  "layers.kind.wing_in_ground": "Wing in ground",
+  "layers.kind.fishing": "Fishing",
+  "layers.kind.towing": "Towing",
+  "layers.kind.dredging": "Dredging or underwater work",
+  "layers.kind.diving": "Diving",
+  "layers.kind.military": "Military",
+  "layers.kind.sailing": "Sailing",
+  "layers.kind.pleasure": "Pleasure craft",
+  "layers.kind.high_speed": "High-speed craft",
+  "layers.kind.pilot": "Pilot",
+  "layers.kind.rescue": "Search and rescue",
+  "layers.kind.tug": "Tug",
+  "layers.kind.tender": "Port tender",
+  "layers.kind.anti_pollution": "Anti-pollution",
+  "layers.kind.law": "Law enforcement",
+  "layers.kind.medical": "Medical transport",
+  "layers.kind.noncombatant": "Non-combatant",
+  "layers.kind.passenger": "Passenger ship",
+  "layers.kind.cargo": "Cargo ship",
+  "layers.kind.tanker": "Tanker",
+  "layers.kind.other": "Other",
+} as const;
