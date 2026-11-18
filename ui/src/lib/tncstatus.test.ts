@@ -89,10 +89,10 @@ describe("the Dummy radio", () => {
 describe("the Mercury radio's line", () => {
   const hf = (modem: Partial<ModemState> = {}, extra: Partial<RadioRow> = {}) => hfRow({ stats: lineStats(), ...extra }, modem);
 
-  it("says the mode, what the modem does, the SNR once a frame was decoded, and the last packet, with nothing of the socket", () => {
+  it("says the mode, what the modem does, the last packet, and the SNR once a frame was decoded, with nothing of the socket", () => {
     expect(rowStatus(hf(), NOW)).toBe("DATAC3 · Listening · Last packet 30 s ago");
-    expect(rowStatus(hf({ snr: 3.4 }), NOW)).toBe("DATAC3 · Listening · SNR 3 dB · Last packet 30 s ago");
-    expect(rowStatus(hf({ keyed: true, snr: -2.5 }), NOW)).toBe("DATAC3 · Transmitting… · SNR -2 dB · Last packet 30 s ago");
+    expect(rowStatus(hf({ snr: 3.4 }), NOW)).toBe("DATAC3 · Listening · Last packet 30 s ago · SNR 3 dB");
+    expect(rowStatus(hf({ keyed: true, snr: -2.5 }), NOW)).toBe("DATAC3 · Transmitting… · Last packet 30 s ago · SNR -2 dB");
     expect(rowStatus(hf({ busy: true }), NOW)).toBe("DATAC3 · Channel busy, waiting · Last packet 30 s ago");
     expect(rowStatus(hf({ test: "tune", keyed: true }), NOW)).toBe("DATAC3 · Tuning… · Last packet 30 s ago");
     expect(rowStatus(hf({ test: "key", keyed: true }), NOW)).toBe("DATAC3 · Keyed · Last packet 30 s ago");

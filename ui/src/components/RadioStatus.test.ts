@@ -8,12 +8,12 @@ const lines = (...texts: string[]) => texts.map((text, i) => ({ at: new Date(NOW
 const radio = (row: ReturnType<typeof fmRow>) => mount(RadioStatus, { props: { row, now: NOW } });
 
 describe("RadioStatus", () => {
-  it("has the state and one plain line in the heading of a fold, and none of the counters, and no Reconnect", () => {
+  it("has the state and one plain line in the heading of a fold, the line and the counters as its hover title, and no Reconnect", () => {
     const wrapper = radio(fmRow());
     const head = wrapper.find("summary.statushead");
     expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
-    expect(head.find(".tncstatus").attributes("title")).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
+    expect(head.find(".tncstatus").attributes("title")).toBe("Last packet 30 s ago\n11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
     expect(head.find("button").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("Reconnect");
     for (const word of ["Opened", "Bytes", "Frames", "Keep-alive", "Speed", "Last error", "Details"]) expect(wrapper.text()).not.toContain(word);

@@ -113,12 +113,14 @@ function move(by: number): void {
 }
 .txlevel-value {
   min-width: 6ch;
+  white-space: nowrap;
   text-align: center;
 }
 /* the peak stands under the control, in its column, and keeps its line whatever it says */
 .txlevel-peak {
   grid-column: 2;
   min-height: 1.4em;
+  white-space: nowrap;
   color: var(--muted);
 }
 .txlevel-peak.clip {

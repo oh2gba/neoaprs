@@ -522,7 +522,7 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
     const connecting = make({}, running("", { state: "connecting" }));
     expect(hfFold(connecting.group).find(".tncstatus").text()).toBe("Connecting…");
     const heard = make({}, running("", {}, { snr: 3.4 }));
-    expect(hfFold(heard.group).find(".tncstatus").text()).toBe("DATAC3 · Listening · SNR 3 dB · Last packet 30 s ago");
+    expect(hfFold(heard.group).find(".tncstatus").text()).toBe("DATAC3 · Listening · Last packet 30 s ago · SNR 3 dB");
     expect(hf(heard.group).text()).not.toContain("127.0.0.1");
   });
 });

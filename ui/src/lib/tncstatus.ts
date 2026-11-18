@@ -33,12 +33,14 @@ function modemWord(modem: ModemState): string {
   return t("settings.tnc.listening");
 }
 
-/** The HF radio's line while the modem runs: what the operator can act on and nothing of the plumbing: "DATAC3 · Listening · SNR 3 dB · Last packet 2 min ago" (the SNR once a frame was decoded). The socket the daemon reaches the modem on is the log's. */
-function modemLine(tnc: Pick<RadioRow, "stats">, modem: ModemState, nowMs: number): string {
-  const parts = [modem.mode, modemWord(modem)];
-  if (modem.snr !== null) parts.push(t("settings.tnc.snr", { db: Math.round(modem.snr) }));
-  parts.push(lastPacketText(tnc, nowMs));
-  return parts.join(" · ");
+/** The line of a radio while its modem runs, in its two parts, each on a line of its own: what the modem does ("DATAC3 · Listening", "AFSK1200 · Channel busy, waiting"), and when a packet last came with the SNR of the
+ * last frame the modem decoded ("Last packet 2 min ago · SNR 3 dB"). What the operator can act on and nothing of the plumbing: the socket the daemon reaches the modem on is the log's. */
+function modemParts(tnc: Pick<RadioRow, "stats">, modem: ModemState, nowMs: number): readonly [string, string] {
+  const last = lastPacketText(tnc, nowMs);
+  return [
+    [modem.mode, modemWord(modem)].filter((part) => part !== "").join(" · "),
+    modem.snr === null ? last : `${last} · ${t("settings.tnc.snr", { db: Math.round(modem.snr) })}`,
+  ];
 }
 
 /** Why the Mercury program is not running, in the page's words by the daemon's code (`ModemState.reason`; the English of `problem` is the log's and is never shown). A stopped program is quiet: the daemon starts it again and the operator can do nothing here. */
@@ -71,12 +73,21 @@ const dummyRow = (row: RadioRow): boolean => row.dummy && row.state === "connect
 export const rowPillText = (row: RadioRow): string => (dummyRow(row) ? t("settings.tnc.dummy_pill") : stateText(row.state));
 export const rowPillClass = (row: RadioRow): string => (dummyRow(row) ? "tnc-dummy" : `tnc-${row.state}`);
 
+/** The line of a connected radio as the parts it is drawn in, each kept to a line of its own whatever it says, so that nothing under it moves while the radio receives and sends (components/StatusLine.vue `parts`): the
+ * modem's two (`modemParts`), or the last packet alone for a radio without a modem. Null for every other line (the Dummy's, a silent radio's, searching, why it is not connected): one sentence that wraps, and that
+ * does not change with every packet. */
+export function rowParts(row: RadioRow, nowMs: number): readonly string[] | null {
+  if (dummyRow(row) || row.state !== "connected" || row.problem?.code === "radio.text_lines") return null;
+  return row.modem ? modemParts(row, row.modem, nowMs) : [lastPacketText(row, nowMs)];
+}
+
 /** The one line of a radio's row: the Dummy's, silent since when, searching, the modem's line, the last packet, Connecting…, else why it is not connected. */
 export function rowStatus(row: RadioRow, nowMs: number, radios?: RadioNames): string {
   if (dummyRow(row)) return t(row.kind === "hf" ? "settings.tnc.dummy_hf" : "settings.tnc.dummy");
   if (row.state === "silent") return silentText(row.problem?.code === "radio.silent" ? String(row.problem.params["since"] ?? "") || null : null, nowMs);
   if (row.state === "connected" && row.problem?.code === "radio.text_lines") return problemText(row.problem, t, radios); // (a LoRa board that sends text lines: its line is open, and nothing goes until it is set to KISS)
-  if (row.state === "connected") return row.modem ? modemLine(row, row.modem, nowMs) : lastPacketText(row, nowMs);
+  const parts = rowParts(row, nowMs);
+  if (parts !== null) return parts.join(" · ");
   return rowDownText(row, radios);
 }
 

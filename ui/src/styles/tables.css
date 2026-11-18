@@ -350,8 +350,9 @@
   white-space: pre-wrap;
   word-break: break-all;
 }
+/* the radio's log (TncTerminal.vue) is as high with one line as with many, so that a line that comes moves nothing above or under it */
 .tnclines {
-  max-height: 16em;
+  height: 16em;
   padding: 8px;
   overflow: auto;
   background: var(--bg);

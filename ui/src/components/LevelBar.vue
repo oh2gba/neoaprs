@@ -67,6 +67,7 @@ defineProps<{ id: string; label: string; percent: number; zone: string; good: re
 .levelvalue {
   flex: 0 0 auto;
   min-width: 9ch;
+  white-space: nowrap;
   text-align: right;
 }
 @media (prefers-reduced-motion: reduce) {
