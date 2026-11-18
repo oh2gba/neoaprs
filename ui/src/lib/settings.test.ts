@@ -34,7 +34,7 @@ describe("groupKeys", () => {
     expect(groups[2]?.keys).toEqual([]); // (its fields are the radios' radio/<id>/digipeat: the form draws it while a radio may repeat)
     expect(groups[4]?.title).toBe("Notifications");
     expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[5]?.keys).toEqual(["map/radius_km"]);
+    expect(groups[5]?.keys).toEqual(["map/radius_km", "map/aircraft", "map/aircraft_host", "map/ships", "map/ships_host"]);
   });
   it("gives the My station tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");

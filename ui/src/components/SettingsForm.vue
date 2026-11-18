@@ -27,6 +27,7 @@ import SettingsAbout from "@/components/SettingsAbout.vue";
 import SettingsGroup from "@/components/SettingsGroup.vue";
 import SettingsHelp from "@/components/SettingsHelp.vue";
 import SettingsHttps from "@/components/SettingsHttps.vue";
+import SettingsLayer from "@/components/SettingsLayer.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import PhoneCode from "@/components/PhoneCode.vue";
 import SymbolField from "@/components/SymbolField.vue";
@@ -43,6 +44,7 @@ import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
 import { portsAsks } from "@/lib/radios";
 import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, storedFor, valueFor, type Scope } from "@/lib/settings";
+import { layerKey } from "@/lib/layersettings";
 import { boxedKey, digiPlaces, inputId, radioFieldOf, shownByRadios, shownFor } from "@/lib/settingsradio";
 import { useRadios } from "@/composables/useRadios";
 import { holderOf } from "@/lib/portchoice";
@@ -220,6 +222,7 @@ function typed(key: string, text: string): void {
             @cancel="settings.cancel(key)"
             @refresh="askPorts"
           />
+          <SettingsLayer v-else-if="layerKey(key)" :id="inputId(key)" :field-key="key" :form="form" />
           <SettingsField
             v-else
             :id="inputId(key)"

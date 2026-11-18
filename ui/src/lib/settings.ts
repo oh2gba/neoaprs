@@ -9,6 +9,7 @@ import { STATION_HOURS_KEY } from "@/lib/aging";
 import { ANTENNA, beaconOff } from "@/lib/beaconoff";
 import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
+import { LAYER_SPECS, layerShown } from "@/lib/layersettings";
 import { lazyText } from "@/lib/lazytext";
 import { alertLegend } from "@/lib/alertlegend";
 import { GROUP_ORDER, rank } from "@/lib/settingsorder";
@@ -66,7 +67,7 @@ const plain =
     text;
 
 /** What a field is, in ids: the words are looked up when they are read. */
-interface FieldSpec {
+export interface FieldSpec {
   label: Say;
   name?: Say;
   unit?: string;
@@ -245,6 +246,7 @@ const SPECS: Record<string, FieldSpec> = {
     picture: "radius",
   },
   [STATION_HOURS_KEY]: { name: "settings.station_hours.name", label: "station.table.on_map", kind: "choice", choices: stationHoursChoices },
+  ...LAYER_SPECS,
   "digi/enabled": {
     name: "settings.digipeater.name",
     label: "settings.enable.label",
@@ -445,5 +447,6 @@ export function shownByValues(key: string, values: Readonly<Record<string, strin
   if (key === "gps/host") return values["gps/source"] === "gpsd";
   if (key === "gps/device" || key === "gps/baud") return values["gps/source"] === "serial";
   if (key === "beacon/travel") return isMoving(values);
+  if (!layerShown(key, values)) return false;
   return true;
 }

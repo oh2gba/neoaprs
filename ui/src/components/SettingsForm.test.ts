@@ -94,6 +94,7 @@ describe("SettingsForm", () => {
         3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
         3 + // (the browser's own: Alert for a new message, Sound, Notification)
         1 + // (Language)
+        -2 + // (the two receivers' addresses of the Map group: shown only with My own receiver)
         1, // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list"; one radio has no Name)
     );
     expect(wrapper.find("#set-igate-password").exists()).toBe(false);
@@ -1257,7 +1258,7 @@ describe("SettingsForm", () => {
           .find("fieldset:has(#set-map-radius_km)")
           .findAll(".field label")
           .map((l) => l.text()),
-      ).toEqual(["Radius", "Detailed map"]);
+      ).toEqual(["Radius", "Detailed map", "Aircraft", "Ships"]);
     });
 
     it("turns the buttons off while a map setting is being saved, and on again when it is, and takes the radius when the field is left", async () => {
