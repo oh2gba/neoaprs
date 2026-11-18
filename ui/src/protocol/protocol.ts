@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand | LayerLookCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage | LayerThingsMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -594,6 +594,63 @@ export interface InstallInfo {
   arch: string;
 }
 
+/** With `on`, this page looks at the layer (its tick is on, the page is in front and the replay is closed: the page decides); with `on` false, or when the page closes, no more. While a page looks, the daemon asks the layer's source and sends the page `layer_things`. Never refused: a look at a layer whose source is `none` stands and is served once a source is chosen. */
+export interface LayerLookCommand {
+  cmd: "layer_look";
+  layer: "aircraft" | "ships";
+  on: boolean;
+}
+
+/** The own receiver's state, for its line in Settings. It says nothing of addresses or ports. */
+export interface LayerReceiver {
+  /** `looking` until its first answer or connection; `receiving` after an answer in the expected form (AIS: while connected); `no_answer` after a failure, a wrong answer or a lost connection */
+  state: "looking" | "receiving" | "no_answer";
+  /** what it gave with a position at its last answer (aircraft), or the ships held now (AIS) */
+  things: number;
+  /** its last answer in the expected form (AIS: the last sentence decoded); null before one */
+  heard_at: string | null;
+}
+
+/** An aircraft or a ship, as its source tells it. Every field is always there; one that is not the layer's is empty or null. */
+export interface LayerThing {
+  /** an aircraft's type as the source names it; empty when not known */
+  type: string;
+  /** an aircraft's ICAO address as the source gives it, lower case (it may begin with `~`); a ship's MMSI */
+  id: string;
+  lat: number;
+  lon: number;
+  /** the time of its position */
+  at: string;
+  /** where the mark points; null: no direction (drawn as a diamond) */
+  heading_deg: number | null;
+  speed_kmh: number | null;
+  /** an aircraft's flight, a ship's name; empty when none */
+  name: string;
+  /** an aircraft that says it is in an emergency (or squawks 7500, 7600 or 7700) */
+  emergency: boolean;
+  /** an aircraft's height */
+  altitude_m: number | null;
+  /** an aircraft's registration (`OH-LZA`); empty when not known */
+  registration: string;
+  /** a ship's AIS type of ship and cargo; null when not known */
+  ship_type: number | null;
+  /** a ship's course over ground */
+  course_deg: number | null;
+  /** a ship's destination; empty when not known */
+  destination: string;
+}
+
+/** A layer's whole table, to each page that looks at it and is not behind: at once on `layer_look`, after every answer of the source, at most every 5 s for an AIS receiver, when things grow too old, and when the source in force changes (then with the new `source` and no things). */
+export interface LayerThingsMessage {
+  type: "layer_things";
+  layer: "aircraft" | "ships";
+  /** the source in force that the things are from */
+  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "receiver";
+  /** true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then */
+  away: boolean;
+  things: LayerThing[];
+}
+
 /** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. With `radio`, also the sound cards its modem lists while that radio's type has a modem on a sound card (Mercury, Sound card), and the proposals leave out what the other radios and the GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`). */
 export interface ListPortsCommand {
   cmd: "list_ports";
@@ -642,6 +699,17 @@ export interface MapFileInfo {
   build: string;
 }
 
+/** One layer of traffic in the topic `map`: where its things come from now and what the station is offered. */
+export interface MapLayer {
+  layer: "aircraft" | "ships";
+  /** the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) */
+  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "receiver";
+  /** the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters */
+  offered: ("none" | "adsbfi" | "adsblol" | "fintraffic" | "receiver")[];
+  /** the own receiver's state while `source` is `receiver`; else null */
+  receiver: LayerReceiver | null;
+}
+
 /** Why a map job failed, as a code the page says in its words, with the values of its sentence (the log has the details). */
 export interface MapProblem {
   /** `no_position` the station has no position; `slow` the map server was too slow; `unreachable` it could not be reached; `no_build` no daily build was found (`days`: how far back it was looked for); `too_big` the map would be bigger than it may be (`size` and `max`, in MB); `no_space` the disk is full; `failed` anything else (the log says why) */
@@ -673,7 +741,7 @@ export interface MapSizeEstimate {
   build: string;
 }
 
-/** The base map: the files, the area and detail the settings ask for, the size estimated, and the job that is running. The value of the topic `map`, told whole at most four times a second. */
+/** The base map: the files, the area and detail the settings ask for, the size estimated, the job that is running, the ALOHA circles and the layers of traffic. The value of the topic `map`, told whole at most four times a second. */
 export interface MapState {
   /** `none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were */
   state: "none" | "estimating" | "downloading" | "ready" | "error";
@@ -705,6 +773,8 @@ export interface MapState {
   later: boolean;
   /** the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of the boxes; none without a position */
   aloha: AlohaCircle[];
+  /** the layers of traffic, the aircraft and then the ships: where each one's things come from now, what Settings offers, and an own receiver's state */
+  layers: MapLayer[];
 }
 
 /** The setup guide went on from its Position step with the place the daemon has: the map of the area is wanted. The daemon begins making the detailed map for `map/radius_km` round our position, as `map_fetch` does (the progress is the topic `map`), unless the detailed map that is there covers the place already or a job is running; it is never an error, and without a position nothing happens. A new place saved with `set_config` asks the same by itself. The job is not the operator's: when it fails it is tried again at the next start of the daemon (`later` of the topic `map`), and `map_cancel` ends it. */
@@ -2064,7 +2134,7 @@ export interface TopicValues {
   own_objects: { [key: string]: OwnObjectRow };
   /** the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) */
   own_bulletins: { [key: string]: OwnBulletinRow };
-  /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second */
+  /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, the ALOHA circle, and the layers of traffic; told whole as it changes, at most four times a second */
   map: MapState;
   /** Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second */
   update: UpdateState;

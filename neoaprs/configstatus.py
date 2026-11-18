@@ -36,6 +36,14 @@ def hostport(text: str) -> str:
     return value
 
 
+def host_port(text: str) -> tuple[str, int] | None:
+    """A `host:port` as the pair (the name may be an IPv6 address in brackets); None for an empty text."""
+    if not text:
+        return None
+    host, _, port = text.rpartition(":")
+    return host.strip("[]"), int(port)
+
+
 def fill_template(template: str, freq: str, mode: str) -> str:
     """The template with {freq} and {mode} replaced; any other text, braces too, stays."""
     return _BRACES.sub(lambda m: {"freq": freq, "mode": mode}.get(m.group(1), m.group(0)), template)

@@ -2401,6 +2401,240 @@
       "title": "InstallInfo",
       "type": "object"
     },
+    "LayerLook": {
+      "additionalProperties": false,
+      "description": "With `on`, this page looks at the layer (its tick is on, the page is in front and the replay is closed: the page decides); with `on` false, or when the page closes, no more. While a page looks, the daemon\nasks the layer's source and sends the page `layer_things`. Never refused: a look at a layer whose source is `none` stands and is served once a source is chosen.",
+      "properties": {
+        "cmd": {
+          "const": "layer_look",
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "aircraft",
+            "ships"
+          ],
+          "type": "string"
+        },
+        "on": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cmd",
+        "layer",
+        "on"
+      ],
+      "title": "LayerLookCommand",
+      "type": "object"
+    },
+    "LayerReceiver": {
+      "additionalProperties": false,
+      "description": "The own receiver's state, for its line in Settings. It says nothing of addresses or ports.",
+      "properties": {
+        "state": {
+          "description": "`looking` until its first answer or connection; `receiving` after an answer in the expected form (AIS: while connected); `no_answer` after a failure, a wrong answer or a lost connection",
+          "enum": [
+            "looking",
+            "receiving",
+            "no_answer"
+          ],
+          "type": "string"
+        },
+        "things": {
+          "description": "what it gave with a position at its last answer (aircraft), or the ships held now (AIS)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "heard_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "its last answer in the expected form (AIS: the last sentence decoded); null before one"
+        }
+      },
+      "required": [
+        "state",
+        "things",
+        "heard_at"
+      ],
+      "title": "LayerReceiver",
+      "type": "object"
+    },
+    "LayerThing": {
+      "additionalProperties": false,
+      "description": "An aircraft or a ship, as its source tells it. Every field is always there; one that is not the layer's is empty or null.",
+      "properties": {
+        "id": {
+          "description": "an aircraft's ICAO address as the source gives it, lower case (it may begin with `~`); a ship's MMSI",
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        },
+        "at": {
+          "description": "the time of its position",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "heading_deg": {
+          "anyOf": [
+            {
+              "maximum": 359,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "where the mark points; null: no direction (drawn as a diamond)"
+        },
+        "speed_kmh": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "an aircraft's flight, a ship's name; empty when none",
+          "type": "string"
+        },
+        "emergency": {
+          "description": "an aircraft that says it is in an emergency (or squawks 7500, 7600 or 7700)",
+          "type": "boolean"
+        },
+        "altitude_m": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "an aircraft's height"
+        },
+        "registration": {
+          "description": "an aircraft's registration (`OH-LZA`); empty when not known",
+          "type": "string"
+        },
+        "type": {
+          "description": "an aircraft's type as the source names it; empty when not known",
+          "type": "string"
+        },
+        "ship_type": {
+          "anyOf": [
+            {
+              "maximum": 99,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "a ship's AIS type of ship and cargo; null when not known"
+        },
+        "course_deg": {
+          "anyOf": [
+            {
+              "maximum": 359,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "a ship's course over ground"
+        },
+        "destination": {
+          "description": "a ship's destination; empty when not known",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "lat",
+        "lon",
+        "at",
+        "heading_deg",
+        "speed_kmh",
+        "name",
+        "emergency",
+        "altitude_m",
+        "registration",
+        "type",
+        "ship_type",
+        "course_deg",
+        "destination"
+      ],
+      "title": "LayerThing",
+      "type": "object"
+    },
+    "LayerThingsMsg": {
+      "additionalProperties": false,
+      "description": "A layer's whole table, to each page that looks at it and is not behind: at once on `layer_look`, after every answer of the source, at most every 5 s for an AIS receiver, when things grow too old, and\nwhen the source in force changes (then with the new `source` and no things).",
+      "properties": {
+        "type": {
+          "const": "layer_things",
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "aircraft",
+            "ships"
+          ],
+          "type": "string"
+        },
+        "source": {
+          "description": "the source in force that the things are from",
+          "enum": [
+            "none",
+            "adsbfi",
+            "adsblol",
+            "fintraffic",
+            "receiver"
+          ],
+          "type": "string"
+        },
+        "away": {
+          "description": "true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then",
+          "type": "boolean"
+        },
+        "things": {
+          "items": {
+            "$ref": "#/$defs/LayerThing"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "layer",
+        "source",
+        "away",
+        "things"
+      ],
+      "title": "LayerThingsMessage",
+      "type": "object"
+    },
     "ListPorts": {
       "additionalProperties": false,
       "description": "Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a\nport of the machine: it is typed. With `radio`, also the sound cards its modem lists while that radio's type has a modem on a sound card (Mercury, Sound card), and the proposals leave out what the other radios and\nthe GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`).",
@@ -2576,6 +2810,63 @@
       "title": "MapFileInfo",
       "type": "object"
     },
+    "MapLayer": {
+      "additionalProperties": false,
+      "description": "One layer of traffic in the topic `map`: where its things come from now and what the station is offered.",
+      "properties": {
+        "layer": {
+          "enum": [
+            "aircraft",
+            "ships"
+          ],
+          "type": "string"
+        },
+        "source": {
+          "description": "the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row)",
+          "enum": [
+            "none",
+            "adsbfi",
+            "adsblol",
+            "fintraffic",
+            "receiver"
+          ],
+          "type": "string"
+        },
+        "offered": {
+          "description": "the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters",
+          "items": {
+            "enum": [
+              "none",
+              "adsbfi",
+              "adsblol",
+              "fintraffic",
+              "receiver"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "receiver": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayerReceiver"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the own receiver's state while `source` is `receiver`; else null"
+        }
+      },
+      "required": [
+        "layer",
+        "source",
+        "offered",
+        "receiver"
+      ],
+      "title": "MapLayer",
+      "type": "object"
+    },
     "MapProblem": {
       "additionalProperties": false,
       "description": "Why a map job failed, as a code the page says in its words, with the values of its sentence (the log has the details).",
@@ -2679,7 +2970,7 @@
     },
     "MapState": {
       "additionalProperties": false,
-      "description": "The base map: the files, the area and detail the settings ask for, the size estimated, and the job that is running. The value of the topic `map`, told whole at most four times a second.",
+      "description": "The base map: the files, the area and detail the settings ask for, the size estimated, the job that is running, the ALOHA circles and the layers of traffic. The value of the topic `map`, told whole at most four times a second.",
       "properties": {
         "state": {
           "description": "`none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were",
@@ -2825,6 +3116,13 @@
             "$ref": "#/$defs/AlohaCircle"
           },
           "type": "array"
+        },
+        "layers": {
+          "description": "the layers of traffic, the aircraft and then the ships: where each one's things come from now, what Settings offers, and an own receiver's state",
+          "items": {
+            "$ref": "#/$defs/MapLayer"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -2842,7 +3140,8 @@
         "detail",
         "world",
         "later",
-        "aloha"
+        "aloha",
+        "layers"
       ],
       "title": "MapState",
       "type": "object"
@@ -8188,7 +8487,7 @@
         },
         "map": {
           "$ref": "#/$defs/MapState",
-          "description": "the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second"
+          "description": "the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, the ALOHA circle, and the layers of traffic; told whole as it changes, at most four times a second"
         },
         "update": {
           "$ref": "#/$defs/UpdateState",
@@ -8737,6 +9036,7 @@
           "forget_station_key": "#/$defs/ForgetStationKey",
           "frequencies": "#/$defs/Frequencies",
           "general_query": "#/$defs/GeneralQuery",
+          "layer_look": "#/$defs/LayerLook",
           "list_ports": "#/$defs/ListPorts",
           "map_cancel": "#/$defs/MapCancel",
           "map_estimate": "#/$defs/MapEstimate",
@@ -8978,6 +9278,9 @@
         },
         {
           "$ref": "#/$defs/StationTrack"
+        },
+        {
+          "$ref": "#/$defs/LayerLook"
         }
       ],
       "title": "Command"
@@ -8988,6 +9291,7 @@
           "alert_result": "#/$defs/AlertResultMsg",
           "error": "#/$defs/Error",
           "hello": "#/$defs/Hello",
+          "layer_things": "#/$defs/LayerThingsMsg",
           "packet_history": "#/$defs/PacketHistoryMsg",
           "packet_stats": "#/$defs/PacketStatsMsg",
           "patch": "#/$defs/PatchMsg",
@@ -9076,6 +9380,9 @@
         },
         {
           "$ref": "#/$defs/RadioLevelMsg"
+        },
+        {
+          "$ref": "#/$defs/LayerThingsMsg"
         }
       ],
       "title": "Message"

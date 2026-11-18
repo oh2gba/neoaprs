@@ -40,6 +40,8 @@ PROXY_HEADERS = ("X-Forwarded-For", "Forwarded", "X-Real-Ip", "X-Forwarded-Host"
 OWN_NAMES = ("localhost",)                 # the names of this computer itself that a request addressed to it has in its Host (besides a loopback address)
 # What a page of another device may not change: the settings that name a program or an address the daemon runs or fetches from. A session that left this computer (a phone, a cookie read off the network)
 # works the radio, not the computer; on a computer without a screen they are set with `neoaprs db set`.
+# (The address of the operator's own aircraft or ships receiver, `map/aircraft_host` and `map/ships_host`, is not among them, by the owner's word: receivers stand beside a Raspberry Pi without a screen.
+# The daemon asks such an address for one file and shows nothing of an answer that is not in that file's form, or only reads lines from it.)
 LOCAL_ONLY = frozenset({"messages/alert_command", "update/url", "map/source", "web/allowed_hosts"})
 
 

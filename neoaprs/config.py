@@ -13,7 +13,8 @@ from .alertcommand import DEFAULT_ALERT_COMMAND
 from .callsign import call_problem
 from .coded import CodedError, Param, Reason
 from .configlegacy import with_legacy, with_network
-from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
+from .configlayers import LAYER_ROWS, LayerFields
+from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, host_port as _host_port, hostport, status_source, status_template, status_text
 from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, path_text, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings, and today's flat keys as a view of radios 1 and 2)
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
@@ -69,14 +70,6 @@ GPS_SOURCES = ("off", "gpsd", "serial")                                # where t
 
 
 # ---- the types a setting can have: text to value (raising ValueError with the reason), value to text (the ones that are more than a number or a word are in configvalues.py)
-
-def _host_port(text: str) -> tuple[str, int] | None:
-    """A `host:port` as the pair (the name may be an IPv6 address in brackets); None for an empty text."""
-    if not text:
-        return None
-    host, _, port = text.rpartition(":")
-    return host.strip("[]"), int(port)
-
 
 @dataclass(frozen=True)
 class Setting:
@@ -141,6 +134,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("map_maxzoom", "map/maxzoom", int_in(*RANGES["map/maxzoom"])),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
     Setting("map_station_hours", "map/station_hours", int_among(STATION_HOURS)),     # how long a station stays on the map after its last position (the Stations tab chooses; our own station and objects stay)
     Setting("map_source", "map/source", map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
+    *(Setting(*row) for row in LAYER_ROWS),                                # map/aircraft, map/aircraft_host, map/ships, map/ships_host: the map's layers of traffic (configlayers.py)
     Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
     Setting("digi_enabled", "digi/enabled", boolean),                         # true: a packet that asks for WIDE1-1, or for our call, is sent again by our radio (services/digipeater.py)
     Setting("igate_enabled", "igate/enabled", boolean),                       # true: what the radio hears is put on APRS-IS by a receive-only iGate (services/igate.py); nothing from the internet is ever sent on the air
@@ -171,7 +165,7 @@ HF_DIAL = "update/hf_dial"                   # the HF dial the version page name
 
 @accepting_flat
 @dataclass(frozen=True)
-class Config(FlatFields, RadioViews):
+class Config(FlatFields, RadioViews, LayerFields):
     serial_last_port: str = ""
     serial_pattern: str = DEFAULT_SERIAL_PATTERN
     serial_skip: str = ""

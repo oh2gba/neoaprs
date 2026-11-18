@@ -136,6 +136,10 @@ MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_cal
 PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio_id": 1, "snr": None, "rssi": None, "gate": "", "kind": "position",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
 STATS: dict[str, Any] = {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0}
+AIRCRAFT: dict[str, Any] = {"id": "461f2a", "lat": 60.3172, "lon": 24.9633, "at": NOW, "heading_deg": 225, "speed_kmh": 420.5, "name": "FIN7AB", "emergency": False, "altitude_m": 2438, "registration": "OH-LZA",
+                             "type": "AIRBUS A-321", "ship_type": None, "course_deg": None, "destination": ""}
+SHIP: dict[str, Any] = {"id": "230123456", "lat": 60.1512, "lon": 24.9601, "at": NOW, "heading_deg": None, "speed_kmh": 0.0, "name": "MADE UP STAR", "emergency": False, "altitude_m": None, "registration": "", "type": "",
+                        "ship_type": 60, "course_deg": 182, "destination": "HELSINKI"}
 RADIO: dict[str, Any] = {"id": 1, "kind": "fm", "type": "kiss", "name": "Mobile", "number": 1, "enabled": True, "position": 1, "removed": False, "dummy": False, "state": "connected", "problem": None, "stats": STATS,
                          "lines": [{"at": NOW, "text": "NeoAPRS: opened /dev/brainbox_3"}], "limits": {"max_frame": None, "beacon_min_min": 20}, "allowed": {"paths": True, "digipeat": True, "smart_beacon": True, "gateway_heard": True, "shared_channel": True},
                          "can": {"find": True, "terminal": True, "tune": False, "key_test": False, "scope": False, "tx_gain": False, "frequencies": False, "transmit": True, "rx_level": False}, "choices": {"beacon": True, "status": True, "ask": True, "local_info": False, "path": "", "digipeat": False},
@@ -191,6 +195,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
                      {"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0, "radio": 1, "radio_type": ""}],
     "radio_added": [{"type": "radio_added", "id": 3}],
     "radio_level": [{"type": "radio_level", "radio": 3, "level": 48}, {"type": "radio_level", "radio": 3, "level": None}],
+    "layer_things": [{"type": "layer_things", "layer": "aircraft", "source": "adsbfi", "away": False, "things": [AIRCRAFT]}, {"type": "layer_things", "layer": "ships", "source": "receiver", "away": True, "things": [SHIP]},
+                     {"type": "layer_things", "layer": "ships", "source": "none", "away": False, "things": []}],
     "station_track": [{"type": "station_track", "call": "OH2XYZ-9", "points": [["2026-10-21T11:50:00Z", 60.17, 24.94], [NOW, 60.18, 24.95]]}, {"type": "station_track", "call": "OH2RDG", "points": []}],
     "alert_result": [{"type": "alert_result", "ok": True, "outcome": "ran", "status": 0, "seconds": 20, "line": ""},
                      {"type": "alert_result", "ok": False, "outcome": "exit", "status": 3, "seconds": 20, "line": "no display"}],
@@ -254,6 +260,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1", "qru_group": "RP70", "on_request": True, "radios": [1, 3]},
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},
     "bulletin_post": {"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight at 20:00"}, "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
+    "layer_look": {"cmd": "layer_look", "layer": "ships", "on": True},
     "map_estimate": {"cmd": "map_estimate"}, "map_fetch": {"cmd": "map_fetch"}, "map_wanted": {"cmd": "map_wanted"}, "map_cancel": {"cmd": "map_cancel"},
     "update_now": {"cmd": "update_now", "version": "0.7.0"}, "update_cancel": {"cmd": "update_cancel"},
     "skeds_wanted": {"cmd": "skeds_wanted"}, "sked_post": {"cmd": "sked_post", "from": "2026-11-14T18:00:00Z", "to": "2026-11-14T20:00:00Z", "dial": "7.0541 MHz USB", "note": "Mercury, 10 W"},

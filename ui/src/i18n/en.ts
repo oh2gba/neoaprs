@@ -5,6 +5,10 @@ import { bulletins } from "@/i18n/en/bulletins";
 import { email } from "@/i18n/en/email";
 import { errors } from "@/i18n/en/errors";
 import { help } from "@/i18n/en/help";
+import { layerbox } from "@/i18n/en/layerbox";
+import { layers } from "@/i18n/en/layers";
+import { layersettings } from "@/i18n/en/layersettings";
+import { layertraffic } from "@/i18n/en/layertraffic";
 import { map } from "@/i18n/en/map";
 import { messages } from "@/i18n/en/messages";
 import { nearby } from "@/i18n/en/nearby";
@@ -35,12 +39,16 @@ export const en = {
   ...stations,
   ...nearby,
   ...map,
+  ...layers,
+  ...layerbox,
+  ...layertraffic,
   ...stats,
   ...packets,
   ...weather,
   ...symbols,
   ...radio,
   ...settings,
+  ...layersettings,
   ...phone,
   ...beacon,
   ...setup,

@@ -151,7 +151,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-63 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+64 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -753,9 +753,19 @@ a page that shows it asks again when the row changes.
 |---|---|---|---|
 | `call` | string |  | the station, as the topic `stations` keys it (max 64 chars, min 1 chars) |
 
+### `layer_look`
+
+With `on`, this page looks at the layer (its tick is on, the page is in front and the replay is closed: the page decides); with `on` false, or when the page closes, no more. While a page looks, the daemon
+asks the layer's source and sends the page `layer_things`. Never refused: a look at a layer whose source is `none` stands and is served once a source is chosen.
+
+| field | type | | description |
+|---|---|---|---|
+| `layer` | "aircraft" \| "ships" |  |  |
+| `on` | boolean |  |  |
+
 ## Server to client
 
-22 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+23 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -1027,6 +1037,18 @@ A Sound card radio's receive level as it is now, to a page that asked for it (`r
 | `radio` | integer |  | (>= 1) |
 | `level` | integer \| null |  | (>= 0) |
 
+### `layer_things`
+
+A layer's whole table, to each page that looks at it and is not behind: at once on `layer_look`, after every answer of the source, at most every 5 s for an AIS receiver, when things grow too old, and
+when the source in force changes (then with the new `source` and no things).
+
+| field | type | | description |
+|---|---|---|---|
+| `layer` | "aircraft" \| "ships" |  |  |
+| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "receiver" |  | the source in force that the things are from |
+| `away` | boolean |  | true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then |
+| `things` | LayerThing[] |  |  |
+
 ## Topics
 
 The value of each topic (`state` carries it, a `replace` op brings a new one).
@@ -1043,7 +1065,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `bulletins` | { [key: string]: BulletinRow } | the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` |
 | `own_objects` | { [key: string]: OwnObjectRow } | the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` |
 | `own_bulletins` | { [key: string]: OwnBulletinRow } | the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) |
-| `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second |
+| `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, the ALOHA circle, and the layers of traffic; told whole as it changes, at most four times a second |
 | `update` | UpdateState | Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second |
 | `gps` | GpsState | the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second |
 | `igate` | IgateState | the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second |
@@ -1652,6 +1674,37 @@ How this copy of the daemon was installed, which is what the steps of an update 
 | `service` | boolean |  | whether a service starts it: the systemd unit, the launchd agent or the Windows Run key |
 | `arch` | string |  | the architecture of the file it was installed from: `amd64` or `arm64` for a .deb, `arm64` for the macOS app; empty for the other kinds, and for a machine the release has no file for |
 
+### LayerReceiver
+
+The own receiver's state, for its line in Settings. It says nothing of addresses or ports.
+
+| field | type | | description |
+|---|---|---|---|
+| `state` | "looking" \| "receiving" \| "no_answer" |  | `looking` until its first answer or connection; `receiving` after an answer in the expected form (AIS: while connected); `no_answer` after a failure, a wrong answer or a lost connection |
+| `things` | integer |  | what it gave with a position at its last answer (aircraft), or the ships held now (AIS) (>= 0) |
+| `heard_at` | time \| null |  | its last answer in the expected form (AIS: the last sentence decoded); null before one |
+
+### LayerThing
+
+An aircraft or a ship, as its source tells it. Every field is always there; one that is not the layer's is empty or null.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | string |  | an aircraft's ICAO address as the source gives it, lower case (it may begin with `~`); a ship's MMSI |
+| `lat` | number |  |  |
+| `lon` | number |  |  |
+| `at` | time |  | the time of its position |
+| `heading_deg` | integer \| null |  | where the mark points; null: no direction (drawn as a diamond) (>= 0, <= 359) |
+| `speed_kmh` | number \| null |  | (>= 0) |
+| `name` | string |  | an aircraft's flight, a ship's name; empty when none |
+| `emergency` | boolean |  | an aircraft that says it is in an emergency (or squawks 7500, 7600 or 7700) |
+| `altitude_m` | integer \| null |  | an aircraft's height |
+| `registration` | string |  | an aircraft's registration (`OH-LZA`); empty when not known |
+| `type` | string |  | an aircraft's type as the source names it; empty when not known |
+| `ship_type` | integer \| null |  | a ship's AIS type of ship and cargo; null when not known (>= 1, <= 99) |
+| `course_deg` | integer \| null |  | a ship's course over ground (>= 0, <= 359) |
+| `destination` | string |  | a ship's destination; empty when not known |
+
 ### LocatorValues
 
 A Maidenhead locator (grid square) with the symbol that came with it, in a status report or in the status text of a Mic-E packet; the position is the centre of the square.
@@ -1677,6 +1730,17 @@ A map file in the data folder.
 | `min_zoom` | integer \| null |  |  |
 | `max_zoom` | integer \| null |  | the deepest zoom it has tiles for; the page draws a deeper one from these |
 | `build` | string |  | the day (`20261022`) of the Protomaps build it was cut from; empty if not known (a file made by hand) |
+
+### MapLayer
+
+One layer of traffic in the topic `map`: where its things come from now and what the station is offered.
+
+| field | type | | description |
+|---|---|---|---|
+| `layer` | "aircraft" \| "ships" |  |  |
+| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "receiver" |  | the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) |
+| `offered` | ("none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "receiver")[] |  | the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters |
+| `receiver` | LayerReceiver \| null |  | the own receiver's state while `source` is `receiver`; else null |
 
 ### MapProblem
 
@@ -1711,7 +1775,7 @@ What a dry run said: how big the detailed map will be for the area and the zoom 
 
 ### MapState
 
-The base map: the files, the area and detail the settings ask for, the size estimated, and the job that is running. The value of the topic `map`, told whole at most four times a second.
+The base map: the files, the area and detail the settings ask for, the size estimated, the job that is running, the ALOHA circles and the layers of traffic. The value of the topic `map`, told whole at most four times a second.
 
 | field | type | | description |
 |---|---|---|---|
@@ -1730,6 +1794,7 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `world` | MapFileInfo \| null |  | `basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw) |
 | `later` | boolean |  | the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there |
 | `aloha` | AlohaCircle[] |  | the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of the boxes; none without a position |
+| `layers` | MapLayer[] |  | the layers of traffic, the aircraft and then the ships: where each one's things come from now, what Settings offers, and an own receiver's state |
 
 ### ModemState
 

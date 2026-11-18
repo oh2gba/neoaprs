@@ -111,6 +111,7 @@
  "setting.not_passcode": {"params": ["max"], "text": ["the passcode of your call is a number from 0 to {max}"]},
  "setting.not_printable": {"params": [], "text": ["it has characters that are not printable"]},
  "setting.not_profile": {"params": ["value"], "text": ["'{value}' is not a type of radio (the types are {*})"]},
+ "setting.not_receiver": {"params": ["value"], "text": ["'{value}' is not the address of a receiver"]},
  "setting.not_server": {"params": ["value"], "text": ["'{value}' is not host:port (14580 is the usual port of an APRS-IS server)"]},
  "setting.not_stored": {"params": [], "text": ["the radio could not be stored; nothing changed", "the settings could not be stored (the database would not take them); nothing changed"]},
  "setting.not_symbol_code": {"params": ["value"], "text": ["'{value}' is not one printable ASCII character"]},

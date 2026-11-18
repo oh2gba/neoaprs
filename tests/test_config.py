@@ -9,6 +9,7 @@ from neoaprs.clock import utc
 from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, LAST_PORT, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, RADIO_STATION_KEYS, RANGES, SETTINGS, STATION_KEYS, Config, radios_from_flat
 from neoaprs.cli.radiosettings import SHOWN_KEYS, in_force, shown_settings
 from neoaprs.web.views import CONFIG_KEYS
+from neoaprs.configlayers import LayerFields
 from neoaprs.configradios import DEFAULT_RADIOS, FLAT_HOMES, flat_value, with_flat
 from neoaprs.radiospec import FM_ID, HF_ID, RadioError, RadioSpec
 from neoaprs.smartbeacon import TRAVEL, PRESETS, SmartSettings
@@ -23,7 +24,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "beacon/antenna_direction": "omni", "web/network": "false", "web/key": "", "web/https": "false", "web/port": "7303", "web/allowed_hosts": "", "beacon/interval_min": "0",
         "beacon/path": "",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
-        "map/radius_km": "150", "map/maxzoom": "12", "map/station_hours": "3", "map/source": "",
+        "map/radius_km": "150", "map/maxzoom": "12", "map/station_hours": "3", "map/source": "", "map/aircraft": "none", "map/aircraft_host": "", "map/ships": "none", "map/ships_host": "",
         "update/url": "https://neo.oh2gba.eu/version.php", "digi/enabled": "false", "igate/enabled": "false", "igate/server": "rotate.aprs2.net:14580", "igate/password": "",
         "gps/source": "off", "gps/host": "127.0.0.1:2947", "gps/device": "", "gps/baud": "4800", "beacon/travel": "car"}
     assert Config() == DEFAULTS
@@ -31,10 +32,12 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
 
 def test_every_field_has_a_key_or_is_the_radios_and_every_key_a_field_or_a_view_of_a_radio() -> None:
     """Before the radios were stored every key was a field. Now a key is a field (the station's settings, and radio 1's last port) or one of today's flat keys of the radios, which is a view of
-    radio 1 or 2; the radios are a field with no key, and the choice of one radio (the email radio, `email/radio`) is kept last of the fields."""
+    radio 1 or 2; the radios are a field with no key, and the choice of one radio (the email radio, `email/radio`) is kept last of the fields. The layers' settings are the fields of a base of Config
+    (configlayers.LayerFields), and so come first."""
     stored = [s.attr for s in SETTINGS if s.attr not in FLAT_HOMES]
     choices = ("email_choice",)
-    assert [*(a for a in stored if a not in choices), "radios", *choices] == [f.name for f in fields(Config)] and (BY_KEY["email/radio"].attr,) == choices and "station/main_radio" not in BY_KEY
+    layers = tuple(f.name for f in fields(LayerFields))
+    assert [*layers, *(a for a in stored if a not in choices and a not in layers), "radios", *choices] == [f.name for f in fields(Config)] and (BY_KEY["email/radio"].attr,) == choices and "station/main_radio" not in BY_KEY
     assert len(set(KEYS)) == len(KEYS) == len(BY_KEY) and [s.attr for s in SETTINGS if s.attr in FLAT_HOMES] == sorted(FLAT_HOMES, key=[s.attr for s in SETTINGS].index) and len(FLAT_HOMES) == 13
     assert all(isinstance(getattr(Config, attr), property) for attr in FLAT_HOMES) and not any(isinstance(getattr(Config, attr, None), property) for attr in stored)
     assert STATION_KEYS == tuple(s.key for s in SETTINGS if s.attr in stored and s.key != "serial/last_port") and len(STATION_KEYS) == len(KEYS) - 14, "the rows of the table `settings` under their own key"

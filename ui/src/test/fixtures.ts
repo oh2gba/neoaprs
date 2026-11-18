@@ -31,6 +31,7 @@ import type {
 } from "@/protocol/protocol";
 import type { Toast } from "@/composables/useDaemon";
 import { PROTOCOL, RADIO_STATION_KEYS, RADIO_TYPES } from "@/protocol/lists";
+import { mapLayer } from "@/test/layerfixtures";
 
 export const NOW = Date.parse("2026-10-21T12:00:00Z");
 
@@ -541,6 +542,10 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
     "map/maxzoom": "12",
     "map/station_hours": "3",
     "map/source": "",
+    "map/aircraft": "none",
+    "map/aircraft_host": "",
+    "map/ships": "none",
+    "map/ships_host": "",
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
     "igate/enabled": "false",
     "igate/server": "rotate.aprs2.net:14580",
@@ -609,6 +614,7 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
     world: null,
     later: false,
     aloha: [],
+    layers: [mapLayer("aircraft"), mapLayer("ships")],
     ...extra,
   };
 }

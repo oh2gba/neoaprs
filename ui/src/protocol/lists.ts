@@ -29,6 +29,7 @@ export const MESSAGE_TYPES = [
   "alert_result",
   "error",
   "hello",
+  "layer_things",
   "packet_history",
   "packet_stats",
   "patch",
@@ -83,6 +84,10 @@ export const CONFIG_KEYS = [
   "map/maxzoom",
   "map/station_hours",
   "map/source",
+  "map/aircraft",
+  "map/aircraft_host",
+  "map/ships",
+  "map/ships_host",
   "update/url",
   "igate/enabled",
   "igate/server",
@@ -96,6 +101,12 @@ export const CONFIG_KEYS = [
 
 /** The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`. */
 export const RADIO_STATION_KEYS = ["email/radio"] as const;
+
+/** Where the map's aircraft may come from, the list of Settings, Map in its order (AIRCRAFT_SOURCES of neoaprs/layerthing.py): `map.layers` says which a station is offered. */
+export const AIRCRAFT_SOURCES = ["none", "adsbfi", "adsblol", "receiver"] as const;
+
+/** Where the map's ships may come from (SHIP_SOURCES of neoaprs/layerthing.py); `fintraffic` is offered only where the map's circle reaches its waters (`map.layers`). */
+export const SHIP_SOURCES = ["none", "fintraffic", "receiver"] as const;
 
 /** The FM types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */
 export const TNC_PROFILES = [
@@ -1347,7 +1358,7 @@ export const MOBILE_SYMBOLS = {"primary": "'()*<=>CFOPRSUVXY[^abefgjkpsuv", "alt
 /** The overlays of the gateway symbol `&` that mark an iGate: generic, receive-only, one-hop and two-hop transmit, LoRa (IGATE_OVERLAYS of neoaprs/symbols.py). */
 export const IGATE_OVERLAYS = ["I", "R", "T", "2", "L"] as const;
 
-/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay). */
+/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay, how old a thing of a layer of traffic may be). */
 export const LIMITS = {
   range: {
     "serial/baud": { min: 300, max: 921600 },
@@ -1390,6 +1401,7 @@ export const LIMITS = {
   radio: { nameMax: 8, frequenciesMax: 4 },
   mercury: { version: "1.9.24", mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[80, "3.5850"], [40, "7.0541"], [30, "10.1462"], [20, "14.1070"], [6, "50.6200"]] },
   soundCard: { version: "1.8.1", levelMax: 200, levelLow: 5, levelHigh: 110, levelGood: [30, 70], txGainMinDb: -20, txGainMaxDb: 0 },
+  layers: { aircraftReceiverAgeSec: 60, aircraftServiceAgeSec: 90, shipsAgeSec: 1800, aisPort: 10110 },
 } as const;
 
 /** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */

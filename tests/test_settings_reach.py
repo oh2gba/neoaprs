@@ -50,6 +50,11 @@ def hosts_misread(value: str) -> bool:
     return any(not name or any(c in name for c in " /\\@?#") or "://" in name for name in (part.strip() for part in value.split(",")) if value.strip())
 
 
+def receiver_misread(value: str) -> bool:
+    """map/aircraft_host is asked over http: an address is only an http or https one, and a host has no blank, no control character and does not start with a dash."""
+    return value.startswith("-") or not value.isprintable() or any(c.isspace() for c in value) or ("://" in value and urlsplit(value).scheme not in ("http", "https"))
+
+
 REACH: dict[str, Callable[[str], bool]] = {         # setting -> whether the stored text would be misread by the place it ends in
     "serial/port": port_misread,
     "serial/last_port": port_misread,
@@ -59,6 +64,7 @@ REACH: dict[str, Callable[[str], bool]] = {         # setting -> whether the sto
     "messages/alert_command": lambda value: not value.isprintable(),          # a shell line is one line; what is in it is the operator's, and who may set it is decided where the setting is saved
     "serial/pattern": pattern_misread,
     "web/allowed_hosts": hosts_misread,
+    "map/aircraft_host": receiver_misread,
 }
 GAPS: dict[str, Callable[[str], bool]] = {}          # settings whose check lets through what the place misreads: each is held to stay a gap until it is closed, and then moves to REACH
 OTHER_TEXT = frozenset({                            # free text that ends in none of the four: why, per key
@@ -67,6 +73,7 @@ OTHER_TEXT = frozenset({                            # free text that ends in non
     "mercury/sound_card", "mercury/keying",         # one argument of the modem's program, which takes the next word for the value
     "station/comment", "station/status", "status/template",     # text for the air or for the page
     "beacon/path", "igate/server", "gps/host", "status/rigctld",     # calls, and host:port pairs checked as such
+    "map/ships_host",                               # a host or host:port checked as such, which a TCP connection is opened to
 })
 PROBES = ("spy:///dev/ttyUSB0?file=/tmp/x", "-x", "$(x)", "file:///x", "x://y", "a b", "a\nb", "../x")
 

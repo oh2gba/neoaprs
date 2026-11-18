@@ -14,6 +14,7 @@ from neoaprs.cli.radiosettings import SHOWN_KEYS
 from neoaprs.configstatus import MAX_STATUS
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN
 from neoaprs.direwolf import TX_GAIN_MAX_DB as DIREWOLF_GAIN_MAX, TX_GAIN_MIN_DB as DIREWOLF_GAIN_MIN
+from neoaprs.layerthing import AIRCRAFT_PORTS, AIS_PORT, FINTRAFFIC_BOX
 from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
 from neoaprs.ownbulletin import MAX_POSTED
 from neoaprs.policy import GPS_STALE_SEC, INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
@@ -41,7 +42,8 @@ def _numbers() -> dict[str, object]:
     fields["direwolf_tx_gain_db"] = f"{DIREWOLF_GAIN_MIN} to {DIREWOLF_GAIN_MAX}"
     fields.update(
         comment=cfg.MAX_COMMENT, comment_phg=cfg.MAX_COMMENT_PHG, status=MAX_STATUS, beacon_min=cfg.MIN_BEACON_INTERVAL_MIN, hf_min=HF_BEACON_MIN_MIN, status_min=cfg.MIN_STATUS_INTERVAL_MIN, alert_command=cfg.MAX_ALERT_COMMAND,
-        map_station_hours_choices=", ".join(str(h) for h in cfg.STATION_HOURS),
+        map_station_hours_choices=", ".join(str(h) for h in cfg.STATION_HOURS), ais_port=AIS_PORT, aircraft_ports=" and ".join(str(p) for p in AIRCRAFT_PORTS),
+        fintraffic_box="{0:g} to {1:g} N, {2:g} to {3:g} E".format(*FINTRAFFIC_BOX),
         moving_presets="; ".join(
             f"`{name}` every {p.fast_sec:g} seconds from {p.fast_kmh:g} km/h, a turn of more than {p.turn_min_deg:g} degrees (at least {p.turn_min_sec:g} seconds after the last beacon)" for name, p in PRESETS.items()),
         profiles=", ".join(f"`{p.key}`" for p in PROFILES), directions=" ".join(f"`{d}`" for d in cfg.ANTENNA_DIRECTIONS if d != "omni"), tocall=TOCALL,
@@ -83,6 +85,10 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "map/maxzoom": (DB_ONLY, "the deepest zoom the detailed map has tiles for ({map_maxzoom}): 10 shows towns, 12 streets, 14 houses. The page's Download map uses the stored value"),
     "map/station_hours": ("Stations tab, On map for", "how many hours after its last position a station stays on the map: {map_station_hours_choices}. The same for every station, in every browser; your own station and objects never leave. The Stations table keeps a station that has left the map, dim"),
     "map/source": (DB_ONLY, "where the map is cut from: empty is the latest daily build of build.protomaps.com; or a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own"),
+    "map/aircraft": ("Settings tab, Map (Aircraft)", "where the map's aircraft come from: `none` (no aircraft on the map), `adsbfi` or `adsblol` (a service on the internet, asked for the map's circle round your position while a page shows the aircraft), or `receiver` (your own ADS-B receiver, `map/aircraft_host`). While it is not `none` the map's Layers box has the row Aircraft"),
+    "map/aircraft_host": ("Settings tab, Map (Receiver's address, with My own receiver)", "your own aircraft receiver: a name or address (`192.168.1.20`, `pi.local`, `[fe80::1]`), the same with `:port`, or a whole `http://` or `https://` address, which is used as typed. A name is looked for on ports {aircraft_ports} where tar1090, dump1090 and SkyAware keep their aircraft; empty is this computer"),
+    "map/ships": ("Settings tab, Map (Ships)", "where the map's ships come from: `none` (no ships on the map), `fintraffic` (Fintraffic's AIS feed, offered where the map's circle reaches its waters, {fintraffic_box}), or `receiver` (your own AIS receiver, `map/ships_host`). A stored `fintraffic` that the station is not offered counts as `none`"),
+    "map/ships_host": ("Settings tab, Map (Receiver's address, with My own receiver)", "your own AIS receiver: `host` or `host:port` of the TCP server that sends its AIS sentences (port {ais_port} when none is given); empty is this computer. The daemon connects to it, while `map/ships` is `receiver`, and listens on no port of its own"),
     "update/url": (DB_ONLY, "the address of the version page that the daily update check asks (`http` or `https`; [install.md](install.md#the-update-check))"),
     "igate/enabled": ("Settings tab, Internet", "`true` shows the stations that APRS-IS has within `map/radius_km` of your position, marked as heard over the internet; nothing is sent, and nothing from the internet ever goes on the air ([igate.md](igate.md))"),
     "igate/server": (DB_ONLY, "`host:port` of the APRS-IS server the Internet switch logs in to. The default `rotate.aprs2.net:14580` is the round-robin name of the volunteer servers and the port of the filtered feed; empty leaves it waiting ([igate.md](igate.md#the-server))"),

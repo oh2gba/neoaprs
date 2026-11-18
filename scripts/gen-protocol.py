@@ -43,6 +43,7 @@ from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, 
 from neoaprs.configstatus import LONGEST_FREQ, LONGEST_MODE, MAX_STATUS, STATUS_FIELDS, fill_template, status_template  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
+from neoaprs import layerthing  # noqa: E402
 from neoaprs.radiospec import MAX_NAME  # noqa: E402
 from neoaprs.radiotype import HF_BEACON_MIN_MIN, KINDS, RadioType  # noqa: E402
 from neoaprs.radiotypes import DEFAULT_TYPE, type_of, types_of  # noqa: E402
@@ -291,6 +292,7 @@ def limits() -> dict[str, Any]:
         "radio": {"nameMax": MAX_NAME, "frequenciesMax": MAX_FREQUENCIES},
         "mercury": {"version": mercury.VERSION, "mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
         "soundCard": {"version": direwolf.VERSION, "levelMax": direwolf.LEVEL_MAX, "levelLow": direwolf.LEVEL_LOW, "levelHigh": direwolf.LEVEL_HIGH, "levelGood": list(direwolf.LEVEL_GOOD), "txGainMinDb": direwolf.TX_GAIN_MIN_DB, "txGainMaxDb": direwolf.TX_GAIN_MAX_DB},
+        "layers": {"aircraftReceiverAgeSec": layerthing.AIRCRAFT_RECEIVER_AGE_SEC, "aircraftServiceAgeSec": layerthing.AIRCRAFT_SERVICE_AGE_SEC, "shipsAgeSec": layerthing.SHIPS_AGE_SEC, "aisPort": layerthing.AIS_PORT},
     }
 
 
@@ -310,7 +312,7 @@ def _object(value: Any, indent: int = 0) -> str:
 
 def _limits_block() -> str:
     return ("/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message "
-            "lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay). */\n"
+            "lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay, how old a thing of a layer of traffic may be). */\n"
             f"export const LIMITS = {_object(limits())} as const;\n")
 
 
@@ -322,6 +324,8 @@ def lists_text() -> str:
         _array("MESSAGE_TYPES", sorted(protocol.MESSAGE_NAMES), "Every message the daemon sends (the `type` of the Message union)."),
         _array("CONFIG_KEYS", CONFIG_KEYS, "The keys of the settings, in the order of the settings form (CONFIG_KEYS of neoaprs/web/views.py): the keys of `config.values`."),
         _array("RADIO_STATION_KEYS", RADIO_STATION_KEYS, "The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`."),
+        _array("AIRCRAFT_SOURCES", layerthing.AIRCRAFT_SOURCES, "Where the map's aircraft may come from, the list of Settings, Map in its order (AIRCRAFT_SOURCES of neoaprs/layerthing.py): `map.layers` says which a station is offered."),
+        _array("SHIP_SOURCES", layerthing.SHIP_SOURCES, "Where the map's ships may come from (SHIP_SOURCES of neoaprs/layerthing.py); `fintraffic` is offered only where the map's circle reaches its waters (`map.layers`)."),
         _profiles(),
         _radio_types(),
         _symbol_names(),

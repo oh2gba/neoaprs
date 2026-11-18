@@ -11,7 +11,7 @@ The docstrings and field descriptions are the documentation: `scripts/gen-protoc
 Nothing else in the repository describes the format.
 
 This module holds the two unions, the value of each topic (`TopicValues`) and the validators made from them. The models themselves are in the `neoaprs/web/*wire.py` modules, one for each area
-(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the replay of the map, the base map, the GPS, the iGate, local info (QRU), asking around (the general queries), Update now, what the page reports about itself), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
+(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the replay of the map, the base map, the map's layers of traffic, the GPS, the iGate, local info (QRU), asking around (the general queries), Update now, what the page reports about itself), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
 
 Conventions: every time is UTC ISO 8601 ending in `Z` (`2026-10-21T12:00:00Z`); a station is referred to by its call and a packet by its id, never by a position in a list; the models are strict
 (no `"5"` for 5, no `1` for true) and reject fields they do not know. pydantic lives in `neoaprs/web/` only: the rest of `neoaprs/` stays free of it.
@@ -29,6 +29,7 @@ from .igatewire import IgateState
 from .historywire import PacketHistory, PacketHistoryMsg, PacketStats, PacketStatsMsg, SignalSeries, SignalSeriesMsg, SpeedSeries, SpeedSeriesMsg
 from .hostwire import AskStatus, CheckUpdate, Error, Hello, Ping, Pong, ReleaseNotes, ReleaseNotesMsg, Status, UpdateResultMsg
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
+from .layerwire import LayerLook, LayerThingsMsg
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapState, MapWanted
 from .messagewire import AlertResultMsg, AlertTest, ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, MessageRow, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage, StationKey
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBulletinRow, OwnObjectRow
@@ -49,7 +50,7 @@ from .wirebase import _Command, _Message, _Model
 
 # ---- Client to server
 AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PacketStats, PositionHistory, SpeedSeries, SignalSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, SkedsWanted, SkedPost, SkedDelete, PageError,
-                   RadioAdd, RadioRemove, RadioChange, RadioTune, RadioKeyTest, RadioScope, RadioLevel, StationRadio, Frequencies, StationTrack]
+                   RadioAdd, RadioRemove, RadioChange, RadioTune, RadioKeyTest, RadioScope, RadioLevel, StationRadio, Frequencies, StationTrack, LayerLook]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -73,7 +74,7 @@ class TopicValues(_Model):
     bulletins: dict[str, BulletinRow] = Field(description="the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`")
     own_objects: dict[str, OwnObjectRow] = Field(description="the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations`")
     own_bulletins: dict[str, OwnBulletinRow] = Field(description="the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`)")
-    map: MapState = Field(description="the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, and the ALOHA circle; told whole as it changes, at most four times a second")
+    map: MapState = Field(description="the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, the ALOHA circle, and the layers of traffic; told whole as it changes, at most four times a second")
     update: UpdateState = Field(description="Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second")
     gps: GpsState = Field(description="the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second")
     igate: IgateState = Field(description="the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second")
@@ -90,7 +91,7 @@ TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"radios": TypeAdapter(RadioRow), "
 
 
 # ---- Server to client
-AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PacketStatsMsg, PositionHistoryMsg, SpeedSeriesMsg, SignalSeriesMsg, StationTrafficMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg, StationAlertMsg, RadioAddedMsg, StationTrackMsg, RadioLevelMsg]
+AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PacketStatsMsg, PositionHistoryMsg, SpeedSeriesMsg, SignalSeriesMsg, StationTrafficMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg, StationAlertMsg, RadioAddedMsg, StationTrackMsg, RadioLevelMsg, LayerThingsMsg]
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""
 

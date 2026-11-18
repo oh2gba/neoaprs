@@ -1,8 +1,9 @@
-"""The base map on the wire: the topic `map` (what the map files are, and what the job that makes them is doing) and the commands that start and end a job. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""The base map on the wire: the topic `map` (what the map files are, what the job that makes them is doing, and the layers of traffic: layerwire.py) and the commands that start and end a job. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
 from typing import Literal
 
 from pydantic import Field
 
+from .layerwire import MapLayer
 from .wirebase import Iso, _Command, _Model
 
 Box = list[float]
@@ -50,7 +51,7 @@ class AlohaCircle(_Model):
 
 
 class MapState(_Model):
-    """The base map: the files, the area and detail the settings ask for, the size estimated, and the job that is running. The value of the topic `map`, told whole at most four times a second."""
+    """The base map: the files, the area and detail the settings ask for, the size estimated, the job that is running, the ALOHA circles and the layers of traffic. The value of the topic `map`, told whole at most four times a second."""
     state: Literal["none", "estimating", "downloading", "ready", "error"] = Field(
         description="`none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were")
     step: Literal["", "build", "world", "area"] = Field(
@@ -69,6 +70,7 @@ class MapState(_Model):
     later: bool = Field(description="the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there")
     aloha: list[AlohaCircle] = Field(description="the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of "
                                                  "the boxes; none without a position")
+    layers: list[MapLayer] = Field(description="the layers of traffic, the aircraft and then the ships: where each one's things come from now, what Settings offers, and an own receiver's state")
 
 
 class MapEstimate(_Command):
