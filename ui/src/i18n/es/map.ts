@@ -16,6 +16,7 @@ export const map: Readonly<Record<keyof typeof en, Message>> = {
   "map.credits.show": "Créditos del mapa y los símbolos",
   "map.credits.symbols": "Símbolos APRS: juego de aprs.fi de Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
   "map.credits.devices": "Nombres de dispositivos: lista de identificación APRS de Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.aircraft": "Formas de aviones: tar1090 de Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 o posterior",
 
   "map.menu_label": "Mapa",
   "map.menu.copy_position": "Copiar la posición {place}",

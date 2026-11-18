@@ -15,6 +15,8 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.card.label": "Station",
   "station.card.qrz_title": "QRZ-pagina van deze roepnaam openen",
+  "station.card.size_title":
+    "Sleep om het kaartje te verplaatsen, de randen om het van maat te veranderen (Alt+pijltjestoetsen verplaatsen het kaartje met de focus, Ctrl+Alt+pijltjestoetsen veranderen de maat)",
   "station.card.drag_title": "Sleep om het kaartje te verplaatsen (Alt+pijltjestoetsen verplaatsen het kaartje met de focus)",
   "station.card.edit": "Bewerken",
   "station.card.kill": "Intrekken",

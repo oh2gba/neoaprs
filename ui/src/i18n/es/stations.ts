@@ -14,6 +14,8 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
 
   "station.card.label": "Estación",
   "station.card.qrz_title": "Abrir la página de QRZ de este indicativo",
+  "station.card.size_title":
+    "Arrastrar para mover la ficha, sus bordes para cambiar su tamaño (Alt+flechas mueven la ficha enfocada, Ctrl+Alt+flechas cambian su tamaño)",
   "station.card.drag_title": "Arrastrar para mover la ficha (Alt+flechas mueven la ficha enfocada)",
   "station.card.edit": "Editar",
   "station.card.kill": "Retirar",

@@ -15,6 +15,7 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.card.label": "Estação",
   "station.card.qrz_title": "Abrir a página do QRZ deste indicativo",
+  "station.card.size_title": "Arraste para mover o cartão, as bordas para dimensioná-lo (Alt+setas movem o cartão em foco, Ctrl+Alt+setas o dimensionam)",
   "station.card.drag_title": "Arraste para mover o cartão (Alt+setas movem o cartão em foco)",
   "station.card.edit": "Editar",
   "station.card.kill": "Encerrar",

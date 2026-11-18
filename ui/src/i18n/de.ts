@@ -701,6 +701,8 @@ export const de: Catalogue = {
 
   "station.card.label": "Station",
   "station.card.qrz_title": "Die QRZ-Seite dieses Rufzeichens öffnen",
+  "station.card.size_title":
+    "Zum Verschieben ziehen, an den Rändern zur Größenänderung (Alt+Pfeiltasten verschieben die fokussierte Karte, Strg+Alt+Pfeiltasten ändern ihre Größe)",
   "station.card.drag_title": "Zum Verschieben ziehen (Alt+Pfeiltasten verschieben die fokussierte Karte)",
   "station.card.edit": "Bearbeiten",
   "station.card.kill": "Zurückziehen",
@@ -953,6 +955,7 @@ export const de: Catalogue = {
   "map.credits.show": "Quellen von Karte und Symbolen",
   "map.credits.symbols": "APRS-Symbole: aprs.fi-Satz von Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
   "map.credits.devices": "Gerätenamen: APRS-Geräteliste von Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.aircraft": "Flugzeugformen: tar1090 von Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 oder später",
 
   // layers
   "layers.aircraft": "Flugzeuge",
@@ -1768,8 +1771,10 @@ export const de: Catalogue = {
     "Fintraffic deckt die Gewässer Finnlands ab und steht nur zur Wahl, wo deine Karte sie erreicht. Oder nimm einen eigenen Empfänger.",
   "layers.settings.ships_tip2": "Schiffe erscheinen auf der Karte, wenn Schiffe im Ebenen-Feld angehakt ist.",
   "layers.receiver.own": "Mein eigener Empfänger",
+  "layers.receiver.readsb": "tar1090 oder dump1090",
   "layers.receiver.address": "Adresse des Empfängers",
   "layers.receiver.empty": "Dieser Computer",
+  "layers.receiver.radarcape_tip": "Die Adresse deines Radarcape in deinem Netzwerk.",
   "layers.receiver.aircraft_tip_label": "Über die Adresse des Empfängers",
   "layers.receiver.aircraft_tip1": "Die Webadresse deines Flugzeugempfängers oder Name oder Nummer seines Computers.",
   "layers.receiver.aircraft_tip2": "Leer lassen, wenn der Empfänger auf diesem Computer läuft.",

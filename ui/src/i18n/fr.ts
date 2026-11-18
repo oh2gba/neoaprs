@@ -686,6 +686,8 @@ export const fr: Catalogue = {
 
   "station.card.label": "Station",
   "station.card.qrz_title": "Ouvrir la page QRZ de cet indicatif",
+  "station.card.size_title":
+    "Faire glisser pour déplacer la fiche, ses bords pour la redimensionner (Alt+flèches déplacent la fiche ayant le focus, Ctrl+Alt+flèches la redimensionnent)",
   "station.card.drag_title": "Faire glisser pour déplacer la fiche (Alt+flèches déplacent la fiche ayant le focus)",
   "station.card.edit": "Modifier",
   "station.card.kill": "Retirer",
@@ -938,6 +940,7 @@ export const fr: Catalogue = {
   "map.credits.show": "Crédits de la carte et des symboles",
   "map.credits.symbols": "Symboles APRS : jeu aprs.fi de Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
   "map.credits.devices": "Noms des appareils : liste d'identification APRS de Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.aircraft": "Formes des avions : tar1090 de Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 ou ultérieure",
 
   "map.menu_label": "Carte",
   "map.menu.copy_position": "Copier la position {place}",
@@ -2223,8 +2226,10 @@ export const fr: Catalogue = {
     "Fintraffic couvre les eaux de la Finlande et n'est proposé que là où votre carte les atteint. Ou utilisez un récepteur à vous.",
   "layers.settings.ships_tip2": "Les navires s'affichent sur la carte quand Navires est coché dans la boîte Couches.",
   "layers.receiver.own": "Mon propre récepteur",
+  "layers.receiver.readsb": "tar1090 ou dump1090",
   "layers.receiver.address": "Adresse du récepteur",
   "layers.receiver.empty": "Cet ordinateur",
+  "layers.receiver.radarcape_tip": "L'adresse de votre Radarcape sur votre réseau.",
   "layers.receiver.aircraft_tip_label": "À propos de l'adresse du récepteur",
   "layers.receiver.aircraft_tip1": "L'adresse web de votre récepteur d'avions, ou le nom ou le numéro de son ordinateur.",
   "layers.receiver.aircraft_tip2": "Laissez vide quand le récepteur tourne sur cet ordinateur.",

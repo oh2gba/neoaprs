@@ -17,6 +17,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.credits.show": "Kartan ja symbolien tekijätiedot",
   "map.credits.symbols": "APRS-symbolit: Heikki Hannikaisen, OH7LZB, aprs.fi-sarja (github.com/hessu/aprs-symbols)",
   "map.credits.devices": "Laitenimet: Hessun, OH7LZB, APRS-laitetunnisteluettelo (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.aircraft": "Ilma-alusten muodot: tar1090, Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 tai uudempi",
 
   "map.menu_label": "Kartta",
   "map.menu.copy_position": "Kopioi sijainti {place}",

@@ -17,6 +17,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.credits.show": "地図とシンボルのクレジット",
   "map.credits.symbols": "APRSシンボル: Heikki Hannikainen, OH7LZB によるaprs.fiセット(github.com/hessu/aprs-symbols)",
   "map.credits.devices": "機器名: Hessu, OH7LZB による APRS機器識別リスト(github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.aircraft": "航空機の形状: Matthias Wirth による tar1090(github.com/wiedehopf/tar1090), GPL 2 以降",
 
   "map.menu_label": "地図",
   "map.menu.copy_position": "位置 {place} をコピー",

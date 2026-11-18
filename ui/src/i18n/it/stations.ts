@@ -14,6 +14,8 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
 
   "station.card.label": "Stazione",
   "station.card.qrz_title": "Apri la pagina QRZ di questo nominativo",
+  "station.card.size_title":
+    "Trascina per spostare la scheda, i suoi bordi per ridimensionarla (Alt+frecce spostano la scheda con il focus, Ctrl+Alt+frecce la ridimensionano)",
   "station.card.drag_title": "Trascina per spostare la scheda (Alt+frecce spostano la scheda con il focus)",
   "station.card.edit": "Modifica",
   "station.card.kill": "Rimuovi",

@@ -15,6 +15,8 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.card.label": "Asema",
   "station.card.qrz_title": "Avaa tämän kutsun QRZ-sivu",
+  "station.card.size_title":
+    "Vedä siirtääksesi korttia, sen reunoista muuttaaksesi kokoa (Alt+nuolinäppäimet siirtävät kohdistettua korttia, Ctrl+Alt+nuolinäppäimet muuttavat sen kokoa)",
   "station.card.drag_title": "Vedä siirtääksesi korttia (Alt+nuolinäppäimet siirtävät kohdistettua korttia)",
   "station.card.edit": "Muokkaa",
   "station.card.kill": "Poista",

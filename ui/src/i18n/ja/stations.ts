@@ -15,6 +15,7 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.card.label": "局",
   "station.card.qrz_title": "このコールサインのQRZページを開く",
+  "station.card.size_title": "ドラッグしてカードを移動、端をドラッグしてサイズ変更（Alt+矢印キーでフォーカス中のカードを移動、Ctrl+Alt+矢印キーでサイズ変更）",
   "station.card.drag_title": "ドラッグしてカードを移動（Alt+矢印キーでフォーカス中のカードを移動）",
   "station.card.edit": "編集",
   "station.card.kill": "キル",
