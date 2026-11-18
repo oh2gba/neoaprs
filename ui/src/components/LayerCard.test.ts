@@ -40,7 +40,8 @@ function make(thing: OpenThing | null, rows: ReturnType<typeof station>[] = [], 
 
 const plane: OpenThing = { layer: "aircraft", thing: aircraft({ at: ago(12) }), source: "adsblol" };
 const boat: OpenThing = { layer: "ships", thing: ship({ at: ago(65), name: "" }), source: "receiver" };
-const fields = (card: Element | null) => [...(card?.querySelectorAll("dt") ?? [])].map((dt) => `${dt.textContent}: ${dt.nextElementSibling?.textContent}`);
+const fields = (card: Element | null) =>
+  [...(card?.querySelectorAll("dt:not(.layercard-room)") ?? [])].map((dt) => `${dt.textContent}: ${dt.nextElementSibling?.textContent}`);
 
 afterEach(() => document.body.replaceChildren());
 
@@ -61,6 +62,25 @@ describe("the card of an aircraft or a ship", () => {
       "Age: 12 s",
       "Source: adsb.lol",
     ]);
+  });
+
+  it("keeps the room of every label it may have in an unseen first row, so that the values stand still while a row comes and goes", () => {
+    const room = make(plane).wrapper.find(".layercard .card-fields > dt.layercard-room");
+    expect(room.attributes("aria-hidden")).toBe("true");
+    expect(room.findAll("span").map((label) => label.text())).toEqual([
+      "Registration",
+      "Type",
+      "From",
+      "To",
+      "Altitude",
+      "Vertical speed",
+      "Speed",
+      "Heading",
+      "Age",
+      "Source",
+    ]);
+    expect(room.element.nextElementSibling?.matches("dd.layercard-room")).toBe(true);
+    expect(room.element.previousElementSibling).toBeNull();
   });
 
   it("has the aircraft's own shape in its head, pointing north, also where it gives no direction, and a ship's hull", () => {

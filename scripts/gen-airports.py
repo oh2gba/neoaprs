@@ -28,8 +28,8 @@ CODE_LENGTH = 4
 
 def code_of(row: dict[str, str]) -> str:
     """The airport's ICAO code, upper case: `icao_code`, else `gps_code`, else `ident`; "" when that is not four letters or digits."""
-    code = next((value.strip().upper() for value in (row.get("icao_code", ""), row.get("gps_code", ""), row.get("ident", "")) if value.strip()), "")
-    return code if len(code) == CODE_LENGTH and code.isascii() and code.isalnum() else ""
+    code = next((value.strip() for value in (row.get("icao_code", ""), row.get("gps_code", ""), row.get("ident", "")) if value.strip()), "")
+    return code.upper() if len(code) == CODE_LENGTH and code.isascii() and code.isalnum() else ""
 
 
 def place_of(row: dict[str, str]) -> str:

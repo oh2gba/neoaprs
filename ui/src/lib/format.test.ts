@@ -145,6 +145,7 @@ describe("the numbers and words of another language", () => {
     expect(positionText(60.17, -24.94)).toBe("60,17000 N 24,94000 W");
     expect(distanceText(1.25)).toBe("1,3");
     expect(bytesText(1536)).toBe("1,5 kB");
+    expect([verticalText(3.2), verticalText(-10.7), verticalText(0)]).toEqual(["+3,2 m/s", "\u221210,7 m/s", "0 m/s"]);
     expect(agoWords(ago(120), NOW)).toBe("vor 2 min");
     expect(ageText(ago(7200), NOW)).toBe("2 h");
     expect(processText(0.3, 56.4, 3 * 3600)).toBe("NeoAPRS belegt 0,3 % eines Prozessorkerns und 56 MB Arbeitsspeicher, in Betrieb seit 3 h");

@@ -42,8 +42,8 @@ const airport = (code: string, place: string): string => (code === "" ? "" : pla
 const from = (thing: LayerThing): Part => [t("layers.card.from"), airport(thing.origin, thing.origin_place)];
 const to = (thing: LayerThing): Part => [t("layers.card.to"), airport(thing.destination, thing.destination_place)];
 
-/** The card's rows, the source last. */
-export function cardRows(layer: LayerName, thing: LayerThing, source: SourceName, nowMs: number): ThingRow[] {
+/** Every row a card of the layer may have, in its order, the source last; one that has nothing to say has no text. */
+function partsOf(layer: LayerName, thing: LayerThing, source: SourceName, nowMs: number): Part[] {
   const kind = shipKind(thing.ship_type);
   const parts: Part[] =
     layer === "aircraft"
@@ -59,8 +59,14 @@ export function cardRows(layer: LayerName, thing: LayerThing, source: SourceName
           age(thing, nowMs),
         ]
       : [[t("station.field.kind"), kind === null ? null : t(kind)], speed(thing), course(thing), destination(thing), age(thing, nowMs)];
-  return [...rowsOf(parts), { label: t("layers.card.source"), text: sourceText(source) }];
+  return [...parts, [t("layers.card.source"), sourceText(source)]];
 }
+
+/** The card's rows, the source last. */
+export const cardRows = (layer: LayerName, thing: LayerThing, source: SourceName, nowMs: number): ThingRow[] => rowsOf(partsOf(layer, thing, source, nowMs));
+
+/** The label of every row a card of the layer may have: the card keeps the room of the widest, so that its values stand still while a row comes and goes. */
+export const cardLabels = (layer: LayerName, thing: LayerThing, source: SourceName): string[] => partsOf(layer, thing, source, 0).map(([label]) => label);
 
 /** The hover box's rows: the few facts at a glance. */
 export function hoverRows(layer: LayerName, thing: LayerThing, nowMs: number): ThingRow[] {

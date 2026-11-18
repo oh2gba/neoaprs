@@ -271,6 +271,18 @@
 .layercard .card-fields dd {
   font-variant-numeric: tabular-nums;
 }
+/* the unseen first row that gives the labels' column the width of the widest label the card may have; the list starts its own gap higher, so that the row takes no room */
+.layercard .card-fields {
+  padding-top: 4px;
+}
+.layercard-room {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+.layercard-room span {
+  display: block;
+}
 
 .mapnote-box {
   display: flex;

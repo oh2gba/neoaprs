@@ -8,6 +8,7 @@ An aircraft's card says more, and aircraft are larger on the map.
 - **New:** an aircraft's card shows its vertical speed.
 - **Changed:** aircraft are drawn larger on the map.
 - **Changed:** in Settings, Map your own aircraft receiver is called My own receiver, as for ships.
+- **Changed:** the card of a Radarcape's aircraft names Radarcape as its source.
 
 ## 0.21.1
 

@@ -9,7 +9,7 @@ export const layertraffic: Record<keyof typeof source, Message> = {
   "layers.card.type": "Tyyppi",
   "layers.card.from": "Lähtö",
   "layers.card.to": "Määränpää",
-  "layers.card.vertical": "Nousu- ja laskunopeus",
+  "layers.card.vertical": "Pystynopeus",
   "layers.card.heading": "Suunta",
   "layers.card.destination": "Määränpää",
   "layers.card.age": "Ikä",

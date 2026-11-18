@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardRows, hoverRows, thingSub, thingTitle } from "@/lib/layers/card";
+import { cardLabels, cardRows, hoverRows, thingSub, thingTitle } from "@/lib/layers/card";
 import { shipKind } from "@/lib/layers/shipkinds";
 import { NOW, ago } from "@/test/fixtures";
 import { aircraft, ship } from "@/test/layerfixtures";
@@ -90,6 +90,14 @@ describe("the card of a thing: its rows", () => {
 
   it("prints a Radarcape's 16 050 ft, which the daemon sends as 4892 m, as 4892 m", () => {
     expect(pairs(cardRows("aircraft", aircraft({ altitude_m: 4892, at: ago(1) }), "radarcape", NOW))).toContainEqual(["Altitude", "4892 m"]);
+  });
+
+  it("names every row a card of its layer may have, whatever the thing tells now, so that the card can keep the room of the widest label", () => {
+    const bare = aircraft({ name: "", registration: "", type: "", altitude_m: null, vertical_ms: null, speed_kmh: null, heading_deg: null, at: ago(1) });
+    const all = ["Registration", "Type", "From", "To", "Altitude", "Vertical speed", "Speed", "Heading", "Age", "Source"];
+    expect(cardLabels("aircraft", bare, "receiver")).toEqual(all);
+    expect(cardLabels("aircraft", aircraft({ at: ago(1), origin: "ESSA", destination: "EFHK", vertical_ms: 3.2 }), "radarcape")).toEqual(all);
+    expect(cardLabels("ships", ship({ at: ago(1) }), "fintraffic")).toEqual(["Kind", "Speed", "Course", "Destination", "Age", "Source"]);
   });
 
   it("has a ship's kind, speed, course, destination and age, then the source", () => {

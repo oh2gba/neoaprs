@@ -22,9 +22,9 @@ PERMANENT_ALERT = 3                                          # `alr`: a squawk o
 
 
 def _airport(value: Any) -> str:
-    """An airport's ICAO code, upper case: four letters or digits once trimmed; anything else is none."""
-    code = text_of(value).upper()
-    return code if len(code) == AIRPORT_CODE_LENGTH and code.isascii() and code.isalnum() else ""
+    """An airport's ICAO code, upper case: four ASCII letters or digits once trimmed; anything else is none (looked at as it came: a letter that only upper-casing would make ASCII is no code)."""
+    code = value.strip() if isinstance(value, str) else ""
+    return code.upper() if len(code) == AIRPORT_CODE_LENGTH and code.isascii() and code.isalnum() else ""
 
 
 def _squawk(value: Any) -> str:

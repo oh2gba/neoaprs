@@ -129,11 +129,11 @@ export function altitudeText(m: number | null): string {
   return m === null ? NONE : `${Math.round(m)} m`;
 }
 
-/** A vertical speed in metres a second with one decimal and its sign, a real minus sign for a descent; level flight is a plain 0; a dash for none. */
+/** A vertical speed in metres a second with one decimal in the language's own form and its sign, a real minus sign for a descent; level flight is a plain 0; a dash for none. */
 export function verticalText(ms: number | null): string {
   if (ms === null) return NONE;
-  const text = Math.abs(ms).toFixed(1);
-  return text === "0.0" ? "0 m/s" : `${ms < 0 ? "\u2212" : "+"}${text} m/s`;
+  const tenths = Math.round(Math.abs(ms) * 10) / 10;
+  return tenths === 0 ? "0 m/s" : `${ms < 0 ? "\u2212" : "+"}${formatNumber(tenths, 1)} m/s`;
 }
 
 /** The digipeaters of a path, as the packet would carry them. */

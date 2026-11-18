@@ -132,8 +132,9 @@ def test_a_radarcape_is_asked_at_its_one_place_and_one_with_no_address_is_not_lo
 @pytest.mark.parametrize(("extra", "origin", "destination"), [
     ({}, "ESSA", "EFHK"), ({"org": None}, "", "EFHK"), ({"dst": None}, "ESSA", ""), ({"org": None, "dst": None}, "", ""), ({"org": 1234, "dst": 5678}, "", ""),
     ({"org": "ESSAX", "dst": "EFH"}, "", ""), ({"org": "essa", "dst": "efhk"}, "ESSA", "EFHK"), ({"org": " ESSA ", "dst": "  efhk"}, "ESSA", "EFHK"), ({"org": "E S", "dst": "----"}, "", ""),
-    ({"org": "", "dst": "    "}, "", ""), ({"org": "ÄÖÅÄ", "dst": ["EFHK"]}, "", "")],
-    ids=["both", "no origin", "no destination", "null both", "numbers", "too long or short", "lower case", "spaces", "not letters", "empty", "not ASCII"])
+    ({"org": "", "dst": "    "}, "", ""), ({"org": "ÄÖÅÄ", "dst": ["EFHK"]}, "", ""),
+    ({"org": "EDß", "dst": "essı"}, "", ""), ({"org": "ES\u00adSA", "dst": "EF\tHK"}, "", "")],
+    ids=["both", "no origin", "no destination", "null both", "numbers", "too long or short", "lower case", "spaces", "not letters", "empty", "not ASCII", "ASCII only once upper", "unseen inside"])
 def test_the_airports_of_departure_and_destination_are_kept_as_four_character_upper_case_codes_and_none_otherwise(extra: dict[str, Any], origin: str, destination: str) -> None:
     (plane,) = read(row(**extra))
     assert (plane.origin, plane.destination) == (origin, destination)

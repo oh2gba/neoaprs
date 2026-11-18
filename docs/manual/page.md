@@ -414,4 +414,6 @@ The (i) on the map shows the credits: "© OpenStreetMap contributors, Protomaps"
 
 The aircraft's shapes are from tar1090 by Matthias Wirth (<https://github.com/wiedehopf/tar1090>), licensed under the GPL, version 2 or later; only its general shapes are taken, unchanged.
 
+The places of the airports on an aircraft's card are from OurAirports (<https://ourairports.com/data/>), public domain.
+
 The symbols are the aprs.fi high-resolution symbol set by Heikki Hannikainen, OH7LZB (<https://github.com/hessu/aprs-symbols/>). The set is released to the APRS community for use by any APRS application, for free, with a request to give a pointer to the source, which is done in the (i) on the map and in a file beside the sheets. Where each symbol comes from and under what terms (many public domain or CC BY-SA, the old APRS set's originals without licence information, three company logos) is in a file beside the sheets. The sheets are unchanged.

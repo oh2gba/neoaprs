@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The card of an aircraft or a ship on the map, one more card of the station cards' row (components/StationCards.vue), in their frame, head and cross: its mark, what it is called and what kind of thing it is in the
-// head (an aircraft's kind, lib/layers/aircraftkinds.ts, a ship's hull), then what its source says of it, a row only where it has something (lib/layers/card.ts), and the source's name last. It is the map's
+// head (an aircraft's kind, lib/layers/aircraftkinds.ts, a ship's hull), then what its source says of it, a row only where it has something (lib/layers/card.ts), and the source's name last. The labels' column has the
+// width of the widest label the card may have (an unseen first row of no height holds them all), so that the values stand still while a row comes and goes. It is the map's
 // alone: nothing of a station (no Message, no path, no packets, no Forget), it cannot be pinned or dragged, and it closes with its cross (and as the page closes it: components/StationCards.vue,
 // composables/useLayerThings.ts).
 import { computed } from "vue";
@@ -8,7 +9,7 @@ import IconButton from "@/components/IconButton.vue";
 import LayerMark from "@/components/LayerMark.vue";
 import type { OpenThing } from "@/composables/useLayerThings";
 import { t } from "@/i18n";
-import { cardRows, thingSub, thingTitle } from "@/lib/layers/card";
+import { cardLabels, cardRows, thingSub, thingTitle } from "@/lib/layers/card";
 import { kindShape } from "@/lib/layers/traffic";
 
 const props = defineProps<{ open: OpenThing; now: number }>();
@@ -16,6 +17,7 @@ const emit = defineEmits<{ close: [] }>();
 
 const title = computed(() => thingTitle(props.open.layer, props.open.thing));
 const rows = computed(() => cardRows(props.open.layer, props.open.thing, props.open.source, props.now));
+const labels = computed(() => cardLabels(props.open.layer, props.open.thing, props.open.source));
 </script>
 
 <template>
@@ -32,6 +34,10 @@ const rows = computed(() => cardRows(props.open.layer, props.open.thing, props.o
     </header>
     <div class="card-body">
       <dl class="card-fields">
+        <dt class="layercard-room" aria-hidden="true">
+          <span v-for="label in labels" :key="label">{{ label }}</span>
+        </dt>
+        <dd class="layercard-room"></dd>
         <template v-for="row in rows" :key="row.label">
           <dt>{{ row.label }}</dt>
           <dd>{{ row.text }}</dd>
