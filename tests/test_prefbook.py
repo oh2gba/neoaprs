@@ -334,7 +334,7 @@ async def test_a_station_with_no_path_on_a_radio_gets_that_radios_own_path(rig: 
     r = RadioRig(rig.log, Paths(), beacon_path="WIDE1-1,WIDE2-2", station_symbol_table="/", station_symbol_code="-")
     assert r.book.path_for("OH2RDG", None, SECOND_FM) == ("WIDE2-1",), "the second FM radio's own path"
     assert r.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-2"), "radio 1's is beacon/path"
-    assert r.book.path_for("OH2RDG", None, HF_ID) == ("WIDE1-1", "WIDE2-2"), "a radio of a kind without a path setting: as before (whether its frame may carry it is the fit's to say)"
+    assert r.book.path_for("OH2RDG", None, HF_ID) == (), "a radio of a type without a path setting: the reply through a gateway, none without one (M1)"
     assert r.book.path_for("OH2RDG", None, UNKNOWN) == ("WIDE1-1", "WIDE2-2"), "a radio the settings do not have: as before"
     r.config = three_radios(replace(r.config), path="")
     assert r.book.path_for("OH2RDG", None, SECOND_FM) == ("WIDE2-2",), "an empty path of a radio is the recommended path of the station's symbol"

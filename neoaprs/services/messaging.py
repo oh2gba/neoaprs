@@ -58,7 +58,7 @@ from neoaprs.services.inbox import Inbox, shared_with
 from neoaprs.services.messageradio import MessageRadios, info, last_run, named
 from neoaprs.services.keyring import Keyring
 from neoaprs.services.pace import SPACING_SEC, Pace
-from neoaprs.services.radioset import AirRadio, RadioPick, ack_radio, path_on
+from neoaprs.services.radioset import AirRadio, RadioPick, ack_radio, reply_path_on
 from neoaprs.services.retries import Retries
 from neoaprs.signal import Signal
 from neoaprs.source import Source
@@ -325,7 +325,7 @@ class Messaging:
         c = self._config()
         radio = radio or self.message_radios.station(to)
         try:
-            frame = our_frame(c, path_on(radio, c, self._paths(to, attempt, radio.id)), field)
+            frame = our_frame(c, reply_path_on(radio, c, self._paths(to, attempt, radio.id)), field)
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
         except FRAME_ERRORS as e:

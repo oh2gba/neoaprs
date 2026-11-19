@@ -5,7 +5,7 @@ The path: the digipeaters a message (and its ack) to the station goes by way of;
 added at the end, which iGates that honour it do not put on the internet; the email gateway EMAIL-2 is on the internet and can never be RF only. They are operator data, kept in the table `station_pref` of the message log's database, read once at the start and written through; `changed` tells (call, pref) when a station's
 entry is set or changes and (call, None) when its last part is cleared and the entry is gone.
 
-A path is set on a radio: what a station is given is the path set on the radio the frame goes out on (`path_for(call, attempt, radio_id)`), else the path lately heard, else that radio's own path. A call that names no
+A radio whose type has no path setting is given the gateway's reply path instead (the route the station's latest packet on it came by through a pair call of ours), and none when there is none. A path is set on a radio: what a station is given is the path set on the radio the frame goes out on (`path_for(call, attempt, radio_id)`), else the path lately heard, else that radio's own path. A call that names no
 radio means radio 1, and the path of the entry (`Pref.path`, what the page is told) is radio 1's. The paths set on the other radios are held beside the entries and kept through a `PathLog` (the table `station_path`);
 without one there is nowhere to keep them, and setting one is refused. `path_changed` tells (call, radio id) when the path of a station on a radio is set, changes or is taken away, radio 1's too. Forgetting an
 entry (its last part cleared) forgets radio 1's path with it, never the paths on the other radios."""
@@ -57,13 +57,15 @@ class PathLog(Protocol):
 
 
 class PrefBook:
-    def __init__(self, messagelog: MessageLog, config: Callable[[], Config], heard: Callable[[str], Deliveries | None] = lambda call: None, clock: Clock = utcnow, *, paths: PathLog | None = None) -> None:
+    def __init__(self, messagelog: MessageLog, config: Callable[[], Config], heard: Callable[[str], Deliveries | None] = lambda call: None, clock: Clock = utcnow, *, paths: PathLog | None = None,
+                 gateway: Callable[[str, RadioId], tuple[str, ...]] = lambda call, radio: ()) -> None:
         self._log = messagelog
         self._path_log = paths                         # where the paths of the radios other than radio 1 are kept; None: nowhere (they cannot be set)
         self._on: dict[RadioId, dict[str, tuple[str, ...]]] = {}       # the paths set on the radios other than radio 1, by radio and call (radio 1's is the entry's own, `Pref.path`)
         self._config = config
         self._heard = heard                            # how the packets of a station reached us (the station book's Deliveries), None for a station not heard
         self._clock = clock
+        self._gateway = gateway                        # the reply path of a message to a station on a radio that carries no path (M1): through the gateway its latest packet there came by; none when it came direct
         self._own: dict[str, Pref] = {}
         self._lock = asyncio.Lock()                    # a change reads the entry and writes it back: two at once for one station must not lose one
         self.changed: Signal[[str, Pref | None]] = Signal("prefs_changed")
@@ -98,12 +100,16 @@ class PrefBook:
     def path_for(self, call: str, attempt: int | None = None, radio_id: RadioId = FM_ID) -> tuple[str, ...]:
         """The path everything we send to the station on the radio `radio_id` goes by (radio 1 when none is named): the station's own when one is set on that radio, else (for attempt number `attempt` of a
         message, 1 for the first, when it is given) the path that has lately been heard to reach the station for the first attempts (route.automatic_path), else the radio's own path (`beacon/path` for radio 1); with
-        RFONLY at the end when the station is RF only. Raises MessagingError when that would be more than 8 digipeaters ("path too long for RF only"): nothing is sent then."""
+        RFONLY at the end when the station is RF only. A radio whose type has no path setting (HF) has none of that: it gets the gateway's reply path (`gateway`, the route the station's latest packet there came by), none
+        when there is none, with RFONLY after a reply path that is not empty when the station is RF only. Raises MessagingError when that would be more than 8 digipeaters ("path too long for RF only"): nothing is sent then."""
         try:
             key = normal_name(call)
             own, path = self._own.get(key), self.path_on(key, radio_id)
         except ValueError:
             key, own, path = "", None, None
+        if (spec := self._config().radio(radio_id)) is not None and not _has_path(spec):
+            reply = self._gateway(key, radio_id)
+            return rf_only_path(reply) if reply and own is not None and own.rf_only else reply
         if path is None and attempt is not None and key != EMAIL_GATEWAY:
             path = automatic_path(self._heard(key), self._clock(), attempt)
         if path is None:
@@ -116,12 +122,11 @@ class PrefBook:
         return added
 
     def _radio_path(self, radio_id: RadioId) -> tuple[str, ...]:
-        """The radio's own path, for a station with none set on it: radio 1's (`Config.path_calls`) for radio 1, for a radio the settings do not have and for one of a kind that has no path setting (whether a
-        frame may carry a path on a radio is the fit's to say, services/radioset.py); else the radio's "path", which empty is the path its type recommends (LoRa WIDE1-1), else the recommended path of the
+        """The radio's own path, for a station with none set on it: radio 1's (`Config.path_calls`) for radio 1, and for a radio the settings do not have; else the radio's "path", which empty is the path its type recommends (LoRa WIDE1-1), else the recommended path of the
         station's symbol, and DIRECT none."""
         config = self._config()
         spec = None if radio_id == FM_ID else config.radio(radio_id)
-        if spec is None or not _has_path(spec):
+        if spec is None:
             return config.path_calls(FM_ID)
         chosen = path_choice(str(spec.value("path")))
         return tuple(c for c in (_recommended(spec) or config.recommended_path).split(",") if c) if chosen is None else chosen

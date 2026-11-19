@@ -123,6 +123,7 @@ def test_the_sender_cuts_an_objects_comment_and_refuses_what_cannot_be_cut() -> 
 
 async def test_a_message_that_the_radio_would_cut_is_refused_with_the_reason_and_a_message_that_fits_goes(tmp_path: Path) -> None:
     rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123, rtype=HF_WITH_PATHS), hf_enabled=True, fm_enabled=False, beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")        # (a radio with a frame cap that carries paths: over HF itself no path goes, and the longest message, 67 characters to a 9-character addressee with a reply-ack, is 100 bytes)
+    rig.prefs._gateway = lambda call, radio: ("WIDE1-1", "WIDE2-1", "WIDE3-1", "WIDE4-1")        # (the path a radio without a path setting is given is the reply path: here four hops, to count them)
     sent = await rig.m.send("OH2RDG", "Hello Pekka")
     assert sent.state == "sending" and rig.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1::OH2RDG   :Hello Pekka{01}"]
     with pytest.raises(MessagingError) as refused:

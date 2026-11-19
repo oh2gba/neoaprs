@@ -13,12 +13,13 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import Protocol
 
-from . import VERSION, ax25, stopfile
+from . import VERSION, ax25, pairsetting, stopfile
 from .aprsis import AprsIs
 from .bulletinlog import BulletinLog
 from .claims import Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, MESSAGE_RADIOS, Config
+from .crossrule import reply_path
 from .radioedits import kept_change
 from .sendonrule import Kept
 from .db import Db
@@ -130,7 +131,7 @@ class Services:
         self.igate = Igate(self.aprsis, lambda: self.config, self.beacon_frames.position_info, lambda: self.stationbook.me_position, clock)       # the iGate (igate/enabled): what the radio hears is put on APRS-IS (with a passcode), the stations of the internet round us are read; nothing of APRS-IS goes to the radio, which this service does not have; started by the controller after the beacon; made before the queries, which answer ?IGATE? while it gates
         self._make_messaging(clock)
         self._make_map_and_update(data_dir, install, auto_map, clock)
-        self.digipeater = Digipeater(self.radios, lambda: self.config, clock)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the radio that heard it, where that radio's type may repeat and its own digipeater is on (services/digipeater.py `digi_rows`); each radio's own duplicates, burst and counts; nothing to start
+        self.digipeater = Digipeater(self.radios, lambda: self.config, clock)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the radio that heard it, where that radio's type may repeat and its own digipeater is on (services/digipeater.py `digi_rows`); each radio's own duplicates, burst and counts, and the rows between two radios of a pair (services/passrows.py); started by the controller for the frame that waits for a slow radio
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
         self.igate.made_up = lambda: any(radio.line.is_dummy for radio in self.radios.enabled())       # (a Dummy radio that is on makes up its traffic: neither it nor our position goes to APRS-IS)
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
@@ -183,7 +184,7 @@ class Services:
         """The parts that keep rows in the database, and the board and the preferences kept with them."""
         self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database
         self.messagelog = MessageLog(clock=clock)                       # every message we sent and every one sent to us, in the database
-        self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock, paths=self.messagelog)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
+        self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock, paths=self.messagelog, gateway=self._gateway_path)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
         self.keyring = Keyring(self.data_dir, self.messagelog, clock, allowed=self.encryption)      # the keys of encrypted messages: ours in the data folder, the stations' with the messages; read by the controller before messaging starts
         self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
         self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
@@ -245,6 +246,13 @@ class Services:
         """How the packets of the station reached us, for the path of a message to it (None for a station not in the book)."""
         found = self.stationbook.get(call)
         return None if found is None else found.deliveries
+
+    def _gateway_path(self, call: str, radio: RadioId) -> tuple[str, ...]:
+        """The reply path of a message or ack to the station on a radio that carries no path: through the gateway its latest packet there came by (crossrule.reply_path)."""
+        found = self.stationbook.get(call)
+        if found is None:
+            return ()
+        return reply_path(found.heard_on(radio).last_path, pairsetting.own_calls(self.config.station_call, self.config.pairs))
 
     async def _radio_ports(self) -> list[str]:
         """The ports Find my radio tries: those of the search for the radio, as the search has them now (what the other radios hold or are set to, the finder leaves out by the station's table)."""

@@ -10,7 +10,7 @@ from neoaprs import ax25
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.radiospec import log_name
 from neoaprs.radiotype import FM_ID, HF_ID
-from neoaprs.services.radioset import NO_RADIO, SendError, fit, fixed_prefix
+from neoaprs.services.radioset import NO_RADIO, SendError, fit, fixed_prefix, reply_path_on
 from neoaprs.services.sender import Sender
 from tests.support.seamshapes import FrozenAir, RegistryShape, frozen_air
 
@@ -38,6 +38,12 @@ def test_a_radio_that_may_carry_no_path_sends_every_frame_direct_whatever_path_i
     assert not hf.allowed.paths
     for path in (None, (), ("WIDE1-1",), ("OH2RCH-2", "WIDE2-1")):
         assert fit(hf, STATION, b">status", path).path == (), path
+
+
+def test_a_reply_path_is_taken_by_a_radio_that_carries_none_and_the_radios_own_rules_by_one_that_does() -> None:
+    hf, fm = radio(STATION, HF_ID), radio(STATION, FM_ID)
+    assert reply_path_on(hf, STATION, ("OH2GBA-12", "WIDE2-1")) == ("OH2GBA-12", "WIDE2-1") and reply_path_on(hf, STATION, None) == () and reply_path_on(hf, STATION, ()) == ()
+    assert reply_path_on(fm, STATION, ("OH2RCH-2",)) == ("OH2RCH-2",) and reply_path_on(fm, STATION, None) == ("WIDE1-1", "WIDE2-1")
 
 
 def test_the_fm_radio_takes_the_path_given_and_its_own_when_none_is() -> None:

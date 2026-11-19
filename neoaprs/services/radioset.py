@@ -137,6 +137,11 @@ def path_on(radio: AirRadio, config: Config, path: tuple[str, ...] | None) -> tu
     return tuple(c for c in (recommended_path(radio.kind) or config.recommended_path).split(",") if c) if chosen is None else chosen
 
 
+def reply_path_on(radio: AirRadio, config: Config, path: tuple[str, ...] | None) -> tuple[str, ...]:
+    """The digipeaters of a message or an ack of ours on the radio: path_on's, except on a radio that carries no path, where the path given is the reply through a gateway that the station book gave (M1), or none."""
+    return path_on(radio, config, path) if radio.allowed.paths else path or ()
+
+
 def fit(radio: AirRadio, config: Config, info: bytes, path: tuple[str, ...] | None) -> ax25.Frame:
     """Our frame with this information field for the radio (plan §2: the one fit function): from station/call by `path_on`, its comment cut to what the radio carries whole (said in the log). SendError when
     the settings and the values make no frame."""
