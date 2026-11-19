@@ -17,7 +17,7 @@ from neoaprs.source import Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncwatchdog import TncStats as LineStats
 
-from .tncwire import RadioProblem, RadioRow, TncStats
+from .tncwire import RadioProblem, RadioRow, stats_row
 from .views import LINES_MAX, modem_state
 from .wirebase import plain
 
@@ -67,7 +67,7 @@ def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | 
     card = None if line is None or radio is None else radio.driver.card
     return RadioRow.row(
         spec, enabled=spec.enabled and not spec.removed, number=number_in_kind(spec, specs), removed=spec.removed, dummy=rtype.dummy, state=radio_state(line),
-        problem=radio_problem(spec, specs, line, claims), stats=TncStats.row(LineStats() if line is None else line.stats), lines=lines, limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
+        problem=radio_problem(spec, specs, line, claims), stats=stats_row(LineStats() if line is None else line.stats), lines=lines, limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
         allowed=plain(rtype.allowed), can=plain(rtype.can), choices=_choices(spec, rtype), beacon=_beacon(spec, None if radio is None or spec.removed else radio.beacon),
         status=_status(spec, status),
         modem=None if line is None else modem_state(line), card=_card(card), holds=[{"resource": c.kind, "value": c.value} for c in claims.all() if c.holder == spec.id])

@@ -59,6 +59,7 @@ def wire(parts: Services) -> None:
         parts.internet_packet.connect(handler)
     for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.qruask.on_packet, parts.generalask.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
         parts.radio_packet.connect(AirOnly(on_air))               # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what any radio hears on APRS-IS, nothing comes the other way)
+    parts.digipeater.counted.connect(parts.radio_changed.emit)                          # (a frame the pairs held changes a radio's counts and no counter of its line)
     parts.aprsis.heard.connect(parts.hear_internet)               # what APRS-IS sends goes in by the one gate for packets from the internet
     parts.aprsis.changed.connect(parts.igate.link_changed)
     parts.ownobjects.changed.connect(book.own_object)

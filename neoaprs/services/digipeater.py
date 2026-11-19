@@ -14,9 +14,8 @@ delay of PERSIST and SLOTTIME, still decides when a frame is on the air: a softw
 
 The digipeater is a table of rows "heard on radio A, sent on radio B" (`DigiRow`, plan rule 3.4). Only A to A is made: one row for each enabled radio whose type may repeat (`allowed.digipeat`: no digipeater
 on HF, where every station hears every frame and a repeat would only fill the channel) and whose own `digipeat` the operator turned on (radio 1's is `digi/enabled`). A packet heard on a radio is repeated by
-the rows of that radio, and the duplicate check, the burst limit and the counts (the radio's `stats`) are each outgoing radio's own. A row from one radio to another, and its filter, are for later."""
+the rows of that radio, and the duplicate check, the burst limit and the counts (the radio's `stats`) are each outgoing radio's own. The rows from one radio to another are services/passrows.py's."""
 import logging
-from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -33,12 +32,15 @@ from neoaprs.radiotype import FM_ID, RadioId
 from neoaprs.recent import Recent
 from neoaprs.route import INTERNET_MARKERS
 from neoaprs.services.common import ConfigSource
+from neoaprs.services.passlimits import BURST_MAX, BURST_WINDOW_SEC, Burst
+from neoaprs.services.passrows import Passer
 from neoaprs.services.radioset import AirRadio, RadioPick
+from neoaprs.signal import Signal
+from neoaprs.tasks import TaskSet, every
 
 log = logging.getLogger("neoaprs.digipeater")
 
-BURST_MAX = 4
-BURST_WINDOW_SEC = 10.0
+TICK_SEC = 1.0                         # how often the frame that waits for a slow radio is looked at (services/passrows.py)
 FILL_IN = ("WIDE1", 1)
 
 
@@ -88,7 +90,19 @@ class Digipeater:
         self._interlock = Interlock(config)
         self.clock = clock
         self._seen: dict[RadioId, Recent[DuplicateKey]] = {}          # by outgoing radio: the packets heard or sent on it lately, for the duplicate check
-        self._sent: dict[RadioId, deque[datetime]] = {}             # by outgoing radio: when the latest frames it digipeated went out
+        self.burst = Burst(BURST_MAX, BURST_WINDOW_SEC)             # by outgoing radio: the frames it sent again lately, the fill-in's and the pairs' (L1)
+        self.counted: Signal[[RadioId]] = Signal("digipeater.counted")     # a radio's counts of the pairs changed (a held frame changes no counter of the line)
+        self.passer = Passer(radios, config, self._interlock, self.burst, self.counted, lambda: self.clock())
+        self.tasks = TaskSet(log, "digipeater")
+
+    async def start(self) -> None:
+        """The timer of the frame that waits for a slow radio (services/passrows.py)."""
+        self.tasks.spawn(every(TICK_SEC, self.passer.tick, "the digipeater's wait"), "digipeater-wait")
+
+    async def stop(self) -> None:
+        """The timer ends; a frame that waits is dropped, counted nothing."""
+        await self.tasks.cancel_all()
+        self.passer.drop_waiting()
 
     def seen_on(self, radio: RadioId) -> Recent[DuplicateKey]:
         """The outgoing radio's table of what was heard or sent on it lately."""
@@ -106,6 +120,7 @@ class Digipeater:
         for row in self.rows():
             if row.heard == came and (radio := self._radios.get(row.sent)) is not None:
                 self._row(radio, packet)
+        self.passer.on_packet(packet)                               # (the rows between two radios after the fill-in's)
 
     def _row(self, radio: AirRadio, packet: Packet) -> None:
         """The packet through one row, `radio` its outgoing radio."""
@@ -124,26 +139,24 @@ class Digipeater:
             return
         if (frame := repeat(heard, ours)) is None or self._interlock.refused("digipeat"):
             return
-        self._send(radio, heard, frame, spliced(packet.raw, heard, frame), now)
+        self._send(radio, heard, frame, spliced(packet.raw, heard, frame), packet, now)
 
-    def _send(self, radio: AirRadio, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, now: datetime) -> None:
+    def _send(self, radio: AirRadio, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, packet: Packet, now: datetime) -> None:
         if not radio.usable:
             log.debug("not digipeating %s: %s", heard.tnc2(), radio.why_unusable())
             return
-        sent = self._sent.setdefault(radio.id, deque(maxlen=BURST_MAX))
-        while sent and (now - sent[0]).total_seconds() >= BURST_WINDOW_SEC:
-            sent.popleft()
-        if len(sent) >= BURST_MAX:
+        if self.burst.full(radio.id, now):
             log.debug("not digipeating %s: %d frames went out in the last %g s", heard.tnc2(), BURST_MAX, BURST_WINDOW_SEC)
             radio.stats.digipeat_held += 1
             return
         if not radio.send_frame(frame, raw):
             log.warning("the digipeated frame of %s was not sent: the TNC would not take it", heard.source)
             return
-        sent.append(now)
+        self.burst.take(radio.id, now)
         radio.stats.digipeated += 1
         radio.stats.digipeated_at = now
         log.info("digipeated %s>%s: the path %s is sent as %s", heard.source, heard.destination, heard.path_text, frame.path_text)
+        self.passer.sent_on(radio, frame, raw, packet)              # (a frame sent again whose next hop is a pair's call crosses too: P6)
 
 
 def _own(call: str) -> tuple[str, int] | None:

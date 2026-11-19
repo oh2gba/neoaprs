@@ -1091,6 +1091,20 @@ export interface PageErrorCommand {
   build: string;
 }
 
+/** What the pairs of radios passed onto this radio from one other radio since the daemon started. */
+export interface PassStats {
+  /** the radio the packets were heard on, by its id */
+  heard_on: number;
+  /** frames sent on this radio */
+  sent: number;
+  /** when the latest of them went out; null for none yet */
+  sent_at: string | null;
+  /** frames left unsent by this radio's limits: the burst on a fast radio; the budget, its share for packets other than messages and acks, a station's share of messages, the 30-minute floor, a frame already waiting, or a keyed or busy channel past 30 s on a slow one */
+  held: number;
+  /** frames left unsent because they are longer than this radio carries */
+  too_long: number;
+}
+
 /** What changed in a topic: apply the ops in order; the copy is then at `rev`. An op says what the item is, not what to add, so an op that is applied twice ends where it should. Changes are told on a tick of 100 ms (a radio's row in `radios` at most four times a second): what changed between two ticks is one patch for a topic, with at most one op for each key. */
 export interface PatchMessage {
   type: "patch";
@@ -2116,12 +2130,14 @@ export interface TncStats {
   watchdog_probes: number;
   /** times the port was closed and opened again (every 5th probe of a silent radio) */
   port_reopens: number;
-  /** frames the digipeater (`digi/enabled`) sent again for other stations */
+  /** frames the digipeater sent again for other stations on this radio, the pairs' passed frames among them */
   digipeated: number;
   /** when the latest of them went out; null for none yet */
   digipeated_at: string | null;
   /** frames the digipeater left unsent because it had already sent the most it sends in a burst (`BURST_MAX` in 10 seconds) */
   digipeat_held: number;
+  /** what the pairs passed onto this radio, one entry for each radio packets came from, in the order of its id; empty while none */
+  passed: PassStats[];
 }
 
 /** The value of each topic a page follows (neoaprs/web/topics.py): what `state` carries as `value`, and what `patch` replaces. */

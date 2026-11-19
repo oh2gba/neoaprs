@@ -394,6 +394,7 @@ export function lineStats(extra: Partial<TncStats> = {}): TncStats {
     digipeated: 0,
     digipeated_at: null,
     digipeat_held: 0,
+    passed: [],
     ...extra,
   };
 }

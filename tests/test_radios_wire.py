@@ -18,6 +18,7 @@ from neoaprs.web import handlers as web_handlers
 from neoaprs.web.protocol import TOPIC_NAMES
 from neoaprs.web.tncwire import RadioRow
 from neoaprs.serialprobe import PortInfo, claim_value
+from neoaprs.tncwatchdog import PassCount
 from neoaprs.mercurymodem import Mercury
 from tests.support.env import START_SEC, Env, until
 from tests.support.wireworld import heard
@@ -310,6 +311,20 @@ async def test_the_topic_tells_a_radio_at_most_four_times_a_second(tmp_path: Pat
     await page.quiet(0.4)
     told = [op for op in page.ops("radios")[before:] if op.get("key") == "1"]
     assert 1 <= len(told) <= 6, f"a second of changes was told {len(told)} times"
+    await e.stop()
+
+
+async def test_what_the_pairs_passed_rides_the_row_of_the_radio_it_went_out_on_and_a_held_frame_is_told(tmp_path: Path) -> None:
+    e, page = await started(tmp_path)
+    radio = e.ctl.radios.get(FM_ID)
+    assert radio is not None and page.topics["radios"]["1"]["stats"]["passed"] == []
+    radio.stats.passed[HF_ID] = PassCount(sent=1, sent_at=e.ctl.clock(), held=3)
+    radio.stats.passed[3] = PassCount(too_long=1)
+    e.ctl.digipeater.counted.emit(FM_ID)                             # (a held frame changes no counter of the line: the digipeater tells it)
+    await page.until(lambda: len(page.topics["radios"]["1"]["stats"]["passed"]) == 2)
+    row = page.topics["radios"]["1"]
+    assert ROW.validate_python(row) and [(p["heard_on"], p["sent"], p["held"], p["too_long"]) for p in row["stats"]["passed"]] == [(HF_ID, 1, 3, 0), (3, 0, 0, 1)], "by the radio heard on, in the order of its id"
+    assert row["stats"]["passed"][0]["sent_at"] is not None and row["stats"]["passed"][1]["sent_at"] is None
     await e.stop()
 
 

@@ -1377,9 +1377,10 @@ What the TNC has counted since the daemon started.
 | `keepalive_checks` | integer |  | times the keep-alive checked that the radio is there (after 60 seconds of nothing heard) (>= 0) |
 | `watchdog_probes` | integer |  | times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds) (>= 0) |
 | `port_reopens` | integer |  | times the port was closed and opened again (every 5th probe of a silent radio) (>= 0) |
-| `digipeated` | integer |  | frames the digipeater (`digi/enabled`) sent again for other stations (>= 0) |
+| `digipeated` | integer |  | frames the digipeater sent again for other stations on this radio, the pairs' passed frames among them (>= 0) |
 | `digipeated_at` | time \| null |  | when the latest of them went out; null for none yet |
 | `digipeat_held` | integer |  | frames the digipeater left unsent because it had already sent the most it sends in a burst (`BURST_MAX` in 10 seconds) (>= 0) |
+| `passed` | PassStats[] |  | what the pairs passed onto this radio, one entry for each radio packets came from, in the order of its id; empty while none |
 
 ### ConfigValues
 
@@ -1879,6 +1880,18 @@ map shows; a killed one leaves that topic at once and stays here, as `killing`, 
 | `sent` | integer |  | how often it was sent since it was last changed or killed (>= 0) |
 | `last_sent_at` | time \| null |  | when it was last sent; null while it has not been sent (the call is not set, or the radio is away) |
 | `next_at` | time \| null |  | when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request` |
+
+### PassStats
+
+What the pairs of radios passed onto this radio from one other radio since the daemon started.
+
+| field | type | | description |
+|---|---|---|---|
+| `heard_on` | integer |  | the radio the packets were heard on, by its id (>= 1) |
+| `sent` | integer |  | frames sent on this radio (>= 0) |
+| `sent_at` | time \| null |  | when the latest of them went out; null for none yet |
+| `held` | integer |  | frames left unsent by this radio's limits: the burst on a fast radio; the budget, its share for packets other than messages and acks, a station's share of messages, the 30-minute floor, a frame already waiting, or a keyed or busy channel past 30 s on a slow one (>= 0) |
+| `too_long` | integer |  | frames left unsent because they are longer than this radio carries (>= 0) |
 
 ### PhgValues
 

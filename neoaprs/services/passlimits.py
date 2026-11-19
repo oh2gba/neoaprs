@@ -9,6 +9,8 @@ from neoaprs.mercury import FRAME_SEC
 from neoaprs.packet import Message, Packet
 from neoaprs.radiotype import RadioId
 
+BURST_MAX = 4                      # frames a fast radio sends again in any BURST_WINDOW_SEC, the fill-in's and the pairs' together (L1)
+BURST_WINDOW_SEC = 10.0
 SLOW_PASS_MAX = 4                  # frames a slow radio takes from the pairs in any SLOW_PASS_WINDOW_SEC (L2: 15.2 s of keying in 300 s on Mercury)
 SLOW_PASS_OTHER_MAX = 2            # of them of kind "other" (positions, status, objects, telemetry ...), so that messages and acks always keep the rest
 SLOW_PASS_PER_SOURCE = 2           # of them messages from one source (L2's share; an ack or rej is not counted in it)

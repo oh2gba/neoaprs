@@ -1,12 +1,22 @@
 """The radios on the wire: the topic `radios` (a table of rows by id, every radio of the station, removed ones too, each told at most four times a second) and the station's suggested frequencies. Models like
 the rest of the protocol, listed in `neoaprs/web/protocol.py`; the commands that name a radio are neoaprs/web/radiowire.py's."""
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
+from neoaprs.tncwatchdog import TncStats as LineStats
 from neoaprs.versions import MAX_FREQUENCIES
 
 from .wirebase import Iso, _Command, _Model
+
+
+class PassStats(_Model):
+    """What the pairs of radios passed onto this radio from one other radio since the daemon started."""
+    heard_on: int = Field(ge=1, description="the radio the packets were heard on, by its id")
+    sent: int = Field(ge=0, description="frames sent on this radio")
+    sent_at: Iso | None = Field(description="when the latest of them went out; null for none yet")
+    held: int = Field(ge=0, description="frames left unsent by this radio's limits: the burst on a fast radio; the budget, its share for packets other than messages and acks, a station's share of messages, the 30-minute floor, a frame already waiting, or a keyed or busy channel past 30 s on a slow one")
+    too_long: int = Field(ge=0, description="frames left unsent because they are longer than this radio carries")
 
 
 class TncStats(_Model):
@@ -21,9 +31,15 @@ class TncStats(_Model):
     keepalive_checks: int = Field(ge=0, description="times the keep-alive checked that the radio is there (after 60 seconds of nothing heard)")
     watchdog_probes: int = Field(ge=0, description="times the watchdog probed a silent radio (the same sequence as a check, every 30 seconds)")
     port_reopens: int = Field(ge=0, description="times the port was closed and opened again (every 5th probe of a silent radio)")
-    digipeated: int = Field(ge=0, description="frames the digipeater (`digi/enabled`) sent again for other stations")
+    digipeated: int = Field(ge=0, description="frames the digipeater sent again for other stations on this radio, the pairs' passed frames among them")
     digipeated_at: Iso | None = Field(description="when the latest of them went out; null for none yet")
     digipeat_held: int = Field(ge=0, description="frames the digipeater left unsent because it had already sent the most it sends in a burst (`BURST_MAX` in 10 seconds)")
+    passed: list[PassStats] = Field(description="what the pairs passed onto this radio, one entry for each radio packets came from, in the order of its id; empty while none")
+
+
+def stats_row(stats: LineStats) -> dict[str, Any]:
+    """The radio's counts for the wire, the pairs' by the radio heard on in the order of its id."""
+    return TncStats.row(stats, passed=[PassStats.row(count, heard_on=id) for id, count in sorted(stats.passed.items())])
 
 
 class TncLine(_Model):

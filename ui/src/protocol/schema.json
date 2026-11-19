@@ -4435,6 +4435,54 @@
       "title": "PageErrorCommand",
       "type": "object"
     },
+    "PassStats": {
+      "additionalProperties": false,
+      "description": "What the pairs of radios passed onto this radio from one other radio since the daemon started.",
+      "properties": {
+        "heard_on": {
+          "description": "the radio the packets were heard on, by its id",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sent": {
+          "description": "frames sent on this radio",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sent_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the latest of them went out; null for none yet"
+        },
+        "held": {
+          "description": "frames left unsent by this radio's limits: the burst on a fast radio; the budget, its share for packets other than messages and acks, a station's share of messages, the 30-minute floor, a frame already waiting, or a keyed or busy channel past 30 s on a slow one",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "too_long": {
+          "description": "frames left unsent because they are longer than this radio carries",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "heard_on",
+        "sent",
+        "sent_at",
+        "held",
+        "too_long"
+      ],
+      "title": "PassStats",
+      "type": "object"
+    },
     "PatchMsg": {
       "additionalProperties": false,
       "description": "What changed in a topic: apply the ops in order; the copy is then at `rev`. An op says what the item is, not what to add, so an op that is applied twice ends where it should. Changes are told\non a tick of 100 ms (a radio's row in `radios` at most four times a second): what changed between two ticks is one patch for a topic, with at most one op for each key.",
@@ -8413,7 +8461,7 @@
           "type": "integer"
         },
         "digipeated": {
-          "description": "frames the digipeater (`digi/enabled`) sent again for other stations",
+          "description": "frames the digipeater sent again for other stations on this radio, the pairs' passed frames among them",
           "minimum": 0,
           "type": "integer"
         },
@@ -8434,6 +8482,13 @@
           "description": "frames the digipeater left unsent because it had already sent the most it sends in a burst (`BURST_MAX` in 10 seconds)",
           "minimum": 0,
           "type": "integer"
+        },
+        "passed": {
+          "description": "what the pairs passed onto this radio, one entry for each radio packets came from, in the order of its id; empty while none",
+          "items": {
+            "$ref": "#/$defs/PassStats"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -8449,7 +8504,8 @@
         "port_reopens",
         "digipeated",
         "digipeated_at",
-        "digipeat_held"
+        "digipeat_held",
+        "passed"
       ],
       "title": "TncStats",
       "type": "object"

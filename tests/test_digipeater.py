@@ -41,17 +41,17 @@ class Line(StubTnc):
 
 
 class Rig(ServiceRig):
-    """The digipeater on the station's radios: radio 1 on the line `tnc` (its counters `stats`), radio 2 on `hf` (`specs` of a test's own make the radios other ones). As the registry's radios do, the
-    radios have the settings in force: a change of `config` is theirs at once (unless the test gave its own `specs`)."""
+    """The digipeater on the station's radios, each on a line of its own (`line(id)`): radio 1 on the line `tnc` (its counters `stats`), radio 2 on `hf`, any other on a new one (`specs` of a test's own make
+    the radios other ones). As the registry's radios do, the radios have the settings in force: a change of `config` is theirs at once (unless the test gave its own `specs`)."""
 
     def __init__(self, specs: tuple[RadioSpec, ...] | None = None, **changes: object) -> None:
         self.radios = RegistryShape([])
         self.own_specs = specs is not None
         super().__init__(tnc=Line(), digi_enabled=True, hf_enabled=True, **changes)
         self.hf = Line()
-        lines = {FM_ID: self.tnc, HF_ID: self.hf}
+        self.by_id: dict[RadioId, Line] = {FM_ID: self.tnc, HF_ID: self.hf}               # type: ignore[dict-item]
         specs = self.config.radios if specs is None else specs
-        self.radios.radios = [LiveShape(spec, specs, lines[spec.id]) for spec in specs]      # type: ignore[arg-type]
+        self.radios.radios = [LiveShape(spec, specs, self.line(spec.id)) for spec in specs]      # type: ignore[arg-type]
         self.stats: TncStats = self.tnc.stats                                    # type: ignore[attr-defined]
         self.digi = Digipeater(self.radios, lambda: self.config, self.clock)
 
@@ -65,8 +65,11 @@ class Rig(ServiceRig):
         for radio in [] if self.own_specs else self.radios.radios:
             radio.spec, radio.specs = config.radio(radio.id) or radio.spec, config.radios
 
-    def hear(self, f: ax25.Frame, direction: str = "in", radio_id: RadioId = FM_ID) -> Packet:
-        packet = packet_of(direction, ax25.encode(f), f, self.clock(), radio_id=radio_id)     # type: ignore[arg-type]
+    def line(self, id: RadioId) -> Line:
+        return self.by_id.setdefault(id, Line())
+
+    def hear(self, f: ax25.Frame, direction: str = "in", radio_id: RadioId | None = FM_ID, dummy: bool = False) -> Packet:
+        packet = packet_of(direction, ax25.encode(f), f, self.clock(), dummy, radio_id=radio_id)     # type: ignore[arg-type]
         self.digi.on_packet(packet)
         return packet
 

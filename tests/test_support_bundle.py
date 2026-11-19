@@ -236,17 +236,20 @@ def test_a_database_made_of_a_bundle_of_stored_radios_gets_the_same_radios_from_
 
 
 async def test_the_daemon_tells_every_radio_it_runs_with_its_line_and_its_beacon(tmp_path: Path) -> None:
+    from neoaprs.tncwatchdog import PassCount
     from neoaprs.web.supportstate import live_state
     from tests.support.env import Env
     e = Env(tmp_path, web=True)
     await e.start()
     assert e.server is not None
+    e.tnc.stats.passed[2] = PassCount(sent=1, held=2)
     state = await live_state(e.server)
     radios = {r["id"]: r for r in state["radios"]}
     assert set(radios) == {r.id for r in e.ctl.radios.all()} and 1 in radios
     fm = radios[1]
     assert (fm["kind"], fm["name"], fm["enabled"]) == ("fm", "FM", True) and fm["tnc"]["state"] == "connected" and fm["tnc"]["path"] == e.link, "radio 1's line"
     assert set(fm["beacon"]) == {"last_sent", "last_reason", "next_due", "problem"}
+    assert fm["tnc"]["stats"]["passed"] == [{"heard_on": 2, "sent": 1, "sent_at": None, "held": 2, "too_long": 0}], "what the pairs passed onto it, as the wire's list"
     members = (await asyncio.to_thread(made, tmp_path / "bundle", e.dir, running=True, live=state, by="the running daemon"))[1]      # (in a thread, as the daemon makes one)
     assert re.search(r"State:\s+connected", section(members["summary.txt"], "Radio 1: FM")) and "doctor.txt" in members
 

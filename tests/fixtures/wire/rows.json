@@ -2035,6 +2035,22 @@
     "last_packet": "2026-10-21T12:00:03Z",
     "opens": 2,
     "packets": 6,
+    "passed": [
+     {
+      "heard_on": 2,
+      "held": 1,
+      "sent": 2,
+      "sent_at": "2026-10-21T12:00:02Z",
+      "too_long": 0
+     },
+     {
+      "heard_on": 3,
+      "held": 0,
+      "sent": 0,
+      "sent_at": null,
+      "too_long": 1
+     }
+    ],
     "port_reopens": 3,
     "rejected": 0,
     "watchdog_probes": 2
@@ -2120,6 +2136,7 @@
     "last_packet": null,
     "opens": 0,
     "packets": 0,
+    "passed": [],
     "port_reopens": 0,
     "rejected": 0,
     "watchdog_probes": 0
@@ -2209,6 +2226,7 @@
     "last_packet": null,
     "opens": 0,
     "packets": 0,
+    "passed": [],
     "port_reopens": 0,
     "rejected": 0,
     "watchdog_probes": 0
@@ -2286,6 +2304,7 @@
     "last_packet": null,
     "opens": 0,
     "packets": 0,
+    "passed": [],
     "port_reopens": 0,
     "rejected": 0,
     "watchdog_probes": 0

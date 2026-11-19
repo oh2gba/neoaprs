@@ -105,8 +105,8 @@ class Controller(Services):
         await self.prefbook.load()
         await self._load_keys()                                         # (the stations' keys, and our own when encrypted messages are allowed: before messaging opens what comes in)
         self.stationalerts.load()                                       # (after the preferences and the station book: the stations as they are now are where the alerts start)
-        await self.aloha.start()
-        await self.messaging.start()
+        for start in (self.aloha.start, self.messaging.start, self.digipeater.start):
+            await start()
         await asyncio.to_thread(end_left_behind, self.data_dir)        # (a Mercury that a daemon which did not stop cleanly left running, a radio's that is off now among them)
         self.start_tnc()                                                # (last of the parts that take its packets: the source after its consumers)
         await self._start_web()
@@ -154,7 +154,7 @@ class Controller(Services):
         others, and last the Controller's own tasks."""
         return [("the page", self._stop_web), ("the map's layers", self.layers.stop), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_radios), ("the update check", self.updatecheck.stop), ("the suggested frequencies", self.frequencies.stop), ("the HF test board", self.skeds.stop), ("the ALOHA circle", self.aloha.stop),
                 ("Update now", self.selfupdate.stop), ("the automatic map", self.mapauto.stop), ("the map job", self.mapfetch.stop), ("the queries", self.queries.stop), ("the QRU server", self.qru.stop),
-                ("asking QRU", self.qruask.stop), ("messaging", self.messaging.stop), ("the alerts", self.alerts.stop), ("the status", self.rigstatus.stop), ("the bulletins of ours", self.ownbulletins.stop),
+                ("asking QRU", self.qruask.stop), ("the digipeater", self.digipeater.stop), ("messaging", self.messaging.stop), ("the alerts", self.alerts.stop), ("the status", self.rigstatus.stop), ("the bulletins of ours", self.ownbulletins.stop),
                 ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), *((BEACON_NAMES.get(radio.id) or f"the {radio.name} beacon", radio.beacon.stop) for radio in reversed(self.radios.all())), ("the GPS", self.gps.stop), ("the radio choices", self.radios.flush), ("the tasks", self.tasks.cancel_all)]
 
     # ---- the page

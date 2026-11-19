@@ -135,7 +135,7 @@ MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_cal
                                                     "internet": None, "acked": False, "radio_id": 1}]}
 PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio_id": 1, "snr": None, "rssi": None, "gate": "", "kind": "position",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
-STATS: dict[str, Any] = {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0}
+STATS: dict[str, Any] = {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0, "passed": [{"heard_on": 2, "sent": 1, "sent_at": NOW, "held": 0, "too_long": 0}]}
 AIRCRAFT: dict[str, Any] = {"id": "461f2a", "lat": 60.3172, "lon": 24.9633, "at": NOW, "heading_deg": 225, "speed_kmh": 420.5, "name": "FIN7AB", "emergency": False, "altitude_m": 2438, "vertical_ms": 3.2, "registration": "OH-LZA",
                              "type": "AIRBUS A-321", "category": "A3", "designator": "A321", "ship_type": None, "course_deg": None, "destination": "",
                              "origin": "", "origin_place": "", "destination_place": ""}

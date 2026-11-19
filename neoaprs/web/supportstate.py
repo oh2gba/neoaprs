@@ -24,7 +24,7 @@ from .mapview import map_state
 from .processmeter import resident_mb
 from .secureside import SecureSide
 from .updatewire import UpdateState
-from .tncwire import TncStats
+from .tncwire import stats_row
 from .views import LINES_MAX, NO_PLAN, gps_state, modem_state
 
 log = logging.getLogger("neoaprs.web")
@@ -60,7 +60,7 @@ def beacon_state(server: LiveHost) -> dict[str, Any]:
 def line_state(tnc: Tnc) -> dict[str, Any]:
     """A radio's line as the report says it: its state and why it is not connected, the port and speed in use, what it counted, what the watchdog did last, and its latest lines."""
     return {"state": tnc.state.value, "problem": tnc.problem, "last_error": tnc.last_error, "path": tnc.path, "baud": tnc.baud, "dummy": tnc.is_dummy, "modem": modem_state(tnc),
-            "readings": list(tnc.profile.readings), "describe": tnc.describe(), "searching": tnc.searching, "silent_since": iso(tnc.silent_since), "stats": TncStats.row(tnc.stats),
+            "readings": list(tnc.profile.readings), "describe": tnc.describe(), "searching": tnc.searching, "silent_since": iso(tnc.silent_since), "stats": stats_row(tnc.stats),
             "last_watchdog_action": tnc.last_watchdog_action, "last_watchdog_at": iso(tnc.last_watchdog_at), "lines": [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)]}
 
 

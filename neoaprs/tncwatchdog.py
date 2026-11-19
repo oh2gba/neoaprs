@@ -14,11 +14,12 @@ import asyncio
 import logging
 import random
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 
 from .policy import TNC_CHECK_JITTER
+from .radiotype import RadioId
 from .source import Source, Stats
 from .tncprofile import Profile
 
@@ -35,13 +36,23 @@ ENTRY_AGAIN_MAX_SEC = 60.0            # the wait before each later repeat double
 
 
 @dataclass
+class PassCount:
+    """What the pairs passed onto a radio from one other radio: frames sent, when the latest went, and frames held and too long."""
+    sent: int = 0
+    sent_at: datetime | None = None
+    held: int = 0
+    too_long: int = 0
+
+
+@dataclass
 class TncStats(Stats):
     keepalive_checks: int = 0
     watchdog_probes: int = 0
     port_reopens: int = 0
-    digipeated: int = 0        # frames the fill-in digipeater (services/digipeater.py) sent again
+    digipeated: int = 0        # frames the digipeater (services/digipeater.py) sent again, the pairs' passed frames (services/passrows.py) among them
     digipeated_at: datetime | None = None      # when the latest of them went out
-    digipeat_held: int = 0     # frames it left unsent because the burst limit was reached
+    digipeat_held: int = 0     # frames the fill-in left unsent because the burst limit was reached
+    passed: dict[RadioId, PassCount] = field(default_factory=dict)     # what the pairs passed onto the radio, by the radio the packets were heard on
 
 
 class Watched(Protocol):

@@ -94,6 +94,7 @@ TAKERS = {
     "packetlog": {"append"}, "stationbook": {"take"}, "weatherlog": {"take"},                                   # SEEN_BY_ALL
     "messaging": {"on_packet", "echoed"}, "messaging.inbox": {"on_packet"}, "messaging.delivery": {"heard"},     # ON_AIR_ONLY: messaging and what it hands the packet to
     "queries": {"on_packet"}, "qruask": {"on_packet", "answers"}, "generalask": {"on_packet"}, "ownobjects": {"on_packet"}, "igate": {"on_packet"}, "digipeater": {"on_packet"},
+    "digipeater.passer": {"on_packet", "sent_on"},                                                               # (the rows between two radios, handed the packet by the digipeater)
     "qru": {"heard"}, "bulletins": {"heard"},                                                                    # (handed a message by the inbox)
     "radios": {"for_packet"},                                                                                    # (the choice of the radio to answer a packet on, neoaprs/radioregistry.py: it sends nothing itself, and is asked only for a packet of the air)
 }
