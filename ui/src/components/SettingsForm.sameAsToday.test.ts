@@ -62,7 +62,7 @@ const SETTINGS_TAB = {
   Digipeater: only("Digipeater", ["set-radio-1-digipeat"]),
   "Web page": only("Web page", ["set-web-network"]),
   Notifications: NOTIFICATIONS,
-  Map: only("Map", ["set-map-radius_km", "set-map-aircraft", "set-map-ships"]), // (the radius, and the layers' sources: the receivers' addresses are there with My own receiver)
+  Map: box(["set-map-radius_km", "set-map-aircraft", "set-map-ships"], 3, ["Map", "Layers"]), // (the radius, and in the box Layers the layers' sources: the receivers' addresses are there with My own receiver)
   "Update check": only("Update check", ["set-update-now"]),
   Help: box(["set-help-send"], 1, ["Help"]),
   About: box(["set-help-logs"], 0, ["About"]),

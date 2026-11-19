@@ -4,7 +4,7 @@
 
 Two of your radios can pass packets to each other, when a station asks for it.
 
-- **New:** a pair of your radios passes a packet from one to the other when its path names the pair's call: switch a pair on in Settings, Digipeater, and give its call to those who want to cross.
+- **New:** two of your radios can pass a packet from one to the other when its path names the pair's call: Settings, Digipeater.
 - **New:** a message or an ack to a station heard on HF through such a pair goes back the same way.
 - **Changed:** on a Mercury radio a station's Route says which station it is answered through.
 - **Changed:** in Settings, Map, Aircraft and Ships stand in a box named Layers.

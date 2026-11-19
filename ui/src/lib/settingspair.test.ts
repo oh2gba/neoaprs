@@ -26,7 +26,7 @@ describe("pairField", () => {
       kind: "bool",
       tipLabel: "About passing between two radios",
       tip: [
-        "Sends a packet heard on one of the two radios out once on the other, when its path names this call. Give the call to the stations that want to reach the other radio.",
+        "A packet heard on one of the two radios goes out once on the other when its path names this call. Give the call to stations that want to cross.",
         "A WIDE path alone never goes across.",
       ],
     });
