@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.22.0
+
 Two of your radios can pass packets to each other, when a station asks for it.
 
 - **New:** two of your radios can pass a packet from one to the other when its path names the pair's call: Settings, Digipeater.
