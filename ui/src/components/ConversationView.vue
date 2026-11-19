@@ -39,7 +39,7 @@ const { heardDirect, heardPaths, prefs, keys, stations } = useDaemonContext();
 /** The station's row; null for a call nothing is known of. */
 const row = computed(() => stations.value.get(props.selected) ?? null);
 /** The radio the messages to the station go on, and its Route. */
-const { over, named, offline, shown, paths, fallback, choices, choice, auto, fixed, pathShown, pathless, setPath, clearPath, choose } = useStationRadio(
+const { over, named, offline, shown, paths, fallback, choices, choice, auto, fixed, pathShown, pathless, reply, setPath, clearPath, choose } = useStationRadio(
   () => props.selected,
   () => row.value,
   () => props.thread,
@@ -97,6 +97,7 @@ onMounted(() => {
         :fixed="fixed"
         :path-shown="pathShown"
         :pathless="pathless"
+        :reply="reply"
         @path="setPath"
         @clear-path="clearPath"
         @set-rf-only="prefs.setRfOnly"

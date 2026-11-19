@@ -128,10 +128,10 @@ async def test_a_message_that_the_radio_would_cut_is_refused_with_the_reason_and
     assert sent.state == "sending" and rig.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1::OH2RDG   :Hello Pekka{01}"]
     with pytest.raises(MessagingError) as refused:
         await rig.m.send("OH2RDG-10", "x" * 67)
-    assert refused.value.code == "message.too_long_for_radio" and refused.value.params == {"length": 128, "max": 123, "cut": 5}, "the frame (126 bytes) and the two of a reply-ack number a later attempt may carry"
+    assert refused.value.code == "message.too_long_for_radio" and refused.value.params == {"length": 131, "max": 123, "cut": 8}, "the frame (126 bytes) and the five of the longest reply-ack number a later attempt may carry"
     assert len(rig.tnc.sent) == 1 and rig.m.get(2) is None, "nothing was kept or sent"
-    fits = await rig.m.send("OH2RDG-10", "x" * 62)
-    assert fits.state == "sending" and len(ax25.encode(rig.tnc.sent[-1])) == 121, "with the two bytes of room it is 123: the last that fits"
+    fits = await rig.m.send("OH2RDG-10", "x" * 59)
+    assert fits.state == "sending" and len(ax25.encode(rig.tnc.sent[-1])) == 118, "with the five bytes of room it is 123: the last that fits"
 
 
 async def test_a_message_kept_before_the_radio_changed_fails_with_the_reason_when_it_does_not_fit_now(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:

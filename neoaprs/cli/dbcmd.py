@@ -34,6 +34,7 @@ from neoaprs.radiotypes import BY_KEY as TYPES
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
+from neoaprs.pairsetting import call_refusal
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
 from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.packetcodec import tnc2
@@ -215,7 +216,9 @@ async def store_setting(store: Store, key: str, value: str, text: str) -> int:
         return no_setting_now(key, radios, rows)
     try:
         if key != NOT_COUNTED:
-            Config.checked(in_force(rows, radios), {key: value})
+            config = Config.checked(in_force(rows, radios), {key: value})
+            if key == "station/call" and (refusal := call_refusal(config.station_call, config.pairs)):
+                raise refusal
     except ValueError as e:
         say(f"{PROG}: {e}")
         return 2

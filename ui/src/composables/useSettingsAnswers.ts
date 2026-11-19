@@ -6,7 +6,22 @@ import type { RadioNames } from "@/i18n/errortext";
 import type { useSettingsFeedback } from "@/composables/useSettingsFeedback";
 import type { Request, useSettingsQueue } from "@/composables/useSettingsQueue";
 import { refusalFor } from "@/lib/settinglinks";
+import { pairFieldOf } from "@/lib/settingspair";
 import type { ConfigValues } from "@/protocol/protocol";
+
+/** A pair's keys the daemon no longer tells (a radio removed, a type changed) leave the draft, so that the free calls do not count a pair that is gone; one edited or waiting for its answer stays. */
+function dropGonePairs(
+  draft: Record<string, string>,
+  told: Readonly<Record<string, string>>,
+  before: Readonly<Record<string, string>> | undefined,
+  queue: ReturnType<typeof useSettingsQueue>,
+  request: Request | null,
+): void {
+  for (const key of Object.keys(draft)) {
+    const kept = key in told || queue.waiting(key) || request?.keys.includes(key) || draft[key] !== before?.[key];
+    if (pairFieldOf(key) !== null && !kept) delete draft[key];
+  }
+}
 
 export function useSettingsAnswers(
   config: Ref<ConfigValues | null>,
@@ -27,6 +42,7 @@ export function useSettingsAnswers(
         const own = request !== null && draft[key] === request.values[key];
         if (!(key in draft) || (!queue.waiting(key) && (draft[key] === before?.values[key] || own))) draft[key] = text;
       }
+      dropGonePairs(draft, now.values, before?.values, queue, request);
       if (request) feedback.saved();
       queue.pump();
     },

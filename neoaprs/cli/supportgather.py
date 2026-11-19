@@ -19,6 +19,7 @@ from neoaprs.configradios import radios_from_rows
 from neoaprs.dberror import Row, SqlError
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, history, schema_version, source_hash
 from neoaprs.packetcodec import PacketRow
+from neoaprs.pairsetting import PairSpec, call_of, may_pair
 from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.radiosql import radio_rows, radio_settings
 from neoaprs.store import DB_NAME
@@ -86,11 +87,12 @@ def config_of(rows: dict[str, str], radios: StoredRadios | None = None) -> Confi
 
 def settings_json(rows: dict[str, str], radios: StoredRadios | None = None) -> str:
     """Every setting with the value in force and which of them are stored, a secret (neoaprs/cli/redaction.py) only as `(set, N characters)`; the stored rows that are no setting of this NeoAPRS apart (the
-    beacon's memory of when it last sent, say); and where the radios are rows of their own, every radio with its own settings, in force and as stored."""
+    beacon's memory of when it last sent, say); and where the radios are rows of their own, every radio with its own settings, in force and as stored, and every pair of radios with its call and whether the radios may pair now."""
     specs = radios.specs if radios is not None else ()
     own = radios.own_rows() if radios is not None else {}
     with quiet():
-        effective = shown_settings(in_force(rows, specs))
+        config = in_force(rows, specs)
+        effective = shown_settings(config)
     stored = {key: text for key in effective if (text := stored_text_of(key, rows)) is not None}
     out: dict[str, Any] = {
         "values": {key: shown_value(key, value) for key, value in effective.items()},
@@ -100,6 +102,7 @@ def settings_json(rows: dict[str, str], radios: StoredRadios | None = None) -> s
     }
     if radios is not None:
         out["radios"] = [radio_json(spec, specs, own) for spec in specs]
+        out["pairs"] = [pair_json(pair, specs, config.station_call) for pair in config.pairs]
         if radios.problem:
             out["radios_problem"] = radios.problem
     return json.dumps(out, indent=2, ensure_ascii=False) + "\n"
@@ -112,6 +115,13 @@ def radio_json(spec: RadioSpec, specs: Sequence[RadioSpec], own: dict[tuple[int,
     return {"id": spec.id, "kind": spec.kind, "type": spec.type, "name": spec.name, "log_name": log_name(spec, specs), "enabled": spec.enabled, "position": spec.position,
             "removed_at": None if spec.removed_at is None else iso(spec.removed_at), "values": {key: shown(key, value_text(spec, key)) for key in own_fields(spec)},
             "stored": {key: shown(key, text) for (radio, key), text in sorted(own.items()) if radio == spec.id}}
+
+
+def pair_json(pair: PairSpec, specs: Sequence[RadioSpec], station_call: str) -> dict[str, Any]:
+    """One pair of settings.json: its two radios (low, high), whether it is on, its SSID, the pair's call (empty while it has no SSID), and whether the two radios may pair now (both there, live, of a type that transmits, both Dummy or both real)."""
+    low, high = (next((spec for spec in specs if spec.id == id), None) for id in (pair.low, pair.high))
+    return {"low": pair.low, "high": pair.high, "enabled": pair.enabled, "ssid": pair.ssid, "call": call_of(station_call, pair.ssid),
+            "may_pair_now": low is not None and high is not None and may_pair(low, high)}
 
 
 def secrets_of(rows: dict[str, str]) -> list[str]:

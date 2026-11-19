@@ -251,6 +251,34 @@ async def test_a_station_is_given_a_radio_and_a_path_on_it_and_its_row_says_both
     await e.stop()
 
 
+async def test_a_stations_row_says_the_reply_path_on_a_radio_without_paths_without_rfonly(tmp_path: Path) -> None:
+    e, page = await started(tmp_path)
+    id = await added(page, "dummy-hf")
+    await page.send({"cmd": "set_station_rf_only", "call": "OH2XYZ", "on": True})
+    await page.until(lambda: "OH2XYZ" in page.topics["station_prefs"])
+    e.ctl.stationbook.take(replace(heard(">here", "OH2XYZ", ("OH2RCH-2*", "OH2GBA-12*"), at=e.ctl.clock()), radio_id=id))
+    await page.until(lambda: "OH2XYZ" in page.topics["stations"])
+    assert page.topics["stations"]["OH2XYZ"]["replies"] == {str(id): "OH2GBA-12,WIDE2-1"}, "RF only is its own box: the path the page shows is the gateway's"
+    assert e.ctl.prefbook.path_for("OH2XYZ", None, id) == ("OH2GBA-12", "WIDE2-1", "RFONLY"), "the frame carries it"
+    e.ctl.stationbook.take(replace(heard(">here", "OH2XYZ", at=e.ctl.clock()), radio_id=id))
+    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["replies"] == {}, timeout=3)
+    await e.stop()
+
+
+async def test_a_pair_switched_on_makes_its_call_ours_and_the_stations_row_loses_the_reply_through_it(tmp_path: Path) -> None:
+    e, page = await started(tmp_path)
+    low = await added(page, "dummy")
+    id = await added(page, "dummy-hf")
+    await page.send({"cmd": "set_config", "values": {f"pair/{low}/{id}/ssid": "12", f"pair/{low}/{id}/enabled": "false"}})
+    await page.until(lambda: e.ctl.config.pairs and e.ctl.config.pairs[0].ssid == 12)
+    e.ctl.stationbook.take(replace(heard(">here", "OH2XYZ", ("OH2GBA-12*",), at=e.ctl.clock()), radio_id=id))
+    await page.until(lambda: "OH2XYZ" in page.topics["stations"])
+    assert page.topics["stations"]["OH2XYZ"]["replies"] == {str(id): "OH2GBA-12"}, "the pair is off: its call is a gateway's"
+    await page.send({"cmd": "set_config", "values": {f"pair/{low}/{id}/enabled": "true"}})
+    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["replies"] == {}, timeout=3)          # (nothing was heard: only the own calls changed)
+    await e.stop()
+
+
 async def test_ask_around_goes_on_its_ticked_radios_and_local_info_on_the_radio_named_and_a_radio_that_is_off_is_refused_with_its_name(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
     id = await added(page, "dummy", "Shack")

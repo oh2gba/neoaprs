@@ -279,8 +279,9 @@ def radio_rows(views: Any) -> list[dict[str, Any]]:
 
 
 def station_radios(views: Any) -> Any:
-    """What the station rows say of the radios: a choice for one station, the radio a message takes now, and a path on radio 3 for one station."""
-    return views.StationRadios(choice=lambda call: 3 if call == "N0AAA" else None, now=lambda call: 3 if call == "N0AAA" else 1, paths=lambda call: {3: ("OH2RCH-2",)} if call == "N0AAA" else {})
+    """What the station rows say of the radios: a choice for one station, the radio a message takes now, a path on radio 3 for one station, and a reply path through a gateway on radio 2 for one, none for another."""
+    return views.StationRadios(choice=lambda call: 3 if call == "N0AAA" else None, now=lambda call: 3 if call == "N0AAA" else 1, paths=lambda call: {3: ("OH2RCH-2",)} if call == "N0AAA" else {},
+                               replies=lambda call: {2: ("OH2GBA-12", "WIDE2-1")} if call == "N0AAA" else {2: ()})
 
 
 def rows(views: Any) -> dict[str, Any]:

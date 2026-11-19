@@ -102,10 +102,11 @@ def replay_tracks(tracks: Mapping[str, Sequence[Point]]) -> dict[str, list[list[
 @dataclass(frozen=True)
 class StationRadios:
     """What a station's row says of the radios that is not the station's own: the operator's choice for it in force, the radio a message to it goes on now (plan rule 3.2, the daemon's: the page works none
-    of it out), and the paths set for it on each radio (rule 3.3). Each by the station's call; the defaults say nothing (a book with no radios, an older copy of the views)."""
+    of it out), the paths set for it on each radio (rule 3.3) and the reply paths on the radios without paths (M1). Each by the station's call; the defaults say nothing (a book with no radios, an older copy of the views)."""
     choice: Callable[[str], RadioId | None] = lambda call: None
     now: Callable[[str], RadioId | None] = lambda call: None
     paths: Callable[[str], Mapping[RadioId, tuple[str, ...]]] = lambda call: {}
+    replies: Callable[[str], Mapping[RadioId, tuple[str, ...]]] = lambda call: {}
 
 
 NO_RADIOS = StationRadios()
@@ -115,7 +116,7 @@ def _radio_fields(station: Station, radios: StationRadios) -> dict[str, Any]:
     direct = [at for at in (r.last_direct_at for r in station.routes.values()) if at is not None]
     return {"heard": {str(id): {"count": h.count, "last_at": iso(h.last_at)} for id, h in sorted(station.heard_by.items())}, "last_path_radio": station.last_radio,
             "last_direct_any_at": iso(max(direct)) if direct else None, "radio_choice": radios.choice(station.call), "radio_now": radios.now(station.call) if station.can_message else None,
-            "paths": {str(id): ",".join(path) for id, path in sorted(radios.paths(station.call).items())}}
+            "paths": {str(id): ",".join(path) for id, path in sorted(radios.paths(station.call).items())}, "replies": {str(id): ",".join(path) for id, path in sorted(radios.replies(station.call).items()) if path}}
 
 
 def station_row(book: StationBook, station: Station, radios: StationRadios = NO_RADIOS) -> dict[str, Any]:

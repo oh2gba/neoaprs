@@ -246,6 +246,17 @@ def test_set_applies_the_rules_between_settings_against_the_stored_ones_as_a_sav
     assert db("set", "status/rigctld", "127.0.0.1:4532", data=data) == 0 and db("set", "status/source", "rig", data=data) == 0, "once the rigctld is set the source is taken"
 
 
+def test_set_refuses_a_station_call_that_is_the_call_of_an_enabled_pair_with_the_pages_refusal(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    store = sqlite3.connect(data / DB_NAME, isolation_level=None)
+    store.executemany("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [("pair/1/2/enabled", "true"), ("pair/1/2/ssid", "15")])
+    store.close()
+    capsys.readouterr()
+    assert db("set", "station/call", "OH2GBA-15", data=data) == 2
+    assert "OH2GBA-15 is the call of a pair of your radios" in capsys.readouterr().err
+    assert db("get", "station/call", data=data) == 0 and capsys.readouterr().out.strip() == "OH2GBA", "and nothing was stored"
+    assert db("set", "station/call", "OH2GBA-9", data=data) == 0
+
+
 def test_a_database_error_while_reading_is_told_not_raised(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     async def broken(store: object, only: str | None) -> int:
         raise SqlError("disk I/O error")

@@ -67,7 +67,7 @@ from neoaprs.tasks import TaskSet
 log = logging.getLogger("neoaprs.messaging")
 
 TICK_SEC = 1.0
-REPLY_ACK_ROOM = 2                              # the bytes a later attempt may add to a message's frame: the two characters of a reply-ack number (`{MM}AA`), which a radio with a fixed frame must have room for
+REPLY_ACK_ROOM = 5                              # the bytes a later attempt may add to a message's frame: a reply-ack number (`{MM}AA`) of the longest id another station may give (five characters), which a radio with a fixed frame must have room for
 
 
 def _in_line(record: MessageRecord) -> bool:

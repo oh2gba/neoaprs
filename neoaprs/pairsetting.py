@@ -163,9 +163,12 @@ def _taken(station_call: str, pairs: Iterable[PairSpec], pair: tuple[RadioId, Ra
 
 
 def free_ssid(station_call: str, pairs: Iterable[PairSpec], pair: tuple[RadioId, RadioId]) -> int | None:
-    """The highest SSID from 15 down that is neither the station's nor that of another enabled pair; None when every one is taken."""
+    """The highest SSID from 15 down that is neither the station's nor that of another enabled pair, and by preference not one that a pair switched off still stores (it keeps its call when it is switched on again); None when every one is taken."""
+    pairs = tuple(pairs)
     taken = _taken(station_call, pairs, pair)
-    return next((ssid for ssid in range(MAX_SSID, 0, -1) if ssid not in taken), None)
+    kept = {spec.ssid for spec in pairs if not spec.enabled and spec.ssid is not None and (spec.low, spec.high) != pair}
+    free = [ssid for ssid in range(MAX_SSID, 0, -1) if ssid not in taken]
+    return next((ssid for ssid in free if ssid not in kept), free[0] if free else None)
 
 
 def _shown(station_call: str, ssid: int) -> str:

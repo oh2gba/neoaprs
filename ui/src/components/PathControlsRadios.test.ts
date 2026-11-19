@@ -95,6 +95,19 @@ describe("Route in a conversation", () => {
     expect(box.find<HTMLButtonElement>(".pathbox button").element.disabled).toBe(true);
   });
 
+  it("says the gateway a station on Mercury is answered through, with RF only live and the path still greyed", async () => {
+    const wrapper = conversation(BOTH, "OH2HF", stations({ ...hfHeard, replies: { "2": "OH2GBA-12,WIDE2-1" } }));
+    const box = await opened(wrapper);
+    expect(box.find(".path-line").text()).toBe("Automatic: via OH2GBA-12,WIDE2-1");
+    expect(box.find<HTMLInputElement>(".pathbox input[type='text']").element.disabled).toBe(true);
+    const rfOnly = box.find<HTMLInputElement>(".rfonly input");
+    expect([rfOnly.element.disabled, box.find(".rfonly").attributes("title")]).toEqual([false, "iGates do not put these messages on the internet"]);
+    await rfOnly.setValue(true);
+    expect(sent("set_station_rf_only")).toEqual([{ cmd: "set_station_rf_only", call: "OH2HF", on: true }]);
+    await tell(daemon, { stations: stations(hfHeard) });
+    expect([wrapper.find(".path-line").text(), wrapper.find<HTMLInputElement>(".rfonly input").element.disabled]).toEqual(["Automatic: direct", true]);
+  });
+
   it("keeps the path of the FM radio while the station goes over Mercury, and shows it again once it goes over FM", async () => {
     const prefs = useStationPrefs(new Map([["OH2BOTH", { path: "OH2RCH-2", rf_only: true, alert: null }]]), () => true);
     const wrapper = conversation(BOTH, "OH2BOTH", stations({ ...bothHeard, radio_now: 2 }), { prefs });

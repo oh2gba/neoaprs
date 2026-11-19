@@ -7,7 +7,7 @@ digipeaters (route.py), is counted for the sender. A position sets where the sen
 A name is one entry, and a station that transmits wins it: an object or item reported under the call of a station in the book (a club posting the object of the local digipeater, which beacons itself) is not taken, and its
 kill does not take the station out; a station that transmits under the name of an object heard before is the station from then on, and the object is forgotten. Our own station is never replaced by a report, and our own objects not by a station
 that beacons under their name (it is not recorded under that name) nor by another station's kill; another station's report of an object by the name of one of ours takes it over (the specification's "Replacement": services/ownobjects.py drops ours)."""
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from datetime import datetime
 
 from . import ax25
@@ -24,7 +24,7 @@ from .radiotype import RadioTypeError
 from .route import route_of
 from .signal import Signal
 from .station import Station, add_track_point
-from .stationnotes import every_radio_carries_path, expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, seed_hour, seed_radio, seed_reported, seed_routes
+from .stationnotes import came_back, every_radio_carries_path, expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, seed_hour, seed_radio, seed_reported, seed_routes
 ROUTES_SEEN = 1000                  # the latest packets, and as many of those not from the internet, that the routes of the stations are read from at the start
 DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators, data extensions and the device are read from at the start
 
@@ -61,8 +61,9 @@ def route_groups(rows: Iterable[tuple[str, str, bytes, datetime, RadioId | None]
 
 
 class StationBook:
-    def __init__(self, clock: Clock = utcnow, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path) -> None:
+    def __init__(self, clock: Clock = utcnow, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path, own_calls: Callable[[], Collection[str]] = tuple) -> None:
         self.clock = clock
+        self._own_calls = own_calls                                           # the station call and the enabled pairs' calls: a packet that shows one of them used is our own copy heard back (stationnotes.came_back)
         self._carries_path = carries_path                                     # whether a radio may carry a path (its routes are the station's as a whole): the composition root asks the radios' types (`carries_path`)
         self.changed: Signal[[Station]] = Signal("stationbook.changed")       # a station was added or changed (the live object: read it, do not keep it)
         self.removed: Signal[[str]] = Signal("stationbook.removed")           # its call
@@ -96,12 +97,12 @@ class StationBook:
     def seed_deliveries(self, counts: Iterable[RouteGroup | OldRouteGroup]) -> None:
         """The routes of the packets the database kept, as `route_groups` gives them (sender, path, iGate or "", how many, when the latest of them was heard, when the one before it was, the radio), the group of
         the oldest latest packet first; a sender that is not in the book is left out. Each is counted for its radio (one without a radio, and the old shape without one, as radio 1's), and for the station as a
-        whole where that radio may carry a path; the latest group of a station on a radio says how that radio's latest packet came: its path is that radio's (`Station.seed_path`). Nothing is signalled."""
+        whole where that radio may carry a path; the latest group of a station on a radio says how that radio's latest packet came: its path is that radio's (`Station.seed_path`). A group that shows one of our own calls used is our own copy heard back, and no route of the station. Nothing is signalled."""
         for sender, path, gate, count, at, before, *given in counts:
             radio = FM_ID if not given or given[0] is None else given[0]
             note_gate(self._stations, gate, count)
             station = self._stations.get(sender)
-            if station is not None:
+            if station is not None and not came_back(path, self._own_calls()):
                 station.note_route(radio, route_of(path, gate), count, at, before, carries_path=self._carries_path(radio))
                 station.seed_path(radio, path)
                 station.last_via = gate
@@ -323,7 +324,7 @@ class StationBook:
         station = self._stations.get(call)
         if station is None or station.kind != "station":                            # (an object heard under this call before gives way to the station that transmits under it)
             station = self._stations[call] = Station(call, first_heard=packet.heard_at, last_heard=packet.heard_at)
-        note_heard(station, packet, carries_path=self._carries_path)
+        note_heard(station, packet, carries_path=self._carries_path, ours=self._own_calls())
         return station
 
     def _place(self, station: Station, position: Position, packet: Packet) -> None:

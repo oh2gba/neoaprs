@@ -164,3 +164,25 @@ def test_radios_that_cannot_be_read_are_told_and_the_settings_still_are(tmp_path
     assert stored.rows["station/call"] == "OH2GBA" and stored.radios is not None and "radio_setting" in stored.radios.problem
     told = json.loads(supportgather.settings_json(stored.rows, stored.radios))
     assert told["radios"] == [] and "could not be read" in told["radios_problem"] and told["values"]["station/call"] == "OH2GBA"
+
+
+# ---- the pairs of radios
+
+def two_radios(first: str, second: str) -> supportgather.StoredRadios:
+    return supportgather.StoredRadios(rows=[(1, "fm", first, "", 1, 1, None), (2, "hf", second, "", 1, 2, None)])
+
+
+PAIR_ROWS = {"station/call": "OH2GBA", "pair/1/2/enabled": "true", "pair/1/2/ssid": "12"}
+
+
+def test_a_pair_is_told_as_a_pair_with_its_call_and_whether_its_radios_may_pair_now() -> None:
+    told = json.loads(supportgather.settings_json(PAIR_ROWS, two_radios("dummy", "dummy-hf")))
+    assert told["pairs"] == [{"low": 1, "high": 2, "enabled": True, "ssid": 12, "call": "OH2GBA-12", "may_pair_now": True}]
+    assert told["other_rows"]["pair/1/2/ssid"] == "12", "(the stored rows are told as before)"
+
+
+def test_a_pair_of_a_dummy_radio_and_a_real_one_or_of_a_radio_that_is_not_there_may_not_pair_now() -> None:
+    mixed = json.loads(supportgather.settings_json(PAIR_ROWS, two_radios("dummy", "mercury")))
+    assert mixed["pairs"][0]["may_pair_now"] is False and mixed["pairs"][0]["call"] == "OH2GBA-12"
+    gone = json.loads(supportgather.settings_json({**PAIR_ROWS, "pair/1/7/enabled": "true"}, two_radios("dummy", "dummy-hf")))
+    assert [(p["high"], p["may_pair_now"], p["call"]) for p in gone["pairs"]] == [(2, True, "OH2GBA-12"), (7, False, "")]

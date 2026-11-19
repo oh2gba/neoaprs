@@ -41,7 +41,7 @@ NAME = {
     "SetStationPath.path", "SetStationRfOnly.call", "SignalSeries.call", "SignalSeriesMsg.call", "SkedDelete.id", "SkedFrequency.band", "SkedFrequency.dial", "SkedPost.dial",
     "SkedRow.call", "SkedRow.dial", "SkedRow.id", "SoundCardRow.id", "SoundCardRow.numbered", "SoundCardRow.usb_group", "SpeedSeries.call", "SpeedSeriesMsg.call", "StateMsg.topic",
     "StationAlertMsg.call", "StationKey.fingerprint", "StationPref.path", "StationRadio.call", "StationRow.call", "StationRow.heard", "StationRow.heard_path", "StationRow.heard_via", "StationRow.last_path",
-    "StationRow.paths", "StationRow.reported_by", "StationRow.sign", "StationRow.suggested_path", "StationRow.symbol_code", "StationRow.symbol_table", "StationTrack.call",
+    "StationRow.paths", "StationRow.replies", "StationRow.reported_by", "StationRow.sign", "StationRow.suggested_path", "StationRow.symbol_code", "StationRow.symbol_table", "StationTrack.call",
     "StationTrackMsg.call", "StationTraffic.call", "StationTrafficMsg.call", "Status.call", "Status.message_key", "Status.unavailable_types", "Status.version", "Subscribe.topics",
     "TelemetryFields.bits", "TopicValues.bulletins", "TopicValues.messages", "TopicValues.own_bulletins", "TopicValues.own_objects", "TopicValues.packets", "TopicValues.radios", "TopicValues.station_keys",
     "TopicValues.station_prefs", "TopicValues.stations", "Unsubscribe.topics", "UpdateInfo.url", "UpdateInfo.version", "UpdateNow.version", "UpdateResultMsg.version", "UpdateState.version",

@@ -5,6 +5,7 @@ import { useSettings } from "@/composables/useSettings";
 import type { Toast } from "@/composables/useDaemon";
 import type { Command, ConfigValues } from "@/protocol/protocol";
 import { configValues, toastOf } from "@/test/fixtures";
+import { pairField } from "@/lib/settingspair";
 
 function setUp(extra: Record<string, string> = {}) {
   const config = ref<ConfigValues | null>(configValues(extra));
@@ -339,5 +340,34 @@ describe("useSettings: the radios' own settings", () => {
     });
     expect(settings.errors["radio/3/port"]).toBe("the device is in use by radio Mobile: choose another");
     expect(settings.draft["radio/3/port"]).toBe("/dev/ttyACM1");
+  });
+});
+
+// A pair of radios' keys (`pair/1/3/enabled`) are told for the radios that are there: when the daemon stops telling them, the form stops counting the pair's call as taken.
+describe("useSettings: the keys of a pair that is gone", () => {
+  const both = { "pair/1/2/enabled": "true", "pair/1/2/ssid": "14", "pair/1/3/enabled": "true", "pair/1/3/ssid": "15" };
+  const callsOf = (draft: Record<string, string>) =>
+    pairField("pair/1/2/ssid", draft)?.choices?.map((choice) => (typeof choice === "string" ? choice : choice.value));
+
+  it("leave the draft, and the call the pair held is free again", async () => {
+    const { config, settings } = setUp();
+    config.value = configValues(both);
+    await nextTick();
+    expect(callsOf(settings.draft)).not.toContain("15");
+    config.value = configValues({ "pair/1/2/enabled": "true", "pair/1/2/ssid": "14" });
+    await nextTick();
+    expect(Object.keys(settings.draft).filter((key) => key.startsWith("pair/1/3/"))).toEqual([]);
+    expect(callsOf(settings.draft)).toContain("15");
+  });
+
+  it("stay while one is edited or waits for its answer", async () => {
+    const { config, settings } = setUp();
+    config.value = configValues(both);
+    await nextTick();
+    settings.change({ "pair/1/3/ssid": "13" });
+    config.value = configValues({ "pair/1/2/enabled": "true", "pair/1/2/ssid": "14" });
+    await nextTick();
+    expect(settings.draft["pair/1/3/ssid"]).toBe("13");
+    expect(settings.draft["pair/1/3/enabled"]).toBeUndefined();
   });
 });

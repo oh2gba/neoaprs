@@ -88,10 +88,23 @@ def test_a_pair_switched_on_gets_the_highest_free_ssid_and_a_valid_ssid_sent_is_
     assert put({"pair/1/2/enabled": "true", "pair/1/2/ssid": "12"}) == (PairSpec(1, 2, True, 12),)
     assert put({"pair/1/2/ssid": "12"}) == (PairSpec(1, 2, False, 12),) and put({"pair/1/2/ssid": "", "pair/1/2/enabled": "false"}) == ()
     others = (PairSpec(1, 7, True, 15), PairSpec(2, 7, True, 14), PairSpec(3, 4, False, 13))
-    assert put({"pair/1/2/enabled": "true"}, others)[0] == PairSpec(1, 2, True, 13), "skipping the other enabled pairs' SSIDs; a disabled pair's reserves nothing"
+    assert put({"pair/1/2/enabled": "true"}, others)[0] == PairSpec(1, 2, True, 12), "skipping the other enabled pairs' SSIDs, and by preference the one a pair that is off stores"
     assert put({"pair/1/2/enabled": "true"}, (PairSpec(1, 2, False, 9),))[0].ssid == 9, "a stored SSID that is free is kept"
     assert put({"pair/1/2/enabled": "true"}, (PairSpec(1, 2, False, 9), PairSpec(3, 4, True, 9)))[0].ssid == 15, "a stored SSID another enabled pair has is chosen again"
     assert put({"pair/1/2/enabled": "true", "pair/3/4/enabled": "true"}) == (PairSpec(1, 2, True, 15), PairSpec(3, 4, True, 14))
+
+
+def test_a_pair_switched_on_passes_over_the_ssid_a_pair_that_is_off_stores_and_that_pair_keeps_it_when_it_is_switched_on_again() -> None:
+    off = (PairSpec(1, 2, False, 15),)
+    both = put({"pair/3/4/enabled": "true"}, off)
+    assert both == (PairSpec(1, 2, False, 15), PairSpec(3, 4, True, 14))
+    again = put({"pair/1/2/enabled": "true"}, both)
+    assert again == (PairSpec(1, 2, True, 15), PairSpec(3, 4, True, 14)), "nothing moves"
+
+
+def test_a_pair_switched_on_takes_the_ssid_a_pair_that_is_off_stores_when_no_other_is_free() -> None:
+    held = tuple(PairSpec(1, 100 + n, True, n) for n in range(1, 15))
+    assert put({"pair/1/2/enabled": "true"}, (*held, PairSpec(3, 4, False, 15)))[0].ssid == 15
 
 
 def test_an_ssid_that_is_no_value_the_stations_own_or_another_pairs_is_refused_under_its_key() -> None:

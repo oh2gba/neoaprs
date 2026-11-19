@@ -1941,6 +1941,8 @@ export interface StationRow {
   radio_choice: number | null;
   /** the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before Mercury, else the radio that heard it last, else the first radio that can send, in the order of the boxes; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio */
   radio_now: number | null;
+  /** the path a message or an ack of ours to the station goes by on each radio that carries no path (Mercury), by the radio's id as text: the gateway its latest packet there came by, then WIDE2-1 when a digipeater stood before the gateway, calls separated by commas, without RFONLY; a radio that carries a path, and one on which they go direct, has no entry */
+  replies: { [key: string]: string };
   /** the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too) */
   paths: { [key: string]: string };
   /** the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed */

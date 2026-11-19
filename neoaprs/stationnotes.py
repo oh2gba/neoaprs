@@ -1,6 +1,6 @@
 """What a packet says about its sender that the station book notes in the station: whether it does messages, the packets of its last hour, the frequency, storm data and sign of a position, the telemetry it reports and defines, and
 whether it is an iGate (the third-party packets it put on the air, a capabilities packet that says so). Pure code; the book (stationbook.py) calls these."""
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from datetime import datetime
 
 from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_definition
@@ -8,8 +8,9 @@ from .bulletin import board_slot
 from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS
 from .packet import DUMMY, IS, RF_GATED, ItemReport, Message, ObjectReport, Other, Packet, Position
 from .radiotype import FM_ID, RadioId
+from .message import same_call
 from .reach import mark_of, pushed, reach_of
-from .route import route_of
+from .route import route_of, used_path
 from .station import RadioPlace, Station, add_track_point
 
 DEFINITIONS_MAX = 500               # stations whose telemetry definitions are kept (the oldest goes first)
@@ -22,11 +23,16 @@ def every_radio_carries_path(radio: RadioId) -> bool:
     return True
 
 
-def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path) -> None:
+def came_back(path: tuple[str, ...], ours: Collection[str]) -> bool:
+    """Whether the path shows one of `ours` (the station call and the enabled pairs' calls) used: the packet is our own copy, passed or repeated by us, heard back through another digipeater."""
+    return any(hop.endswith("*") and any(same_call(hop[:-1], call) for call in ours) for hop in used_path(path))
+
+
+def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path, ours: Collection[str] = ()) -> None:
     """A packet of the station was received: it is counted, with the time, for the channel it came by (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy` and the time of the latest of each) and in `packets`, and the station
     was last heard now. One heard on a radio (a Dummy radio's too) is counted for that radio by its id, with the time and the path it came by (`heard_by`; one made without a radio, a test's, is radio 1's), and, with `route`, for its route
     on that radio (`Station.routes`, any radio's), and for the station's routes as a whole where the radio may carry a path (`carries_path`: an HF radio's frames are all direct, and they are not the way an
-    FM message reaches the station); one from the internet came by no route and leaves them as they were.
+    FM message reaches the station); one from the internet came by no route and leaves them as they were, and so does our own copy heard back (`came_back` with `ours`): it proves our pass, not how the radio hears the station.
     One heard direct with a reading of its signal is the station's last reading (`snr`, `rssi`, `signal_at`): a digipeater's copy or an iGate's third-party packet is the signal of another station, and an object or
     item transmits nothing (the reading of its report is its reporter's)."""
     station.packets += 1
@@ -36,6 +42,8 @@ def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_
     if packet.via == IS:
         station.hour_is.note(packet.heard_at)
         station.heard_is, station.last_is_at = station.heard_is + 1, packet.heard_at
+        return
+    if came_back(packet.path, ours):
         return
     radio = FM_ID if packet.radio_id is None else packet.radio_id
     station.note_on(radio, packet.heard_at, packet.path)

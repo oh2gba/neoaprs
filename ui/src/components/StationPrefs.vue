@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // How messages to one station are sent, in Route of a conversation and of the station panel: the radio they go on (where more than one is on: the radios that are on, and "Automatic", which names the radio it gives now),
 // then the path they go by and whether it is RF only (the tickbox beside the path), which are there while a radio that is on may carry a path and greyed, the value kept, while the radio in force carries none
-// (`pathless`, composables/useStationRadio.ts). For a call the book does not hold the radio's row is there greyed on "Automatic" (`fixed`), so that nothing moves when the station is first heard. The fields say what they want, the page sends it. `heard` is the path that has lately been heard to reach the station (null: none), which the automatic choice of the first attempts goes by.
+// (`pathless`, composables/useStationRadio.ts), RF only staying live while the messages there go through a gateway (`reply`). For a call the book does not hold the radio's row is there greyed on "Automatic" (`fixed`), so that nothing moves when the station is first heard. The fields say what they want, the page sends it. `heard` is the path that has lately been heard to reach the station (null: none), which the automatic choice of the first attempts goes by.
 import { useId } from "vue";
 import StationPath from "@/components/StationPath.vue";
 import StationRfOnly from "@/components/StationRfOnly.vue";
@@ -26,6 +26,8 @@ withDefaults(
     /** the path and RF only are offered (a radio that is on may carry a path) */
     pathShown?: boolean;
     pathless?: string;
+    /** the reply path through a gateway on the radio in force that carries no path; empty for none */
+    reply?: string;
   }>(),
   {
     rfOnly: () => new Set<string>(),
@@ -36,6 +38,7 @@ withDefaults(
     fixed: false,
     pathShown: true,
     pathless: undefined,
+    reply: "",
   },
 );
 const emit = defineEmits<{
@@ -70,10 +73,11 @@ function picked(event: Event, call: string, choice: RadioId | null): void {
       :fallback="fallbackPath"
       :heard="heard"
       :pathless="pathless"
+      :reply="reply"
       @set="(c, p) => emit('path', c, p)"
       @clear="emit('clearPath', $event)"
     >
-      <StationRfOnly :call="call" :rf-only="rfOnly" :pathless="pathless" @set="(c, on) => emit('setRfOnly', c, on)" />
+      <StationRfOnly :call="call" :rf-only="rfOnly" :pathless="reply === '' ? pathless : undefined" @set="(c, on) => emit('setRfOnly', c, on)" />
     </StationPath>
   </div>
 </template>

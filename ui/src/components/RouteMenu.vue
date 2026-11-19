@@ -22,8 +22,9 @@ const props = withDefaults(
     fixed?: boolean;
     pathShown?: boolean;
     pathless?: string;
+    reply?: string;
   }>(),
-  { rfOnly: () => new Set<string>(), heard: null, radios: () => [], choice: null, auto: null, fixed: false, pathShown: true, pathless: undefined },
+  { rfOnly: () => new Set<string>(), heard: null, radios: () => [], choice: null, auto: null, fixed: false, pathShown: true, pathless: undefined, reply: "" },
 );
 const emit = defineEmits<{
   path: [call: string, path: string];
@@ -71,6 +72,7 @@ watch(
         :fixed="fixed"
         :path-shown="pathShown"
         :pathless="pathless"
+        :reply="reply"
         @path="(c, p) => emit('path', c, p)"
         @clear-path="emit('clearPath', $event)"
         @set-rf-only="(c, on) => emit('setRfOnly', c, on)"

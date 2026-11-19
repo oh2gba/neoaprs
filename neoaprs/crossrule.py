@@ -68,10 +68,6 @@ def slow_channel(limits: Limits) -> bool:
     return limits.retry_jitter_sec > 0
 
 
-def _base(hop: str) -> str:
-    return hop.partition("-")[0]
-
-
 def _is_call(hop: str) -> bool:
     if parse_alias(hop) is not None or is_marker(hop):
         return False
@@ -83,12 +79,12 @@ def _is_call(hop: str) -> bool:
 
 
 def reply_path(last_path: Sequence[str], ours: Collection[str]) -> tuple[str, ...]:
-    """The path of a message or an ack of ours on a radio that carries no path (M1), from the path of the station's latest packet heard there (starred hops): its last used hop when that is a call, not an alias or a marker, and none of `ours` (a gateway), alone, or followed by REPLY_WIDE when a used hop of another base call stands before it (a digipeater on the way to the gateway, not the gateway's own fill-in); () for anything else."""
+    """The path of a message or an ack of ours on a radio that carries no path (M1), from the path of the station's latest packet heard there (starred hops): its last used hop when that is a call, not an alias or a marker, and none of `ours` (a gateway), alone, or followed by REPLY_WIDE when any used hop stands before it (a digipeater on the way to the gateway; the gateway's own station call cannot be told from an own hill digi of its base, so a reply to a station heard through the gateway's own fill-in gets one wide hop too); () for anything else."""
     used = [hop[:-1] for hop in used_path(tuple(last_path)) if hop.endswith("*") and not is_marker(hop)]
     if not used or not _is_call(used[-1]) or any(same_call(used[-1], call) for call in ours):
         return ()
     gateway = used[-1]
-    if any(_base(hop) != _base(gateway) for hop in used[:-1]):
+    if used[:-1]:
         return (gateway, REPLY_WIDE)
     return (gateway,)
 

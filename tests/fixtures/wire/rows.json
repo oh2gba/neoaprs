@@ -2411,6 +2411,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "N0RPT",
    "route_marks": [
     {
@@ -2497,6 +2498,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "N0FFF",
    "route_marks": [
     {
@@ -2583,6 +2585,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "N0STM",
    "route_marks": [
     {
@@ -2677,6 +2680,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "N0SGN",
    "route_marks": [
     {
@@ -2765,6 +2769,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "N0FFF",
    "route_marks": [
     {
@@ -2848,6 +2853,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "OH2GBA-7",
    "route_marks": [],
    "rssi": null,
@@ -2916,6 +2922,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "OH2GBA-7",
    "route_marks": [],
    "rssi": null,
@@ -2998,6 +3005,9 @@
    "position_via": "is",
    "radio_choice": 3,
    "radio_now": 3,
+   "replies": {
+    "2": "OH2GBA-12,WIDE2-1"
+   },
    "reported_by": "",
    "route_marks": [
     {
@@ -3107,6 +3117,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3195,6 +3206,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3296,6 +3308,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3390,6 +3403,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3489,6 +3503,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3576,6 +3591,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3677,6 +3693,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3763,6 +3780,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3842,6 +3860,7 @@
    "position_via": "is",
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -3935,6 +3954,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4017,6 +4037,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4097,6 +4118,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4177,6 +4199,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4257,6 +4280,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4337,6 +4361,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4417,6 +4442,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4497,6 +4523,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4647,6 +4674,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4727,6 +4755,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4826,6 +4855,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -4928,6 +4958,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -5005,6 +5036,7 @@
    "position_via": null,
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "",
    "route_marks": [],
    "rssi": null,
@@ -5076,6 +5108,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -5169,6 +5202,7 @@
    "position_via": "dummy",
    "radio_choice": null,
    "radio_now": 1,
+   "replies": {},
    "reported_by": "",
    "route_marks": [
     {
@@ -5268,6 +5302,7 @@
    "position_via": "rf",
    "radio_choice": null,
    "radio_now": null,
+   "replies": {},
    "reported_by": "N0GGG",
    "route_marks": [
     {

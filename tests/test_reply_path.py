@@ -12,6 +12,7 @@ from neoaprs.app import Services
 from neoaprs.aprsparse import parse
 from neoaprs.clock import utc
 from neoaprs.config import Config
+from neoaprs.message import MessagingError
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.pairsetting import PairSpec
@@ -70,12 +71,13 @@ async def sent_path(rig: GatewayRig, text: str = "Moi") -> str:
 @pytest.mark.parametrize(("heard", "reply"), [
     ("OH2GBA-12*", "OH2GBA-12"),
     ("OH2RCH-2*,OH2GBA-12*", "OH2GBA-12,WIDE2-1"),
-    ("OH2GBA*,OH2GBA-12*", "OH2GBA-12"),
+    ("OH2GBA*,OH2GBA-12*", "OH2GBA-12,WIDE2-1"),
+    ("OH2GBA-2*,OH2GBA-12*", "OH2GBA-12,WIDE2-1"),
     ("WIDE1*,OH2GBA-12*", "OH2GBA-12,WIDE2-1"),
     ("", ""),
     ("WIDE1*", ""),
     ("OH2GBA-12*,WIDE1-1", "OH2GBA-12"),
-], ids=["alone", "via-digi", "own-fill-in", "wide-first", "direct", "alias-last", "unused-after"])
+], ids=["alone", "via-digi", "gateway-fill-in", "own-hill-digi", "wide-first", "direct", "alias-last", "unused-after"])
 async def test_a_message_on_hf_goes_by_the_gateway_the_stations_latest_packet_came_by(rig: GatewayRig, heard: str, reply: str) -> None:
     rig.hear(heard)
     assert await sent_path(rig) == reply
@@ -131,13 +133,24 @@ async def test_an_ack_that_waited_is_made_with_the_path_at_its_flush(rig: Gatewa
     assert [f.path_text for f in rig.hf.sent][:1] == ["OH2GBA-12,WIDE2-1"], "the path is the one of the flush"
 
 
-async def test_the_longest_message_with_a_two_hop_reply_path_and_rfonly_fits_the_123_bytes_of_hf(rig: GatewayRig) -> None:
+async def test_the_longest_message_with_a_two_hop_reply_path_and_rfonly_leaves_hf_room_for_the_longest_reply_ack(rig: GatewayRig) -> None:
     await rig.prefs.set_rf_only(STATION, True)
     rig.hear("OH2RCH-2*,OH2GBA-12*")
-    longest = "x" * 67
-    await rig.m.send(STATION, longest)
+    with pytest.raises(MessagingError) as refused:
+        await rig.m.send(STATION, "x" * 67)
+    assert refused.value.params == {"length": 124, "max": 123, "cut": 1}, "the frame and the five characters of the longest reply-ack number"
+    await rig.m.send(STATION, "x" * 66)
     frame = rig.hf.sent[-1]
-    assert frame.path_text == "OH2GBA-12,WIDE2-1,RFONLY" and len(ax25.encode(frame)) <= 123
+    assert frame.path_text == "OH2GBA-12,WIDE2-1,RFONLY" and len(ax25.encode(frame)) == 118
+
+
+async def test_a_message_accepted_for_hf_still_fits_when_it_carries_a_five_character_reply_ack(rig: GatewayRig) -> None:
+    await rig.prefs.set_rf_only(STATION, True)
+    rig.hear("OH2RCH-2*,OH2GBA-12*")
+    rig.m.on_packet(replace(rig.heard(STATION, "OH3XYZ", "Moi!", "12345", reply=""), radio_id=HF_ID))
+    sent = await rig.m.send(STATION, "x" * 66)
+    await until(lambda: rig.hf.sent[-1].info.endswith(b"{01}12345"))
+    assert len(ax25.encode(rig.hf.sent[-1])) == 123 and rig.state(sent.id).state == "sending", "the attempt with the reply-ack is the last that fits, and nothing fails"
 
 
 async def test_a_beacon_an_object_or_an_answer_on_hf_stays_without_a_path(rig: GatewayRig) -> None:

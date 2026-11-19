@@ -118,7 +118,7 @@ class Services:
         claims = Claims()                                               # the station's one table of resources (the registry's): what each radio and the GPS receiver hold
         self.suggested_frequencies = [Frequency(band, dial) for band, dial in SUGGESTED]      # the dials the project suggests, the station's (neoaprs/wiring.py puts the project's list here and on every modem)
         interlock = Interlock(lambda: self.config)                     # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
-        self.stationbook = StationBook(clock, carries_path=lambda radio: carries_path(self.config.radios, radio))      # who was heard, where, and on which radio; the routes of the radios that may carry a path are the station's as a whole
+        self.stationbook = StationBook(clock, carries_path=lambda radio: carries_path(self.config.radios, radio), own_calls=lambda: pairsetting.own_calls(self.config.station_call, self.config.pairs))      # who was heard, where, and on which radio; the routes of the radios that may carry a path are the station's as a whole, and our own copies heard back are no hearing of the station
         self.radio_packet: Signal[[Packet]] = Signal("radio.packet")    # every packet of every radio, in and out, stamped with its radio: what the parts take (neoaprs/wiring.py connects each radio's line to it)
         self.radio_changed: Signal[[RadioId]] = Signal("radio.changed")       # a radio's state, lines, counters or modem changed: its id
         kept = Remembered(self.store)                                    # (the operator's radio by station, in a state row: neoaprs/radioregistry.py)

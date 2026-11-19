@@ -15,14 +15,18 @@ class Recent[K: Hashable]:
         self.keep_max = keep_max
         self._at: dict[K, datetime] = {}
 
-    def lately(self, key: K, now: datetime) -> bool:
-        """Whether the key was noted less than the window before `now`."""
+    def _prune(self, now: datetime) -> None:
         if len(self._at) > self.keep_max:
             self._at = {k: t for k, t in self._at.items() if now - t < self.window}
+
+    def lately(self, key: K, now: datetime) -> bool:
+        """Whether the key was noted less than the window before `now`."""
+        self._prune(now)
         before = self._at.get(key)
         return before is not None and now - before < self.window
 
     def note(self, key: K, now: datetime) -> None:
+        self._prune(now)
         self._at[key] = now
 
     def seen(self, key: K, now: datetime) -> bool:

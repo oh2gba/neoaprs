@@ -61,6 +61,8 @@ export function useStationRadio(call: () => string, row: () => StationRow | null
     pathShown,
     /** why what needs a path is greyed: the radio in force carries none; undefined while it carries one */
     pathless: computed(() => (pathShown.value && over.value !== null && !over.value.carriesPath ? t("radio.no_path", { name: over.value.name }) : undefined)),
+    /** the path a message or an ack of ours goes by on the radio in force where that carries none: the reply through a gateway, the daemon's (`replies`); empty for direct, and on a radio that carries a path */
+    reply: computed(() => (over.value === null || over.value.carriesPath ? "" : (row()?.replies[String(over.value.id)] ?? ""))),
     /** Route has a row to show */
     shown: computed(() => pathShown.value || choices.value.length > 0),
     paths,

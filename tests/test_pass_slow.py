@@ -9,6 +9,7 @@ import pytest
 
 from neoaprs.coded import Reason
 from neoaprs.radiotype import FM_ID, HF_ID
+from neoaprs.recent import KEEP_MAX
 from neoaprs.services.passlimits import BURST_MAX, SLOW_HANDOVER_SEC, SLOW_PASS_MAX
 from neoaprs.source import Source
 from tests.test_digipeater import frame
@@ -96,6 +97,18 @@ def test_while_one_waits_a_second_is_held_and_a_copy_of_the_waiting_one_counts_n
     assert [f.info for f in rig.hf.sent] == [msg(1)]
 
 
+def test_a_copy_of_a_frame_held_as_busy_is_dropped_within_the_duplicate_window_even_when_the_radio_is_free() -> None:
+    rig = pair_rig()
+    rig.hf.held = KEYED
+    rig.hear(frame("OH2GBA-12", info=msg(1)))
+    rig.hear(frame("OH2GBA-12", source="OH3ABC", info=msg(2)))               # held: another frame waits
+    rig.hf.held = ""
+    rig.digi.passer.tick()
+    rig.clock.advance(10)
+    rig.hear(frame("OH2RCH*,OH2GBA-12", source="OH3ABC", info=msg(2)))      # its copy through a digipeater: the sender's own retry is what comes again
+    assert [f.info for f in rig.hf.sent] == [msg(1)] and rig.hf.stats.passed[FM_ID].held == 1
+
+
 @pytest.mark.parametrize("state", [Source.State.SILENT, Source.State.WAITING])
 def test_onto_a_radio_not_connected_nothing_is_sent_or_counted_and_nothing_waits(state: Source.State) -> None:
     rig = pair_rig()
@@ -165,3 +178,55 @@ def test_fm_as_the_target_keeps_four_in_ten_seconds_shared_with_the_fill_in() ->
     rig.hear(frame("OH2GBA-12", source="OH3ABC", info=msg(1)), radio_id=HF_ID)
     rig.hear(frame("OH2GBA-12", source="OH3ABD", info=msg(2)), radio_id=HF_ID)
     assert len(rig.tnc.sent) == BURST_MAX and rig.stats.passed[HF_ID].held == 1 and rig.stats.digipeat_held == 0
+
+
+def test_a_copy_of_a_packet_the_floor_held_counts_nothing_within_the_duplicate_window_and_counts_again_after_it() -> None:
+    rig = pair_rig()
+    beacon = b"!6010.20N/02456.40E-trk"
+    rig.hear(frame("OH2GBA-12", info=beacon))
+    rig.clock.advance(60)
+    rig.hear(frame("OH2GBA-12", info=b"!6010.20N/02456.40E-next"))
+    assert rig.hf.stats.passed[FM_ID].held == 1
+    rig.clock.advance(1)
+    rig.hear(frame("OH2RCH*,OH2GBA-12", info=b"!6010.20N/02456.40E-next"))      # (the same beacon through a digipeater)
+    assert rig.hf.stats.passed[FM_ID].held == 1 and len(rig.hf.sent) == 1
+    rig.clock.advance(31)
+    rig.hear(frame("OH2RCH*,OH2GBA-12", info=b"!6010.20N/02456.40E-next"))
+    assert rig.hf.stats.passed[FM_ID].held == 2
+
+
+def test_a_beacon_heard_direct_and_through_a_digipeater_every_minute_is_held_once_a_minute() -> None:
+    rig = pair_rig()
+    for n in range(10):
+        info = f"!6010.20N/02456.40E-{n}".encode()
+        rig.hear(frame("OH2GBA-12,WIDE2-1", info=info))
+        rig.clock.advance(1)
+        rig.hear(frame("OH2RCH*,OH2GBA-12", info=info))
+        rig.clock.advance(59)
+    assert len(rig.hf.sent) == 1 and rig.hf.stats.passed[FM_ID].held == 9
+
+
+def test_a_copy_of_a_frame_too_long_for_hf_counts_nothing_within_the_duplicate_window() -> None:
+    rig = pair_rig()
+    rig.hear(frame("OH2GBA-12", info=b">" + b"x" * 100))
+    rig.clock.advance(1)
+    rig.hear(frame("OH2RCH*,OH2GBA-12", info=b">" + b"x" * 100))
+    assert rig.hf.stats.passed[FM_ID].too_long == 1
+
+
+def test_a_copy_of_a_packet_the_burst_held_onto_fm_counts_nothing_within_the_duplicate_window() -> None:
+    rig = pair_rig(fill_in=True)
+    for n in range(BURST_MAX):
+        rig.hear(frame("OH2GBA-12", source=f"OH3AB{n}", info=msg(n)), radio_id=HF_ID)
+    rig.hear(frame("OH2GBA-12", source="OH3ABX", info=msg(9)), radio_id=HF_ID)
+    rig.clock.advance(1)
+    rig.hear(frame("OH2RCH*,OH2GBA-12", source="OH3ABX", info=msg(9)), radio_id=HF_ID)
+    assert rig.stats.passed[HF_ID].held == 1
+
+
+def test_the_table_of_a_radio_nothing_is_passed_onto_stays_bounded() -> None:
+    rig = pair_rig()
+    for n in range(KEEP_MAX + 500):
+        rig.clock.advance(31)
+        rig.hear(frame("WIDE1-1", info=f">{n}".encode()))
+    assert len(rig.digi.passer.table(FM_ID)) <= KEEP_MAX + 1

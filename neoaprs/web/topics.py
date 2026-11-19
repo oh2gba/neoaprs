@@ -33,6 +33,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from neoaprs import pairsetting
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.config import Config
 from neoaprs.callsign import normal_name
@@ -45,8 +46,10 @@ from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.pref import Fired, Pref
 from neoaprs.radiospec import RadioId
+from neoaprs.route import digipeaters
 from neoaprs.signal import Signal
 from neoaprs.station import Station
+from neoaprs.stationbook import carries_path
 
 from .hub import StateHub, Topic
 from .layerfeed import LayerLooks
@@ -71,9 +74,9 @@ PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")      #
 
 def radios_in_force(config: Config) -> tuple[object, ...]:
     """What of the settings' radios the rows of the stations, the messages and the objects read (the radio a message takes now, a choice in force, an object's radios): each radio's id, kind, type, Enable,
-    place and whether it is removed, and the radio chosen for email (the gateway's row and a mail on its way follow it). A name, a radio's own settings and the paths are none of it (a
+    place and whether it is removed, the radio chosen for email (the gateway's row and a mail on its way follow it), and our own calls (a reply path through a gateway is never one of them). A name, a radio's own settings and the paths are none of it (a
     station's path on a radio is told by PrefBook.path_changed)."""
-    return tuple((s.id, s.kind, s.type, s.enabled, s.position, s.removed) for s in config.radios), config.email_choice
+    return tuple((s.id, s.kind, s.type, s.enabled, s.position, s.removed) for s in config.radios), config.email_choice, pairsetting.own_calls(config.station_call, config.pairs)
 
 
 class Topics:
@@ -90,7 +93,7 @@ class Topics:
         self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
         self._config = ctl.config                   # the settings the stations were last told with
         self.window.internet = ctl.config.igate_enabled
-        self.station_radios = StationRadios(self._radio_choice, self._radio_now, self._paths_of)
+        self.station_radios = StationRadios(self._radio_choice, self._radio_now, self._paths_of, self._replies_of)
         hub.add(Topic("stations", self._stations, lambda call: self._station(call)))
         hub.add(Topic("packets", self.window.whole, self.window.item))
         hub.add(Topic("radios", self._radios, self._radio, interval=TNC_EVERY_SEC))
@@ -148,6 +151,11 @@ class Topics:
             return {}
         found = ((spec.id, self.ctl.prefbook.path_on(key, spec.id)) for spec in self.ctl.config.live_radios)
         return {id: path for id, path in found if path is not None}
+
+    def _replies_of(self, call: str) -> dict[RadioId, tuple[str, ...]]:
+        """The path of a message or an ack of ours to the station on each radio that is not removed and carries no path (M1: the reply through a gateway, PrefBook.path_for), without RFONLY, by the radio's id."""
+        live = self.ctl.config.live_radios
+        return {spec.id: digipeaters(self.ctl.prefbook.path_for(call, None, spec.id)) for spec in live if not carries_path(live, spec.id)}
 
     def _radios(self) -> dict[str, Any]:
         rows = ((str(spec.id), self._radio_of(spec.id)) for spec in self.ctl.config.radios)

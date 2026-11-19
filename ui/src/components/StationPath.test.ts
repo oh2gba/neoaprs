@@ -105,6 +105,23 @@ describe("StationPath", () => {
     }
   });
 
+  describe("on a radio that carries no path", () => {
+    const pathless = (reply?: string) =>
+      mount(StationPath, {
+        props: { call: "OH2RDG", paths: new Map(), fallback: "WIDE1-1,WIDE2-1", pathless: "Mercury: no path", ...(reply === undefined ? {} : { reply }) },
+      });
+
+    it("says the reply through a gateway the daemon gives", () => {
+      expect(line(pathless("OH2GBA-12"))).toBe("Automatic: via OH2GBA-12");
+      expect(line(pathless("OH2GBA-12,WIDE2-1"))).toBe("Automatic: via OH2GBA-12,WIDE2-1");
+    });
+
+    it("says direct when there is none", () => {
+      expect(line(pathless(""))).toBe("Automatic: direct");
+      expect(line(pathless())).toBe("Automatic: direct");
+    });
+  });
+
   it("takes the station's own path away with the x", async () => {
     const wrapper = path([["OH2RDG", "OH2RCH-2"]]);
     expect(wrapper.find(".use-default").text()).toBe("×");

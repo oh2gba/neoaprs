@@ -47,6 +47,7 @@ const {
   fixed,
   pathShown,
   pathless,
+  reply,
   setPath,
   clearPath,
   choose: chooseRadio,
@@ -154,6 +155,7 @@ function onEsc(event: KeyboardEvent): void {
               :fixed="fixed"
               :path-shown="pathShown"
               :pathless="pathless"
+              :reply="reply"
               @path="setPath"
               @clear-path="clearPath"
               @set-rf-only="prefs.setRfOnly"

@@ -120,6 +120,7 @@ class Passer:
         self._counted = counted
         self._clock = clock
         self._tables: dict[RadioId, Recent[DuplicateKey]] = {}       # by radio: what it heard and sent lately (N3)
+        self._kept: dict[RadioId, Recent[DuplicateKey]] = {}         # by radio: the packets its limits held lately, so a copy of one counts nothing
         self._handed: dict[RadioId, datetime] = {}                   # by radio: when the latest frame was handed to it (L4's gap)
         self._waiting: dict[RadioId, _Offer] = {}                    # by slow radio: the one frame that waits for it (L4)
         self._budgets: dict[RadioId, tuple[int, SlowBudget]] = {}     # by slow radio: its floor and its budget (L2, L3)
@@ -129,6 +130,9 @@ class Passer:
     def table(self, radio: RadioId) -> Recent[DuplicateKey]:
         """The radio's own table of what it heard and sent lately (N3)."""
         return self._tables.setdefault(radio, Recent(DIGI_DUPLICATE_SEC))
+
+    def _held_table(self, radio: RadioId) -> Recent[DuplicateKey]:
+        return self._kept.setdefault(radio, Recent(DIGI_DUPLICATE_SEC))
 
     def on_packet(self, packet: Packet) -> None:
         """Every on-air packet with a radio is noted in that radio's table, and an `out` one as that radio's latest handover; one heard is passed by the row whose call its path names, or, when none does and it
@@ -211,13 +215,13 @@ class Passer:
         if self._duplicate(target.id, offer.key, now):
             return
         if (why := target.limits.too_long(offer.raw, text_of(offer.frame))) is not None:
-            self._hold(offer, target, "too long", f"too long: {why}")
+            self._hold(offer, target, now, "too long", f"too long: {why}")
             return
         if (reason := self._limit(target, packet, now)) is not None:
-            self._hold(offer, target, reason)
+            self._hold(offer, target, now, reason)
             return
         if target.id in self._waiting:
-            self._hold(offer, target, "busy")
+            self._hold(offer, target, now, "busy")
             return
         ready = self._ready(target, now)
         if ready == "now":
@@ -238,11 +242,11 @@ class Passer:
             return
         if (now - packet.heard_at).total_seconds() > DIGI_DUPLICATE_SEC:
             del self._waiting[radio]
-            self._hold(offer, target, "busy")
+            self._hold(offer, target, now, "busy")
             return
         if (reason := self._limit(target, packet, now)) is not None:
             del self._waiting[radio]
-            self._hold(offer, target, reason)
+            self._hold(offer, target, now, reason)
             return
         ready = self._ready(target, now)
         if ready == "wait":
@@ -254,9 +258,9 @@ class Passer:
             log.debug("%s: a packet of %s that waited is not passed: %s", target.name, packet.source, target.why_unusable())
 
     def _duplicate(self, radio: RadioId, key: DuplicateKey, now: datetime) -> bool:
-        """Whether the radio heard or sent the packet lately, or it is the frame that waits for it (N3)."""
+        """Whether the radio heard or sent the packet lately, it is the frame that waits for it (N3), or the radio's limits held it lately (a copy counts nothing)."""
         waiting = self._waiting.get(radio)
-        return self.table(radio).lately(key, now) or (waiting is not None and waiting.key == key)
+        return self.table(radio).lately(key, now) or self._held_table(radio).lately(key, now) or (waiting is not None and waiting.key == key)
 
     def _budget(self, target: AirRadio) -> SlowBudget:
         """The slow radio's budget, made again when its floor changes."""
@@ -316,9 +320,10 @@ class Passer:
         elif (answered := _answered(packet)) is not None:
             self._passed.answer(packet.source, decoded.addressee, answered, offer.row.heard, now)
 
-    def _hold(self, offer: _Offer, target: AirRadio, reason: str, words: str = "") -> None:
+    def _hold(self, offer: _Offer, target: AirRadio, now: datetime, reason: str, words: str = "") -> None:
         """A frame left unsent by the target's limits or its length, counted for the direction; the first of each reason for each direction is told at INFO, the rest at DEBUG."""
         row = offer.row
+        self._held_table(target.id).note(offer.key, now)
         count = target.stats.passed.setdefault(row.heard, PassCount())
         if reason == "too long":
             count.too_long += 1
