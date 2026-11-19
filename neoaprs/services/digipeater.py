@@ -24,6 +24,7 @@ from datetime import datetime
 from neoaprs import ax25
 from neoaprs.callsign import parse_call
 from neoaprs.clock import Clock, utcnow
+from neoaprs.crossrule import spliced
 from neoaprs.interlock import Interlock
 from neoaprs.packet import DuplicateKey, Packet, duplicate_key
 from neoaprs.policy import DIGI_DUPLICATE_SEC
@@ -39,7 +40,6 @@ log = logging.getLogger("neoaprs.digipeater")
 BURST_MAX = 4
 BURST_WINDOW_SEC = 10.0
 FILL_IN = ("WIDE1", 1)
-ADDRESS_LEN = 7
 
 
 @dataclass(frozen=True)
@@ -79,12 +79,6 @@ def repeat(frame: ax25.Frame, ours: tuple[str, int]) -> ax25.Frame | None:
         return None
     used = ax25.Address(ours[0], ours[1], repeated=True)
     return replace(frame, path=path[:at] + (used,) + path[at + 1:])
-
-
-def spliced(raw: bytes, heard: ax25.Frame, frame: ax25.Frame) -> bytes:
-    """The bytes that were heard (`heard` is what they decode to) with the path of `frame` in place of theirs; everything else is as it arrived."""
-    start = 2 * ADDRESS_LEN
-    return raw[:start] + ax25.encode_path(frame.path) + raw[start + ADDRESS_LEN * len(heard.path):]
 
 
 class Digipeater:
