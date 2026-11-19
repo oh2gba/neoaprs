@@ -363,29 +363,31 @@ async def test_on_a_fake_clock_a_mail_has_its_two_attempts_on_one_radio_and_a_ne
     await s.start("dummy-lora", "dummy-hf", "tnc-text", senders=(1, 2, 3, 4))
     e = s.e
 
-    async def half_an_hour(after_the_first_of: str = "", then: Callable[[], Awaitable[object]] | None = None) -> None:
+    async def half_an_hour(sent: dict[str, int], then: Callable[[], Awaitable[object]] | None = None) -> None:
+        """`then` is done once the first frame of each text is out (it goes while the clock stands), then the half hour passes, and the wait ends when every text has gone out as often as `sent` says:
+        a busy runner is waited for and never raced."""
+        if then is not None:
+            await until(lambda: all(s.on(text) for text in sent))
+            await then()
         for _ in range(30):
             s.clock.advance(60)
             await idle_for(0.03)
-            if then is not None and s.on(after_the_first_of):
-                await then()
-                then = None
-        assert then is None
+        await until(lambda: all(len(s.on(text)) >= times for text, times in sent.items()))
 
     await s.say("EMAIL-2", "jane@example.org one")
     await s.say("OH2SLOW", "one")
     await s.say("CQ", "cq one")
-    await half_an_hour()
+    await half_an_hour({"jane@example.org one": 2, ":OH2SLOW  :one": 4, "cq one": 1})
     assert (s.on("jane@example.org one"), s.on(":OH2SLOW  :one"), s.on("cq one")) == ([1, 1], [1, 1, 1, 1], [1]), "nothing stored: the mail twice, the message to a call no radio heard four times, the text to CQ once, all on the first box"
     await s.choose("2")
     await s.say("EMAIL-2", "jane@example.org two")
-    await half_an_hour()
+    await half_an_hour({"jane@example.org two": 2})
     assert s.on("jane@example.org two") == [2, 2], "the Mercury radio chosen: both attempts on it"
     await s.say("EMAIL-2", "jane@example.org three")
-    await half_an_hour("jane@example.org three", lambda: s.choose("4"))
+    await half_an_hour({"jane@example.org three": 2}, lambda: s.choose("4"))
     assert s.on("jane@example.org three") == [2, 4], "another radio chosen after the first attempt: the second on that one"
     await s.say("EMAIL-2", "jane@example.org four")
-    await half_an_hour("jane@example.org four", lambda: e.ctl.change_radio(4, enabled=False))
+    await half_an_hour({"jane@example.org four": 2}, lambda: e.ctl.change_radio(4, enabled=False))
     assert s.on("jane@example.org four") == [4, 1], "the radio chosen switched off after the first attempt: the second on the radio of no choice"
     assert Counter(radio for radio, info in s.out if "jane@" in info) == Counter({1: 3, 2: 3, 4: 2}) and Counter(radio for radio, _ in s.out) == Counter({1: 8, 2: 3, 4: 2}), "four mails, eight frames; nothing on LoRa or the monitor"
     await e.stop()
