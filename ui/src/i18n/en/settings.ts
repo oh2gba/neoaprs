@@ -388,7 +388,7 @@ export const settings = {
   "settings.pair.call": "Call",
   "settings.pair.tip_label": "About passing between two radios",
   "settings.pair.tip1":
-    "Sends a packet heard on one of the two radios out once on the other, when its path names this call. Give the call to the stations that want to reach the other radio.",
+    "A packet heard on one of the two radios goes out once on the other when its path names this call. Give the call to stations that want to cross.",
   "settings.pair.tip2": "A WIDE path alone never goes across.",
   "settings.pair.fold.each_way": "{n} to {first} · {m} to {second}",
   "settings.pair.fold.held": { one: "{n} frame held back: too many for {radio}", other: "{n} frames held back: too many for {radio}" },
