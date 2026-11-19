@@ -334,11 +334,11 @@ export const igateOn = (values: Readonly<Record<string, string>>): boolean => va
 const shownBySwitch = (key: string, values: Readonly<Record<string, string>>): boolean =>
   key !== "messages/alert_command" || values["messages/alert"] !== "false";
 
-/** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert (lib/alertlegend.ts). */
+/** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert (lib/alertlegend.ts) and the map's layers (Aircraft and Ships, and a later layer's rows after them). */
 export const SUBGROUPS: Record<
   string,
   { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[]; readonly picture?: PictureName }
-> = { "messages/alert": alertLegend };
+> = { "messages/alert": alertLegend, "map/aircraft": lazyText({ title: "", tipLabel: "", tip: [] }, { text: () => t("settings.map.layers") }) };
 
 /** What the My station tab keeps behind a closed heading in the Beacon group: the antenna (the PHG part of the beacon, which only a fixed station has) and the path. */
 export const BEACON_FOLDS: readonly { readonly group: string; readonly title: string; readonly keys: readonly string[] }[] = [

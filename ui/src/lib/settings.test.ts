@@ -116,8 +116,11 @@ describe("groupKeys", () => {
   });
   it("heads the daemon's own alert in the Notifications group with a line that says where it runs", () => {
     expect(SUBGROUPS["messages/alert"]?.text).toBe("On the NeoAPRS computer");
-    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert"]);
+    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert", "map/aircraft"]);
     expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Notify me", "Command"]);
+  });
+  it("heads the map's layers with the word Layers, no (i) and no hover text", () => {
+    expect(SUBGROUPS["map/aircraft"]).toMatchObject({ text: "Layers", title: "", tipLabel: "", tip: [] });
   });
   it("names the NeoAPRS computer in the (i) of the daemon's alert in a browser and this computer, alone, in the app's own window, after a reload too; the (i) of Notify me names neither", () => {
     const tips = () => [...(SUBGROUPS["messages/alert"]?.tip ?? []), ...(FIELDS["messages/alert"]?.tip ?? [])];

@@ -4,6 +4,7 @@ import SettingsForm from "@/components/SettingsForm.vue";
 import type { Scope } from "@/lib/settings";
 import { CONFIG_KEYS } from "@/protocol/lists";
 import type { PortsMessage, RadioRow } from "@/protocol/protocol";
+import { setLocale } from "@/i18n";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, mapFile, mapState, radioRow, radiosTopic, status, toastOf, portRow } from "@/test/fixtures";
@@ -55,6 +56,7 @@ describe("SettingsForm", () => {
       "On the NeoAPRS computer i",
       "In this browser",
       "Map",
+      "Layers",
       "Update check",
       "Help",
       "About",
@@ -1259,6 +1261,40 @@ describe("SettingsForm", () => {
           .findAll(".field label")
           .map((l) => l.text()),
       ).toEqual(["Radius", "Detailed map", "Aircraft", "Ships"]);
+    });
+
+    it("has Aircraft and Ships, with their lines, in one box headed Layers that ends the group, and Radius and Detailed map outside it", () => {
+      const { wrapper } = mount_();
+      const group = wrapper.find("fieldset:has(#set-map-radius_km)");
+      const boxes = group.findAll("fieldset.subbox");
+      expect(boxes.map((b) => b.find("legend").text())).toEqual(["Layers"]);
+      expect(boxes[0]?.find("legend").attributes("title")).toBeUndefined();
+      expect(boxes[0]?.find("legend .info-toggle").exists()).toBe(false);
+      expect(boxes[0]?.findAll(".field label").map((l) => l.text())).toEqual(["Aircraft", "Ships"]);
+      expect(boxes[0]?.find("#set-map-radius_km").exists()).toBe(false);
+      expect(boxes[0]?.find(".mapfetch-button").exists()).toBe(false);
+      expect(boxes[0]?.element.nextElementSibling).toBeNull();
+    });
+
+    it("keeps the receiver's address row of a layer inside the Layers box", () => {
+      const { wrapper } = mount_(mapState(), { "map/aircraft": "receiver", "map/aircraft_host": "192.168.1.5" });
+      const box = wrapper.find("fieldset:has(#set-map-radius_km) fieldset.subbox");
+      expect(box.find("#set-map-aircraft_host").exists()).toBe(true);
+      expect(wrapper.findAll("#set-map-aircraft_host")).toHaveLength(1);
+    });
+
+    it("writes the legend of the Layers box in the language the page has", async () => {
+      try {
+        const { wrapper } = mount_();
+        const find = () => wrapper.find("fieldset:has(#set-map-radius_km) fieldset.subbox legend").text();
+        expect(find()).toBe("Layers");
+        setLocale("en-XA");
+        await wrapper.vm.$nextTick();
+        expect(find()).not.toBe("Layers");
+        expect(find()).not.toBe("");
+      } finally {
+        setLocale("en");
+      }
     });
 
     it("turns the buttons off while a map setting is being saved, and on again when it is, and takes the radius when the field is left", async () => {
