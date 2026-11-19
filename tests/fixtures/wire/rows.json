@@ -76,6 +76,8 @@
    },
    "radio_defaults": {
     "email/radio": "",
+    "pair/1/2/enabled": "false",
+    "pair/1/2/ssid": "",
     "radio/1/ask": "false",
     "radio/1/baud": "",
     "radio/1/beacon": "true",
@@ -103,6 +105,8 @@
    },
    "radio_values": {
     "email/radio": "",
+    "pair/1/2/enabled": "false",
+    "pair/1/2/ssid": "",
     "radio/1/ask": "false",
     "radio/1/baud": "",
     "radio/1/beacon": "true",
@@ -229,6 +233,8 @@
    },
    "radio_defaults": {
     "email/radio": "",
+    "pair/1/2/enabled": "false",
+    "pair/1/2/ssid": "",
     "radio/1/ask": "false",
     "radio/1/baud": "",
     "radio/1/beacon": "true",
@@ -256,6 +262,8 @@
    },
    "radio_values": {
     "email/radio": "",
+    "pair/1/2/enabled": "false",
+    "pair/1/2/ssid": "",
     "radio/1/ask": "false",
     "radio/1/baud": "",
     "radio/1/beacon": "true",

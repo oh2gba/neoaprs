@@ -17,6 +17,7 @@ from .configlayers import LAYER_ROWS, LayerFields
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, host_port as _host_port, hostport, status_source, status_template, status_text
 from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, path_text, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings, and today's flat keys as a view of radios 1 and 2)
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
+from .pairsetting import PairFields, pairs_from_rows      # (the pairs of radios: rows of their own, pair/<low>/<high>/*, read into Config.pairs)
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .beaconrule import SETTING_MIN_MIN, station_interval
@@ -165,7 +166,7 @@ HF_DIAL = "update/hf_dial"                   # the HF dial the version page name
 
 @accepting_flat
 @dataclass(frozen=True)
-class Config(FlatFields, RadioViews, LayerFields):
+class Config(FlatFields, RadioViews, LayerFields, PairFields):
     serial_last_port: str = ""
     serial_pattern: str = DEFAULT_SERIAL_PATTERN
     serial_skip: str = ""
@@ -320,11 +321,11 @@ class Config(FlatFields, RadioViews, LayerFields):
     def checked(cls, base: "Config", values: Mapping[str, str]) -> "Config":
         """The settings in force with these values (key to text) put in, for a save: every value is checked and the first wrong one raises ValueError with its key, and when one of the
         settings that decide the length of the comment is among them, so is the comment against the new settings. The error is a SettingError: its key, code and params are what the page goes by.
-        The radios of `base` stay, with the flat keys among the values put into radios 1 and 2."""
+        The radios and the pairs of radios of `base` stay, with the flat keys among the values put into radios 1 and 2."""
         parsed = {key: cls.check(key, text) for key, text in values.items()}
         rows = {key: text for key, text in {**base.to_data(), **parsed}.items() if BY_KEY[key].attr not in FLAT_HOMES}
         flat = {BY_KEY[key].attr: cls.parse(key, text) for key, text in parsed.items() if BY_KEY[key].attr in FLAT_HOMES}
-        config = replace(cls.from_data(rows, radios=base.radios), **flat)
+        config = replace(cls.from_data(rows, radios=base.radios), pairs=base.pairs, **flat)
         if COMMENT_KEYS & parsed.keys() and (refusal := config.comment_refusal()):
             raise refusal
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:
@@ -344,6 +345,7 @@ class Config(FlatFields, RadioViews, LayerFields):
         if radios is not None and LAST_PORT in rows:
             rows = {**rows, "serial/last_port": rows[LAST_PORT]}          # (radio 1's own row wins over one under the old name, which nothing writes once the radios are stored)
         values: dict[str, Any] = {} if radios is None else {"radios": tuple(sorted(radios, key=lambda spec: spec.id))}
+        values.update({} if radios is None else {"pairs": pairs_from_rows(rows)})       # (the pairs' rows are read once the radios are stored)
         for setting in SETTINGS:
             if setting.key in rows and (radios is None or setting.attr not in FLAT_HOMES):
                 try:

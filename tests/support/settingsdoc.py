@@ -17,6 +17,7 @@ from neoaprs.direwolf import TX_GAIN_MAX_DB as DIREWOLF_GAIN_MAX, TX_GAIN_MIN_DB
 from neoaprs.layerthing import AIRCRAFT_PORTS, AIS_PORT, FINTRAFFIC_BOX
 from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
 from neoaprs.ownbulletin import MAX_POSTED
+from neoaprs.pairsetting import PAIR_FIELDS, default_of, pair_key
 from neoaprs.policy import GPS_STALE_SEC, INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.radiotype import FM_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_BEACON_MIN_MIN, HF_MAX_FRAME, LORA_BEACON_JITTER_SEC, LORA_BEACON_MIN_MIN
 from neoaprs.radiotype import KINDS
@@ -124,9 +125,10 @@ def own_keys() -> list[str]:
 
 
 def undescribed() -> list[str]:
-    """The settings of the code that DESCRIPTIONS lacks, and the keys it describes that are gone; the same for the radios' own settings and RADIO_DESCRIPTIONS."""
+    """The settings of the code that DESCRIPTIONS lacks, and the keys it describes that are gone; the same for the radios' own settings and RADIO_DESCRIPTIONS, and the pairs' and PAIR_DESCRIPTIONS."""
     return ([k for k in SHOWN_KEYS if k not in DESCRIPTIONS] + [f"{k} (gone)" for k in DESCRIPTIONS if k not in SHOWN_KEYS]
-            + [f"radio/<id>/{k}" for k in own_keys() if k not in RADIO_DESCRIPTIONS] + [f"radio/<id>/{k} (gone)" for k in RADIO_DESCRIPTIONS if k not in own_keys()])
+            + [f"radio/<id>/{k}" for k in own_keys() if k not in RADIO_DESCRIPTIONS] + [f"radio/<id>/{k} (gone)" for k in RADIO_DESCRIPTIONS if k not in own_keys()]
+            + [f"pair/<a>/<b>/{k}" for k in PAIR_FIELDS if k not in PAIR_DESCRIPTIONS] + [f"pair/<a>/<b>/{k} (gone)" for k in PAIR_DESCRIPTIONS if k not in PAIR_FIELDS])
 
 
 def settings() -> str:
@@ -201,8 +203,16 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
 }
 
 
+# a pair of radios' setting, `pair/<a>/<b>/<field>` (neoaprs/pairsetting.py): (where it is on the page, what it is). The order is the order of the table.
+PAIR_DESCRIPTIONS: dict[str, tuple[str, str]] = {
+    "enabled": ("Settings tab, Digipeater", "`true`: a packet heard on radio a or radio b whose path names the pair's call as its next unused hop is sent once on the other radio, with the call marked used. `false` by default. Set in the Settings tab only"),
+    "ssid": ("Settings tab, Digipeater", "the SSID (1 to 15) of the pair's call on the station's base call, `OH2GBA-12`; empty until the pair is first switched on, which takes the highest SSID that is neither the station's nor another pair's"),
+}
+
+
 def radios() -> str:
-    """The types of radio with their own settings, then the own settings (`radio/<id>/<key>`) with their defaults and the types that have each."""
+    """The types of radio with their own settings, then the own settings (`radio/<id>/<key>`) with their defaults and the types that have each, then the settings of a pair of radios (`pair/<a>/<b>/<field>`,
+    a below b by id)."""
     fields = _numbers()
     types: list[tuple[object, ...]] = [(f"`{t.key}`", t.kind, t.name, ", ".join(f"`{f.key}`" for f in t.fields) or "none") for t in TYPES]
     own: list[tuple[object, ...]] = []
@@ -211,7 +221,9 @@ def radios() -> str:
         default = next(f.default for t in having for f in t.fields if f.key == key) if having else ""
         where, text = RADIO_DESCRIPTIONS[key]
         own.append((f"`radio/<id>/{key}`", f"`{default}`" if default else EMPTY, ", ".join(f"`{t.key}`" for t in having) or "none", where, text.format(**fields)))
-    return _table(("type", "kind", "what it is", "its own settings"), types) + "\n" + _table(("key", "default", "types", "where", "what it is"), own)
+    pairs: list[tuple[object, ...]] = [(f"`pair/<a>/<b>/{key}`", f"`{default}`" if (default := default_of(pair_key(1, 2, key))) else EMPTY, *PAIR_DESCRIPTIONS[key]) for key in PAIR_DESCRIPTIONS]
+    return (_table(("type", "kind", "what it is", "its own settings"), types) + "\n" + _table(("key", "default", "types", "where", "what it is"), own)
+            + "\n" + _table(("key", "default", "where", "what it is"), pairs))
 
 
 MAKERS = {"settings": settings, "fixed": fixed, "state": state, "radios": radios}

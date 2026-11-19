@@ -23,8 +23,8 @@ class ConfigValues(_Model):
     defaults: dict[str, str] = Field(description="the same keys with their defaults, for a form's reset")
     radio_values: dict[str, str] = Field(description="the radios' own settings in force, `radio/<id>/<key>` to text, every field of its kind for each radio that is not removed (the fields of `RADIO_TYPES`), and the station's settings "
                                                      "of the radios (`email/radio`, the id of the radio chosen for email, empty for none chosen: the radio in force is `status.email_radio`): what `set_config` takes beside `values`; kept apart from `values`, "
-                                                     "whose form shows none of them")
-    radio_defaults: dict[str, str] = Field(description="the same keys with their defaults (the field's of the radio's kind)")
+                                                     "whose form shows none of them; and both keys of every two radios that are not removed and may form a pair (both transmit, both Dummy or both real), enabled or not: `pair/<low>/<high>/enabled` (`true` or `false`) and `pair/<low>/<high>/ssid` (1 to 15, the SSID of the pair's call on the station's base call; empty while none is chosen, and a pair switched on is given the highest free one), by the radios' ids, low first")
+    radio_defaults: dict[str, str] = Field(description="the same keys with their defaults (the field's of the radio's kind; a pair's `false` and empty)")
     urls: list[str] = Field(description="where another device opens the page while `web/network` is on (this computer's address on the network and its name there, with the port); empty while it is off (with `https` on, the https addresses)")
     https: HttpsState = Field(description="the secure connection: whether it is served, its port, the fingerprint of the authority's certificate (which `GET /neoaprs-ca.crt` downloads), and why not when it could not start")
 

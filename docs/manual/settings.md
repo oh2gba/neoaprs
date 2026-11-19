@@ -96,6 +96,8 @@ A new installation has no radio until you add one: in the setup guide, in the Se
 
 The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `hf/enabled`, `mercury/keying` ...) are no settings any more: the first start of this version made each the radio's own (a `tnc/enter_kiss` of `true` with no `tnc/profile` made the radio's type `kenwood-tnc2`), and `neoaprs db set` of one names its new key.
 
+Two radios that both send, and are both Dummy radios or both real ones, can pass packets to each other as a pair (the Digipeater group of the Settings tab). Each pair keeps two rows of its own, `pair/<a>/<b>/enabled` and `pair/<a>/<b>/ssid`, with the radios' numbers as a and b, the lower first: the last table below. They are set in the Settings tab only; `neoaprs db set` does not take them.
+
 <!-- doc-settings:radios -->
 | type | kind | what it is | its own settings |
 | --- | --- | --- | --- |
@@ -131,6 +133,11 @@ The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `h
 | `radio/<id>/tx_gain_db` | `0` | `direwolf`, `mercury` | Settings tab, Radio (Transmit level) | the transmit gain of the radio's modem in dB (Mercury -20 to 20, Direwolf -20 to 0; `0`: the modem's own level, a Mercury frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once (Direwolf starts its program again with it) and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame. Where the sound card has a playback level of its own and this is `0`, the row's slider sets that one instead (`tx_card`); a gain off `0` keeps the - and + and the card's playback level is left as it is |
 | `radio/<id>/tx_card` | empty | `direwolf`, `mercury` | Settings tab, Radio (Transmit level) | the sound card's own playback level in percent, 0 to 100 (on Linux its ALSA Master, Speaker or PCM control, on Windows the playing device's volume; not on macOS). Empty: never set, the card stays as the system has it. Set with the slider of the Transmit level row, which is there only where the card has such a control and the transmit gain is `0`; it is set on the card at once, without a restart, and put back on it at every start of the radio's modem while the gain is `0` |
 | `radio/<id>/rx_card` | empty | `direwolf`, `mercury` | Settings tab, Radio (Receive level) | the sound card's own capture level in percent, 0 to 100 (its ALSA Capture or Mic control, the recording device's volume on Windows). Empty: never set. Set with the slider of the Receive level row, beside the bar, which is there only where the card has such a control; set and put back as `tx_card`. A switch of the card (its Auto Gain Control, a mute) is never touched |
+
+| key | default | where | what it is |
+| --- | --- | --- | --- |
+| `pair/<a>/<b>/enabled` | `false` | Settings tab, Digipeater | `true`: a packet heard on radio a or radio b whose path names the pair's call as its next unused hop is sent once on the other radio, with the call marked used. `false` by default. Set in the Settings tab only |
+| `pair/<a>/<b>/ssid` | empty | Settings tab, Digipeater | the SSID (1 to 15) of the pair's call on the station's base call, `OH2GBA-12`; empty until the pair is first switched on, which takes the highest SSID that is neither the station's nor another pair's |
 <!-- /doc-settings -->
 
 ## Values the program decides

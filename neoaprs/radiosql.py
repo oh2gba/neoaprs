@@ -11,6 +11,7 @@ from .config import MESSAGE_RADIOS as CHOICES          # the state row of the st
 from .config import EMAIL_RADIO, NEW_BULLETINS, NEW_OBJECTS
 from .configradios import radio_key_of, radios_from_rows
 from .dberror import Row, rows
+from .pairsetting import pair_key_of
 from .radiospec import RadioSpec
 from .sendonrule import Kept, ids_of, kept_in_force, text_of
 from .storesql import write_setting
@@ -55,10 +56,10 @@ def put_radio_settings(db: sqlite3.Connection, id: int, values: Mapping[str, str
 
 
 def of_removed_radio(db: sqlite3.Connection, keys: Iterable[str]) -> bool:
-    """Whether one of `keys` is a row of a removed radio's own state (`radio/<id>/<name>`: a beacon's last send, a port found, written by a task that waited behind the removal). `remove_radio` took
+    """Whether one of `keys` is a row of a removed radio's own state (`radio/<id>/<name>`: a beacon's last send, a port found, written by a task that waited behind the removal) or of a pair it was one of. `remove_radio` took
     those away, and nothing would take one away again, for the id never comes back: the Store writes none (Store.put_setting). A radio with no row at all (a database whose radios are not stored yet)
     is not a removed one."""
-    ids = {found[0] for key in keys if (found := radio_key_of(key)) is not None}
+    ids = {found[0] for key in keys if (found := radio_key_of(key)) is not None} | {id for key in keys if (pair := pair_key_of(key)) is not None for id in pair[:2]}
     return any(db.execute("SELECT 1 FROM radio WHERE id = ? AND removed_at IS NOT NULL", (id,)).fetchone() for id in ids)
 
 
@@ -82,7 +83,7 @@ def remove_radio(db: sqlite3.Connection, id: int, at: str) -> int:
     """Removes a radio, in the transaction of the caller; how many rows it found (0 for a radio that is not there or is removed already, and then nothing is touched). The row stays, with the time
     in `removed_at`, so that what came by the radio still says so, and its own settings and what it heard of the stations stay with it. What chooses it is taken back: its id out of the objects' and the
     bulletins' sets (one that goes out on no other radio keeps it, for a set is never empty: it is ticked nowhere), out of what a new object and a new bulletin start with, the e-mail radio where it is
-    that one, the stations' paths on it, the stations' choices of it (the state row messages/radio_by_station), and the rows of its own state (`radio/<id>/*`)."""
+    that one, the stations' paths on it, the stations' choices of it (the state row messages/radio_by_station), the rows of its own state (`radio/<id>/*`), and the rows of every pair it is one of (`pair/<low>/<high>/*`)."""
     if not db.execute("UPDATE radio SET removed_at = ? WHERE id = ? AND removed_at IS NULL", (at, id)).rowcount:
         return 0
     _out_of_sets(db, id)
@@ -94,6 +95,9 @@ def remove_radio(db: sqlite3.Connection, id: int, at: str) -> int:
         if id in chosen.values():
             write_setting(db, CHOICES, json.dumps({call: radio for call, radio in chosen.items() if radio != id}, sort_keys=True))
     db.execute("DELETE FROM settings WHERE key GLOB ?", (f"radio/{int(id)}/*",))
+    for (key,) in db.execute("SELECT key FROM settings WHERE key GLOB 'pair/*'").fetchall():
+        if (pair := pair_key_of(str(key))) is not None and id in pair[:2]:
+            db.execute("DELETE FROM settings WHERE key = ?", (key,))
     return 1
 
 

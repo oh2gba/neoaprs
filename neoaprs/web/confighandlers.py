@@ -9,6 +9,7 @@ from dataclasses import replace
 
 from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.cli.redaction import shown_value
+from neoaprs import pairsetting
 from neoaprs.coded import CodedError
 from neoaprs.config import BY_KEY, EMAIL_RADIO, Config, SettingError, radio_key_of
 from neoaprs.configradios import flat_moved
@@ -168,6 +169,39 @@ def _own_value(config: Config, key: str) -> str | None:
     return None if spec is None else spec.settings.get(field, getattr(kind_field(spec.kind, field), "default", None))
 
 
+def split_values(values: Mapping[str, str]) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
+    """The values of a save in three: the station's settings (and any key that is none of the others, which they refuse), the radios' own (`radio/<id>/<key>`) and the pairs' (`pair/<low>/<high>/<field>`)."""
+    flat: dict[str, str] = {}
+    own: dict[str, str] = {}
+    pairs: dict[str, str] = {}
+    for key, text in values.items():
+        (own if radio_key_of(key) is not None else pairs if pairsetting.pair_key_of(key) is not None else flat)[key] = text
+    return flat, own, pairs
+
+
+def with_pairs(base: Config, after: Config, pairs: Mapping[str, str], flat: Mapping[str, str]) -> Config:
+    """The settings with the pairs' values put in (pairsetting.with_pair_values), a SettingError naming the key for the first that is wrong: `radio.unknown` for a radio that is none or removed (no_radio), the
+    pair's own refusals, and `setting.call_of_pair` under station/call when the call sent takes the SSID of an enabled pair."""
+    for key in pairs:
+        for id in (pairsetting.pair_key_of(key) or ())[:2]:
+            if (spec := base.radio(id)) is None or spec.removed:
+                raise no_radio(key, id, base.radios)
+    try:
+        config = replace(after, pairs=pairsetting.with_pair_values(after.station_call, after.radios, after.pairs, pairs, was_call=base.station_call))
+        if "station/call" in flat and (refusal := pairsetting.call_refusal(config.station_call, config.pairs)) is not None:
+            raise refusal
+    except pairsetting.PairError as e:
+        raise SettingError(e.key, e.code, e.params, str(e)) from None
+    return config
+
+
+def log_pair_changes(before: Config, after: Config) -> None:
+    """The pairs' rows a save changed, in the log as the station's are."""
+    was = pairsetting.rows_of(before.pairs)
+    for key, text in pairsetting.changed_rows(before.pairs, after.pairs).items():
+        log.info("settings: %s = %s (was %s)", key, shown(key, text), shown(key, was.get(key, pairsetting.default_of(key))))
+
+
 CHOICES_OF_A_RADIO = {EMAIL_RADIO: "email_choice"}      # the station's settings that name one radio by its id, each with its field of Config
 
 
@@ -184,20 +218,19 @@ def _name_radios(base: Config, config: Config, keys: Iterable[str]) -> None:
 @command(SetConfig)
 async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
     """Every value is checked before anything is stored (the first wrong one is the answer, with its key), and the settings in force are the base: a key that is left out keeps its value. A radio's own setting
-    (`radio/<id>/<key>`) is put into its radio and stored with the rest in one write. A page of another device that would change one of LOCAL_ONLY is refused, and nothing is stored (a value it sends that is the
+    (`radio/<id>/<key>`) is put into its radio, a pair's (`pair/<low>/<high>/<field>`) into the pairs of radios, and each is stored with the rest in one write. A page of another device that would change one of LOCAL_ONLY is refused, and nothing is stored (a value it sends that is the
     one in force changes nothing and is let through)."""
     before = after = ctx.ctl.config
-    flat = {key: text for key, text in cmd.values.items() if radio_key_of(key) is None}
-    own = {key: text for key, text in cmd.values.items() if radio_key_of(key) is not None}
+    flat, own, pairs = split_values(cmd.values)
 
     def checked(base: Config) -> Config:
         nonlocal before, after
         before = base
         refuse_flat(flat, base)
-        after = with_radio_values(Config.checked(base, flat), own)
+        after = with_pairs(base, with_radio_values(Config.checked(base, flat), own), pairs, flat)
         _name_radios(base, after, flat)
         refuse_held(base, after, ctx.ctl.radios.claims)
-        refuse_from_afar(ctx.conn, [*base.changed(after), *(key for key in own if _own_value(base, key) != _own_value(after, key))])
+        refuse_from_afar(ctx.conn, [*base.changed(after), *(key for key in own if _own_value(base, key) != _own_value(after, key)), *pairsetting.changed_rows(base.pairs, after.pairs)])
         return after
 
     try:
@@ -219,6 +252,7 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
         if was is not None and now is not None and was.settings.get(field) != now.settings.get(field):
             default = getattr(kind_field(was.kind, field), "default", "")
             log.info("settings: %s = %s (was %s)", key, shown(key, now.settings.get(field, default)), shown(key, was.settings.get(field, default)))
+    log_pair_changes(before, after)
 
 
 @command(AlertTest)

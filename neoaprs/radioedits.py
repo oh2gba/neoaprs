@@ -8,6 +8,7 @@ from dataclasses import replace
 from datetime import datetime
 
 from .config import Config
+from .pairsetting import without_radio
 from .radiodriver import RunOverrides
 from .radiospec import FM_ID, KIND_WORDS, RadioError, RadioId, RadioSpec, check_name, enabled, log_name
 from .radiosql import CHANGEABLE
@@ -92,9 +93,10 @@ def with_kept(config: Config, kept: Kept) -> Config:
 
 
 def removed(config: Config, spec: RadioSpec, at: datetime) -> Config:
-    """The settings with this radio removed at `at`, and the e-mail radio none where it was this one, as the removal's transaction left them (radiosql.remove_radio). A radio that leaves never stops
+    """The settings with this radio removed at `at`, the e-mail radio none where it was this one, and the radio's pairs gone, as the removal's transaction left them (radiosql.remove_radio). A radio that leaves never stops
     anything else that is in force (sendonrule.kept_in_force keeps nothing for it)."""
-    return put(replace(config, email_choice=None) if config.email_choice == spec.id else config, replace(spec, removed_at=at))
+    kept = replace(config, pairs=without_radio(config.pairs, spec.id))
+    return put(replace(kept, email_choice=None) if kept.email_choice == spec.id else kept, replace(spec, removed_at=at))
 
 
 def put(config: Config, spec: RadioSpec) -> Config:

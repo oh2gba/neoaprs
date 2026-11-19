@@ -608,14 +608,14 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "the radios' own settings in force, `radio/<id>/<key>` to text, every field of its kind for each radio that is not removed (the fields of `RADIO_TYPES`), and the station's settings of the radios (`email/radio`, the id of the radio chosen for email, empty for none chosen: the radio in force is `status.email_radio`): what `set_config` takes beside `values`; kept apart from `values`, whose form shows none of them",
+          "description": "the radios' own settings in force, `radio/<id>/<key>` to text, every field of its kind for each radio that is not removed (the fields of `RADIO_TYPES`), and the station's settings of the radios (`email/radio`, the id of the radio chosen for email, empty for none chosen: the radio in force is `status.email_radio`): what `set_config` takes beside `values`; kept apart from `values`, whose form shows none of them; and both keys of every two radios that are not removed and may form a pair (both transmit, both Dummy or both real), enabled or not: `pair/<low>/<high>/enabled` (`true` or `false`) and `pair/<low>/<high>/ssid` (1 to 15, the SSID of the pair's call on the station's base call; empty while none is chosen, and a pair switched on is given the highest free one), by the radios' ids, low first",
           "type": "object"
         },
         "radio_defaults": {
           "additionalProperties": {
             "type": "string"
           },
-          "description": "the same keys with their defaults (the field's of the radio's kind)",
+          "description": "the same keys with their defaults (the field's of the radio's kind; a pair's `false` and empty)",
           "type": "object"
         },
         "urls": {

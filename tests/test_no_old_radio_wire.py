@@ -70,7 +70,7 @@ def test_the_wire_has_no_topic_no_command_and_no_field_of_the_radios_of_before()
 def test_the_config_topic_tells_no_flat_key_of_a_radio() -> None:
     told = config_values(DEFAULTS, [])
     assert not FLAT & set(told["values"]) and not FLAT & set(told["defaults"]) and not FLAT & set(CONFIG_KEYS)
-    assert all(key.startswith("radio/") or key == "email/radio" for key in told["radio_values"])
+    assert all(key.startswith(("radio/", "pair/")) or key == "email/radio" for key in told["radio_values"]), "the radios' own keys, the pairs' of two radios, and the mail's radio"
 
 
 def test_the_controller_has_no_name_of_its_own_for_radio_1_or_2(tmp_path: Path) -> None:

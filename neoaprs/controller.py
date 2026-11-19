@@ -14,7 +14,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import replace
 from pathlib import Path
 
-from . import nodevices, radioedits, wiring
+from . import nodevices, pairsetting, radioedits, wiring
 from .app import Frontend, Services
 from .backupfolder import FOLDER_NAME, LITTER_AGE_SEC, sweep
 from .clock import Clock, days, utcnow
@@ -249,7 +249,7 @@ class Controller(Services):
         """The station's rows that this save changes (a key written by `neoaprs db set` in the meantime stays), radio 1's last port in its own row, and what it changes of the radios in theirs, all in one transaction; then put in force."""
         config, kept = self.kept_change(self.config, config)
         stored, data = set(self.config.changed(config)) | self._implied, config.to_data()
-        rows = {key: text for key, text in data.items() if key in stored and key in STATION_KEYS} | ({LAST_PORT: data["serial/last_port"]} if "serial/last_port" in stored else {})
+        rows = {key: text for key, text in data.items() if key in stored and key in STATION_KEYS} | ({LAST_PORT: data["serial/last_port"]} if "serial/last_port" in stored else {}) | pairsetting.changed_rows(self.config.pairs, config.pairs)
         writes = radioedits.radio_writes(self.config.radios, config.radios)
         if (refused := radioedits.refusal(self.config.radios, config.radios)) is not None:
             log.error("the settings were not stored: %s", refused)
