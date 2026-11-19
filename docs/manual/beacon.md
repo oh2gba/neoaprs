@@ -302,7 +302,7 @@ A request for local info is not a query to you; if you keep objects in a categor
 
 The digipeater is off until you tick its **Enable** in the Settings tab, group Digipeater (with an (i)): the radio's own `radio/<id>/digipeat`. It is a fill-in digipeater for a spot with poor coverage, where nearby stations cannot reach a digipeater of their own. There is nothing else to set.
 
-Each FM radio that is on and can send has its own Enable and its own counts; with several radios on, each is in a box named after its radio. A radio repeats only what it heard, on itself. A Mercury or a LoRa radio repeats nothing.
+Each FM radio that is on and can send has its own Enable and its own counts; with several radios on, each is in a box named after its radio. A radio repeats only what it heard, on itself. A Mercury or a LoRa radio repeats nothing as a fill-in; a packet reaches one from another radio only through a [pair](#passing-a-packet-between-two-radios).
 
 When it is on, NeoAPRS sends a packet that radio heard again, once, when the first digipeater of the packet's path that is not yet marked as used is:
 
@@ -321,3 +321,45 @@ The frame is the one that was heard, byte for byte, with only the path changed. 
 A KISS TNC still waits for a free channel by its own rules, a random delay set by its PERSIST and SLOTTIME, before it sends what NeoAPRS hands it. So the repeat comes a moment after the original, not at once as from a digipeater built into a TNC.
 
 Each one is a line in the log (`digipeated OH2XYZ>APRS: the path WIDE1-1,WIDE2-1 is sent as OH2GBA*,WIDE2-1`) and is in the Packets tab as a packet with direction `out`. The radio status of the Settings tab says "digipeated N" once N is more than 0.
+
+## Passing a packet between two radios
+
+Two radios of the station that both send, and are both real radios or both Dummy radios, can be set as a **pair** in the Settings tab, group Digipeater: each pair has its own box, named after its two radios, with an **Enable** and, once it is ticked, the **Call** of the pair. A station with three radios has three pairs, one with four has six. The pair is off until you tick it.
+
+The Call is your call with an SSID of its own, `OH2GBA-12`. On Enable NeoAPRS takes the highest SSID from 15 down that is neither your station's nor another pair's, and the list of the Call offers only the free ones. You tell the call yourself to the stations that want to reach the other radio. A packet whose path does not name the call is not passed.
+
+**What is passed.** A packet a radio of the pair heard goes out once on the other radio, both ways, when the first hop of its path that is not yet marked as used is the pair's call exactly. The frame is the one that was heard, byte for byte, with only the path changed: the pair's call is marked as used where it stands and the rest of the path is left as it was. Nothing crosses without the call: a `WIDE1-1` or `WIDE2-2` path alone, your station's call and another SSID of yours are not requests. It is one crossing: a packet that shows the pair's call as used is not passed again.
+
+**What is never passed.**
+
+- a packet from your own call or from a pair's call;
+- a packet that has `TCPIP` or `TCPXX` in its path, or is a third-party packet (it came from the internet);
+- a duplicate: the same source, destination and information field heard or sent on the other radio in the last 30 seconds;
+- a message, an ack or a query to your station or to a pair's call, and a query to all stations (an information field that starts with `?`);
+- a frame too long for the radio it goes out on: it is dropped and counted, never cut.
+
+A radio that is not connected, not enabled or ticked RX only takes nothing. A pair whose radios no longer fit (one of them only receives) passes nothing and keeps its settings.
+
+**The limits of the radio it goes out on.**
+
+- An FM radio takes at most 4 frames sent again in any 10 seconds, the fill-in's frames and the pair's together; the rest are dropped.
+- A radio that sends slowly, an HF radio or a LoRa radio, takes from the pairs at most 4 frames in any 5 minutes. Other packets (positions, status, objects, bulletins, telemetry) take at most 2 of the 4, so that messages and acks always keep the other 2; from one station at most 2 messages in those 5 minutes (its acks do not count in its 2). A packet other than a message or an ack goes at most once in 30 minutes for a station. What is over a limit is dropped, not kept for later.
+- A directed query (`?APRSP` to one station) is not passed onto a radio that carries no path, because its answer goes back without a path and could not cross: HF is one. A query to all stations is passed nowhere.
+- A slow radio is handed one frame at a time: a frame passed while the radio is keyed or the channel is busy, or within 3.8 seconds of the previous frame handed to it, waits for it, one frame for each radio, and is sent when the radio is free if that is within 30 seconds of when the packet was heard; else it is dropped.
+
+**Messages and acks.** An ack of a message that went across comes back across once by itself, when it is heard on the radio the message went out on within 10 minutes. It goes back with the hops it has already been through and the pair's call marked as used; its unused hops are dropped (a Kenwood's `WIDE1-1,WIDE2-1` ack heard direct goes back as `OH2GBA-12*`).
+
+A radio that carries no path, HF, sends a message or an ack of ours to a station it heard through a gateway with the reply path of that station's latest packet there: the gateway's call, and `WIDE2-1` after it when the station reached the gateway through a digipeater of another call. A station heard direct gets none. Beacons, objects, answers and the status on HF stay without a path.
+
+**Counts.** The radio status of the Settings tab, in each pair's box, says how many frames were passed and how long ago the latest went, and behind the arrow how many went each way, how many were held back by a limit and how many were too long. A passed frame is in the Packets tab as a packet of the radio it went out on, direction `out`, with the pair's call marked as used in its path, and a line of the log (`passed OH2XYZ>APRS from <radio> to <radio>: the path OH2GBA-12,WIDE1-1 is sent as OH2GBA-12*,WIDE1-1`).
+
+**What to tell a sender.** To have OH2GBA pass your packet between 2 m and 40 m, put **OH2GBA-12** in your path: `OH2GBA-12` if you reach OH2GBA direct, `WIDE1-1,OH2GBA-12` if you need a digipeater first. Your packet goes out once on the other band, with OH2GBA-12 marked as used.
+
+- Messages and acks go each time, up to four frames in five minutes onto 40 m, two messages of them yours.
+- A position, status or object goes onto 40 m at most once in 30 minutes, and at most two of the four frames are of that kind.
+- A query to a station is not passed onto 40 m, and a query to all stations is not passed.
+- A packet too long for 40 m (about 90 characters after the path) is not sent.
+- To reply, put the same call in your path. A WIDE path alone is never passed across.
+- A sender who wants two crossings in a row names both pair calls in turn; a reply comes back across one pair, the one named last.
+
+The words 2 m, 40 m and the call are the example; the call is the one you set in the pair's box, and you tell it to the stations yourself.
