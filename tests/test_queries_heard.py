@@ -205,6 +205,7 @@ async def test_aprsd_is_answered_with_what_the_radio_it_came_on_heard_direct() -
     heard("OH2DIG", FM_ID, 5, ("OH2RCH-2*",))                           # by a digipeater on FM
     heard("OH2HFX", HF_ID, 5)                                           # on HF, where every frame is direct
     heard("OH2OLD", HF_ID, 90)                                          # on HF, but not in the last hour
+    heard("OH2FAR", HF_ID, 3, ("OH3GWX-12*",))                          # on HF, passed there by another station's pair of radios: not direct
     rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSD", None)), radio_id=FM_ID))
     rig.q.on_packet(replace(rig.packet("OH2PU", Message("OH2GBA", "?APRSD", None)), radio_id=HF_ID))
     await until(lambda: len(rig.tnc.sent) == 1 and len(hf.sent) == 1)

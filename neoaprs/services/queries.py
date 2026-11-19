@@ -202,11 +202,11 @@ def hourly_counts(times: Sequence[datetime], now: datetime) -> list[int]:
 
 def direct_on(station: Station, radio: AirRadio | None, now: datetime) -> datetime | None:
     """When the station was last heard direct within DIRECT_WINDOW of `now`, None when it was not: by any radio that may carry a path (`radio` None: the station's routes); on a radio that carries
-    paths, by that radio's own routes (Station.routes_on); on one that carries none, where every frame comes direct, the last time that radio heard it."""
+    paths, by that radio's own routes (Station.routes_on); on one that carries none, the last time that radio heard it, unless its latest packet there shows a used hop (another station's pair of radios passed it on)."""
     if radio is None:
         at = station.last_direct_at
     elif not radio.allowed.paths:
-        at = station.heard_on(radio.id).last_at
+        at = None if any(hop.endswith("*") for hop in station.heard_on(radio.id).last_path) else station.heard_on(radio.id).last_at
     else:
         routes = station.routes_on(radio.id)
         at = None if routes is None else routes.last_direct_at
