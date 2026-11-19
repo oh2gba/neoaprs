@@ -3,7 +3,8 @@
 import { inject, shallowRef, type InjectionKey, type ShallowRef } from "vue";
 import { hasMessage, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { enabledRadios, fieldId, KIND_WORDS as KIND_NAMES, radioLabel, typeOf, type PageRadio, type RadioType } from "@/lib/radios";
+import type { PairLink } from "@/lib/digistatus";
+import { enabledRadios, fieldId, KIND_WORDS as KIND_NAMES, radioLabel, senders, typeOf, type PageRadio, type RadioType } from "@/lib/radios";
 import type { Choice } from "@/lib/settingchoices";
 import type { PortsMessage, RadioRow } from "@/protocol/protocol";
 import { RADIO_STATION_KEYS, RADIO_TYPES } from "@/protocol/lists";
@@ -29,8 +30,10 @@ export function shownByRadios(key: string, radios: readonly PageRadio[]): boolea
   return true;
 }
 
-/** A radio's own setting (`radio/3/port`) or a station setting of the radios (`email/radio`): the places of the radios show them (the boxes of the Radio group, the Email tab's list, the Digipeater group), not the groups of the form. */
-export const isRadioKey = (key: string): boolean => key.startsWith("radio/") || (RADIO_STATION_KEYS as readonly string[]).includes(key);
+/** A radio's own setting (`radio/3/port`), a pair's (`pair/1/2/enabled`) or a station setting of the radios (`email/radio`): the places of the radios show them (the boxes of the Radio group, the Email tab's list, the
+ * Digipeater group), not the groups of the form. */
+export const isRadioKey = (key: string): boolean =>
+  key.startsWith("radio/") || key.startsWith("pair/") || (RADIO_STATION_KEYS as readonly string[]).includes(key);
 
 /** The radio and the field of a radio's own setting: `radio/3/port` is radio 3's `port`; null for any other key. */
 export function radioFieldOf(key: string): { id: number; field: string } | null {
@@ -83,7 +86,7 @@ export function boxKeys(radio: Pick<PageRadio, "id" | "type">): string[] {
 const NOT_BOXED = [...SEND_ON, "path", "digipeat"];
 
 /** Whether a key is of the Radio group's boxes: a radio's own field there (`radio/3/port`, its transmit level). */
-export const boxedKey = (key: string): boolean => isRadioKey(key) && !NOT_BOXED.includes(fieldOfKey(key));
+export const boxedKey = (key: string): boolean => key.startsWith("radio/") && !NOT_BOXED.includes(fieldOfKey(key));
 
 /** The id of the input of a key in the form: every "/" a "-" (`set-radio-3-port`, `set-station-call`). */
 export const inputId = (key: string): string => `set-${fieldId(key)}`;
@@ -187,7 +190,7 @@ function digipeaters(radios: readonly PageRadio[]): { radio: PageRadio; key: str
   return radios.filter((radio) => !radio.removed && radio.row.allowed.digipeat && radio.enabled).map((radio) => ({ radio, key: `radio/${radio.id}/digipeat` }));
 }
 
-/** The legend of a box in a group (components/SettingsBox.vue), with no (i): a radio's in the Digipeater group. */
+/** The legend of a box in a group (components/SettingsBox.vue), with no (i): a radio's or a pair's in the Digipeater group. */
 interface Legend {
   text: string;
   title: string;
@@ -195,14 +198,52 @@ interface Legend {
   tip: readonly string[];
 }
 
-/** What the Digipeater group shows: the setting of each radio's digipeater (`keys`), the row its counts are read from (`links`) and, while several radios are on (plan section 6: "each row with the radio's name when
- * there are several"), the legend of its box (`boxes`), so that each Enable says the radio it repeats on. */
-export function digiPlaces(radios: readonly PageRadio[]) {
+/** A legend of the Digipeater group's box. */
+const legend = (text: string): Legend => ({ text, title: "", tipLabel: "", tip: [] });
+
+/** What the status row under a key of the Digipeater group shows: a radio's own digipeater by its row, or a pair of radios. */
+type DigiStatus = { tnc: RadioRow } | { pair: PairLink };
+
+/** The pairs of radios the station offers, in the order of their boxes: every two radios that are on and can send, both Dummy or both real, whose Enable the daemon tells (`values`), each with its two keys. */
+function pairs(radios: readonly PageRadio[], values: Readonly<Record<string, string>>) {
+  const on = senders(radios).filter((radio) => !radio.removed);
+  return on.flatMap((first, i) =>
+    on.slice(i + 1).flatMap((second) => {
+      const [low, high] = first.id < second.id ? [first.id, second.id] : [second.id, first.id];
+      const enabled = `pair/${low}/${high}/enabled`;
+      return first.dummy === second.dummy && enabled in values ? [{ first, second, enabled, ssid: `pair/${low}/${high}/ssid` }] : [];
+    }),
+  );
+}
+
+/** One radio of a pair as its status row reads it: its counts as the daemon tells them now. */
+const pairEnd = (radio: PageRadio) => ({
+  id: radio.id,
+  name: boxTitle(radio, true),
+  get stats() {
+    return radio.row.stats;
+  },
+});
+
+/** What the Digipeater group shows (`values`: the form's): the setting of each radio's digipeater, then of each pair of radios with its Call while the pair is on (`keys`); while several radios are on (plan section 6:
+ * "each row with the radio's name when there are several") the legend of each radio's box, and always the legend of each pair's, which names its two radios (`boxes`); and the status row under a key (`status`): a
+ * radio's digipeater that is on by its row, a pair that is on under its Call. */
+export function digiPlaces(radios: readonly PageRadio[], values: Readonly<Record<string, string>>) {
   const rows = digipeaters(radios);
   const several = enabledRadios(radios).length > 1;
-  const links: Record<string, RadioRow | null> = Object.fromEntries(rows.map((row) => [row.key, row.radio.row]));
-  const boxes: Record<string, Legend> = several
-    ? Object.fromEntries(rows.map((row) => [row.key, { text: boxTitle(row.radio, true), title: "", tipLabel: "", tip: [] }]))
-    : {};
-  return { keys: rows.map((row) => row.key), links, boxes };
+  const offered = pairs(radios, values);
+  const keys = [...rows.map((row) => row.key), ...offered.flatMap((pair) => (values[pair.enabled] === "true" ? [pair.enabled, pair.ssid] : [pair.enabled]))];
+  const boxes: Record<string, Legend> = {
+    ...(several ? Object.fromEntries(rows.map((row) => [row.key, legend(boxTitle(row.radio, true))])) : {}),
+    ...Object.fromEntries(
+      offered.map((pair) => [pair.enabled, legend(t("settings.pair.legend", { first: boxTitle(pair.first, true), second: boxTitle(pair.second, true) }))]),
+    ),
+  };
+  const status = Object.fromEntries([
+    ...rows.filter((row) => values[row.key] === "true").map((row): [string, DigiStatus] => [row.key, { tnc: row.radio.row }]),
+    ...offered
+      .filter((pair) => values[pair.enabled] === "true")
+      .map((pair): [string, DigiStatus] => [pair.ssid, { pair: { first: pairEnd(pair.first), second: pairEnd(pair.second) } }]),
+  ]);
+  return { keys, boxes, status };
 }

@@ -1,12 +1,13 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
-import { fakeDaemon, withDaemon, type Given } from "@/test/context";
-import { ago, configValues, fmRow, lineStats, radiosTopic, status } from "@/test/fixtures";
+import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
+import { ago, configValues, fmRow, lineStats, radioRow, radiosTopic, status } from "@/test/fixtures";
+import type { PassStats } from "@/protocol/protocol";
 
 function make(extra: Record<string, string> = {}, more: Given = {}) {
-  const own = Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/")));
-  const station = Object.fromEntries(Object.entries(extra).filter(([key]) => !key.startsWith("radio/")));
+  const own = Object.fromEntries(Object.entries(extra).filter(([key]) => /^(radio|pair)\//.test(key)));
+  const station = Object.fromEntries(Object.entries(extra).filter(([key]) => !/^(radio|pair)\//.test(key)));
   const daemon = fakeDaemon({ config: configValues(station, own), ...more });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon) });
   const group = () => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Digipeater");
@@ -55,5 +56,50 @@ describe("the status row of the Digipeater group", () => {
     expect(group()?.find(".statetext").text()).toBe("off");
     expect(group()?.find(".statetext").classes()).toContain("tnc-waiting");
     expect(group()?.find(".tncstatus").text()).toBe("RX only: nothing is repeated");
+  });
+});
+
+describe("the status row of a pair of radios", () => {
+  const ON = { "pair/1/2/enabled": "true", "pair/1/2/ssid": "12" };
+  const onto = (heard_on: number, extra: Partial<PassStats> = {}): PassStats[] => [{ heard_on, sent: 0, sent_at: null, held: 0, too_long: 0, ...extra }];
+  /** Radio 1 (FM) and radio 2 (Mercury), with what the pair passed onto each. */
+  const pairOf = (ontoFm: PassStats[], ontoHf: PassStats[]) =>
+    radiosTopic(fmRow({ stats: lineStats({ passed: ontoFm }) }), radioRow(2, "mercury", { stats: lineStats({ passed: ontoHf }) }));
+  const row = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find("#set-pair-1-2-ssid").element.closest("fieldset")?.querySelector(".statusfold");
+
+  it("stands under the Call, says on and how many went both ways, and behind the arrow each way and what each radio held back or found too long", () => {
+    const radios = pairOf(onto(2, { sent: 1, sent_at: ago(600) }), onto(1, { sent: 2, sent_at: ago(120), held: 3, too_long: 1 }));
+    const { wrapper } = make(ON, { radios, status: status() });
+    expect(row(wrapper)?.querySelector(".statetext")?.textContent).toBe("on");
+    expect(row(wrapper)?.querySelector(".tncstatus")?.textContent).toBe("3 packets repeated · last 2 min ago");
+    expect([...(row(wrapper)?.querySelectorAll(".igatefold") ?? [])].map((p) => p.textContent)).toEqual([
+      expect.stringMatching(/^Counted since /),
+      "1 to FM radio · 2 to Mercury radio",
+      "3 frames held back: too many for Mercury radio",
+      "1 frame too long for Mercury radio",
+    ]);
+  });
+
+  it("says none passed yet, and off while RX only is ticked", () => {
+    expect(
+      make(ON, { radios: pairOf([], []) })
+        .wrapper.find("#set-pair-1-2-ssid")
+        .element.closest("fieldset")
+        ?.querySelector(".tncstatus")?.textContent,
+    ).toBe("None repeated yet");
+    const { wrapper } = make({ ...ON, "station/transmit": "false" }, { radios: pairOf([], []) });
+    expect(row(wrapper)?.querySelector(".statetext")?.textContent).toBe("off");
+    expect(row(wrapper)?.querySelector(".tncstatus")?.textContent).toBe("RX only: nothing is repeated");
+  });
+
+  it("keeps its one line when a count changes, and follows the topic radios after the page is drawn", async () => {
+    const daemon = fakeDaemon({ config: configValues({}, ON), radios: pairOf([], onto(1, { sent: 1, sent_at: ago(60) })), status: status() });
+    const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon) });
+    const shape = () => [...(row(wrapper)?.querySelectorAll("summary *, .statushead *") ?? [])].map((e) => e.tagName).join(" ");
+    const before = shape();
+    expect(row(wrapper)?.querySelector(".tncstatus")?.textContent).toMatch(/^1 packet repeated/);
+    await tell(daemon, { radios: pairOf([], onto(1, { sent: 1234, sent_at: ago(5) })) });
+    expect(row(wrapper)?.querySelector(".tncstatus")?.textContent).toMatch(/^1234 packets repeated/);
+    expect(shape()).toBe(before);
   });
 });

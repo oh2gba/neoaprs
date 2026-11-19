@@ -583,14 +583,98 @@ describe("the keys of a radio's box", () => {
 
   it("put a Digipeater Enable for each radio that may repeat and is on, with a legend while several radios are on", () => {
     const radios = [radioOf(1, "kiss"), radioOf(2, "mercury"), radioOf(3, "kiss", { name: "Mobile" }), radioOf(4, "dummy", { enabled: false })];
-    const both = digiPlaces(radios);
+    const both = digiPlaces(radios, { "radio/1/digipeat": "false", "radio/3/digipeat": "true" });
     expect(both.keys).toEqual(["radio/1/digipeat", "radio/3/digipeat"]);
     expect(Object.values(both.boxes).map((b) => b.text)).toEqual(["FM radio", "Mobile"]);
-    expect(both.links["radio/3/digipeat"]?.stats).toEqual(radios[2]?.row.stats);
-    const one = digiPlaces([radioOf(1, "kiss", { enabled: false }), radioOf(2, "mercury", { enabled: false }), radios[2]]); // (radio 3 the only radio on)
-    expect([one.keys, one.boxes]).toEqual([["radio/3/digipeat"], {}]);
+    expect(both.status).toEqual({ "radio/3/digipeat": { tnc: radios[2]?.row } }); // (the status row only under an Enable that is on)
+    const one = digiPlaces([radioOf(1, "kiss", { enabled: false }), radioOf(2, "mercury", { enabled: false }), radios[2]], {}); // (radio 3 the only radio on)
+    expect([one.keys, one.boxes, one.status]).toEqual([["radio/3/digipeat"], {}, {}]);
     // plan section 6: "each row with the radio's name when there are several": one radio that may repeat beside another radio that is on says its radio
-    const other = digiPlaces([radioOf(1, "kiss", { enabled: false }), radios[2], radioOf(4, "dummy-hf", { kind: "hf", number: 2 })]);
+    const other = digiPlaces([radioOf(1, "kiss", { enabled: false }), radios[2], radioOf(4, "dummy-hf", { kind: "hf", number: 2 })], {});
     expect([other.keys, Object.values(other.boxes).map((b) => b.text)]).toEqual([["radio/3/digipeat"], ["Mobile"]]);
+  });
+});
+
+describe("the pairs of radios of the Digipeater group", () => {
+  const radioOf = (id: number, type: string, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, type, extra));
+  /** The daemon's values of the pairs of these radio ids, every pair off. */
+  const told = (...pairs: [number, number][]) => Object.fromEntries(pairs.map(([low, high]) => [`pair/${low}/${high}/enabled`, "false"]));
+  const pairKeys = (places: ReturnType<typeof digiPlaces>) => places.keys.filter((key) => key.startsWith("pair/"));
+  const FM = radioOf(1, "kiss");
+  const HF = radioOf(2, "mercury");
+
+  it("give two radios that can send one box, named by both, with its Enable", () => {
+    const places = digiPlaces([FM, HF], told([1, 2]));
+    expect(pairKeys(places)).toEqual(["pair/1/2/enabled"]);
+    expect(places.boxes["pair/1/2/enabled"]).toEqual({ text: "FM radio and Mercury radio", title: "", tipLabel: "", tip: [] });
+    expect(places.status).toEqual({});
+  });
+
+  it("give three radios three boxes and four radios six, in the order of the radios' boxes", () => {
+    const LORA = radioOf(3, "lora-tcp");
+    expect(pairKeys(digiPlaces([FM, HF, LORA], told([1, 2], [1, 3], [2, 3])))).toEqual(["pair/1/2/enabled", "pair/1/3/enabled", "pair/2/3/enabled"]);
+    const four = [radioOf(4, "kiss", { position: 0, number: 2 }), FM, HF, LORA];
+    const all = told([1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]);
+    expect(pairKeys(digiPlaces(four, all))).toEqual([
+      "pair/1/4/enabled",
+      "pair/2/4/enabled",
+      "pair/3/4/enabled",
+      "pair/1/2/enabled",
+      "pair/1/3/enabled",
+      "pair/2/3/enabled",
+    ]);
+    expect(digiPlaces(four, all).boxes["pair/1/4/enabled"]?.text).toBe("FM radio 2 and FM radio"); // (the first is the radio whose box comes first)
+  });
+
+  it("give none for a radio that only receives, a Dummy beside a real one, a radio that is off or removed, and a pair the daemon did not tell", () => {
+    const values = told([1, 2], [1, 3], [1, 4], [1, 5], [2, 3]);
+    expect(pairKeys(digiPlaces([FM, radioOf(2, "tnc-text")], values))).toEqual([]);
+    expect(pairKeys(digiPlaces([FM, radioOf(3, "dummy-hf")], values))).toEqual([]);
+    expect(pairKeys(digiPlaces([FM, radioOf(4, "mercury", { enabled: false })], values))).toEqual([]);
+    expect(pairKeys(digiPlaces([FM, radioOf(5, "mercury", { removed: true })], values))).toEqual([]);
+    expect(pairKeys(digiPlaces([FM, radioOf(6, "mercury")], values))).toEqual([]);
+    expect(pairKeys(digiPlaces([radioOf(2, "dummy"), radioOf(3, "dummy-hf")], values))).toEqual(["pair/2/3/enabled"]); // (two Dummy radios are a pair)
+  });
+
+  it("leave the boxes of the radios' own digipeaters as they are, before the pairs", () => {
+    const radios = [FM, HF, radioOf(3, "kiss", { name: "Mobile" })];
+    const values = { "radio/1/digipeat": "true", "radio/3/digipeat": "false" };
+    const without = digiPlaces(radios, values);
+    const withPairs = digiPlaces(radios, { ...values, ...told([1, 2], [1, 3], [2, 3]) });
+    expect(withPairs.keys.slice(0, 2)).toEqual(without.keys);
+    expect(Object.entries(withPairs.boxes).slice(0, 2)).toEqual(Object.entries(without.boxes));
+    expect(withPairs.status).toEqual(without.status);
+  });
+
+  it("have the Call after the Enable and the status row under the Call only while the pair is on", () => {
+    const off = digiPlaces([FM, HF], { "pair/1/2/enabled": "false", "pair/1/2/ssid": "12" });
+    expect([pairKeys(off), Object.keys(off.status)]).toEqual([["pair/1/2/enabled"], []]);
+    const on = digiPlaces([FM, HF], { "pair/1/2/enabled": "true", "pair/1/2/ssid": "12" });
+    expect(pairKeys(on)).toEqual(["pair/1/2/enabled", "pair/1/2/ssid"]);
+    expect(Object.keys(on.status)).toEqual(["pair/1/2/ssid"]);
+    const link = on.status["pair/1/2/ssid"];
+    expect(link !== undefined && "pair" in link ? [link.pair.first.id, link.pair.first.name, link.pair.second.id, link.pair.second.name] : null).toEqual([
+      1,
+      "FM radio",
+      2,
+      "Mercury radio",
+    ]);
+    expect(link !== undefined && "pair" in link ? link.pair.second.stats : null).toEqual(HF.row.stats);
+  });
+
+  it("are the radios' keys, in no group of the form", () => {
+    expect([isRadioKey("pair/1/2/enabled"), isRadioKey("pair/1/2/ssid")]).toEqual([true, true]);
+    expect(
+      groupKeys([...CONFIG_KEYS, "pair/1/2/enabled", "pair/1/2/ssid"], "settings")
+        .flatMap((g) => g.keys)
+        .filter((k) => k.startsWith("pair/")),
+    ).toEqual([]);
+  });
+
+  it("say what lib/settingspair.ts says of them", () => {
+    const values = { "station/call": "OH2GBA", "pair/1/2/enabled": "true", "pair/1/2/ssid": "12" };
+    expect(fieldFor("pair/1/2/enabled", values)).toEqual(expect.objectContaining({ label: "Enable", kind: "bool", name: "Pair of radios" }));
+    expect(fieldFor("pair/1/2/ssid", values)).toEqual(expect.objectContaining({ label: "Call", kind: "choice" }));
+    expect(fieldFor("pair/2/1/ssid", values)).toEqual({ label: "pair/2/1/ssid" });
   });
 });

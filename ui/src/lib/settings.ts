@@ -15,6 +15,7 @@ import { alertLegend } from "@/lib/alertlegend";
 import { GROUP_ORDER, rank } from "@/lib/settingsorder";
 import type { PageRadio } from "@/lib/radios";
 import { flatKeyOf, isRadioKey, radioFieldOf, typeChoices, typeText } from "@/lib/settingsradio";
+import { pairField } from "@/lib/settingspair";
 import { keyingChoices } from "@/lib/mercury";
 import {
   beaconChoices,
@@ -415,10 +416,12 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
 export const reasonOf = (error: Failure, radios?: RadioNames): string => errorReason(error, radios);
 
 /** What the field of a key says of itself for these settings: the beacon choice of a station that moves is Off or On (SmartBeaconing), else the field's own; a radio's own setting (`radio/3/port`) says what the same field of the
- * radios of before says (`serial/port`), in the words every radio's port has, or its kind's own where they differ (`kind`: a LoRa board's address); a key this page does not know is its own label. */
+ * radios of before says (`serial/port`), in the words every radio's port has, or its kind's own where they differ (`kind`: a LoRa board's address); a pair's setting (`pair/1/2/ssid`) says what lib/settingspair.ts gives for these values; a key this page does not know is its own label. */
 export function fieldFor(key: string, values: Readonly<Record<string, string>> = {}, kind?: PageRadio["kind"]): FieldInfo {
   const flat = flatKeyOf(radioFieldOf(key)?.field ?? "", kind);
-  return key === "beacon/interval_min" && isMoving(values) ? MOVING_BEACON : (FIELDS[key] ?? (flat === null ? undefined : FIELDS[flat]) ?? { label: key });
+  return key === "beacon/interval_min" && isMoving(values)
+    ? MOVING_BEACON
+    : (FIELDS[key] ?? pairField(key, values) ?? (flat === null ? undefined : FIELDS[flat]) ?? { label: key });
 }
 
 /** The tickbox RX only is the setting `station/transmit` the other way round: ticked is `false` (nothing is transmitted), unticked `true`. */

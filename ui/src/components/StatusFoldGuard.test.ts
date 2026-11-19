@@ -11,7 +11,7 @@ import ObjectsQru from "@/components/ObjectsQru.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import StatusReportRow from "@/components/StatusReportRow.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { ago, fmRow, igateState, NOW, qruState, status } from "@/test/fixtures";
+import { ago, fmRow, igateState, lineStats, NOW, qruState, status } from "@/test/fixtures";
 
 const SRC = resolve(__dirname, "..");
 const later = new Date(NOW + 38 * 60_000).toISOString();
@@ -78,6 +78,23 @@ describe("every status row", () => {
       expect(wrapper.find(".statusfold.statusflat .tncstatus").text()).not.toBe("");
     });
   }
+
+  it("is a pair's row of the Digipeater group: a plain row with nothing behind it, the arrow once it counts since a time or sent something", () => {
+    const pair = (sent: number) => ({
+      first: { id: 1, name: "FM radio", stats: lineStats() },
+      second: { id: 2, name: "Mercury radio", stats: lineStats({ passed: [{ heard_on: 1, sent, sent_at: sent > 0 ? ago(60) : null, held: 0, too_long: 0 }] }) },
+    });
+    const bare = mount(DigipeaterStatus, { props: { pair: pair(0), startedAt: null, now: NOW, rxOnly: false } });
+    expect([bare.find("details").exists(), bare.find(".statusfold.statusflat .tncstatus").text()]).toEqual([false, "None repeated yet"]);
+    for (const [startedAt, sent] of [
+      [ago(3600), 0],
+      [null, 2],
+    ] as const) {
+      const full = mount(DigipeaterStatus, { props: { pair: pair(sent), startedAt, now: NOW, rxOnly: false } });
+      expect(full.find("details.statusfold > summary.statushead").exists()).toBe(true);
+      expect(full.find(".disclosure-body").text().trim()).not.toBe("");
+    }
+  });
 
   it("is the Beacon row of the report: no beacon sent yet and the next in 38 min, and nothing opens", () => {
     const wrapper = ROWS["BeaconStatus"]?.bare?.();

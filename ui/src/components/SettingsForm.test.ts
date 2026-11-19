@@ -9,9 +9,9 @@ import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, mapFile, mapState, radioRow, radiosTopic, status, toastOf, portRow } from "@/test/fixtures";
 
-/** The settings of the fixtures with `extra` over them, a radio's own keys (`radio/1/port`) among the radios' values. */
+/** The settings of the fixtures with `extra` over them, a radio's own keys (`radio/1/port`) and a pair's (`pair/1/2/enabled`) among the radios' values. */
 function cfg(extra: Record<string, string> = {}) {
-  const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
+  const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => /^(radio|pair)\//.test(key) === radio));
   return configValues(own(false), own(true));
 }
 
@@ -1048,6 +1048,68 @@ describe("SettingsForm", () => {
       const { wrapper, send } = make();
       await wrapper.find("#set-radio-1-digipeat").setValue(true);
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "radio/1/digipeat": "true" } });
+    });
+
+    describe("a pair of radios", () => {
+      const BOTH = { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) };
+      const OFF = { "pair/1/2/enabled": "false", "pair/1/2/ssid": "" };
+      const ON = { "pair/1/2/enabled": "true", "pair/1/2/ssid": "12" };
+      const box = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+        group(wrapper)
+          ?.findAll("fieldset.subbox")
+          .find((f) => f.find("legend").text() === "FM radio and Mercury radio");
+
+      it("is a box of its own after the radios' own, named by both radios, with an Enable and the pair's (i)", async () => {
+        const { wrapper } = make(OFF, "settings", BOTH);
+        expect(
+          group(wrapper)
+            ?.findAll("fieldset.subbox legend")
+            .map((l) => l.text()),
+        ).toEqual(["FM radio", "FM radio and Mercury radio"]);
+        expect(box(wrapper)?.findAll(".field")).toHaveLength(1);
+        expect(wrapper.find("label[for='set-pair-1-2-enabled']").text()).toBe("Enable");
+        expect(wrapper.find<HTMLInputElement>("#set-pair-1-2-enabled").element.checked).toBe(false);
+        expect(wrapper.find("#set-pair-1-2-ssid").exists()).toBe(false);
+        expect(box(wrapper)?.find(".statusfold").exists()).toBe(false);
+        await box(wrapper)?.find(".info-toggle").trigger("click");
+        expect(box(wrapper)?.find(".info-text").text()).toContain("A WIDE path alone never goes across.");
+      });
+
+      it("sends the tick alone when it is switched on: the daemon chooses the call", async () => {
+        const { wrapper, send } = make(OFF, "settings", BOTH);
+        await wrapper.find("#set-pair-1-2-enabled").setValue(true);
+        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "pair/1/2/enabled": "true" } });
+      });
+
+      it("has the Call and the status row while it is on, the Call a choice without the station's own call", () => {
+        const { wrapper } = make({ ...ON, "station/call": "OH2GBA-15" }, "settings", BOTH);
+        const select = wrapper.find<HTMLSelectElement>("#set-pair-1-2-ssid");
+        expect(wrapper.find("label[for='set-pair-1-2-ssid']").text()).toBe("Call");
+        expect(select.element.value).toBe("12");
+        expect([...select.element.options].map((o) => o.text).slice(0, 3)).toEqual(["OH2GBA-14", "OH2GBA-13", "OH2GBA-12"]);
+        const fields = box(wrapper)?.findAll(".field") ?? [];
+        expect(fields).toHaveLength(2);
+        const fold = box(wrapper)?.find(".statusfold");
+        expect(fields[1]?.element.compareDocumentPosition(fold?.element as Element)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(fold?.find(".tncstatus").text()).toBe("None repeated yet");
+      });
+
+      it("sends the call chosen, and shows the daemon's refusal under the Call", async () => {
+        const { wrapper, send, daemon } = make(ON, "settings", BOTH);
+        await wrapper.find("#set-pair-1-2-ssid").setValue("11");
+        expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "pair/1/2/ssid": "11" } });
+        await tell(daemon, {
+          lastError: toastOf("set_config: pair/1/2/ssid: OH2GBA-11 is the call of another pair", "pair.call_taken", { call: "OH2GBA-11" }),
+        });
+        expect(wrapper.find("#set-pair-1-2-ssid").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe(
+          "OH2GBA-11 is the call of another pair",
+        );
+      });
+
+      it("is not there for a radio that is off", () => {
+        const radios = { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) };
+        expect(make(ON, "settings", radios).wrapper.find("#set-pair-1-2-enabled").exists()).toBe(false);
+      });
     });
   });
 
