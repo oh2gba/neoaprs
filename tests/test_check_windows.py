@@ -581,7 +581,7 @@ def test_a_download_that_fails_leaves_no_file_in_the_cache(script: ModuleType, t
 # ---- stand-ins for ssh, scp and VBoxManage ----
 
 SSH = """#!@PYTHON@
-import base64, json, os, sys
+import base64, json, os, signal, sys
 folder = os.environ["FAKE_DIR"]
 args = sys.argv[1:]
 remote = args[-1]
@@ -614,6 +614,8 @@ if "LastBootUpTime" in script:
     print("ran fine")
     sys.exit(0)
 if "shutdown.exe /s" in script:
+    if flag("signal-at-shutdown"):
+        os.kill(os.getppid(), signal.SIGTERM)
     if not flag("stays-on") and not flag("deaf-to-shutdown"):
         open(folder + "/state", "w").write("poweroff")
     sys.exit(0)
@@ -1161,6 +1163,16 @@ def test_a_machine_that_cannot_be_used_is_a_sentence_and_the_machine_is_shut_dow
     bench.flag("start-fails")
     done = run_check(tree, bench, "--only", "lock")
     assert done.returncode == 2 and "could not be started" in done.stderr
+
+
+def test_a_signal_during_the_final_shutdown_does_not_cancel_it(bench: Bench) -> None:
+    tree = make_tree(bench.folder)
+    bench.flag("uv-present")
+    bench.flag("signal-at-shutdown")
+    done = run_check(tree, bench, "--only", "lock")
+    assert done.returncode == 0, done.stderr
+    assert "Traceback" not in done.stderr
+    assert (bench.folder / "state").read_text(encoding="utf-8") == "poweroff"
 
 
 def test_a_tree_that_is_no_repository_is_said_before_the_machine_is_asked_for_anything(bench: Bench) -> None:

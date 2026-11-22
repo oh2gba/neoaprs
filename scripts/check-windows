@@ -2215,6 +2215,9 @@ def execute_upgrade(settings: Settings, old: Path, old_version: str, new: Path, 
 # ---- the command ----
 
 
+INTERRUPTS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+
+
 def interrupted(number: int, frame: FrameType | None) -> None:
     raise KeyboardInterrupt
 
@@ -2315,7 +2318,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (packer.NotPacked, OSError) as error:
             say(f"nothing was run: {error}")
             return NOT_SET_UP
-        for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        for number in INTERRUPTS:
             signal.signal(number, interrupted)
         started_by_us = False
         try:
@@ -2340,7 +2343,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 130
         finally:
             if started_by_us:
-                signal.signal(signal.SIGINT, signal.SIG_IGN)  # a second Ctrl+C must not cancel the shutdown
+                # a further signal must not cancel the shutdown
+                for number in INTERRUPTS:
+                    signal.signal(number, signal.SIG_IGN)
                 power_off(settings)
 
 
