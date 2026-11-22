@@ -2,7 +2,7 @@
 // a pair of radios (`pairLook`) (components/DigipeaterStatus.vue), in the words and colours of the
 // radio's status row (components/StatusFold.vue): "on" with how many packets were repeated and when
 // the last went ("12 packets repeated · last 3 min ago", "None repeated yet"), or "off" in the warn
-// colour while RX only is ticked. Behind the arrow: since when it counts and, if the burst limit
+// colour while RX only is on. Behind the arrow: since when it counts and, if the burst limit
 // held frames back, how many. The counts are the daemon's, since it started.
 import { t } from "@/i18n";
 import { ageText, dateTimeText } from "@/lib/format";
@@ -23,7 +23,7 @@ export interface DigiLook {
 
 /**
  * The look for a radio's counters: when the daemon started (`startedAt`, ISO), the time now, and
- * whether RX only is ticked.
+ * whether RX only is on.
  */
 export function digiLook(
   tnc: Pick<RadioRow, "stats">,
@@ -81,7 +81,7 @@ const passedOnto = (to: PairEnd, from: PairEnd): Pick<PassStats, "sent" | "sent_
 
 /**
  * The look for a pair's counts, both ways together: when the daemon started (`startedAt`, ISO), the
- * time now, and whether RX only is ticked.
+ * time now, and whether RX only is on.
  */
 export function pairLook(pair: PairLink, startedAt: string | null, nowMs: number, rxOnly: boolean): PairLook {
   const ends = [pair.first, pair.second] as const;

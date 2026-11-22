@@ -18,7 +18,6 @@ export const PICTURE_NAMES = [
   "position",
   "digipeater",
   "logs",
-  "transmit",
   "beaconoff",
   "internet",
   "channels",

@@ -145,6 +145,40 @@ describe("useSettings: one save at a time", () => {
     expect(settings.saving.value).toBe(false);
   });
 
+  it("sends a first change before the waiting ones, the answers still match, and nothing typed is lost", async () => {
+    const { settings, answer, refuse, sets } = setUp({ "station/transmit": "true" });
+    settings.change({ "radio/1/digipeat": "true" });
+    settings.change({ "map/radius_km": "200" });
+    settings.change({ "station/transmit": "false" }, true);
+    settings.edit("station/comment", "typed");
+    expect(sets()).toEqual([{ "radio/1/digipeat": "true" }]);
+    expect(settings.expected("station/transmit")).toBe("false");
+    await answer({ "radio/1/digipeat": "true" });
+    expect(sets()[1]).toEqual({ "station/transmit": "false" });
+    await refuse("set_config: station/transmit: no", "other");
+    expect(settings.errors["station/transmit"]).toBeDefined();
+    expect(settings.draft["station/transmit"]).toBe("true");
+    expect(sets()[2]).toEqual({ "map/radius_km": "200" });
+    await answer({ "map/radius_km": "200" });
+    expect(settings.errors["map/radius_km"]).toBeUndefined();
+    expect(settings.draft["map/radius_km"]).toBe("200");
+    expect(settings.draft["station/comment"]).toBe("typed");
+    expect(settings.saving.value).toBe(false);
+  });
+
+  it("drops the waiting value of a key that a first change overrides", async () => {
+    const { settings, answer, sets } = setUp({ "station/transmit": "false" });
+    settings.change({ "radio/1/digipeat": "true" });
+    settings.change({ "station/transmit": "true" });
+    settings.change({ "station/transmit": "false" }, true);
+    expect(settings.expected("station/transmit")).toBe("false");
+    await answer({ "radio/1/digipeat": "true" });
+    expect(sets()).toEqual([{ "radio/1/digipeat": "true" }, { "station/transmit": "false" }]);
+    await answer();
+    expect(settings.saving.value).toBe(false);
+    expect(settings.draft["station/transmit"]).toBe("false");
+  });
+
   it("gives an answer to one request only: a refusal of the first does not stop the second", async () => {
     const { settings, refuse, answer, sets } = setUp();
     settings.change({ "map/source": "ftp://x.org/m.pmtiles" });

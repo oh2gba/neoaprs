@@ -117,13 +117,13 @@ afterEach(() => {
 });
 
 describe("the Radio group of a station of six radios", () => {
-  it("has RX only, then a box for each radio in the daemon's order, then Add radio, and no radio of the station chosen above the others", () => {
+  it("has a box for each radio in the daemon's order, then Add radio, and no radio of the station chosen above the others", () => {
     const { group } = make();
     const rows = [...group().element.querySelector(".group-body")!.children];
-    expect(rows[0]?.querySelector("label")?.textContent).toBe("RX only");
+    expect(rows[0]?.matches("fieldset.subbox")).toBe(true);
     expect(
       rows
-        .slice(1, -1)
+        .slice(0, -1)
         .map((row) => (row.matches("fieldset.subbox") ? row.querySelector("legend")?.textContent : "")?.trim()),
     ).toEqual(LEGENDS);
     expect(rows.at(-1)?.querySelector("label")?.textContent).toBe("Add radio");
@@ -842,7 +842,7 @@ describe("the Digipeater group of a station of several radios that may repeat", 
   });
 });
 
-/** The rows of the Radio group up to its last box (RX only and the boxes): the very nodes, in
+/** The rows of the Radio group up to its last box: the very nodes, in
  * their order, which ticking a radio must leave as they are. */
 function rowsToLastBox(): Element[] {
   const rows = [...(document.querySelector("#set-radio-add")?.closest(".group-body")?.children ?? [])];
@@ -961,7 +961,7 @@ describe("a station whose database has radio 1 alone", () => {
   it("sees today's box of its one radio and Add radio, and no Mercury box, no Name", () => {
     const { group } = one();
     const rows = [...group().element.querySelector(".group-body")!.children];
-    expect(rows[0]?.querySelector("label")?.textContent).toBe("RX only");
+    expect(rows[0]?.matches("fieldset.subbox")).toBe(true);
     expect(
       group()
         .findAll("fieldset.subbox > legend")

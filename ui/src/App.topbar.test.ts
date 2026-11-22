@@ -1,5 +1,5 @@
 // The top bar says how things stand (the Daemon mark in a browser, the Radio mark everywhere); a
-// text that says RX only leads to the tickbox.
+// text that says RX only flashes the RX only switch at the top right.
 import "@/test/mockmap";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
@@ -22,8 +22,7 @@ const say = async (socket: FakeSocket, rev: number, values: Record<string, strin
   socket.say({ type: "state", topic: "config", rev, value: configValues(own(false), own(true)) });
   await flushPromises();
 };
-const flashed = (control: string) =>
-  document.getElementById(control)?.closest("fieldset")?.classList.contains("attend");
+const switchFlashed = () => document.getElementById("rx-switch")?.classList.contains("attend");
 
 describe("the Daemon mark", () => {
   it("is in a browser, between Update and Radio", async () => {
@@ -48,13 +47,15 @@ describe("the Daemon mark", () => {
     const { wrapper, socket } = await open();
     await say(socket, 1, { [KEY]: "false", "beacon/interval_min": "0" });
     const header = wrapper.find(".appheader").element;
-    expect(header.lastElementChild?.classList.contains("headmail")).toBe(true);
-    expect(header.lastElementChild?.previousElementSibling?.classList.contains("headpills")).toBe(true);
+    const mail = header.querySelector(".headmail");
+    expect(header.lastElementChild?.id).toBe("rx-switch");
+    expect(mail?.nextElementSibling?.nextElementSibling).toBe(header.lastElementChild);
+    expect(mail?.previousElementSibling?.classList.contains("headpills")).toBe(true);
   });
 });
 
 describe("a text that says RX only", () => {
-  it("is a link in the Digipeater and Beacon rows, which opens Settings → Radio and flashes the RX only tickbox", async () => {
+  it("is a link in the Digipeater and Beacon rows, which flashes the RX only switch and opens no tab", async () => {
     const { wrapper, socket } = await open();
     await say(socket, 1, {
       [KEY]: "false",
@@ -66,17 +67,15 @@ describe("a text that says RX only", () => {
     const digi = wrapper.findAll("#pane-settings fieldset").find((f) => f.find("legend").text() === "Digipeater");
     const line = digi?.find(".tncstatus button.linkbutton");
     expect(line?.text()).toBe("RX only: nothing is repeated");
-    expect(line?.attributes("title")).toBe("Nothing is sent. Settings → Radio → RX only");
+    expect(line?.attributes("title")).toBe("Nothing is sent");
     await tabButton(wrapper, "My station")?.trigger("click");
     const rows = wrapper.findAll("#pane-beacon .statusfold .tncstatus button.linkbutton");
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((r) => r.text() === "RX only: nothing is sent")).toBe(true);
     await rows[0]?.trigger("click");
-    expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
-    await vi.waitFor(() => expect(flashed("set-station-transmit")).toBe(true));
-    expect(
-      document.getElementById("set-station-transmit")?.closest("fieldset")?.querySelector("legend")?.textContent,
-    ).toContain("Radio");
+    await vi.waitFor(() => expect(switchFlashed()).toBe(true));
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("My station");
+    expect(document.activeElement?.id).toBe("rx-switch");
   });
 
   it("is plain words in the rows while transmitting is on", async () => {
@@ -86,7 +85,7 @@ describe("a text that says RX only", () => {
     expect(wrapper.findAll("#pane-settings .statusfold .linkbutton")).toEqual([]);
   });
 
-  it("is a link in the toast of the daemon's refusal, which leads to the same place, and not in another refusal", async () => {
+  it("is a link in the toast of the daemon's refusal, which flashes the switch too, and not in another refusal", async () => {
     const { wrapper, socket } = await open();
     socket.say({
       type: "error",
@@ -100,9 +99,10 @@ describe("a text that says RX only", () => {
     const toast = wrapper.find(".toast");
     expect(toast.find("button.linkbutton").text()).toBe("RX only: nothing is sent");
     await tabButton(wrapper, "Stations")?.trigger("click");
+    expect(toast.find("button.linkbutton").attributes("title")).toBe("Nothing is sent");
     await toast.find("button.linkbutton").trigger("click");
-    expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
-    await vi.waitFor(() => expect(flashed("set-station-transmit")).toBe(true));
+    await vi.waitFor(() => expect(switchFlashed()).toBe(true));
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("Stations");
     socket.say({
       type: "error",
       cmd: "",

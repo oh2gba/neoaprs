@@ -36,8 +36,6 @@ export const help = {
   "help.picture.digipeater":
     "A car that cannot reach the wide-area digipeater directly is repeated by your station, which passes its packet on.",
   "help.picture.logs": "A log file that goes, attached, in an e-mail.",
-  "help.picture.transmit":
-    "Our station hears the others (the arrow in) while what it would send goes nowhere: the dashed arrow is crossed out.",
   "help.picture.beaconoff":
     "With the beacon off the clock sends nothing, the beacons on the time line are empty; a press of the button still sends one.",
   "help.picture.internet":

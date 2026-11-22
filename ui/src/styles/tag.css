@@ -1,7 +1,7 @@
 /* The tag (components/TagMark.vue): the one small mark of the page, the same height, font and
    padding wherever it stands (the count in the header and on a tab, the radio state, a station's
    channel, Receive only, the hops of a chain); the tone only says what it is. The classes a place
-   adds to it (badge, via, rxonly...) place it and never change its size. */
+   adds to it (badge, via, rxswitch...) place it and never change its size. */
 .tag {
   display: inline-block;
   box-sizing: border-box;
@@ -76,4 +76,11 @@
 }
 button.tag {
   cursor: pointer;
+}
+button.tag:disabled {
+  cursor: default;
+}
+.rxswitch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

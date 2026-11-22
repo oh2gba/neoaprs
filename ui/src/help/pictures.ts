@@ -18,7 +18,6 @@ import RadiusPicture from "@/help/RadiusPicture.vue";
 import PositionPicture from "@/help/PositionPicture.vue";
 import DigipeaterPicture from "@/help/DigipeaterPicture.vue";
 import LogsPicture from "@/help/LogsPicture.vue";
-import TransmitPicture from "@/help/TransmitPicture.vue";
 import BeaconOffPicture from "@/help/BeaconOffPicture.vue";
 import InternetPicture from "@/help/InternetPicture.vue";
 import ChannelsPicture from "@/help/ChannelsPicture.vue";
@@ -49,7 +48,6 @@ export const PICTURES: Record<PictureName, Component> = {
   position: PositionPicture,
   digipeater: DigipeaterPicture,
   logs: LogsPicture,
-  transmit: TransmitPicture,
   beaconoff: BeaconOffPicture,
   internet: InternetPicture,
   channels: ChannelsPicture,

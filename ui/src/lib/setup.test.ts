@@ -5,7 +5,6 @@ import {
   fieldsFrom,
   NEW_STATION_BEACON_MIN,
   radioReady,
-  radioStepKeys,
   setupChanges,
   stepOk,
   stepProblems,
@@ -226,11 +225,6 @@ describe("the radio step", () => {
     expect(ready({}, { errors: { "radio/4/tcp_port": "1 to 65535", "radio/3/tcp_port": "1 to 65535" } }, own)).toBe(
       true,
     );
-  });
-
-  it("has RX only as the group's own row: the radios' fields are their boxes'", () => {
-    const values = configValues().values;
-    expect(radioStepKeys(values, values)).toEqual(["station/transmit"]);
   });
 });
 

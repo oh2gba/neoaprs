@@ -321,7 +321,7 @@ broadcast: it is sent once, with no message id, is not kept as a message and is 
 path is, or `DIRECT` for none), else by the path of messages to the station QRU (its own path, else the radio's), with RFONLY after it unless `rf_only` is false: by radio only. With no `radio` it goes
 once on each radio of Local info's Send on (the radios whose `radio/<id>/local_info` is ticked; with one radio that can send, that one) that takes
 frames now; with `radio`, on that radio alone. The answers come as messages to us (they are rows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. All or
-nothing: answered with an `error`, and nothing is sent on any radio, when the text is none, RX only is ticked or no call is set (`transmit.off`, or the interlock's reason), there is no radio
+nothing: answered with an `error`, and nothing is sent on any radio, when the text is none, the station is RX only or no call is set (`transmit.off`, or the interlock's reason), there is no radio
 (`radio.none`) or none takes frames now, a request to QRU went on one of its radios less than 60 seconds ago with the same text or any less than 10 seconds ago (`qru.too_soon`, with the `seconds` that
 are left, the longest), or the path is no path or too long with RFONLY (`path.*`, `call.*`).
 
@@ -339,7 +339,7 @@ Asks the stations in radio range a general query of APRS 1.0.1 (the services/gen
 once on each radio of asking around's Send on (the radios whose `radio/<id>/ask` is ticked; with one radio that can send, that one) that takes
 frames now, by `path` (digipeater calls or aliases separated by commas, `OH2RDK-7,OH2RCH-2` or `WIDE1-1,WIDE2-1`, checked as a radio's path is, or `DIRECT` for none; null or empty is each radio's own
 path, and a radio that carries no path goes without one) with `RFONLY` after it when `rf_only`. The answers are ordinary packets (rows of `stations` and `packets`); the topic `general` tells the query and the
-stations heard after it. All or nothing: answered with an `error`, and nothing is sent on any radio, when RX only is ticked or no call is set (`transmit.off`, or the interlock's reason), there is no
+stations heard after it. All or nothing: answered with an `error`, and nothing is sent on any radio, when the station is RX only or no call is set (`transmit.off`, or the interlock's reason), there is no
 radio (`radio.none`) or none of them takes frames now, the path is no path (`path.*`, `call.*`) or is too long with RFONLY (`path.too_long_rf_only`), or the query of that kind went on one of those
 radios less than 60 seconds ago (`general.too_soon`, with the `seconds` that are left, the longest).
 
@@ -688,7 +688,7 @@ id). Stored, then in force; the radio is restarted when its type or its Enable c
 ### `radio_tune`
 
 Tune on the radio's modem: with `on`, keys the radio through its keying and sends its modem's tuning tone through its sound card for ten seconds (Mercury a steady 1000 Hz, its own TUNE; Direwolf its two tones by turns), then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"`
-meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and
+meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while the station is RX only (`transmit.off`) and
 while a frame is on the air or the channel is busy (`hf.held`).
 
 | field | type | | description |

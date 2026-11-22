@@ -137,7 +137,6 @@ for (const locale of LOCALES) {
 
     it("say receive-only with the word of the RX only switch, in the list of types too", () => {
       const word = say("pill.rx");
-      expect([say("settings.transmit.label"), say("settings.transmit.name")]).toEqual([word, word]);
       expect(["error.transmit.off", ...RECEIVE_ONLY_TYPES].filter((id) => !has(id, word))).toEqual([]);
     });
 

@@ -8,8 +8,7 @@ import { normalizeCall } from "@/lib/calls";
 import { callOk, parseNumber, problemOf, symbolProblem } from "@/lib/fieldcheck";
 import { lazyText } from "@/lib/lazytext";
 import type { PageRadio } from "@/lib/radios";
-import { groupKeys, shownByValues } from "@/lib/settings";
-import { boxKeys, fieldOfKey, shownFor } from "@/lib/settingsradio";
+import { boxKeys, fieldOfKey } from "@/lib/settingsradio";
 
 const STEP_IDS: readonly MessageId[] = [
   "setup.step.call",
@@ -172,15 +171,6 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
   };
   if (isNewStation(values)) wanted["beacon/interval_min"] = NEW_STATION_BEACON_MIN;
   return Object.fromEntries(Object.entries(wanted).filter(([key, text]) => !sameNumber(text, values[key] ?? "")));
-}
-
-/** The keys of the Radio group as the form shows them, for the Radio step's boxes. */
-export function radioStepKeys(
-  values: Readonly<Record<string, string>>,
-  draft: Readonly<Record<string, string>>,
-): string[] {
-  const group = groupKeys(Object.keys(values), "settings").find((g) => g.id === "serial");
-  return (group?.keys ?? []).filter((key) => shownFor(key) && shownByValues(key, draft));
 }
 
 /**

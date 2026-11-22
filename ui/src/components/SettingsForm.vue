@@ -271,13 +271,7 @@ function typed(key: string, text: string): void {
       :fold="folds"
       :show="needsLook(lookKeys(group))"
     >
-      <SettingsRadio
-        v-if="group.id === 'serial'"
-        :keys="shown(group.keys)"
-        :settings="settings"
-        :form="form"
-        :defaults="defaults"
-      />
+      <SettingsRadio v-if="group.id === 'serial'" :settings="settings" :form="form" :defaults="defaults" />
       <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
       <SettingsBox
         v-for="box in boxesOf(group.id === 'serial' || (group.id === 'igate' && call === '') ? [] : keysOf(group))"

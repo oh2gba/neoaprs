@@ -27,7 +27,7 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four
 - **A map** of the stations you hear, with their trails and the route of each packet, on a street map kept on your disk
 - **Any number of radios, of any kind**, side by side: one map and one inbox, each station tagged with the radio that heard it
 - **Messages** with acks and retries, and the path each message took, hop by hop; bulletins, group messages and email
-- **Your beacon**: fixed, or from a GPS with SmartBeaconing; receive only with one tick
+- **Your beacon**: fixed, or from a GPS with SmartBeaconing; receive only with one press
 - **Nearby**: digipeaters, iGates and voice frequencies, nearest first
 - **Objects and items** of your own on the map
 - **Layers** on the map: aircraft, ships, tracks, the locator grid, and day and night

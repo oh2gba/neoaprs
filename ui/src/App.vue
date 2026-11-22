@@ -36,6 +36,8 @@ const {
   daemon,
   call,
   pills,
+  rxSwitch,
+  setTransmit,
   unread,
   openUnread,
   updateOpen,
@@ -78,7 +80,16 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
 <template>
   <VersionMismatch v-if="mismatch" :mismatch="mismatch" />
   <div v-else class="app" :class="layout.rootClass.value">
-    <AppHeader :call="call" :unread="unread" :pills="pills" @messages="openUnread" @setup="guide.show()" @open="goTo" />
+    <AppHeader
+      :call="call"
+      :unread="unread"
+      :pills="pills"
+      :rx="rxSwitch"
+      @messages="openUnread"
+      @setup="guide.show()"
+      @open="goTo"
+      @transmit="setTransmit"
+    />
     <UpdateDialog v-if="updateOpen && newer" :version="newer" @close="updateOpen = false" />
     <UpdateDialog
       v-else-if="whatsNew.open.value"

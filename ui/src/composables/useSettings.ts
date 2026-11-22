@@ -63,7 +63,7 @@ export function useSettings(
    * Check the typed keys and send those that differ in one request; `revert` shows the old value of
    * a refused choice. Nothing is sent if any key has a problem.
    */
-  function commit(keys: readonly string[], revert = false): void {
+  function commit(keys: readonly string[], revert = false, first = false): void {
     for (const key of keys) delete errors[key];
     const problems = keys
       .map((key) => [key, problemOf(key, draft[key] ?? "")] as const)
@@ -76,12 +76,13 @@ export function useSettings(
     for (const [key, text] of Object.entries({ ...sent })) Object.assign(sent, linkedValues(key, text, draft));
     const names = Object.keys(sent);
     for (const key of names) draft[key] = sent[key] ?? "";
-    if (names.length > 0) queue.enqueue({ values: sent, keys: names, revert: revert ? names : [] });
+    if (names.length > 0) queue.enqueue({ values: sent, keys: names, revert: revert ? names : [] }, first);
   }
 
-  function change(choices: Readonly<Record<string, string>>): void {
+  /** `first`: sent before every other waiting save (useSettingsQueue). */
+  function change(choices: Readonly<Record<string, string>>, first = false): void {
     for (const [key, text] of Object.entries(choices)) edit(key, text);
-    commit(Object.keys(choices), true);
+    commit(Object.keys(choices), true, first);
   }
 
   useSettingsAnswers(

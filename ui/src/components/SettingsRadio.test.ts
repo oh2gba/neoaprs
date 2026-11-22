@@ -75,9 +75,9 @@ const outside = (box: ReturnType<typeof boxOf>, folded: HTMLDetailsElement) =>
 const ONLY = "The station's only radio that is on";
 
 describe("the Radio group of the Settings tab", () => {
-  it("has the RX only tickbox first, then the FM radio and the Mercury radio in a box each, each beginning with its Enable tickbox", () => {
+  it("has the FM radio and the Mercury radio in a box each, each beginning with its Enable tickbox, and no RX only row", () => {
     const { group } = make({}, BOTH);
-    expect(group.find(".field").find("label").text()).toBe("RX only");
+    expect(group.find("#set-station-transmit").exists()).toBe(false);
     expect(group.findAll("fieldset.subbox legend").map((l) => l.text())).toEqual(["FM radio", "Mercury radio"]);
     for (const [box, id] of [
       [fm(group), "set-radio-1-enabled"],
@@ -94,8 +94,8 @@ describe("the Radio group of the Settings tab", () => {
     }
     expect(group.find<HTMLInputElement>("#set-radio-1-enabled").element.checked).toBe(true);
     expect(group.find<HTMLInputElement>("#set-radio-2-enabled").element.checked).toBe(true);
-    // the RX only tickbox is the first row
-    expect(group.find(".group-body").element.firstElementChild).toBe(group.find(".field").element);
+    // the first box is the first row
+    expect(group.find(".group-body").element.firstElementChild).toBe(fm(group).element);
   });
 
   it("has an (i) on each Enable, with the picture of the two radios", async () => {
@@ -532,7 +532,7 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
     expect(tune(tone.group).find(".twowords-off").text()).toBe("Tune");
   });
 
-  it("has both off while RX only is ticked, with the title that says so, and while the modem is not running", () => {
+  it("has both off while RX only is on, with the title that says so, and while the modem is not running", () => {
     const rx = make({}, running(), hfValues(), { "station/transmit": "false" });
     expect(tune(rx.group).element.disabled).toBe(true);
     expect(keyTest(rx.group).element.disabled).toBe(true);

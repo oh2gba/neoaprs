@@ -77,8 +77,8 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
         "your call, with an SSID if any, as one text such as `OH2GBA-9` (the page has the call in its field and the SSID in a dropdown beside it, [beacon.md](beacon.md#the-call-and-its-ssid)). **While it is empty, `N0CALL`, `NOCALL`, `MYCALL` or not an amateur call (3 to 6 letters and digits with at least one of each), nothing at all is transmitted** ([start.md](start.md#the-setup-guide))",
     ),
     "station/transmit": (
-        "Settings tab, Radio",
-        "`false` is RX only (the tickbox RX only of Settings → Radio is ticked): nothing at all is transmitted (beacon, status, messages, acks, answers to queries, objects, bulletins, the digipeater) and every button that sends is off; messages being sent wait, with no attempt used up. It takes effect at once. The header shows a lime RX only mark ([beacon.md](beacon.md#rx-only)). A beacon that is off is not this",
+        "Top right of the page, on every tab",
+        "`false` is RX only (the switch at the top right reads RX only): nothing at all is transmitted (beacon, status, messages, acks, answers to queries, objects, bulletins, the digipeater) and every button that sends is off; messages being sent wait, with no attempt used up. One press switches RX only on; switching it off takes a second press. It takes effect at once on every open page ([beacon.md](beacon.md#rx-only)). A beacon that is off is not this",
     ),
     "email/radio": (
         "Email tab, the list beside Check email (while several radios that can send are on)",

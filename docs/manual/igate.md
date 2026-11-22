@@ -36,7 +36,7 @@ A packet heard is not put on APRS-IS when:
 - it was heard while the connection to APRS-IS was not up;
 - it did not come from the air: a packet from the internet, or one made up by a Dummy radio, is never put on APRS-IS. While a Dummy radio is on, your own position is not put there either.
 
-The passcode is kept as a setting in the database on your computer, like the access key of the page. The log then has each packet gated at the debug level and every hour a line with the counts. It has nothing to do with `station/transmit` (the **RX only** pill): the radio does not transmit when it is gated, because nothing of the internet is ever sent on the air.
+The passcode is kept as a setting in the database on your computer, like the access key of the page. The log then has each packet gated at the debug level and every hour a line with the counts. It has nothing to do with `station/transmit` (the **RX only** switch): the radio does not transmit when it is gated, because nothing of the internet is ever sent on the air.
 
 ## Answering `?IGATE?`
 

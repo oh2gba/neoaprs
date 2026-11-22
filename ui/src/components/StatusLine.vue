@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The words of a status row (StatusFold): the state in its tone colour and a quiet line beside
-// it. `link` (a control id in the Settings tab, also the title) turns the line into a link
-// that opens the tab and flashes the group (lib/attention.ts). `parts` are lines that change
+// it. `link` (lib/settinglink.ts: a tab, a control id and the title) turns the line into a link
+// that opens the tab and flashes the control's group (lib/attention.ts). `parts` are lines that change
 // while nothing else does; each stays on one line, ellipsised, so the row keeps its height
 // (settings.css `.statushead-parts`). The separator dot is not drawn, but keeps the text whole.
 // Renders two elements without a root: the content of the row's heading.
@@ -27,7 +27,7 @@ const goTo = useOpenSetting();
       type="button"
       class="linkbutton"
       :title="link.title"
-      @click.stop.prevent="goTo('settings', link.control)"
+      @click.stop.prevent="goTo(link.target, link.control)"
     >
       {{ line }}
     </button>

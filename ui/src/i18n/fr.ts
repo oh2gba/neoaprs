@@ -8,8 +8,11 @@ export const fr: Catalogue = {
 
   "header.project_title": "La page du projet NeoAPRS",
   "pill.rx": "RX uniquement",
-  "pill.rx_title": "Rien n'est envoyé. Réglages → Radio → RX uniquement",
   "pill.rx_title_radios": "Rien n'est envoyé. Réglages → Radio",
+  "header.rx.tx": "RX + TX",
+  "header.rx.sure": "sûr ?",
+  "header.rx.tx_title": "La station émet et reçoit",
+  "header.rx.rx_title": "Rien n'est envoyé",
   "pill.beacon_off": "Balise coupée",
   "pill.beacon_off_title": "Ni balise ni statut automatiques. Onglet Ma station",
   "pill.internet": "Internet",
@@ -1472,11 +1475,6 @@ export const fr: Catalogue = {
   "settings.antenna_direction.tip1":
     "omni si elle fonctionne pareil dans toutes les directions, sinon le point cardinal vers lequel pointe une antenne directive.",
 
-  "settings.transmit.name": "RX uniquement",
-  "settings.transmit.label": "RX uniquement",
-  "settings.transmit.tip_label": "À propos de RX uniquement",
-  "settings.transmit.tip1": "Rien n'est envoyé : ni balise, ni message, ni accusé, ni digipeat.",
-
   "settings.profile.label": "Type de radio",
   "settings.profile.tip_label": "Quel type de radio choisir",
   "settings.profile.tip1":
@@ -2092,8 +2090,6 @@ export const fr: Catalogue = {
   "help.picture.digipeater":
     "Une voiture qui n'atteint pas directement le digipeater à grande couverture est répétée par votre station, qui fait suivre son paquet.",
   "help.picture.logs": "Un fichier de journal qui part en pièce jointe d'un e-mail.",
-  "help.picture.transmit":
-    "Notre station entend les autres (la flèche entrante) alors que ce qu'elle enverrait ne part pas : la flèche en pointillés est barrée.",
   "help.picture.beaconoff":
     "Balise coupée, l'horloge n'envoie rien, les balises de la ligne de temps sont vides ; un appui sur le bouton en envoie quand même une.",
   "help.picture.internet":

@@ -39,8 +39,6 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.digipeater":
     "Een auto die de wide-digipeater niet direct bereikt, wordt herhaald door je station, dat zijn pakket doorgeeft.",
   "help.picture.logs": "Een logbestand dat als bijlage met een e-mail meegaat.",
-  "help.picture.transmit":
-    "Ons station hoort de anderen (de pijl naar binnen), terwijl wat het zou verzenden nergens heen gaat: de onderbroken pijl is doorgestreept.",
   "help.picture.beaconoff":
     "Met het baken uit verzendt de klok niets, de bakens op de tijdlijn zijn leeg; een druk op de knop verzendt er toch een.",
   "help.picture.internet":

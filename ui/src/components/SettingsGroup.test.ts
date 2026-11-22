@@ -200,10 +200,10 @@ describe("the Settings tab", () => {
     localStorage.setItem(KEY("serial"), "folded");
     const { wrapper, named } = form();
     expect(shown(named("Radio"))).toBe(false);
-    expect(await attend("set-station-transmit")).toBe(true);
+    expect(await attend("set-radio-1-baud")).toBe(true);
     await nextTick();
     expect(shown(named("Radio"))).toBe(true);
-    expect(document.activeElement?.id).toBe("set-station-transmit");
+    expect(document.activeElement?.id).toBe("set-radio-1-baud");
     wrapper.unmount();
   });
 

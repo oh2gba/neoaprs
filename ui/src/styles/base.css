@@ -134,6 +134,13 @@ h4,
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
+  /* shortened before the RX only switch is pushed out of a narrow header */
+  min-width: 0;
+}
+.nocall-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .main {
   display: flex;

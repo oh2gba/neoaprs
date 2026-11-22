@@ -61,7 +61,7 @@ class RadioChange(_Command):
 
 class RadioTune(_Command):
     """Tune on the radio's modem: with `on`, keys the radio through its keying and sends its modem's tuning tone through its sound card for ten seconds (Mercury a steady 1000 Hz, its own TUNE; Direwolf its two tones by turns), then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"`
-    meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and
+    meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while the station is RX only (`transmit.off`) and
     while a frame is on the air or the channel is busy (`hf.held`)."""
 
     cmd: Literal["radio_tune"]

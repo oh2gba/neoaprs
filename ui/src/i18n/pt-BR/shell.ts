@@ -7,8 +7,11 @@ export const shell: Record<keyof typeof source, Message> = {
 
   "header.project_title": "A página do projeto NeoAPRS",
   "pill.rx": "Somente RX",
-  "pill.rx_title": "Nada é enviado. Ajustes → Rádio → Somente RX",
   "pill.rx_title_radios": "Nada é enviado. Ajustes → Rádio",
+  "header.rx.tx": "RX + TX",
+  "header.rx.sure": "certeza?",
+  "header.rx.tx_title": "A estação envia e recebe",
+  "header.rx.rx_title": "Nada é enviado",
   "pill.beacon_off": "Beacon desligado",
   "pill.beacon_off_title": "Sem beacon nem status automáticos. Aba Minha estação",
   "pill.internet": "Internet",

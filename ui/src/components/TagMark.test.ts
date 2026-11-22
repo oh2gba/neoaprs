@@ -60,7 +60,7 @@ describe("TagMark", () => {
     ".conv .badge",
     ".statetext",
     ".grid.stations tr.internetonly td.heard .via",
-    ".rxonly",
+    ".rxswitch",
     ".chip",
     ".chip-hop .hop-call",
     ".own-mark",

@@ -110,11 +110,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.antenna_direction.tip1":
     "Kaikkisuuntainen, jos antenni toimii joka suuntaan samoin, tai ilmansuunta, johon keilaava antenni osoittaa.",
 
-  "settings.transmit.name": "Vain RX",
-  "settings.transmit.label": "Vain RX",
-  "settings.transmit.tip_label": "Tietoa: vain RX",
-  "settings.transmit.tip1": "Mitään ei lähetetä: ei majakkaa, viestiä, kuittausta eikä toistoa.",
-
   "settings.profile.label": "Radion tyyppi",
   "settings.profile.tip_label": "Minkä radiotyypin valitsen",
   "settings.profile.tip1":

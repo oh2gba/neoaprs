@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // The top line: the title link, the "no call set" button, the status marks (lib/pills.ts, each a
-// button that opens where it is set) and the count of unseen messages. The call and the version
-// are shown in Settings, not here.
+// button that opens where it is set), the count of unseen messages and, last, the RX only switch,
+// which never folds. The call and the version are shown in Settings, not here.
 import TagMark from "@/components/TagMark.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
+import RxSwitch from "@/components/RxSwitch.vue";
 import { t } from "@/i18n";
 import type { HeaderPill, PillTarget } from "@/lib/pills";
+import type { RxSwitch as RxSwitchState } from "@/lib/rxswitch";
 import { unreadText } from "@/lib/unread";
 
 defineProps<{
@@ -14,8 +16,15 @@ defineProps<{
   unread: number;
   /** The marks before the count. */
   pills?: readonly HeaderPill[];
+  /** The RX only switch; null until the daemon has sent the settings. */
+  rx?: RxSwitchState | null;
 }>();
-const emit = defineEmits<{ messages: []; setup: []; open: [target: PillTarget, focus: string] }>();
+const emit = defineEmits<{
+  messages: [];
+  setup: [];
+  open: [target: PillTarget, focus: string];
+  transmit: [on: boolean];
+}>();
 
 const PROJECT_URL = "https://neo.oh2gba.eu/";
 </script>
@@ -28,7 +37,7 @@ const PROJECT_URL = "https://neo.oh2gba.eu/";
       >
     </h1>
     <button v-if="call === ''" type="button" class="nocall" :title="t('header.no_call_title')" @click="emit('setup')">
-      {{ t("header.no_call") }}
+      <span class="nocall-text">{{ t("header.no_call") }}</span>
     </button>
     <span v-if="pills?.length" class="headpills">
       <TagMark
@@ -36,7 +45,7 @@ const PROJECT_URL = "https://neo.oh2gba.eu/";
         :key="pill.id"
         :as="pill.target === null ? 'span' : 'button'"
         :tone="pill.tone"
-        :class="['headpill', `pill-${pill.id}`, { rxonly: pill.id === 'rx' }]"
+        :class="['headpill', `pill-${pill.id}`]"
         :title="t(pill.title, pill.titleValues)"
         :role="pill.target === null ? 'status' : undefined"
         @click="pill.target !== null && emit('open', pill.target, pill.focus)"
@@ -52,5 +61,11 @@ const PROJECT_URL = "https://neo.oh2gba.eu/";
     >
       <MessageGlyph :size="14" /> {{ unread }}<span class="sr-only"> {{ unreadText(unread) }}</span>
     </TagMark>
+    <RxSwitch
+      v-if="rx"
+      :rx="rx"
+      @transmit="emit('transmit', $event)"
+      @open="(target, focus) => emit('open', target, focus)"
+    />
   </header>
 </template>

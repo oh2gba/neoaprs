@@ -38,8 +38,6 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.digipeater":
     "Un coche que no alcanza directamente el digipeater de área amplia es repetido por tu estación, que pasa su paquete.",
   "help.picture.logs": "Un archivo de registro que va adjunto en un correo.",
-  "help.picture.transmit":
-    "Nuestra estación oye a las demás (la flecha de entrada) mientras lo que enviaría no sale: la flecha discontinua está tachada.",
   "help.picture.beaconoff":
     "Con la baliza apagada el reloj no envía nada, las balizas de la línea de tiempo están vacías; pulsar el botón envía una de todos modos.",
   "help.picture.internet":

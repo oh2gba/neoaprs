@@ -62,7 +62,7 @@ describe("pairLook", () => {
     expect(look.line).toBe("None repeated yet");
   });
 
-  it("says off in the warn colour while RX only is ticked, and keeps what is behind the arrow", () => {
+  it("says off in the warn colour while RX only is on, and keeps what is behind the arrow", () => {
     const look = pairLook(pair([], [passed(1, { sent: 2, sent_at: ago(60), held: 1 })]), null, NOW, true);
     expect([look.state, look.tone, look.line]).toEqual(["off", "tnc-waiting", "RX only: nothing is repeated"]);
     expect([look.ways, look.held]).toEqual([

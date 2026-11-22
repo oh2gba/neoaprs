@@ -5,7 +5,7 @@ import { FakeMap, FakeMarker } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
 import { configValues, errorOf, hello, mapFile, mapState, radioRow, status } from "@/test/fixtures";
 import type { RadioRow } from "@/protocol/protocol";
-import { mountApp, open, tabButton, useAppHarness } from "@/test/app";
+import { mountApp, open, switchFace, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
 
@@ -297,7 +297,12 @@ describe("App: the first-run guide", () => {
     expect(box.text()).not.toMatch(/127\.0\.0\.1|8001 |socket|tcp:/);
     expect(wrapper.find(".toast").exists()).toBe(false);
     // A board that sends: the station is no RX only one.
-    expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
+    expect(switchFace(wrapper)).toBe("RX + TX");
+    // The Radio step has no RX only; on a desktop the header and its switch stay while the guide is open.
+    expect(wrapper.findAll(".setup .field label").map((label) => label.text())).not.toContain("RX only");
+    expect(wrapper.find("#set-station-transmit").exists()).toBe(false);
+    expect(wrapper.find(".app").classes()).toContain("guide-open");
+    expect(wrapper.find(".appheader #rx-switch").exists()).toBe(true);
     await wrapper.find(".setup #setup-radio-3-tcp_host").setValue("192.168.1.20");
     await wrapper.find(".setup #setup-radio-3-tcp_host").trigger("keydown", { key: "Enter" });
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config").at(-1)).toEqual({
@@ -312,8 +317,10 @@ describe("App: the first-run guide", () => {
       {},
       { "radio/3/port": "/dev/ttyUSB0", "radio/3/baud": "9600" },
     );
-    const mark = wrapper.find(".appheader .rxonly");
-    expect([mark.text(), mark.attributes("title")]).toEqual(["RX only", "Nothing is sent. Settings → Radio"]);
+    expect([switchFace(wrapper), wrapper.find("#rx-switch").attributes("title")]).toEqual([
+      "RX only",
+      "Nothing is sent. Settings → Radio",
+    ]);
     expect(box.find("legend").text()).toBe("FM radio");
     expect(["port", "baud"].map((part) => box.find(`#setup-radio-3-${part}`).exists())).toEqual([true, true]);
     expect(

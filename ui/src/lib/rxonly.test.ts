@@ -1,6 +1,6 @@
 // A radio type that only listens (`tnc-text`, e.g. a TNC that prints what it hears) is in no list
-// of radios to send on. While it is the only radio on, the header says RX only with its own title
-// and the page is receive-only, as with RX only ticked.
+// of radios to send on. While it is the only radio on, the RX only switch says RX only with its
+// own title and the page is receive-only, as with RX only switched on.
 import { describe, expect, it } from "vitest";
 import { t } from "@/i18n";
 import { headerPills } from "@/lib/pills";
@@ -32,7 +32,7 @@ describe("a radio that only listens", () => {
     expect(listensOnly(rows)).toBe(false);
   });
 
-  it("alone makes the station receive only, and the header says so by the radios, not by the RX only tick", () => {
+  it("alone makes the station receive only; the RX only switch says so (lib/rxswitch.test.ts), no mark does", () => {
     const rows = radiosTopic(
       radioRow(1, "tnc-text"),
       radioRow(2, "mercury", { enabled: false }),
@@ -41,25 +41,6 @@ describe("a radio that only listens", () => {
     expect(listensOnly(rows)).toBe(true);
     expect(listensOnly(radiosTopic(radioRow(1, "tnc-text", { enabled: false })))).toBe(false);
     expect(listensOnly(null)).toBe(false);
-    const rx = (values: Record<string, string>, listening: boolean) =>
-      headerPills(values, null, null, null, null, null, listening).find((pill) => pill.id === "rx");
-    expect(rx({}, true)).toMatchObject({
-      text: "pill.rx",
-      title: "pill.rx_title_radios",
-      tone: "warn",
-      target: "settings",
-    });
-    expect(t("pill.rx_title_radios")).toBe("Nothing is sent. Settings → Radio");
-    expect(rx({ "station/transmit": "false" }, true)?.title).toBe("pill.rx_title");
-    expect(rx({}, false)).toBeUndefined();
-  });
-
-  it("alone leads the RX only mark to the box of the first radio that is on, where its type is chosen, and the RX only tick to the tick", () => {
-    const rows = radiosTopic(
-      radioRow(1, "kiss", { enabled: false }),
-      radioRow(3, "tnc-text"),
-      radioRow(4, "lora-console"),
-    );
     const link = {
       connection: "open",
       now: 0,
@@ -67,10 +48,9 @@ describe("a radio that only listens", () => {
       told: true,
       radios: pageRadios(rows, configValues()),
     } as const;
-    const rx = (values: Record<string, string>) =>
-      headerPills(values, null, null, null, link, null, listensOnly(rows)).find((pill) => pill.id === "rx");
-    expect(rx({})?.focus).toBe("set-radio-3-enabled");
-    expect(rx({ "station/transmit": "false" })?.focus).toBe("set-station-transmit");
+    const ids = headerPills({ "station/transmit": "false" }, null, null, null, link).map((pill): string => pill.id);
+    expect(ids).toEqual(["daemon", "radio"]);
+    expect(t("pill.rx_title_radios")).toBe("Nothing is sent. Settings → Radio");
   });
 
   it("alone makes a pane's test context receive only, as the shell is", () => {

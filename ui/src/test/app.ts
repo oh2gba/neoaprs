@@ -66,6 +66,17 @@ export async function open() {
   return { wrapper, socket };
 }
 
+/** The words the RX only switch shows (its hidden faces are in the page too); "" while it is not there. */
+export function switchFace(wrapper: VueWrapper): string {
+  const button = wrapper.find("#rx-switch");
+  if (!button.exists()) return "";
+  return button
+    .findAll(".twowords > span")
+    .filter((span) => !span.find(".twowords").exists() && span.element.closest(".twowords-off") === null)
+    .map((span) => span.text())
+    .join("");
+}
+
 export const tabButton = (wrapper: VueWrapper, title: string) =>
   wrapper.findAll("[role='tab']").find((t) => t.text().startsWith(title));
 

@@ -216,9 +216,9 @@ describe("the header with the FM radio alone", () => {
     ]);
   });
 
-  it("keeps the other marks of the station where they were, after the Radio mark", () => {
+  it("keeps the other marks of the station where they were, after the Radio mark, and none for RX only", () => {
     const rx = marks(open, { "station/transmit": "false" }).map((m) => m[1]);
-    expect(rx).toEqual(["NeoAPRS", "Radio", "RX only"]);
+    expect(rx).toEqual(["NeoAPRS", "Radio"]);
     const beaconOff = marks(open, { "beacon/interval_min": "0" }).map((m) => m[1]);
     expect(beaconOff).toEqual(["NeoAPRS", "Radio", "Beacon off"]);
   });

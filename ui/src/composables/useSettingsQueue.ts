@@ -15,6 +15,15 @@ export interface Request {
   revert: string[];
 }
 
+function without(request: Request, keys: readonly string[]): Request {
+  const kept = (key: string): boolean => !keys.includes(key);
+  return {
+    values: Object.fromEntries(Object.entries(request.values).filter(([key]) => kept(key))),
+    keys: request.keys.filter(kept),
+    revert: request.revert.filter(kept),
+  };
+}
+
 export function useSettingsQueue(
   send: (command: Command) => boolean,
   inForce: () => Readonly<Record<string, string>>,
@@ -48,8 +57,15 @@ export function useSettingsQueue(
     return request;
   }
 
-  function enqueue(request: Request): void {
-    queue.value.push(request);
+  /**
+   * `first` puts the request ahead of every waiting one, which drop its keys (the newer value
+   * wins); only the one already out stays ahead of it.
+   */
+  function enqueue(request: Request, first = false): void {
+    if (first) {
+      queue.value = queue.value.map((waiting) => without(waiting, request.keys)).filter((r) => r.keys.length > 0);
+      queue.value.unshift(request);
+    } else queue.value.push(request);
     pump();
   }
 

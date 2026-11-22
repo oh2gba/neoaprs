@@ -100,7 +100,7 @@ The first box of the tab asks the stations in radio range to make themselves kno
 - Under it, closed, is **Advanced** (there while a radio that is on may carry a path): the **Path** the query goes by and **RF only**, one for every radio. While no ticked radio carries a path (Mercury) they are greyed, their values kept.
 - An empty path is each radio's own path, the beacon's; the field shows it while the radios ticked share it, else "(default)". A path is calls or aliases separated by commas, as a station's own path is in Messages: `WIDE1-1,WIDE2-1`, or an explicit `OH2RDK-7,OH2RCH-2` for a station that reaches the network only through a fill-in digipeater that relays it when it is named, or `DIRECT` for none. A wrong path is orange, with the reason in its hover text. The button beside the field opens the [path builder](messages.md#the-path-builder).
 - **RF only**, ticked unless you untick it, puts `RFONLY` after the path, so that the iGates keep the query off the internet. The browser remembers the query, the path and RF only.
-- Nothing is sent while **RX only** is ticked, your call is not set, no ticked radio is connected or the path is wrong. One query of each kind goes on the air per minute on each radio, and a query waits for every radio it goes on. Ask is off then, and its hover text says why; a query the daemon refuses says why under it.
+- Nothing is sent while the station is **RX only**, your call is not set, no ticked radio is connected or the path is wrong. One query of each kind goes on the air per minute on each radio, and a query waits for every radio it goes on. Ask is off then, and its hover text says why; a query the daemon refuses says why under it.
 - Under it, two quiet lines say what was asked, when and by what path ("Asked who is around at 18:05 by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations"; when the radios went each by its own path the line names none: "Asked who is around at 18:05; answers arrive on the map and in Stations"), and how many stations were heard on those radios in the two minutes after the query that had not been heard there in the ten minutes before it.
 - A station heard on two radios is counted once. The calls are in the hover text of the count. Most of them are answers, but a station cannot be told to answer: one whose own beacon fell in those two minutes counts too, and the answer of a station heard a minute before the query does not. NeoAPRS forgets the queries when it stops.
 
@@ -117,7 +117,7 @@ A beacon, message or answer you sent is in the log as a packet with direction `o
 The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group folds by the arrow in front of its name, and the page remembers in this browser which ones you folded. A group opens by itself when it has an error to show, and when the page leads you to a setting in it (a mark in the header). The boxes of the radios in the Radio group fold the same way, each by the arrow in front of its name, and are remembered the same way. From the top it has:
 
 - **Language**, **Non-metric units** (miles, feet, mph, °F, inHg and inches on every page of this station; aircraft in feet and knots, ships in knots; what you type and what is sent stay metric), and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
-- **Radio**: the **RX only** tickbox first (ticked sends nothing, [beacon.md](beacon.md#rx-only)), a box for each radio, and **Add radio** last ([radio.md](radio.md#the-radio-group));
+- **Radio**: a box for each radio, and **Add radio** last ([radio.md](radio.md#the-radio-group));
   - a box has its **Enable** tickbox, its **Name** and **Remove** once the station has more than one box, and while the radio is on its status line with **Reconnect**;
   - behind the arrow of the status line are the **Radio type**, the fields of that type (a **Port** and **Speed**, an **Address** and **Port**, a **Sound card** and **Keying**) and what the type can do (**Find my radio**, **Suggested frequencies**, **Tune**, **Transmit level**, **Receive level**, **Spectrum**, **Terminal**);
   - the Enable of the only radio that is on is greyed, with the hover text "The station's only radio that is on";
@@ -337,12 +337,13 @@ At the right, before the count of messages, are small marks that say how things 
 - **Radio**, with one radio on: mint while it is connected, grey and dashed for a Dummy radio, lime with the state in words otherwise. It opens Settings → Radio;
 - with two radios on, a mark for each in its place, by its name (**FM**, **Mercury**), with the same colours and words, each leading to its own box;
 - with three or more, one mark **Radios**: mint while all are connected, lime naming the radio in trouble ("20 m: not connected") or the count when several are ("Radios: 2 not connected"). Its hover text lists each radio that is on with its state, and it leads to the first radio in trouble, else to the first box. It is dashed only while every radio is a Dummy;
-- **RX only** (lime) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
-- **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));
+- **Beacon off** (grey) while the Beacon choice is Off, whether the station is RX only or not ([beacon.md](beacon.md#beacon-off));
 - **GPS**, only when a GPS is the position source: mint with a fix, lime without;
 - **Internet** (blue) while Settings → Internet stations is enabled and connected ([igate.md](igate.md)).
 
-On a narrow screen the marks give way, the last first, and the count stays. Your call is not in the header; it is in the Settings tab and in every message you send.
+After the count is the switch **RX + TX** / **RX only** ([beacon.md](beacon.md#rx-only)), on every tab. It is lime and reads **RX only** while the station sends nothing, and **sure?** after the first press back. While the page is not connected to NeoAPRS it does not react.
+
+On a narrow screen the marks give way, the last first, and the count and the switch stay. Your call is not in the header; it is in the Settings tab and in every message you send.
 
 The state of the radio in words, when it is not connected (with two radios on the mark is the radio's name: "FM: searching…", "Mercury: not connected"):
 
@@ -353,7 +354,7 @@ The state of the radio in words, when it is not connected (with two radios on th
 
 NeoAPRS finds the radio again by itself: there is nothing to press. The port and when a packet was last heard are in the radio status of the radio's box, in the Radio group of the Settings tab.
 
-Where a status row or a message says "RX only: nothing is sent", the words are a link to the RX only tickbox: it opens Settings → Radio and flashes the group.
+Where a status row or a message says "RX only: nothing is sent", the words are a link to the RX only switch: it flashes the switch and opens no tab.
 
 The name and version of the program are in Settings → Update check, next to **Check now**, with **What's new** after them: the release notes of the version you run ([install.md](install.md#updating)). Its hover text says what the daemon costs the machine, every 10 seconds: its share of one CPU core in percent, its memory and the uptime (a sentence in the page's language: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h").
 

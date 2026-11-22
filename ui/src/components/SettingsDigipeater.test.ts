@@ -51,7 +51,7 @@ describe("the status row of the Digipeater group", () => {
     ).toBe("2 frames held back: too many in a burst");
   });
 
-  it("says off in the warn colour while RX only is ticked", () => {
+  it("says off in the warn colour while RX only is on", () => {
     const { group } = make(
       { "radio/1/digipeat": "true", "station/transmit": "false" },
       { radios: repeated(5, ago(60)) },
@@ -92,7 +92,7 @@ describe("the status row of a pair of radios", () => {
     ]);
   });
 
-  it("says none passed yet, and off while RX only is ticked", () => {
+  it("says none passed yet, and off while RX only is on", () => {
     expect(
       make(ON, { radios: pairOf([], []) })
         .wrapper.find("#set-pair-1-2-ssid")

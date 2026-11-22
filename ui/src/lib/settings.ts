@@ -136,14 +136,6 @@ const RADIO_TYPE: FieldSpec = {
 };
 
 const SPECS: Record<string, FieldSpec> = {
-  "station/transmit": {
-    name: "settings.transmit.name",
-    label: "settings.transmit.label",
-    kind: "bool",
-    tipLabel: "settings.transmit.tip_label",
-    tip: ["settings.transmit.tip1"],
-    picture: "transmit",
-  },
   "station/call": {
     label: "settings.call.label",
     kind: "call",
@@ -457,9 +449,9 @@ const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[
     id: "station",
     title: "settings.group.station",
     prefixes: ["station/", "gps/"],
-    except: ["station/status", "station/comment", "station/transmit"],
+    except: ["station/status", "station/comment"],
   },
-  { id: "serial", title: "settings.group.tnc", prefixes: ["serial/"], also: ["station/transmit"] },
+  { id: "serial", title: "settings.group.tnc", prefixes: ["serial/"] },
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
@@ -497,6 +489,9 @@ const NOT_ON_THE_PAGE: readonly string[] = [
   "map/source",
 ];
 
+/** RX only is `station/transmit` false: the switch at the top right (lib/rxswitch.ts). */
+export const RX_ONLY_KEY = "station/transmit";
+
 /**
  * Settings on the page but in another tab: how long stations stay on the map (map/station_hours) is
  * in Stations.
@@ -504,6 +499,8 @@ const NOT_ON_THE_PAGE: readonly string[] = [
 const IN_ANOTHER_TAB: readonly string[] = [STATION_HOURS_KEY];
 /** Settings in a row of their own above the groups, beside the language. */
 const ABOVE_THE_GROUPS: readonly string[] = [UNITS_KEY];
+/** Settings in the header, on every tab: RX only. */
+const IN_THE_HEADER: readonly string[] = [RX_ONLY_KEY];
 
 /**
  * The keys in the daemon's order (unlisted keys last; the TNC and Status groups in their own
@@ -517,7 +514,11 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
   const sorted = keys
     .filter(
       (k) =>
-        !NOT_ON_THE_PAGE.includes(k) && !IN_ANOTHER_TAB.includes(k) && !ABOVE_THE_GROUPS.includes(k) && !isRadioKey(k),
+        !NOT_ON_THE_PAGE.includes(k) &&
+        !IN_ANOTHER_TAB.includes(k) &&
+        !ABOVE_THE_GROUPS.includes(k) &&
+        !IN_THE_HEADER.includes(k) &&
+        !isRadioKey(k),
     )
     .sort((a, b) => order(a) - order(b));
   const groups: Group[] = GROUPS.map((g) => ({
@@ -562,25 +563,20 @@ export function fieldFor(
     : (FIELDS[key] ?? pairField(key, values) ?? (flat === null ? undefined : FIELDS[flat]) ?? { label: key });
 }
 
-/** The RX only tickbox is the setting `station/transmit` the other way round: ticked is `false`. */
-export const RX_ONLY_KEY = "station/transmit";
-
 /**
  * The value a field shows: a moving station's beacon is "0" (Off) or the one On, whatever interval
  * is stored.
  */
 export function valueFor(key: string, values: Readonly<Record<string, string>>): string {
   const text = values[key] ?? "";
-  if (key === RX_ONLY_KEY) return String(text === "false");
   return key === "beacon/interval_min" && isMoving(values) ? String(!beaconOff(values)) : text;
 }
 
 /**
  * What is stored for what the field says: a moving station's beacon tickbox stores the interval On,
- * or 0; the RX only tickbox is inverted; any other field is as it says.
+ * or 0; any other field is as it says.
  */
 export function storedFor(key: string, values: Readonly<Record<string, string>>, said: string): string {
-  if (key === RX_ONLY_KEY) return said === "true" ? "false" : "true";
   return key === "beacon/interval_min" && isMoving(values) ? (said === "true" ? MOVING_BEACON_ON : "0") : said;
 }
 

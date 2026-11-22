@@ -1,7 +1,7 @@
 // A radio of a listen-only type (`tnc-text`) on a station that has senders beside it: it is in none
 // of the lists of radios to send on, its box has no Find my radio, no path and no "find
 // automatically" for its port, and while it is the only radio on, the beacon's fields are greyed as
-// with RX only ticked.
+// with RX only on.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { shallowRef } from "vue";

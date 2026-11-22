@@ -18,7 +18,6 @@ With one radio, only the tags of how a packet or a station came name it ("FM", o
 
 The Radio group of the Settings tab has, from the top:
 
-- **RX only**, the tickbox that sends nothing at all ([beacon.md](beacon.md#rx-only));
 - one box for each radio, in the order they were added;
 - **Add radio**, last.
 
@@ -148,7 +147,7 @@ On a Mac there is no *Sound card* type: run Direwolf yourself ([`docs/RADIOS.md`
 
 **Choose:** *Yaesu FTM, TNC in monitor mode (RX only)*, a radio of the kind FM, then **Port** and **Speed** (9600 for an FTM). On the FTM set Setup → DATA → COM PORT SETTING to OUTPUT PACKET at 9600. What to set on each TNC is in [`docs/RADIOS.md`](../RADIOS.md).
 
-**When it works:** what the radio hears is on the map, and with Internet stations on the station is a receive-only iGate. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never a message's, the beacon's, an object's or a bulletin's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the header says **RX only**.
+**When it works:** what the radio hears is on the map, and with Internet stations on the station is a receive-only iGate. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never a message's, the beacon's, an object's or a bulletin's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the switch at the top right of the page reads **RX only**.
 
 ### The Dummy radios
 
@@ -242,7 +241,7 @@ The box of a Mercury radio has, behind the arrow of its status line, no port, sp
 - **Tune** keys the radio and sends a steady tone for ten seconds, for an antenna tuner, the audio level or finding the radio's sound card; a second press, on *Stop*, ends it. No frame of yours goes out under the tone. Refused while a frame is on the air or the channel is busy.
 - **Transmit level** is how strong the modem's audio is to the radio, from -20 to 20 dB. Press **-** or **+** while Tune runs and watch the radio's ALC: it should hardly move. **Peak** turns orange at 0 dBFS, where the sound card clips. Where the sound card has a playback level of its own the row is its slider instead, from 0 to 100 %, as in the Sound card radio's box; a level you moved off 0 dB keeps its **-** and **+** until it is back at 0 dB and you open the box again, and until the radio has run once since NeoAPRS started the row shows neither.
 - **Spectrum**, folded at the end of the box, is the radio's audio from 300 to 2700 Hz as a waterfall, with the call and SNR of each station heard where its frame ended and a mark at the edge for your own transmissions. Under it, **Receive level** is a bar with its good range in green, with the slider of the sound card's own capture level before it where the card has one. **Monitor** in the map's menu shows the same larger ([the monitor card](page.md#the-monitor-card)). Both show the last two minutes at once.
-- Test and Tune are off while RX only is ticked and while the modem is not running.
+- Test and Tune are off while the station is RX only and while the modem is not running.
 
 The status line says what you can act on: the mode, *Listening*, *Transmitting…*, *Channel busy, waiting* while another station's signal is on the channel, *Tuning…* or *Keyed*, the SNR of the latest frame and the last packet. When the modem cannot open the sound card, it says *Sound card could not be opened: choose another*, and the modem is tried again after a while with the card chosen then.
 
@@ -264,7 +263,7 @@ The type of an FM radio (its key in brackets, as `neoaprs db radios` shows it) s
 | *Your own Direwolf or soundmodem* (`kiss-tcp`) | Direwolf (8001), UZ7HO SoundModem and QtSoundModem (8100) | nothing | nothing | no |
 | *Yaesu FTM, TNC in monitor mode (RX only)* (`tnc-text`) | a Yaesu FTM-100, -300, -400 or -500 with its data port on Output PACKET, a TAPR TNC-2, Kantronics or PK-232 left in its own monitor mode | nothing, ever | nothing | no |
 
-- **RX only** (*Yaesu FTM, TNC in monitor mode (RX only)*): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never a message's, the beacon's, an object's or a bulletin's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the header says RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only).
+- **RX only** (*Yaesu FTM, TNC in monitor mode (RX only)*): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never a message's, the beacon's, an object's or a bulletin's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the switch reads RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only).
 - **A TNC that is not asked** (*KISS TNC*, *Your own Direwolf or soundmodem*): nothing is written to it but KISS frames. There is no keep-alive check and no silent state. The open line is all NeoAPRS can know of the radio.
 - A TNC in command mode that sends text is told in the radio status; it is not answered. The Kenwood TH-D74 and TH-D75 have no command mode and cannot be asked: put them in KISS at the radio.
 - **The wait after the last step** is the settle time. What the TNC says meanwhile is thrown away and no frame is sent.

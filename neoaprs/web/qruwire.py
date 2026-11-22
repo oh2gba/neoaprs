@@ -14,7 +14,7 @@ class AskQru(_Command):
     path is, or `DIRECT` for none), else by the path of messages to the station QRU (its own path, else the radio's), with RFONLY after it unless `rf_only` is false: by radio only. With no `radio` it goes
     once on each radio of Local info's Send on (the radios whose `radio/<id>/local_info` is ticked; with one radio that can send, that one) that takes
     frames now; with `radio`, on that radio alone. The answers come as messages to us (they are rows of the topic `messages` like any message) and as the topic `qru`; the objects arrive as objects. All or
-    nothing: answered with an `error`, and nothing is sent on any radio, when the text is none, RX only is ticked or no call is set (`transmit.off`, or the interlock's reason), there is no radio
+    nothing: answered with an `error`, and nothing is sent on any radio, when the text is none, the station is RX only or no call is set (`transmit.off`, or the interlock's reason), there is no radio
     (`radio.none`) or none takes frames now, a request to QRU went on one of its radios less than 60 seconds ago with the same text or any less than 10 seconds ago (`qru.too_soon`, with the `seconds` that
     are left, the longest), or the path is no path or too long with RFONLY (`path.*`, `call.*`)."""
 

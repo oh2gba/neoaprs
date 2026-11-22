@@ -36,6 +36,22 @@ describe("attend", () => {
     expect(await never).toBe(false);
   });
 
+  it("flashes and focuses a control in the header without scrolling, a ring round its plate", async () => {
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<header class="appheader"><button id="switch" class="rxswitch">RX</button></header>`,
+    );
+    const done = attend("switch");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await done).toBe(true);
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    expect(document.activeElement?.id).toBe("switch");
+    vi.advanceTimersByTime(PAUSE_MS);
+    expect(document.getElementById("switch")?.classList.contains("attend")).toBe(true);
+    expect(cssRule(".rxswitch.attend")).toMatch(/animation-name:\s*attend-ring/);
+    expect(cssRule(".rxswitch.attend")).toMatch(/border-radius:\s*var\(--radius-pill\)/);
+  });
+
   it("is a soft lime of the palette that fades in and out quickly, after a short pause", () => {
     expect(cssRule(".attend")).toMatch(/animation:\s*attend 1\.2s/);
     expect([PAUSE_MS, ATTEND_MS]).toEqual([300, 1200]);

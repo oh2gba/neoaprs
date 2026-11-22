@@ -4,6 +4,7 @@ import { CONFIG_KEYS } from "@/protocol/lists";
 import {
   BEACON_FOLDS,
   FIELDS,
+  RX_ONLY_KEY,
   SUBGROUPS,
   fieldFor,
   groupKeys,
@@ -38,7 +39,7 @@ describe("groupKeys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
     expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
     // The radios' own fields are in their boxes
-    expect(groups[0]?.keys).toEqual(["station/transmit", "serial/last_port"]);
+    expect(groups[0]?.keys).toEqual(["serial/last_port"]);
     expect(groups[1]?.title).toBe("Internet stations");
     expect(groups[1]?.keys).toEqual(["igate/enabled"]); // Igate/server and igate/password are left to the shell
     expect(groups[2]?.title).toBe("Digipeater");
@@ -126,14 +127,15 @@ describe("groupKeys", () => {
             "map/source",
             "map/station_hours",
             "units/non_metric",
+            "station/transmit",
           ].includes(key),
       ).sort(),
     );
   });
-  it("has the Transmit tickbox first in the Radio group of the Settings tab and not on the My station tab", () => {
-    expect(groupKeys(CONFIG_KEYS, "settings")[0]?.keys[0]).toBe("station/transmit");
-    expect(groupKeys(CONFIG_KEYS, "beacon").flatMap((g) => g.keys)).not.toContain("station/transmit");
-    expect(FIELDS["station/transmit"]?.kind).toBe("bool");
+  it("has RX only in no group of the Settings and My station tabs, and no field for it: it is the switch at the top right", () => {
+    for (const scope of ["settings", "beacon"] as const)
+      expect(groupKeys(CONFIG_KEYS, scope).flatMap((g) => g.keys)).not.toContain(RX_ONLY_KEY);
+    expect(FIELDS[RX_ONLY_KEY]).toBeUndefined();
   });
   it("leaves the address of the update check off the page: it is set with neoaprs db set", () => {
     expect(groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys)).not.toContain("update/url");

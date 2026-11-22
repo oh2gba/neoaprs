@@ -109,7 +109,6 @@ describe("the pictures in the notes of the Settings fields", () => {
     ["map/radius_km", "radius"],
     ["digi/enabled", "digipeater"],
     ["igate/enabled", "internet"],
-    ["station/transmit", "transmit"],
     ["tnc/profile", "dummy"],
     ["hf/profile", "dummy"],
     ["gps/source", "position"],

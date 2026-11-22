@@ -1,7 +1,8 @@
 // The marks at the top right of the header, before the message count. Each has a short hover title
 // and the place where it is set. The order is also the fold order on a narrow screen (the last
-// folds first): Update, Daemon (browser only), radios, RX only, Beacon off, GPS, Internet, Map.
-// They are plain functions of the settings, the radios and the states the daemon has reported.
+// folds first): Update, Daemon (browser only), radios, Beacon off, GPS, Internet, Map. The RX only
+// switch after the count is lib/rxswitch.ts. They are plain functions of the settings, the radios
+// and the states the daemon has reported.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { Params } from "@/i18n/message";
@@ -18,7 +19,7 @@ import type { TagTone } from "@/components/TagMark.vue";
 export type PillTarget = "settings" | "beacon";
 
 export interface HeaderPill {
-  id: "update" | "daemon" | "radio" | `radio-${RadioId}` | "radios" | "rx" | "beacon_off" | "internet" | "gps" | "map";
+  id: "update" | "daemon" | "radio" | `radio-${RadioId}` | "radios" | "beacon_off" | "internet" | "gps" | "map";
   text: MessageId;
   textValues?: Params;
   title: MessageId;
@@ -50,7 +51,7 @@ export interface Link {
 /**
  * Daemon mark words per socket state; a radio's mark says the same while the socket is not open.
  */
-const DAEMON_STATES = {
+export const DAEMON_STATES = {
   open: { text: "pill.daemon", title: "pill.daemon_title", tone: "ok" },
   connecting: { text: "pill.daemon_connecting", title: "pill.daemon_connecting_title", tone: "warn" },
   closed: { text: "pill.daemon_offline", title: "pill.daemon_offline_title", tone: "bad" },
@@ -107,7 +108,7 @@ function lineOf(link: Link, radio: PageRadio | undefined): Line | null {
  * The control a radio's mark leads to in its Settings → Radio box: its Enable, or Add radio when
  * none.
  */
-function radioFocus(radio: Pick<PageRadio, "id"> | undefined): string {
+export function radioFocus(radio: Pick<PageRadio, "id"> | undefined): string {
   return radio === undefined ? "set-radio-add" : enableId(radio);
 }
 
@@ -248,26 +249,8 @@ const updatePill = (update: UpdateInfo): HeaderPill => ({
   focus: "set-update-now",
 });
 
-/**
- * RX only while transmitting is off or no radio that is on can send (`listening`; it leads to the
- * box of `first`, the first radio on), else Beacon off while the beacon is; nothing when neither.
- */
-function sendingPill(
-  values: Readonly<Record<string, string>>,
-  listening: boolean,
-  first: PageRadio | undefined,
-): HeaderPill | null {
-  if (values["station/transmit"] === "false" || listening) {
-    const radios = listening && values["station/transmit"] !== "false";
-    return {
-      id: "rx",
-      text: "pill.rx",
-      title: radios ? "pill.rx_title_radios" : "pill.rx_title",
-      tone: "warn",
-      target: "settings",
-      focus: radios && first !== undefined ? radioFocus(first) : "set-station-transmit",
-    };
-  }
+/** Beacon off while the beacon is, whatever RX only is. */
+function beaconPill(values: Readonly<Record<string, string>>): HeaderPill | null {
   if (!beaconOff(values)) return null;
   return {
     id: "beacon_off",
@@ -331,8 +314,7 @@ function mapPill(map: MapState | null): HeaderPill | null {
 
 /**
  * The marks for these settings (key to text) and states, null until the daemon has reported. `link`
- * is the page's standing to daemon and radios (null: no Daemon or Radio mark); `listening`: no
- * radio on can send.
+ * is the page's standing to daemon and radios (null: no Daemon or Radio mark).
  */
 export function headerPills(
   values: Readonly<Record<string, string>>,
@@ -341,13 +323,12 @@ export function headerPills(
   update: UpdateInfo | null = null,
   link: Link | null = null,
   map: MapState | null = null,
-  listening = false,
 ): HeaderPill[] {
   const linked = link === null ? [] : [...(link.inApp ? [] : [daemonPill(link.connection)]), ...radioPills(link)];
   const marks = [
     update === null ? null : updatePill(update),
     ...linked,
-    sendingPill(values, listening, link === null ? undefined : enabledRadios(link.radios)[0]),
+    beaconPill(values),
     gpsPill(values, gps),
     internetPill(igate),
     mapPill(map),

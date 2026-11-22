@@ -1,8 +1,8 @@
 // "Go to this setting": after a tab is opened, bring the group a control is in into view, flash it
 // once and move the keyboard to the control. One helper for every link that leads to a setting (the
-// header marks, a hint that says "Settings → Radio → RX only"). The tab is there first; PAUSE_MS
-// later the group flashes: a soft lime (`.attend` in styles/settings.css) that fades in and out in
-// ATTEND_MS, also with reduced motion (a colour fade is no movement).
+// header marks, the words "RX only: nothing is sent", which flash the RX only switch). The tab is
+// there first; PAUSE_MS later the group flashes: a soft lime (`.attend` in styles/settings.css) that
+// fades in and out in ATTEND_MS, also with reduced motion (a colour fade is no movement).
 import { nextTick } from "vue";
 
 /** How long the flash lasts, in and out. */
@@ -37,10 +37,12 @@ export async function attend(controlId: string, root: Document = document): Prom
   control.dispatchEvent(new CustomEvent(REVEAL_EVENT, { bubbles: true }));
   await nextTick();
   const group = flashed(control);
-  group.scrollIntoView?.({
-    block: "center",
-    behavior: matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-  });
+  // the header is always in view; scrolling to it could move the whole page on a phone
+  if (control.closest(".appheader") === null)
+    group.scrollIntoView?.({
+      block: "center",
+      behavior: matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
   control.focus({ preventScroll: true });
   group.classList.remove("attend");
   setTimeout(() => {

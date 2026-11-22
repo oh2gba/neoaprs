@@ -6,8 +6,11 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
 
   "header.project_title": "La pagina del progetto NeoAPRS",
   "pill.rx": "Solo RX",
-  "pill.rx_title": "Non si invia nulla. Impostazioni → Radio → Solo RX",
   "pill.rx_title_radios": "Non si invia nulla. Impostazioni → Radio",
+  "header.rx.tx": "RX + TX",
+  "header.rx.sure": "sicuro?",
+  "header.rx.tx_title": "La stazione invia e riceve",
+  "header.rx.rx_title": "Non si invia nulla",
   "pill.beacon_off": "Beacon spento",
   "pill.beacon_off_title": "Nessun beacon né stato automatici. Scheda La mia stazione",
   "pill.internet": "Internet",

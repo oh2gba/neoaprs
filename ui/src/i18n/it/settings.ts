@@ -111,11 +111,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.antenna_direction.tip1":
     "omni se funziona uguale in ogni direzione, oppure il punto cardinale verso cui punta un’antenna direttiva.",
 
-  "settings.transmit.name": "Solo RX",
-  "settings.transmit.label": "Solo RX",
-  "settings.transmit.tip_label": "Informazioni su Solo RX",
-  "settings.transmit.tip1": "Non si invia nulla: né beacon, né messaggi, né ack, né digipeat.",
-
   "settings.profile.label": "Tipo di radio",
   "settings.profile.tip_label": "Quale tipo di radio scegliere",
   "settings.profile.tip1":

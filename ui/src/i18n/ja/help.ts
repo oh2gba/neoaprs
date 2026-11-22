@@ -31,8 +31,6 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.position": "動かない固定局と、GPS を使って移動する局(経路に沿ってビーコンを送る)。",
   "help.picture.digipeater": "広域のデジピーターに直接届かない車のパケットを、あなたの局が中継して先へ渡します。",
   "help.picture.logs": "ログファイルをメールに添付して送ります。",
-  "help.picture.transmit":
-    "自局は他局を受信しますが(入る矢印)、送るはずのものは出ていきません。破線の矢印に×が付いています。",
   "help.picture.beaconoff":
     "ビーコンがオフだと時計は何も送らず、時間軸のビーコンは空です。ボタンを押せば、それでも1つ送ります。",
   "help.picture.internet":

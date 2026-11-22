@@ -446,7 +446,8 @@ button,
   }
   .headmail,
   .nocall,
-  .brand {
+  .brand,
+  .rxswitch {
     /* the small things of the header are as high as the header, a finger's height and a bit */
     position: relative;
     overflow: visible;
@@ -454,11 +455,16 @@ button,
   .headmail::after,
   .nocall::after,
   .brand::after,
+  .rxswitch::after,
   .qrz::after,
   .sheet-grip::before {
     content: "";
     position: absolute;
     inset: -12px -10px;
+  }
+  /* the count's area ends where the switch's begins: 6 px of margin and the gap lie between them */
+  .rxswitch::after {
+    inset: -12px -10px -12px -6px;
   }
   .qrz,
   .sheet-grip {

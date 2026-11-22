@@ -4,10 +4,10 @@
 import { ANTENNA } from "@/lib/beaconoff";
 
 /**
- * The Radio group's own rows: the RX only tickbox (the radios' boxes follow:
- * components/SettingsRadio.vue), then the port radio 1's search found (no field).
+ * The Radio group's own row: the port radio 1's search found (no field); the radios' boxes are
+ * components/SettingsRadio.vue.
  */
-const TNC_ORDER = ["station/transmit", "serial/last_port"];
+const TNC_ORDER = ["serial/last_port"];
 
 /**
  * The Status group: the choice, then Every (as the Beacon group has the interval with its choice),

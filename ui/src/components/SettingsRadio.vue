@@ -1,27 +1,24 @@
 <script setup lang="ts">
-// The Radio group of the Settings tab: the RX only tickbox, a RadioBox per radio that is not
-// removed in the daemon's order, and Add radio last. Names are shown for every box while the
+// The Radio group of the Settings tab: a RadioBox per radio that is not removed in the daemon's
+// order, and Add radio last. Names are shown for every box while the
 // station has several radios, so that ticking a radio moves nothing. The Enable of the only radio
 // that is on is greyed. A radio's tick counts at once, before the daemon confirms. Sound cards and
 // ports are asked again when a radio whose type has a sound card is ticked. The page leads to the
 // box of a radio added here, not to one added elsewhere. With `guide` it is the setup guide's Radio
-// step: no RX only, Tune, level or scope, and the ids of its place.
+// step: no Tune, level or scope, and the ids of its place.
 import { computed, reactive, ref, watch } from "vue";
 import RadioAdd from "@/components/RadioAdd.vue";
 import RadioBox from "@/components/RadioBox.vue";
-import SettingsSwitch from "@/components/SettingsSwitch.vue";
 import { useRadios } from "@/composables/useRadios";
 import type { Settings } from "@/composables/useSettings";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { attend } from "@/lib/attention";
-import { RX_ONLY_KEY } from "@/lib/settings";
 import { boxIds, enableId } from "@/lib/settingsradio";
 import type { PageRadio } from "@/lib/radios";
 
 withDefaults(
   defineProps<{
-    keys: readonly string[];
     settings: Settings;
     form: SettingsFormState;
     defaults: Record<string, string>;
@@ -69,13 +66,6 @@ watch(lastError, (toast) => {
 </script>
 
 <template>
-  <SettingsSwitch
-    v-if="!guide && keys.includes(RX_ONLY_KEY)"
-    :name="RX_ONLY_KEY"
-    :settings="settings"
-    :form="form"
-    :defaults="defaults"
-  />
   <RadioBox
     v-for="radio in boxes"
     :key="radio.id"

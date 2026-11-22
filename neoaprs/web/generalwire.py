@@ -13,7 +13,7 @@ class GeneralQuery(_Command):
     once on each radio of asking around's Send on (the radios whose `radio/<id>/ask` is ticked; with one radio that can send, that one) that takes
     frames now, by `path` (digipeater calls or aliases separated by commas, `OH2RDK-7,OH2RCH-2` or `WIDE1-1,WIDE2-1`, checked as a radio's path is, or `DIRECT` for none; null or empty is each radio's own
     path, and a radio that carries no path goes without one) with `RFONLY` after it when `rf_only`. The answers are ordinary packets (rows of `stations` and `packets`); the topic `general` tells the query and the
-    stations heard after it. All or nothing: answered with an `error`, and nothing is sent on any radio, when RX only is ticked or no call is set (`transmit.off`, or the interlock's reason), there is no
+    stations heard after it. All or nothing: answered with an `error`, and nothing is sent on any radio, when the station is RX only or no call is set (`transmit.off`, or the interlock's reason), there is no
     radio (`radio.none`) or none of them takes frames now, the path is no path (`path.*`, `call.*`) or is too long with RFONLY (`path.too_long_rf_only`), or the query of that kind went on one of those
     radios less than 60 seconds ago (`general.too_soon`, with the `seconds` that are left, the longest)."""
 

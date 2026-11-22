@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The last error from the daemon or the page, shown for a few seconds; a new one replaces it.
-// The RX only error links to its tickbox (lib/settinglink.ts). A notice
+// The RX only error links to the RX only switch (lib/settinglink.ts). A notice
 // (composables/useNotice.ts) takes the same place in the Undo toast colours.
 // The slot holds a line that stays until dismissed (WhatsNewLine.vue); it is drawn in notice
 // colours while there is nothing else to say and returns after that is gone, so the two never
@@ -49,7 +49,7 @@ onBeforeUnmount(() => clearTimeout(timer));
       type="button"
       class="linkbutton"
       :title="rxOnlyLink().title"
-      @click="goTo('settings', rxOnlyLink().control)"
+      @click="goTo(rxOnlyLink().target, rxOnlyLink().control)"
     >
       {{ errorLine(shown, radios) }}
     </button>

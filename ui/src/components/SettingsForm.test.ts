@@ -108,9 +108,9 @@ describe("SettingsForm", () => {
         1 + // (the radio's Enable, the first row of its box)
         3 + // (the radio's own fields behind its status: its type, its port and its speed)
         1 + // (the radio's digipeater in the Digipeater group, radio/1/digipeat)
-        // the RX only row of the Radio group, the New version row of the Update check group and the
-        // Logs row of the Help group, which are no settings
-        3 +
+        // the New version row of the Update check group and the Logs row of the Help group, which
+        // are no settings
+        2 +
         3 + // (the browser's own: Notify me, Sound, Notification)
         1 + // (Language)
         -2 + // (the two receivers' addresses of the Map group: shown only with My own receiver)
@@ -1890,38 +1890,15 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
   });
 });
 
-describe("SettingsForm: the RX only tickbox", () => {
-  it("is the first row of the Radio group of the Settings tab, a tickbox with its (i), ticked while transmitting is off (station/transmit false), and is not on the My station tab", () => {
-    for (const [value, checked] of [
-      ["true", false],
-      ["false", true],
-    ] as const) {
+describe("SettingsForm: RX only", () => {
+  it("has no RX only row: the Radio group begins with the radios' boxes, and My station has none", () => {
+    for (const value of ["true", "false"]) {
       const { wrapper } = make({ "station/transmit": value }, "settings");
       const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
-      const row = group?.find(".field");
-      expect(row?.find("label").text()).toBe("RX only");
-      expect((row?.find("#set-station-transmit").element as HTMLInputElement).checked).toBe(checked);
-      expect(row?.find("#set-station-transmit").attributes("type")).toBe("checkbox");
-      expect(row?.find(".infotip").exists()).toBe(true);
-      expect(wrapper.find(".rxonly").exists()).toBe(false);
+      expect(group?.find(".group-body").element.firstElementChild?.matches("fieldset.subbox")).toBe(true);
+      expect(wrapper.find("#set-station-transmit").exists()).toBe(false);
       expect(make({ "station/transmit": value }, "beacon").wrapper.find("#set-station-transmit").exists()).toBe(false);
     }
-  });
-
-  it("sends the setting the other way round as it is ticked (ticked is station/transmit false), and says in its (i) what it does without saying the name again", async () => {
-    const { wrapper, send } = make({ "station/transmit": "true" }, "settings");
-    await wrapper.find("#set-station-transmit").setValue(true);
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/transmit": "false" } });
-    const off = make({ "station/transmit": "false" }, "settings");
-    await off.wrapper.find("#set-station-transmit").setValue(false);
-    expect(off.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/transmit": "true" } });
-    wrapper
-      .find("#set-station-transmit")
-      .element.closest(".field")
-      ?.querySelector<HTMLButtonElement>(".info-toggle")
-      ?.click();
-    await wrapper.vm.$nextTick();
-    expect(wrapper.find(".info-line").text()).toBe("Nothing is sent: no beacon, message, ack or digipeat.");
   });
 });
 

@@ -113,11 +113,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.antenna_direction.tip1":
     "omni als de antenne in elke richting even goed werkt, of de windrichting waar een richtantenne naar wijst.",
 
-  "settings.transmit.name": "Alleen RX",
-  "settings.transmit.label": "Alleen RX",
-  "settings.transmit.tip_label": "Over Alleen RX",
-  "settings.transmit.tip1": "Er wordt niets verzonden: geen baken, bericht of ack, en er wordt niets herhaald.",
-
   "settings.profile.label": "Radiotype",
   "settings.profile.tip_label": "Welk radiotype kiezen",
   "settings.profile.tip1":

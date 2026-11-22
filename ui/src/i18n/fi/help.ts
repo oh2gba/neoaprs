@@ -35,8 +35,6 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.digipeater":
     "Auto, joka ei tavoita laajan alueen digipeateria suoraan, tulee toistetuksi asemallasi, joka välittää sen paketin eteenpäin.",
   "help.picture.logs": "Lokitiedosto, joka lähtee liitteenä sähköpostissa.",
-  "help.picture.transmit":
-    "Asemamme kuulee muut (nuoli sisään), mutta mitä se lähettäisi, ei mene minnekään: katkoviivanuoli on yliviivattu.",
   "help.picture.beaconoff":
     "Kun majakka on pois, kello ei lähetä mitään, aikajanan majakat ovat tyhjiä; napin painallus lähettää silti yhden.",
   "help.picture.internet":

@@ -8,8 +8,11 @@ export const de: Catalogue = {
 
   "header.project_title": "Die Projektseite von NeoAPRS",
   "pill.rx": "Nur RX",
-  "pill.rx_title": "Es wird nichts gesendet. Einstellungen → Funkgerät → Nur RX",
   "pill.rx_title_radios": "Es wird nichts gesendet. Einstellungen → Funkgerät",
+  "header.rx.tx": "RX + TX",
+  "header.rx.sure": "sicher?",
+  "header.rx.tx_title": "Die Station sendet und empfängt",
+  "header.rx.rx_title": "Es wird nichts gesendet",
   "pill.beacon_off": "Bake aus",
   "pill.beacon_off_title": "Keine automatische Bake und kein Status. Reiter Meine Station",
   "pill.internet": "Internet",
@@ -1521,11 +1524,6 @@ export const de: Catalogue = {
   "settings.antenna_direction.tip1":
     "omni, wenn sie in alle Richtungen gleich wirkt, sonst die Himmelsrichtung, in die eine Richtantenne zeigt.",
 
-  "settings.transmit.name": "Nur RX",
-  "settings.transmit.label": "Nur RX",
-  "settings.transmit.tip_label": "Zu Nur RX",
-  "settings.transmit.tip1": "Es wird nichts gesendet: keine Bake, Nachricht, Bestätigung, kein Digipeating.",
-
   "settings.profile.label": "Funkgerätetyp",
   "settings.profile.tip_label": "Welchen Typ wählen",
   "settings.profile.tip1":
@@ -2175,8 +2173,6 @@ export const de: Catalogue = {
   "help.picture.digipeater":
     "Ein Auto, das den Weitbereichs-Digipeater nicht direkt erreicht, wird von deiner Station wiederholt, die sein Paket weitergibt.",
   "help.picture.logs": "Eine Protokolldatei, die als Anhang in einer E-Mail verschickt wird.",
-  "help.picture.transmit":
-    "Die eigene Station hört die anderen (Pfeil hinein), während nichts hinausgeht: Der gestrichelte Pfeil ist durchgestrichen.",
   "help.picture.beaconoff":
     "Bei ausgeschalteter Bake sendet die Uhr nichts, die Baken auf der Zeitleiste sind leer; ein Druck auf die Taste sendet trotzdem eine.",
   "help.picture.internet":

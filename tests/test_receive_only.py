@@ -215,7 +215,23 @@ async def test_over_the_socket_the_switch_is_a_setting_and_beacon_now_and_a_mess
     await e.stop()
 
 
-async def test_the_tickbox_of_the_page_takes_effect_at_once_with_no_restart_and_what_is_asked_goes_again_when_it_is_back(
+async def test_a_switch_from_one_page_reaches_every_open_page(tmp_path: Path) -> None:
+    e = Env(tmp_path, web=True)
+    await e.start()
+    a = await e.ws()
+    b = await e.ws()
+    await a.until(lambda: len(a.of("state")) >= 7)
+    await b.until(lambda: len(b.of("state")) >= 7)
+    await a.send({"cmd": "set_config", "values": {"station/transmit": "false"}})
+    await a.until(lambda: a.topics["config"]["values"]["station/transmit"] == "false")
+    await b.until(lambda: b.topics["config"]["values"]["station/transmit"] == "false")
+    await b.send({"cmd": "set_config", "values": {"station/transmit": "true"}})
+    await b.until(lambda: b.topics["config"]["values"]["station/transmit"] == "true")
+    await a.until(lambda: a.topics["config"]["values"]["station/transmit"] == "true")
+    await e.stop()
+
+
+async def test_the_switch_of_the_page_takes_effect_at_once_with_no_restart_and_what_is_asked_goes_again_when_it_is_back(
     tmp_path: Path,
 ) -> None:
     e = await quick_start(tmp_path, beacon=True, messaging=True, unpaced=True, web=True)
@@ -249,7 +265,7 @@ async def test_the_tickbox_of_the_page_takes_effect_at_once_with_no_restart_and_
     await e.stop()
 
 
-async def test_a_database_left_in_rx_only_by_an_earlier_version_opens_rx_only_and_the_tickbox_of_the_page_sets_it_free_at_once(
+async def test_a_database_left_in_rx_only_by_an_earlier_version_opens_rx_only_and_the_switch_of_the_page_sets_it_free_at_once(
     tmp_path: Path,
 ) -> None:
     """0.9 took the switch off the page while `station/transmit` went on acting: a station that had

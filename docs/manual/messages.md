@@ -28,7 +28,7 @@ An ack from the addressee that quotes your id makes the message *acked*. A rejec
 
 **Cancel** stops a message that is being sent or is queued. **Retry** sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, with the same id. The small trash can beside Retry deletes such a message from the conversation (press it twice).
 
-While the station is RX only (Settings → Radio → RX only ticked, [beacon.md](beacon.md#rx-only)) a new message is refused with "RX only: nothing is sent", and the messages being sent wait in the same way as for a TNC that is away: no attempt is used up and none fails, and they go on when transmitting is switched on. The acks of messages you receive are not sent meanwhile.
+While the station is RX only (the top right switch on RX only, [beacon.md](beacon.md#rx-only)) a new message is refused with "RX only: nothing is sent", and the messages being sent wait in the same way as for a TNC that is away: no attempt is used up and none fails, and they go on when transmitting is switched on. The acks of messages you receive are not sent meanwhile.
 
 While the message's radio is not connected, an attempt that is due waits for it. None is used up, the waits that were running are moved on by the time the radio was away, and the log says so once. A message written then is kept and its first attempt goes out when the radio is back. After a restart the schedule goes on from the latest attempt that was made.
 

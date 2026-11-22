@@ -837,8 +837,8 @@ async def shot_settings_web(s: Shots, _: str) -> None:
 
 
 async def shot_settings_tnc(s: Shots, _: str) -> None:
-    """Settings, the Radio group of the three radios: RX only, a box for each (Enable, Name,
-    Remove and status line, folded to one line when connected), then Add radio."""
+    """Settings, the Radio group of the three radios: a box for each (Enable, Name, Remove and
+    status line, folded to one line when connected), then Add radio."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
     await made_up_web(page)
     await page.locator(f'#pane-settings fieldset.subbox[data-radio="{s.radios["lora"]}"]').wait_for()
@@ -847,7 +847,7 @@ async def shot_settings_tnc(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_rx(s: Shots, _: str) -> None:
-    """The My station tab of a station set to RX only with the Beacon Off: the RX only mark on
+    """The My station tab of a station set to RX only with the Beacon Off: the RX only switch on
     the warn plate, the status block saying nothing is sent, the beacon fields grey."""
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, url=s.receive_url)
     await settle(page, 400)
@@ -855,7 +855,7 @@ async def shot_beacon_rx(s: Shots, _: str) -> None:
 
 
 async def shot_phone_beacon_rx(s: Shots, _: str) -> None:
-    """A phone set to RX only with the Beacon Off: the RX only mark beside the title, and under
+    """A phone set to RX only with the Beacon Off: the RX only switch at the right, and under
     the tab bar the My station tab with its status block and grey beacon fields."""
     page = await s.page(PHONE, tab="beacon", view=CITY, phone_view="panel", url=s.receive_url)
     await s.save(page, "phone-beacon-rx")

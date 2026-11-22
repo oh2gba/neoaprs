@@ -543,3 +543,19 @@ fieldset.composebox > legend {
     background: transparent;
   }
 }
+/* the RX only switch keeps its plate and its corner: a ring flashes round it */
+.rxswitch.attend {
+  animation-name: attend-ring;
+  border-radius: var(--radius-pill);
+}
+@keyframes attend-ring {
+  0% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+  40% {
+    box-shadow: 0 0 0 3px var(--attention-bg);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}

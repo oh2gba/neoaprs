@@ -252,7 +252,7 @@ describe("the radio marks with the Mercury radio", () => {
       { version: "9.9.9", message: "", url: "" },
       link({ radios: radiosOf(fmRow(), hfRow()) }),
     );
-    expect(all.map((p) => p.id)).toEqual(["update", "daemon", "radio-1", "radio-2", "rx", "gps", "internet"]);
+    expect(all.map((p) => p.id)).toEqual(["update", "daemon", "radio-1", "radio-2", "gps", "internet"]);
   });
 });
 
@@ -372,12 +372,12 @@ describe("the radio marks with any number of radios", () => {
       null,
       link({ radios: radiosOf(...SIX) }),
     );
-    expect(all.map((p) => p.id)).toEqual(["daemon", "radios", "rx", "internet"]);
+    expect(all.map((p) => p.id)).toEqual(["daemon", "radios", "internet"]);
   });
 });
 
 describe("the order of the marks", () => {
-  it("is Update, Daemon, Radio, RX only, GPS, Internet: the last folds first on a narrow screen, so the daemon and the radio stay longest after the update", () => {
+  it("is Update, Daemon, Radio, Beacon off, GPS, Internet: the last folds first on a narrow screen, so the daemon and the radio stay longest after the update", () => {
     const all = headerPills(
       { "station/transmit": "false", "gps/source": "gpsd" },
       gpsState({ state: "fix" }),
@@ -385,9 +385,21 @@ describe("the order of the marks", () => {
       { version: "9.9.9", message: "", url: "" },
       link(),
     );
-    expect(all.map((p) => p.id)).toEqual(["update", "daemon", "radio", "rx", "gps", "internet"]);
+    expect(all.map((p) => p.id)).toEqual(["update", "daemon", "radio", "gps", "internet"]);
     const quiet = headerPills({ "beacon/interval_min": "0" }, null, null, null, link({ inApp: true }));
     expect(quiet.map((p) => p.id)).toEqual(["radio", "beacon_off"]);
+  });
+
+  it("are the same whether transmitting is on or off: RX only is the switch after the count", () => {
+    const cases: Record<string, string>[] = [{}, { "beacon/interval_min": "0" }, { "gps/source": "gpsd" }];
+    for (const values of cases) {
+      const ids = (transmit: string) =>
+        headerPills({ ...values, "station/transmit": transmit }, null, igateState(), null, link()).map((p) => p.id);
+      expect(ids("false"), JSON.stringify(values)).toEqual(ids("true"));
+    }
+    expect(
+      headerPills({ "beacon/interval_min": "0", "station/transmit": "false" }, null, null).map((p) => p.id),
+    ).toEqual(["beacon_off"]);
   });
 
   it("has no Daemon or Radio mark where no link is given", () => {

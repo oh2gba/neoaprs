@@ -801,7 +801,6 @@ def test_every_picture_the_site_names_is_a_shot_of_the_script_and_the_shots_are_
         "hf-tests",
         "hf-tests-dark",
         "settings-tnc",
-        "settings-hf",
         "stations-hf",
         "stations-menu",
         "packets",

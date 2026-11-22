@@ -148,7 +148,12 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     connected,
     receiveOnly:
       over.receiveOnly === undefined
-        ? computed(() => config.value?.values["station/transmit"] === "false" || listensOnly(radios.value))
+        ? computed(
+            () =>
+              config.value?.values["station/transmit"] === "false" ||
+              settings.expected("station/transmit") === "false" ||
+              listensOnly(radios.value),
+          )
         : part(over.receiveOnly, false),
     now,
     dark: part(over.dark, false),

@@ -37,8 +37,6 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.digipeater":
     "Um carro que não alcança diretamente o digipeater de área ampla é repetido pela sua estação, que passa o pacote adiante.",
   "help.picture.logs": "Um arquivo de log que vai anexado a um e-mail.",
-  "help.picture.transmit":
-    "Nossa estação ouve as outras (a seta de entrada) enquanto o que enviaria não sai: a seta tracejada está riscada.",
   "help.picture.beaconoff":
     "Com o beacon desligado o relógio não envia nada, os beacons da linha do tempo estão vazios; apertar o botão ainda envia um.",
   "help.picture.internet":

@@ -44,6 +44,8 @@ import { useWhatsNew } from "@/composables/useWhatsNew";
 import { agingOf, type Aging } from "@/lib/aging";
 import { headerPills } from "@/lib/pills";
 import { enabledRadios, listensOnly, pageRadios, portsAsks } from "@/lib/radios";
+import { rxSwitch } from "@/lib/rxswitch";
+import { RX_ONLY_KEY } from "@/lib/settings";
 import { inApp } from "@/lib/shell";
 import { recommendedPath } from "@/lib/symbols";
 import type { ConfigValues, RadioRow } from "@/protocol/protocol";
@@ -85,6 +87,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
   const heard = useHeardIndex(daemon.stations, config);
   const now = useNow();
   const app = inApp();
+  const listening = computed(() => listensOnly(daemon.radios.value));
   return {
     ...heard,
     settings,
@@ -93,9 +96,18 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     now,
     dark: useDark(),
     aging: computed<Aging>(() => agingOf(config.value?.values)),
+    // RX only as soon as it is asked for; transmitting again only once the daemon has it.
     receiveOnly: computed(
-      () => config.value?.values["station/transmit"] === "false" || listensOnly(daemon.radios.value),
+      () =>
+        config.value?.values[RX_ONLY_KEY] === "false" || settings.expected(RX_ONLY_KEY) === "false" || listening.value,
     ),
+    rxSwitch: computed(() =>
+      config.value === null
+        ? null
+        : rxSwitch(settings.expected(RX_ONLY_KEY), listening.value, daemon.connection.value, radios.enabled.value[0]),
+    ),
+    // RX only goes before other waiting saves; transmitting again keeps its place.
+    setTransmit: (on: boolean): void => settings.change({ [RX_ONLY_KEY]: String(on) }, !on),
     pills: computed(() =>
       headerPills(
         config.value?.values ?? {},
@@ -110,7 +122,6 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
           told: daemon.radios.value !== null,
         },
         daemon.map.value,
-        listensOnly(daemon.radios.value),
       ),
     ),
     call: computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null),

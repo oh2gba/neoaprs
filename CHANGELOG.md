@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **New:** RX only is switched at the top right of the page, on every tab. The tick in Settings is gone.
+
 ## 0.23.0
 
 - **New:** a bulletin has a Sent for list: 1 to 12 hours, an announcement 1 to 7 days.

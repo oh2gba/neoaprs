@@ -45,7 +45,7 @@
 /* the marks before the count (lib/pills.ts): pushed right with the count; when the row is too
    narrow they fold as whole marks, never half of one and never the count: the row is one mark
    high and wraps, so what does not fit goes to a clipped line. The last mark folds first
-   (Internet, then GPS); RX only or Beacon off stays longest. A single mark wider than the row is
+   (Internet, then GPS); Beacon off stays longest. A single mark wider than the row is
    shortened with an ellipsis. */
 .headpills {
   display: flex;
@@ -64,6 +64,16 @@
   text-overflow: ellipsis;
 }
 .headpills + .headmail.badge {
+  margin-left: 6px;
+}
+/* the RX only switch (components/RxSwitch.vue): last and never folded; it stands after the marks
+   or the count as the count stands after the marks, else it is pushed right itself */
+.rxswitch {
+  flex: none;
+  margin-left: auto;
+}
+.headpills ~ .rxswitch,
+.headmail ~ .rxswitch {
   margin-left: 6px;
 }
 .panel-handle {

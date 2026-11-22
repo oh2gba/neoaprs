@@ -81,7 +81,7 @@ describe("AppHeader", () => {
       pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()),
     });
     const marks = wrapper.findAll(".headpills .tag");
-    expect(marks.map((m) => m.text())).toEqual(["RX only", "GPS", "Internet"]);
+    expect(marks.map((m) => m.text())).toEqual(["GPS", "Internet"]);
     expect(marks.every((m) => m.element.tagName === "BUTTON" && m.classes().includes("tag"))).toBe(true);
     expect(marks.every((m) => (m.attributes("title") ?? "") !== "")).toBe(true);
     expect(wrapper.find(".headpills").element.nextElementSibling?.classList.contains("headmail")).toBe(true);
@@ -105,18 +105,19 @@ describe("AppHeader", () => {
     expect(wrapper.emitted("open")).toEqual([["settings", "set-radio-add"]]);
   });
 
-  it("has RX only in warn while transmitting is off, and the others as they are: Beacon off neutral only while transmitting is on, Internet info, GPS ok with a fix and warn without", () => {
-    const rx = header({ pills: pills({ "station/transmit": "false", "beacon/interval_min": "0" }) }).findAll(
-      ".headpills .tag",
-    );
-    expect(rx.map((m) => m.text())).toEqual(["RX only"]);
-    expect(rx[0]?.classes()).toContain("tag-warn");
-    expect(rx[0]?.classes()).toContain("rxonly");
-    const off = header({ pills: pills({ "station/transmit": "true", "beacon/interval_min": "0" }) }).findAll(
-      ".headpills .tag",
-    );
-    expect(off.map((m) => m.text())).toEqual(["Beacon off"]);
-    expect(off[0]?.classes()).toContain("tag-neutral");
+  it("has no RX only mark, and the others as they are: Beacon off neutral whatever RX only is, Internet info, GPS ok with a fix and warn without", () => {
+    for (const transmit of ["false", "true"]) {
+      const off = header({ pills: pills({ "station/transmit": transmit, "beacon/interval_min": "0" }) }).findAll(
+        ".headpills .tag",
+      );
+      expect(off.map((m) => m.text())).toEqual(["Beacon off"]);
+      expect(off[0]?.classes()).toContain("tag-neutral");
+    }
+    expect(
+      header({ pills: pills({ "station/transmit": "false" }) })
+        .find(".rxonly")
+        .exists(),
+    ).toBe(false);
     const net = header({ pills: pills({}, null, igateState()) }).findAll(".headpills .tag");
     expect(net.map((m) => [m.text(), m.classes().includes("tag-info")])).toEqual([["Internet", true]]);
     const fix = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "fix" })) }).find(
@@ -130,11 +131,10 @@ describe("AppHeader", () => {
     expect(header({ pills: [] }).find(".headpills").exists()).toBe(false);
   });
 
-  it("opens the place where a mark is set when it is clicked, and says the control to flash: Settings for RX only and Internet, the My station tab for Beacon off and GPS", async () => {
+  it("opens the place where a mark is set when it is clicked, and says the control to flash: Settings for Internet, the My station tab for GPS", async () => {
     const wrapper = header({ pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()) });
     for (const mark of wrapper.findAll(".headpills .tag")) await mark.trigger("click");
     expect(wrapper.emitted("open")).toEqual([
-      ["settings", "set-station-transmit"],
       ["beacon", "set-gps-source"],
       ["settings", "set-igate-enabled"],
     ]);
@@ -147,7 +147,6 @@ describe("AppHeader", () => {
         t(p.title),
       ]),
     );
-    expect(titles.rx).toBe("Nothing is sent. Settings → Radio → RX only");
     expect(titles.internet).toContain("Settings → Internet");
     expect(titles.gps).toContain("My station tab");
   });
@@ -163,6 +162,37 @@ describe("AppHeader", () => {
 
   it("has no hit area of a finger around the badge of the count only where a mark is", () => {
     expect(mediaRule("(pointer: coarse)", ".nocall::after")).toContain("inset");
+  });
+
+  it("keeps the finger areas of the count and the switch apart on a phone, and shortens no call set before the switch", () => {
+    const reach = (selector: string, side: "left" | "right"): number => {
+      const insets = [...mediaRule("(pointer: coarse)", selector).matchAll(/inset:\s*([^;]+)/g)];
+      const parts = (insets.at(-1)?.[1] ?? "").trim().split(/\s+/);
+      const four = [parts[0], parts[1] ?? parts[0], parts[2] ?? parts[0], parts[3] ?? parts[1] ?? parts[0]];
+      return -parseFloat(four[side === "left" ? 3 : 1] ?? "0");
+    };
+    const between = parseFloat(/gap:\s*(\d+)px/.exec(cssRule(".size-phone .appheader"))?.[1] ?? "0") + 6;
+    expect(cssRule(".headmail ~ .rxswitch")).toMatch(/margin-left:\s*6px/);
+    expect(reach(".headmail::after", "right") + reach(".rxswitch::after", "left")).toBeLessThanOrEqual(between);
+    expect(cssRule(".nocall")).toMatch(/min-width:\s*0/);
+    expect(cssRule(".nocall-text")).toMatch(/text-overflow:\s*ellipsis/);
+    expect(header({ call: "" }).find(".nocall .nocall-text").exists()).toBe(true);
+  });
+
+  it("has the RX only switch last, after the count, and outside the marks that fold", async () => {
+    const rx = { face: "tx", act: "toggle", title: "header.rx.tx_title", focus: "" } as const;
+    const wrapper = header({ unread: 2, pills: pills({ "gps/source": "gpsd" }), rx });
+    const button = wrapper.find("#rx-switch");
+    expect(button.element.parentElement).toBe(wrapper.element);
+    expect(wrapper.find(".appheader").element.lastElementChild).toBe(button.element);
+    expect(button.element.previousElementSibling?.previousElementSibling?.classList.contains("headmail")).toBe(true);
+    expect(wrapper.find(".headpills #rx-switch").exists()).toBe(false);
+    expect(cssRule(".rxswitch")).toMatch(/flex:\s*none/);
+    expect(cssRule(".headmail ~ .rxswitch")).toMatch(/margin-left:\s*6px/);
+    expect(mediaRule("(pointer: coarse)", ".rxswitch::after")).toContain("inset");
+    await button.trigger("click");
+    expect(wrapper.emitted("transmit")).toEqual([[false]]);
+    expect(header().find("#rx-switch").exists()).toBe(false);
   });
 
   it("is as high with a badge and a button as without them", () => {

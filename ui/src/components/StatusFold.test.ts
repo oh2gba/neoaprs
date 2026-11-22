@@ -68,7 +68,7 @@ describe("StatusFold", () => {
     expect(wrapper.find("details.statusfold").exists()).toBe(true);
   });
 
-  it("makes the line a link to the setting it explains, in a row with a fold as in one without, and a click goes there without opening the fold", async () => {
+  it("makes the line a link to the setting it explains, in a row with a fold as in one without, and a click goes there without opening the fold or a tab", async () => {
     const show = vi.fn();
     const global = { provide: { [DAEMON_KEY as symbol]: { panel: { show } } } };
     for (const slot of [undefined, "<p>behind</p>"]) {
@@ -80,9 +80,10 @@ describe("StatusFold", () => {
       });
       const link = wrapper.find(".tncstatus button.linkbutton");
       expect(link.text()).toBe("RX only: nothing is sent");
-      expect(link.attributes("title")).toBe("Nothing is sent. Settings → Radio → RX only");
+      expect(link.attributes("title")).toBe("Nothing is sent");
       await link.trigger("click");
-      expect(show).toHaveBeenCalledWith("settings");
+      // the RX only switch is on every tab
+      expect(show).not.toHaveBeenCalled();
       if (slot !== undefined) expect(wrapper.find<HTMLDetailsElement>("details").element.open).toBe(false);
     }
   });
