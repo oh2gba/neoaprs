@@ -18,11 +18,18 @@ const direct = defineModel<boolean>("direct", { required: true });
   <fieldset class="alertbox-group">
     <legend>{{ t("station.alert.label", { call }) }}</legend>
     <label class="check" :title="t('station.alert.on_air_title')"
-      ><input v-model="onAir" type="checkbox" data-alert="on_air" @change="emit('change')" /> {{ t("station.alert.on_air") }}</label
+      ><input v-model="onAir" type="checkbox" data-alert="on_air" @change="emit('change')" />
+      {{ t("station.alert.on_air") }}</label
     >
     <span class="alertbox-near">
       <label class="check" :title="placed ? undefined : t('station.alert.no_position')"
-        ><input v-model="near" type="checkbox" data-alert="within" :disabled="!placed && !near" @change="emit('change')" />
+        ><input
+          v-model="near"
+          type="checkbox"
+          data-alert="within"
+          :disabled="!placed && !near"
+          @change="emit('change')"
+        />
         {{ t("station.alert.within") }}</label
       >
       <input
@@ -42,7 +49,8 @@ const direct = defineModel<boolean>("direct", { required: true });
       {{ t("station.alert.km") }}
     </span>
     <label class="check" :title="t('station.alert.direct_title')"
-      ><input v-model="direct" type="checkbox" data-alert="direct" @change="emit('change')" /> {{ t("station.alert.direct") }}</label
+      ><input v-model="direct" type="checkbox" data-alert="direct" @change="emit('change')" />
+      {{ t("station.alert.direct") }}</label
     >
   </fieldset>
 </template>

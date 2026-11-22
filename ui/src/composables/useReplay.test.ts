@@ -10,7 +10,13 @@ const T0 = Date.parse(START);
 const HOUR = 3_600_000;
 
 function answer(hours = 3): PositionHistoryMessage {
-  return { type: "position_history", hours, start: START, end: new Date(T0 + hours * HOUR).toISOString(), stations: { OH2RDG: [[START, 60, 25]] } };
+  return {
+    type: "position_history",
+    hours,
+    start: START,
+    end: new Date(T0 + hours * HOUR).toISOString(),
+    stations: { OH2RDG: [[START, 60, 25]] },
+  };
 }
 
 function setUp(connected = true) {
@@ -161,7 +167,9 @@ describe("the replay and the socket", () => {
   it("stops loading when the socket closes before the answer came", async () => {
     const connection = shallowRef<Connection>("open");
     const scope = effectScope();
-    const replay = scope.run(() => useReplay({ send: () => true, positionHistory: shallowRef(null), igate: shallowRef(null), connection }));
+    const replay = scope.run(() =>
+      useReplay({ send: () => true, positionHistory: shallowRef(null), igate: shallowRef(null), connection }),
+    );
     if (!replay) throw new Error("no replay");
     replay.ask(6);
     expect(replay.loading.value).toBe(true);

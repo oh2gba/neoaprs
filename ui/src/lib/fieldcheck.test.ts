@@ -5,7 +5,17 @@ import { LIMITS } from "@/protocol/lists";
 describe("problemOf", () => {
   it("says the range of a whole number in the daemon's own figures", () => {
     for (const [key, { min, max }] of Object.entries(LIMITS.range)) {
-      if (!["serial/baud", "tcp/port", "beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "map/radius_km"].includes(key)) continue;
+      if (
+        ![
+          "serial/baud",
+          "tcp/port",
+          "beacon/power_w",
+          "beacon/antenna_height_m",
+          "beacon/antenna_gain_db",
+          "map/radius_km",
+        ].includes(key)
+      )
+        continue;
       expect(problemOf(key, String(min)), key).toBe("");
       expect(problemOf(key, String(max)), key).toBe("");
       expect(problemOf(key, String(max + 1)), key).toBe(`${min} to ${max}`);
@@ -24,7 +34,9 @@ describe("problemOf", () => {
   });
 
   it("says the most digipeaters a path may have", () => {
-    expect(problemOf("beacon/path", "A,B,C,D,E,F,G,H,I")).toBe(`Calls separated by commas, ${LIMITS.path.maxCalls} at the most`);
+    expect(problemOf("beacon/path", "A,B,C,D,E,F,G,H,I")).toBe(
+      `Calls separated by commas, ${LIMITS.path.maxCalls} at the most`,
+    );
   });
 
   it("has nothing against a key it does not check", () => {
@@ -41,7 +53,9 @@ describe("sameValue and pairProblems", () => {
   });
 
   it("want both halves of a position", () => {
-    expect(pairProblems(["station/lat", "station/lon"], { "station/lat": "60", "station/lon": "" })).toEqual({ "station/lon": "Needed with the latitude" });
+    expect(pairProblems(["station/lat", "station/lon"], { "station/lat": "60", "station/lon": "" })).toEqual({
+      "station/lon": "Needed with the latitude",
+    });
     expect(pairProblems(["station/lat"], { "station/lat": "60" })).toEqual({});
   });
 });

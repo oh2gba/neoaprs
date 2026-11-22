@@ -21,7 +21,11 @@ export function addReplayLayers(map: MapLibreMap): void {
     type: "line",
     source: REPLAY_SOURCE,
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": paletteColor("--map-track", "#2f80ed"), "line-width": 2.5, "line-opacity": ["get", "opacity"] },
+    paint: {
+      "line-color": paletteColor("--map-track", "#2f80ed"),
+      "line-width": 2.5,
+      "line-opacity": ["get", "opacity"],
+    },
   });
 }
 
@@ -32,5 +36,6 @@ export function setReplayTrails(map: MapLibreMap, data: TrackCollection = NONE):
 
 /** The live tracks and route in sight (`on`), or given way to the replay. */
 export function showLive(map: MapLibreMap, on: boolean): void {
-  for (const id of [...TRACK_LAYERS, ...ROUTE_LAYERS]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+  for (const id of [...TRACK_LAYERS, ...ROUTE_LAYERS])
+    if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
 }

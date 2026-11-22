@@ -25,7 +25,10 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.kind": "Tipo",
   "bulletins.kind.bulletin": { one: "Boletim (enviado por {n} hora)", other: "Boletim (enviado por {n} horas)" },
   "bulletins.kind.announcement": { one: "Aviso (enviado por {n} dia)", other: "Aviso (enviado por {n} dias)" },
-  "bulletins.kind.group": { one: "Boletim de grupo (para um grupo, enviado por {n} hora)", other: "Boletim de grupo (para um grupo, enviado por {n} horas)" },
+  "bulletins.kind.group": {
+    one: "Boletim de grupo (para um grupo, enviado por {n} hora)",
+    other: "Boletim de grupo (para um grupo, enviado por {n} horas)",
+  },
   "bulletins.letter": "Letra",
   "bulletins.number": "Número",
   "bulletins.group": "Grupo",
@@ -37,7 +40,8 @@ export const bulletins: Record<keyof typeof source, Message> = {
     "Um boletim e um aviso são exibidos por toda estação que os recebe. O boletim é para o que importa agora e é enviado por {hours}; o aviso é para o que continua valendo e é enviado por {days}.",
   "bulletins.tip.kind2":
     "Um boletim de grupo é enviado por {hours}; toda estação o exibe, a menos que o seu operador tenha escolhido outros grupos para exibir.",
-  "bulletins.tip.id1": "O número dá nome à publicação, e uma letra a dá a um aviso; uma nova publicação com ele a substitui.",
+  "bulletins.tip.id1":
+    "O número dá nome à publicação, e uma letra a dá a um aviso; uma nova publicação com ele a substitui.",
   "bulletins.tip.id2": "Publicar de novo com o mesmo número ou letra envia o novo texto desde o início.",
   "bulletins.tip.group1":
     "O nome faz parte do endereço, como em BLN3HAMS, então toda estação recebe o boletim e o exibe, a menos que o seu operador tenha escolhido outros grupos para exibir.",

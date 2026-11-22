@@ -19,7 +19,11 @@ const quiet = (call: string, extra: Partial<StationRow> = {}): StationRow =>
  */
 const STATIONS = new Map(
   [
-    quiet("OH2DPN", { heard_via: [["OH2RDK-7", 12]], best_route: "via OH2RCH-2 → OH2RDK-7", suggested_path: "OH2RDK-7,OH2RCH-2" }),
+    quiet("OH2DPN", {
+      heard_via: [["OH2RDK-7", 12]],
+      best_route: "via OH2RCH-2 → OH2RDK-7",
+      suggested_path: "OH2RDK-7,OH2RCH-2",
+    }),
     quiet("OH2RDK-7", { symbol_code: "#", heard_direct: 4, last_direct_at: ago(120), distance_km: 3.2 }),
     quiet("OH2RCH-2", { symbol_code: "#", distance_km: 14 }),
     quiet("OH2NEW"),
@@ -40,7 +44,8 @@ function make(props: Props = {}) {
 const dialog = (): HTMLElement | null => document.body.querySelector<HTMLElement>(".pathbuild");
 const all = (selector: string): HTMLElement[] => [...(dialog()?.querySelectorAll<HTMLElement>(selector) ?? [])];
 const text = (element: Element | null | undefined): string => (element?.textContent ?? "").trim();
-const button = (label: string): HTMLButtonElement | undefined => all("button").find((b) => text(b) === label) as HTMLButtonElement | undefined;
+const button = (label: string): HTMLButtonElement | undefined =>
+  all("button").find((b) => text(b) === label) as HTMLButtonElement | undefined;
 const result = (): string => text(dialog()?.querySelector("output"));
 const count = (): HTMLElement | null => dialog()?.querySelector<HTMLElement>(".pathbuild-count") ?? null;
 const pressed = (): string[] => all(".pathbuild-seg button[aria-pressed='true']").map(text);
@@ -169,14 +174,21 @@ describe("the path builder", () => {
       "Hop 2: a wide-area digipeater; home (fill-in) ones leave it",
       "Hop 3: a wide-area digipeater; home (fill-in) ones leave it",
     ]);
-    expect(all(".pathbuild-text .mono")[0]?.title).toBe("WIDE2-2: n = 2 hops asked for, N = 2 still to go; each digipeater takes one off N");
+    expect(all(".pathbuild-text .mono")[0]?.title).toBe(
+      "WIDE2-2: n = 2 hops asked for, N = 2 still to go; each digipeater takes one off N",
+    );
     expect(all(".pathbuild-node").map((node) => node.classList.contains("over"))).toEqual([false, false, true]);
-    expect(all(".pathbuild-end").map((end) => end.title)).toEqual(["Your station sends the packet", "The stations that hear the last hop get it"]);
+    expect(all(".pathbuild-end").map((end) => end.title)).toEqual([
+      "Your station sends the packet",
+      "The stations that hear the last hop get it",
+    ]);
     await click(button("1"));
     expect(all(".pathbuild-node")[0]?.title).toBe("Hop 1: OH2RDK-7, and no other digipeater");
     await click(button("Direct"));
     await click(button("1"));
-    expect(all(".pathbuild-node")[0]?.title).toBe("Hop 1: any digipeater that hears it, a home (fill-in) one as well as a wide one");
+    expect(all(".pathbuild-node")[0]?.title).toBe(
+      "Hop 1: any digipeater that hears it, a home (fill-in) one as well as a wide one",
+    );
   });
 
   it("marks a path of more hops than the network usually allows on the warn plate, and still lets it be used", async () => {
@@ -243,7 +255,13 @@ describe("the path builder", () => {
     const rows = new Map(STATIONS);
     rows.set(
       "OH2HFD",
-      quiet("OH2HFD", { symbol_code: "#", heard_direct: 9, last_direct_at: ago(30), distance_km: 400, heard: { "2": { count: 9, last_at: ago(30) } } }),
+      quiet("OH2HFD", {
+        symbol_code: "#",
+        heard_direct: 9,
+        last_direct_at: ago(30),
+        distance_km: 400,
+        heard: { "2": { count: 9, last_at: ago(30) } },
+      }),
     );
     rows.set(
       "OH2BTH",
@@ -259,7 +277,11 @@ describe("the path builder", () => {
       stations: rows,
       radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")),
     });
-    const wrapper = mount(PathBuilder, { props: { value: "DIRECT", usual: "WIDE1-1,WIDE2-1" }, global: withDaemon(both), attachTo: document.body });
+    const wrapper = mount(PathBuilder, {
+      props: { value: "DIRECT", usual: "WIDE1-1,WIDE2-1" },
+      global: withDaemon(both),
+      attachTo: document.body,
+    });
     await open(wrapper);
     expect(choices()).toEqual(["OH2RDK-7", "OH2BTH"]);
     wrapper.unmount();
@@ -267,7 +289,13 @@ describe("the path builder", () => {
     const alone = mount(PathBuilder, {
       props: { value: "DIRECT", usual: "WIDE1-1,WIDE2-1" },
       global: withDaemon(
-        fakeDaemon({ stations: rows, radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) }),
+        fakeDaemon({
+          stations: rows,
+          radios: radiosTopic(
+            radioRow(1, "kenwood-tnc2"),
+            radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+          ),
+        }),
       ),
       attachTo: document.body,
     });
@@ -343,7 +371,10 @@ describe("the path builder", () => {
   });
 
   it("holds the path to the field's own rule: Use is off with the reason in its title while it finds something", async () => {
-    const wrapper = make({ value: "OH2RDK-7,OH2RCH-2", check: (path) => (path.includes("OH2RCH-2") ? "not that one" : "") });
+    const wrapper = make({
+      value: "OH2RDK-7,OH2RCH-2",
+      check: (path) => (path.includes("OH2RCH-2") ? "not that one" : ""),
+    });
     await open(wrapper);
     expect(button("Use")?.disabled).toBe(true);
     expect(button("Use")?.title).toBe("not that one");

@@ -29,20 +29,23 @@ describe("App: the Objects tab", () => {
       socket.say({ type: "state", topic: "own_objects", rev: 0, value: mine });
       await flushPromises();
     };
-    const sent = (socket: ReturnType<typeof FakeSocket.last>, cmd: string) => socket.sent.filter((c) => (c as { cmd?: string }).cmd === cmd);
+    const sent = (socket: ReturnType<typeof FakeSocket.last>, cmd: string) =>
+      socket.sent.filter((c) => (c as { cmd?: string }).cmd === cmd);
     const field = (wrapper: VueWrapper, label: string) =>
       wrapper
         .findAll("#pane-objects .field:not(.location-field)")
         .find((f) => f.find("label").text() === label)
         ?.find<HTMLInputElement>("input");
-    const button = (wrapper: VueWrapper, text: string) => wrapper.findAll("#pane-objects button").find((b) => b.text() === text);
+    const button = (wrapper: VueWrapper, text: string) =>
+      wrapper.findAll("#pane-objects button").find((b) => b.text() === text);
     /**
      * The place of the form in words (the text beside Choose on map) and a coordinate of the entry
      * behind it.
      */
     const placeText = (wrapper: VueWrapper) => wrapper.find("#pane-objects .location-place").text();
     const coordinate = async (wrapper: VueWrapper, label: string) => {
-      if (!wrapper.find("#pane-objects .location-entry").exists()) await wrapper.find("#pane-objects .location-place").trigger("click");
+      if (!wrapper.find("#pane-objects .location-entry").exists())
+        await wrapper.find("#pane-objects .location-place").trigger("click");
       return field(wrapper, label);
     };
 
@@ -90,7 +93,12 @@ describe("App: the Objects tab", () => {
         },
       ]);
       expect(field(wrapper, "Name")?.element.value).toBe("MARK");
-      socket.say({ type: "state", topic: "own_objects", rev: 0, value: { MARK: ownObject("MARK", { lat: 60.5, lon: 25.5, symbol_code: "r" }) } });
+      socket.say({
+        type: "state",
+        topic: "own_objects",
+        rev: 0,
+        value: { MARK: ownObject("MARK", { lat: 60.5, lon: 25.5, symbol_code: "r" }) },
+      });
       await flushPromises();
       expect(field(wrapper, "Name")?.element.value).toBe(""); // (the form is blank again, for the next one)
       expect(wrapper.find("#pane-objects .objform").exists()).toBe(true);
@@ -160,7 +168,9 @@ describe("App: the Objects tab", () => {
       expect(wrapper.find(".card .card-call").text()).toContain("LEADER");
       await wrapper.find(".card .card-foot .primary").trigger("click");
       expect(tabButton(wrapper, "Objects")?.attributes("aria-selected")).toBe("true");
-      expect(wrapper.find<HTMLInputElement>("#pane-objects .objform input[maxlength='9']").element.value).toBe("LEADER");
+      expect(wrapper.find<HTMLInputElement>("#pane-objects .objform input[maxlength='9']").element.value).toBe(
+        "LEADER",
+      );
       await field(wrapper, "Comment")?.setValue("Moved on");
       await wrapper.find("#pane-objects form").trigger("submit");
       expect(sent(socket, "object_set")).toMatchObject([{ name: "LEADER", comment: "Moved on", lat: 60.2, lon: 24.9 }]);
@@ -183,7 +193,12 @@ describe("App: the Objects tab", () => {
       await field(wrapper, "Comment")?.setValue("Moved on");
       await wrapper.find("#pane-objects form").trigger("submit");
       expect(sent(socket, "object_set")).toMatchObject([{ name: "LEADER", comment: "Moved on" }]);
-      socket.say({ type: "state", topic: "own_objects", rev: 1, value: { LEADER: ownObject("LEADER", { comment: "Moved on", lat: 60.2, lon: 24.9 }) } });
+      socket.say({
+        type: "state",
+        topic: "own_objects",
+        rev: 1,
+        value: { LEADER: ownObject("LEADER", { comment: "Moved on", lat: 60.2, lon: 24.9 }) },
+      });
       await flushPromises();
       expect(wrapper.find("#pane-objects .ownobject").classes()).not.toContain("selected");
       expect(wrapper.find("#pane-objects button[type='submit']").text()).toBe("Add");

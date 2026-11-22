@@ -38,7 +38,8 @@ function untipped(root: Element): string[] {
     const name = (label ?? wrapping)?.textContent?.replace(/\s+/g, " ").trim();
     if (!name) continue;
     const field = control.closest(".field");
-    const tipped = field !== null && [...field.querySelectorAll(".infotip")].some((tip) => tip.closest(".field") === field);
+    const tipped =
+      field !== null && [...field.querySelectorAll(".infotip")].some((tip) => tip.closest(".field") === field);
     if (!tipped) missing.push(name.replace(/\s*i$/, ""));
   }
   return missing;
@@ -55,10 +56,14 @@ function objectsForm(rows = [ownObject("LEADER")]) {
 /** The tab with these settings; a radio's own (`radio/1/tcp_host`) makes radio 1 a TNC over TCP,
  * whose box shows those fields. */
 function settingsTab(scope: Scope, extra: Record<string, string>) {
-  const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
+  const own = (radio: boolean) =>
+    Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
   const tcp = Object.keys(own(true)).length > 0;
   const radios = radiosTopic(radioRow(1, tcp ? "kiss-tcp" : "kenwood-tnc2"));
-  return mount(SettingsForm, { props: { scope }, global: withDaemon(fakeDaemon({ config: configValues(own(false), own(true)), radios })) });
+  return mount(SettingsForm, {
+    props: { scope },
+    global: withDaemon(fakeDaemon({ config: configValues(own(false), own(true)), radios })),
+  });
 }
 
 describe("every field has an (i)", () => {

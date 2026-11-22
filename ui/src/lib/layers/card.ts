@@ -7,7 +7,14 @@
 // age. The card ends with the source's name. Nothing of a station: no path, packets or message.
 import { t } from "@/i18n";
 import { ageText, altitudeText, bearingText, speedText, verticalText } from "@/lib/format";
-import { LAYER_NAMES, RADARCAPE_NAME, SOURCE_NAMES, isService, type LayerName, type SourceName } from "@/lib/layers/sources";
+import {
+  LAYER_NAMES,
+  RADARCAPE_NAME,
+  SOURCE_NAMES,
+  isService,
+  type LayerName,
+  type SourceName,
+} from "@/lib/layers/sources";
 import { shipKind } from "@/lib/layers/shipkinds";
 import type { LayerThing } from "@/protocol/protocol";
 
@@ -22,7 +29,8 @@ export function thingTitle(layer: LayerName, thing: LayerThing): string {
 }
 
 /** The muted line under the title: what kind of thing it is. */
-export const thingSub = (layer: LayerName): string => (layer === "aircraft" ? t(LAYER_NAMES.aircraft) : t("layers.card.ship"));
+export const thingSub = (layer: LayerName): string =>
+  layer === "aircraft" ? t(LAYER_NAMES.aircraft) : t("layers.card.ship");
 
 /**
  * The source's name as the card ends with it: a service or the Radarcape by name, any other
@@ -33,7 +41,8 @@ const sourceText = (source: SourceName): string =>
 
 type Part = readonly [label: string, text: string | null];
 
-const rowsOf = (parts: readonly Part[]): ThingRow[] => parts.flatMap(([label, text]) => (text === null || text === "" ? [] : [{ label, text }]));
+const rowsOf = (parts: readonly Part[]): ThingRow[] =>
+  parts.flatMap(([label, text]) => (text === null || text === "" ? [] : [{ label, text }]));
 const or = <T>(value: T | null, text: (v: T) => string): string | null => (value === null ? null : text(value));
 
 const altitude = (thing: LayerThing): Part => [t("station.field.altitude"), or(thing.altitude_m, altitudeText)];
@@ -47,7 +56,8 @@ const destination = (thing: LayerThing): Part => [t("layers.card.destination"), 
  * An airport as the card says it: the place and its code in brackets, the code alone where the
  * table has no place, nothing where there is no code.
  */
-const airport = (code: string, place: string): string => (code === "" ? "" : place === "" ? code : `${place} (${code})`);
+const airport = (code: string, place: string): string =>
+  code === "" ? "" : place === "" ? code : `${place} (${code})`;
 const from = (thing: LayerThing): Part => [t("layers.card.from"), airport(thing.origin, thing.origin_place)];
 const to = (thing: LayerThing): Part => [t("layers.card.to"), airport(thing.destination, thing.destination_place)];
 
@@ -70,22 +80,32 @@ function partsOf(layer: LayerName, thing: LayerThing, source: SourceName, nowMs:
           [t("layers.card.heading"), or(thing.heading_deg, bearingText)],
           age(thing, nowMs),
         ]
-      : [[t("station.field.kind"), kind === null ? null : t(kind)], speed(thing), course(thing), destination(thing), age(thing, nowMs)];
+      : [
+          [t("station.field.kind"), kind === null ? null : t(kind)],
+          speed(thing),
+          course(thing),
+          destination(thing),
+          age(thing, nowMs),
+        ];
   return [...parts, [t("layers.card.source"), sourceText(source)]];
 }
 
 /** The card's rows, the source last. */
-export const cardRows = (layer: LayerName, thing: LayerThing, source: SourceName, nowMs: number): ThingRow[] => rowsOf(partsOf(layer, thing, source, nowMs));
+export const cardRows = (layer: LayerName, thing: LayerThing, source: SourceName, nowMs: number): ThingRow[] =>
+  rowsOf(partsOf(layer, thing, source, nowMs));
 
 /**
  * The label of every row a card may have: the card keeps the room of the widest, so values
  * stand still while a row comes and goes.
  */
-export const cardLabels = (layer: LayerName, thing: LayerThing, source: SourceName): string[] => partsOf(layer, thing, source, 0).map(([label]) => label);
+export const cardLabels = (layer: LayerName, thing: LayerThing, source: SourceName): string[] =>
+  partsOf(layer, thing, source, 0).map(([label]) => label);
 
 /** The hover box's rows: the few facts at a glance. */
 export function hoverRows(layer: LayerName, thing: LayerThing, nowMs: number): ThingRow[] {
   return rowsOf(
-    layer === "aircraft" ? [altitude(thing), speed(thing), age(thing, nowMs)] : [speed(thing), course(thing), destination(thing), age(thing, nowMs)],
+    layer === "aircraft"
+      ? [altitude(thing), speed(thing), age(thing, nowMs)]
+      : [speed(thing), course(thing), destination(thing), age(thing, nowMs)],
   );
 }

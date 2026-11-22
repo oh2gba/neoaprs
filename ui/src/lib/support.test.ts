@@ -65,9 +65,20 @@ describe("pageInfo", () => {
       matchMedia: (query) => ({ matches: query === "(display-mode: standalone)" }),
       navigator: { userAgent: "u", language: "en", serviceWorker: { controller: {} } },
     });
-    expect(pageInfo(given, app, NOW)).toMatchObject({ standalone: true, darkScheme: false, serviceWorkerControlled: true });
-    const safari = host({ matchMedia: undefined, navigator: { userAgent: "u", language: "en", standalone: true, serviceWorker: { controller: null } } });
-    expect(pageInfo(given, safari, NOW)).toMatchObject({ standalone: true, darkScheme: false, serviceWorkerControlled: false });
+    expect(pageInfo(given, app, NOW)).toMatchObject({
+      standalone: true,
+      darkScheme: false,
+      serviceWorkerControlled: true,
+    });
+    const safari = host({
+      matchMedia: undefined,
+      navigator: { userAgent: "u", language: "en", standalone: true, serviceWorker: { controller: null } },
+    });
+    expect(pageInfo(given, safari, NOW)).toMatchObject({
+      standalone: true,
+      darkScheme: false,
+      serviceWorkerControlled: false,
+    });
   });
 
   it("names the size class by the window: tablet and desktop", () => {
@@ -80,7 +91,9 @@ describe("bodyOf", () => {
   const info = (errors: PageErrorEntry[]): PageInfo => pageInfo({ ...given, errors }, host(), NOW);
 
   it("is the page's info under the key page", () => {
-    expect((JSON.parse(bodyOf(info([entry(1)]))) as { page: unknown }).page).toEqual(JSON.parse(JSON.stringify(info([entry(1)]))) as unknown);
+    expect((JSON.parse(bodyOf(info([entry(1)]))) as { page: unknown }).page).toEqual(
+      JSON.parse(JSON.stringify(info([entry(1)]))) as unknown,
+    );
   });
 
   it("carries the note of Send logs beside the page, and only then", () => {
@@ -100,7 +113,11 @@ describe("bodyOf", () => {
     expect(new TextEncoder().encode(body).length).toBeLessThanOrEqual(BODY_MAX_BYTES);
     const kept = (JSON.parse(body) as { page: PageInfo }).page.errors;
     expect(kept.at(-1)?.message).toBe("e49");
-    const huge = Array.from({ length: 50 }, (_, n) => ({ ...entry(n), message: "m".repeat(2000), stack: "x".repeat(8000) }));
+    const huge = Array.from({ length: 50 }, (_, n) => ({
+      ...entry(n),
+      message: "m".repeat(2000),
+      stack: "x".repeat(8000),
+    }));
     const cut = bodyOf(info(huge));
     expect(new TextEncoder().encode(cut).length).toBeLessThanOrEqual(BODY_MAX_BYTES);
     expect((JSON.parse(cut) as { page: PageInfo }).page.errors.at(-1)?.message).toBe("m".repeat(2000));
@@ -109,7 +126,9 @@ describe("bodyOf", () => {
 
 describe("the file name", () => {
   it("is the daemon's, kept to plain characters", () => {
-    expect(filenameOf('attachment; filename="neoaprs-support-OH2GBA-20261021-123456Z.zip"')).toBe("neoaprs-support-OH2GBA-20261021-123456Z.zip");
+    expect(filenameOf('attachment; filename="neoaprs-support-OH2GBA-20261021-123456Z.zip"')).toBe(
+      "neoaprs-support-OH2GBA-20261021-123456Z.zip",
+    );
     expect(filenameOf("attachment; filename=a.zip")).toBe("a.zip");
     expect(filenameOf('attachment; filename="../../etc/pass wd.zip"')).toBe("pass_wd.zip");
     expect(filenameOf("attachment")).toBeNull();
@@ -126,21 +145,36 @@ describe("the file name", () => {
 describe("requestBundle", () => {
   const info = pageInfo(given, host(), NOW);
   const answer = (status: number, headers: Record<string, string> = {}, body = "PK") =>
-    vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => Promise.resolve(new Response(status === 200 ? body : null, { status, headers })));
+    vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      Promise.resolve(new Response(status === 200 ? body : null, { status, headers })),
+    );
 
   it("posts the page's info as JSON to support/bundle beside the page, with the page's credentials", async () => {
-    const fetcher = answer(200, { "Content-Disposition": 'attachment; filename="f.zip"', "Content-Type": "application/zip" });
+    const fetcher = answer(200, {
+      "Content-Disposition": 'attachment; filename="f.zip"',
+      "Content-Type": "application/zip",
+    });
     const bundle = await requestBundle(info, "OH2GBA", fetcher, NOW);
     expect(bundle).toMatchObject({ ok: true, filename: "f.zip" });
     expect(bundle.ok && (await bundle.blob.text())).toBe("PK");
     const [url, init] = fetcher.mock.calls[0] ?? [];
     expect(url).toBe("http://127.0.0.1:7303/support/bundle");
-    expect(init).toMatchObject({ method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" } });
-    expect(JSON.parse(typeof init?.body === "string" ? init.body : "")).toEqual({ page: JSON.parse(JSON.stringify(info)) as unknown });
+    expect(init).toMatchObject({
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(JSON.parse(typeof init?.body === "string" ? init.body : "")).toEqual({
+      page: JSON.parse(JSON.stringify(info)) as unknown,
+    });
   });
 
   it("makes a name when the answer has none", async () => {
-    expect(await requestBundle(info, "OH2GBA", answer(200), NOW)).toMatchObject({ ok: true, filename: "neoaprs-support-OH2GBA-20261021-123456Z.zip" });
+    expect(await requestBundle(info, "OH2GBA", answer(200), NOW)).toMatchObject({
+      ok: true,
+      filename: "neoaprs-support-OH2GBA-20261021-123456Z.zip",
+    });
   });
 
   it("names the problem: no access (401, 403), busy (429), the daemon not reachable, and any other answer", async () => {
@@ -171,8 +205,16 @@ describe("requestSend", () => {
     expect(await requestSend(info, "It stopped.", true, fetcher)).toEqual({ ok: true, ref: "NEO-20261103-1015-7F3A" });
     const [url, init] = fetcher.mock.calls[0] ?? [];
     expect(url).toBe("http://127.0.0.1:7303/support/send");
-    expect(init).toMatchObject({ method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" } });
-    expect(JSON.parse(typeof init?.body === "string" ? init.body : "")).toEqual({ page: JSON.parse(JSON.stringify(info)) as unknown, note: "It stopped." });
+    expect(init).toMatchObject({
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(JSON.parse(typeof init?.body === "string" ? init.body : "")).toEqual({
+      page: JSON.parse(JSON.stringify(info)) as unknown,
+      note: "It stopped.",
+    });
   });
 
   it("says which file goes only when it is not a new one: the name of the downloaded one, or false for the words alone", async () => {
@@ -180,7 +222,9 @@ describe("requestSend", () => {
     await requestSend(info, "x", "neoaprs-support-OH2GBA-20261021-123456Z.zip", fetcher);
     await requestSend(info, "x", false, fetcher);
     await requestSend(info, "x", true, fetcher);
-    const bodies = fetcher.mock.calls.map((call) => JSON.parse(typeof call[1]?.body === "string" ? call[1].body : "") as { file?: unknown; note: string });
+    const bodies = fetcher.mock.calls.map(
+      (call) => JSON.parse(typeof call[1]?.body === "string" ? call[1].body : "") as { file?: unknown; note: string },
+    );
     expect(bodies.map((body) => [Object.keys(body).sort(), body.file])).toEqual([
       [["file", "note", "page"], "neoaprs-support-OH2GBA-20261021-123456Z.zip"],
       [["file", "note", "page"], false],
@@ -198,13 +242,33 @@ describe("requestSend", () => {
   });
 
   it.each(["offline", "rate", "too_large", "refused"])("names the reason %s that the daemon gives", async (reason) => {
-    expect(await requestSend(info, "", true, says(200, { ok: false, reason }))).toEqual({ ok: false, problem: reason, status: 200 });
+    expect(await requestSend(info, "", true, says(200, { ok: false, reason }))).toEqual({
+      ok: false,
+      problem: reason,
+      status: 200,
+    });
   });
 
   it("takes a reason it does not know, an answer that is not the protocol's and an ok without a reference as the server refusing", async () => {
-    for (const body of [{ ok: false, reason: "storage" }, { ok: false }, { ok: true }, { ok: true, ref: "" }, [1], null, 5])
-      expect(await requestSend(info, "", true, says(200, body))).toEqual({ ok: false, problem: "refused", status: 200 });
-    expect(await requestSend(info, "", true, says(200, "<html>"))).toEqual({ ok: false, problem: "failed", status: 200 });
+    for (const body of [
+      { ok: false, reason: "storage" },
+      { ok: false },
+      { ok: true },
+      { ok: true, ref: "" },
+      [1],
+      null,
+      5,
+    ])
+      expect(await requestSend(info, "", true, says(200, body))).toEqual({
+        ok: false,
+        problem: "refused",
+        status: 200,
+      });
+    expect(await requestSend(info, "", true, says(200, "<html>"))).toEqual({
+      ok: false,
+      problem: "failed",
+      status: 200,
+    });
   });
 
   it("names the problem of the daemon: no access (401, 403), busy (429), not reachable, and any other answer", async () => {

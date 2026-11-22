@@ -112,7 +112,9 @@ describe("StationMap with the card of a station over it", () => {
     await flushPromises();
     expect(FakeMap.last().flights).toEqual([]);
     expect(FakeMap.last().pans).toEqual([]);
-    expect(FakeMap.last().fits.map((fit) => fit.options)).toEqual([{ padding: { left: 40, right: 40, top: 140, bottom: 140 }, offset: [0, -100] }]);
+    expect(FakeMap.last().fits.map((fit) => fit.options)).toEqual([
+      { padding: { left: 40, right: 40, top: 140, bottom: 140 }, offset: [0, -100] },
+    ]);
   });
 
   it("has the card above the markers, which are in the map's own layer, and the map's buttons under it", () => {

@@ -28,18 +28,25 @@ export const PREFS_RADIO: RadioId = 1;
  */
 export function useCameOn(): (m: Pick<MessageRow, "direction" | "radio_id">) => PageRadio | null {
   const radios = useRadios();
-  return (m) => (m.direction === "in" && m.radio_id !== null && radios.named(m.radio_id) ? (radios.byId(m.radio_id) ?? null) : null);
+  return (m) =>
+    m.direction === "in" && m.radio_id !== null && radios.named(m.radio_id) ? (radios.byId(m.radio_id) ?? null) : null;
 }
 
 /**
  * The radio of the messages to the station `call` and its Route (`thread` gives the messages in
  * flight).
  */
-export function useStationRadio(call: () => string, row: () => StationRow | null, thread: () => readonly Pick<MessageRow, "state" | "radio_now">[] = () => []) {
+export function useStationRadio(
+  call: () => string,
+  row: () => StationRow | null,
+  thread: () => readonly Pick<MessageRow, "state" | "radio_now">[] = () => [],
+) {
   const radios = useRadios();
   const { prefs, fallbackPath, send } = useDaemonContext();
   const gateway = computed(() => isGateway(call()));
-  const over = computed(() => (gateway.value ? radios.email.value : (radios.forStation(row(), thread()) ?? radios.unheard.value)));
+  const over = computed(() =>
+    gateway.value ? radios.email.value : (radios.forStation(row(), thread()) ?? radios.unheard.value),
+  );
   const named = computed(() => over.value !== null && radios.named(over.value.id));
   const onPrefs = computed(() => over.value === null || over.value.id === PREFS_RADIO);
   const paths = computed<ReadonlyMap<string, string>>(() => {
@@ -65,8 +72,14 @@ export function useStationRadio(call: () => string, row: () => StationRow | null
     choice: computed(() => (gateway.value ? (radios.email.value?.id ?? null) : (row()?.radio_choice ?? null))),
     auto: computed(() => (!gateway.value && row()?.radio_choice == null ? (over.value?.name ?? null) : null)),
     pathShown,
-    pathless: computed(() => (pathShown.value && over.value !== null && !over.value.carriesPath ? t("radio.no_path", { name: over.value.name }) : undefined)),
-    reply: computed(() => (over.value === null || over.value.carriesPath ? "" : (row()?.replies[String(over.value.id)] ?? ""))),
+    pathless: computed(() =>
+      pathShown.value && over.value !== null && !over.value.carriesPath
+        ? t("radio.no_path", { name: over.value.name })
+        : undefined,
+    ),
+    reply: computed(() =>
+      over.value === null || over.value.carriesPath ? "" : (row()?.replies[String(over.value.id)] ?? ""),
+    ),
     shown: computed(() => pathShown.value || choices.value.length > 0),
     paths,
     fallback,

@@ -67,7 +67,12 @@ const MODEM_WAITING: Record<ModemState["reason"], MessageId> = {
 /** The hover title's addition: how much has come in and gone out. */
 function tncCounts(tnc: Pick<RadioRow, "stats">): string {
   const { packets, bytes_in, bytes_out, digipeated } = tnc.stats;
-  return t("settings.tnc.counts", { n: packets, bytes_in: bytesText(bytes_in), bytes_out: bytesText(bytes_out), digipeated });
+  return t("settings.tnc.counts", {
+    n: packets,
+    bytes_in: bytesText(bytes_in),
+    bytes_out: bytesText(bytes_out),
+    digipeated,
+  });
 }
 
 /** A daemon log line with its time in the viewer's time. */
@@ -79,7 +84,8 @@ export function lineText(line: TncLine): string {
 const dummyRow = (row: RadioRow): boolean => row.dummy && row.state === "connected";
 
 /** The pill text and class of a radio's row. */
-export const rowPillText = (row: RadioRow): string => (dummyRow(row) ? t("settings.tnc.dummy_pill") : stateText(row.state));
+export const rowPillText = (row: RadioRow): string =>
+  dummyRow(row) ? t("settings.tnc.dummy_pill") : stateText(row.state);
 export const rowPillClass = (row: RadioRow): string => (dummyRow(row) ? "tnc-dummy" : `tnc-${row.state}`);
 
 /**
@@ -96,7 +102,11 @@ export function rowParts(row: RadioRow, nowMs: number): readonly string[] | null
 /** The one status line of a radio's row. */
 export function rowStatus(row: RadioRow, nowMs: number, radios?: RadioNames): string {
   if (dummyRow(row)) return t(row.kind === "hf" ? "settings.tnc.dummy_hf" : "settings.tnc.dummy");
-  if (row.state === "silent") return silentText(row.problem?.code === "radio.silent" ? String(row.problem.params["since"] ?? "") || null : null, nowMs);
+  if (row.state === "silent")
+    return silentText(
+      row.problem?.code === "radio.silent" ? String(row.problem.params["since"] ?? "") || null : null,
+      nowMs,
+    );
   // A LoRa board sending text lines: its link is open, but nothing goes until it is set to KISS.
   if (row.state === "connected" && row.problem?.code === "radio.text_lines") return problemText(row.problem, t, radios);
   const parts = rowParts(row, nowMs);

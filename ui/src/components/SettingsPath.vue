@@ -31,7 +31,12 @@ const props = defineProps<{
   /** one radio's row of the rows drawn for the radios: drawn as it is, with no rows of its own */
   row?: boolean;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: [] }>();
+const emit = defineEmits<{
+  "update:modelValue": [value: string];
+  choose: [value: string];
+  commit: [next: EventTarget | null];
+  cancel: [];
+}>();
 
 const page = inject(DAEMON_KEY, null);
 const radios = useRadios();
@@ -41,7 +46,8 @@ const settings = page?.settings;
 const inForce = (key: string): string => radioValueOf(page?.config.value ?? null, key) ?? "";
 const valueOf = (key: string): string => settings?.draft[key] ?? inForce(key);
 const changedOf = (key: string): boolean => settings !== undefined && valueOf(key) !== settings.expected(key);
-const infoOf = (name: string | null): FieldInfo => (name === null ? props.info : { ...props.info, label: t("settings.path.on_radio", { name }) });
+const infoOf = (name: string | null): FieldInfo =>
+  name === null ? props.info : { ...props.info, label: t("settings.path.on_radio", { name }) };
 const idOf = (key: string): string => `set-${fieldId(key)}`;
 /**
  * What a radio's Recommended is: its type's path (LoRa WIDE1-1), else the symbol's: what the daemon
@@ -204,7 +210,13 @@ watch(
         @keydown.enter.prevent="enter"
         @keydown.esc="escape"
       />
-      <PathBuilder :value="modelValue" :usual="recommended" :check="(text) => problemOf('beacon/path', text)" :disabled="disabled" @use="build" />
+      <PathBuilder
+        :value="modelValue"
+        :usual="recommended"
+        :check="(text) => problemOf('beacon/path', text)"
+        :disabled="disabled"
+        @use="build"
+      />
     </template>
   </SettingsField>
 </template>

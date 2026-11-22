@@ -156,7 +156,9 @@ function addLayers(): void {
  * drawn with its track regardless).
  */
 const drawn = (): StationRow[] =>
-  [...page.stations.value.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(page.aging.value, row, page.now.value)));
+  [...page.stations.value.values()].filter(
+    (row) => hasPosition(row) && (isOpen(row.call) || !timedOut(page.aging.value, row, page.now.value)),
+  );
 
 function drawTracks(): void {
   if (map) setTrackData(map, drawn(), openCalls(), page.now.value, page.aging.value, box.tracks());
@@ -225,7 +227,11 @@ function syncPin(): void {
   if (map && engine) pinMarker = placePin(engine, map, pinMarker, props.pin, pickAt);
 }
 
-function onClick(event?: { lngLat?: { lat: number; lng: number }; point?: { x: number; y: number }; originalEvent?: MouseEvent }): void {
+function onClick(event?: {
+  lngLat?: { lat: number; lng: number };
+  point?: { x: number; y: number };
+  originalEvent?: MouseEvent;
+}): void {
   if (!props.picking && box.clicked(event)) return;
   if (!(event?.originalEvent?.ctrlKey || event?.originalEvent?.metaKey)) emit("select", null);
   if (props.picking && event?.lngLat) pickAt(event.lngLat.lat, event.lngLat.lng);
@@ -238,7 +244,11 @@ function pickAt(lat: number, lon: number): void {
 }
 
 const mapMenu = useMapMenu(host, () => ({ map, hover }));
-const menuEvents = { close: () => mapMenu.close(), card: (name: MapCard) => emit("card", name), replay: () => emit("replay", true) };
+const menuEvents = {
+  close: () => mapMenu.close(),
+  card: (name: MapCard) => emit("card", name),
+  replay: () => emit("replay", true),
+};
 const replay = useMapReplay(() => ({ map, engine, open: props.replay }));
 
 function showLabels(): void {
@@ -294,11 +304,14 @@ async function create(): Promise<void> {
   syncPin();
 }
 
-watch([() => [...page.stations.value.values()], () => [props.selected, props.others, page.aging.value.defaultMin]], () => {
-  syncMarkers();
-  drawTracks();
-  drawRoute();
-});
+watch(
+  [() => [...page.stations.value.values()], () => [props.selected, props.others, page.aging.value.defaultMin]],
+  () => {
+    syncMarkers();
+    drawTracks();
+    drawRoute();
+  },
+);
 watch(() => page.now.value, syncMarkers);
 watch([minute, box.tracks], drawTracks);
 useMapFollow(() => map, card, {
@@ -352,11 +365,29 @@ onBeforeUnmount(() => {
 <template>
   <!-- The page's classes go on the root, never on the map's box: MapLibre sets that -->
   <!-- box's classes (`maplibregl-map`), and a class bound by Vue there replaces them all. -->
-  <div ref="root" class="stationmap" :class="{ 'map-picking': props.picking, replaying: props.replay }" v-on="mapMenu.on">
+  <div
+    ref="root"
+    class="stationmap"
+    :class="{ 'map-picking': props.picking, replaying: props.replay }"
+    v-on="mapMenu.on"
+  >
     <div ref="host" class="mapbox" role="application" :aria-label="t('map.label')"></div>
-    <MapMenu v-if="mapMenu.menu.value" :key="mapMenu.key.value" v-bind="mapMenu.menu.value" :trigger="host" v-on="menuEvents" />
+    <MapMenu
+      v-if="mapMenu.menu.value"
+      :key="mapMenu.key.value"
+      v-bind="mapMenu.menu.value"
+      :trigger="host"
+      v-on="menuEvents"
+    />
     <ReplayBar v-if="props.replay" :replay="replay.clock" @close="emit('replay', false)" />
-    <button v-if="canFollow" class="btn followme" :class="{ primary: following }" type="button" :aria-pressed="following" @click="following = !following">
+    <button
+      v-if="canFollow"
+      class="btn followme"
+      :class="{ primary: following }"
+      type="button"
+      :aria-pressed="following"
+      @click="following = !following"
+    >
       {{ t("map.follow_me") }}
     </button>
     <MapLayers :place="box.place.value" :counts="box.counts.value" />

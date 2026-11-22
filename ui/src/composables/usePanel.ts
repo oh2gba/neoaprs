@@ -32,5 +32,7 @@ export type Panel = ReturnType<typeof usePanel>;
  */
 export function useViewing(panel: Panel, id: TabId) {
   const visible = useVisible();
-  return computed(() => isViewingTab({ tab: panel.tab.value, onScreen: panel.onScreen.value, visible: visible.value }, id));
+  return computed(() =>
+    isViewingTab({ tab: panel.tab.value, onScreen: panel.onScreen.value, visible: visible.value }, id),
+  );
 }

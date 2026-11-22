@@ -24,7 +24,10 @@ describe("pinned cards in the browser's storage", () => {
   });
 
   it("leaves out what is not a call with a place or null, and reads nothing from text that is not an object", () => {
-    localStorage.setItem("NeoAPRS.pinnedcards", JSON.stringify({ A: { x: 1, y: 2 }, B: null, C: { x: "1", y: 2 }, D: 5, E: { x: null, y: 1 }, F: "x" }));
+    localStorage.setItem(
+      "NeoAPRS.pinnedcards",
+      JSON.stringify({ A: { x: 1, y: 2 }, B: null, C: { x: "1", y: 2 }, D: 5, E: { x: null, y: 1 }, F: "x" }),
+    );
     expect(loadPinned()).toEqual({ A: { x: 1, y: 2 }, B: null });
     for (const text of ["not json", "[1,2]", "7", "null", ""]) {
       localStorage.setItem("NeoAPRS.pinnedcards", text);

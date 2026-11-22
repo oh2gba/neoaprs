@@ -11,7 +11,9 @@ const props = defineProps<{ replay: Replay }>();
 const MINUTE = 60_000;
 
 const data = computed(() => props.replay.data.value);
-const clock = computed(() => (data.value ? replayClock(props.replay.at.value, data.value.start, data.value.end) : CLOCK_NONE));
+const clock = computed(() =>
+  data.value ? replayClock(props.replay.at.value, data.value.start, data.value.end) : CLOCK_NONE,
+);
 
 function seek(event: Event): void {
   props.replay.seek(Number((event.target as HTMLInputElement).value));

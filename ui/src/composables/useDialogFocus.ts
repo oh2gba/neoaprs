@@ -11,7 +11,11 @@ export interface DialogFocus {
   back?: () => HTMLElement | null;
 }
 
-export function useDialogFocus(dialog: Readonly<Ref<HTMLElement | null>>, close: () => void, { first = () => null, back = () => null }: DialogFocus = {}) {
+export function useDialogFocus(
+  dialog: Readonly<Ref<HTMLElement | null>>,
+  close: () => void,
+  { first = () => null, back = () => null }: DialogFocus = {},
+) {
   let before: Element | null = null;
 
   function focusables(): HTMLElement[] {

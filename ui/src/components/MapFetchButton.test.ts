@@ -7,7 +7,14 @@ import { cssRule } from "@/test/css";
 import { shown } from "@/test/shown";
 import { mapFile, mapState } from "@/test/fixtures";
 
-const ESTIMATE = { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" };
+const ESTIMATE = {
+  bytes: 493_000_000,
+  tiles: 41233,
+  radius_km: 150,
+  maxzoom: 12,
+  box: [22.1, 58.8, 27.8, 61.5],
+  build: "20261022",
+};
 
 function make(map: MapState, stale = false, early = false) {
   const send = vi.fn(() => true);
@@ -75,7 +82,9 @@ describe("MapFetchButton", () => {
     await wrapper.setProps({ map: mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } } }) });
     expect(shown(button())).toBe("Download map");
     await notes.setProps({ map: mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } } }) });
-    expect(notes.find(".mapfetch-error").text()).toBe("no daily build of the map was found in the last 10 days (is there a connection?)");
+    expect(notes.find(".mapfetch-error").text()).toBe(
+      "no daily build of the map was found in the last 10 days (is there a connection?)",
+    );
   });
 
   it("does not wait for a size when the command could not be sent", async () => {
@@ -86,7 +95,9 @@ describe("MapFetchButton", () => {
   });
 
   it("is off while a job runs, says Downloading…, and has Cancel beside it (the bar and the step are under the row)", async () => {
-    const { wrapper, notes, send, button } = make(mapState({ state: "downloading", step: "world", percent: 42, blocked: "busy" }));
+    const { wrapper, notes, send, button } = make(
+      mapState({ state: "downloading", step: "world", percent: 42, blocked: "busy" }),
+    );
     expect(notes.find("progress").attributes("value")).toBe("42");
     expect(notes.find(".mapfetch-progress").text()).toBe("World map 42%");
     expect(button().attributes("disabled")).toBeDefined();
@@ -129,7 +140,9 @@ describe("MapFetchButton", () => {
   });
 
   it("says one quiet line when there is a detailed map, and then offers Download again; nothing of the world map or of the details", () => {
-    const { wrapper, notes, button } = make(mapState({ state: "ready", detail: mapFile(), world: mapFile({ bytes: 15_100_000, max_zoom: 5 }) }));
+    const { wrapper, notes, button } = make(
+      mapState({ state: "ready", detail: mapFile(), world: mapFile({ bytes: 15_100_000, max_zoom: 5 }) }),
+    );
     expect(notes.findAll(".mapfetch-file").map((p) => p.text())).toEqual(["Map downloaded 22 Oct"]);
     expect(notes.find(".mapfetch-file").classes()).toContain("muted");
     expect(wrapper.text() + notes.text()).not.toContain("World map");
@@ -139,7 +152,9 @@ describe("MapFetchButton", () => {
   });
 
   it("says nothing of the maps for a world map only, and the button still says Download map: Download again is for a detailed map", () => {
-    const { wrapper, notes, button } = make(mapState({ state: "none", detail: null, world: mapFile({ name: "basemap-world.pmtiles", max_zoom: 5 }) }));
+    const { wrapper, notes, button } = make(
+      mapState({ state: "none", detail: null, world: mapFile({ name: "basemap-world.pmtiles", max_zoom: 5 }) }),
+    );
     expect(notes.find(".mapfetch-file").exists()).toBe(false);
     expect(notes.text()).toBe("");
     expect(shown(button())).toBe("Download map");
@@ -149,7 +164,9 @@ describe("MapFetchButton", () => {
   it("explains nothing in sentences: no hint under the button", () => {
     const { wrapper, notes } = make(mapState({ state: "ready", detail: mapFile() }));
     expect(wrapper.find(".hint").exists()).toBe(false);
-    expect(notes.findAll("p").every((p) => p.classes().some((c) => c === "mapfetch-file" || c === "mapfetch-error"))).toBe(true);
+    expect(
+      notes.findAll("p").every((p) => p.classes().some((c) => c === "mapfetch-file" || c === "mapfetch-error")),
+    ).toBe(true);
   });
 
   it("keeps the notes under the button, in the control column of its row, and the button first in that column, as wide as the other actions", () => {
@@ -180,7 +197,9 @@ describe("the width of the Download button", () => {
     const wrapper = mount(MapFetchButton, { props: { map: mapState(), stale: false, send } });
     const faces = () => wrapper.findAll(".mapfetch-button .twowords > span").map((face) => face.text());
     const before = faces();
-    expect(before).toEqual(expect.arrayContaining(["Download map", "Download again", "Checking size…", "Downloading…", "Download 888 MB?"]));
+    expect(before).toEqual(
+      expect.arrayContaining(["Download map", "Download again", "Checking size…", "Downloading…", "Download 888 MB?"]),
+    );
     expect(shown(wrapper.find(".mapfetch-button"))).toBe("Download map");
     await wrapper.find(".mapfetch-button").trigger("click");
     expect(shown(wrapper.find(".mapfetch-button"))).toBe("Checking size…");

@@ -183,7 +183,13 @@ export function installErrorCapture(
     const { message, filename, lineno, colno } = event as ErrorEvent;
     const error: unknown = (event as ErrorEvent).error;
     if (error != null) errors.record(error, "window");
-    else errors.record(Object.assign(new Error(message || "Script error."), { stack: filename ? `at ${filename}:${lineno}:${colno}` : "" }), "window");
+    else
+      errors.record(
+        Object.assign(new Error(message || "Script error."), {
+          stack: filename ? `at ${filename}:${lineno}:${colno}` : "",
+        }),
+        "window",
+      );
   };
   const onRejection = (event: Event): void => errors.record((event as PromiseRejectionEvent).reason, "promise");
   host.addEventListener("error", onError);

@@ -9,39 +9,56 @@ export const help: Record<keyof typeof source, Message> = {
   "help.me": "Esta estação",
   "help.picture.object":
     "Um mapa com a sua estação no carro e dois objetos que você envia, um repetidor com a sua frequência e um ponto de encontro; os dois aparecem nos mapas de outras duas estações.",
-  "help.picture.bulletin": "Uma estação envia um boletim, BLN1, e a mesma mensagem aparece no mural de outras três estações.",
+  "help.picture.bulletin":
+    "Uma estação envia um boletim, BLN1, e a mesma mensagem aparece no mural de outras três estações.",
   "help.picture.bulletingroup":
     "Uma estação envia um boletim de grupo, BLN3HAMS, para três estações: as duas que exibem o grupo HAMS o põem no mural, a terceira escolheu outros grupos, recebe o boletim e não exibe nada.",
-  "help.picture.beacon": "A sua estação envia a posição repetidamente, com um relógio entre as balizas, e aparece no mapa dos outros.",
+  "help.picture.beacon":
+    "A sua estação envia a posição repetidamente, com um relógio entre as balizas, e aparece no mapa dos outros.",
   "help.picture.path":
     "O seu pacote vai do seu carro até um digipeater de preenchimento, WIDE1-1, e depois a um de área ampla, WIDE2-1: dois saltos antes de as outras estações o receberem.",
-  "help.picture.status": "O seu texto de status curto, QRV 145.500, aparece no mapa das outras estações abaixo do seu indicativo.",
-  "help.picture.range": "Um digipeater com o seu círculo de alcance: as estações dentro do círculo são ouvidas por meio dele, as de fora não.",
-  "help.picture.request": "Uma estação pede info local e a sua estação responde com o objeto, que de outra forma não é enviado.",
+  "help.picture.status":
+    "O seu texto de status curto, QRV 145.500, aparece no mapa das outras estações abaixo do seu indicativo.",
+  "help.picture.range":
+    "Um digipeater com o seu círculo de alcance: as estações dentro do círculo são ouvidas por meio dele, as de fora não.",
+  "help.picture.request":
+    "Uma estação pede info local e a sua estação responde com o objeto, que de outra forma não é enviado.",
   "help.picture.ssid": "Um indicativo, YOURCALL, para três estações: o simples é uma casa, -9 um carro, -10 um iGate.",
-  "help.picture.symbol": "Uma escolha de símbolos com o carro selecionado, e o carro no mapa de outra estação sob o seu indicativo.",
-  "help.picture.network": "O computador que roda o NeoAPRS, ligado pela rede a um celular, um tablet e um notebook que abrem a sua página.",
+  "help.picture.symbol":
+    "Uma escolha de símbolos com o carro selecionado, e o carro no mapa de outra estação sob o seu indicativo.",
+  "help.picture.network":
+    "O computador que roda o NeoAPRS, ligado pela rede a um celular, um tablet e um notebook que abrem a sua página.",
   "help.picture.accesskey": "Uma chave digitada uma vez em um celular, que depois continua conectado.",
   "help.picture.igate": "O pacote de um carro vai por rádio a um iGate, que o passa à internet, APRS-IS, e vice-versa.",
-  "help.picture.radius": "Um mapa com a estação no meio: o mapa detalhado chega até o círculo ao redor, o mapa-múndi o resto.",
-  "help.picture.position": "Uma estação fixa que fica no lugar, e uma estação com GPS que se move, com seus beacons ao longo do trajeto.",
-  "help.picture.digipeater": "Um carro que não alcança diretamente o digipeater de área ampla é repetido pela sua estação, que passa o pacote adiante.",
+  "help.picture.radius":
+    "Um mapa com a estação no meio: o mapa detalhado chega até o círculo ao redor, o mapa-múndi o resto.",
+  "help.picture.position":
+    "Uma estação fixa que fica no lugar, e uma estação com GPS que se move, com seus beacons ao longo do trajeto.",
+  "help.picture.digipeater":
+    "Um carro que não alcança diretamente o digipeater de área ampla é repetido pela sua estação, que passa o pacote adiante.",
   "help.picture.logs": "Um arquivo de log que vai anexado a um e-mail.",
-  "help.picture.transmit": "Nossa estação ouve as outras (a seta de entrada) enquanto o que enviaria não sai: a seta tracejada está riscada.",
-  "help.picture.beaconoff": "Com o beacon desligado o relógio não envia nada, os beacons da linha do tempo estão vazios; apertar o botão ainda envia um.",
-  "help.picture.internet": "As estações que o APRS-IS tem dentro do raio do mapa chegam da nuvem ao seu mapa, em um só sentido; nada volta.",
+  "help.picture.transmit":
+    "Nossa estação ouve as outras (a seta de entrada) enquanto o que enviaria não sai: a seta tracejada está riscada.",
+  "help.picture.beaconoff":
+    "Com o beacon desligado o relógio não envia nada, os beacons da linha do tempo estão vazios; apertar o botão ainda envia um.",
+  "help.picture.internet":
+    "As estações que o APRS-IS tem dentro do raio do mapa chegam da nuvem ao seu mapa, em um só sentido; nada volta.",
   "help.picture.channels":
     "Uma estação ouvida pelo rádio, com ondas, leva a etiqueta do rádio que a ouviu, FM; uma que veio da nuvem, APRS-IS, tem contorno pontilhado e etiqueta própria.",
-  "help.picture.mercury": "Sua estação e uma distante, muito afastadas; o sinal sobe e volta a descer entre elas: só uma estação com o mesmo modem o ouve.",
+  "help.picture.mercury":
+    "Sua estação e uma distante, muito afastadas; o sinal sobe e volta a descer entre elas: só uma estação com o mesmo modem o ouve.",
   "help.picture.scope":
     "Uma estação distante transmite; a cascata mostra seu quadro como um bloco na banda marcada, o mais recente no alto, e a barra do nível de recepção fica na faixa boa.",
   "help.picture.tworadios":
     "Sua estação com dois rádios: o rádio FM alcança o carro e o digipeater próximos rente ao chão, o rádio Mercury alcança uma estação distante pelo sinal que sobe e volta a descer.",
-  "help.picture.dummy": "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
-  "help.picture.notifications": "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra uma notificação, o cartão.",
+  "help.picture.dummy":
+    "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
+  "help.picture.notifications":
+    "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra uma notificação, o cartão.",
   "help.picture.encrypt":
     "Duas estações trocam suas chaves. Depois, nossa mensagem trancada é lida pela estação que tem a chave, enquanto uma terceira que a ouvir vê só o cadeado.",
-  "help.picture.qru": "Sua estação pede info local, e uma estação servidora responde com objetos, uma repetidora e um evento, que aparecem no seu mapa.",
+  "help.picture.qru":
+    "Sua estação pede info local, e uma estação servidora responde com objetos, uma repetidora e um evento, que aparecem no seu mapa.",
   "help.not_copied": "Não copiado",
 
   "help.install.label": "Aplicativo",
@@ -70,7 +87,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.cert.mac1": "Abra o Acesso às Chaves e importe {file} no chaveiro Sistema (Arquivo → Importar Itens).",
   "help.cert.mac2": 'Clique duas vezes em "NeoAPRS local CA", abra Confiar e escolha Sempre Confiar.',
   "help.cert.mac3": "Reinicie o navegador.",
-  "help.cert.linux1": "Abra Configurações → Privacidade e segurança → Segurança → Gerenciar certificados → Autoridades.",
+  "help.cert.linux1":
+    "Abra Configurações → Privacidade e segurança → Segurança → Gerenciar certificados → Autoridades.",
   "help.cert.linux2": 'Clique em Importar, escolha {file} e marque "Confiar neste certificado para identificar sites".',
   "help.cert.linux3": "Reinicie o navegador.",
   "help.cert.firefox1": "Abra Configurações → Privacidade e Segurança → Certificados → Ver certificados → Autoridades.",
@@ -81,7 +99,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.popup.secure_page": "Abra a página segura: {link}",
   "help.popup.remove_warning": "Remover o aviso do navegador",
   "help.popup.keep_http": "Ou continuar com http",
-  "help.popup.firefox1": 'Abra uma nova aba, digite {config} e pressione Enter; depois clique em "Aceitar o risco e continuar".',
+  "help.popup.firefox1":
+    'Abra uma nova aba, digite {config} e pressione Enter; depois clique em "Aceitar o risco e continuar".',
   "help.popup.firefox2": "Procure por {key}.",
   "help.popup.firefox3a": 'Se não existir, escolha "String" e clique em "+". Digite isto e clique no visto:',
   "help.popup.firefox3b": "Se já tiver texto, acrescente uma vírgula e isto no final.",
@@ -90,11 +109,13 @@ export const help: Record<keyof typeof source, Message> = {
   "help.popup.chromium3": 'Clique em "Reiniciar" na parte de baixo.',
   "help.popup.back": "Volte aqui e clique em {reload}",
   "help.popup.reload": "Recarregar",
-  "help.popup.phone": "Os celulares só mostram notificações para páginas https, e esta página não é uma. O som e o alerta na aba funcionam aqui.",
+  "help.popup.phone":
+    "Os celulares só mostram notificações para páginas https, e esta página não é uma. O som e o alerta na aba funcionam aqui.",
   "help.popup.other":
     "Este navegador não tem como permitir notificações para este endereço. O som e o alerta na aba funcionam aqui. Firefox, Chrome e Edge em um computador podem permiti-las.",
   "help.popup.still": "Se a notificação ainda não aparecer",
-  "help.popup.flatpak": "O Firefox instalado como Flatpak (KDE) precisa destes dois comandos em um terminal, e depois reiniciar o Firefox:",
+  "help.popup.flatpak":
+    "O Firefox instalado como Flatpak (KDE) precisa destes dois comandos em um terminal, e depois reiniciar o Firefox:",
 
   "help.update.title": "NeoAPRS {version} está disponível",
   "help.update.installed": "Você tem o NeoAPRS {version}",
@@ -115,11 +136,15 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.restarting": "O NeoAPRS reinicia em instantes",
   "help.update.restarting_installer": "Instalando… o NeoAPRS reinicia em instantes",
   "help.update.reconnecting": "O NeoAPRS está reiniciando",
-  "help.update.problem.download": "Não foi possível baixar a atualização. Tente de novo ou baixe-a na página do projeto.",
-  "help.update.problem.unverified": "Não foi possível verificar esta atualização, então nada foi instalado. Baixe-a na página do projeto.",
-  "help.update.problem.checksum": "O download não é o arquivo da versão publicada: ele foi apagado e nada foi instalado. Tente de novo.",
+  "help.update.problem.download":
+    "Não foi possível baixar a atualização. Tente de novo ou baixe-a na página do projeto.",
+  "help.update.problem.unverified":
+    "Não foi possível verificar esta atualização, então nada foi instalado. Baixe-a na página do projeto.",
+  "help.update.problem.checksum":
+    "O download não é o arquivo da versão publicada: ele foi apagado e nada foi instalado. Tente de novo.",
   "help.update.problem.install": "Não foi possível instalar a atualização. Atualize manualmente.",
-  "help.update.problem.no_restart": "A atualização está instalada, mas o NeoAPRS não reiniciou. Feche o NeoAPRS e abra-o de novo.",
+  "help.update.problem.no_restart":
+    "A atualização está instalada, mas o NeoAPRS não reiniciou. Feche o NeoAPRS e abra-o de novo.",
   "help.update.by_hand": "Ou atualize manualmente",
   "help.update.steps": "Como atualizar",
   "help.update.restart_service": "Reiniciar o serviço",
@@ -137,7 +162,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.deb.install": "Instalar a partir da pasta onde você o baixou (pede a sua senha)",
   "help.update.deb.service": "O serviço reinicia sozinho. Se ainda mostrar a versão antiga:",
   "help.update.macos.download": "Baixar o novo app",
-  "help.update.macos.replace": "Fechar o NeoAPRS, abrir o download e arrastar o NeoAPRS para Aplicativos no lugar do antigo",
+  "help.update.macos.replace":
+    "Fechar o NeoAPRS, abrir o download e arrastar o NeoAPRS para Aplicativos no lugar do antigo",
   "help.update.macos.start": "Abrir o NeoAPRS de novo a partir de Aplicativos",
   "help.update.source.pull": "Na pasta do clone",
   "help.update.source.sync": "Pôr o ambiente em dia",

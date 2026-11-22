@@ -8,7 +8,14 @@ import { t } from "@/i18n";
 import { callInput, joinCall, splitCall } from "@/lib/calls";
 import { ssidChoices } from "@/lib/settingchoices";
 
-const props = defineProps<{ id: string; modelValue: string; placeholder: string; disabled?: boolean; invalid: boolean; describedby?: string }>();
+const props = defineProps<{
+  id: string;
+  modelValue: string;
+  placeholder: string;
+  disabled?: boolean;
+  invalid: boolean;
+  describedby?: string;
+}>();
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   choose: [value: string];
@@ -91,7 +98,14 @@ function pick(event: Event): void {
       @keydown.enter="onEnter"
       @keydown.esc="emit('escape', $event)"
     />
-    <select :id="`${id}-ssid`" class="input ssid" :value="ssid" :disabled="disabled" :aria-label="t('settings.ssid.label')" @change="pick">
+    <select
+      :id="`${id}-ssid`"
+      class="input ssid"
+      :value="ssid"
+      :disabled="disabled"
+      :aria-label="t('settings.ssid.label')"
+      @change="pick"
+    >
       <option v-for="choice in choices" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
     </select>
   </div>

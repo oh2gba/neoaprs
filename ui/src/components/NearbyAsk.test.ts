@@ -105,13 +105,21 @@ describe("Ask around in the Nearby tab", () => {
     const ticked = { beacon: true, status: false, ask: true, local_info: false, path: "", digipeat: false };
     const FM = radioRow(1, "kenwood-tnc2", { choices: ticked });
     const LORA = radioRow(3, "lora-tcp", { choices: { ...ticked, digipeat: null } });
-    const config = (lora: string) => configValues({}, { "radio/1/path": "", "radio/1/ask": "true", "radio/3/path": lora, "radio/3/ask": "true" });
+    const config = (lora: string) =>
+      configValues({}, { "radio/1/path": "", "radio/1/ask": "true", "radio/3/path": lora, "radio/3/ask": "true" });
     const { wrapper, daemon } = make({ ...ofRadios(FM, LORA), config: config("") });
-    expect(pathField(wrapper).attributes("placeholder"), "FM by the station's symbol (WIDE1-1,WIDE2-1 here), LoRa by WIDE1-1").toBe("(default)");
+    expect(
+      pathField(wrapper).attributes("placeholder"),
+      "FM by the station's symbol (WIDE1-1,WIDE2-1 here), LoRa by WIDE1-1",
+    ).toBe("(default)");
     await tell(daemon, { config: config("WIDE1-1,WIDE2-1") });
     expect(pathField(wrapper).attributes("placeholder")).toBe("WIDE1-1,WIDE2-1");
-    await tell(daemon, { radios: radiosTopic(FM, radioRow(2, "mercury", { choices: { ...ticked, path: null, digipeat: null } })) });
-    expect(pathField(wrapper).attributes("placeholder"), "the Mercury radio carries no path: FM's alone").toBe("WIDE1-1,WIDE2-1");
+    await tell(daemon, {
+      radios: radiosTopic(FM, radioRow(2, "mercury", { choices: { ...ticked, path: null, digipeat: null } })),
+    });
+    expect(pathField(wrapper).attributes("placeholder"), "the Mercury radio carries no path: FM's alone").toBe(
+      "WIDE1-1,WIDE2-1",
+    );
   });
 
   it("remembers the query, the path and RF only in this browser, and opens the fold when they are not the usual", async () => {
@@ -140,7 +148,9 @@ describe("Ask around in the Nearby tab", () => {
       expect(ask(wrapper).attributes("title"), wrong).toBe("Calls separated by commas, at most 8");
     }
     await pathField(wrapper).setValue("A1,A2,A3,A4,A5,A6,A7,A8");
-    expect(ask(wrapper).attributes("title")).toBe("path too long for RF only: 8 digipeaters and RFONLY make more than the 8 a path may have");
+    expect(ask(wrapper).attributes("title")).toBe(
+      "path too long for RF only: 8 digipeaters and RFONLY make more than the 8 a path may have",
+    );
     await rfOnly(wrapper).setValue(false);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await pathField(wrapper).setValue("direct");
@@ -167,12 +177,17 @@ describe("Ask around in the Nearby tab", () => {
 
   it("keeps two quiet lines whatever they say: what Ask does before a query, then what was asked, when and by what path, and who spoke after it", async () => {
     const { wrapper, daemon } = make();
-    expect(lines(wrapper).map((l) => l.text())).toEqual(["Asks the stations in radio range to make themselves known.", ""]);
+    expect(lines(wrapper).map((l) => l.text())).toEqual([
+      "Asks the stations in radio range to make themselves known.",
+      "",
+    ]);
     const at = ago(20);
     const time = clockText(at).slice(0, 5);
     await tell(daemon, { general: general(askedOf({ at })) });
     expect(lines(wrapper)).toHaveLength(2);
-    expect(lines(wrapper)[0]?.text()).toBe(`Asked who is around at ${time} by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations`);
+    expect(lines(wrapper)[0]?.text()).toBe(
+      `Asked who is around at ${time} by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations`,
+    );
     expect(lines(wrapper)[0]?.attributes("title")).toBe("?APRS? OH2RDK-7,OH2RCH-2,RFONLY");
     expect(lines(wrapper)[1]?.text()).toBe("Listening for stations that were quiet in the 10 minutes before…");
     await tell(daemon, { general: general(askedOf({ at, new: ["OH2DPN", "OH2XYZ"] })) });
@@ -182,7 +197,12 @@ describe("Ask around in the Nearby tab", () => {
     );
     await tell(daemon, { now: NOW + 120_000 });
     expect(lines(wrapper)[1]?.text()).toBe("2 stations quiet in the 10 minutes before spoke in the 2 minutes after");
-    await tell(daemon, { general: general(askedOf({ at: ago(300), new: [] }), askedOf({ kind: "wx", query: "?WX?", at: ago(10), path: [] })) });
+    await tell(daemon, {
+      general: general(
+        askedOf({ at: ago(300), new: [] }),
+        askedOf({ kind: "wx", query: "?WX?", at: ago(10), path: [] }),
+      ),
+    });
     expect(lines(wrapper)[0]?.text()).toMatch(/^Asked the weather stations at \d\d:\d\d by direct; answers arrive/);
   });
 
@@ -210,7 +230,12 @@ describe("Ask around in the Nearby tab", () => {
   it("says a refusal of the daemon in the first line, in the warn colour, until the next query", async () => {
     const { wrapper, daemon } = make();
     await ask(wrapper).trigger("click");
-    await tell(daemon, { lastError: toastOf("general_query: too soon for another ?APRS?: wait 12 s", "general.too_soon", { query: "?APRS?", seconds: 12 }) });
+    await tell(daemon, {
+      lastError: toastOf("general_query: too soon for another ?APRS?: wait 12 s", "general.too_soon", {
+        query: "?APRS?",
+        seconds: 12,
+      }),
+    });
     expect(lines(wrapper)[0]?.text()).toBe("Not sent: too soon for another ?APRS?: wait 12 s");
     expect(lines(wrapper)[0]?.classes()).toContain("warn");
     expect(lines(wrapper)[1]?.text()).toBe("");
@@ -221,7 +246,9 @@ describe("Ask around in the Nearby tab", () => {
 
   it("does not hold Ask for a stored path that is wrong while the FM radio is off and the fold is not there, and sends no path", async () => {
     localStorage.setItem("NeoAPRS.ask.path", "not a path!");
-    const { wrapper, daemon } = make({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")) });
+    const { wrapper, daemon } = make({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")),
+    });
     expect(fold(wrapper).exists()).toBe(false);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await ask(wrapper).trigger("click");
@@ -241,18 +268,29 @@ describe("the Send on of Ask around", () => {
   const Mobile = radioRow(3, "kiss", { name: "Mobile" });
   const ticked = (row: RadioRow, ask = true): RadioRow => ({ ...row, choices: { ...row.choices, ask } });
   const sendOn = (wrapper: Wrapper) => wrapper.find("#ask-send-on").element.closest(".field");
-  const ticks = (wrapper: Wrapper) => wrapper.findAll<HTMLInputElement>("#ask-send-on ~ .field-control input[type=checkbox]");
-  const shown = (wrapper: Wrapper) => ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined]);
-  const queries = (daemon: ReturnType<typeof make>["daemon"]): Command[] => sent(daemon).filter((command) => command.cmd === "general_query");
-  const saves = (daemon: ReturnType<typeof make>["daemon"]): Command[] => sent(daemon).filter((command) => command.cmd === "set_config");
+  const ticks = (wrapper: Wrapper) =>
+    wrapper.findAll<HTMLInputElement>("#ask-send-on ~ .field-control input[type=checkbox]");
+  const shown = (wrapper: Wrapper) =>
+    ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined]);
+  const queries = (daemon: ReturnType<typeof make>["daemon"]): Command[] =>
+    sent(daemon).filter((command) => command.cmd === "general_query");
+  const saves = (daemon: ReturnType<typeof make>["daemon"]): Command[] =>
+    sent(daemon).filter((command) => command.cmd === "set_config");
 
   it("is not there with one radio that can send, whichever it is: nothing is ticked, named or sent with the query", async () => {
-    for (const rows of [[FM], [FM, { ...HF, enabled: false }], [{ ...FM, enabled: false }, HF], [FM, radioRow(4, "tnc-text")]]) {
+    for (const rows of [
+      [FM],
+      [FM, { ...HF, enabled: false }],
+      [{ ...FM, enabled: false }, HF],
+      [FM, radioRow(4, "tnc-text")],
+    ]) {
       const id = rows[0]?.enabled === true ? 1 : 2;
       const { wrapper, daemon } = on({ general: general(askedOf({ at: ago(90), radios: [id] })) }, ...rows);
       expect(wrapper.find("#ask-send-on").exists()).toBe(false);
       expect(wrapper.find(".ask-row select:not(.ask-kind)").exists()).toBe(false);
-      expect(lines(wrapper)[0]?.text()).toMatch(rows.length === 2 && rows.every((row) => row.enabled) ? /^FM: Asked who is around/ : /^Asked who is around/);
+      expect(lines(wrapper)[0]?.text()).toMatch(
+        rows.length === 2 && rows.every((row) => row.enabled) ? /^FM: Asked who is around/ : /^Asked who is around/,
+      );
       await ask(wrapper).trigger("click");
       expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
     }
@@ -268,7 +306,10 @@ describe("the Send on of Ask around", () => {
     expect(row?.previousElementSibling).toBe(wrapper.find(".ask-row").element);
     expect(row?.nextElementSibling).toBe(fold(wrapper).element);
     expect(ticks(wrapper).map((tick) => tick.attributes("id"))).toEqual(["set-radio-1-ask", "set-radio-2-ask"]);
-    expect([...(row?.querySelectorAll("label.check") ?? [])].map((label) => label.textContent)).toEqual(["FM", "Mercury"]);
+    expect([...(row?.querySelectorAll("label.check") ?? [])].map((label) => label.textContent)).toEqual([
+      "FM",
+      "Mercury",
+    ]);
     expect(
       wrapper
         .find(".ask-row")
@@ -285,7 +326,10 @@ describe("the Send on of Ask around", () => {
       [false, false],
       [false, false],
     ]);
-    expect([ask(wrapper).attributes("disabled") !== undefined, ask(wrapper).attributes("title")]).toEqual([true, "Send ?APRS? once, by radio"]);
+    expect([ask(wrapper).attributes("disabled") !== undefined, ask(wrapper).attributes("title")]).toEqual([
+      true,
+      "Send ?APRS? once, by radio",
+    ]);
     await ask(wrapper).trigger("click");
     expect(queries(daemon)).toEqual([]);
     await ticks(wrapper)[0]?.setValue(true);
@@ -362,7 +406,10 @@ describe("the Send on of Ask around", () => {
     expect(ask(wrapper).attributes("title")).toBe("Asked a moment ago: again in 40 s");
     await ticks(wrapper)[0]?.setValue(false);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
-    const both = { asked: [askedOf({ at: ago(30), radios: [2] })], by_radio: [...general(first).by_radio, { kind: "aprs" as const, radio: 2, at: ago(30) }] };
+    const both = {
+      asked: [askedOf({ at: ago(30), radios: [2] })],
+      by_radio: [...general(first).by_radio, { kind: "aprs" as const, radio: 2, at: ago(30) }],
+    };
     const later = on({ general: both }, ticked(FM), ticked(HF));
     expect(ask(later.wrapper).attributes("title")).toBe("Asked a moment ago: again in 40 s");
   });
@@ -385,15 +432,23 @@ describe("the Send on of Ask around", () => {
     const at = ago(20);
     const time = clockText(at).slice(0, 5);
     const { wrapper, daemon } = on({ general: general(askedOf({ at, radios: [1, 2] })) }, ticked(FM), ticked(HF));
-    expect(lines(wrapper)[0]?.text()).toBe(`FM and Mercury: Asked who is around at ${time} by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations`);
+    expect(lines(wrapper)[0]?.text()).toBe(
+      `FM and Mercury: Asked who is around at ${time} by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations`,
+    );
     expect(lines(wrapper)[1]?.text()).toBe("Listening for stations that were quiet in the 10 minutes before…");
     await tell(daemon, { general: general(askedOf({ at, radios: [2], path: [] })) });
-    expect(lines(wrapper)[0]?.text()).toBe(`Mercury: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`);
+    expect(lines(wrapper)[0]?.text()).toBe(
+      `Mercury: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`,
+    );
     await tell(daemon, { general: general(askedOf({ at, radios: [1, 3], path: null })) });
-    expect(lines(wrapper)[0]?.text()).toBe(`FM: Asked who is around at ${time}; answers arrive on the map and in Stations`);
+    expect(lines(wrapper)[0]?.text()).toBe(
+      `FM: Asked who is around at ${time}; answers arrive on the map and in Stations`,
+    );
     expect(lines(wrapper)[0]?.attributes("title")).toBe("?APRS?");
     await ask(wrapper).trigger("click");
-    await tell(daemon, { lastError: toastOf("general_query: radio Mercury is not connected", "radio.not_connected", { name: "Mercury" }) });
+    await tell(daemon, {
+      lastError: toastOf("general_query: radio Mercury is not connected", "radio.not_connected", { name: "Mercury" }),
+    });
     expect(lines(wrapper)[0]?.text()).toBe("Not sent: radio Mercury is not connected");
     expect(lines(wrapper)).toHaveLength(2);
   });

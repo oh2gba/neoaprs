@@ -5,7 +5,15 @@ import { FIELDS } from "@/lib/settings";
 
 function make(value: string, over: Record<string, unknown> = {}) {
   return mount(SettingsPath, {
-    props: { id: "set-beacon-path", info: FIELDS["beacon/path"], modelValue: value, error: "", changed: false, recommended: "WIDE1-1,WIDE2-1", ...over },
+    props: {
+      id: "set-beacon-path",
+      info: FIELDS["beacon/path"],
+      modelValue: value,
+      error: "",
+      changed: false,
+      recommended: "WIDE1-1,WIDE2-1",
+      ...over,
+    },
   });
 }
 
@@ -36,11 +44,14 @@ describe("SettingsPath", () => {
     expect(typed(wrapper).exists()).toBe(false);
   });
 
-  it.each([["WIDE1-1,WIDE2-1"], ["WIDE2-1"]])("shows the path %j that is typed in as Custom: the path of the setting is what is stored", (value) => {
-    const wrapper = make(value);
-    expect(select(wrapper).element.value).toBe("custom");
-    expect(typed(wrapper).element.value).toBe(value);
-  });
+  it.each([["WIDE1-1,WIDE2-1"], ["WIDE2-1"]])(
+    "shows the path %j that is typed in as Custom: the path of the setting is what is stored",
+    (value) => {
+      const wrapper = make(value);
+      expect(select(wrapper).element.value).toBe("custom");
+      expect(typed(wrapper).element.value).toBe(value);
+    },
+  );
 
   it("shows DIRECT as Direct only", () => {
     const wrapper = make("DIRECT");

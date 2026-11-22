@@ -29,7 +29,13 @@ function readSize(key: string): CardSize | null {
   return found ? { width: Number(found[1]), height: Number(found[2]) } : null;
 }
 
-export function useCardSize(card: Readonly<Ref<HTMLElement | null>>, key: string, least: CardSize, anchor: Anchor, enabled: () => boolean) {
+export function useCardSize(
+  card: Readonly<Ref<HTMLElement | null>>,
+  key: string,
+  least: CardSize,
+  anchor: Anchor,
+  enabled: () => boolean,
+) {
   const size = ref<CardSize | null>(readSize(key));
   let sizing: Sizing | null = null;
   let last: Rect | null = null;
@@ -114,10 +120,14 @@ export function useCardSize(card: Readonly<Ref<HTMLElement | null>>, key: string
 
   /** The card's style size while sizing is on; the map's height limit gives way to it. */
   const shown = computed(() =>
-    size.value && space.value && space.value.width > 0 && space.value.height > 0 ? clampSize(size.value, least, space.value) : size.value,
+    size.value && space.value && space.value.width > 0 && space.value.height > 0
+      ? clampSize(size.value, least, space.value)
+      : size.value,
   );
   const style = computed(() =>
-    enabled() && shown.value ? { width: `${shown.value.width}px`, height: `${shown.value.height}px`, maxHeight: "none" } : undefined,
+    enabled() && shown.value
+      ? { width: `${shown.value.width}px`, height: `${shown.value.height}px`, maxHeight: "none" }
+      : undefined,
   );
   const sized = computed(() => enabled() && size.value !== null);
   /** The listeners of a handle (`v-on="handle"`); the key listener is the card's. */

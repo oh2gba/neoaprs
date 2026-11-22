@@ -17,7 +17,14 @@ import { homeFirst } from "@/lib/pathreach";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
-  defineProps<{ value: string; usual: string; check?: (path: string) => string; station?: string; disabled?: boolean; why?: string }>(),
+  defineProps<{
+    value: string;
+    usual: string;
+    check?: (path: string) => string;
+    station?: string;
+    disabled?: boolean;
+    why?: string;
+  }>(),
   {
     check: callsProblem,
     station: undefined,
@@ -34,7 +41,9 @@ const counts = (row: StationRow): boolean => {
   const heard = Object.keys(row.heard ?? {});
   return heard.length === 0 || heard.some((id) => radios.byId(Number(id))?.carriesPath ?? true);
 };
-const stations = computed(() => new Map([...(page?.stations.value ?? new Map<string, StationRow>())].filter(([, row]) => counts(row))));
+const stations = computed(
+  () => new Map([...(page?.stations.value ?? new Map<string, StationRow>())].filter(([, row]) => counts(row))),
+);
 const now = computed(() => page?.now.value ?? Date.now());
 const open = ref(false);
 const trigger = ref<InstanceType<typeof IconButton> | null>(null);

@@ -10,7 +10,8 @@ import { NOW, sked, skedsState } from "@/test/fixtures";
 // 12:00 to 13:00, on 3.5850 MHz USB (80 m, the first of the list).
 let daemon: FakeDaemon;
 beforeEach(() => (daemon = fakeDaemon({ skeds: skedsState() })));
-const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
+const sent = (cmd: string) =>
+  daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
 
 function form(state: Partial<SkedsState> = {}) {
   daemon.skeds.value = skedsState([], state);
@@ -84,7 +85,13 @@ describe("SkedCompose", () => {
     await wrapper.find("#sked-note").setValue("  Mercury, 10 W ");
     await wrapper.find("form").trigger("submit");
     expect(sent("sked_post")).toEqual([
-      { cmd: "sked_post", from: "2026-10-24T18:00:00Z", to: "2026-10-24T20:30:00Z", dial: "14.1070 MHz USB", note: "Mercury, 10 W" },
+      {
+        cmd: "sked_post",
+        from: "2026-10-24T18:00:00Z",
+        to: "2026-10-24T20:30:00Z",
+        dial: "14.1070 MHz USB",
+        note: "Mercury, 10 W",
+      },
     ]);
     expect(Object.keys(sent("sked_post")[0] ?? {})).not.toContain("call");
   });
@@ -190,10 +197,14 @@ describe("SkedCompose", () => {
       await wrapper.find("#sked-note").setValue("Mercury");
       await wrapper.find("form").trigger("submit");
       const [command] = sent("sked_post") as { from: string; to: string; dial: string }[];
-      await tell(daemon, { skeds: skedsState([sked("x", { ours: false, from: command?.from, to: command?.to, dial: command?.dial })]) });
+      await tell(daemon, {
+        skeds: skedsState([sked("x", { ours: false, from: command?.from, to: command?.to, dial: command?.dial })]),
+      });
       // somebody else's sked of the same times is not ours
       expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("Mercury");
-      await tell(daemon, { skeds: skedsState([sked("y", { ours: true, from: command?.from, to: command?.to, dial: command?.dial })]) });
+      await tell(daemon, {
+        skeds: skedsState([sked("y", { ours: true, from: command?.from, to: command?.to, dial: command?.dial })]),
+      });
       expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("");
     });
 
@@ -203,7 +214,9 @@ describe("SkedCompose", () => {
       await wrapper.find("form").trigger("submit");
       await wrapper.find("#sked-note").setValue("something else");
       const [command] = sent("sked_post") as { from: string; to: string; dial: string }[];
-      await tell(daemon, { skeds: skedsState([sked("y", { ours: true, from: command?.from, to: command?.to, dial: command?.dial })]) });
+      await tell(daemon, {
+        skeds: skedsState([sked("y", { ours: true, from: command?.from, to: command?.to, dial: command?.dial })]),
+      });
       expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("something else");
     });
   });

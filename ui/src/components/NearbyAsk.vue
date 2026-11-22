@@ -33,7 +33,9 @@ const { ticks, radios: on, error: tickError, tick } = useSendOn("ask", radios);
 const request = useRequestPath("ask");
 /** Whether the query has a path and RF only to set: some radio that is on may carry one (else no
  * fold), and one it goes on does (else greyed). */
-const routable = computed(() => allowsPath.value && (on.value.length === 0 || on.value.some((radio) => radio.carriesPath)));
+const routable = computed(
+  () => allowsPath.value && (on.value.length === 0 || on.value.some((radio) => radio.carriesPath)),
+);
 /** The path used when none is typed: the one the radios share; null while they differ. */
 const usual = computed(() => sharedPath(on.value));
 const refusal = ref("");
@@ -56,7 +58,10 @@ const why = computed(() => {
   const problem = routable.value ? request.problem.value : "";
   if (receiveOnly.value) return t("error.transmit.off");
   if (ticks.value.length > 0 && on.value.length === 0) return "";
-  return offline.value ?? (problem !== "" ? problem : wait.value > 0 ? t("nearby.ask_wait", { seconds: wait.value }) : undefined);
+  return (
+    offline.value ??
+    (problem !== "" ? problem : wait.value > 0 ? t("nearby.ask_wait", { seconds: wait.value }) : undefined)
+  );
 });
 /** The two lines; the first names the radios the latest query went on where radios are named. */
 const lines = computed(() => {
@@ -78,7 +83,14 @@ const asking = useCommandInFlight("general_query", () => general.value?.asked.at
 function ask(): void {
   if (why.value !== undefined) return;
   refusal.value = "";
-  asking.run(() => send({ cmd: "general_query", kind: kind.value, path: routable.value ? request.sent.value : null, rf_only: request.rfOnly.value }));
+  asking.run(() =>
+    send({
+      cmd: "general_query",
+      kind: kind.value,
+      path: routable.value ? request.sent.value : null,
+      rf_only: request.rfOnly.value,
+    }),
+  );
 }
 </script>
 
@@ -92,7 +104,9 @@ function ask(): void {
     </legend>
     <div class="ask-row">
       <select v-model="kind" class="input ask-kind" :aria-label="t('nearby.ask_kind_label')" :title="queryOf(kind)">
-        <option v-for="k in GENERAL_KINDS" :key="k" :value="k" :title="queryOf(k)">{{ t(`nearby.ask_kind.${k}`) }}</option>
+        <option v-for="k in GENERAL_KINDS" :key="k" :value="k" :title="queryOf(k)">
+          {{ t(`nearby.ask_kind.${k}`) }}
+        </option>
       </select>
       <button
         type="button"

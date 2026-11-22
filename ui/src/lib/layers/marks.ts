@@ -24,7 +24,11 @@ export const MARK_SIZE = 16;
 
 export const MARKS: Readonly<Record<MarkName, Mark>> = {
   /** the Layers button: three sheets one over the other */
-  layers: { d: "M8 2 L15 5.5 L8 9 L1 5.5 Z M1 8.5 L8 12 L15 8.5 M1 11.5 L8 15 L15 11.5", fill: false, token: "--map-control-ink" },
+  layers: {
+    d: "M8 2 L15 5.5 L8 9 L1 5.5 Z M1 8.5 L8 12 L15 8.5 M1 11.5 L8 15 L15 11.5",
+    fill: false,
+    token: "--map-control-ink",
+  },
   /** a track: a line that wanders */
   track: { d: "M1.5 12.5 C4 4 7.5 14 10 7 S13.5 3 14.5 4", fill: false, token: "--map-track" },
   /** the ALOHA circle: a dashed ring */
@@ -32,7 +36,11 @@ export const MARKS: Readonly<Record<MarkName, Mark>> = {
   /** the locator grid: two lines across two */
   grid: { d: "M5.5 1 V15 M10.5 1 V15 M1 5.5 H15 M1 10.5 H15", fill: false, token: "--map-label" },
   /** a ship: a hull seen from above, its bow ahead */
-  hull: { d: "M8 1 C10.5 3.5 11.5 6.5 11.5 9.5 L11.5 15 L4.5 15 L4.5 9.5 C4.5 6.5 5.5 3.5 8 1 Z", fill: true, token: "--map-layer" },
+  hull: {
+    d: "M8 1 C10.5 3.5 11.5 6.5 11.5 9.5 L11.5 15 L4.5 15 L4.5 9.5 C4.5 6.5 5.5 3.5 8 1 Z",
+    fill: true,
+    token: "--map-layer",
+  },
   /** a thing that gives no direction */
   diamond: { d: "M8 3.5 L12.5 8 L8 12.5 L3.5 8 Z", fill: true, token: "--map-layer" },
   ...aircraftMarks(),
@@ -40,7 +48,10 @@ export const MARKS: Readonly<Record<MarkName, Mark>> = {
 
 /** The aircraft's shapes as marks, filled in the layers' colour. */
 function aircraftMarks(): Record<AircraftShape, Mark> {
-  const entries = Object.entries(AIRCRAFT_SHAPES).map(([name, shape]) => [name, { d: shape.d, viewBox: shape.viewBox, fill: true, token: "--map-layer" }]);
+  const entries = Object.entries(AIRCRAFT_SHAPES).map(([name, shape]) => [
+    name,
+    { d: shape.d, viewBox: shape.viewBox, fill: true, token: "--map-layer" },
+  ]);
   return Object.fromEntries(entries) as Record<AircraftShape, Mark>;
 }
 

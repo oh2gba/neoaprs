@@ -119,7 +119,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.rf_only_title": "iGatet eivät vie näitä viestejä internetiin",
   "route.request_path_tip":
     "Kutsut tai aliakset pilkuilla erotettuina (OH2RDK-7,OH2RCH-2 tai WIDE1-1,WIDE2-1), DIRECT jos ei yhtään. Tyhjä on tavallinen polku.",
-  "route.request_rf_only_tip": "Lisää polkuun RFONLY: iGatet pitävät kyselyn poissa internetistä, ja vain kuuluvuusalueen asemat vastaavat.",
+  "route.request_rf_only_tip":
+    "Lisää polkuun RFONLY: iGatet pitävät kyselyn poissa internetistä, ja vain kuuluvuusalueen asemat vastaavat.",
   "pathbuilder.open": "Rakenna polku",
   "pathbuilder.title": "Polun rakentaja",
   "pathbuilder.cancel": "Peruuta",
@@ -129,7 +130,8 @@ export const messages: Record<keyof typeof source, Message> = {
     "WIDEn-N: n on pyydettyjen hyppyjen määrä, N jäljellä olevien. Jokainen toistava digipeateri vähentää N:ää yhdellä; nollassa se pysähtyy.",
   "pathbuilder.tip2":
     "WIDE1-1 on yksi hyppy millä tahansa digilla, myös kotidigilla. WIDE2-1 on yksi ja WIDE2-2 kaksi hyppyä, vain laajan alueen digien kautta.",
-  "pathbuilder.tip3": "Kaksi hyppyä yhteensä yltää lähes kaikkialla riittävän pitkälle; useampi vain ruuhkauttaa kanavaa, ja moni digipeateri katkaisee ne.",
+  "pathbuilder.tip3":
+    "Kaksi hyppyä yhteensä yltää lähes kaikkialla riittävän pitkälle; useampi vain ruuhkauttaa kanavaa, ja moni digipeateri katkaisee ne.",
   "pathbuilder.tip4": "Nimetty digipeateri (OH2RDK-7) on yksi hyppy täsmälleen sen kautta.",
   "pathbuilder.reach_direct": "Ei digipeateria: vain asemat, jotka kuulevat sinut",
   "pathbuilder.reach_title": { one: "{n} hyppy yhteensä: {path}", other: "{n} hyppyä yhteensä: {path}" },
@@ -145,15 +147,18 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.kind.any": "mikä tahansa digi",
   "pathbuilder.kind.wide": "laajan alueen digi",
   "pathbuilder.kind.none": "ei hyppyä",
-  "pathbuilder.node.any": "Hyppy {n}: mikä tahansa digipeateri, joka kuulee sen, kotidigi (täydentävä) tai laajan alueen digi",
+  "pathbuilder.node.any":
+    "Hyppy {n}: mikä tahansa digipeateri, joka kuulee sen, kotidigi (täydentävä) tai laajan alueen digi",
   "pathbuilder.node.wide": "Hyppy {n}: laajan alueen digipeateri; kotidigit (täydentävät) jättävät sen väliin",
   "pathbuilder.node.call": "Hyppy {n}: {call}, ei muuta digipeateria",
   "pathbuilder.node.alias": "Hyppy {n}: digipeaterit, jotka vastaavat aliakselle {alias}",
-  "pathbuilder.wide_part": "{alias}: n = {n} pyydettyä hyppyä, N = {left} jäljellä; jokainen digipeateri vähentää N:ää yhdellä",
+  "pathbuilder.wide_part":
+    "{alias}: n = {n} pyydettyä hyppyä, N = {left} jäljellä; jokainen digipeateri vähentää N:ää yhdellä",
   "pathbuilder.many": "{n} hyppyä: enemmän kuin useimpien verkkojen sallimat {most}",
   "pathbuilder.bad.shape": "{alias} ei ole polku: WIDEn-N:ssä n ja N ovat 1–7",
   "pathbuilder.bad.used_up": "{alias}: ei hyppyjä jäljellä, mikään digipeateri ei toista sitä",
-  "pathbuilder.bad.more_left": "{alias} ei ole polku: N ({left}) ei ole koskaan suurempi kuin n ({n}); kotidigipeaterit vastaavat vain WIDE1-1:een",
+  "pathbuilder.bad.more_left":
+    "{alias} ei ole polku: N ({left}) ei ole koskaan suurempi kuin n ({n}); kotidigipeaterit vastaavat vain WIDE1-1:een",
   "pathbuilder.as_it_comes": "Sellaisena kuin sen paketit tulevat",
   "pathbuilder.no_route": "Sen paketeille ei tunneta reittiä",
   "pathbuilder.hops_label": "Hypyt",
@@ -164,7 +169,10 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.add": "Lisää",
   "pathbuilder.heard": "Kuullut digipeaterit",
   "pathbuilder.next_to": "Vieressä: {call}",
-  "pathbuilder.seen_next": { one: "Vieressä {call}, {n} aseman reitillä", other: "Vieressä {call}, {n} aseman reiteillä" },
+  "pathbuilder.seen_next": {
+    one: "Vieressä {call}, {n} aseman reitillä",
+    other: "Vieressä {call}, {n} aseman reiteillä",
+  },
   "pathbuilder.add_hop": "Lisää {call}",
 
   "compose.tnc_not_connected": "Radio ei ole yhdistetty",

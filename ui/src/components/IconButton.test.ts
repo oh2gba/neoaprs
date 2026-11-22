@@ -33,7 +33,9 @@ describe("IconButton", () => {
   });
 
   it("has its own title when it is given one, and says sure? while it is armed", async () => {
-    const wrapper = mount(IconButton, { props: { kind: "delete", label: "Delete", title: "Delete (kill on the air)" } });
+    const wrapper = mount(IconButton, {
+      props: { kind: "delete", label: "Delete", title: "Delete (kill on the air)" },
+    });
     expect(wrapper.attributes("title")).toBe("Delete (kill on the air)");
     await wrapper.setProps({ armed: true });
     expect(shown(wrapper)).toBe("sure?");
@@ -43,7 +45,9 @@ describe("IconButton", () => {
   it("keeps its width when it is armed: the trash can and the word are in one place, the one not shown hidden, so the button is as wide as the wider", async () => {
     const wrapper = mount(IconButton, { props: { kind: "delete", label: "Delete" } });
     const faces = () =>
-      wrapper.findAll(".twowords > span").map((face) => [face.find("svg").exists() ? "can" : face.text(), face.classes().includes("twowords-off")]);
+      wrapper
+        .findAll(".twowords > span")
+        .map((face) => [face.find("svg").exists() ? "can" : face.text(), face.classes().includes("twowords-off")]);
     expect(faces()).toEqual([
       ["can", false],
       ["sure?", true],
@@ -53,7 +57,10 @@ describe("IconButton", () => {
       ["can", true],
       ["sure?", false],
     ]);
-    expect(wrapper.findAll(".twowords > span").map((face) => face.attributes("aria-hidden"))).toEqual(["true", "false"]);
+    expect(wrapper.findAll(".twowords > span").map((face) => face.attributes("aria-hidden"))).toEqual([
+      "true",
+      "false",
+    ]);
   });
 
   it("asks twice only as a delete: a cross, an envelope, a pin and a path are never two words", () => {

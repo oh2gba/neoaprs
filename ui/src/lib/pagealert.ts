@@ -39,7 +39,10 @@ export function scan(rows: Iterable<MessageRow>, mark: number | null): Scan {
   const all = [...rows];
   const top = all.reduce((most, row) => Math.max(most, row.id), 0);
   if (mark === null || (all.length > 0 && top < mark)) return { mark: top, fresh: [] };
-  return { mark: Math.max(top, mark), fresh: all.filter((row) => row.id > mark && isForUs(row)).sort((a, b) => a.id - b.id) };
+  return {
+    mark: Math.max(top, mark),
+    fresh: all.filter((row) => row.id > mark && isForUs(row)).sort((a, b) => a.id - b.id),
+  };
 }
 
 export function notificationTitle(from: string): string {

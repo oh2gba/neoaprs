@@ -356,7 +356,11 @@ export class Waterfall {
     const { context, l } = look;
     const { x, y, w, h } = l.curve;
     const yOf = (db: number): number =>
-      y + Math.round((1 - (Math.max(CURVE_DB[0], Math.min(CURVE_DB[1], db)) - CURVE_DB[0]) / (CURVE_DB[1] - CURVE_DB[0])) * (h - l.unit));
+      y +
+      Math.round(
+        (1 - (Math.max(CURVE_DB[0], Math.min(CURVE_DB[1], db)) - CURVE_DB[0]) / (CURVE_DB[1] - CURVE_DB[0])) *
+          (h - l.unit),
+      );
     context.fillStyle = look.ground;
     context.fillRect(x, y - l.unit, w, h + l.unit);
     context.fillStyle = look.grid;

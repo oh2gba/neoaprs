@@ -14,7 +14,8 @@ export const email: Readonly<Record<keyof typeof en, Message>> = {
   "email.check": "Controlla email",
   "email.checking": "Controllo già in corso",
   "email.about": "Sulle email",
-  "email.about_gateway": "La posta passa per il gateway internet EMAIL-2, quindi una mail può mostrare {unconfirmed} anche se è arrivata.",
+  "email.about_gateway":
+    "La posta passa per il gateway internet EMAIL-2, quindi una mail può mostrare {unconfirmed} anche se è arrivata.",
   "email.about_check": "{check} chiede al gateway la posta che ha tenuto per te (24 ore).",
 
   "email.field.to": "A",
@@ -33,7 +34,8 @@ export const email: Readonly<Record<keyof typeof en, Message>> = {
   "email.state.cancelled": "Annullata",
   "email.state.unconfirmed": "Non confermata",
   "email.state.too_long_for_radio": "Troppo lunga per la radio",
-  "email.not_confirmed": "inviata, non confermata: la conferma del gateway ti arriva solo tramite un iGate, quindi la email potrebbe essere partita lo stesso",
+  "email.not_confirmed":
+    "inviata, non confermata: la conferma del gateway ti arriva solo tramite un iGate, quindi la email potrebbe essere partita lo stesso",
 
   "email.date_time": "{day} {month} {time}",
 };

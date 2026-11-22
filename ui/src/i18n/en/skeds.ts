@@ -1,7 +1,8 @@
 // The HF tests tab (the keys say skeds): the board of tests planned on the air on HF, and the box to plan one. A test here is a planned test on the air between stations, not the Tune or Test of Settings.
 export const skeds = {
   "skeds.about_label": "About HF tests",
-  "skeds.about1": "For stations trying APRS on HF: say when you will be on the air and on which frequency, so that another station can test with you.",
+  "skeds.about1":
+    "For stations trying APRS on HF: say when you will be on the air and on which frequency, so that another station can test with you.",
   "skeds.about2": "The board is public, on neo.oh2gba.eu. It is not sent by radio.",
 
   "skeds.empty": "No tests planned.",

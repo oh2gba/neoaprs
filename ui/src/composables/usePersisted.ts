@@ -14,7 +14,11 @@ export function usePersisted<T extends string>(key: string, fallback: T, allowed
  * A yes or no stored as one of two words (`words`: yes, then no); anything else stored is
  * `fallback`.
  */
-export function usePersistedFlag(key: string, words: readonly [yes: string, no: string], fallback: boolean): WritableComputedRef<boolean> {
+export function usePersistedFlag(
+  key: string,
+  words: readonly [yes: string, no: string],
+  fallback: boolean,
+): WritableComputedRef<boolean> {
   const [yes, no] = words;
   const stored = usePersisted(key, fallback ? yes : no, words);
   return computed({ get: () => stored.value === yes, set: (value: boolean) => (stored.value = value ? yes : no) });

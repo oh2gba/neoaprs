@@ -22,7 +22,9 @@ const NAMES = new Set(
 const FUNCTION_WORDS = new Set(
   `the a an is are was were be been being no not there with from your you this that these those and or but for when until again cannot can't could has have had will
   would only more less about after before each every which what where who how it its of to in on at by as if then than so do does did don't isn't doesn't won't any
-  some all here one it's into out up over off yet still just also too very own same other such our their they we he she his her`.split(/\s+/),
+  some all here one it's into out up over off yet still just also too very own same other such our their they we he she his her`.split(
+    /\s+/,
+  ),
 );
 
 /** Words of a language spelt as English words, which the count above does not find because the English of the same texts has them too. */
@@ -49,7 +51,8 @@ const ALLOWED: Record<string, Record<string, string>> = {
     "settings.about.license_link": "the name of the licence, GNU General Public License, which is not translated",
   },
   ja: {
-    "settings.comment.tip2": "an example of a comment, which has to be printable ASCII: a Japanese operator writes it in English",
+    "settings.comment.tip2":
+      "an example of a comment, which has to be printable ASCII: a Japanese operator writes it in English",
   },
 };
 
@@ -60,7 +63,9 @@ const ASCII_WORD = /^[A-Za-z][A-Za-z'’-]*$/;
 
 const low = (w: string): string => w.toLowerCase().replace(/’/g, "'");
 const tokens = (text: string): string[] =>
-  (text.replace(PLACEHOLDER, " ¤ ").replace(ADDRESS, " ¤ ").match(TOKEN) ?? []).map((t) => t.replace(/^[.-]+|[.-]+$/g, "") || t);
+  (text.replace(PLACEHOLDER, " ¤ ").replace(ADDRESS, " ¤ ").match(TOKEN) ?? []).map(
+    (t) => t.replace(/^[.-]+|[.-]+$/g, "") || t,
+  );
 const all = (m: Message | undefined): string[] => (m === undefined ? [] : texts(m));
 const isName = (w: string): boolean => NAMES.has(low(w)) || /^[A-Z0-9/-]+$/.test(w) || /\d/.test(w);
 
@@ -88,7 +93,8 @@ function englishRuns(text: string, own: Set<string>): string[] {
   let run: { kind: "name" | "word" | "function"; word: string }[] = [];
   const end = (): void => {
     const words = run.filter((r) => r.kind !== "name");
-    if (words.length >= 2 || (words.length >= 1 && run.length >= 2 && run.some((r) => r.kind === "function"))) runs.push(run.map((r) => r.word).join(" "));
+    if (words.length >= 2 || (words.length >= 1 && run.length >= 2 && run.some((r) => r.kind === "function")))
+      runs.push(run.map((r) => r.word).join(" "));
     run = [];
   };
   for (const tok of tokens(text)) {
@@ -106,7 +112,10 @@ function englishRuns(text: string, own: Set<string>): string[] {
 for (const locale of LOCALES.filter((l) => l.code !== SOURCE)) {
   const messages = locale.messages as Record<string, Message>;
   const allowed = { ...ALLOWED["*"], ...ALLOWED[locale.code] };
-  const own = new Set([...(locale.code === "ja" ? [] : ownWords(messages)), ...(OWN_WORDS[locale.code] ?? "").split(" ").filter(Boolean)]);
+  const own = new Set([
+    ...(locale.code === "ja" ? [] : ownWords(messages)),
+    ...(OWN_WORDS[locale.code] ?? "").split(" ").filter(Boolean),
+  ]);
 
   describe(`the texts of ${locale.name}`, () => {
     it("have no English in them", () => {
@@ -116,17 +125,26 @@ for (const locale of LOCALES.filter((l) => l.code !== SOURCE)) {
           const runs = all(m).flatMap((t) => englishRuns(t, own));
           return runs.length > 0 ? [`${id}: ${runs.join(" / ")}`] : [];
         });
-      expect(mixed, "English inside a translated text: translate it (a label by the language's own text of it), or allow it here with the reason").toEqual([]);
+      expect(
+        mixed,
+        "English inside a translated text: translate it (a label by the language's own text of it), or allow it here with the reason",
+      ).toEqual([]);
     });
 
     it("allow only texts that are there and still have the English the allowance is for", () => {
-      const stale = Object.keys(ALLOWED[locale.code] ?? {}).filter((id) => all(messages[id]).flatMap((t) => englishRuns(t, own)).length === 0);
+      const stale = Object.keys(ALLOWED[locale.code] ?? {}).filter(
+        (id) => all(messages[id]).flatMap((t) => englishRuns(t, own)).length === 0,
+      );
       expect(stale).toEqual([]);
     });
 
     it("name the Dir column's values in the Packets info line by the column's own words", () => {
       const line = all(messages["packets.about1"]).join(" ");
-      expect([all(messages["packets.dir.in"])[0] ?? "", all(messages["packets.dir.out"])[0] ?? ""].filter((word) => !line.includes(word))).toEqual([]);
+      expect(
+        [all(messages["packets.dir.in"])[0] ?? "", all(messages["packets.dir.out"])[0] ?? ""].filter(
+          (word) => !line.includes(word),
+        ),
+      ).toEqual([]);
     });
 
     it("give the symbol search examples that find a symbol by its name in the language", () => {

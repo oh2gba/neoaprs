@@ -76,7 +76,11 @@ describe("messages: conversations", () => {
   });
 
   it("leaves the email gateway out, with its unread messages, whichever way its messages went", () => {
-    const withMail = [...rows, message(7, { to_call: "EMAIL-2", text: "me hello" }), incoming(8, "EMAIL-2", { text: "ok" })];
+    const withMail = [
+      ...rows,
+      message(7, { to_call: "EMAIL-2", text: "me hello" }),
+      incoming(8, "EMAIL-2", { text: "ok" }),
+    ];
     const list = conversations(withMail, none);
     expect(list.map((c) => c.call)).toEqual(["OH2RDG-7", "OH2RDG", "OH2XYZ"]);
     expect(unreadTotal(list)).toBe(unreadTotal(conversations(rows, none)));
@@ -91,13 +95,23 @@ describe("messages: conversations", () => {
 
 describe("messages: a thread", () => {
   it("is the messages with one station, both ways, the oldest first", () => {
-    const rows = [incoming(5, "OH2RDG"), message(2, { to_call: "OH2RDG" }), incoming(3, "OH2XYZ"), message(9, { to_call: "OH2RDG" })];
+    const rows = [
+      incoming(5, "OH2RDG"),
+      message(2, { to_call: "OH2RDG" }),
+      incoming(3, "OH2XYZ"),
+      message(9, { to_call: "OH2RDG" }),
+    ];
     expect(threadOf(rows, "OH2RDG").map((r) => r.id)).toEqual([2, 5, 9]);
     expect(threadOf(rows, "NOBODY")).toEqual([]);
   });
 
   it("counts the messages of a thread that came in after the newest one seen", () => {
-    const thread = [message(1, { to_call: "EMAIL-2" }), incoming(2, "EMAIL-2"), incoming(3, "EMAIL-2"), incoming(4, "EMAIL-2")];
+    const thread = [
+      message(1, { to_call: "EMAIL-2" }),
+      incoming(2, "EMAIL-2"),
+      incoming(3, "EMAIL-2"),
+      incoming(4, "EMAIL-2"),
+    ];
     expect(threadUnread(thread, 0)).toBe(3);
     expect(threadUnread(thread, 3)).toBe(1);
     expect(threadUnread(thread, 4)).toBe(0);
@@ -139,7 +153,12 @@ describe("messages: the compose box", () => {
   });
 
   it("knows the email gateway however it is typed, and never sends to it from here", () => {
-    expect([isGateway("EMAIL-2"), isGateway(" email-2 "), isGateway("EMAIL"), isGateway("EMAIL-3")]).toEqual([true, true, false, false]);
+    expect([isGateway("EMAIL-2"), isGateway(" email-2 "), isGateway("EMAIL"), isGateway("EMAIL-3")]).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
   });
 });
 
@@ -159,8 +178,12 @@ describe("messages: the state", () => {
   });
 
   it("tells a failed message by its reason when it has one, in place of the attempts", () => {
-    expect(stateText(message(1, { state: "failed", attempts: 0, failure: "too_long_for_radio" }))).toBe("too long for the radio");
-    expect(stateText(message(1, { state: "failed", attempts: 1, failure: "too_long_for_radio" }))).toBe("too long for the radio");
+    expect(stateText(message(1, { state: "failed", attempts: 0, failure: "too_long_for_radio" }))).toBe(
+      "too long for the radio",
+    );
+    expect(stateText(message(1, { state: "failed", attempts: 1, failure: "too_long_for_radio" }))).toBe(
+      "too long for the radio",
+    );
     expect(stateText(message(1, { state: "failed", attempts: 4, failure: null }))).toBe("no answer after 4 attempts");
   });
 
@@ -169,25 +192,39 @@ describe("messages: the state", () => {
   });
 
   it("offers Cancel and not Retry for a queued message: the daemon stops it as it does one being sent", () => {
-    expect([canRetry(message(2, { state: "queued" })), canCancel(message(2, { state: "queued" })), canDelete(message(2, { state: "queued" }))]).toEqual([
-      false,
-      true,
-      false,
-    ]);
+    expect([
+      canRetry(message(2, { state: "queued" })),
+      canCancel(message(2, { state: "queued" })),
+      canDelete(message(2, { state: "queued" })),
+    ]).toEqual([false, true, false]);
   });
 
   it("offers Retry for a message that did not get through and Cancel for one being sent", () => {
     for (const state of ["failed", "unconfirmed", "rejected", "cancelled"] as const) {
       expect([canRetry(message(1, { state })), canCancel(message(1, { state }))]).toEqual([true, false]);
     }
-    expect([canRetry(message(1, { state: "sending" })), canCancel(message(1, { state: "sending" }))]).toEqual([false, true]);
-    expect([canRetry(message(1, { state: "acked" })), canCancel(message(1, { state: "acked" }))]).toEqual([false, false]);
+    expect([canRetry(message(1, { state: "sending" })), canCancel(message(1, { state: "sending" }))]).toEqual([
+      false,
+      true,
+    ]);
+    expect([canRetry(message(1, { state: "acked" })), canCancel(message(1, { state: "acked" }))]).toEqual([
+      false,
+      false,
+    ]);
     expect([canRetry(incoming(1, "A")), canCancel(incoming(1, "A"))]).toEqual([false, false]);
   });
 });
 
 describe("messages: overheard", () => {
-  const heard = message(9, { direction: "in", state: "overheard", from_call: "OH2AAA", to_call: "OH2BBB", attempts: 0, last_attempt_at: null, at: ago(100) });
+  const heard = message(9, {
+    direction: "in",
+    state: "overheard",
+    from_call: "OH2AAA",
+    to_call: "OH2BBB",
+    attempts: 0,
+    last_attempt_at: null,
+    at: ago(100),
+  });
 
   it("belongs to the pair of stations, and is a conversation only when asked for", () => {
     expect(peerOf(heard)).toBe("OH2AAA>OH2BBB");
@@ -226,14 +263,23 @@ describe("messages: the path of a station", () => {
 
 describe("messages: the mark", () => {
   it("is a clock while a message of ours is being sent, and its title says which attempt", () => {
-    expect(markOf(message(1, { state: "sending", attempts: 3, attempts_max: 6 }))).toEqual({ kind: "clock", title: "attempt 3 of 6" });
+    expect(markOf(message(1, { state: "sending", attempts: 3, attempts_max: 6 }))).toEqual({
+      kind: "clock",
+      title: "attempt 3 of 6",
+    });
     expect(markOf(message(1, { state: "sending", attempts: 2, attempts_max: 10 }))?.title).toBe("attempt 2 of 10");
-    expect(markOf(message(1, { state: "sending", attempts: 0 }))).toEqual({ kind: "clock", title: "waiting for the radio" });
+    expect(markOf(message(1, { state: "sending", attempts: 0 }))).toEqual({
+      kind: "clock",
+      title: "waiting for the radio",
+    });
     expect(attemptText(message(1, { attempts: 1, attempts_max: 3 }))).toBe("attempt 1 of 3");
   });
 
   it("is a clock for a queued message too, its title saying that it waits for the message before", () => {
-    expect(markOf(message(2, { state: "queued", attempts: 0 }))).toEqual({ kind: "clock", title: "waits for the message before" });
+    expect(markOf(message(2, { state: "queued", attempts: 0 }))).toEqual({
+      kind: "clock",
+      title: "waits for the message before",
+    });
   });
 
   it("is a check once acked, with the time of the ack for the title", () => {
@@ -250,7 +296,10 @@ describe("messages: the mark", () => {
   });
 
   it("is a hollow check for a message that was sent and whose ack is not expected", () => {
-    expect(markOf(message(1, { state: "unconfirmed", attempts: 2, attempts_max: 2 }))).toEqual({ kind: "hollow", title: "sent, no ack expected" });
+    expect(markOf(message(1, { state: "unconfirmed", attempts: 2, attempts_max: 2 }))).toEqual({
+      kind: "hollow",
+      title: "sent, no ack expected",
+    });
   });
 
   it("is none on a message that came in or was overheard", () => {

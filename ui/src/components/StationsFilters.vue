@@ -19,9 +19,15 @@ const { stations, settings } = useDaemonContext();
 
 const internetKnown = computed(() => anyInternet(stations.value.values()));
 const hours = computed(() =>
-  String(stationHours({ [STATION_HOURS_KEY]: settings.draft[STATION_HOURS_KEY] ?? settings.values.value[STATION_HOURS_KEY] ?? "" })),
+  String(
+    stationHours({
+      [STATION_HOURS_KEY]: settings.draft[STATION_HOURS_KEY] ?? settings.values.value[STATION_HOURS_KEY] ?? "",
+    }),
+  ),
 );
-const hourChoices = computed(() => (FIELDS[STATION_HOURS_KEY]?.choices ?? []).map((c) => (typeof c === "string" ? { value: c, label: c } : c)));
+const hourChoices = computed(() =>
+  (FIELDS[STATION_HOURS_KEY]?.choices ?? []).map((c) => (typeof c === "string" ? { value: c, label: c } : c)),
+);
 function chooseHours(event: Event): void {
   settings.change({ [STATION_HOURS_KEY]: (event.target as HTMLSelectElement).value });
 }
@@ -47,7 +53,9 @@ function clearFilter(event: KeyboardEvent): void {
         @keydown.esc="clearFilter"
       />
       <div class="toolbar-checks">
-        <label class="check"><input v-model="hideTimedOut" type="checkbox" /> {{ t("station.table.hide_timed_out") }}</label>
+        <label class="check"
+          ><input v-model="hideTimedOut" type="checkbox" /> {{ t("station.table.hide_timed_out") }}</label
+        >
         <label class="check"><input v-model="directOnly" type="checkbox" /> {{ t("station.table.direct_only") }}</label>
         <label v-if="internetKnown" class="check" :title="t('station.table.rf_only_title')"
           ><input v-model="rfOnly" type="checkbox" /> {{ t("station.table.rf_only") }}</label

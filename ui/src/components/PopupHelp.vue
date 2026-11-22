@@ -55,7 +55,11 @@ function reload(): void {
       <DisclosureBox :title="t('help.popup.remove_warning')"><HttpsGuide :https="https" :link="false" /></DisclosureBox>
     </template>
 
-    <component :is="secure ? DisclosureBox : 'div'" class="popuphelp-http" v-bind="secure ? { title: t('help.popup.keep_http') } : {}">
+    <component
+      :is="secure ? DisclosureBox : 'div'"
+      class="popuphelp-http"
+      v-bind="secure ? { title: t('help.popup.keep_http') } : {}"
+    >
       <ol v-if="kind === 'firefox'" class="popuphelp-steps">
         <li>
           <RichMessage id="help.popup.firefox1"
@@ -107,7 +111,12 @@ function reload(): void {
       <p v-else-if="kind === 'phone'" class="popuphelp-plain">{{ t("help.popup.phone") }}</p>
       <p v-else class="popuphelp-plain">{{ t("help.popup.other") }}</p>
 
-      <DisclosureBox v-if="kind === 'firefox' && onLinuxDesktop(userAgent)" plain class="popuphelp-more" :title="t('help.popup.still')">
+      <DisclosureBox
+        v-if="kind === 'firefox' && onLinuxDesktop(userAgent)"
+        plain
+        class="popuphelp-more"
+        :title="t('help.popup.still')"
+      >
         <p class="popuphelp-plain">{{ t("help.popup.flatpak") }}</p>
         <CopyField v-for="command in FLATPAK_COMMANDS" :key="command" :text="command" />
       </DisclosureBox>

@@ -41,7 +41,10 @@ const props = (extra = {}) => ({
   ...extra,
 });
 const markerOf = (call: string) => FakeMarker.live().find((m) => m.element.textContent === call);
-const lastData = () => FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string; opacity: number } }[] };
+const lastData = () =>
+  FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as {
+    features: { properties: { call: string; opacity: number } }[];
+  };
 
 async function mounted(extra = {}) {
   const { wrapper } = mountStationMap(props(extra));
@@ -82,7 +85,14 @@ describe("StationMap", () => {
       table(
         station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_code: "-" }),
         station("OH2PU-9", { lat: 60.2, lon: 24.65 }),
-        station("LEADER", { kind: "object", own: true, reported_by: "OH2GBA", lat: 60.3, lon: 25.0, last_position_at: ago(5 * 86400) }),
+        station("LEADER", {
+          kind: "object",
+          own: true,
+          reported_by: "OH2GBA",
+          lat: 60.3,
+          lon: 25.0,
+          last_position_at: ago(5 * 86400),
+        }),
       );
 
     it("has a marker that can be dragged, marked as ours, and no other marker can", async () => {
@@ -107,7 +117,10 @@ describe("StationMap", () => {
     it("stops being draggable when it is no longer ours (another station took the name)", async () => {
       const wrapper = await mounted({ stations: withOurs() });
       const taken = withOurs();
-      taken.set("LEADER", station("LEADER", { kind: "object", own: false, reported_by: "OH2XYZ", lat: 60.3, lon: 25.0 }));
+      taken.set(
+        "LEADER",
+        station("LEADER", { kind: "object", own: false, reported_by: "OH2XYZ", lat: 60.3, lon: 25.0 }),
+      );
       await wrapper.setProps({ stations: taken });
       expect(markerOf("LEADER")?.draggable).toBe(false);
     });
@@ -214,7 +227,9 @@ describe("StationMap", () => {
       [24.65, 60.2],
     ]);
     expect(points().map((f) => f.properties.call)).toEqual(["OH2PU-9", "OH2PU-9"]);
-    expect(lastData().features.find((f) => f.properties.call === "OH2PU-9")).toMatchObject({ properties: { selected: 1 } });
+    expect(lastData().features.find((f) => f.properties.call === "OH2PU-9")).toMatchObject({
+      properties: { selected: 1 },
+    });
   });
 
   it("draws the tracks again once a minute and when a station changes, not at every tick of the clock", async () => {
@@ -395,7 +410,8 @@ describe("StationMap", () => {
     const { stations, home, now, dark, aging, ...own } = props({ picking: true });
     const wrapper = mount(
       defineComponent({
-        render: () => h(StationMap, { ...own, pin: pin.value, onPick: (at: { lat: number; lon: number }) => (pin.value = at) }),
+        render: () =>
+          h(StationMap, { ...own, pin: pin.value, onPick: (at: { lat: number; lon: number }) => (pin.value = at) }),
       }),
       { global: withDaemon(fakeDaemon({ stations, home, now, dark, aging })), attachTo: document.body },
     );

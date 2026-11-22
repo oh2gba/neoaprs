@@ -79,7 +79,8 @@ function times(status: StatusMessage, radios: readonly BeaconRadio[]): { last: s
 }
 
 /** Whether the timer will send a beacon: the interval is not 0 and a next time is known. */
-const timed = (status: StatusMessage, radios: readonly BeaconRadio[]): boolean => status.beacon_interval_min > 0 && times(status, radios).next !== null;
+const timed = (status: StatusMessage, radios: readonly BeaconRadio[]): boolean =>
+  status.beacon_interval_min > 0 && times(status, radios).next !== null;
 
 /**
  * The line of a fixed station: last beacon and timer (the interval is the shortest of the radios).
@@ -103,14 +104,18 @@ function radioLine(beacon: RadioBeaconState, nowMs: number, smart: boolean): str
   if (minutes > 0 && next !== null) {
     const when = untilText(next, nowMs);
     if (smart) return last === null ? t("beacon.fold.timed_none", { when }) : t("beacon.fold.timed", { ago, when });
-    return last === null ? t("beacon.fold.timed_none_every", { when, minutes }) : t("beacon.fold.timed_every", { ago, when, minutes });
+    return last === null
+      ? t("beacon.fold.timed_none_every", { when, minutes })
+      : t("beacon.fold.timed_every", { ago, when, minutes });
   }
   return last === null ? t("beacon.fold.untimed_none") : t("beacon.fold.untimed", { ago });
 }
 
 /** The per-radio lines; with `moving`, radios with SmartBeaconing follow the GPS. */
 const radioLines = (radios: readonly BeaconRadio[], nowMs: number, moving = false): string[] =>
-  radios.map((radio) => t("radio.line", { name: radio.name, line: radioLine(radio.beacon, nowMs, moving && radio.smart) }));
+  radios.map((radio) =>
+    t("radio.line", { name: radio.name, line: radioLine(radio.beacon, nowMs, moving && radio.smart) }),
+  );
 
 /**
  * The block of a moving station: the GPS, then SmartBeaconing's words or `quiet` (why nothing is
@@ -229,7 +234,11 @@ export interface SendOnTick {
  * One Send on tick per enabled radio, in box order. `ticked` says whether a radio's tick is set as
  * it is being edited. If none is ticked, no tick is ticked or greyed.
  */
-export function sendOnTicks(enabled: readonly PageRadio[], ticked: (key: string, radio: PageRadio) => boolean, field: SendOnField = "beacon"): SendOnTick[] {
+export function sendOnTicks(
+  enabled: readonly PageRadio[],
+  ticked: (key: string, radio: PageRadio) => boolean,
+  field: SendOnField = "beacon",
+): SendOnTick[] {
   const ticks = enabled.map((radio) => {
     const key = radioKey(radio.id, field);
     return { id: radio.id, key, name: radio.name, on: ticked(key, radio), last: false };
@@ -256,6 +265,9 @@ export function pathRows(enabled: readonly PageRadio[]): PathRow[] {
 }
 
 /** A radio's own setting in force: from the settings' values, else `config.radio_values`. */
-export function radioValueOf(config: Pick<ConfigValues, "values" | "radio_values"> | null, key: string): string | undefined {
+export function radioValueOf(
+  config: Pick<ConfigValues, "values" | "radio_values"> | null,
+  key: string,
+): string | undefined {
   return config?.values[key] ?? config?.radio_values[key];
 }

@@ -11,7 +11,12 @@ onMounted(() => cancel.value?.focus());
 </script>
 
 <template>
-  <div class="confirm-row" role="alertdialog" :aria-label="t('settings.confirm.label')" @keydown.esc.stop="emit('cancel')">
+  <div
+    class="confirm-row"
+    role="alertdialog"
+    :aria-label="t('settings.confirm.label')"
+    @keydown.esc.stop="emit('cancel')"
+  >
     <span>{{ message }}</span>
     <button class="btn danger" type="button" @click="emit('yes')">{{ t("settings.confirm.yes") }}</button>
     <button ref="cancel" class="btn" type="button" @click="emit('cancel')">{{ t("settings.confirm.cancel") }}</button>

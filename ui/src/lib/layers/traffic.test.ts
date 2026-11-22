@@ -28,7 +28,11 @@ describe("traffic: what is young enough to be drawn", () => {
   });
 
   it("drops an aircraft of the own receiver at a minute and one of a service at a minute and a half, between two tables", () => {
-    const things = [aircraft({ id: "a", at: ago(30) }), aircraft({ id: "b", at: ago(70) }), aircraft({ id: "c", at: ago(100) })];
+    const things = [
+      aircraft({ id: "a", at: ago(30) }),
+      aircraft({ id: "b", at: ago(70) }),
+      aircraft({ id: "c", at: ago(100) }),
+    ];
     expect(ids(liveThings(layerThings("aircraft", things, { source: "receiver" }), NOW))).toEqual(["a"]);
     expect(ids(liveThings(layerThings("aircraft", things, { source: "adsbfi" }), NOW))).toEqual(["a", "b"]);
   });
@@ -56,18 +60,28 @@ describe("traffic: the map's features", () => {
           aircraft({ id: "b", heading_deg: null }),
           aircraft({ id: "c", emergency: true, at: ago(0) }),
         ]),
-        layerThings("ships", [ship({ id: "s", heading_deg: 182 }), ship({ id: "t", heading_deg: null })], { source: "fintraffic" }),
+        layerThings("ships", [ship({ id: "s", heading_deg: 182 }), ship({ id: "t", heading_deg: null })], {
+          source: "fintraffic",
+        }),
       ],
       Date.parse("2026-10-21T12:00:00Z"),
     );
     const byId = new Map(data.features.map((feature) => [feature.properties.id, feature.properties]));
-    expect(byId.get("a")).toMatchObject({ icon: "traffic-airliner", rotate: 225, layer: "aircraft", key: "aircraft:a", rank: 0 });
+    expect(byId.get("a")).toMatchObject({
+      icon: "traffic-airliner",
+      rotate: 225,
+      layer: "aircraft",
+      key: "aircraft:a",
+      rank: 0,
+    });
     expect(byId.get("b")).toMatchObject({ icon: "traffic-diamond", rotate: 0 });
     expect(byId.get("c")).toMatchObject({ icon: "traffic-airliner-bad", rank: 1 });
     expect(byId.get("s")).toMatchObject({ icon: "traffic-hull", rotate: 182, layer: "ships", key: "ships:s" });
     expect(byId.get("t")).toMatchObject({ icon: "traffic-diamond" });
     expect([...byId.values()].map((one) => one.side)).toEqual([26, 16, 26, 16, 16]);
-    expect(data.features.find((feature) => feature.properties.id === "a")?.geometry.coordinates).toEqual([24.9633, 60.3172]);
+    expect(data.features.find((feature) => feature.properties.id === "a")?.geometry.coordinates).toEqual([
+      24.9633, 60.3172,
+    ]);
   });
 
   it("draws each aircraft by its kind: a helicopter, a glider, a heavy with four engines, one of which nothing is known", () => {
@@ -82,7 +96,9 @@ describe("traffic: the map's features", () => {
       ],
       NOW,
     );
-    expect(data.features.map((feature) => [feature.properties.id, feature.properties.icon, feature.properties.rotate])).toEqual([
+    expect(
+      data.features.map((feature) => [feature.properties.id, feature.properties.icon, feature.properties.rotate]),
+    ).toEqual([
       ["h", "traffic-helicopter", 90],
       ["g", "traffic-glider", 10],
       ["4", "traffic-heavy4", 300],
@@ -101,7 +117,9 @@ describe("traffic: the map's features", () => {
       ],
       NOW,
     );
-    expect(data.features.map((feature) => [feature.properties.id, feature.properties.icon, feature.properties.rotate])).toEqual([
+    expect(
+      data.features.map((feature) => [feature.properties.id, feature.properties.icon, feature.properties.rotate]),
+    ).toEqual([
       ["b", "traffic-balloon", 0],
       ["still", "traffic-balloon", 0],
       ["h", "traffic-diamond", 0],
@@ -134,10 +152,18 @@ describe("traffic: the map's features", () => {
 
   it("gives each thing its name and the opacity of its age, and leaves out what is too old", () => {
     const data = trafficFeatures(
-      [layerThings("aircraft", [aircraft({ id: "new", at: ago(5) }), aircraft({ id: "older", at: ago(40) }), aircraft({ id: "gone", at: ago(61) })])],
+      [
+        layerThings("aircraft", [
+          aircraft({ id: "new", at: ago(5) }),
+          aircraft({ id: "older", at: ago(40) }),
+          aircraft({ id: "gone", at: ago(61) }),
+        ]),
+      ],
       NOW,
     );
-    expect(data.features.map((feature) => [feature.properties.id, feature.properties.opacity, feature.properties.name])).toEqual([
+    expect(
+      data.features.map((feature) => [feature.properties.id, feature.properties.opacity, feature.properties.name]),
+    ).toEqual([
       ["new", 1, "FIN7AB"],
       ["older", 0.6, "FIN7AB"],
     ]);

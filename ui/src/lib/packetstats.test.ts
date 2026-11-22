@@ -4,7 +4,10 @@ import { pageRadios } from "@/lib/radios";
 import type { PacketStatsMessage } from "@/protocol/protocol";
 import { radioRow, radiosTopic } from "@/test/fixtures";
 
-const RADIOS = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { name: "Shack", number: 2 })), null);
+const RADIOS = pageRadios(
+  radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { name: "Shack", number: 2 })),
+  null,
+);
 
 /**
  * An answer of `hours` hours from midnight UTC: FM 2 an hour, Mercury 1 (5 in the running hour),
@@ -59,7 +62,9 @@ describe("the statistics card's counts from the packet log", () => {
   });
 
   it("names each radio with what it heard and sent that day, and the copies that came again by another way", () => {
-    const lines = channelLines(answer(24), RADIOS, true).map((line) => `${String(line.params?.name ?? line.label)}=${line.value}`);
+    const lines = channelLines(answer(24), RADIOS, true).map(
+      (line) => `${String(line.params?.name ?? line.label)}=${line.value}`,
+    );
     expect(lines).toEqual([
       "FM=48 heard · 17 sent",
       "Mercury=28 heard · 0 sent",
@@ -67,7 +72,13 @@ describe("the statistics card's counts from the packet log", () => {
       "Internet=240 heard",
       "stats.copies=6 copies of 40 packets",
     ]);
-    expect(channelLines(answer(24), RADIOS, true).map((line) => line.key)).toEqual(["radio-1", "radio-2", "radio-3", "is", undefined]);
+    expect(channelLines(answer(24), RADIOS, true).map((line) => line.key)).toEqual([
+      "radio-1",
+      "radio-2",
+      "radio-3",
+      "is",
+      undefined,
+    ]);
   });
 
   it("adds up what we sent ourselves by kind, every kind, 0 for one we sent none of and a dash before the answer", () => {
@@ -83,31 +94,61 @@ describe("the statistics card's counts from the packet log", () => {
 
   it("gives each radio the colour of its place among the radios, which stays when another radio starts to hear", () => {
     const silentFm = answer(24, { heard: [{ radio: 2, counts: Array.from({ length: 24 }, () => 1) }] });
-    const tones = (stats: PacketStatsMessage) => Object.fromEntries(chartOf(stats, RADIOS).parts.map((part) => [part.label, part.tone]));
+    const tones = (stats: PacketStatsMessage) =>
+      Object.fromEntries(chartOf(stats, RADIOS).parts.map((part) => [part.label, part.tone]));
     expect(tones(silentFm)).toEqual({ Mercury: "series-1" });
     expect(tones(answer(24))).toMatchObject({ FM: "series-0", Mercury: "series-1" });
-    expect(channelLines(silentFm, RADIOS, false).map((line) => line.tone)).toEqual(["series-0", "series-1", "series-2", undefined]);
+    expect(channelLines(silentFm, RADIOS, false).map((line) => line.tone)).toEqual([
+      "series-0",
+      "series-1",
+      "series-2",
+      undefined,
+    ]);
   });
 
   it("keeps the lines of the radios that are on and of the internet while its link is on, with a dash before the answer, so that the card keeps its shape", () => {
     const before = channelLines(null, RADIOS, true);
     const after = channelLines(answer(24, { heard: [], sent: [] }), RADIOS, true);
     expect(before.map((line) => line.key ?? line.label)).toEqual(after.map((line) => line.key ?? line.label));
-    expect(before.map((line) => line.value)).toEqual(["– heard · – sent", "– heard · – sent", "– heard · – sent", "– heard", "–"]);
-    expect(after.map((line) => line.value)).toEqual(["0 heard · 0 sent", "0 heard · 0 sent", "0 heard · 0 sent", "0 heard", "6 copies of 40 packets"]);
+    expect(before.map((line) => line.value)).toEqual([
+      "– heard · – sent",
+      "– heard · – sent",
+      "– heard · – sent",
+      "– heard",
+      "–",
+    ]);
+    expect(after.map((line) => line.value)).toEqual([
+      "0 heard · 0 sent",
+      "0 heard · 0 sent",
+      "0 heard · 0 sent",
+      "0 heard",
+      "6 copies of 40 packets",
+    ]);
     expect(channelLines(answer(24, { heard: [] }), RADIOS, false).some((line) => line.key === "is")).toBe(false);
-    const off = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })), null);
-    expect(channelLines(answer(24, { heard: [], sent: [] }), off, false).map((line) => line.key)).toEqual(["radio-1", undefined]);
-    expect(channelLines(answer(24, { sent: [] }), off, false).map((line) => line.key)).toEqual(["radio-1", "radio-2", "is", undefined]);
+    const off = pageRadios(
+      radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })),
+      null,
+    );
+    expect(channelLines(answer(24, { heard: [], sent: [] }), off, false).map((line) => line.key)).toEqual([
+      "radio-1",
+      undefined,
+    ]);
+    expect(channelLines(answer(24, { sent: [] }), off, false).map((line) => line.key)).toEqual([
+      "radio-1",
+      "radio-2",
+      "is",
+      undefined,
+    ]);
   });
 
   it("says what went through us in the last hour and since the start, the iGate only while it is on", () => {
-    expect(throughLines(answer(24), { repeated: 30, gated: 100, digipeater: false }).map((line) => line.value)).toEqual([
-      "2 in the last hour · 30 since the start",
-      "5 in the last hour · 100 since the start",
-    ]);
+    expect(throughLines(answer(24), { repeated: 30, gated: 100, digipeater: false }).map((line) => line.value)).toEqual(
+      ["2 in the last hour · 30 since the start", "5 in the last hour · 100 since the start"],
+    );
     expect(throughLines(answer(24, { repeated_hour: 0 }), { repeated: 0, gated: null, digipeater: false })).toEqual([]);
-    expect(throughLines(null, { repeated: 0, gated: null, digipeater: true }).map((line) => line.value)).toEqual(["– in the last hour · 0 since the start"]);
+    expect(throughLines(null, { repeated: 0, gated: null, digipeater: true }).map((line) => line.value)).toEqual([
+      "– in the last hour · 0 since the start",
+    ]);
   });
 
   it("finds the busiest and the quietest hour of the day in the viewer's time over the whole hours, once a day is counted", () => {

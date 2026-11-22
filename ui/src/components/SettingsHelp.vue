@@ -74,8 +74,20 @@ async function send(note: string, withFile: boolean): Promise<void> {
 <template>
   <SettingsGroup id="help" class="help-logs" :title="t('settings.help.group')">
     <p>{{ t("settings.help.text") }}</p>
-    <ActionRow id="set-help-send" :label="t('settings.help.label')" :tip-label="t('settings.help.tip_label')" picture="logs">
-      <button id="set-help-send" ref="sendButton" class="btn primary" type="button" :disabled="logs.sending.value || logs.running.value" @click="ask">
+    <ActionRow
+      id="set-help-send"
+      :label="t('settings.help.label')"
+      :tip-label="t('settings.help.tip_label')"
+      picture="logs"
+    >
+      <button
+        id="set-help-send"
+        ref="sendButton"
+        class="btn primary"
+        type="button"
+        :disabled="logs.sending.value || logs.running.value"
+        @click="ask"
+      >
         {{ sendLabel }}
       </button>
       <template #tip

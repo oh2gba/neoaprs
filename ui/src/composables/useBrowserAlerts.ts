@@ -109,11 +109,20 @@ function useAudioUnlock(chime: Chime): void {
   if (getCurrentScope()) onScopeDispose(remove);
 }
 
-function useNote(mode: Ref<AlertMode>, refused: Ref<boolean>, permission: Ref<NotificationPermission>, possible: boolean) {
+function useNote(
+  mode: Ref<AlertMode>,
+  refused: Ref<boolean>,
+  permission: Ref<NotificationPermission>,
+  possible: boolean,
+) {
   return computed(() => {
     if (refused.value) return t("settings.alert.note_refused");
     if (!wantsPopup(mode.value) || !possible) return "";
-    return permission.value === "denied" ? t("settings.alert.note_blocked") : permission.value === "default" ? t("settings.alert.note_not_yet") : "";
+    return permission.value === "denied"
+      ? t("settings.alert.note_blocked")
+      : permission.value === "default"
+        ? t("settings.alert.note_not_yet")
+        : "";
   });
 }
 
@@ -132,7 +141,9 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
   const possible = !app && typeof Notification !== "undefined" && secure;
   const permission = ref<NotificationPermission>(permissionNow(possible));
   const why = computed(() => popupWhy(possible, permission.value));
-  const mode = ref<AlertMode>(daemonAlone ? "off" : storedMode(isLoopbackHost(location.hostname), popupWhy(possible, permission.value), app));
+  const mode = ref<AlertMode>(
+    daemonAlone ? "off" : storedMode(isLoopbackHost(location.hostname), popupWhy(possible, permission.value), app),
+  );
   const refused = ref(false);
   const popupOn = computed(() => possible && wantsPopup(mode.value) && permission.value === "granted");
   const note = useNote(mode, refused, permission, possible);
@@ -151,7 +162,8 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
    */
   async function allow(): Promise<boolean> {
     if (!possible) return false;
-    if (Notification.permission === "default") permission.value = (await Notification.requestPermission()) ?? Notification.permission;
+    if (Notification.permission === "default")
+      permission.value = (await Notification.requestPermission()) ?? Notification.permission;
     else permission.value = Notification.permission;
     return permission.value === "granted";
   }
@@ -184,7 +196,10 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
 
   function announce(fresh: readonly Alerted[]): void {
     const last = fresh[fresh.length - 1];
-    if (last !== undefined) ring(last.from_call, (failed) => fresh.slice(-POPUPS_MAX).map((message) => showPopup(message, openConversation, failed)));
+    if (last !== undefined)
+      ring(last.from_call, (failed) =>
+        fresh.slice(-POPUPS_MAX).map((message) => showPopup(message, openConversation, failed)),
+      );
   }
 
   async function testSound(): Promise<void> {
@@ -223,7 +238,8 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
     /**
      * What a station alert does in this browser: the chime, its own notification, or the tab bell.
      */
-    announceStation: (fired: StationAlertMessage): void => ring(fired.call, (failed) => [showStationPopup(fired, failed)], true),
+    announceStation: (fired: StationAlertMessage): void =>
+      ring(fired.call, (failed) => [showStationPopup(fired, failed)], true),
     choose,
     testSound,
     testPopup,

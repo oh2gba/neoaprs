@@ -47,7 +47,8 @@ const isStation = (row: StationRow): boolean => row.kind === "station" && !row.i
 const isOther = (row: StationRow): boolean => isStation(row) && onAir(row);
 
 /** Comparator: nearest first, a missing distance last. */
-export const nearer = (x: number | null, y: number | null): number => (x === y ? 0 : x === null ? 1 : y === null ? -1 : x - y);
+export const nearer = (x: number | null, y: number | null): number =>
+  x === y ? 0 : x === null ? 1 : y === null ? -1 : x - y;
 
 /** Sort rows nearest first; `tie` decides equal distances, then the call. */
 function nearestFirst(rows: StationRow[], tie: (a: StationRow, b: StationRow) => number = () => 0): StationRow[] {
@@ -57,7 +58,8 @@ function nearestFirst(rows: StationRow[], tie: (a: StationRow, b: StationRow) =>
 /** The packets each call repeated, from every station's `heard_via` (`?` hops are ignored). */
 export function repeatedCounts(rows: Iterable<StationRow>): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const row of rows) for (const [call, n] of row.heard_via) if (call !== "?") counts.set(call, (counts.get(call) ?? 0) + n);
+  for (const row of rows)
+    for (const [call, n] of row.heard_via) if (call !== "?") counts.set(call, (counts.get(call) ?? 0) + n);
   return counts;
 }
 
@@ -84,7 +86,10 @@ export function digipeaters(source: Iterable<StationRow>): Digipeater[] {
   const rows = [...source];
   const byCall = new Map(rows.map((row) => [row.call, row]));
   const counts = repeatedCounts(rows);
-  const calls = new Set([...counts.keys(), ...rows.filter((row) => isOther(row) && isDigipeaterSymbol(row)).map((row) => row.call)]);
+  const calls = new Set([
+    ...counts.keys(),
+    ...rows.filter((row) => isOther(row) && isDigipeaterSymbol(row)).map((row) => row.call),
+  ]);
   const found: Digipeater[] = [];
   for (const call of calls) {
     const row = byCall.get(call) ?? null;
@@ -92,7 +97,9 @@ export function digipeaters(source: Iterable<StationRow>): Digipeater[] {
     if (row !== null && !isStation(row)) continue;
     found.push({ call, row, repeated: counts.get(call) ?? 0, range: row === null ? null : rangeOf(row.extensions) });
   }
-  return found.sort((a, b) => nearer(a.row?.distance_km ?? null, b.row?.distance_km ?? null) || a.call.localeCompare(b.call));
+  return found.sort(
+    (a, b) => nearer(a.row?.distance_km ?? null, b.row?.distance_km ?? null) || a.call.localeCompare(b.call),
+  );
 }
 
 export interface RangeCircle {
@@ -104,7 +111,10 @@ export interface RangeCircle {
 
 /** Distance in km of the farthest station heard direct; 0 if none (or none has a distance). */
 function reachKm(rows: Iterable<StationRow>): number {
-  return Math.max(0, ...[...rows].filter((row) => isOther(row) && row.last_direct_at !== null).map((row) => row.distance_km ?? 0));
+  return Math.max(
+    0,
+    ...[...rows].filter((row) => isOther(row) && row.last_direct_at !== null).map((row) => row.distance_km ?? 0),
+  );
 }
 
 /**
@@ -120,7 +130,14 @@ export function rangeCircleOf(source: Iterable<StationRow>, call: string | null)
     return km > 0 && hasPosition(me) ? { call, lat: me.lat, lon: me.lon, km } : null;
   }
   const found = digipeaters(rows).find((one) => one.call === call);
-  if (found === undefined || found.row === null || found.range === null || !(found.range.km > 0) || !hasPosition(found.row)) return null;
+  if (
+    found === undefined ||
+    found.row === null ||
+    found.range === null ||
+    !(found.range.km > 0) ||
+    !hasPosition(found.row)
+  )
+    return null;
   return { call, lat: found.row.lat, lon: found.row.lon, km: found.range.km };
 }
 
@@ -147,7 +164,8 @@ export function directRows(rows: Iterable<StationRow>): StationRow[] {
 /** The lines under a digipeater's call ("12 packets repeated, PHG range 13 km"). */
 export function digipeaterLines(d: Digipeater): string[] {
   const parts = [d.repeated > 0 ? t("nearby.repeated", { n: d.repeated }) : t("nearby.symbol_only")];
-  if (d.range !== null) parts.push(t(d.range.phg ? "nearby.range_phg" : "nearby.range", { km: Math.round(d.range.km) }));
+  if (d.range !== null)
+    parts.push(t(d.range.phg ? "nearby.range_phg" : "nearby.range", { km: Math.round(d.range.km) }));
   return [parts.join(", "), ...(d.row === null ? [t("nearby.not_heard")] : [])];
 }
 
@@ -166,5 +184,7 @@ export function gateLines(row: StationRow): string[] {
 
 /** When a station was last heard direct ("last heard direct 3 min ago"). */
 export function directLines(row: StationRow, nowMs: number): string[] {
-  return row.last_direct_at === null ? [] : [t("nearby.direct_last", { when: t("time.ago", { span: ageText(row.last_direct_at, nowMs) }) })];
+  return row.last_direct_at === null
+    ? []
+    : [t("nearby.direct_last", { when: t("time.ago", { span: ageText(row.last_direct_at, nowMs) }) })];
 }

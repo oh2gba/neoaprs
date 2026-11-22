@@ -10,7 +10,10 @@ import type * as Lists from "@/protocol/lists";
 
 vi.mock("@/protocol/lists", async (importOriginal) => {
   const lists = await importOriginal<typeof Lists>();
-  return { ...lists, LIMITS: { ...lists.LIMITS, bulletin: { ...lists.LIMITS.bulletin, repeatHours: 6, announcementRepeatDays: 1 } } };
+  return {
+    ...lists,
+    LIMITS: { ...lists.LIMITS, bulletin: { ...lists.LIMITS.bulletin, repeatHours: 6, announcementRepeatDays: 1 } },
+  };
 });
 
 afterEach(() => setLocale("en"));

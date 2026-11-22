@@ -17,16 +17,26 @@ const query = ref("");
 const search = ref<HTMLInputElement | null>(null);
 const dialog = ref<HTMLElement | null>(null);
 const keys = useDialogFocus(dialog, () => emit("close"), { first: () => search.value });
-const usual = computed<PickSymbol[]>(() => SYMBOL_CHOICES.map((s) => ({ table: s.table, code: s.code, name: symbolName(s.table, s.code) || s.name })));
+const usual = computed<PickSymbol[]>(() =>
+  SYMBOL_CHOICES.map((s) => ({ table: s.table, code: s.code, name: symbolName(s.table, s.code) || s.name })),
+);
 const found = computed(() => filterSymbols(ALL_SYMBOLS, query.value));
 const searching = computed(() => query.value.trim() !== "");
 /** The symbol in use: an overlay table is the alternate table with a character over it. */
-const current = (s: PickSymbol): boolean => s.code === props.code && (s.table === "/" ? props.table === "/" : props.table !== "/");
+const current = (s: PickSymbol): boolean =>
+  s.code === props.code && (s.table === "/" ? props.table === "/" : props.table !== "/");
 </script>
 
 <template>
   <div class="sympick-backdrop" @pointerdown.self="emit('close')" @keydown="keys.onKey">
-    <div ref="dialog" class="sympick" role="dialog" aria-modal="true" :aria-label="t('settings.picker.title')" tabindex="-1">
+    <div
+      ref="dialog"
+      class="sympick"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="t('settings.picker.title')"
+      tabindex="-1"
+    >
       <div class="sympick-head">
         <input
           ref="search"

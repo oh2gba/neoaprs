@@ -29,7 +29,13 @@ const item = (name: string) => items().find((i) => i.attributes("data-item") ===
 const rightClick = async (call: string, x = 100, y = 120) => {
   await row(call).trigger("contextmenu", { clientX: x, clientY: y });
 };
-const touch = (extra: Record<string, unknown> = {}) => ({ pointerType: "touch", isPrimary: true, clientX: 60, clientY: 80, ...extra });
+const touch = (extra: Record<string, unknown> = {}) => ({
+  pointerType: "touch",
+  isPrimary: true,
+  clientX: 60,
+  clientY: 80,
+  ...extra,
+});
 
 beforeEach(() => {
   localStorage.clear();

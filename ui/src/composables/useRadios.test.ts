@@ -54,14 +54,14 @@ describe("useRadios", () => {
       radios: topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { position: 0 })),
       status: status({ unheard_radio: 1 }),
     });
-    expect([told.value, ids(all.value), ids(enabled.value), several.value, unheard.value?.id, byId(2)?.row.type]).toEqual([
-      true,
-      [2, 1],
-      [2, 1],
-      true,
-      1,
-      "mercury",
-    ]);
+    expect([
+      told.value,
+      ids(all.value),
+      ids(enabled.value),
+      several.value,
+      unheard.value?.id,
+      byId(2)?.row.type,
+    ]).toEqual([true, [2, 1], [2, 1], true, 1, "mercury"]);
     await tell(daemon, {
       radios: topic(radioRow(1, "kenwood-tnc2", { enabled: false }), radioRow(2, "mercury")),
       status: status({ unheard_radio: 2 }),
@@ -107,7 +107,9 @@ describe("useRadios", () => {
   });
 
   it("names a radio where several are on, and always one that is not on", async () => {
-    const daemon = fakeDaemon({ radios: topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { removed: true, enabled: false })) });
+    const daemon = fakeDaemon({
+      radios: topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { removed: true, enabled: false })),
+    });
     const { named } = read(daemon).seen().radios;
     expect([named(1), named(2)]).toEqual([false, true]);
     await tell(daemon, { radios: topic(radioRow(1, "kenwood-tnc2"), radioRow(3, "kiss", { number: 2 })) });

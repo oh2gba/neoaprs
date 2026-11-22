@@ -2,11 +2,15 @@
 // `blocked` (checked before they run), a field with text in it, or an already handled event.
 import { onBeforeUnmount, onMounted } from "vue";
 
-const isField = (el: HTMLElement): el is HTMLInputElement | HTMLTextAreaElement => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+const isField = (el: HTMLElement): el is HTMLInputElement | HTMLTextAreaElement =>
+  el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
 
 /** True if the key belongs to the field: a field with text keeps its first Esc. */
 export function keepsEsc(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || target.tagName === "SELECT" || (isField(target) && target.value !== ""));
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || target.tagName === "SELECT" || (isField(target) && target.value !== ""))
+  );
 }
 
 export function useCardEsc(closeAll: () => boolean, blocked: () => boolean): void {

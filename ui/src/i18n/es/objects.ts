@@ -4,20 +4,38 @@ import type { Message } from "@/i18n/message";
 export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "schedule.sent": { "=0": "aún no enviado", "=1": "enviado una vez", other: "enviado {n} veces" },
   "schedule.ended": { "=1": "enviado una vez, terminado", other: "enviado {n} veces, terminado" },
-  "schedule.next": { "=0": "aún no enviado, próximo {when}", "=1": "enviado una vez, próximo {when}", other: "enviado {n} veces, próximo {when}" },
-  "schedule.waiting": { "=0": "aún no enviado, en espera", "=1": "enviado una vez, en espera", other: "enviado {n} veces, en espera" },
-  "schedule.killing": { "=0": "retirando, aún no enviado", "=1": "retirando, enviado una vez", other: "retirando, enviado {n} veces" },
+  "schedule.next": {
+    "=0": "aún no enviado, próximo {when}",
+    "=1": "enviado una vez, próximo {when}",
+    other: "enviado {n} veces, próximo {when}",
+  },
+  "schedule.waiting": {
+    "=0": "aún no enviado, en espera",
+    "=1": "enviado una vez, en espera",
+    other: "enviado {n} veces, en espera",
+  },
+  "schedule.killing": {
+    "=0": "retirando, aún no enviado",
+    "=1": "retirando, enviado una vez",
+    other: "retirando, enviado {n} veces",
+  },
   "schedule.on_request": "enviado solo cuando se pide",
 
   "objects.none": "No hay objetos.",
   "objects.list": "Objetos",
   "objects.mine": "Mis objetos",
   "objects.about_label": "Sobre los objetos",
-  "objects.about1": "Un objeto es una marca que pones en el mapa para algo que no es una estación: un repetidor, un punto de encuentro, un evento.",
+  "objects.about1":
+    "Un objeto es una marca que pones en el mapa para algo que no es una estación: un repetidor, un punto de encuentro, un evento.",
   "objects.about2": "Todos los que están cerca lo ven, mientras lo envíes.",
   "objects.edit_label": "Editar {name}",
   "objects.delete_title": "Eliminar (retirar del aire)",
-  "objects.delete_label": { select: "kind", object: "Eliminar el objeto {name}", item: "Eliminar el ítem {name}", other: "Eliminar el objeto {name}" },
+  "objects.delete_label": {
+    select: "kind",
+    object: "Eliminar el objeto {name}",
+    item: "Eliminar el ítem {name}",
+    other: "Eliminar el objeto {name}",
+  },
   "objects.kind_word": { select: "kind", object: "objeto", item: "ítem", other: "objeto" },
   "objects.in_group": "Categoría: {group}",
   "objects.category.rp2m": "Repetidor de 2 m",
@@ -53,11 +71,13 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.category.other": "Otra…",
   "objects.qru": "Info local",
   "objects.qru_tip_label": "Sobre la info local",
-  "objects.qru_tip": "Pide a las estaciones cercanas sus objetos (APRS QRU): repetidores, eventos, lugares. Se envía solo por radio.",
+  "objects.qru_tip":
+    "Pide a las estaciones cercanas sus objetos (APRS QRU): repetidores, eventos, lugares. Se envía solo por radio.",
   "objects.qru_ask": "Preguntar",
   "objects.qru_km": "km",
   "objects.qru_km_label": "Distancia en km",
-  "objects.qru_km_tip": "Hasta dónde buscar; empieza con el radio del mapa. Vacío: la de los servidores, normalmente 50 km.",
+  "objects.qru_km_tip":
+    "Hasta dónde buscar; empieza con el radio del mapa. Vacío: la de los servidores, normalmente 50 km.",
   "objects.qru_state": "Preguntado",
   "objects.qru_waiting": "{time} · esperando respuestas…",
   "objects.qru_answered": { one: "{time} · {n} servidor respondió", other: "{time} · {n} servidores respondieron" },
@@ -95,7 +115,8 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.tip.speed": "A qué velocidad se mueve, en km/h. Deja ambos vacíos para un objeto que no se mueve.",
   "objects.tip.path": "Los digipeaters que piden sus paquetes. Vacío usa la ruta de tu baliza.",
   "objects.tip.category": "Dale una categoría a un objeto para ofrecerlo a las estaciones que piden info local.",
-  "objects.tip.category_code": "Tu propia categoría: hasta {max} letras o dígitos, no INFO ni NEXT. Las estaciones la piden con esta palabra.",
+  "objects.tip.category_code":
+    "Tu propia categoría: hasta {max} letras o dígitos, no INFO ni NEXT. Las estaciones la piden con esta palabra.",
   "objects.tip.on_request": "No se emite en baliza; se envía solo a una estación que pide info local.",
   "objects.sent_on": "Enviado por la radio {name}",
 

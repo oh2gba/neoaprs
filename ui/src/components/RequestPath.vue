@@ -11,10 +11,20 @@ import PathBuilder from "@/components/PathBuilder.vue";
 import { requestPathProblem } from "@/composables/useRequestPath";
 import { t } from "@/i18n";
 
-const props = withDefaults(defineProps<{ path: string; rfOnly: boolean; usual: string | null; problem: string; disabled?: boolean; pathless?: string }>(), {
-  disabled: false,
-  pathless: undefined,
-});
+const props = withDefaults(
+  defineProps<{
+    path: string;
+    rfOnly: boolean;
+    usual: string | null;
+    problem: string;
+    disabled?: boolean;
+    pathless?: string;
+  }>(),
+  {
+    disabled: false,
+    pathless: undefined,
+  },
+);
 const emit = defineEmits<{ "update:path": [path: string]; "update:rfOnly": [on: boolean] }>();
 const id = useId();
 const opened = props.path.trim() !== "" || !props.rfOnly;
@@ -31,7 +41,11 @@ function ticked(event: Event): void {
 
 <template>
   <DisclosureBox class="settings-fold" :title="t('settings.fold.advanced')" :open="opened">
-    <div class="field" :class="{ invalid: problem !== '', disabled }" :title="problem || (disabled ? pathless : undefined)">
+    <div
+      class="field"
+      :class="{ invalid: problem !== '', disabled }"
+      :title="problem || (disabled ? pathless : undefined)"
+    >
       <label :for="`${id}-path`">{{ t("route.path") }}</label>
       <div class="field-control">
         <input
@@ -62,7 +76,14 @@ function ticked(event: Event): void {
     <div class="field" :class="{ disabled }" :title="disabled ? pathless : undefined">
       <label :for="`${id}-rfonly`">{{ t("route.rf_only") }}</label>
       <div class="field-control">
-        <input :id="`${id}-rfonly`" class="check" type="checkbox" :checked="rfOnly" :disabled="disabled" @change="ticked" />
+        <input
+          :id="`${id}-rfonly`"
+          class="check"
+          type="checkbox"
+          :checked="rfOnly"
+          :disabled="disabled"
+          @change="ticked"
+        />
         <InfoTip :label="about(t('route.rf_only'))"
           ><span class="info-line">{{ t("route.request_rf_only_tip") }}</span></InfoTip
         >

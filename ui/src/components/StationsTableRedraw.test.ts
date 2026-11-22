@@ -22,7 +22,11 @@ const HF = radioRow(2, "mercury");
 const N = 20;
 const stations = table(
   ...Array.from({ length: N }, (_, i) =>
-    station(`OH${i}ABC`, { last_heard: ago(30 + i), heard_rf: 4, heard: heardBy([1, 2, ago(60 + i)], [2, 2, ago(30 + i)]) }),
+    station(`OH${i}ABC`, {
+      last_heard: ago(30 + i),
+      heard_rf: 4,
+      heard: heardBy([1, 2, ago(60 + i)], [2, 2, ago(30 + i)]),
+    }),
   ),
 );
 
@@ -31,7 +35,10 @@ beforeEach(() => localStorage.clear());
 describe("the Stations table with several radios on", () => {
   it("is not drawn again when a patch of a radio changes only its counts, and is when its name changes", async () => {
     const radios = shallowRef<ReadonlyMap<string, RadioRow>>(radiosTopic(FM, HF));
-    const wrapper = mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations, radios })) });
+    const wrapper = mount(StationsTable, {
+      props: { selected: null },
+      global: withDaemon(fakeDaemon({ stations, radios })),
+    });
     await nextTick();
     expect(wrapper.findAll("tbody tr[data-call] .via").at(0)?.text()).toBe("FM");
     const heardTags = vi.mocked(channels.heardTags);

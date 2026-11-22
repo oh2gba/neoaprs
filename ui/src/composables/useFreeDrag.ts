@@ -43,7 +43,13 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
     const parent = el?.parentElement;
     if (!el || !parent) return;
     const box = el.getBoundingClientRect();
-    setPlace(clampPlace(next, { width: box.width, height: box.height }, { left: 0, top: 0, right: parent.clientWidth, bottom: parent.clientHeight }));
+    setPlace(
+      clampPlace(
+        next,
+        { width: box.width, height: box.height },
+        { left: 0, top: 0, right: parent.clientWidth, bottom: parent.clientHeight },
+      ),
+    );
   }
 
   function stop(): void {
@@ -54,7 +60,8 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
   function down(event: PointerEvent): void {
     const target = event.target instanceof Element ? event.target : null;
     const head = target?.closest<HTMLElement>(".card-head");
-    if (!enabled() || event.button > 0 || drag || !head || !card.value?.contains(head) || target?.closest(NOT_HEAD)) return;
+    if (!enabled() || event.button > 0 || drag || !head || !card.value?.contains(head) || target?.closest(NOT_HEAD))
+      return;
     const origin = current();
     if (!origin) return;
     drag = { pointer: event.pointerId, from: { x: event.clientX, y: event.clientY }, origin, started: false, head };
@@ -107,7 +114,9 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
   useResized(card, keepInside);
   onBeforeUnmount(stop);
 
-  const style = computed(() => (enabled() && place.value ? { left: `${place.value.x}px`, top: `${place.value.y}px` } : undefined));
+  const style = computed(() =>
+    enabled() && place.value ? { left: `${place.value.x}px`, top: `${place.value.y}px` } : undefined,
+  );
   const moved = computed(() => enabled() && place.value !== null);
   const on = { pointerdown: down, pointermove: move, pointerup: up, pointercancel: up, keydown };
 

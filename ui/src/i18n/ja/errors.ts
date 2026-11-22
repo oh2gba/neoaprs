@@ -7,7 +7,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.bulletin.group": "「{value}」: グループ掲示は BLN、数字1桁、グループ名の順です",
   "error.bulletin.not_on_board": "掲示板に {sender}/{slot} はありません",
   "error.bulletin.not_posted": "こちらの掲示 {slot} はありません",
-  "error.bulletin.slot": "「{value}」は BLN0〜BLN9、BLNA〜BLNZ、または BLN と数字1桁と{group_max}文字以内のグループ名ではありません",
+  "error.bulletin.slot":
+    "「{value}」は BLN0〜BLN9、BLNA〜BLNZ、または BLN と数字1桁と{group_max}文字以内のグループ名ではありません",
   "error.call.characters": "コールサイン「{value}」に A-Z、0-9、「-SSID」以外の文字があります",
   "error.call.shape": "コールサイン「{value}」は A-Z と 0-9 の1〜6文字(任意で「-SSID」付き)ではありません",
   "error.call.ssid": "コールサイン「{value}」のSSIDが{max}を超えています",
@@ -27,7 +28,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.not_connected": "送信されませんでした: NeoAPRSとの接続がありません",
   "error.map.no_job": "実行中の地図ジョブはありません",
   "error.update.unsupported": "この NeoAPRS は自分で更新できません。手順はページにあります",
-  "error.update.blocked": "ここでは NeoAPRS は自分で更新できません: このユーザーは AppImage のフォルダーに書き込めません",
+  "error.update.blocked":
+    "ここでは NeoAPRS は自分で更新できません: このユーザーは AppImage のフォルダーに書き込めません",
   "error.update.not_announced": "{version} は更新確認が知らせたバージョンではありません",
   "error.update.no_file": "リリース {version} にはこの NeoAPRS 用のファイルがありません",
   "error.update.busy": "すでに更新を実行中です",
@@ -39,7 +41,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.unreachable": "HFテスト掲示板にいま接続できません。しばらくしてからもう一度お試しください",
   "error.radio.busy": "無線機の検索はすでに実行中です",
   "error.radio.last_enabled": "少なくとも1台の無線機をオンにしておく必要があります: 先に別の無線機をオンにしてください",
-  "error.radio.name_form": "名前「{name}」は無線機の名前にできません: 名前は印字可能なASCII文字(英字、数字、キーボードの記号)で{max}文字までです",
+  "error.radio.name_form":
+    "名前「{name}」は無線機の名前にできません: 名前は印字可能なASCII文字(英字、数字、キーボードの記号)で{max}文字までです",
   "error.radio.name_label": "名前「{name}」は名前のない無線機の呼び名です: 別の名前を付けてください",
   "error.radio.name_taken": "名前「{name}」は別の無線機がすでに使っています: 別の名前を付けてください",
   "error.radio.no_line": "無線機「{name}」には検索するシリアルポートがありません",
@@ -56,7 +59,11 @@ export const errors: Record<keyof typeof source, Message> = {
     other: "そのデバイスは無線機「{holder}」が使用中です: 別のものを選んでください",
   },
   "error.radio.type_kind": "無線機「{name}」には同じ区分({kind})の種類しか使えません",
-  "error.radio.unknown": { select: "removed", "1": "無線機「{name}」は外されています", other: "無線機 {radio} はありません" },
+  "error.radio.unknown": {
+    select: "removed",
+    "1": "無線機「{name}」は外されています",
+    other: "無線機 {radio} はありません",
+  },
   "error.radio.unknown_type": "「{type}」は無線機の種類ではありません(種類は一覧にあるものです)",
   "error.radio.failed": "無線機の検索に失敗しました",
   "error.radio.no_ports": "試すポートがありません: 検索の対象になっているポートが一覧にありません",
@@ -73,7 +80,8 @@ export const errors: Record<keyof typeof source, Message> = {
     "": "テキストに表示可能なASCII以外の文字があります。メッセージで使えるのは表示可能なASCIIだけです",
     other: "テキストに表示可能なASCII以外の文字({chars})があります。メッセージで使えるのは表示可能なASCIIだけです",
   },
-  "error.message.too_long_for_radio": "メッセージは電波上で{length}バイトですが、無線機が運べるのは{max}バイトです。{cut}文字短くしてください",
+  "error.message.too_long_for_radio":
+    "メッセージは電波上で{length}バイトですが、無線機が運べるのは{max}バイトです。{cut}文字短くしてください",
   "error.message.too_long": "テキストが{length}文字です。メッセージに入るのは最大{max}文字です",
   "error.no_command": 'コマンドには "cmd" が必要です',
   "error.not_object": 'コマンドは "cmd" を持つJSONオブジェクトです',
@@ -84,7 +92,8 @@ export const errors: Record<keyof typeof source, Message> = {
   },
   "error.object.course": "進行方向 {value} は 0〜{max} 度の範囲外です",
   "error.object.kind": "「{value}」はオブジェクトでもアイテムでもありません",
-  "error.object.name_chars": "名前「{name}」の端に空白があるか、使えない文字({name_forbidden}と表示可能なASCII以外)があります",
+  "error.object.name_chars":
+    "名前「{name}」の端に空白があるか、使えない文字({name_forbidden}と表示可能なASCII以外)があります",
   "error.object.name_length": {
     select: "kind",
     object: "オブジェクトの名前は{min}〜{max}文字です({length}文字ではありません)",
@@ -100,7 +109,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.pair.call_taken": "{call}は別の組のコールサインです",
   "error.pair.no_free_call": "SSID 1から15まですべて使われています",
   "error.path.too_long": "デジピーター{count}個は、パスに入れられる最大{max}個を超えています",
-  "error.path.too_long_rf_only": "RFのみには長すぎるパスです: デジピーター{count}個とRFONLYで、パスに入れられる最大{max}個を超えます",
+  "error.path.too_long_rf_only":
+    "RFのみには長すぎるパスです: デジピーター{count}個とRFONLYで、パスに入れられる最大{max}個を超えます",
   "error.query.not_capable": "{call} はメッセージを受け付けません。問い合わせる相手がいません",
   "error.transmit.call": "何も送信しません:{reason}",
   "error.transmit.off": "受信のみ:何も送信しません",
@@ -108,7 +118,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.query.form": "問い合わせは ? で始まり、その後に内容を書きます",
   "error.qru.too_soon": "ローカル情報の次の問い合わせにはまだ早すぎます。{seconds}秒待ってください",
   "error.path.direct_alone": "{word}はデジピーターではありません。単独で書くとデジピーターなしを意味します",
-  "error.setting.comment_too_long": "{length}文字は、PHG拡張を付けるときの上限{limit}文字を超えています(送らない場合は beacon/power_w を空にしてください)",
+  "error.setting.comment_too_long":
+    "{length}文字は、PHG拡張を付けるときの上限{limit}文字を超えています(送らない場合は beacon/power_w を空にしてください)",
   "error.setting.call_of_pair": "{call}は無線機の組のコールサインです",
   "error.setting.local_only": "これはNeoAPRSのパソコン上のページからのみ行えます",
   "error.setting.not_access_key": "アクセスキーではありません(英数字4文字の3つの組、例: k7m2-x9pq-4hrt)",
@@ -117,7 +128,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_keying": "'{value}'は無線機の送信切替の方法ではありません：vox、cm108、rts:PORT、dtr:PORT",
   "error.setting.not_among": "{value} は {choices} のいずれでもありません",
   "error.setting.not_direction": "「{value}」は omni でも N NE E SE S SW W NW のいずれでもありません",
-  "error.setting.not_globs": "「{value}」は、スペースで区切った1つ以上の絶対パスのパターン(例: /dev/ttyUSB*)ではありません",
+  "error.setting.not_globs":
+    "「{value}」は、スペースで区切った1つ以上の絶対パスのパターン(例: /dev/ttyUSB*)ではありません",
   "error.setting.not_host": "「{value}」はアドレスでも名前でもありません",
   "error.setting.not_receiver": "「{value}」は受信機のアドレスではありません",
   "error.setting.not_hostport": "「{value}」は ホスト:ポート ではありません(rigctldのポートは4532です)",
@@ -138,9 +150,12 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.profile_port":
     "{profile} はTCP(tcp/host と tcp/port)で接続し、シリアルポート{port}は使いません。serial/port を空にするか、シリアルTNCを選んでください",
   "error.setting.range": "{value} は {min}〜{max} の範囲外です",
-  "error.setting.status_needs_rigctld": "無線機のステータスには status/rigctld(rigctldの ホスト:ポート、127.0.0.1:4532)が必要です",
-  "error.setting.status_source": "「{value}」は off でも text でも rig でもありません(空の場合は status/rigctld と station/status に従います)",
-  "error.setting.template_field": "{{{field}}} はテンプレートのフィールドではありません(使えるのは {{freq}} と {{mode}} です)",
+  "error.setting.status_needs_rigctld":
+    "無線機のステータスには status/rigctld(rigctldの ホスト:ポート、127.0.0.1:4532)が必要です",
+  "error.setting.status_source":
+    "「{value}」は off でも text でも rig でもありません(空の場合は status/rigctld と station/status に従います)",
+  "error.setting.template_field":
+    "{{{field}}} はテンプレートのフィールドではありません(使えるのは {{freq}} と {{mode}} です)",
   "error.setting.template_long": "周波数とモードが長い場合に{length}文字となり、上限の{max}文字を超えます",
   "error.setting.tnc_char": "「{char}」はTNCがコマンドと解釈する文字なので、使えません",
   "error.setting.too_long": "{length}文字は上限の{max}文字を超えています",
@@ -166,7 +181,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.command_mode": "TNCがコマンドモードです(KISS ONを再送します)",
   "error.radio.checking": "TNCが無線機の接続を確認しています",
   "error.radio.channel_busy": "チャンネルが使用中です",
-  "error.qru.form": "「{request}」はQRUへの問い合わせではありません: INFO、NEXT、または{max}文字以内の英数字のグループと1〜{km}の距離です",
+  "error.qru.form":
+    "「{request}」はQRUへの問い合わせではありません: INFO、NEXT、または{max}文字以内の英数字のグループと1〜{km}の距離です",
   "error.object.unknown": "自局のオブジェクトまたはアイテム「{name}」はありません",
   "error.object.own_call": "{name}は自局のコールサインです",
   "error.object.is_station": "{name}は局で、オブジェクトの名前ではありません",

@@ -29,7 +29,9 @@ export const REPLAY_SPANS: readonly number[] = [...STATION_HOURS, ...LIMITS.repl
 
 /** A span as the bar says it: hours up to a day ("24 h"), days beyond ("3 days"). */
 export function spanLabel(hours: number): string {
-  return hours > 24 && hours % 24 === 0 ? t("weather.span.days", { n: hours / 24 }) : t("station.table.hours", { n: hours });
+  return hours > 24 && hours % 24 === 0
+    ? t("weather.span.days", { n: hours / 24 })
+    : t("station.table.hours", { n: hours });
 }
 
 /**
@@ -61,7 +63,10 @@ export interface ReplayData {
 /** The daemon's answer as the replay plays it: times as numbers. */
 export function replayData(message: PositionHistoryMessage): ReplayData {
   const tracks = Object.entries(message.stations)
-    .map(([call, points]) => ({ call, points: points.map(([at, lat, lon]): ReplayPoint => [Date.parse(at), lat, lon]) }))
+    .map(([call, points]) => ({
+      call,
+      points: points.map(([at, lat, lon]): ReplayPoint => [Date.parse(at), lat, lon]),
+    }))
     .filter((track) => track.points.length > 0);
   return { hours: message.hours, start: Date.parse(message.start), end: Date.parse(message.end), tracks };
 }
@@ -129,7 +134,10 @@ export function trailMinutes(hours: number): number {
 export function trailLines(data: ReplayData, t: number): TrackCollection {
   const minutes = trailMinutes(data.hours);
   const features = data.tracks.flatMap((track) =>
-    fadingLines(track.call, trailAt(track, t), false, ([at, lat, lon]) => ({ at: [lon, lat], opacity: trailOpacity(Math.max(0, (t - at) / 1000), minutes) })),
+    fadingLines(track.call, trailAt(track, t), false, ([at, lat, lon]) => ({
+      at: [lon, lat],
+      opacity: trailOpacity(Math.max(0, (t - at) / 1000), minutes),
+    })),
   );
   return { type: "FeatureCollection", features };
 }
@@ -144,5 +152,7 @@ export const CLOCK_NONE = "--:--:--";
 export function replayClock(t: number, start: number, end: number): string {
   const d = new Date(t);
   const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
-  return new Date(start).toDateString() === new Date(end).toDateString() ? time : `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${time}`;
+  return new Date(start).toDateString() === new Date(end).toDateString()
+    ? time
+    : `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${time}`;
 }

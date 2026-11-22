@@ -11,7 +11,10 @@ afterEach(() => {
 function open(status: number) {
   const daemon = new FakeFetch(status);
   vi.stubGlobal("fetch", daemon.fetch);
-  return { wrapper: mount(AccessGate, { global: { stubs: { App: { template: "<p class='page'>the page</p>" } } } }), daemon };
+  return {
+    wrapper: mount(AccessGate, { global: { stubs: { App: { template: "<p class='page'>the page</p>" } } } }),
+    daemon,
+  };
 }
 
 describe("AccessGate", () => {
@@ -54,7 +57,8 @@ describe("AccessGate", () => {
       const wrapper = mount(AccessGate, { global: { stubs: { App: { template: "<p class='page'>the page</p>" } } } });
       return { wrapper, daemon, fragments };
     }
-    const posted = (daemon: FakeFetch) => daemon.calls.filter((c) => c.method === "POST").map((c) => JSON.parse(c.body) as unknown);
+    const posted = (daemon: FakeFetch) =>
+      daemon.calls.filter((c) => c.method === "POST").map((c) => JSON.parse(c.body) as unknown);
 
     it("takes the key out of the address and the history before it asks anything, and opens the page with no key screen when the daemon takes it", async () => {
       const before = history.length;

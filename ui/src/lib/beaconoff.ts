@@ -5,7 +5,12 @@
 // greyed. The daemon's rule is Config.beacon_on (neoaprs/config.py).
 
 /** The antenna keys belong to the station, though the beacon sends them. */
-export const ANTENNA = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
+export const ANTENNA = [
+  "beacon/power_w",
+  "beacon/antenna_height_m",
+  "beacon/antenna_gain_db",
+  "beacon/antenna_direction",
+];
 
 /**
  * Whether the beacon is Off in these settings (key to text): `beacon/interval_min` is 0. False if
@@ -30,7 +35,8 @@ const rxOnly = (values: Readonly<Record<string, string>>): boolean => values["st
  * send (the page's `receiveOnly`); it greys as RX only does.
  */
 export function disabledByValues(key: string, values: Readonly<Record<string, string>>, receiveOnly = false): boolean {
-  if (receiveOnly || rxOnly(values)) return SENT.includes(key) || TIMING.includes(key) || key.startsWith("status/") || key === "station/status";
+  if (receiveOnly || rxOnly(values))
+    return SENT.includes(key) || TIMING.includes(key) || key.startsWith("status/") || key === "station/status";
   return beaconOff(values) && TIMING.includes(key);
 }
 

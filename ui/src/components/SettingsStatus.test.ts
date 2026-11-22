@@ -67,7 +67,11 @@ describe("the Status group", () => {
     expect(text.wrapper.find<HTMLInputElement>("#set-station-status").element.value).toBe("At the cottage");
     const both = make({ "station/status": "At the cottage", "status/rigctld": "127.0.0.1:4532" });
     expect(both.wrapper.find<HTMLSelectElement>("#set-status-source").element.value).toBe("rig");
-    const chosen = make({ "station/status": "At the cottage", "status/rigctld": "127.0.0.1:4532", "status/source": "text" });
+    const chosen = make({
+      "station/status": "At the cottage",
+      "status/rigctld": "127.0.0.1:4532",
+      "status/source": "text",
+    });
     expect(chosen.wrapper.find<HTMLSelectElement>("#set-status-source").element.value).toBe("text");
   });
 
@@ -96,7 +100,10 @@ describe("the Status group", () => {
     const { wrapper, send } = make();
     await wrapper.find("#set-status-source").setValue("rig");
     expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("127.0.0.1:4532");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "status/source": "rig", "status/rigctld": "127.0.0.1:4532" } });
+    expect(send).toHaveBeenCalledWith({
+      cmd: "set_config",
+      values: { "status/source": "rig", "status/rigctld": "127.0.0.1:4532" },
+    });
   });
 
   it("shows the daemon's refusal of the radio without an address under the rigctld that was cleared", async () => {
@@ -104,9 +111,14 @@ describe("the Status group", () => {
     await wrapper.find("#set-status-rigctld").setValue("");
     await wrapper.find("#set-status-rigctld").trigger("blur");
     await tell(daemon, {
-      lastError: toastOf("set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)", "setting.status_needs_rigctld"),
+      lastError: toastOf(
+        "set_config: status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)",
+        "setting.status_needs_rigctld",
+      ),
     });
-    expect(wrapper.find("#set-status-rigctld").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("needs status/rigctld");
+    expect(
+      wrapper.find("#set-status-rigctld").element.closest(".field")?.querySelector(".field-error")?.textContent,
+    ).toContain("needs status/rigctld");
     expect(wrapper.find("#set-status-source").element.closest(".field")?.querySelector(".field-error")).toBeNull();
     expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("");
   });
@@ -148,7 +160,10 @@ describe("the Symbol field", () => {
     await digi[1]?.trigger("click");
     expect(wrapper.find(".sympick").exists()).toBe(false);
     expect(wrapper.find(".symbolfield-name").text()).toBe("Digipeater");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/symbol_table": "\\", "station/symbol_code": "#" } });
+    expect(send).toHaveBeenCalledWith({
+      cmd: "set_config",
+      values: { "station/symbol_table": "\\", "station/symbol_code": "#" },
+    });
   });
 
   it("offers a letter or a digit on the symbols that take one, and only on those", async () => {

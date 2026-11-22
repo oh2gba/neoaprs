@@ -4,20 +4,38 @@ import type { Message } from "@/i18n/message";
 export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "schedule.sent": { "=0": "non ancora inviato", "=1": "inviato una volta", other: "inviato {n} volte" },
   "schedule.ended": { "=1": "inviato una volta, concluso", other: "inviato {n} volte, concluso" },
-  "schedule.next": { "=0": "non ancora inviato, prossimo {when}", "=1": "inviato una volta, prossimo {when}", other: "inviato {n} volte, prossimo {when}" },
-  "schedule.waiting": { "=0": "non ancora inviato, in attesa", "=1": "inviato una volta, in attesa", other: "inviato {n} volte, in attesa" },
-  "schedule.killing": { "=0": "rimozione, non ancora inviato", "=1": "rimozione, inviato una volta", other: "rimozione, inviato {n} volte" },
+  "schedule.next": {
+    "=0": "non ancora inviato, prossimo {when}",
+    "=1": "inviato una volta, prossimo {when}",
+    other: "inviato {n} volte, prossimo {when}",
+  },
+  "schedule.waiting": {
+    "=0": "non ancora inviato, in attesa",
+    "=1": "inviato una volta, in attesa",
+    other: "inviato {n} volte, in attesa",
+  },
+  "schedule.killing": {
+    "=0": "rimozione, non ancora inviato",
+    "=1": "rimozione, inviato una volta",
+    other: "rimozione, inviato {n} volte",
+  },
   "schedule.on_request": "inviato solo su richiesta",
 
   "objects.none": "Nessun oggetto.",
   "objects.list": "Oggetti",
   "objects.mine": "I miei oggetti",
   "objects.about_label": "Sugli oggetti",
-  "objects.about1": "Un oggetto è un segnaposto che metti sulla mappa per qualcosa che non è una stazione: un ripetitore, un punto di ritrovo, un evento.",
+  "objects.about1":
+    "Un oggetto è un segnaposto che metti sulla mappa per qualcosa che non è una stazione: un ripetitore, un punto di ritrovo, un evento.",
   "objects.about2": "Tutti quelli vicino a te lo vedono, finché lo invii.",
   "objects.edit_label": "Modifica {name}",
   "objects.delete_title": "Elimina (rimuovi dall’etere)",
-  "objects.delete_label": { select: "kind", object: "Elimina l’oggetto {name}", item: "Elimina l’item {name}", other: "Elimina l’oggetto {name}" },
+  "objects.delete_label": {
+    select: "kind",
+    object: "Elimina l’oggetto {name}",
+    item: "Elimina l’item {name}",
+    other: "Elimina l’oggetto {name}",
+  },
   "objects.kind_word": { select: "kind", object: "oggetto", item: "item", other: "oggetto" },
   "objects.in_group": "Categoria: {group}",
   "objects.category.rp2m": "Ripetitore 2 m",
@@ -53,7 +71,8 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.category.other": "Altra…",
   "objects.qru": "Info locali",
   "objects.qru_tip_label": "Sulle info locali",
-  "objects.qru_tip": "Chiede alle stazioni vicine i loro oggetti (APRS QRU): ripetitori, eventi, luoghi. Inviato solo via radio.",
+  "objects.qru_tip":
+    "Chiede alle stazioni vicine i loro oggetti (APRS QRU): ripetitori, eventi, luoghi. Inviato solo via radio.",
   "objects.qru_ask": "Chiedi",
   "objects.qru_km": "km",
   "objects.qru_km_label": "Distanza in km",
@@ -95,7 +114,8 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.tip.speed": "A che velocità si muove, in km/h. Lascia vuoti entrambi per un oggetto fermo.",
   "objects.tip.path": "I digipeater richiesti dai suoi pacchetti. Vuoto usa il percorso del tuo beacon.",
   "objects.tip.category": "Dai una categoria a un oggetto per offrirlo alle stazioni che chiedono info locali.",
-  "objects.tip.category_code": "La tua categoria: al massimo {max} lettere o cifre, non INFO né NEXT. Le stazioni la chiedono con questa parola.",
+  "objects.tip.category_code":
+    "La tua categoria: al massimo {max} lettere o cifre, non INFO né NEXT. Le stazioni la chiedono con questa parola.",
   "objects.tip.on_request": "Non inviato in beacon; inviato solo a una stazione che chiede info locali.",
   "objects.sent_on": "Inviato sulla radio {name}",
 

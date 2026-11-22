@@ -19,7 +19,13 @@ import {
 import { LIMITS } from "@/protocol/lists";
 import { NOW, ownObject } from "@/test/fixtures";
 
-const ready = (extra: Partial<ObjectDraft> = {}): ObjectDraft => ({ ...emptyDraft(), name: "LEADER", lat: "60.17", lon: "24.94", ...extra });
+const ready = (extra: Partial<ObjectDraft> = {}): ObjectDraft => ({
+  ...emptyDraft(),
+  name: "LEADER",
+  lat: "60.17",
+  lon: "24.94",
+  ...extra,
+});
 
 describe("emptyDraft and draftOf", () => {
   it("starts a new object as a repeater, with no name and no place", () => {
@@ -64,7 +70,12 @@ describe("emptyDraft and draftOf", () => {
       onRequest: false,
       radios: [1],
     });
-    expect(draftOf(ownObject("AID", { kind: "item" }))).toMatchObject({ kind: "item", course: "", speed: "", path: "" });
+    expect(draftOf(ownObject("AID", { kind: "item" }))).toMatchObject({
+      kind: "item",
+      course: "",
+      speed: "",
+      path: "",
+    });
   });
 });
 
@@ -75,7 +86,8 @@ describe("nameProblem", () => {
   });
 
   it("refuses a blank at an end, ! _ | ~, anything but printable ASCII and more than nine characters", () => {
-    for (const name of [" A", "A ", "A!B", "A_B", "A|B", "A~B", "Ä", "tab\t"]) expect(nameProblem(name, "object"), name).not.toBe("");
+    for (const name of [" A", "A ", "A!B", "A_B", "A|B", "A~B", "Ä", "tab\t"])
+      expect(nameProblem(name, "object"), name).not.toBe("");
     expect(nameProblem("TENCHARSXX", "object")).toBe("At most 9 characters");
   });
 
@@ -102,9 +114,27 @@ describe("draftProblems and draftReady", () => {
 
   it("names each field that is wrong", () => {
     const problems = draftProblems(
-      ready({ name: "A!", lat: "91", lon: "x", symbol: "!!", course: "360", speed: "-1", path: "A,B,C,D,E,F,G,H,I", comment: "a|b" }),
+      ready({
+        name: "A!",
+        lat: "91",
+        lon: "x",
+        symbol: "!!",
+        course: "360",
+        speed: "-1",
+        path: "A,B,C,D,E,F,G,H,I",
+        comment: "a|b",
+      }),
     );
-    expect(Object.keys(problems).sort()).toEqual(["comment", "course", "lat", "lon", "name", "path", "speed", "symbol"]);
+    expect(Object.keys(problems).sort()).toEqual([
+      "comment",
+      "course",
+      "lat",
+      "lon",
+      "name",
+      "path",
+      "speed",
+      "symbol",
+    ]);
     expect(problems.lat).toBe("Between -90 and 90");
     expect(problems.lon).toBe("Not a number");
     expect(problems.course).toBe("0 to 359 degrees");
@@ -136,7 +166,12 @@ describe("draftProblems and draftReady", () => {
 
 describe("objectCommand", () => {
   it("is the command that makes the object, every field as the daemon takes it", () => {
-    expect(objectCommand(ready({ kind: "item", symbol: "\\+", comment: " First aid ", course: "90", speed: "12,5", path: "wide2-1" }), [1])).toEqual({
+    expect(
+      objectCommand(
+        ready({ kind: "item", symbol: "\\+", comment: " First aid ", course: "90", speed: "12,5", path: "wide2-1" }),
+        [1],
+      ),
+    ).toEqual({
       cmd: "object_set",
       name: "LEADER",
       kind: "item",
@@ -220,15 +255,25 @@ describe("moveCommand", () => {
 describe("the QRU group", () => {
   it("is empty, or 1 to 8 letters and digits that are not INFO or NEXT, in either case", () => {
     for (const ok of ["", "  ", "FOOD", "rp70", " lifeboat ", "T2SRV"]) expect(qruProblem(ok), ok).toBe("");
-    for (const bad of ["INFO", "next", "LIFEBOATS", "R P", "RP-70", "ÅÄ"]) expect(qruProblem(bad), bad).toBe("Up to 8 letters and digits, not INFO or NEXT");
+    for (const bad of ["INFO", "next", "LIFEBOATS", "R P", "RP-70", "ÅÄ"])
+      expect(qruProblem(bad), bad).toBe("Up to 8 letters and digits, not INFO or NEXT");
     expect(draftProblems(ready({ qru: "INFO" })).qru).toBe("Up to 8 letters and digits, not INFO or NEXT");
   });
 
   it("goes to the daemon in capitals with the choice of sending only when asked, and comes back from a row", () => {
-    expect(objectCommand(ready({ qru: " rp70 ", onRequest: true }), [1])).toMatchObject({ qru_group: "RP70", on_request: true });
+    expect(objectCommand(ready({ qru: " rp70 ", onRequest: true }), [1])).toMatchObject({
+      qru_group: "RP70",
+      on_request: true,
+    });
     expect(objectCommand(ready(), [1])).toMatchObject({ qru_group: "", on_request: false });
-    expect(draftOf(ownObject("PUB", { qru_group: "FOOD", on_request: true }))).toMatchObject({ qru: "FOOD", onRequest: true });
-    expect(moveCommand(ownObject("PUB", { qru_group: "FOOD", on_request: true }), 60, 24)).toMatchObject({ qru_group: "FOOD", on_request: true });
+    expect(draftOf(ownObject("PUB", { qru_group: "FOOD", on_request: true }))).toMatchObject({
+      qru: "FOOD",
+      onRequest: true,
+    });
+    expect(moveCommand(ownObject("PUB", { qru_group: "FOOD", on_request: true }), 60, 24)).toMatchObject({
+      qru_group: "FOOD",
+      on_request: true,
+    });
   });
 
   it("is part of what makes an object the one the command asked for", () => {
@@ -247,12 +292,18 @@ describe("stateText", () => {
 
   it("says how often it was sent and when it is sent next", () => {
     expect(stateText(ownObject("A", { sent: 2 }), NOW)).toBe("sent 2 times, next in 3 min");
-    expect(stateText(ownObject("A", { sent: 1, next_at: new Date(NOW + 40_000).toISOString() }), NOW)).toBe("sent once, next in 40 s");
+    expect(stateText(ownObject("A", { sent: 1, next_at: new Date(NOW + 40_000).toISOString() }), NOW)).toBe(
+      "sent once, next in 40 s",
+    );
   });
 
   it("says waiting for one that is overdue (the call is not set, or the radio is away) and not for one that is due this second", () => {
-    expect(stateText(ownObject("A", { sent: 0, last_sent_at: null, next_at: new Date(NOW - 60_000).toISOString() }), NOW)).toBe("not sent yet, waiting");
-    expect(stateText(ownObject("A", { sent: 0, next_at: new Date(NOW - 1000).toISOString() }), NOW)).toBe("not sent yet, next now");
+    expect(
+      stateText(ownObject("A", { sent: 0, last_sent_at: null, next_at: new Date(NOW - 60_000).toISOString() }), NOW),
+    ).toBe("not sent yet, waiting");
+    expect(stateText(ownObject("A", { sent: 0, next_at: new Date(NOW - 1000).toISOString() }), NOW)).toBe(
+      "not sent yet, next now",
+    );
   });
 
   it("says killing, with how often the kill was sent", () => {

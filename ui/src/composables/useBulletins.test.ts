@@ -33,7 +33,10 @@ beforeEach(() => localStorage.clear());
 
 describe("useBulletins", () => {
   it("counts every bulletin as new until the tab has been on show, and none after", async () => {
-    const { panel, fresh } = setUp(board(bulletin("BLN1", { first_heard: ago(600) }), bulletin("BLN2", { first_heard: ago(300) })), "stations");
+    const { panel, fresh } = setUp(
+      board(bulletin("BLN1", { first_heard: ago(600) }), bulletin("BLN2", { first_heard: ago(300) })),
+      "stations",
+    );
     expect(fresh.value).toBe(2);
     panel.show("bulletins");
     await nextTick();
@@ -80,7 +83,10 @@ describe("useBulletins", () => {
   it("remembers what was seen across page loads", async () => {
     setUp(board(bulletin("BLN1", { first_heard: ago(600) })), "bulletins");
     await nextTick();
-    const again = setUp(board(bulletin("BLN1", { first_heard: ago(600) }), bulletin("BLN2", { first_heard: ago(10) })), "stations");
+    const again = setUp(
+      board(bulletin("BLN1", { first_heard: ago(600) }), bulletin("BLN2", { first_heard: ago(10) })),
+      "stations",
+    );
     expect(again.fresh.value).toBe(1);
   });
 });

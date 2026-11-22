@@ -1,5 +1,17 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { availableLocales, detectLocale, formatNumber, hasMessage, locale, setLocale, startLocale, dayText, monthShort, t, weekdayShort } from "@/i18n";
+import {
+  availableLocales,
+  detectLocale,
+  formatNumber,
+  hasMessage,
+  locale,
+  setLocale,
+  startLocale,
+  dayText,
+  monthShort,
+  t,
+  weekdayShort,
+} from "@/i18n";
 import type { Catalogue } from "@/i18n/catalogue";
 import { LOCALES, type LocaleInfo } from "@/i18n/locales";
 
@@ -78,7 +90,9 @@ describe("the language of the page", () => {
   });
 
   it("is offered with each language's own name, and the pseudo-locale in development", () => {
-    expect(availableLocales().map((l) => l.name)).toEqual(expect.arrayContaining(["English", "Deutsch", "Português (Brasil)", "Pseudo (en-XA)"]));
+    expect(availableLocales().map((l) => l.name)).toEqual(
+      expect.arrayContaining(["English", "Deutsch", "Português (Brasil)", "Pseudo (en-XA)"]),
+    );
   });
 });
 

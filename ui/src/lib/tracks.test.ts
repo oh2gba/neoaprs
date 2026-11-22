@@ -15,7 +15,12 @@ describe("trackLines", () => {
   });
 
   it("makes a line of [lon, lat] for a station with more than one track point, none for fewer", () => {
-    const lines = trackLines([moving, station("A", { track: [[ago(10), 60, 24]] }), station("B")], null, NOW, aging(1440));
+    const lines = trackLines(
+      [moving, station("A", { track: [[ago(10), 60, 24]] }), station("B")],
+      null,
+      NOW,
+      aging(1440),
+    );
     expect(lines.features).toHaveLength(1);
     expect(lines.features[0]?.geometry.coordinates).toEqual([
       [24.5, 60.1],
@@ -82,7 +87,12 @@ describe("trackLines", () => {
         [24.2, 60.2],
         [24.3, 60.3],
       ]);
-      expect(points.map((f) => f.properties.opacity)).toEqual([trailOpacity(3000, 60), trailOpacity(2000, 60), trailOpacity(1000, 60), trailOpacity(10, 60)]);
+      expect(points.map((f) => f.properties.opacity)).toEqual([
+        trailOpacity(3000, 60),
+        trailOpacity(2000, 60),
+        trailOpacity(1000, 60),
+        trailOpacity(10, 60),
+      ]);
       expect(points.every((f) => f.properties.call === "OH2LONG")).toBe(true);
     });
     it("gives nothing for the stations not selected, for no selection, and for a station with a single position", () => {
@@ -106,7 +116,8 @@ describe("trackLines over the date line", () => {
     expect(coordinates.map(([lon]) => Number(lon.toFixed(1)))).toEqual(expect.arrayContaining([179.9, 180.1]));
     for (const [i, [lon]] of coordinates.entries()) {
       const before = coordinates[i - 1];
-      if (before !== undefined && before[1] === coordinates[i]?.[1]) expect(Math.abs(lon - before[0])).toBeLessThan(180);
+      if (before !== undefined && before[1] === coordinates[i]?.[1])
+        expect(Math.abs(lon - before[0])).toBeLessThan(180);
     }
   });
 });

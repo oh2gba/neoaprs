@@ -24,7 +24,10 @@ import { statusSource } from "@/lib/status";
 import { statusRadioLines } from "@/lib/statusreport";
 import { computed, shallowRef, toRef } from "vue";
 
-const props = withDefaults(defineProps<{ picking?: boolean; picked?: Picked | null }>(), { picking: false, picked: null });
+const props = withDefaults(defineProps<{ picking?: boolean; picked?: Picked | null }>(), {
+  picking: false,
+  picked: null,
+});
 const emit = defineEmits<{ pickPosition: [] }>();
 
 const { status, connected, now, config, send, settings, gps, receiveOnly } = useDaemonContext();
@@ -33,14 +36,18 @@ const several = computed(() => radios.severalSenders.value);
 /** The radios Beacon now and the timer send on; with one radio on, that one. */
 const beaconOn = computed(() => beaconRadios(radios.senders.value));
 /** Whether a radio Beacon now would send on is connected; a listening-only radio does not count. */
-const beaconUp = computed(() => (radios.told.value ? beaconOn.value.some((radio) => radio.connected) : connected.value));
+const beaconUp = computed(() =>
+  radios.told.value ? beaconOn.value.some((radio) => radio.connected) : connected.value,
+);
 /** The radios Send status now and the timer send the status on; with one radio on, that one. */
 const statusOn = computed(() => statusRadios(radios.senders.value));
 /** No timed status: the beacon is Off, or the status is ticked for no radio that is on. */
 const statusNowhere = computed(() => several.value && statusOn.value.length === 0);
 const statusUntimed = computed(() => beaconOff(config.value?.values ?? {}) || statusNowhere.value);
 /** Whether a radio Send status now would send on is connected. */
-const statusUp = computed(() => (radios.told.value ? statusOn.value.some((radio) => radio.connected) : connected.value));
+const statusUp = computed(() =>
+  radios.told.value ? statusOn.value.some((radio) => radio.connected) : connected.value,
+);
 /** The armed button: its radio dropping, like the link dropping, cancels the second press. */
 const armedOf = shallowRef<() => SendKey | null>(() => null);
 const linked = computed(() => {
@@ -63,7 +70,11 @@ const statusWhy = computed(() => why(statusUp.value, statusOn.value));
 /** Each radio's beacon behind the status row's arrow, while several radios are on. */
 const beaconLines = computed(() =>
   several.value && radios.told.value
-    ? beaconOn.value.map((radio) => ({ name: radio.name, beacon: radio.row.beacon, smart: radio.row.allowed.smart_beacon }))
+    ? beaconOn.value.map((radio) => ({
+        name: radio.name,
+        beacon: radio.row.beacon,
+        smart: radio.row.allowed.smart_beacon,
+      }))
     : [],
 );
 
@@ -91,8 +102,21 @@ const { ticks: statusTicks, error: statusTickError, tick: statusTick } = useSend
     <SettingsForm scope="beacon" :picking="picking" :picked="picked" @pick-position="emit('pickPosition')">
       <template #after="{ fieldKey, draft }">
         <template v-if="fieldKey === 'beacon/interval_min'">
-          <SendOn v-if="beaconTicks.length > 0" id="beacon-send-on" :ticks="beaconTicks" :error="beaconTickError" @tick="beaconTick" />
-          <BeaconStatus :status="status" :gps="gps" :values="config?.values ?? {}" :now="now" :radios="beaconLines" :receive-only="receiveOnly" />
+          <SendOn
+            v-if="beaconTicks.length > 0"
+            id="beacon-send-on"
+            :ticks="beaconTicks"
+            :error="beaconTickError"
+            @tick="beaconTick"
+          />
+          <BeaconStatus
+            :status="status"
+            :gps="gps"
+            :values="config?.values ?? {}"
+            :now="now"
+            :radios="beaconLines"
+            :receive-only="receiveOnly"
+          />
           <SendRow
             id="beacon-now"
             :label="t('beacon.now_label')"
@@ -106,7 +130,13 @@ const { ticks: statusTicks, error: statusTickError, tick: statusTick } = useSend
           />
         </template>
         <template v-else-if="fieldKey === 'status/source' && statusSource(draft) !== 'off'">
-          <SendOn v-if="statusTicks.length > 0" id="status-send-on" :ticks="statusTicks" :error="statusTickError" @tick="statusTick" />
+          <SendOn
+            v-if="statusTicks.length > 0"
+            id="status-send-on"
+            :ticks="statusTicks"
+            :error="statusTickError"
+            @tick="statusTick"
+          />
           <StatusReportRow
             :text="status?.station_status ?? ''"
             :last-sent="status?.station_status_last_sent ?? null"
@@ -119,7 +149,9 @@ const { ticks: statusTicks, error: statusTickError, tick: statusTick } = useSend
             :now="now"
           />
         </template>
-        <template v-else-if="(fieldKey === 'station/status' || fieldKey === 'status/template') && statusSource(draft) !== 'off'">
+        <template
+          v-else-if="(fieldKey === 'station/status' || fieldKey === 'status/template') && statusSource(draft) !== 'off'"
+        >
           <SendRow
             id="status-now"
             :label="t('beacon.now_label')"

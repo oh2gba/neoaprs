@@ -50,7 +50,17 @@ import { isGateway } from "@/lib/messages";
 import { receivedFrom } from "@/lib/qru";
 import { STATIONS_TWO_RADIOS } from "@/lib/layout";
 import { heardDirect } from "@/lib/routes";
-import { canForget, canMessage, firstDirection, listStations, stationRowId, rowSymbolName, type QueryKind, type Sort, type SortKey } from "@/lib/stations";
+import {
+  canForget,
+  canMessage,
+  firstDirection,
+  listStations,
+  stationRowId,
+  rowSymbolName,
+  type QueryKind,
+  type Sort,
+  type SortKey,
+} from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -177,14 +187,27 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
       <span class="info-line">{{ t("station.table.about1") }}</span>
       <span class="info-line">{{ t("station.table.about2") }}</span>
     </TabHelp>
-    <StationsFilters v-model:filter="filter" v-model:hide-timed-out="hideTimedOut" v-model:direct-only="directOnly" v-model:rf-only="rfOnly" />
+    <StationsFilters
+      v-model:filter="filter"
+      v-model:hide-timed-out="hideTimedOut"
+      v-model:direct-only="directOnly"
+      v-model:rf-only="rfOnly"
+    />
     <div class="scroll">
       <table class="grid stations">
         <thead>
           <tr>
-            <th v-for="(c, i) in columns" :key="i" :class="{ num: c.numeric, sortable: c.key !== null }" :aria-sort="ariaSort(c.key)">
+            <th
+              v-for="(c, i) in columns"
+              :key="i"
+              :class="{ num: c.numeric, sortable: c.key !== null }"
+              :aria-sort="ariaSort(c.key)"
+            >
               <button v-if="c.key" type="button" class="headbtn" @click="sortBy(c.key)">
-                {{ c.title }}<span class="sortmark" aria-hidden="true">{{ sort.key === c.key ? (sort.dir === 1 ? "▲" : "▼") : "" }}</span>
+                {{ c.title
+                }}<span class="sortmark" aria-hidden="true">{{
+                  sort.key === c.key ? (sort.dir === 1 ? "▲" : "▼") : ""
+                }}</span>
               </button>
               <span v-else-if="c.title" class="sr-only">{{ c.title }}</span>
             </th>
@@ -195,7 +218,13 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             v-for="row in rows"
             :id="stationRowId(row.call)"
             :key="row.call"
-            :class="{ selected: isOpen(row.call), me: row.is_me, own: row.own, timedout: isTimedOut(row), internetonly: internetOnly(row) }"
+            :class="{
+              selected: isOpen(row.call),
+              me: row.is_me,
+              own: row.own,
+              timedout: isTimedOut(row),
+              internetonly: internetOnly(row),
+            }"
             :aria-selected="isOpen(row.call)"
             tabindex="0"
             :data-call="row.call"
@@ -208,13 +237,20 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             @pointerup="press.up"
             @pointercancel="press.cancel"
           >
-            <td class="symbol" :title="rowSymbolName(row)"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
+            <td class="symbol" :title="rowSymbolName(row)">
+              <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" />
+            </td>
             <td class="mono strong call">
               <span class="callname">{{ row.call }}</span
               ><AlertBell :alert="prefs.alerts.value.get(row.call)" /><DirectMark v-if="heardDirect(row)" />
             </td>
             <td class="heard">
-              <TagMark v-for="tag in heardTags(row, radios.all.value, now, radioRoom)" :key="tag.key" :tone="tag.tone" class="via" :title="tag.title"
+              <TagMark
+                v-for="tag in heardTags(row, radios.all.value, now, radioRoom)"
+                :key="tag.key"
+                :tone="tag.tone"
+                class="via"
+                :title="tag.title"
                 >{{ tag.label }}<span v-if="tag.key === 'more'" class="sr-only"> {{ tag.title }}</span></TagMark
               >
               <TagMark
@@ -231,7 +267,8 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
               <span v-if="row.bearing_deg !== null" class="sr-only">{{ bearingTitle(row.bearing_deg) }}</span>
             </td>
             <td class="num" :title="dateTimeText(row.last_heard)">
-              {{ ageText(row.last_heard, now) }}<span v-if="isTimedOut(row)" class="timedword">{{ ` ${t("station.timed_out")}` }}</span>
+              {{ ageText(row.last_heard, now)
+              }}<span v-if="isTimedOut(row)" class="timedword">{{ ` ${t("station.timed_out")}` }}</span>
             </td>
             <td class="actions" @click.stop @keydown.enter.stop>
               <IconButton
@@ -246,14 +283,20 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
                 kind="delete"
                 class="forgetbtn"
                 :armed="armed(row.call)"
-                :label="armed(row.call) ? t('station.table.forget_sure_call', { call: row.call }) : t('station.table.forget_call', { call: row.call })"
+                :label="
+                  armed(row.call)
+                    ? t('station.table.forget_sure_call', { call: row.call })
+                    : t('station.table.forget_call', { call: row.call })
+                "
                 :title="t('station.table.forget_call', { call: row.call })"
                 @click="forget(row.call)"
               />
             </td>
           </tr>
           <tr v-if="rows.length === 0">
-            <td :colspan="columns.length" class="empty">{{ stations.size === 0 ? t("station.table.none_yet") : t("station.table.none_match") }}</td>
+            <td :colspan="columns.length" class="empty">
+              {{ stations.size === 0 ? t("station.table.none_yet") : t("station.table.none_match") }}
+            </td>
           </tr>
           <tr v-if="strangerCall !== null" class="stranger">
             <td :colspan="columns.length" class="empty">
@@ -280,7 +323,13 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
     <div class="foot footbar muted">
       <span class="footcount">{{ t("station.table.count", { shown: rows.length, n: stations.size }) }}</span>
       <span class="footaction">
-        <button type="button" class="btn forgetall" :class="{ danger: sureAll.armed.value !== null }" :disabled="!anyHeard" @click="forgetAll">
+        <button
+          type="button"
+          class="btn forgetall"
+          :class="{ danger: sureAll.armed.value !== null }"
+          :disabled="!anyHeard"
+          @click="forgetAll"
+        >
           <TwoWords :second="sureAll.armed.value !== null">
             <template #first>{{ t("station.table.forget_all") }}</template>
             <template #second>{{ t("station.table.forget_all_sure") }}</template>
@@ -291,6 +340,13 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
         </InfoTip>
       </span>
     </div>
-    <StationPanel v-if="panelRow" :key="panelRow.call" :row="panelRow" :armed="armed(panelRow.call)" v-on="rowActions" @close="panel.close" />
+    <StationPanel
+      v-if="panelRow"
+      :key="panelRow.call"
+      :row="panelRow"
+      :armed="armed(panelRow.call)"
+      v-on="rowActions"
+      @close="panel.close"
+    />
   </div>
 </template>

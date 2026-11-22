@@ -39,7 +39,9 @@ async function submit(): Promise<void> {
       :aria-invalid="error !== ''"
       @input="error = ''"
     />
-    <button class="btn primary" type="submit" :disabled="busy || key.trim() === ''">{{ t("settings.key_screen.open") }}</button>
+    <button class="btn primary" type="submit" :disabled="busy || key.trim() === ''">
+      {{ t("settings.key_screen.open") }}
+    </button>
     <p v-if="error" class="field-error" role="alert">{{ error }}</p>
   </form>
 </template>

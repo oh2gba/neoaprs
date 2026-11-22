@@ -20,9 +20,18 @@ export interface ReportLook {
  * that is on), whether transmitting is off, whether the status is ticked for no radio that is on
  * (nothing can send it: the pill off, as the beacon's), and the time now.
  */
-export function reportLook(lastSent: string | null, minutes: string, beaconOff: boolean, rxOnly: boolean, nowhere: boolean, nowMs: number): ReportLook {
+export function reportLook(
+  lastSent: string | null,
+  minutes: string,
+  beaconOff: boolean,
+  rxOnly: boolean,
+  nowhere: boolean,
+  nowMs: number,
+): ReportLook {
   if (rxOnly) return { state: t("beacon.state.off"), tone: "tnc-waiting", line: t("error.transmit.off") };
-  const on = nowhere ? { state: t("beacon.state.off"), tone: "beacon-off" } : { state: t("beacon.state.on"), tone: "beacon-on" };
+  const on = nowhere
+    ? { state: t("beacon.state.off"), tone: "beacon-off" }
+    : { state: t("beacon.state.on"), tone: "beacon-on" };
   if (lastSent === null) return { ...on, line: t("beacon.status.line.none") };
   const ago = agoWords(lastSent, nowMs);
   const every = Number(minutes);
@@ -37,7 +46,10 @@ export function reportLook(lastSent: string | null, minutes: string, beaconOff: 
  * The lines behind the arrow while several radios are on: the status on each radio it goes out on,
  * by name ("HF: last sent 2 min ago · next in 28 min (every 30 min)").
  */
-export function statusRadioLines(radios: readonly { name: string; status: RadioStatusState }[], nowMs: number): string[] {
+export function statusRadioLines(
+  radios: readonly { name: string; status: RadioStatusState }[],
+  nowMs: number,
+): string[] {
   return radios.map(({ name, status }) => {
     const { last_sent: last, next_due: next, interval_min: minutes } = status;
     const ago = agoWords(last, nowMs);

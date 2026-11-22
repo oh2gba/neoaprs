@@ -8,7 +8,8 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 const SCOPE = "http://pi.local:7303/app/";
 const SOURCE = readFileSync(join(process.cwd(), "sw", "sw.js"), "utf-8");
 const ASSET = `${SCOPE}assets/index-AbCd1234.js`;
-const HTML = '<script type="module" src="./assets/index-AbCd1234.js"></script><link rel="stylesheet" href="./assets/index-Zy9x8w7v.css">';
+const HTML =
+  '<script type="module" src="./assets/index-AbCd1234.js"></script><link rel="stylesheet" href="./assets/index-Zy9x8w7v.css">';
 
 type Listener = (event: Record<string, unknown>) => void;
 interface Rig {
@@ -20,7 +21,10 @@ interface Rig {
    * A fetch event: the worker's answer, or undefined when it left the request to the browser;
    * `settle` waits for what it went on to do.
    */
-  ask: (url: string, init?: { method?: string; range?: string; mode?: string }) => Promise<{ answer: Response | undefined; settle: () => Promise<void> }>;
+  ask: (
+    url: string,
+    init?: { method?: string; range?: string; mode?: string },
+  ) => Promise<{ answer: Response | undefined; settle: () => Promise<void> }>;
   activate: () => Promise<void>;
   install: () => void;
 }
@@ -35,7 +39,8 @@ function rig(build = "1.2.3"): Rig {
       stores.set(name, store);
       return Promise.resolve({
         match: (request: string | { url: string }) => Promise.resolve(store.get(key(request))?.clone()),
-        put: (request: string | { url: string }, response: Response) => Promise.resolve(void store.set(key(request), response)),
+        put: (request: string | { url: string }, response: Response) =>
+          Promise.resolve(void store.set(key(request), response)),
       });
     },
     keys: () => Promise.resolve([...stores.keys()]),
@@ -66,7 +71,12 @@ function rig(build = "1.2.3"): Rig {
     ask: async (url, init = {}) => {
       let answer: Promise<Response> | undefined;
       const pending: Promise<unknown>[] = [];
-      const request = { url, method: init.method ?? "GET", mode: init.mode ?? "cors", headers: new Headers(init.range ? { range: init.range } : {}) };
+      const request = {
+        url,
+        method: init.method ?? "GET",
+        mode: init.mode ?? "cors",
+        headers: new Headers(init.range ? { range: init.range } : {}),
+      };
       listeners.get("fetch")?.({
         request,
         respondWith: (promise: Promise<Response>) => (answer = promise),
@@ -182,7 +192,10 @@ describe("the shell and the other files of the page: network first", () => {
     });
     await (await r.ask(SCOPE)).settle();
     const assets = r.stores.get("neoaprs-1.2.3-assets");
-    expect([...(assets?.keys() ?? [])].sort()).toEqual([`${SCOPE}assets/index-AbCd1234.js`, `${SCOPE}assets/index-Zy9x8w7v.css`]);
+    expect([...(assets?.keys() ?? [])].sort()).toEqual([
+      `${SCOPE}assets/index-AbCd1234.js`,
+      `${SCOPE}assets/index-Zy9x8w7v.css`,
+    ]);
   });
 });
 
@@ -198,12 +211,16 @@ describe("a reload after the daemon was upgraded", () => {
     };
     r.fetch.mockImplementation(daemon(OLD_HTML));
     await (await r.ask(SCOPE, { mode: "navigate" })).settle();
-    expect(await (await r.ask(`${SCOPE}assets/index-OldOld11.js`)).answer?.text()).toBe(`code of ${SCOPE}assets/index-OldOld11.js`);
+    expect(await (await r.ask(`${SCOPE}assets/index-OldOld11.js`)).answer?.text()).toBe(
+      `code of ${SCOPE}assets/index-OldOld11.js`,
+    );
     r.fetch.mockImplementation(daemon(NEW_HTML)); // NeoAPRS is upgraded and restarted; the open page reloads
     const navigation = await r.ask(SCOPE, { mode: "navigate" });
     expect(await navigation.answer?.text()).toBe(NEW_HTML);
     await navigation.settle();
-    expect(await (await r.ask(`${SCOPE}assets/index-NewNew22.js`)).answer?.text()).toBe(`code of ${SCOPE}assets/index-NewNew22.js`);
+    expect(await (await r.ask(`${SCOPE}assets/index-NewNew22.js`)).answer?.text()).toBe(
+      `code of ${SCOPE}assets/index-NewNew22.js`,
+    );
     const kept = r.stores.get("neoaprs-old-build-assets");
     expect(kept?.has(`${SCOPE}assets/index-NewNew22.js`)).toBe(true);
   });
@@ -211,7 +228,8 @@ describe("a reload after the daemon was upgraded", () => {
   it("is a worker of its own for a new build, whose caches take the place of the old build's, whatever the version of NeoAPRS", async () => {
     const r = rig("new-build");
     r.fetch.mockImplementation(() => Promise.resolve(reply(NEW_HTML)));
-    for (const name of ["neoaprs-old-build-page", "neoaprs-old-build-assets", "neoaprs-0.9.0-page"]) r.stores.set(name, new Map());
+    for (const name of ["neoaprs-old-build-page", "neoaprs-old-build-assets", "neoaprs-0.9.0-page"])
+      r.stores.set(name, new Map());
     await r.activate();
     expect([...r.stores.keys()].sort()).toEqual(["neoaprs-new-build-assets", "neoaprs-new-build-page"]);
   });
@@ -232,7 +250,8 @@ describe("a new build", () => {
   it("deletes the caches of the old builds, and only NeoAPRS's own, and fills its own", async () => {
     const r = rig("2.0.0");
     r.fetch.mockImplementation(() => Promise.resolve(reply(HTML)));
-    for (const name of ["neoaprs-1.9.0-page", "neoaprs-1.9.0-assets", "neoaprs-2.0.0-page", "someone-elses"]) r.stores.set(name, new Map());
+    for (const name of ["neoaprs-1.9.0-page", "neoaprs-1.9.0-assets", "neoaprs-2.0.0-page", "someone-elses"])
+      r.stores.set(name, new Map());
     await r.activate();
     expect([...r.stores.keys()].sort()).toEqual(["neoaprs-2.0.0-assets", "neoaprs-2.0.0-page", "someone-elses"]);
     expect(r.claim).toHaveBeenCalled();

@@ -30,7 +30,8 @@ const dpn = (over: Record<string, unknown>) => ({
   radio: 1,
   ...over,
 });
-const state = (over: Record<string, unknown>, asked = qruAsked("TEST 150", ago(45))) => qruState({ asked, servers: [dpn(over)] });
+const state = (over: Record<string, unknown>, asked = qruAsked("TEST 150", ago(45))) =>
+  qruState({ asked, servers: [dpn(over)] });
 const line = (wrapper: ReturnType<typeof mount>) => wrapper.find(".qru-sent");
 beforeEach(() => attend.mockClear());
 
@@ -91,19 +92,34 @@ describe("Local info: what arrived of what the server sent", () => {
 
   it("says only how many arrived when no closing line was heard, and nothing when nothing arrived", () => {
     const some = mount(ObjectsQru, {
-      global: withDaemon(fakeDaemon({ qru: state({ sent_objects: null, request: "", sent: "", sent_at: null, settles_at: null, received: ["A", "B"] }) })),
+      global: withDaemon(
+        fakeDaemon({
+          qru: state({
+            sent_objects: null,
+            request: "",
+            sent: "",
+            sent_at: null,
+            settles_at: null,
+            received: ["A", "B"],
+          }),
+        }),
+      ),
     });
     expect(line(some).text()).toContain("2 arrived");
     expect(some.find(".qru-again").exists()).toBe(false);
     const none = mount(ObjectsQru, {
-      global: withDaemon(fakeDaemon({ qru: state({ sent_objects: null, request: "", sent: "", sent_at: null, settles_at: null }) })),
+      global: withDaemon(
+        fakeDaemon({ qru: state({ sent_objects: null, request: "", sent: "", sent_at: null, settles_at: null }) }),
+      ),
     });
     expect(none.find(".qru-sent").exists()).toBe(false);
   });
 
   it("has no second list of the objects: a link to the Stations tab opens it and flashes the row of the first object", async () => {
     const panel = usePanel();
-    const wrapper = mount(ObjectsQru, { global: withDaemon(fakeDaemon({ panel, qru: state({ received: ["TESTOBJ", "OTHER"] }) })) });
+    const wrapper = mount(ObjectsQru, {
+      global: withDaemon(fakeDaemon({ panel, qru: state({ received: ["TESTOBJ", "OTHER"] }) })),
+    });
     expect(wrapper.text()).not.toContain("TESTOBJ");
     const link = wrapper.find<HTMLButtonElement>("button.qru-stations");
     expect(link.text()).toBe("in Stations");
@@ -117,7 +133,12 @@ describe("the objects that arrived, in the Stations tab", () => {
   const make = (qru = state({ received: ["TESTOBJ"] })) =>
     mount(StationsTable, {
       props: { selected: null },
-      global: withDaemon(fakeDaemon({ qru, stations: table(station("TESTOBJ", { kind: "object", heard_rf: 1 }), station("OH2RF", { heard_rf: 3 })) })),
+      global: withDaemon(
+        fakeDaemon({
+          qru,
+          stations: table(station("TESTOBJ", { kind: "object", heard_rf: 1 }), station("OH2RF", { heard_rf: 3 })),
+        }),
+      ),
     });
 
   it("carry a Local info tag in the tag column, beside the radio that heard it (FM), with the server's call in its hover; a station that is no answer has none", () => {

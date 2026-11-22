@@ -48,7 +48,16 @@ import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText, roundPlace, wrapLongitude } from "@/lib/setup";
 import { portsAsks } from "@/lib/radios";
-import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, storedFor, valueFor, type Scope } from "@/lib/settings";
+import {
+  BEACON_FOLDS,
+  SUBGROUPS,
+  fieldFor,
+  igateOn,
+  shownByValues,
+  storedFor,
+  valueFor,
+  type Scope,
+} from "@/lib/settings";
 import { layerKey } from "@/lib/layersettings";
 import { boxedKey, digiPlaces, inputId, radioFieldOf, shownByRadios, shownFor } from "@/lib/settingsradio";
 import { useRadios } from "@/composables/useRadios";
@@ -58,10 +67,30 @@ import { statusSource } from "@/lib/status";
 import { settingLimit } from "@/lib/textlimit";
 import { computed, watch } from "vue";
 
-const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
+const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), {
+  scope: "settings",
+  picking: false,
+  picked: null,
+});
 const emit = defineEmits<{ setup: []; update: []; notes: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, keys, local, connection } = useDaemonContext();
+const {
+  config,
+  lastError,
+  send,
+  settings,
+  alertResult,
+  updateResult,
+  map,
+  alerts,
+  ports,
+  say,
+  igate,
+  stations,
+  keys,
+  local,
+  connection,
+} = useDaemonContext();
 // New key asks twice: stations holding the old key must be sent the new one.
 const newMessageKey = useSure<string>();
 const { draft, errors } = settings;
@@ -87,12 +116,15 @@ const info = (key: string) => fieldFor(key, draft);
  * changeable).
  */
 const greyed = (key: string): boolean =>
-  props.scope === "beacon" && disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0);
+  props.scope === "beacon" &&
+  disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0);
 /**
  * The network is let in and the daemon has made a key (what is in force, not the switch being
  * changed).
  */
-const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
+const network = computed(
+  () => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "",
+);
 /**
  * What the phone code holds: the page's first address for other devices (the one on the network,
  * else the .local name) with the access key in force.
@@ -142,7 +174,8 @@ const digi = computed(() => digiPlaces(radios.all.value, draft));
  */
 const drawn = computed(() => groups.value.filter((group) => group.id !== "digi" || digi.value.keys.length > 0));
 /** The keys of a group's own fields that are shown (the Digipeater group's are its radios'). */
-const keysOf = (group: { id: string; keys: readonly string[] }) => (group.id === "digi" ? digi.value.keys : shown(group.keys));
+const keysOf = (group: { id: string; keys: readonly string[] }) =>
+  group.id === "digi" ? digi.value.keys : shown(group.keys);
 /** The symbol is one field, which sets the table and the code. */
 const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
 function editSymbol(text: string): void {
@@ -166,7 +199,8 @@ const folds = props.scope === "settings";
  * A group opens by itself when the person must see it: a complaint about one of its fields, or a
  * question about one.
  */
-const needsLook = (groupKeys: readonly string[]): boolean => groupKeys.some((key) => (errors[key] ?? "") !== "" || question.value?.key === key);
+const needsLook = (groupKeys: readonly string[]): boolean =>
+  groupKeys.some((key) => (errors[key] ?? "") !== "" || question.value?.key === key);
 /** A key of a box the Radio group shows: of a radio that is there and not removed. */
 const inBox = (key: string): boolean => {
   const id = radioFieldOf(key)?.id;
@@ -207,13 +241,28 @@ function typed(key: string, text: string): void {
   <form v-if="config" class="settings" novalidate @submit.prevent>
     <LanguageField v-if="scope === 'settings'" />
     <p v-if="scope === 'settings'" class="settings-setup">
-      <button class="linkbutton setup-open" type="button" @click="emit('setup')">{{ t("settings.setup_again") }}</button>
+      <button class="linkbutton setup-open" type="button" @click="emit('setup')">
+        {{ t("settings.setup_again") }}
+      </button>
     </p>
     <span class="sr-only" role="status" aria-live="polite"
       ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
     >
-    <SettingsGroup v-for="group in drawn" :id="group.id" :key="group.id" :title="group.title" :fold="folds" :show="needsLook(lookKeys(group))">
-      <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
+    <SettingsGroup
+      v-for="group in drawn"
+      :id="group.id"
+      :key="group.id"
+      :title="group.title"
+      :fold="folds"
+      :show="needsLook(lookKeys(group))"
+    >
+      <SettingsRadio
+        v-if="group.id === 'serial'"
+        :keys="shown(group.keys)"
+        :settings="settings"
+        :form="form"
+        :defaults="defaults"
+      />
       <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
       <SettingsBox
         v-for="box in boxesOf(group.id === 'serial' || (group.id === 'igate' && call === '') ? [] : keysOf(group))"
@@ -282,12 +331,23 @@ function typed(key: string, text: string): void {
             @cancel="settings.cancel(key)"
           >
             <template v-if="key === ALERT_KEY" #after>
-              <button class="btn" type="button" :disabled="alertTest.running.value || alertTest.stale.value" @click="alertTest.test">
+              <button
+                class="btn"
+                type="button"
+                :disabled="alertTest.running.value || alertTest.stale.value"
+                @click="alertTest.test"
+              >
                 {{ t("settings.alert_test") }}
               </button>
             </template>
             <template v-else-if="key === KEY_KEY" #after>
-              <button class="btn" :class="{ danger: newKey.armed.value }" type="button" :disabled="newKey.running.value" @click="newKey.press">
+              <button
+                class="btn"
+                :class="{ danger: newKey.armed.value }"
+                type="button"
+                :disabled="newKey.running.value"
+                @click="newKey.press"
+              >
                 <TwoWords :second="newKey.armed.value">
                   <template #first>{{ t("settings.new_key") }}</template>
                   <template #second>{{ t("settings.new_key_sure") }}</template>
@@ -296,14 +356,24 @@ function typed(key: string, text: string): void {
             </template>
           </SettingsField>
           <DigipeaterStatus v-if="key in digi.status" v-bind="digi.status[key]" />
-          <ActionRow v-if="key === RADIUS_KEY && map" id="set-map-fetch" :label="t('settings.map.detail_label')" :tip-label="t('settings.map.tip_label')">
+          <ActionRow
+            v-if="key === RADIUS_KEY && map"
+            id="set-map-fetch"
+            :label="t('settings.map.detail_label')"
+            :tip-label="t('settings.map.tip_label')"
+          >
             <MapFetchButton id="set-map-fetch" :map="map" :stale="settings.saving.value" :send="send" />
             <template #tip
               ><span class="info-line">{{ t("settings.map.tip1") }}</span></template
             >
             <template #notes><MapFetchNotes :map="map" /></template>
           </ActionRow>
-          <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
+          <ConfirmRow
+            v-if="question?.key === key"
+            :message="question.message"
+            @yes="form.answer(true)"
+            @cancel="form.answer(false)"
+          />
           <slot name="after" :field-key="key" :draft="draft"></slot>
           <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
           <div v-if="key === KEY_KEY && phoneLink" class="field">
@@ -338,10 +408,25 @@ function typed(key: string, text: string): void {
       </template>
       <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" :say="say" />
     </SettingsGroup>
-    <SettingsGroup v-if="scope === 'settings' && keys.on.value" id="encrypt" class="encrypt" :title="t('settings.group.encrypt')">
-      <ActionRow id="set-message-key" :label="t('settings.encrypt.key_label')" :tip-label="t('settings.encrypt.tip_label')" picture="encrypt">
+    <SettingsGroup
+      v-if="scope === 'settings' && keys.on.value"
+      id="encrypt"
+      class="encrypt"
+      :title="t('settings.group.encrypt')"
+    >
+      <ActionRow
+        id="set-message-key"
+        :label="t('settings.encrypt.key_label')"
+        :tip-label="t('settings.encrypt.tip_label')"
+        picture="encrypt"
+      >
         <input id="set-message-key" class="input mono" type="text" readonly :value="keys.own.value" />
-        <button class="btn" :class="{ danger: newMessageKey.armed.value === 'key' }" type="button" @click="newMessageKey.press('key', () => keys.renew())">
+        <button
+          class="btn"
+          :class="{ danger: newMessageKey.armed.value === 'key' }"
+          type="button"
+          @click="newMessageKey.press('key', () => keys.renew())"
+        >
           <TwoWords :second="newMessageKey.armed.value === 'key'">
             <template #first>{{ t("settings.new_key") }}</template>
             <template #second>{{ t("settings.new_key_sure") }}</template>

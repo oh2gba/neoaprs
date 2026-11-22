@@ -7,7 +7,8 @@ vi.mock("@/lib/basemap", async () => {
   return {
     loadMapEngine: () => (fakeState.engine ? Promise.resolve(fakeEngine) : Promise.reject(new Error("no engine"))),
     archivesPresent: () => Promise.resolve({ detail: fakeState.archive, world: fakeState.world }),
-    archiveUrl: (file = "basemap.pmtiles", version = "") => `http://127.0.0.1:7303/${file}${version ? `?v=${version}` : ""}`,
+    archiveUrl: (file = "basemap.pmtiles", version = "") =>
+      `http://127.0.0.1:7303/${file}${version ? `?v=${version}` : ""}`,
     glyphsUrl: () => "http://127.0.0.1:7303/fonts/{fontstack}/{range}.pbf",
   };
 });

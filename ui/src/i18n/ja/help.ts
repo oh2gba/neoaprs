@@ -7,38 +7,52 @@ export const help: Record<keyof typeof source, Message> = {
   "help.copy": "コピー",
   "help.copied": "コピーしました",
   "help.me": "この局",
-  "help.picture.object": "自分の車の局と、送信する2つのオブジェクト(周波数つきのリピーターと集合場所)を示す地図。どちらも他の2局の地図に表示されます。",
+  "help.picture.object":
+    "自分の車の局と、送信する2つのオブジェクト(周波数つきのリピーターと集合場所)を示す地図。どちらも他の2局の地図に表示されます。",
   "help.picture.bulletin": "1つの局が掲示 BLN1 を送ると、同じメッセージが他の3局の掲示板に表示されます。",
   "help.picture.bulletingroup":
     "1つの局がグループ掲示 BLN3HAMS を3局に送ります。グループ HAMS を表示する2局は掲示板に載せ、3局目は他のグループを選んでいるため、受信しても何も表示しません。",
   "help.picture.beacon": "自局は位置を繰り返し送信し(ビーコンの間に時計)、他の局の地図に表示されます。",
-  "help.picture.path": "パケットは車からフィルインのデジピーター(WIDE1-1)、次に広域のデジピーター(WIDE2-1)へと、2ホップして他の局に届きます。",
+  "help.picture.path":
+    "パケットは車からフィルインのデジピーター(WIDE1-1)、次に広域のデジピーター(WIDE2-1)へと、2ホップして他の局に届きます。",
   "help.picture.status": "短いステータス文(QRV 145.500)が、他の局の地図でコールサインの下に表示されます。",
-  "help.picture.range": "デジピーターとその到達範囲の円。円の内側の局はデジピーター経由で聞こえ、外側の局は聞こえません。",
-  "help.picture.request": "ある局がローカル情報を問い合わせると、自局がオブジェクトで答えます。それ以外のときはこのオブジェクトは送られません。",
+  "help.picture.range":
+    "デジピーターとその到達範囲の円。円の内側の局はデジピーター経由で聞こえ、外側の局は聞こえません。",
+  "help.picture.request":
+    "ある局がローカル情報を問い合わせると、自局がオブジェクトで答えます。それ以外のときはこのオブジェクトは送られません。",
   "help.picture.ssid": "1つのコールサイン YOURCALL で3つの局: そのままなら自宅、-9 は車、-10 は iGate です。",
   "help.picture.symbol": "シンボルの一覧から車を選ぶと、他の局の地図でコールサインの下に車が表示されます。",
-  "help.picture.network": "NeoAPRS が動くコンピューターが、ネットワークを通じてスマートフォン、タブレット、ノートパソコンにページを見せます。",
+  "help.picture.network":
+    "NeoAPRS が動くコンピューターが、ネットワークを通じてスマートフォン、タブレット、ノートパソコンにページを見せます。",
   "help.picture.accesskey": "スマートフォンでキーを一度入力すると、その後はログインしたままになります。",
-  "help.picture.igate": "車のパケットは無線で iGate に届き、iGate がインターネット(APRS-IS)へ渡します。逆向きも同様です。",
+  "help.picture.igate":
+    "車のパケットは無線で iGate に届き、iGate がインターネット(APRS-IS)へ渡します。逆向きも同様です。",
   "help.picture.radius": "中央に自局がある地図。詳細な地図は周囲の円の中まで、その外は世界地図です。",
   "help.picture.position": "動かない固定局と、GPS を使って移動する局(経路に沿ってビーコンを送る)。",
   "help.picture.digipeater": "広域のデジピーターに直接届かない車のパケットを、あなたの局が中継して先へ渡します。",
   "help.picture.logs": "ログファイルをメールに添付して送ります。",
-  "help.picture.transmit": "自局は他局を受信しますが(入る矢印)、送るはずのものは出ていきません。破線の矢印に×が付いています。",
-  "help.picture.beaconoff": "ビーコンがオフだと時計は何も送らず、時間軸のビーコンは空です。ボタンを押せば、それでも1つ送ります。",
-  "help.picture.internet": "APRS-ISにある地図の半径内の局が、雲からあなたの地図へ、一方向にだけ届きます。何も戻りません。",
-  "help.picture.channels": "無線で受信した局は電波で表され、受信した無線機の札（FM）が付きます。雲(APRS-IS)から来た局は点線の輪郭と専用の札が付きます。",
-  "help.picture.mercury": "自局と遠くの局が離れていて、その間を信号が上がって下りてきます。同じモデムを使う局だけがそれを聞きます。",
+  "help.picture.transmit":
+    "自局は他局を受信しますが(入る矢印)、送るはずのものは出ていきません。破線の矢印に×が付いています。",
+  "help.picture.beaconoff":
+    "ビーコンがオフだと時計は何も送らず、時間軸のビーコンは空です。ボタンを押せば、それでも1つ送ります。",
+  "help.picture.internet":
+    "APRS-ISにある地図の半径内の局が、雲からあなたの地図へ、一方向にだけ届きます。何も戻りません。",
+  "help.picture.channels":
+    "無線で受信した局は電波で表され、受信した無線機の札（FM）が付きます。雲(APRS-IS)から来た局は点線の輪郭と専用の札が付きます。",
+  "help.picture.mercury":
+    "自局と遠くの局が離れていて、その間を信号が上がって下りてきます。同じモデムを使う局だけがそれを聞きます。",
   "help.picture.scope":
     "遠くの局が送信し、ウォーターフォールにはそのフレームが印の付いた帯域のブロックとして新しいものが上に現れ、下の受信レベルのバーは適正範囲にあります。",
   "help.picture.tworadios":
     "2台の無線機を持つ自局：FM無線機は近くの車とデジピーターに地表沿いに届き、Mercury無線機は上がって下りてくる信号で遠くの局に届きます。",
-  "help.picture.dummy": "破線の枠の中の作り物の局が自局に応答しますが、自局が送るものは出ません。電波に×が付いています。",
-  "help.picture.notifications": "局からメッセージが届くと、この端末がスピーカーで音を鳴らし、カードで通知を表示します。",
+  "help.picture.dummy":
+    "破線の枠の中の作り物の局が自局に応答しますが、自局が送るものは出ません。電波に×が付いています。",
+  "help.picture.notifications":
+    "局からメッセージが届くと、この端末がスピーカーで音を鳴らし、カードで通知を表示します。",
   "help.picture.encrypt":
     "2つの局が互いの鍵を渡します。すると自局の暗号化メッセージは鍵を持つ局だけが読め、それを受信した第三の局には錠前のマークしか見えません。",
-  "help.picture.qru": "自局がローカル情報を問い合わせると、サーバー局がオブジェクト(レピータとイベント)で答え、地図に表示されます。",
+  "help.picture.qru":
+    "自局がローカル情報を問い合わせると、サーバー局がオブジェクト(レピータとイベント)で答え、地図に表示されます。",
   "help.not_copied": "コピーできませんでした",
 
   "help.install.label": "アプリ",
@@ -60,17 +74,23 @@ export const help: Record<keyof typeof source, Message> = {
   "help.cert.ios1": "このページをSafariで開き、「証明書をダウンロード」をタップして「許可」を選びます。",
   "help.cert.ios2": "「設定」→「プロファイルがダウンロードされました」→「インストール」を開きます。",
   "help.cert.ios3": "「設定」→「一般」→「情報」→「証明書信頼設定」を開き、「NeoAPRS local CA」をオンにします。",
-  "help.cert.windows1": "{file}を開き、「証明書のインストール」→「現在のユーザー」または「ローカル コンピューター」→「次へ」を選びます。",
-  "help.cert.windows2": "「証明書をすべて次のストアに配置する」→「参照」→「信頼されたルート証明機関」→「次へ」→「完了」を選びます。",
+  "help.cert.windows1":
+    "{file}を開き、「証明書のインストール」→「現在のユーザー」または「ローカル コンピューター」→「次へ」を選びます。",
+  "help.cert.windows2":
+    "「証明書をすべて次のストアに配置する」→「参照」→「信頼されたルート証明機関」→「次へ」→「完了」を選びます。",
   "help.cert.windows3": "ブラウザを再起動します。",
-  "help.cert.mac1": "「キーチェーンアクセス」を開き、{file}をシステムキーチェーンに読み込みます(「ファイル」→「項目を読み込む」)。",
+  "help.cert.mac1":
+    "「キーチェーンアクセス」を開き、{file}をシステムキーチェーンに読み込みます(「ファイル」→「項目を読み込む」)。",
   "help.cert.mac2": "「NeoAPRS local CA」をダブルクリックして「信頼」を開き、「常に信頼」を選びます。",
   "help.cert.mac3": "ブラウザを再起動します。",
-  "help.cert.linux1": "「設定」→「プライバシーとセキュリティ」→「セキュリティ」→「証明書の管理」→「認証局」を開きます。",
-  "help.cert.linux2": "「インポート」をクリックして{file}を選び、「この証明書を信頼してウェブサイトを識別する」にチェックを入れます。",
+  "help.cert.linux1":
+    "「設定」→「プライバシーとセキュリティ」→「セキュリティ」→「証明書の管理」→「認証局」を開きます。",
+  "help.cert.linux2":
+    "「インポート」をクリックして{file}を選び、「この証明書を信頼してウェブサイトを識別する」にチェックを入れます。",
   "help.cert.linux3": "ブラウザを再起動します。",
   "help.cert.firefox1": "「設定」→「プライバシーとセキュリティ」→「証明書」→「証明書を表示」→「認証局」を開きます。",
-  "help.cert.firefox2": "「インポート」をクリックして{file}を選び、「この認証局によるウェブサイトの識別を信頼する」にチェックを入れます。",
+  "help.cert.firefox2":
+    "「インポート」をクリックして{file}を選び、「この認証局によるウェブサイトの識別を信頼する」にチェックを入れます。",
 
   "help.popup.title": "通知を有効にする",
   "help.popup.title_in": "{browser}で通知を有効にする",
@@ -79,17 +99,21 @@ export const help: Record<keyof typeof source, Message> = {
   "help.popup.keep_http": "またはhttpのまま使う",
   "help.popup.firefox1": "新しいタブを開き、{config}と入力してEnterを押し、「危険性を承知で続行」をクリックします。",
   "help.popup.firefox2": "{key}を検索します。",
-  "help.popup.firefox3a": "見つからなければ「文字列」を選んで「+」をクリックします。次を入力し、チェックマークをクリックします:",
+  "help.popup.firefox3a":
+    "見つからなければ「文字列」を選んで「+」をクリックします。次を入力し、チェックマークをクリックします:",
   "help.popup.firefox3b": "すでに文字が入っている場合は、末尾にカンマと次の文字列を追加します。",
   "help.popup.chromium1": "新しいタブを開き、アドレスバーに次を貼り付けます:",
   "help.popup.chromium2": "ボックスに次を入力し、横の選択肢を「有効」にします:",
   "help.popup.chromium3": "下の「再起動」をクリックします。",
   "help.popup.back": "ここに戻って{reload}を押します",
   "help.popup.reload": "再読み込み",
-  "help.popup.phone": "スマートフォンで通知が表示されるのはhttpsのページだけで、このページはそうではありません。音とタブのアラートは使えます。",
-  "help.popup.other": "このブラウザでは、このアドレスの通知を許可できません。音とタブのアラートは使えます。パソコンのFirefox、Chrome、Edgeなら許可できます。",
+  "help.popup.phone":
+    "スマートフォンで通知が表示されるのはhttpsのページだけで、このページはそうではありません。音とタブのアラートは使えます。",
+  "help.popup.other":
+    "このブラウザでは、このアドレスの通知を許可できません。音とタブのアラートは使えます。パソコンのFirefox、Chrome、Edgeなら許可できます。",
   "help.popup.still": "それでも通知が表示されない場合",
-  "help.popup.flatpak": "Flatpakでインストールした Firefox(KDE)では、ターミナルで次の2つのコマンドを実行し、Firefoxを再起動する必要があります:",
+  "help.popup.flatpak":
+    "Flatpakでインストールした Firefox(KDE)では、ターミナルで次の2つのコマンドを実行し、Firefoxを再起動する必要があります:",
 
   "help.update.title": "NeoAPRS {version} が利用できます",
   "help.update.installed": "現在のバージョン: NeoAPRS {version}",
@@ -110,12 +134,15 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.restarting": "NeoAPRS はまもなく再起動します",
   "help.update.restarting_installer": "インストール中… NeoAPRS はまもなく再起動します",
   "help.update.reconnecting": "NeoAPRS を再起動しています",
-  "help.update.problem.download": "更新をダウンロードできませんでした。もう一度試すか、プロジェクトのページからダウンロードしてください。",
-  "help.update.problem.unverified": "この更新を確認できなかったため、何もインストールしませんでした。プロジェクトのページからダウンロードしてください。",
+  "help.update.problem.download":
+    "更新をダウンロードできませんでした。もう一度試すか、プロジェクトのページからダウンロードしてください。",
+  "help.update.problem.unverified":
+    "この更新を確認できなかったため、何もインストールしませんでした。プロジェクトのページからダウンロードしてください。",
   "help.update.problem.checksum":
     "ダウンロードしたファイルがリリースのものと一致しないため、削除しました。何もインストールしていません。もう一度試してください。",
   "help.update.problem.install": "更新をインストールできませんでした。手動で更新してください。",
-  "help.update.problem.no_restart": "更新はインストールされましたが、NeoAPRS が再起動しませんでした。NeoAPRS を終了して、もう一度起動してください。",
+  "help.update.problem.no_restart":
+    "更新はインストールされましたが、NeoAPRS が再起動しませんでした。NeoAPRS を終了して、もう一度起動してください。",
   "help.update.by_hand": "または手動で更新",
   "help.update.steps": "更新の手順",
   "help.update.restart_service": "サービスを再起動する",
@@ -126,14 +153,16 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.appimage.download": "新しい AppImage をダウンロード",
   "help.update.appimage.executable": "実行可能にする(ファイルのプロパティ、またはターミナルで)",
   "help.update.appimage.start": "NeoAPRS を終了し、古いファイルの代わりに新しいファイルを起動する",
-  "help.update.appimage.service": "サービスが古いファイルを起動しています: 新しいファイルのフォルダで一度これを実行してください",
+  "help.update.appimage.service":
+    "サービスが古いファイルを起動しています: 新しいファイルのフォルダで一度これを実行してください",
   "help.update.appimage.delete_old": "そのあと古いファイル {name} を削除する",
   "help.update.deb.download": "パッケージをダウンロード",
   "help.update.deb.download_here": "リリースページからお使いのコンピューター用のパッケージをダウンロード",
   "help.update.deb.install": "ダウンロードしたフォルダからインストールする(パスワードを聞かれます)",
   "help.update.deb.service": "サービスは自動で再起動します。まだ古いバージョンが表示される場合:",
   "help.update.macos.download": "新しいアプリをダウンロード",
-  "help.update.macos.replace": "NeoAPRSを終了し、ダウンロードを開いて、NeoAPRSを古いものの代わりにアプリケーションへドラッグ",
+  "help.update.macos.replace":
+    "NeoAPRSを終了し、ダウンロードを開いて、NeoAPRSを古いものの代わりにアプリケーションへドラッグ",
   "help.update.macos.start": "もう一度アプリケーションからNeoAPRSを起動",
   "help.update.source.pull": "クローンのフォルダで",
   "help.update.source.sync": "環境を最新にする",

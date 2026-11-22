@@ -7,7 +7,17 @@ import { MESSAGES_WIDE } from "@/lib/layout";
 import { conversations } from "@/lib/messages";
 import type { StationPref } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
-import { attemptRow, configValues, heardBy, incoming, message, radioRow, radiosTopic, station, table } from "@/test/fixtures";
+import {
+  attemptRow,
+  configValues,
+  heardBy,
+  incoming,
+  message,
+  radioRow,
+  radiosTopic,
+  station,
+  table,
+} from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const rows = [
@@ -30,7 +40,8 @@ afterEach(() => {
 
 /** The page's context of the pane just made: what it sent, and what the page tells it later. */
 let daemon: FakeDaemon;
-const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
+const sent = (cmd: string) =>
+  daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
 
 /** The tab, as wide as the test says, with the conversation with OH2RDG open. The page's part of
  * it is given as `paths`, `rfOnly`, `heardPaths`, `heardDirect` and `connected`. */
@@ -51,7 +62,8 @@ async function pane({
   };
   const book = new Map<string, StationPref>();
   for (const [call, path] of paths as Map<string, string>) book.set(call, { path, rf_only: false, alert: null });
-  for (const call of rfOnly as Set<string>) book.set(call, { path: book.get(call)?.path ?? null, rf_only: true, alert: null });
+  for (const call of rfOnly as Set<string>)
+    book.set(call, { path: book.get(call)?.path ?? null, rf_only: true, alert: null });
   daemon = fakeDaemon({ connected: connected as boolean, fallbackPath: "WIDE1-1,WIDE2-1" });
   daemon.prefs = useStationPrefs(shallowReactive(book), daemon.send);
   if (heardPaths !== undefined) daemon.heardPaths.value = heardPaths as Map<string, string | null>;
@@ -66,7 +78,9 @@ describe("MessagesPane, wide", () => {
     const wrapper = await pane();
     expect(wrapper.find(".convlist").element.firstElementChild?.className).toBe("tab-help");
     await wrapper.find(".tab-help .info-toggle").trigger("click");
-    expect(wrapper.find(".tab-help .info-text").text()).toContain("A message is a short text to one station, which acknowledges it.");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain(
+      "A message is a short text to one station, which acknowledges it.",
+    );
     expect(wrapper.find(".tab-help .info-text").text()).toContain("Message on a station's card");
     wrapper.unmount();
   });
@@ -86,7 +100,10 @@ describe("MessagesPane, wide", () => {
     expect(wrapper.find(".convlist").exists()).toBe(true);
     expect(wrapper.find(".convo").exists()).toBe(true);
     expect(wrapper.find(".convo-back").exists()).toBe(false);
-    expect(Array.from((wrapper.element as HTMLElement).children).map((c) => c.className.split(" ")[0])).toEqual(["convlist", "convo"]);
+    expect(Array.from((wrapper.element as HTMLElement).children).map((c) => c.className.split(" ")[0])).toEqual([
+      "convlist",
+      "convo",
+    ]);
   });
 
   it("is wide from MESSAGES_WIDE on, by the width of the tab", async () => {
@@ -134,7 +151,17 @@ describe("MessagesPane, wide", () => {
   });
 
   it("lists the overheard pairs only when asked, and has nothing to reply with: the bubbles and the header only", async () => {
-    const heard = [...rows, message(6, { direction: "in", state: "overheard", from_call: "OH2AAA", to_call: "OH2BBB", text: "chatter", attempts: 0 })];
+    const heard = [
+      ...rows,
+      message(6, {
+        direction: "in",
+        state: "overheard",
+        from_call: "OH2AAA",
+        to_call: "OH2BBB",
+        text: "chatter",
+        attempts: 0,
+      }),
+    ];
     const wrapper = await pane({ conversations: conversations(heard, () => 0, true), showOverheard: true });
     expect(wrapper.findAll(".conv").map((c) => c.find(".conv-call").text())).toContain("OH2AAA > OH2BBB");
     expect(wrapper.find(".conv.heard .badge").exists()).toBe(false);
@@ -149,7 +176,10 @@ describe("MessagesPane, wide", () => {
     expect(wrapper.find("#msg-text").exists()).toBe(false);
     expect(wrapper.find("#msg-to").exists()).toBe(false);
     expect(wrapper.find(".convo .btn.primary").exists()).toBe(false);
-    expect([...wrapper.find(".convo").element.children].map((c) => c.className.split(" ")[0])).toEqual(["convo-head", "bubbles"]);
+    expect([...wrapper.find(".convo").element.children].map((c) => c.className.split(" ")[0])).toEqual([
+      "convo-head",
+      "bubbles",
+    ]);
   });
 
   it("has no To and no Stations in the box of a conversation: the conversation is the station", async () => {
@@ -278,7 +308,11 @@ describe("MessagesPane, the thread", () => {
     const chains = wrapper.findAll(".chain");
     expect(chains).toHaveLength(1);
     expect(wrapper.findAll(".bubble")[0]?.find(".chain").exists()).toBe(true);
-    expect(chains[0]?.findAll(".chip-hop").map((c) => c.attributes("data-kind"))).toEqual(["you", "unheard", "waiting"]);
+    expect(chains[0]?.findAll(".chip-hop").map((c) => c.attributes("data-kind"))).toEqual([
+      "you",
+      "unheard",
+      "waiting",
+    ]);
     expect(chains[0]?.findAll(".chip-hop")[1]?.attributes("title")).toBe("not heard");
   });
 
@@ -286,7 +320,11 @@ describe("MessagesPane, the thread", () => {
     const messages = (await pane()).findAll(".bubble");
     expect(messages.map((m) => m.find(".bubble-route").exists())).toEqual([false, true, false, false]);
     expect(messages[1]?.find(".bubble-route").text()).toBe("via OH2RCH-2");
-    const direct = [...rows.slice(0, 1), incoming(2, "OH2RDG", { text: "Moi!", route: "direct" }), incoming(6, "OH2RDG", { route: "" })];
+    const direct = [
+      ...rows.slice(0, 1),
+      incoming(2, "OH2RDG", { text: "Moi!", route: "direct" }),
+      incoming(6, "OH2RDG", { route: "" }),
+    ];
     const wrapper = await pane({ thread: direct });
     expect(wrapper.findAll(".bubble-route").map((r) => r.text())).toEqual(["direct"]);
   });
@@ -323,13 +361,19 @@ describe("MessagesPane, the thread", () => {
   });
 
   it("puts a mark on each message of ours and none on one that came in", async () => {
-    const marks = (await pane()).findAll(".bubble").map((m) => (m.find(".mark").exists() ? m.find(".mark").attributes("data-mark") : null));
+    const marks = (await pane())
+      .findAll(".bubble")
+      .map((m) => (m.find(".mark").exists() ? m.find(".mark").attributes("data-mark") : null));
     expect(marks).toEqual(["check", null, "cross", "clock"]);
   });
 
   it("says that there is no message with the station", async () => {
-    expect((await pane({ selected: "OH2NEW", thread: [] })).find(".bubbles").text()).toContain("No message with OH2NEW yet");
-    expect((await pane({ conversations: [], selected: null, thread: [] })).find(".convs").text()).toContain("No message yet");
+    expect((await pane({ selected: "OH2NEW", thread: [] })).find(".bubbles").text()).toContain(
+      "No message with OH2NEW yet",
+    );
+    expect((await pane({ conversations: [], selected: null, thread: [] })).find(".convs").text()).toContain(
+      "No message yet",
+    );
   });
 
   it("scrolls to the newest message when it is shown and when one is added", async () => {
@@ -623,7 +667,12 @@ describe("MessagesPane, with more than one radio", () => {
     radioRow(6, "mercury", { name: "80 m", number: 3, state: "waiting" }),
   );
   const heard = [
-    message(1, { to_call: "OH2RDG", state: "acked", attempts: 1, attempts_detail: [attemptRow({ acked: true, radio_id: 3 })] }),
+    message(1, {
+      to_call: "OH2RDG",
+      state: "acked",
+      attempts: 1,
+      attempts_detail: [attemptRow({ acked: true, radio_id: 3 })],
+    }),
     incoming(2, "OH2RDG", { text: "Moi!", radio_id: 3, route: "via OH2RCH-2" }),
     incoming(3, "OH2DX", { text: "73", radio_id: 6, route: "direct" }),
   ];
@@ -632,7 +681,10 @@ describe("MessagesPane, with more than one radio", () => {
     daemon = fakeDaemon({
       config: configValues(),
       radios: six,
-      stations: table(station("OH2RDG", { radio_now: 3 }), station("OH2DX", { radio_now: 6, heard: heardBy([2, 4, null]) })),
+      stations: table(
+        station("OH2RDG", { radio_now: 3 }),
+        station("OH2DX", { radio_now: 6, heard: heardBy([2, 4, null]) }),
+      ),
       fallbackPath: "WIDE1-1,WIDE2-1",
     });
     const props = {
@@ -680,10 +732,10 @@ describe("MessagesPane, with more than one radio", () => {
 
   it("is the same wide: the list beside the conversation, the radio in the header", async () => {
     const wrapper = await many("OH2RDG", WIDE);
-    expect([wrapper.find(".msgpane").classes(), wrapper.find(".convlist").exists(), wrapper.find(".convo-radio .tag").text()]).toEqual([
-      expect.arrayContaining(["wide"]),
-      true,
-      "Mobile",
-    ]);
+    expect([
+      wrapper.find(".msgpane").classes(),
+      wrapper.find(".convlist").exists(),
+      wrapper.find(".convo-radio .tag").text(),
+    ]).toEqual([expect.arrayContaining(["wide"]), true, "Mobile"]);
   });
 });

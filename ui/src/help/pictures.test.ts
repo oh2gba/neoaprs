@@ -67,7 +67,8 @@ describe("the pictures of the (i) notes", () => {
       expect(html).not.toMatch(/(fill|stroke|stop-color|color)="(?!none|currentColor)/);
       expect(html).not.toContain("style=");
     }
-    for (const { name, text } of sources) expect({ name, colours: text.match(/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/g) }).toEqual({ name, colours: null });
+    for (const { name, text } of sources)
+      expect({ name, colours: text.match(/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/g) }).toEqual({ name, colours: null });
   });
 
   it("take every colour from a variable of the page that has a value for light and another for dark", () => {

@@ -5,7 +5,10 @@ import { message } from "@/test/fixtures";
 
 describe("a queued message in the conversation", () => {
   it("is a quiet bubble that says it waits for the message before, with a clock and Cancel but no Retry, while the one before it is sent", () => {
-    const thread = [message(1, { text: "first", state: "sending", attempts: 1 }), message(2, { text: "second", state: "queued", attempts: 0 })];
+    const thread = [
+      message(1, { text: "first", state: "sending", attempts: 1 }),
+      message(2, { text: "second", state: "queued", attempts: 0 }),
+    ];
     const wrapper = mount(ConversationThread, { props: { thread, peer: "OH2RDG" } });
     const [sending, queued] = wrapper.findAll(".bubble");
     expect(sending?.classes()).not.toContain("queued");
@@ -34,7 +37,8 @@ describe("a failed message in the conversation", () => {
 });
 
 describe("encrypted messages and keys in the conversation", () => {
-  const mounted = (thread: ReturnType<typeof message>[]) => mount(ConversationThread, { props: { thread, peer: "OH2RDG" } });
+  const mounted = (thread: ReturnType<typeof message>[]) =>
+    mount(ConversationThread, { props: { thread, peer: "OH2RDG" } });
 
   it("marks a message that was read with a padlock and shows its text, and one that cannot be read here as encrypted, not as the letters that came", () => {
     const wrapper = mounted([
@@ -76,7 +80,11 @@ describe("encrypted messages and keys in the conversation", () => {
         seal: "key_other",
       }),
     ]);
-    expect(wrapper.findAll(".bubble-text").map((b) => b.text())).toEqual(["Your key", "Its key", "A different key: not taken"]);
+    expect(wrapper.findAll(".bubble-text").map((b) => b.text())).toEqual([
+      "Your key",
+      "Its key",
+      "A different key: not taken",
+    ]);
     expect(wrapper.findAll("[data-mark='key']")).toHaveLength(3);
     expect(wrapper.findAll(".bubble-text").every((b) => b.classes().includes("sealed"))).toBe(true);
   });

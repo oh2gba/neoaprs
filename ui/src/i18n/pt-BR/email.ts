@@ -15,7 +15,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.check": "Verificar e-mail",
   "email.checking": "Já está verificando",
   "email.about": "Sobre o e-mail",
-  "email.about_gateway": "O e-mail passa pelo gateway de internet EMAIL-2, então um e-mail pode mostrar {unconfirmed} mesmo tendo chegado.",
+  "email.about_gateway":
+    "O e-mail passa pelo gateway de internet EMAIL-2, então um e-mail pode mostrar {unconfirmed} mesmo tendo chegado.",
   "email.about_check": "{check} pede ao gateway o e-mail que ele guardou para você (24 horas).",
 
   "email.field.to": "Para",
@@ -34,7 +35,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.state.cancelled": "Cancelado",
   "email.state.unconfirmed": "Não confirmado",
   "email.state.too_long_for_radio": "Longo demais para o rádio",
-  "email.not_confirmed": "enviado, não confirmado: o ack do gateway só chega por um iGate, então o e-mail pode muito bem ter sido entregue",
+  "email.not_confirmed":
+    "enviado, não confirmado: o ack do gateway só chega por um iGate, então o e-mail pode muito bem ter sido entregue",
 
   "email.date_time": "{day} {month} {time}",
 };

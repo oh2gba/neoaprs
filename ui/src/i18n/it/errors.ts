@@ -6,7 +6,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.bulletin.group": "“{value}”: un bollettino di gruppo è BLN, una cifra e il gruppo",
   "error.bulletin.not_on_board": "sulla bacheca non c’è alcuna voce {sender}/{slot}",
   "error.bulletin.not_posted": "non c’è alcun nostro bollettino {slot}",
-  "error.bulletin.slot": "“{value}” non è BLN0-BLN9, BLNA-BLNZ né BLN, una cifra e un gruppo di al massimo {group_max} caratteri",
+  "error.bulletin.slot":
+    "“{value}” non è BLN0-BLN9, BLNA-BLNZ né BLN, una cifra e un gruppo di al massimo {group_max} caratteri",
   "error.call.characters": "il nominativo “{value}” ha caratteri diversi da A-Z, 0-9 e un “-SSID”",
   "error.call.shape": "il nominativo “{value}” non è di 1-6 caratteri A-Z e 0-9 con un “-SSID” facoltativo",
   "error.call.ssid": "il nominativo “{value}” ha un SSID superiore a {max}",
@@ -26,7 +27,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.not_connected": "Non inviato: non c’è connessione con NeoAPRS",
   "error.map.no_job": "nessun download di mappa in corso",
   "error.update.unsupported": "questa copia di NeoAPRS non può aggiornarsi da sola; la pagina ha i passi",
-  "error.update.blocked": "NeoAPRS non può aggiornarsi da solo qui: questo utente non può scrivere nella cartella dell’AppImage",
+  "error.update.blocked":
+    "NeoAPRS non può aggiornarsi da solo qui: questo utente non può scrivere nella cartella dell’AppImage",
   "error.update.not_announced": "{version} non è la versione annunciata dal controllo degli aggiornamenti",
   "error.update.no_file": "la versione {version} non ha un file per questa copia di NeoAPRS",
   "error.update.busy": "un aggiornamento è già in corso",
@@ -40,7 +42,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.radio.last_enabled": "almeno una radio resta attiva: attiva prima un’altra radio",
   "error.radio.name_form":
     "il nome “{name}” non può essere quello di una radio: un nome ha al massimo {max} caratteri ASCII stampabili (lettere, cifre e segni della tastiera)",
-  "error.radio.name_label": "il nome “{name}” è quello con cui si chiama una radio senza nome proprio: dai un altro nome a questa",
+  "error.radio.name_label":
+    "il nome “{name}” è quello con cui si chiama una radio senza nome proprio: dai un altro nome a questa",
   "error.radio.name_taken": "il nome “{name}” è già di un’altra radio: dai un altro nome a questa",
   "error.radio.no_line": "la radio {name} non ha una porta seriale da cercare",
   "error.radio.no_modem": "la radio {name} non ha un modem attivo",
@@ -56,7 +59,11 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
     other: "quel dispositivo è usato dalla radio {holder}: scegline un altro",
   },
   "error.radio.type_kind": "la radio {name} accetta solo un tipo del suo genere ({kind})",
-  "error.radio.unknown": { select: "removed", "1": "la radio {name} è stata rimossa", other: "non esiste la radio {radio}" },
+  "error.radio.unknown": {
+    select: "removed",
+    "1": "la radio {name} è stata rimossa",
+    other: "non esiste la radio {radio}",
+  },
   "error.radio.unknown_type": "“{type}” non è un tipo di radio (i tipi sono quelli dell’elenco)",
   "error.radio.failed": "la ricerca della radio è fallita",
   "error.radio.no_ports": "nessuna porta da provare: nessuna tra quelle elencate è guardata dalla ricerca",
@@ -67,13 +74,15 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.alert.own": "{call} è nostra: un avviso è per un’altra stazione",
   "error.message.control": "il testo contiene un carattere di controllo",
   "error.message.empty": "il messaggio è vuoto",
-  "error.message.forbidden": "il testo contiene {chars}, che un messaggio non può contenere ({forbidden} non sono ammessi)",
+  "error.message.forbidden":
+    "il testo contiene {chars}, che un messaggio non può contenere ({forbidden} non sono ammessi)",
   "error.message.not_ascii": {
     select: "chars",
     "": "il testo contiene un carattere che non è ASCII stampabile: un messaggio porta solo ASCII stampabile",
     other: "il testo contiene {chars}, che non è ASCII stampabile: un messaggio porta solo ASCII stampabile",
   },
-  "error.message.too_long_for_radio": "il messaggio è di {length} byte in aria, la radio ne porta {max}: accorcialo di {cut} caratteri",
+  "error.message.too_long_for_radio":
+    "il messaggio è di {length} byte in aria, la radio ne porta {max}: accorcialo di {cut} caratteri",
   "error.message.too_long": "il testo è di {length} caratteri, in un messaggio ne entrano al massimo {max}",
   "error.no_command": "un comando ha un “cmd”",
   "error.not_object": "Un comando è un oggetto JSON con un “cmd”",
@@ -101,7 +110,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.pair.call_taken": "{call} è il nominativo di un’altra coppia",
   "error.pair.no_free_call": "tutti gli SSID da 1 a 15 sono occupati",
   "error.path.too_long": "{count} digipeater sono più dei {max} che un percorso può avere",
-  "error.path.too_long_rf_only": "percorso troppo lungo per solo RF: {count} digipeater e RFONLY sono più dei {max} che un percorso può avere",
+  "error.path.too_long_rf_only":
+    "percorso troppo lungo per solo RF: {count} digipeater e RFONLY sono più dei {max} che un percorso può avere",
   "error.query.not_capable": "{call} non riceve messaggi: non c’è nessuno da interrogare",
   "error.transmit.call": "non si invia nulla: {reason}",
   "error.transmit.off": "Solo RX: non si invia nulla",
@@ -109,10 +119,12 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.query.form": "una richiesta inizia con ? e dice dopo cosa chiede",
   "error.qru.too_soon": "troppo presto per un’altra richiesta di info locali: attendi {seconds} s",
   "error.path.direct_alone": "{word} non è un digipeater: scritto da solo significa nessun digipeater",
-  "error.setting.comment_too_long": "{length} caratteri sono più dei {limit} consentiti con l’estensione PHG (svuota beacon/power_w per non inviarla)",
+  "error.setting.comment_too_long":
+    "{length} caratteri sono più dei {limit} consentiti con l’estensione PHG (svuota beacon/power_w per non inviarla)",
   "error.setting.call_of_pair": "{call} è il nominativo di una coppia delle tue radio",
   "error.setting.local_only": "solo una pagina sul computer di NeoAPRS può farlo",
-  "error.setting.not_access_key": "non è una chiave di accesso (tre gruppi di quattro cifre e lettere, come k7m2-x9pq-4hrt)",
+  "error.setting.not_access_key":
+    "non è una chiave di accesso (tre gruppi di quattro cifre e lettere, come k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "ha caratteri che non sono ASCII stampabile",
   "error.setting.not_boolean": "“{value}” non è true né false",
   "error.setting.not_keying": "'{value}' non è un modo di commutare la radio: vox, cm108, rts:PORTA o dtr:PORTA",
@@ -124,13 +136,15 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.not_receiver": "“{value}” non è l’indirizzo di un ricevitore",
   "error.setting.not_server": "“{value}” non è host:porta (14580 è la porta abituale di un server APRS-IS)",
   "error.setting.not_passcode": "il codice del tuo nominativo è un numero da 0 a {max}",
-  "error.setting.passcode_read_only": "-1 è il codice di sola lettura; un iGate ha bisogno del codice del suo nominativo",
+  "error.setting.passcode_read_only":
+    "-1 è il codice di sola lettura; un iGate ha bisogno del codice del suo nominativo",
   "error.setting.not_map_source": "“{value}” non è un indirizzo web né il percorso di un file PMTiles",
   "error.setting.not_number": "“{value}” non è un numero",
   "error.setting.not_printable": "ha caratteri non stampabili",
   "error.setting.not_profile": "“{value}” non è un tipo di radio (i tipi sono {profiles})",
   "error.setting.not_hf_profile": "“{value}” non è un tipo di radio Mercury (i tipi sono mercury, dummy-hf)",
-  "error.setting.not_stored": "non è stato possibile salvare le impostazioni (il database non le ha accettate); non è cambiato nulla",
+  "error.setting.not_stored":
+    "non è stato possibile salvare le impostazioni (il database non le ha accettate); non è cambiato nulla",
   "error.setting.not_symbol_code": "“{value}” non è un carattere ASCII stampabile",
   "error.setting.not_symbol_table": "“{value}” non è / né \\ né un carattere di sovrapposizione A-Z, 0-9",
   "error.setting.not_web_address": "“{value}” non è un indirizzo http o https",
@@ -140,7 +154,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
     "{profile} si connette via TCP (tcp/host e tcp/port), non alla porta seriale {port}: svuota serial/port o scegli un TNC seriale",
   "error.setting.range": "{value} non è compreso tra {min} e {max}",
   "error.setting.status_needs_rigctld": "la radio richiede status/rigctld (host:porta di un rigctld, 127.0.0.1:4532)",
-  "error.setting.status_source": "“{value}” non è off, text né rig (vuoto: come indicano status/rigctld e station/status)",
+  "error.setting.status_source":
+    "“{value}” non è off, text né rig (vuoto: come indicano status/rigctld e station/status)",
   "error.setting.template_field": "{{{field}}} non è un campo del modello (i campi sono {{freq}} e {{mode}})",
   "error.setting.template_long": "{length} caratteri con una frequenza e un modo lunghi sono più dei {max} consentiti",
   "error.setting.tnc_char": "“{char}” è un carattere che un TNC scambia per un comando e non può esserci",
@@ -167,7 +182,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.radio.command_mode": "il TNC è in modalità comandi (KISS ON viene inviato di nuovo)",
   "error.radio.checking": "il TNC sta verificando che la radio ci sia",
   "error.radio.channel_busy": "il canale è occupato",
-  "error.qru.form": "“{request}” non è una richiesta a QRU: INFO, NEXT o un gruppo di al massimo {max} lettere e cifre, e una distanza da 1 a {km}",
+  "error.qru.form":
+    "“{request}” non è una richiesta a QRU: INFO, NEXT o un gruppo di al massimo {max} lettere e cifre, e una distanza da 1 a {km}",
   "error.object.unknown": "non c’è alcun nostro oggetto o item “{name}”",
   "error.object.own_call": "{name} è il nostro nominativo",
   "error.object.is_station": "{name} è una stazione, non il nome di un oggetto",
@@ -177,7 +193,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.message.busy": "si stanno inviando {count} messaggi insieme: nessun numero di messaggio è libero",
   "error.message.bad_text": "il testo ha un carattere che un messaggio non può portare, o è troppo lungo",
   "error.message.addressee": "“{addressee}” non può essere il destinatario di un messaggio",
-  "error.map.no_position": "la stazione non ha ancora una posizione: imposta Latitudine e Longitudine (la mappa è ritagliata intorno a esse)",
+  "error.map.no_position":
+    "la stazione non ha ancora una posizione: imposta Latitudine e Longitudine (la mappa è ritagliata intorno a esse)",
   "error.map.busy": "un download di mappa è già in corso",
   "error.frame.too_long": "il campo informazioni è di {length} byte, più dei {max} che AX.25 consente",
   "error.call.placeholder": "{call} è un segnaposto, non un nominativo: imposta prima il tuo nominativo",

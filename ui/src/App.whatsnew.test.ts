@@ -21,7 +21,13 @@ describe("App: what is new in the version that runs", () => {
     const box = wrapper.find(".updatedialog");
     expect(box.find("h2").text()).toBe(`What's new in NeoAPRS ${DAEMON_VERSION}`);
     expect(notesAsked(socket.sent)).toEqual([{ cmd: "release_notes", version: DAEMON_VERSION }]);
-    socket.say({ type: "release_notes", version: DAEMON_VERSION, since: "", sections: [{ version: DAEMON_VERSION, text: "- The notes." }], problem: "" });
+    socket.say({
+      type: "release_notes",
+      version: DAEMON_VERSION,
+      since: "",
+      sections: [{ version: DAEMON_VERSION, text: "- The notes." }],
+      problem: "",
+    });
     await flushPromises();
     expect(wrapper.find(".updatedialog-notes li").text()).toBe("The notes.");
     expect(wrapper.find(".updatedialog-go").exists()).toBe(false);

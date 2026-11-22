@@ -28,7 +28,9 @@ function hasWords(text: string): boolean {
 
 function stringsOf(expression: string): string[] {
   const without = expression.replace(/\bt\(\s*(['"`])[^'"`]*\1/g, "t(");
-  return [...without.matchAll(STRING)].map((m) => m[1] ?? m[2] ?? m[3] ?? "").filter((s) => hasWords(s) && (/\s/.test(s.trim()) || /^\p{Lu}/u.test(s.trim())));
+  return [...without.matchAll(STRING)]
+    .map((m) => m[1] ?? m[2] ?? m[3] ?? "")
+    .filter((s) => hasWords(s) && (/\s/.test(s.trim()) || /^\p{Lu}/u.test(s.trim())));
 }
 
 interface Node {
@@ -57,7 +59,8 @@ const DIRECTIVE = 7;
 function inProps(props: Property[], found: Literal[]): void {
   for (const p of props) {
     const line = p.loc.start.line;
-    if (p.type === ATTRIBUTE && ATTRIBUTES.includes(p.name) && p.value && hasWords(p.value.content)) found.push({ line, text: p.value.content });
+    if (p.type === ATTRIBUTE && ATTRIBUTES.includes(p.name) && p.value && hasWords(p.value.content))
+      found.push({ line, text: p.value.content });
     if (p.type === DIRECTIVE && p.name === "bind" && p.arg && ATTRIBUTES.includes(p.arg.content) && p.exp)
       for (const text of stringsOf(p.exp.content)) found.push({ line, text });
   }
@@ -65,8 +68,10 @@ function inProps(props: Property[], found: Literal[]): void {
 
 function walk(node: Node, found: Literal[]): void {
   const line = node.loc.start.line;
-  if (node.type === TEXT && typeof node.content === "string" && hasWords(node.content)) found.push({ line, text: node.content.trim().replace(/\s+/g, " ") });
-  if (node.type === INTERPOLATION && typeof node.content === "object") for (const text of stringsOf(node.content.content)) found.push({ line, text });
+  if (node.type === TEXT && typeof node.content === "string" && hasWords(node.content))
+    found.push({ line, text: node.content.trim().replace(/\s+/g, " ") });
+  if (node.type === INTERPOLATION && typeof node.content === "object")
+    for (const text of stringsOf(node.content.content)) found.push({ line, text });
   if (node.type !== ELEMENT) return;
   inProps(node.props ?? [], found);
   for (const child of node.children ?? []) walk(child, found);

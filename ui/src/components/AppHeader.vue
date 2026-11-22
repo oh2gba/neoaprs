@@ -23,7 +23,9 @@ const PROJECT_URL = "https://neo.oh2gba.eu/";
 <template>
   <header class="appheader">
     <h1>
-      <a class="brand" :href="PROJECT_URL" target="_blank" rel="noopener" :title="t('header.project_title')">Neo<b>APRS</b></a>
+      <a class="brand" :href="PROJECT_URL" target="_blank" rel="noopener" :title="t('header.project_title')"
+        >Neo<b>APRS</b></a
+      >
     </h1>
     <button v-if="call === ''" type="button" class="nocall" :title="t('header.no_call_title')" @click="emit('setup')">
       {{ t("header.no_call") }}
@@ -41,7 +43,13 @@ const PROJECT_URL = "https://neo.oh2gba.eu/";
         >{{ t(pill.text, pill.textValues) }}</TagMark
       >
     </span>
-    <TagMark v-if="unread > 0" as="button" class="badge headmail" :title="t('header.unread_open', { n: unread })" @click="emit('messages')">
+    <TagMark
+      v-if="unread > 0"
+      as="button"
+      class="badge headmail"
+      :title="t('header.unread_open', { n: unread })"
+      @click="emit('messages')"
+    >
       <MessageGlyph :size="14" /> {{ unread }}<span class="sr-only"> {{ unreadText(unread) }}</span>
     </TagMark>
   </header>

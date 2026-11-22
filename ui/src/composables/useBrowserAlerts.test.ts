@@ -1,7 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick } from "vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
-import { APP_WINDOWS, FakeAudioContext, FakeNotification, openedAt, openedInApp, resetSeen, setSeen, stubBrowser } from "@/test/fakealert";
+import {
+  APP_WINDOWS,
+  FakeAudioContext,
+  FakeNotification,
+  openedAt,
+  openedInApp,
+  resetSeen,
+  setSeen,
+  stubBrowser,
+} from "@/test/fakealert";
 import { incoming } from "@/test/fixtures";
 
 const scopes: { stop: () => void }[] = [];
@@ -89,7 +98,9 @@ describe("a message to us", () => {
     await click();
     alerts.announce([incoming(5, "OH2DPN", { text: "Moi!" })]);
     await nextTick();
-    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS message from OH2DPN", "Moi!"]]);
+    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([
+      ["APRS message from OH2DPN", "Moi!"],
+    ]);
     expect(FakeAudioContext.played()).toBeGreaterThan(0);
     expect(alerts.tabTitle.value).toBeNull();
   });
@@ -218,7 +229,9 @@ describe("an alert set on a station", () => {
     const alerts = make();
     await click();
     alerts.announceStation(fired);
-    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS alert: OH2XYZ", "OH2XYZ is 8.2 km from you"]]);
+    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([
+      ["APRS alert: OH2XYZ", "OH2XYZ is 8.2 km from you"],
+    ]);
     expect(FakeAudioContext.played()).toBeGreaterThan(0);
   });
 
@@ -356,7 +369,9 @@ describe("Test notification", () => {
     const alerts = make(open);
     setSeen(true);
     await alerts.testPopup();
-    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS message from NEOAPRS", "This is a test of the NeoAPRS alert"]]);
+    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([
+      ["APRS message from NEOAPRS", "This is a test of the NeoAPRS alert"],
+    ]);
     expect(alerts.popupStatus.value).toBe("notification sent");
     expect(FakeAudioContext.played()).toBe(0);
     FakeNotification.shown[0]?.onclick?.();
@@ -413,7 +428,11 @@ describe("the alert of the desktop app's own window", () => {
       FakeNotification.permission = "granted"; // (even an engine that would say yes is not asked)
       openedInApp(agent);
       const alerts = make();
-      expect([alerts.app, alerts.possible, alerts.mode.value], name).toEqual([true, false, name.startsWith("macOS") ? "sound" : "off"]);
+      expect([alerts.app, alerts.possible, alerts.mode.value], name).toEqual([
+        true,
+        false,
+        name.startsWith("macOS") ? "sound" : "off",
+      ]);
       await alerts.choose("both");
       expect(FakeNotification.asked, name).toBe(0);
       await alerts.testPopup();

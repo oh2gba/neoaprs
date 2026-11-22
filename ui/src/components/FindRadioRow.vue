@@ -14,6 +14,8 @@ const available = computed(() => ports.value?.find ?? true);
 
 <template>
   <div v-if="available" class="radiofind">
-    <button :id="id" class="btn" type="button" :disabled="findRadio.running.value" @click="findRadio.start">{{ t("settings.find.button") }}</button>
+    <button :id="id" class="btn" type="button" :disabled="findRadio.running.value" @click="findRadio.start">
+      {{ t("settings.find.button") }}
+    </button>
   </div>
 </template>

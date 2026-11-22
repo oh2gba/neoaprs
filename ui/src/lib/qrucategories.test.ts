@@ -28,8 +28,10 @@ describe("the standard categories of local info", () => {
     expect(categoryLabel("FOOD")).toBe("Food");
     expect(categoryLabel("MYNET")).toBe("MYNET");
     expect(isStandardCategory("MYNET")).toBe(false);
-    expect(Object.keys(en).filter((id) => id.startsWith("objects.category.") && !id.endsWith(".none") && !id.endsWith(".other"))).toHaveLength(
-      CATEGORY_CODES.length,
-    );
+    expect(
+      Object.keys(en).filter(
+        (id) => id.startsWith("objects.category.") && !id.endsWith(".none") && !id.endsWith(".other"),
+      ),
+    ).toHaveLength(CATEGORY_CODES.length);
   });
 });

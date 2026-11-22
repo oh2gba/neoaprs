@@ -14,7 +14,10 @@ function layers(style: StyleSpecification): LayerSpecification[] {
 }
 
 describe("the names on the map", () => {
-  const field = (): unknown => layers(basemapStyle(DETAIL_ONLY, false, GLYPHS)).find((l) => l.id === "place-city")?.layout?.["text-field" as never];
+  const field = (): unknown =>
+    layers(basemapStyle(DETAIL_ONLY, false, GLYPHS)).find((l) => l.id === "place-city")?.layout?.[
+      "text-field" as never
+    ];
   it("are in the language of the page first, then the local name", () => {
     setLocale("nl");
     expect(field()).toEqual(["coalesce", ["get", "name:nl"], ["get", "name"]]);
@@ -68,7 +71,8 @@ describe("basemapStyle", () => {
       const style = basemapStyle(DETAIL_ONLY, dark, GLYPHS);
       const ids = layers(style).map((l) => l.id);
       expect(new Set(ids).size).toBe(ids.length);
-      for (const layer of layers(style)) if ("source" in layer) expect(Object.keys(style.sources)).toContain(layer.source);
+      for (const layer of layers(style))
+        if ("source" in layer) expect(Object.keys(style.sources)).toContain(layer.source);
     }
   });
 
@@ -111,7 +115,8 @@ describe("basemapStyle", () => {
   it("is dark in the dark scheme: a darker sea, land and text of another colour", () => {
     const light = basemapStyle(DETAIL_ONLY, false, GLYPHS);
     const dark = basemapStyle(DETAIL_ONLY, true, GLYPHS);
-    const sea = (s: StyleSpecification): unknown => (layers(s)[0] as { paint: Record<string, unknown> }).paint["background-color"];
+    const sea = (s: StyleSpecification): unknown =>
+      (layers(s)[0] as { paint: Record<string, unknown> }).paint["background-color"];
     expect(sea(light)).toBe(LIGHT.sea);
     expect(sea(dark)).toBe(DARK.sea);
     expect(LIGHT.text).not.toBe(DARK.text);
@@ -126,7 +131,8 @@ describe("basemapStyle", () => {
       const style = basemapStyle(both, false, GLYPHS);
       expect(style.sources.base).toMatchObject({ url: `pmtiles://${ARCHIVE}` });
       expect(style.sources.world).toMatchObject({ type: "vector", url: `pmtiles://${WORLD}` });
-      for (const layer of layers(style)) if ("source" in layer) expect(layer.source).toBe(layer.id.startsWith("world-") ? "world" : "base");
+      for (const layer of layers(style))
+        if ("source" in layer) expect(layer.source).toBe(layer.id.startsWith("world-") ? "world" : "base");
     });
 
     it("draws the world's layers first and the detailed map's on top of them, the same layers in the same order", () => {

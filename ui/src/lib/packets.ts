@@ -15,7 +15,11 @@ export function newestFirst(rows: Iterable<PacketRow>): PacketRow[] {
 export function filterPackets(rows: readonly PacketRow[], filter: string): PacketRow[] {
   const needle = filter.trim().toLowerCase();
   if (needle === "") return [...rows];
-  return rows.filter((r) => `${r.tnc2} ${summaryText(r)} ${r.source} ${r.destination} ${r.kind} ${r.direction} ${r.route}`.toLowerCase().includes(needle));
+  return rows.filter((r) =>
+    `${r.tnc2} ${summaryText(r)} ${r.source} ${r.destination} ${r.kind} ${r.direction} ${r.route}`
+      .toLowerCase()
+      .includes(needle),
+  );
 }
 
 export function decodedJson(row: PacketRow): string {

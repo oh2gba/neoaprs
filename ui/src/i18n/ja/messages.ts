@@ -112,21 +112,27 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.own": "指定したパス: {path}",
   "route.rf_only": "RFのみ",
   "route.rf_only_title": "iGateはこれらのメッセージをインターネットに流しません",
-  "route.request_path_tip": "コールサインまたはエイリアスをカンマ区切りで (OH2RDK-7,OH2RCH-2 や WIDE1-1,WIDE2-1)。なしはDIRECT。空欄は通常のパス。",
-  "route.request_rf_only_tip": "パスの最後にRFONLYを付けます。iGateは問い合わせをインターネットに流さず、無線の届く局だけが応答します。",
+  "route.request_path_tip":
+    "コールサインまたはエイリアスをカンマ区切りで (OH2RDK-7,OH2RCH-2 や WIDE1-1,WIDE2-1)。なしはDIRECT。空欄は通常のパス。",
+  "route.request_rf_only_tip":
+    "パスの最後にRFONLYを付けます。iGateは問い合わせをインターネットに流さず、無線の届く局だけが応答します。",
   "pathbuilder.open": "パスを組み立てる",
   "pathbuilder.title": "パスの組み立て",
   "pathbuilder.cancel": "キャンセル",
   "pathbuilder.use": "使う",
   "pathbuilder.direct": "直接",
-  "pathbuilder.tip1": "WIDEn-N: n はパスが求めるホップ数、N は残りのホップ数です。中継したデジピーターごとに N が1減り、0で止まります。",
-  "pathbuilder.tip2": "WIDE1-1 はどのデジピーターでも1ホップ(フィルインも)。WIDE2-1 は1ホップ、WIDE2-2 は2ホップで、広域デジピーターだけが中継します。",
-  "pathbuilder.tip3": "合計2ホップでほとんどの場所に十分届きます。それ以上はチャンネルを混ませるだけで、多くのデジピーターが切り捨てます。",
+  "pathbuilder.tip1":
+    "WIDEn-N: n はパスが求めるホップ数、N は残りのホップ数です。中継したデジピーターごとに N が1減り、0で止まります。",
+  "pathbuilder.tip2":
+    "WIDE1-1 はどのデジピーターでも1ホップ(フィルインも)。WIDE2-1 は1ホップ、WIDE2-2 は2ホップで、広域デジピーターだけが中継します。",
+  "pathbuilder.tip3":
+    "合計2ホップでほとんどの場所に十分届きます。それ以上はチャンネルを混ませるだけで、多くのデジピーターが切り捨てます。",
   "pathbuilder.tip4": "名前で指定したデジピーター(OH2RDK-7)は、そのデジピーターだけによる1ホップです。",
   "pathbuilder.reach_direct": "デジピーターなし: あなたを受信できる局だけ",
   "pathbuilder.reach_title": { other: "合計{n}ホップ: {path}" },
   "pathbuilder.home": "最初のホップをフィルインデジにも許す",
-  "pathbuilder.home_title": "オン: 最初のホップは WIDE1-1 で、フィルインデジピーターも広域デジピーターも中継します。オフ: 広域デジピーターだけ",
+  "pathbuilder.home_title":
+    "オン: 最初のホップは WIDE1-1 で、フィルインデジピーターも広域デジピーターも中継します。オフ: 広域デジピーターだけ",
   "pathbuilder.home_named": "最初のホップは{call}です",
   "pathbuilder.home_choose": "先に1、2、3ホップから選んでください",
   "pathbuilder.drawing_label": "ホップごとのパス",
@@ -144,7 +150,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.many": "{n}ホップ: 多くのネットワークが許す{most}ホップより多いです",
   "pathbuilder.bad.shape": "{alias}はパスになりません: WIDEn-N の n と N は1から7です",
   "pathbuilder.bad.used_up": "{alias}には残りのホップがありません: どのデジピーターも中継しません",
-  "pathbuilder.bad.more_left": "{alias}はパスになりません: N ({left}) は n ({n}) を超えません。フィルインデジピーターは WIDE1-1 にだけ応答します",
+  "pathbuilder.bad.more_left":
+    "{alias}はパスになりません: N ({left}) は n ({n}) を超えません。フィルインデジピーターは WIDE1-1 にだけ応答します",
   "pathbuilder.as_it_comes": "パケットの来た経路で",
   "pathbuilder.no_route": "パケットの経路が分かりません",
   "pathbuilder.hops_label": "ホップ",

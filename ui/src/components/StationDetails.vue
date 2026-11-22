@@ -19,7 +19,9 @@ const best = computed(() => bestText(props.row));
  * otherwise.
  */
 const packets = computed(() =>
-  props.row.is_me || props.row.own ? String(props.row.packets) : t("station.packets_value", { total: props.row.packets, hour: props.row.packets_hour }),
+  props.row.is_me || props.row.own
+    ? String(props.row.packets)
+    : t("station.packets_value", { total: props.row.packets, hour: props.row.packets_hour }),
 );
 </script>
 

@@ -35,7 +35,12 @@ const props = withDefaults(
   }>(),
   { call: null, draft: "", attached: true },
 );
-const emit = defineEmits<{ send: [note: string, file: boolean]; draft: [text: string]; attached: [on: boolean]; close: [] }>();
+const emit = defineEmits<{
+  send: [note: string, file: boolean];
+  draft: [text: string];
+  attached: [on: boolean];
+  close: [];
+}>();
 
 const titleId = useId();
 const noteId = useId();
@@ -70,7 +75,12 @@ function press(event: PointerEvent): void {
       </header>
       <label :for="noteId" class="logsdialog-label">{{ t("settings.help.dialog.label") }}</label>
       <textarea :id="noteId" v-model="note" class="input area" rows="5" :maxlength="NOTE_MAX"></textarea>
-      <div class="logsdialog-attached" :class="{ off: !on }" role="group" :aria-label="on ? t('settings.help.dialog.attached') : undefined">
+      <div
+        class="logsdialog-attached"
+        :class="{ off: !on }"
+        role="group"
+        :aria-label="on ? t('settings.help.dialog.attached') : undefined"
+      >
         <svg class="logsdialog-clip" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
           <path
             d="M10.5 4.5 5.6 9.4a1.6 1.6 0 0 0 2.3 2.3l5.2-5.2a3 3 0 0 0-4.3-4.3L3.4 7.6a4.4 4.4 0 0 0 6.2 6.2l4.2-4.2"
@@ -107,11 +117,15 @@ function press(event: PointerEvent): void {
       </div>
       <p class="logsdialog-status" role="status">
         <template v-if="download.running.value">{{ t("settings.help.collecting") }}</template>
-        <template v-else-if="download.saved.value !== null">{{ t("settings.help.saved", { file: download.saved.value }) }}</template>
+        <template v-else-if="download.saved.value !== null">{{
+          t("settings.help.saved", { file: download.saved.value })
+        }}</template>
         <span v-else-if="download.problem.value" class="field-error">{{ download.problem.value }}</span>
       </p>
       <footer class="logsdialog-foot">
-        <button type="button" class="btn primary" :disabled="!sendable" @click="emit('send', note.trim(), on)">{{ t("settings.help.dialog.send") }}</button>
+        <button type="button" class="btn primary" :disabled="!sendable" @click="emit('send', note.trim(), on)">
+          {{ t("settings.help.dialog.send") }}
+        </button>
         <button type="button" class="btn" @click="emit('close')">{{ t("settings.help.dialog.cancel") }}</button>
       </footer>
     </section>

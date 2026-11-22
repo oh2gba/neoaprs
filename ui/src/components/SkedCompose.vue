@@ -14,7 +14,18 @@ import { useCommandInFlight } from "@/composables/useInFlight";
 import { useWhenShown } from "@/composables/useWhenShown";
 import { t } from "@/i18n";
 import { leftTitle } from "@/lib/compose";
-import { TIMES, NOTE_MAX, dayChoices, draftDial, draftOk, ended, mayPostAs, postCommand, startDraft, utcDay } from "@/lib/skeds";
+import {
+  TIMES,
+  NOTE_MAX,
+  dayChoices,
+  draftDial,
+  draftOk,
+  ended,
+  mayPostAs,
+  postCommand,
+  startDraft,
+  utcDay,
+} from "@/lib/skeds";
 import { leftOf, type TextLimit, trimmedCharacters, typedInto } from "@/lib/textlimit";
 
 const { skeds, call, now, send, connection } = useDaemonContext();
@@ -70,7 +81,9 @@ watch(
   () =>
     asked.value === null
       ? undefined
-      : skeds.value?.rows.find((r) => r.ours && r.from === asked.value?.from && r.to === asked.value?.to && r.dial === asked.value?.dial),
+      : skeds.value?.rows.find(
+          (r) => r.ours && r.from === asked.value?.from && r.to === asked.value?.to && r.dial === asked.value?.dial,
+        ),
   (row) => {
     const sent = asked.value;
     if (sent === null || row === undefined) return;
@@ -84,7 +97,8 @@ const posting = useCommandInFlight("sked_post", () => skeds.value?.rows);
 function submit(): void {
   const command = postCommand(draft, now.value);
   if (command === null || !ready.value) return;
-  if (posting.run(() => send(command))) asked.value = { from: command.from, to: command.to, dial: command.dial, note: command.note };
+  if (posting.run(() => send(command)))
+    asked.value = { from: command.from, to: command.to, dial: command.dial, note: command.note };
 }
 </script>
 
@@ -112,7 +126,13 @@ function submit(): void {
           <option v-for="time in TIMES" :key="time" :value="time">{{ time }}</option>
         </select>
         <span class="muted">{{ t("skeds.until") }}</span>
-        <select id="sked-to" v-model="draft.to" class="input mono" :class="{ invalid: over }" :aria-label="t('skeds.to')">
+        <select
+          id="sked-to"
+          v-model="draft.to"
+          class="input mono"
+          :class="{ invalid: over }"
+          :aria-label="t('skeds.to')"
+        >
           <option v-for="time in TIMES" :key="time" :value="time">{{ time }}</option>
         </select>
       </div>
@@ -120,7 +140,12 @@ function submit(): void {
     <div ref="frequencyRow" class="field">
       <label for="sked-frequency">{{ t("skeds.frequency") }}</label>
       <div class="field-control">
-        <select id="sked-frequency" class="input" :value="choice" @change="choose(($event.target as HTMLSelectElement).value)">
+        <select
+          id="sked-frequency"
+          class="input"
+          :value="choice"
+          @change="choose(($event.target as HTMLSelectElement).value)"
+        >
           <option v-for="f in frequencies" :key="f.band" :value="f.dial">{{ `${f.dial} (${f.band})` }}</option>
           <option :value="OTHER">{{ t("skeds.frequency_other") }}</option>
         </select>

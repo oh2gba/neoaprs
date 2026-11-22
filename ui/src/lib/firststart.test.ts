@@ -28,13 +28,17 @@ vi.mock("@/lib/firststart", async (importOriginal) => {
 
 // The user agents of the four windows (WebKitGTK and WKWebView as pywebview leaves them, Qt 6's
 // QtWebEngine, Edge's WebView2).
-const WEBKITGTK = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
+const WEBKITGTK =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
 const WKWEBVIEW = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)";
-const QT_WINDOW = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.12.0 Chrome/130.0.6723.192 Safari/537.36";
-const WEBVIEW2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0";
+const QT_WINDOW =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.12.0 Chrome/130.0.6723.192 Safari/537.36";
+const WEBVIEW2 =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0";
 // A phone that read the Settings, Web page code: Safari on an iPhone is WebKit too and names no
 // Chrome.
-const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
+const IPHONE =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
 
 const table = (...rows: MessageRow[]) => shallowReactive(new Map(rows.map((r) => [String(r.id), r])));
 const board = (...rows: BulletinRow[]) => shallowReactive(new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])));

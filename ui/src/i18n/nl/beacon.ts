@@ -64,6 +64,7 @@ export const beacon: Record<keyof typeof source, Message> = {
   "gps.beacon.no_fix": "Geen baken: geen GPS-fix",
   "gps.beacon.first": "SmartBeaconing: het eerste baken gaat nu de lucht in",
   "gps.beacon.next": "SmartBeaconing: volgend baken van de timer {when}",
-  "gps.beacon.next_last": "SmartBeaconing: volgend baken van de timer {when}, laatst verzonden {span} geleden ({reason})",
+  "gps.beacon.next_last":
+    "SmartBeaconing: volgend baken van de timer {when}, laatst verzonden {span} geleden ({reason})",
   "gps.beacon.last": "SmartBeaconing: laatst verzonden {span} geleden ({reason})",
 };

@@ -37,8 +37,18 @@ const hfValues = (extra: Record<string, string> = {}) => ({
   ...extra,
 });
 
-function make(more: Given = {}, rows: RadioRow[] = ONE, values: Record<string, string> = hfValues(), station: Record<string, string> = {}) {
-  const daemon = fakeDaemon({ config: configValues(station, values), radios: radiosTopic(...rows), ports: ports(), ...more });
+function make(
+  more: Given = {},
+  rows: RadioRow[] = ONE,
+  values: Record<string, string> = hfValues(),
+  station: Record<string, string> = {},
+) {
+  const daemon = fakeDaemon({
+    config: configValues(station, values),
+    radios: radiosTopic(...rows),
+    ports: ports(),
+    ...more,
+  });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon) });
   const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
   if (!group) throw new Error("no Radio group");
@@ -116,7 +126,9 @@ describe("the Radio group of the Settings tab", () => {
     expect(fm(group).find("#set-radio-1-enabled").element.closest(".field")?.getAttribute("title")).toBe(ONLY);
     expect(fm(group).find("#set-radio-1-enabled").element.closest(".field")?.classList.contains("disabled")).toBe(true);
     // the (i) still opens
-    expect(fm(group).find("#set-radio-1-enabled").element.closest(".field")?.querySelector(".info-toggle")).not.toBeNull();
+    expect(
+      fm(group).find("#set-radio-1-enabled").element.closest(".field")?.querySelector(".info-toggle"),
+    ).not.toBeNull();
   });
 
   it("is, while only the Mercury radio is ticked, the FM box as its Enable row and its Name alone and the Mercury Enable greyed", () => {
@@ -130,12 +142,15 @@ describe("the Radio group of the Settings tab", () => {
     expect(fm(group).find<HTMLInputElement>("#set-radio-1-enabled").element.disabled).toBe(false);
     expect(hf(group).find<HTMLInputElement>("#set-radio-2-enabled").element.disabled).toBe(true);
     expect(hf(group).find("#set-radio-2-enabled").element.closest(".field")?.getAttribute("title")).toBe(ONLY);
-    for (const id of ["#set-radio-2-sound_card", "#set-radio-2-keying"]) expect(hf(group).find(id).exists(), id).toBe(true);
+    for (const id of ["#set-radio-2-sound_card", "#set-radio-2-keying"])
+      expect(hf(group).find(id).exists(), id).toBe(true);
   });
 
   it("greys neither Enable while both radios are ticked", () => {
     const { group } = make({}, BOTH);
-    expect(group.findAll<HTMLInputElement>("#set-radio-1-enabled, #set-radio-2-enabled").map((e) => e.element.disabled)).toEqual([false, false]);
+    expect(
+      group.findAll<HTMLInputElement>("#set-radio-1-enabled, #set-radio-2-enabled").map((e) => e.element.disabled),
+    ).toEqual([false, false]);
     expect(group.findAll(".field.disabled")).toHaveLength(0);
   });
 
@@ -146,13 +161,17 @@ describe("the Radio group of the Settings tab", () => {
     expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(head.find("button").exists()).toBe(false);
-    for (const id of ["#set-radio-1-type", "#set-radio-1-port", "#set-radio-1-baud", "#set-radio-1-find"]) expect(fold(group).find(id).exists(), id).toBe(true);
+    for (const id of ["#set-radio-1-type", "#set-radio-1-port", "#set-radio-1-baud", "#set-radio-1-find"])
+      expect(fold(group).find(id).exists(), id).toBe(true);
     // its Name is outside the fold
     expect(outside(fm(group), fold(group).element)).toEqual(["set-radio-1-enabled", "set-radio-1-name"]);
   });
 
   it("is open when the FM radio is not connected, and opens when it stops being connected", async () => {
-    expect(fold(make({}, [fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: {} } }), HF_OFF]).group).element.open).toBe(true);
+    expect(
+      fold(make({}, [fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: {} } }), HF_OFF]).group)
+        .element.open,
+    ).toBe(true);
     const { group, daemon } = make();
     expect(fold(group).element.open).toBe(false);
     await tell(daemon, { radios: radiosTopic(fmRow({ state: "silent", problem: null }), HF_OFF) });
@@ -311,12 +330,19 @@ describe("the Mercury radio's box in the Radio group", () => {
 
   it("has the sound card and the keying as its two fields, and no port, speed, host or TCP port", () => {
     const { group } = make({ ports: cards() }, BOTH, on);
-    for (const id of ["#set-radio-2-sound_card", "#set-radio-2-keying"]) expect(hfFold(group).find(id).exists(), id).toBe(true);
+    for (const id of ["#set-radio-2-sound_card", "#set-radio-2-keying"])
+      expect(hfFold(group).find(id).exists(), id).toBe(true);
     for (const id of ["#set-radio-2-port", "#set-radio-2-baud", "#set-radio-2-tcp_host", "#set-radio-2-tcp_port"])
       expect(hf(group).find(id).exists(), id).toBe(false);
-    for (const id of ["#set-radio-1-sound_card", "#set-radio-1-keying"]) expect(fm(group).find(id).exists(), id).toBe(false);
+    for (const id of ["#set-radio-1-sound_card", "#set-radio-1-keying"])
+      expect(fm(group).find(id).exists(), id).toBe(false);
     const keying = group.find<HTMLSelectElement>("#set-radio-2-keying");
-    expect([...keying.element.options].map((o) => o.value)).toEqual(["vox", "cm108", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
+    expect([...keying.element.options].map((o) => o.value)).toEqual([
+      "vox",
+      "cm108",
+      "rts:/dev/ttyUSB0",
+      "dtr:/dev/ttyUSB0",
+    ]);
     expect(keying.element.value).toBe("vox");
   });
 
@@ -439,7 +465,8 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
     hfRow(extra, { test, ...modem }),
   ];
   const tune = (group: ReturnType<typeof make>["group"]) => hf(group).find<HTMLButtonElement>("#set-radio-2-tune");
-  const keyTest = (group: ReturnType<typeof make>["group"]) => hf(group).find<HTMLButtonElement>("#set-radio-2-keying-test");
+  const keyTest = (group: ReturnType<typeof make>["group"]) =>
+    hf(group).find<HTMLButtonElement>("#set-radio-2-keying-test");
 
   it("has the Radio type as the first field of the Mercury box, the Mercury modem first and the Dummy Mercury radio last, with the dummy picture on its (i)", async () => {
     const { group } = make({}, running());
@@ -453,7 +480,11 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
     expect(type.element.value).toBe("mercury");
     const field = type.element.closest(".field");
     expect(field?.querySelector("label")?.textContent).toBe("Radio type");
-    hfFold(group).find("#set-radio-2-type").element.closest(".field")!.querySelector<HTMLElement>(".info-toggle")!.click();
+    hfFold(group)
+      .find("#set-radio-2-type")
+      .element.closest(".field")!
+      .querySelector<HTMLElement>(".info-toggle")!
+      .click();
     await flush();
     expect(field?.querySelector(".info-text svg")?.getAttribute("data-picture")).toBe("dummy");
   });
@@ -486,7 +517,8 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
   });
 
   it("has no aria-pressed on Tune: the label that swaps to Stop says it", () => {
-    for (const test of ["", "tune"] as const) expect(tune(make({}, running(test)).group).attributes("aria-pressed"), test).toBeUndefined();
+    for (const test of ["", "tune"] as const)
+      expect(tune(make({}, running(test)).group).attributes("aria-pressed"), test).toBeUndefined();
   });
 
   it("has both off while a frame keys the radio or the channel is heard busy, as the daemon would refuse them; Stop of a tone on stays", () => {
@@ -523,7 +555,9 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
     expect(keyTest(group).exists()).toBe(false);
     expect(hfFold(group).find(".statetext").text()).toBe("Dummy");
     expect(hfFold(group).find(".statetext").classes()).toContain("tnc-dummy");
-    expect(hfFold(group).find(".tncstatus").text()).toBe("Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
+    expect(hfFold(group).find(".tncstatus").text()).toBe(
+      "Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air",
+    );
   });
 
   it("has nothing of the Mercury radio's socket in the status line: Connecting… while it connects, the modem's words while it runs", () => {

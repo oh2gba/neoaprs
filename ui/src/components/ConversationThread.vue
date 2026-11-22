@@ -25,10 +25,18 @@ import { routeWords } from "@/lib/routes";
 import { askedNote, canCancel, canDelete, canRetry, stateText } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; peer: string | null; heardDirect?: ReadonlySet<string>; offline?: string }>(), {
-  heardDirect: () => new Set<string>(),
-  offline: undefined,
-});
+const props = withDefaults(
+  defineProps<{
+    thread: readonly MessageRow[];
+    peer: string | null;
+    heardDirect?: ReadonlySet<string>;
+    offline?: string;
+  }>(),
+  {
+    heardDirect: () => new Set<string>(),
+    offline: undefined,
+  },
+);
 const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [id: number] }>();
 const sure = useSure<number>();
 
@@ -51,7 +59,12 @@ const copy = useCopyMenu((bubble) => {
 </script>
 
 <template>
-  <div ref="log" class="bubbles" role="log" :aria-label="peer === null ? t('messages.thread') : t('messages.thread_with', { peer })">
+  <div
+    ref="log"
+    class="bubbles"
+    role="log"
+    :aria-label="peer === null ? t('messages.thread') : t('messages.thread_with', { peer })"
+  >
     <p v-if="peer !== null && thread.length === 0" class="empty">{{ t("messages.thread_empty", { peer }) }}</p>
     <template v-for="{ m, asked, seal, on } in items" :key="m.id">
       <p v-if="asked" class="asked muted" data-asked>
@@ -74,10 +87,19 @@ const copy = useCopyMenu((bubble) => {
           <LockGlyph v-if="seal" :kind="seal.kind" :title="seal.title" />
           <MessageMark :row="m" />
           <span v-if="m.direction === 'out'" class="msg-state" :class="`state-${m.state}`">{{ stateText(m) }}</span>
-          <button v-if="canRetry(m)" type="button" class="btn small" :disabled="offline !== undefined" :title="offline" @click="emit('retry', m.id)">
+          <button
+            v-if="canRetry(m)"
+            type="button"
+            class="btn small"
+            :disabled="offline !== undefined"
+            :title="offline"
+            @click="emit('retry', m.id)"
+          >
             {{ t("messages.retry") }}
           </button>
-          <button v-if="canCancel(m)" type="button" class="btn small" @click="emit('cancel', m.id)">{{ t("messages.cancel") }}</button>
+          <button v-if="canCancel(m)" type="button" class="btn small" @click="emit('cancel', m.id)">
+            {{ t("messages.cancel") }}
+          </button>
           <IconButton
             v-if="canDelete(m)"
             kind="delete"
@@ -90,8 +112,13 @@ const copy = useCopyMenu((bubble) => {
         </p>
         <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
         <p v-if="m.route || on || reading(m) !== null" class="bubble-route muted" :title="t('messages.route_title')">
-          <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark> {{ routeWords(m.route)
-          }}<template v-if="reading(m) !== null"><template v-if="m.route || on"> · </template>{{ reading(m) }}</template>
+          <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{
+            on.name
+          }}</TagMark>
+          {{ routeWords(m.route)
+          }}<template v-if="reading(m) !== null"
+            ><template v-if="m.route || on"> · </template>{{ reading(m) }}</template
+          >
         </p>
       </div>
     </template>

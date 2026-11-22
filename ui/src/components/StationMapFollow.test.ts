@@ -22,7 +22,8 @@ async function mounted(gps = gpsState({ mobile: true })) {
   await flushPromises();
   return mounted;
 }
-const button = (wrapper: Awaited<ReturnType<typeof mounted>>["wrapper"]) => wrapper.find<HTMLButtonElement>("button.followme");
+const button = (wrapper: Awaited<ReturnType<typeof mounted>>["wrapper"]) =>
+  wrapper.find<HTMLButtonElement>("button.followme");
 
 beforeEach(() => {
   resetFakes();

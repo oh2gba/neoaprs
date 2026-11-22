@@ -20,19 +20,36 @@ import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
 import { listensOnly } from "@/lib/radios";
 import type { Connection } from "@/lib/hub";
-import type { Command, PacketRow, RadioRow, RadioSearchMessage, StationKey, StationPref, StationRow } from "@/protocol/protocol";
+import type {
+  Command,
+  PacketRow,
+  RadioRow,
+  RadioSearchMessage,
+  StationKey,
+  StationPref,
+  StationRow,
+} from "@/protocol/protocol";
 import { NOW, configValues, radiosOf, radiosTopic } from "@/test/fixtures";
 
-export type FakeDaemon = { [K in keyof DaemonContext]: DaemonContext[K] extends Readonly<Ref<infer T>> ? Ref<T> : DaemonContext[K] } & {
+export type FakeDaemon = {
+  [K in keyof DaemonContext]: DaemonContext[K] extends Readonly<Ref<infer T>> ? Ref<T> : DaemonContext[K];
+} & {
   send: Mock<(command: Command) => boolean>;
   say: Mock<(text: string) => void>;
   layerTables: ReturnType<typeof useLayerTables>;
   replayOpen: Ref<boolean>;
 };
-export type Given = { [K in keyof DaemonContext]?: DaemonContext[K] extends Readonly<Ref<infer T>> ? T | Ref<T> : DaemonContext[K] };
+export type Given = {
+  [K in keyof DaemonContext]?: DaemonContext[K] extends Readonly<Ref<infer T>> ? T | Ref<T> : DaemonContext[K];
+};
 
 /** Who looks at the scope: the one a test gave, else the page's own counting over `radios`. */
-function scopeOf(over: Given, send: FakeDaemon["send"], connection: Ref<Connection>, radios: Ref<RadioTopic>): ScopeLooks {
+function scopeOf(
+  over: Given,
+  send: FakeDaemon["send"],
+  connection: Ref<Connection>,
+  radios: Ref<RadioTopic>,
+): ScopeLooks {
   return over.scope ?? useScopeLooks(send, connection, pageVisible(), { radios });
 }
 
@@ -44,7 +61,8 @@ type RadioTopic = ReadonlyMap<string, RadioRow> | null;
 function trafficOf(over: Given, parts: Pick<TrafficParts, "send" | "connection" | "map" | "now">) {
   const layerTables = useLayerTables();
   const replayOpen = shallowRef(false);
-  const traffic = over.traffic ?? useLayerThings({ ...parts, visible: pageVisible(), replay: replayOpen, store: layerTables });
+  const traffic =
+    over.traffic ?? useLayerThings({ ...parts, visible: pageVisible(), replay: replayOpen, store: layerTables });
   return { layerTables, replayOpen, traffic };
 }
 
@@ -60,7 +78,8 @@ function radiosPart(given: RadioTopic | Ref<RadioTopic> | undefined, connected: 
 
 export function fakeDaemon(over: Given = {}): FakeDaemon {
   const send = vi.fn((_command: Command) => true);
-  const part = <T>(given: T | Ref<T> | undefined, fallback: T): Ref<T> => (isRef(given) ? given : shallowRef(given === undefined ? fallback : given));
+  const part = <T>(given: T | Ref<T> | undefined, fallback: T): Ref<T> =>
+    isRef(given) ? given : shallowRef(given === undefined ? fallback : given);
   const config = part(over.config, configValues());
   const lastError = part(over.lastError, null);
   const ports = part(over.ports, null);
@@ -97,7 +116,15 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     portsByRadio,
     findRadio:
       over.findRadio ??
-      useFindRadio(shallowRef<RadioSearchMessage | null>(null), lastError, shallowRef<Connection>("open"), sender, settings, config, () => undefined),
+      useFindRadio(
+        shallowRef<RadioSearchMessage | null>(null),
+        lastError,
+        shallowRef<Connection>("open"),
+        sender,
+        settings,
+        config,
+        () => undefined,
+      ),
     alertResult: part(over.alertResult, null),
     updateResult: part(over.updateResult, null),
     releaseNotes: part(over.releaseNotes, null),
@@ -140,7 +167,10 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   };
   // The browser alert listens to the window: it is made when a pane asks for it.
   let alerts = over.alerts;
-  Object.defineProperty(context, "alerts", { enumerable: true, get: () => (alerts ??= useBrowserAlerts(() => undefined)) });
+  Object.defineProperty(context, "alerts", {
+    enumerable: true,
+    get: () => (alerts ??= useBrowserAlerts(() => undefined)),
+  });
   return context as unknown as FakeDaemon;
 }
 

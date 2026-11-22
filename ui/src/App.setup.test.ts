@@ -37,7 +37,13 @@ describe("App: the first-run guide", () => {
   it("opens the guide once: not again when the settings are told again, nor when the call is set", async () => {
     const { wrapper, socket } = await open();
     expect(wrapper.find(".setup").exists()).toBe(false);
-    const empty = (rev: number) => socket.say({ type: "state", topic: "config", rev, value: configValues({ "beacon/interval_min": "0", "station/call": "" }) });
+    const empty = (rev: number) =>
+      socket.say({
+        type: "state",
+        topic: "config",
+        rev,
+        value: configValues({ "beacon/interval_min": "0", "station/call": "" }),
+      });
     empty(1);
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(true);
@@ -77,7 +83,13 @@ describe("App: the first-run guide", () => {
       type: "state",
       topic: "config",
       rev: 1,
-      value: configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "" }),
+      value: configValues({
+        "beacon/interval_min": "0",
+        "station/call": "",
+        "station/lat": "",
+        "station/lon": "",
+        "serial/baud": "",
+      }),
     });
     socket.say(status({ call: "", lat: null, lon: null }));
     socket.say({ type: "state", topic: "map", rev: 0, value: mapState({ blocked: "no_position", box: null }) });
@@ -136,7 +148,10 @@ describe("App: the first-run guide", () => {
       type: "state",
       topic: "config",
       rev: 2,
-      value: configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "60.17", "station/lon": "24.94" }, { "radio/1/baud": "" }),
+      value: configValues(
+        { "beacon/interval_min": "0", "station/call": "", "station/lat": "60.17", "station/lon": "24.94" },
+        { "radio/1/baud": "" },
+      ),
     });
     await flushPromises();
     await wrapper.findAll(".setup-symbol")[1]?.trigger("click"); // the car
@@ -192,7 +207,12 @@ describe("App: the first-run guide", () => {
     await wrapper.find("#setup-lat").setValue("60.17");
     await wrapper.find("#setup-lon").setValue("24.94");
     for (let i = 0; i < 4; i++) await wrapper.find("form").trigger("submit");
-    socket.say(errorOf("set_config: station/call: call 'OH2ABC' has an SSID above 15", "call.ssid", { value: "OH2ABC", max: 15 }));
+    socket.say(
+      errorOf("set_config: station/call: call 'OH2ABC' has an SSID above 15", "call.ssid", {
+        value: "OH2ABC",
+        max: 15,
+      }),
+    );
     await flushPromises();
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.find(".setup .field-error").text()).toBe("call 'OH2ABC' has an SSID above 15");
@@ -247,7 +267,12 @@ describe("App: the first-run guide", () => {
     await wrapper.find("#setup-radio-add-button").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "radio_add", type });
     socket.say({ type: "radio_added", id: 3 });
-    socket.say({ type: "state", topic: "config", rev: 2, value: configValues({ "station/call": "", "station/lat": "60.17", "station/lon": "24.94" }, values) });
+    socket.say({
+      type: "state",
+      topic: "config",
+      rev: 2,
+      value: configValues({ "station/call": "", "station/lat": "60.17", "station/lon": "24.94" }, values),
+    });
     socket.say({ type: "state", topic: "radios", rev: 2, value: { "3": radioRow(3, type, row) } });
     await flushPromises();
     const box = wrapper.find(".setup .setup-body fieldset.subbox");
@@ -263,10 +288,10 @@ describe("App: the first-run guide", () => {
     );
     expect(box.find("legend").text()).toBe("LoRa radio");
     expect(box.find<HTMLSelectElement>("#setup-radio-3-type").element.value).toBe("lora-tcp");
-    expect([box.find<HTMLInputElement>("#setup-radio-3-tcp_host").element.value, box.find<HTMLInputElement>("#setup-radio-3-tcp_port").element.value]).toEqual([
-      "",
-      "8001",
-    ]);
+    expect([
+      box.find<HTMLInputElement>("#setup-radio-3-tcp_host").element.value,
+      box.find<HTMLInputElement>("#setup-radio-3-tcp_port").element.value,
+    ]).toEqual(["", "8001"]);
     expect(["port", "baud", "find"].filter((part) => box.find(`#setup-radio-3-${part}`).exists())).toEqual([]);
     expect(box.find(".radiostatus .tncstatus").text()).toContain("Not connected");
     expect(box.text()).not.toMatch(/127\.0\.0\.1|8001 |socket|tcp:/);
@@ -282,7 +307,11 @@ describe("App: the first-run guide", () => {
   });
 
   it("adds a text monitor as a station's first radio: the header says the station only receives, its box offers its port and speed alone, and nothing on the page would send", async () => {
-    const { wrapper, box, commands } = await firstRadio("tnc-text", {}, { "radio/3/port": "/dev/ttyUSB0", "radio/3/baud": "9600" });
+    const { wrapper, box, commands } = await firstRadio(
+      "tnc-text",
+      {},
+      { "radio/3/port": "/dev/ttyUSB0", "radio/3/baud": "9600" },
+    );
     const mark = wrapper.find(".appheader .rxonly");
     expect([mark.text(), mark.attributes("title")]).toEqual(["RX only", "Nothing is sent. Settings → Radio"]);
     expect(box.find("legend").text()).toBe("FM radio");
@@ -294,10 +323,14 @@ describe("App: the first-run guide", () => {
     ).toEqual([]);
     expect(wrapper.find(".toast").exists()).toBe(false);
     await wrapper.find(".setup-close").trigger("click");
-    const beaconNow = wrapper.findAll<HTMLButtonElement>("#pane-beacon button").find((button) => button.text() === "Beacon now");
+    const beaconNow = wrapper
+      .findAll<HTMLButtonElement>("#pane-beacon button")
+      .find((button) => button.text() === "Beacon now");
     // My station's Beacon now: greyed, or not there.
     expect(beaconNow === undefined || beaconNow.element.disabled).toBe(true);
-    expect(commands().filter((cmd) => ["beacon_now", "status_now", "send_message", "find_radio"].includes(cmd))).toEqual([]);
+    expect(
+      commands().filter((cmd) => ["beacon_now", "status_now", "send_message", "find_radio"].includes(cmd)),
+    ).toEqual([]);
   });
 
   it("has the Radio step's boxes beside the Settings tab's with no id twice on the page, and its radio stays when the guide is closed", async () => {

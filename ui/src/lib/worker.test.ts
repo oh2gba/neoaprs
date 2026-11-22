@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { canHaveWorker, registerWorker, type WorkerHost } from "@/lib/worker";
 
-function host(over: Partial<WorkerHost> & { register?: () => Promise<unknown> } = {}): WorkerHost & { register: ReturnType<typeof vi.fn>; load: () => void } {
+function host(
+  over: Partial<WorkerHost> & { register?: () => Promise<unknown> } = {},
+): WorkerHost & { register: ReturnType<typeof vi.fn>; load: () => void } {
   const register = vi.fn(over.register ?? (() => Promise.resolve({})));
   let onLoad: () => void = () => undefined;
   return {

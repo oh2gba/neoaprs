@@ -19,7 +19,9 @@ import { textRefusal } from "@/lib/recipients";
 import { bytes, leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
 
-const props = withDefaults(defineProps<{ connected: boolean; addresses: readonly string[]; offline?: string }>(), { offline: undefined });
+const props = withDefaults(defineProps<{ connected: boolean; addresses: readonly string[]; offline?: string }>(), {
+  offline: undefined,
+});
 const emit = defineEmits<{ send: [to: string, text: string]; forget: [name: string] }>();
 
 const to = ref("");
@@ -28,7 +30,11 @@ const textBox = ref<HTMLInputElement | null>(null);
 const listed = ref(false);
 
 /** The message length limit: the address, a space and the text (lib/textlimit.ts). */
-const limit = computed<TextLimit>(() => ({ max: LIMITS.message.textMax, measure: (body) => bytes(emailLine(to.value, body)), kind: "address" }));
+const limit = computed<TextLimit>(() => ({
+  max: LIMITS.message.textMax,
+  measure: (body) => bytes(emailLine(to.value, body)),
+  kind: "address",
+}));
 const left = computed(() => leftOf(text.value, limit.value));
 const rxOnly = useReceiveOnly();
 const radios = useRadios();
@@ -66,7 +72,8 @@ function pick(address: string): void {
 
 function leave(event: FocusEvent): void {
   const into = event.relatedTarget;
-  if (!(into instanceof Node) || !(event.currentTarget instanceof Node) || !event.currentTarget.contains(into)) listed.value = false;
+  if (!(into instanceof Node) || !(event.currentTarget instanceof Node) || !event.currentTarget.contains(into))
+    listed.value = false;
 }
 
 /** Esc closes the open suggestions, else clears the address and the text. */
@@ -118,7 +125,12 @@ function submit(): void {
           <ul v-if="shown" class="suggestions" :aria-label="t('email.used_before')" @mousedown.prevent>
             <li v-for="a in suggestions" :key="a" class="suggestion">
               <button type="button" class="suggestion-pick mono" @click="pick(a)">{{ a }}</button>
-              <IconButton kind="delete" :label="t('email.forget', { address: a })" :title="t('email.forget', { address: a })" @click="emit('forget', a)" />
+              <IconButton
+                kind="delete"
+                :label="t('email.forget', { address: a })"
+                :title="t('email.forget', { address: a })"
+                @click="emit('forget', a)"
+              />
             </li>
           </ul>
         </div>
@@ -144,7 +156,9 @@ function submit(): void {
       </div>
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || none || !socketOpen" :title="blocked">{{ t("email.send") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || none || !socketOpen" :title="blocked">
+        {{ t("email.send") }}
+      </button>
     </template>
   </ComposeBar>
 </template>

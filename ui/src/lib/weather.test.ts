@@ -16,7 +16,12 @@ import { NOW, ago, series, station, weather, weatherStation } from "@/test/fixtu
 
 describe("the readings as text", () => {
   it("writes each with its unit and a dash for none", () => {
-    expect([tempText(10), tempText(-20.55), tempText(null), tempText(undefined)]).toEqual(["10.0 °C", "-20.6 °C", "-", "-"]);
+    expect([tempText(10), tempText(-20.55), tempText(null), tempText(undefined)]).toEqual([
+      "10.0 °C",
+      "-20.6 °C",
+      "-",
+      "-",
+    ]);
     expect([pressureText(1028.4), pressureText(null)]).toEqual(["1028.4 hPa", "-"]);
     expect([humidityText(85), humidityText(null)]).toEqual(["85 %", "-"]);
     expect([windSpeedText(1.6), windSpeedText(0), windSpeedText(null)]).toEqual(["2 km/h", "0 km/h", "-"]);
@@ -26,7 +31,9 @@ describe("the readings as text", () => {
 
 describe("the wind arrow", () => {
   it("points where the wind goes, the way it comes from turned half a circle", () => {
-    expect([arrowAngle(0), arrowAngle(90), arrowAngle(107), arrowAngle(180), arrowAngle(270), arrowAngle(360)]).toEqual([180, 270, 287, 0, 90, 180]);
+    expect([arrowAngle(0), arrowAngle(90), arrowAngle(107), arrowAngle(180), arrowAngle(270), arrowAngle(360)]).toEqual(
+      [180, 270, 287, 0, 90, 180],
+    );
     expect(arrowAngle(null)).toBeNull();
   });
 });
@@ -57,7 +64,10 @@ describe("the series", () => {
   });
 
   it("keeps a missing value as null and has no points before the answer", () => {
-    const s = { ...series("A", 24, 1), points: [[ago(60), null, null, null, null, null, null]] as ReturnType<typeof series>["points"] };
+    const s = {
+      ...series("A", 24, 1),
+      points: [[ago(60), null, null, null, null, null, null]] as ReturnType<typeof series>["points"],
+    };
     expect(columnOf(s, "wind")).toEqual([{ t: NOW - 60_000, v: null }]);
     expect(hasValues(columnOf(s, "wind"))).toBe(false);
     expect(columnOf(null, "temp")).toEqual([]);
@@ -66,11 +76,17 @@ describe("the series", () => {
 });
 
 describe("sharedRanges: the value axes that several weather cards share", () => {
-  const make = (call: string, hours: number, rows: [number | null, number | null, number | null, number | null, number | null, number | null][]) => ({
+  const make = (
+    call: string,
+    hours: number,
+    rows: [number | null, number | null, number | null, number | null, number | null, number | null][],
+  ) => ({
     type: "weather_series" as const,
     call,
     hours,
-    points: rows.map((r, i): [string, ...(number | null)[]] => [ago(3600 - i * 600), ...r]) as ReturnType<typeof series>["points"],
+    points: rows.map((r, i): [string, ...(number | null)[]] => [ago(3600 - i * 600), ...r]) as ReturnType<
+      typeof series
+    >["points"],
   });
   // [temp, pressure, wind, gust, rain, humidity]
   const cold = make("OH2ZWA", 24, [
@@ -97,7 +113,9 @@ describe("sharedRanges: the value axes that several weather cards share", () => 
 
   it("is the same for any order of the cards, and does not count a series of another span, or one that has not come", () => {
     expect(sharedRanges([warm, cold], 24)).toEqual(sharedRanges([cold, warm], 24));
-    expect(sharedRanges([cold, make("OH2ZWC", 168, [[40, 900, 50, 90, 9, 1]]), null], 24)).toEqual(sharedRanges([cold], 24));
+    expect(sharedRanges([cold, make("OH2ZWC", 168, [[40, 900, 50, 90, 9, 1]]), null], 24)).toEqual(
+      sharedRanges([cold], 24),
+    );
     expect(sharedRanges([null, null], 24)).toEqual({});
   });
 

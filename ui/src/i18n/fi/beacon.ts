@@ -64,6 +64,7 @@ export const beacon: Record<keyof typeof source, Message> = {
   "gps.beacon.no_fix": "Ei majakkaa: ei GPS-paikannusta",
   "gps.beacon.first": "SmartBeaconing: ensimmäinen majakka lähtee nyt",
   "gps.beacon.next": "SmartBeaconing: seuraava ajastettu majakka {when}",
-  "gps.beacon.next_last": "SmartBeaconing: seuraava ajastettu majakka {when}, viimeksi lähetetty {span} sitten ({reason})",
+  "gps.beacon.next_last":
+    "SmartBeaconing: seuraava ajastettu majakka {when}, viimeksi lähetetty {span} sitten ({reason})",
   "gps.beacon.last": "SmartBeaconing: viimeksi lähetetty {span} sitten ({reason})",
 };

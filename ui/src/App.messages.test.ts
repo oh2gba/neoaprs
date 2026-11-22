@@ -75,7 +75,12 @@ describe("App: messages", () => {
       await wrapper.find("#pane-messages .conv").trigger("click");
       expect(document.title).toBe("(1) NeoAPRS");
       show("hidden");
-      socket.say({ type: "patch", topic: "messages", rev: 1, ops: [{ op: "set", key: "4", value: incoming(4, "OH2PU-9", { text: "Hello again" }) }] });
+      socket.say({
+        type: "patch",
+        topic: "messages",
+        rev: 1,
+        ops: [{ op: "set", key: "4", value: incoming(4, "OH2PU-9", { text: "Hello again" }) }],
+      });
       await flushPromises();
       expect(document.title).toBe("(2) NeoAPRS");
       show("visible");
@@ -88,13 +93,23 @@ describe("App: messages", () => {
       await tabButton(wrapper, "Messages")?.trigger("click");
       await wrapper.find("#pane-messages .conv").trigger("click");
       await tabButton(wrapper, "Packets")?.trigger("click");
-      socket.say({ type: "patch", topic: "messages", rev: 1, ops: [{ op: "set", key: "4", value: incoming(4, "OH2PU-9") }] });
+      socket.say({
+        type: "patch",
+        topic: "messages",
+        rev: 1,
+        ops: [{ op: "set", key: "4", value: incoming(4, "OH2PU-9") }],
+      });
       await flushPromises();
       expect(document.title).toBe("(2) NeoAPRS");
       await tabButton(wrapper, "Messages")?.trigger("click");
       expect(document.title).toBe("(1) NeoAPRS");
       await wrapper.find(".panel-fold").trigger("click");
-      socket.say({ type: "patch", topic: "messages", rev: 2, ops: [{ op: "set", key: "5", value: incoming(5, "OH2PU-9") }] });
+      socket.say({
+        type: "patch",
+        topic: "messages",
+        rev: 2,
+        ops: [{ op: "set", key: "5", value: incoming(5, "OH2PU-9") }],
+      });
       await flushPromises();
       expect(document.title).toBe("(2) NeoAPRS");
     });
@@ -110,7 +125,8 @@ describe("App: messages", () => {
   });
 
   describe("a conversation", () => {
-    const conv = (wrapper: VueWrapper, call: string) => wrapper.findAll("#pane-messages .conv").find((c) => c.find(".conv-call").text() === call);
+    const conv = (wrapper: VueWrapper, call: string) =>
+      wrapper.findAll("#pane-messages .conv").find((c) => c.find(".conv-call").text() === call);
     const x = (wrapper: VueWrapper, call: string) =>
       wrapper
         .findAll("#pane-messages .conv-item")
@@ -214,7 +230,14 @@ describe("App: messages", () => {
 
     it("has an overheard pair deleted after two clicks on its x with one command, when the overheard rows are listed", async () => {
       const { wrapper, socket } = await open();
-      const heard = message(20, { direction: "in", state: "overheard", from_call: "OH2AAA", to_call: "OH2BBB", text: "chatter", attempts: 0 });
+      const heard = message(20, {
+        direction: "in",
+        state: "overheard",
+        from_call: "OH2AAA",
+        to_call: "OH2BBB",
+        text: "chatter",
+        attempts: 0,
+      });
       socket.say({ type: "patch", topic: "messages", rev: 1, ops: [{ op: "set", key: "20", value: heard }] });
       await flushPromises();
       await tabButton(wrapper, "Messages")?.trigger("click");
@@ -241,7 +264,12 @@ describe("App: messages on a phone", () => {
     expect(document.title).toBe("(1) NeoAPRS");
     await wrapper.find(".tab-map").trigger("click");
     expect(wrapper.find(".app").classes()).toContain("view-map");
-    socket.say({ type: "patch", topic: "messages", rev: 1, ops: [{ op: "set", key: "4", value: incoming(4, "OH2PU-9", { text: "Hello?" }) }] });
+    socket.say({
+      type: "patch",
+      topic: "messages",
+      rev: 1,
+      ops: [{ op: "set", key: "4", value: incoming(4, "OH2PU-9", { text: "Hello?" }) }],
+    });
     await flushPromises();
     expect(document.title).toBe("(2) NeoAPRS");
   });

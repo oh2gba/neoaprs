@@ -47,7 +47,15 @@ function buttonKey(event: KeyboardEvent): void {
   event.preventDefault();
   void show(event.key === "ArrowDown" ? 0 : props.tabs.length - 1);
 }
-const popup = usePopup({ open, root, trigger: button, close: () => close(false), focusAway: false, stopEscape: true, escapeAnywhere: true });
+const popup = usePopup({
+  open,
+  root,
+  trigger: button,
+  close: () => close(false),
+  focusAway: false,
+  stopEscape: true,
+  escapeAnywhere: true,
+});
 function menuKey(event: KeyboardEvent): void {
   const at = items.value.findIndex((item) => item === document.activeElement);
   const step: Record<string, () => void> = {
@@ -85,9 +93,23 @@ function menuKey(event: KeyboardEvent): void {
       <TagMark v-if="total > 0" class="badge" aria-hidden="true">{{ total }}</TagMark>
       <span v-if="total > 0" class="sr-only">{{ t("tab.menu_new", { n: total }) }}</span>
     </button>
-    <ul v-if="open" id="tabmenu-list" class="tabmenu-list" role="menu" aria-labelledby="tabmenu-button" @keydown="menuKey">
+    <ul
+      v-if="open"
+      id="tabmenu-list"
+      class="tabmenu-list"
+      role="menu"
+      aria-labelledby="tabmenu-button"
+      @keydown="menuKey"
+    >
       <li v-for="(id, index) in tabs" :key="id" role="none">
-        <button :ref="(el) => (items[index] = el as HTMLElement)" type="button" role="menuitem" class="tabmenu-item" tabindex="-1" @click="pick(id)">
+        <button
+          :ref="(el) => (items[index] = el as HTMLElement)"
+          type="button"
+          role="menuitem"
+          class="tabmenu-item"
+          tabindex="-1"
+          @click="pick(id)"
+        >
           {{ tabTitle(id) }}
           <TabBadge :tab="id" :count="badges[id]" />
         </button>

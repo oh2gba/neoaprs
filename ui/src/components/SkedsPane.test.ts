@@ -7,7 +7,8 @@ import { NOW, sked, skedsState } from "@/test/fixtures";
 
 let daemon: FakeDaemon;
 beforeEach(() => (daemon = fakeDaemon({ skeds: skedsState() })));
-const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
+const sent = (cmd: string) =>
+  daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
 const at = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString().slice(0, 19) + "Z";
 
 function pane(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}) {
@@ -34,13 +35,18 @@ describe("SkedsPane", () => {
     const [row] = rows(wrapper);
     expect(row?.find(".sked-when strong").text()).toBe("Wed 21 Oct 14:00 to 16:00 UTC");
     expect(row?.find(".sked-when .muted").text()).toBe("in 2 h");
-    expect(row?.find(".sked-when").attributes("title")).toMatch(/^Your time: Wed 21 Oct \d{2}:\d{2} to (\w{3} \d{1,2} \w{3} )?\d{2}:\d{2}$/);
+    expect(row?.find(".sked-when").attributes("title")).toMatch(
+      /^Your time: Wed 21 Oct \d{2}:\d{2} to (\w{3} \d{1,2} \w{3} )?\d{2}:\d{2}$/,
+    );
     expect(row?.find(".sked-dial").text()).toBe("7.0541 MHz USB");
     expect(row?.findAll(".sked-call").map((c) => c.text())).toEqual(["OH2XYZ"]);
   });
 
   it("says now while a sked runs, and writes the end with its day when the sked runs over midnight", () => {
-    const wrapper = pane([sked("run", { from: at(-1), to: at(1) }), sked("late", { from: "2026-10-21T22:00:00Z", to: "2026-10-22T02:00:00Z" })]);
+    const wrapper = pane([
+      sked("run", { from: at(-1), to: at(1) }),
+      sked("late", { from: "2026-10-21T22:00:00Z", to: "2026-10-22T02:00:00Z" }),
+    ]);
     expect(rows(wrapper)[0]?.find(".sked-when .muted").text()).toBe("now");
     expect(rows(wrapper)[1]?.find(".sked-when strong").text()).toBe("Wed 21 Oct 22:00 to Thu 22 Oct 02:00 UTC");
   });
@@ -55,7 +61,11 @@ describe("SkedsPane", () => {
   });
 
   it("makes skeds with the same times and dial one row that lists the calls", () => {
-    const wrapper = pane([sked("a", { call: "OH2AAA" }), sked("b", { call: "OH2BBB" }), sked("c", { call: "OH2CCC", dial: "14.1070 MHz USB" })]);
+    const wrapper = pane([
+      sked("a", { call: "OH2AAA" }),
+      sked("b", { call: "OH2BBB" }),
+      sked("c", { call: "OH2CCC", dial: "14.1070 MHz USB" }),
+    ]);
     expect(rows(wrapper)).toHaveLength(2);
     expect(
       rows(wrapper)[0]
@@ -93,7 +103,10 @@ describe("SkedsPane", () => {
 
   describe("Delete and Join", () => {
     it("has Delete on a row with a sked of ours, which asks twice and then deletes that sked", async () => {
-      const wrapper = pane([sked("mine", { call: "OH2GBA", ours: true }), sked("other", { call: "OH2XYZ", from: at(5), to: at(6) })]);
+      const wrapper = pane([
+        sked("mine", { call: "OH2GBA", ours: true }),
+        sked("other", { call: "OH2XYZ", from: at(5), to: at(6) }),
+      ]);
       const [ours, other] = rows(wrapper);
       expect(ours?.classes()).toContain("mine");
       expect(ours?.find(".sked-call .tag").text()).toBe("ours");
@@ -112,7 +125,9 @@ describe("SkedsPane", () => {
       expect(join.text()).toBe("Join");
       expect(join.attributes("aria-label")).toContain("OH2XYZ");
       await join.trigger("click");
-      expect(sent("sked_post")).toEqual([{ cmd: "sked_post", from: at(2), to: at(4), dial: "14.1070 MHz USB", note: "" }]);
+      expect(sent("sked_post")).toEqual([
+        { cmd: "sked_post", from: at(2), to: at(4), dial: "14.1070 MHz USB", note: "" },
+      ]);
     });
 
     it("has no Join on a row that has our call already, and Delete only for the sked that is ours", () => {
@@ -172,7 +187,8 @@ describe("SkedsPane", () => {
       const closed = pane([sked("a")], { state: "closed" });
       expect(closed.find("form").exists()).toBe(false);
       expect(closed.findAll(".sked")).toHaveLength(1);
-      for (const state of ["ok", "offline", "off"] as const) expect(pane([], { state }).find("form").exists()).toBe(true);
+      for (const state of ["ok", "offline", "off"] as const)
+        expect(pane([], { state }).find("form").exists()).toBe(true);
     });
 
     it("shows the form again when the board opens", async () => {

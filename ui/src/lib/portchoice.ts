@@ -26,7 +26,8 @@ const FREE: HolderOf = () => null;
  * held all the same, without a name), the GPS receiver's by its word.
  */
 export function holderOf(own: number, nameOf: (id: number) => string | undefined): HolderOf {
-  return (heldBy) => (heldBy === null || heldBy === own ? null : heldBy === 0 ? t("gps.label") : (nameOf(heldBy) ?? ""));
+  return (heldBy) =>
+    heldBy === null || heldBy === own ? null : heldBy === 0 ? t("gps.label") : (nameOf(heldBy) ?? "");
 }
 
 /**
@@ -36,14 +37,24 @@ export function holderOf(own: number, nameOf: (id: number) => string | undefined
 export function heldChoice(choice: Choice, heldBy: number | null, holder: HolderOf, current: string): Choice {
   const name = holder(heldBy);
   if (name === null || choice.value === current) return choice;
-  return { ...choice, label: name === "" ? choice.label : t("settings.port.held", { holder: name, port: choice.label }), disabled: true };
+  return {
+    ...choice,
+    label: name === "" ? choice.label : t("settings.port.held", { holder: name, port: choice.label }),
+    disabled: true,
+  };
 }
 
 /** The ports the system lists, each with what the system calls it. */
 function listedPorts(ports: PortsMessage | null, holder: HolderOf = FREE, current = ""): Choice[] {
   return (ports?.ports ?? []).map((p) =>
     heldChoice(
-      { value: p.device, label: p.description && p.description !== "n/a" && p.description !== p.device ? `${p.device} - ${p.description}` : p.device },
+      {
+        value: p.device,
+        label:
+          p.description && p.description !== "n/a" && p.description !== p.device
+            ? `${p.device} - ${p.description}`
+            : p.device,
+      },
       p.held_by,
       holder,
       current,
@@ -56,11 +67,21 @@ function listedPorts(ports: PortsMessage | null, holder: HolderOf = FREE, curren
  * search found. Where the daemon does not search (Windows, macOS) the empty port is "none
  * chosen", and for a port it never searches for (`unset`, the GPS receiver's) it is "not set".
  */
-export function portOptions(ports: PortsMessage | null, current: string, found: string, unset = false, holder: HolderOf = FREE): Choice[] {
+export function portOptions(
+  ports: PortsMessage | null,
+  current: string,
+  found: string,
+  unset = false,
+  holder: HolderOf = FREE,
+): Choice[] {
   const listed = listedPorts(ports, holder, current);
   const empty: Choice = {
     value: "",
-    label: unset ? t("settings.port.unset") : ports?.search === false ? t("settings.port.none") : t("settings.port.auto"),
+    label: unset
+      ? t("settings.port.unset")
+      : ports?.search === false
+        ? t("settings.port.none")
+        : t("settings.port.auto"),
   };
   const extra = [current, found]
     .filter((path, i, all) => path !== "" && !listed.some((c) => c.value === path) && all.indexOf(path) === i)

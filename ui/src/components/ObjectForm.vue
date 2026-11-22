@@ -49,7 +49,9 @@ const { severalSenders: several, senders, allowsPath, pathOf, sharedPath, all } 
 const start = computed<readonly RadioId[]>(() =>
   senders.value.length === 1
     ? senders.value.map((radio) => radio.id)
-    : (page?.status.value?.new_object_radios ?? []).filter((id) => all.value.some((radio) => radio.id === id && !radio.removed)),
+    : (page?.status.value?.new_object_radios ?? []).filter((id) =>
+        all.value.some((radio) => radio.id === id && !radio.removed),
+      ),
 );
 /** The object's radios in the draft: a new one not yet ticked starts as the object saved last. */
 const ownRadios = (): readonly RadioId[] => (draft.radios.length > 0 ? draft.radios : start.value);
@@ -94,7 +96,9 @@ const advanced = computed(
 /** The Category choice that stands for "Other...": a code of our own, with its own field. */
 const OTHER = "other";
 const own = ref(false); // "Other..." chosen, no code typed yet
-const choice = computed(() => (isStandardCategory(draft.qru) ? draft.qru.trim().toUpperCase() : draft.qru.trim() !== "" || own.value ? OTHER : ""));
+const choice = computed(() =>
+  isStandardCategory(draft.qru) ? draft.qru.trim().toUpperCase() : draft.qru.trim() !== "" || own.value ? OTHER : "",
+);
 watch(
   () => [props.form.editing, props.form.dirty],
   () => {
@@ -172,7 +176,12 @@ const left = computed(() => leftOf(draft.comment, limit.value));
         >
       </div>
     </div>
-    <DisclosureBox :key="`${form.editing ?? ''}-moving`" class="settings-fold" :title="t('objects.field.moving')" :open="moving">
+    <DisclosureBox
+      :key="`${form.editing ?? ''}-moving`"
+      class="settings-fold"
+      :title="t('objects.field.moving')"
+      :open="moving"
+    >
       <div class="field" :class="{ invalid: problems.course }" :title="problems.course">
         <label :for="`${id}-course`">{{ t("objects.field.course") }}</label>
         <div class="field-control">
@@ -212,9 +221,19 @@ const left = computed(() => leftOf(draft.comment, limit.value));
         </div>
       </div>
     </DisclosureBox>
-    <DisclosureBox :key="`${form.editing ?? ''}-advanced`" class="settings-fold" :title="t('settings.fold.advanced')" :open="advanced">
+    <DisclosureBox
+      :key="`${form.editing ?? ''}-advanced`"
+      class="settings-fold"
+      :title="t('settings.fold.advanced')"
+      :open="advanced"
+    >
       <SendOn v-if="ticks.length > 0" :id="`${id}-sendon`" class="send-on" :ticks="ticks" error="" @tick="tick" />
-      <div v-if="allowsPath" class="field" :class="{ invalid: problems.path, disabled: noPath }" :title="problems.path || (noPath ? pathless : undefined)">
+      <div
+        v-if="allowsPath"
+        class="field"
+        :class="{ invalid: problems.path, disabled: noPath }"
+        :title="problems.path || (noPath ? pathless : undefined)"
+      >
         <label :for="`${id}-path`">{{ t("objects.field.path") }}</label>
         <div class="field-control">
           <input
@@ -227,7 +246,13 @@ const left = computed(() => leftOf(draft.comment, limit.value));
             autocomplete="off"
             spellcheck="false"
           />
-          <PathBuilder :value="draft.path" :usual="builderStart" :disabled="noPath" :why="pathless" @use="draft.path = $event" />
+          <PathBuilder
+            :value="draft.path"
+            :usual="builderStart"
+            :disabled="noPath"
+            :why="pathless"
+            @use="draft.path = $event"
+          />
           <InfoTip :label="about('objects.field.path')"
             ><span class="info-line">{{ t("objects.tip.path") }}</span></InfoTip
           >
@@ -236,7 +261,12 @@ const left = computed(() => leftOf(draft.comment, limit.value));
       <div class="field">
         <label :for="`${id}-category`">{{ t("objects.field.category") }}</label>
         <div class="field-control">
-          <select :id="`${id}-category`" class="input" :value="choice" @change="choose(($event.target as HTMLSelectElement).value)">
+          <select
+            :id="`${id}-category`"
+            class="input"
+            :value="choice"
+            @change="choose(($event.target as HTMLSelectElement).value)"
+          >
             <option value="">{{ t("objects.category.none") }}</option>
             <option v-for="code in CATEGORY_CODES" :key="code" :value="code">{{ t(categoryMessage(code)) }}</option>
             <option :value="OTHER">{{ t("objects.category.other") }}</option>
@@ -275,7 +305,9 @@ const left = computed(() => leftOf(draft.comment, limit.value));
       </div>
     </DisclosureBox>
     <template #buttons>
-      <button type="button" class="btn" :disabled="!form.dirty && !form.placing" @click="form.cancel()">{{ t("objects.form.cancel") }}</button>
+      <button type="button" class="btn" :disabled="!form.dirty && !form.placing" @click="form.cancel()">
+        {{ t("objects.form.cancel") }}
+      </button>
       <button
         type="submit"
         class="btn primary"

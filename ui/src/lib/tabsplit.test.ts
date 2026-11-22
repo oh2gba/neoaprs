@@ -17,7 +17,8 @@ const tabs: Record<TabId, number> = {
   settings: 50,
 };
 const sizes: TabSizes = { tabs, more: 50, moreCount: 24 };
-const split = (room: number, open: TabId = "messages", counts: Partial<Record<TabId, number>> = {}) => splitTabs(sizes, room, open, counts);
+const split = (room: number, open: TabId = "messages", counts: Partial<Record<TabId, number>> = {}) =>
+  splitTabs(sizes, room, open, counts);
 
 describe("which tabs stay in the row", () => {
   it("keeps all of them, and no More, when they fit, to the pixel", () => {
@@ -28,7 +29,10 @@ describe("which tabs stay in the row", () => {
   it("keeps the first ones that fit with the More button, in the order of the tabs, when they do not", () => {
     // 480 + the More button of 50 is 530, and the packets make 580
     expect(split(579)).toEqual({ shown: TAB_IDS.slice(0, 8), hidden: ["packets", "settings"] });
-    expect(split(400)).toEqual({ shown: TAB_IDS.slice(0, 5), hidden: ["skeds", "objects", "beacon", "packets", "settings"] });
+    expect(split(400)).toEqual({
+      shown: TAB_IDS.slice(0, 5),
+      hidden: ["skeds", "objects", "beacon", "packets", "settings"],
+    });
     expect(split(160)).toEqual({ shown: ["messages"], hidden: TAB_IDS.slice(1) });
   });
 
@@ -67,7 +71,12 @@ describe("which tabs stay in the row", () => {
   });
 
   it("does not keep room for a count of zero", () => {
-    expect(split(320, "messages", { email: 0, bulletins: 0 }).shown).toEqual(["messages", "stations", "nearby", "email"]);
+    expect(split(320, "messages", { email: 0, bulletins: 0 }).shown).toEqual([
+      "messages",
+      "stations",
+      "nearby",
+      "email",
+    ]);
   });
 
   it("gives every width the same answer when asked twice", () => {

@@ -15,7 +15,12 @@ export interface Question {
   message: string;
 }
 
-export function useSettingsForm(config: Ref<ConfigValues | null>, settings: Settings, scope: Scope = "settings", remote: () => boolean = remotePage) {
+export function useSettingsForm(
+  config: Ref<ConfigValues | null>,
+  settings: Settings,
+  scope: Scope = "settings",
+  remote: () => boolean = remotePage,
+) {
   const defaults = computed(() => config.value?.defaults ?? {});
   const groups = computed(() => groupKeys(Object.keys(settings.values.value), scope));
   const shown = computed(() => new Set(groups.value.flatMap((g) => g.keys)));

@@ -59,8 +59,10 @@ export function useAnswers() {
     },
     packetStats: (message) => (packetStats.value = message),
     speedSeries: (message) => (speedSeriesByCall.value = new Map(speedSeriesByCall.value).set(message.call, message)),
-    signalSeries: (message) => (signalSeriesByCall.value = new Map(signalSeriesByCall.value).set(message.call, message)),
-    stationTraffic: (message) => (stationTrafficByCall.value = new Map(stationTrafficByCall.value).set(message.call, message)),
+    signalSeries: (message) =>
+      (signalSeriesByCall.value = new Map(signalSeriesByCall.value).set(message.call, message)),
+    stationTraffic: (message) =>
+      (stationTrafficByCall.value = new Map(stationTrafficByCall.value).set(message.call, message)),
     positionHistory: (message) => (positionHistory.value = message),
     alertResult: (message) => (alertResult.value = message),
     ports: (message) => {

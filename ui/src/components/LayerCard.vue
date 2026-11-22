@@ -23,7 +23,9 @@ const labels = computed(() => cardLabels(props.open.layer, props.open.thing, pro
 <template>
   <section class="card layercard" :aria-label="thingSub(open.layer)" :data-thing="`${open.layer}:${open.thing.id}`">
     <header class="card-head">
-      <span class="layercard-mark" :class="{ emergency: open.thing.emergency }"><LayerMark :name="kindShape(open.layer, open.thing)" /></span>
+      <span class="layercard-mark" :class="{ emergency: open.thing.emergency }"
+        ><LayerMark :name="kindShape(open.layer, open.thing)"
+      /></span>
       <div class="card-title">
         <span class="card-call">
           <strong>{{ title }}</strong>

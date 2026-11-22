@@ -10,7 +10,13 @@ import type { RouteCollection } from "@/lib/routeline";
 
 export const ROUTE_SOURCE = "route";
 /** The layers made here, which give way while the map's replay plays (lib/replaylayers.ts). */
-export const ROUTE_LAYERS: readonly string[] = ["route-casing", "route-previous", "route-latest", "route-hops", "route-names"];
+export const ROUTE_LAYERS: readonly string[] = [
+  "route-casing",
+  "route-previous",
+  "route-latest",
+  "route-hops",
+  "route-names",
+];
 
 const LINES: ExpressionSpecification = ["==", ["geometry-type"], "LineString"];
 const DOTS: ExpressionSpecification = ["==", ["geometry-type"], "Point"];
@@ -76,7 +82,13 @@ export function addRouteLayers(map: MapLibreMap, data: RouteCollection): void {
     type: "symbol",
     source: ROUTE_SOURCE,
     filter: DOTS,
-    layout: { "text-field": ["get", "label"], "text-font": [FONT_REGULAR], "text-size": 11, "text-offset": [0, 0.9], "text-anchor": "top" },
+    layout: {
+      "text-field": ["get", "label"],
+      "text-font": [FONT_REGULAR],
+      "text-size": 11,
+      "text-offset": [0, 0.9],
+      "text-anchor": "top",
+    },
     paint: { "text-color": text, "text-halo-color": halo, "text-halo-width": 1.5 },
   });
 }

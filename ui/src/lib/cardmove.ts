@@ -83,13 +83,24 @@ const overlaps = (a: Placed, b: Placed): boolean =>
 export function freeSlot(size: CardSize, others: readonly Placed[], row: CardSize, gap: number = SLOT_GAP): Place {
   const inside = (at: number, room: number, wide: number): boolean => at >= 0 && at + wide <= room + 0.5;
   const bottom = Math.max(0, Math.round(row.height - size.height));
-  const xs = [0, row.width - size.width, ...others.flatMap((card) => [card.x + card.width + gap, card.x - gap - size.width])]
+  const xs = [
+    0,
+    row.width - size.width,
+    ...others.flatMap((card) => [card.x + card.width + gap, card.x - gap - size.width]),
+  ]
     .map(Math.round)
     .filter((x) => inside(x, row.width, size.width));
-  const ys = [bottom, ...others.map((card) => card.y - gap - size.height)].map(Math.round).filter((y) => inside(y, row.height, size.height));
+  const ys = [bottom, ...others.map((card) => card.y - gap - size.height)]
+    .map(Math.round)
+    .filter((y) => inside(y, row.height, size.height));
   for (const y of [...new Set(ys)].sort((a, b) => b - a)) {
-    const at = [...new Set(xs)].sort((a, b) => a - b).find((x) => !others.some((card) => overlaps({ x, y, ...size }, card)));
+    const at = [...new Set(xs)]
+      .sort((a, b) => a - b)
+      .find((x) => !others.some((card) => overlaps({ x, y, ...size }, card)));
     if (at !== undefined) return { x: at, y };
   }
-  return { x: others.length > 0 ? Math.round(Math.max(...others.map((card) => card.x + card.width)) + gap) : 0, y: bottom };
+  return {
+    x: others.length > 0 ? Math.round(Math.max(...others.map((card) => card.x + card.width)) + gap) : 0,
+    y: bottom,
+  };
 }

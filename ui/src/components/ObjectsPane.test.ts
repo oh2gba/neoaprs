@@ -18,13 +18,23 @@ function pane(rows: OwnObjectRow[] = []) {
     show: vi.fn(),
     tab: ref("objects"),
   } as unknown as Panel);
-  const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })) });
+  const wrapper = mount(ObjectsPane, {
+    props: { objects: table, form },
+    global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })),
+  });
   return { wrapper, form, sent, table };
 }
 
 const rows = [
   ownObject("LEADER", { comment: "Rescue 1", created_at: ago(900), sent: 3 }),
-  ownObject("AID", { kind: "item", symbol_table: "\\", symbol_code: "+", created_at: ago(300), sent: 1, last_sent_at: ago(10) }),
+  ownObject("AID", {
+    kind: "item",
+    symbol_table: "\\",
+    symbol_code: "+",
+    created_at: ago(300),
+    sent: 1,
+    last_sent_at: ago(10),
+  }),
 ];
 
 describe("ObjectsPane", () => {
@@ -33,7 +43,9 @@ describe("ObjectsPane", () => {
     const bar = wrapper.find(".tab-help");
     expect((wrapper.element as HTMLElement).firstElementChild).toBe(bar.element);
     await bar.find("button.info-toggle").trigger("click");
-    expect(bar.find(".info-text").text()).toContain("An object is a marker you put on the map for something that is not a station");
+    expect(bar.find(".info-text").text()).toContain(
+      "An object is a marker you put on the map for something that is not a station",
+    );
     expect(bar.find(".info-text").text()).toContain("Everyone near you sees it, as long as you send it.");
     expect(bar.find("svg[data-picture='object']").exists()).toBe(true);
   });
@@ -62,7 +74,14 @@ describe("ObjectsPane", () => {
 
   it("shows the category of an object in plain words as a tag in a column of its own, with its code in the hover, and says that one that is on request is sent only when asked", () => {
     const { wrapper } = pane([
-      ownObject("PUB", { qru_group: "FOOD", on_request: true, sent: 0, last_sent_at: null, next_at: null, created_at: ago(900) }),
+      ownObject("PUB", {
+        qru_group: "FOOD",
+        on_request: true,
+        sent: 0,
+        last_sent_at: null,
+        next_at: null,
+        created_at: ago(900),
+      }),
       ownObject("PUMP", { qru_group: "FUEL", created_at: ago(300) }),
       ownObject("PLAIN", { created_at: ago(100) }),
     ]);
@@ -76,7 +95,11 @@ describe("ObjectsPane", () => {
     // with one radio the column has one tag, at its own width, from the column's left edge
     expect(items.some((i) => i.find(".own-tags").classes().includes("several"))).toBe(false);
     expect(cssRule(".own-tags")).not.toMatch(/display|justify-content|max-width/);
-    expect(items.map((i) => i.find(".bulletin-meta").text())).toEqual(["sent only when asked", "sent 2 times, next in 3 min", "sent 2 times, next in 3 min"]);
+    expect(items.map((i) => i.find(".bulletin-meta").text())).toEqual([
+      "sent only when asked",
+      "sent 2 times, next in 3 min",
+      "sent 2 times, next in 3 min",
+    ]);
   });
 
   describe("the radios of each object, while several radios are on (plan 6: with several, every object says its radio; none is the unmarked default)", () => {
@@ -90,10 +113,17 @@ describe("ObjectsPane", () => {
     const tagsOf = (station: Given, rows: OwnObjectRow[] = list, given: Given = {}) => {
       const table = new Map(rows.map((r) => [r.name, r]));
       const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-      const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ ...station, ...given })) });
+      const wrapper = mount(ObjectsPane, {
+        props: { objects: table, form },
+        global: withDaemon(fakeDaemon({ ...station, ...given })),
+      });
       return wrapper
         .findAll(".ownobject")
-        .map((i) => i.findAll(".own-tags .tag").map((tag) => [seen(tag), tag.attributes("title"), tag.classes().find((c) => c.startsWith("tag-"))]));
+        .map((i) =>
+          i
+            .findAll(".own-tags .tag")
+            .map((tag) => [seen(tag), tag.attributes("title"), tag.classes().find((c) => c.startsWith("tag-"))]),
+        );
     };
 
     it("tags every object with the radios it goes out on, beside its category, each by its name in its kind's tone", () => {
@@ -111,19 +141,44 @@ describe("ObjectsPane", () => {
     });
 
     it("tags no object with one radio on, whichever it is, as today", () => {
-      expect(tagsOf(ofRadios(FM, { ...HF, enabled: false }))).toEqual([[["Food", "Category: Food (FOOD)", "tag-neutral"]], [], []]);
-      expect(tagsOf(ofRadios({ ...FM, enabled: false }, HF))).toEqual([[["Food", "Category: Food (FOOD)", "tag-neutral"]], [], []]);
-      expect(tagsOf(ofRadios(FM, { ...HF, removed: true, enabled: false }))).toEqual([[["Food", "Category: Food (FOOD)", "tag-neutral"]], [], []]);
+      expect(tagsOf(ofRadios(FM, { ...HF, enabled: false }))).toEqual([
+        [["Food", "Category: Food (FOOD)", "tag-neutral"]],
+        [],
+        [],
+      ]);
+      expect(tagsOf(ofRadios({ ...FM, enabled: false }, HF))).toEqual([
+        [["Food", "Category: Food (FOOD)", "tag-neutral"]],
+        [],
+        [],
+      ]);
+      expect(tagsOf(ofRadios(FM, { ...HF, removed: true, enabled: false }))).toEqual([
+        [["Food", "Category: Food (FOOD)", "tag-neutral"]],
+        [],
+        [],
+      ]);
     });
 
     it("shows what is in force: a radio of its own that is off or removed is not shown, and one with none of its own on has no tag and says it waits", () => {
-      const rows = [ownObject("A", { radios: [1, 3], created_at: ago(900) }), ownObject("B", { radios: [3, 4], created_at: ago(600), next_at: ago(120) })];
-      const radios = ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false }), radioRow(4, "dummy", { number: 3, removed: true, enabled: false }));
-      expect(tagsOf(radios, rows, { status: status({ unheard_radio: 2 }) })).toEqual([[["FM", "Sent on radio FM", "tag-neutral"]], []]);
+      const rows = [
+        ownObject("A", { radios: [1, 3], created_at: ago(900) }),
+        ownObject("B", { radios: [3, 4], created_at: ago(600), next_at: ago(120) }),
+      ];
+      const radios = ofRadios(
+        FM,
+        HF,
+        radioRow(3, "kiss", { number: 2, enabled: false }),
+        radioRow(4, "dummy", { number: 3, removed: true, enabled: false }),
+      );
+      expect(tagsOf(radios, rows, { status: status({ unheard_radio: 2 }) })).toEqual([
+        [["FM", "Sent on radio FM", "tag-neutral"]],
+        [],
+      ]);
       const table = new Map(rows.map((r) => [r.name, r]));
       const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
       const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon(radios)) });
-      expect(wrapper.findAll(".ownobject .bulletin-meta").at(1)?.text()).toBe(t("schedule.waiting", { n: rows[1]?.sent ?? 0 }));
+      expect(wrapper.findAll(".ownobject .bulletin-meta").at(1)?.text()).toBe(
+        t("schedule.waiting", { n: rows[1]?.sent ?? 0 }),
+      );
     });
 
     it("names the first two of six by their names, then +n whose hover names the rest, a Dummy radio's dashed", () => {
@@ -135,12 +190,19 @@ describe("ObjectsPane", () => {
         radioRow(5, "kiss-tcp", { name: "Remote12" }),
         radioRow(6, "mercury", { name: "40m", number: 2 }),
       );
-      const rows = [ownObject("ALL", { radios: [1, 2, 3, 4, 5, 6], created_at: ago(900) }), ownObject("TWO", { radios: [3, 5], created_at: ago(600) })];
+      const rows = [
+        ownObject("ALL", { radios: [1, 2, 3, 4, 5, 6], created_at: ago(900) }),
+        ownObject("TWO", { radios: [3, 5], created_at: ago(600) }),
+      ];
       expect(tagsOf(six, rows)).toEqual([
         [
           ["Shack", "Sent on radio Shack", "tag-neutral"],
           ["20m", "Sent on radio 20m", "tag-hf"],
-          ["+4", "Sent on radio HFdummy; Sent on radio Mobile; Sent on radio Remote12; Sent on radio 40m", "tag-neutral"],
+          [
+            "+4",
+            "Sent on radio HFdummy; Sent on radio Mobile; Sent on radio Remote12; Sent on radio 40m",
+            "tag-neutral",
+          ],
         ],
         [
           ["HFdummy", "Sent on radio HFdummy", "tag-dummy"],
@@ -153,8 +215,12 @@ describe("ObjectsPane", () => {
       const six = ofRadios(...[1, 2, 3].map((id) => radioRow(id, "kiss", { name: `R${id}`, number: id })));
       const table = new Map([ownObject("ALL", { radios: [1, 2, 3] })].map((r) => [r.name, r]));
       const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-      const tags = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon(six)) }).findAll(".own-tags .own-radio");
-      expect(tags.map((tag) => [seen(tag), tag.find(".sr-only").exists() ? tag.find(".sr-only").text() : null])).toEqual([
+      const tags = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon(six)) }).findAll(
+        ".own-tags .own-radio",
+      );
+      expect(
+        tags.map((tag) => [seen(tag), tag.find(".sr-only").exists() ? tag.find(".sr-only").text() : null]),
+      ).toEqual([
         ["R1", null],
         ["R2", null],
         ["+1", "Sent on radio R3"],
@@ -164,7 +230,10 @@ describe("ObjectsPane", () => {
     it("wraps the tags of a row under each other from the column's left edge rather than take the width of its words on a phone, the column never narrower than its widest tag", () => {
       const table = new Map(list.map((r) => [r.name, r]));
       const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-      const several = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon(ofRadios(FM, HF))) });
+      const several = mount(ObjectsPane, {
+        props: { objects: table, form },
+        global: withDaemon(fakeDaemon(ofRadios(FM, HF))),
+      });
       expect(several.findAll(".own-tags").every((tags) => tags.classes().includes("several"))).toBe(true);
       expect(cssRule(".own-tags.several")).toMatch(/flex-wrap:\s*wrap/);
       expect(cssRule(".own-tags.several")).not.toMatch(/justify-content|max-width/);
@@ -276,7 +345,10 @@ describe("ObjectsPane", () => {
 
   it("is three group boxes in a column that scrolls as a whole: Add an object first, My objects, and Local info last", () => {
     const { wrapper } = pane(rows);
-    expect([...wrapper.find(".objectspane").element.children].map((c) => c.className.split(" ")[0])).toEqual(["tab-help", "objectlist"]);
+    expect([...wrapper.find(".objectspane").element.children].map((c) => c.className.split(" ")[0])).toEqual([
+      "tab-help",
+      "objectlist",
+    ]);
     const list = wrapper.find(".objectlist");
     expect([...list.element.children].map((c) => c.tagName.toLowerCase())).toEqual(["form", "fieldset", "fieldset"]);
     expect(

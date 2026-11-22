@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FIRST_DELAY_MS, Hub, MAX_DELAY_MS, QUIET_MS, nextDelay, parseMessage, type Connection, type Store } from "@/lib/hub";
+import {
+  FIRST_DELAY_MS,
+  Hub,
+  MAX_DELAY_MS,
+  QUIET_MS,
+  nextDelay,
+  parseMessage,
+  type Connection,
+  type Store,
+} from "@/lib/hub";
 import { PROTOCOL } from "@/protocol/lists";
 import type { ScopeHistory, ScopeRow } from "@/lib/scoperow";
 import { aircraft, layerThings } from "@/test/layerfixtures";
@@ -181,7 +190,16 @@ describe("Hub", () => {
     socket.say(state("config", 0, configValues()));
     socket.say(state("map", 0, mapState({ state: "ready", detail: mapFile() })));
     socket.say(state("messages", 0, { "4": message(4) }));
-    socket.say({ type: "status", version: "0.1", started_at: "2026-10-21T00:00:00Z", packets: 1, stations: 1, call: "OH2GBA", lat: 60, lon: 24 });
+    socket.say({
+      type: "status",
+      version: "0.1",
+      started_at: "2026-10-21T00:00:00Z",
+      packets: 1,
+      stations: 1,
+      call: "OH2GBA",
+      lat: 60,
+      lon: 24,
+    });
     expect([...seen.messages.keys()]).toEqual(["4"]);
     expect([...seen.stations.keys()]).toEqual(["A"]);
     expect([...seen.packets.keys()]).toEqual(["1"]);
@@ -193,7 +211,9 @@ describe("Hub", () => {
   it("replaces the map as a whole when the daemon patches it", () => {
     const { seen, socket } = opened();
     socket.say(state("map", 3, mapState()));
-    socket.say(patch("map", 4, [{ op: "replace", value: mapState({ state: "downloading", step: "world", percent: 42 }) }]));
+    socket.say(
+      patch("map", 4, [{ op: "replace", value: mapState({ state: "downloading", step: "world", percent: 42 }) }]),
+    );
     expect(seen.map).toEqual(mapState({ state: "downloading", step: "world", percent: 42 }));
   });
 
@@ -258,7 +278,12 @@ describe("Hub", () => {
 
   it("follows the radios by their ids: a radio that changes is set again, a whole topic replaces the rest, and the radios are kept apart from the FM radio's topic of before", () => {
     const { seen, socket } = opened();
-    socket.say(state("radios", 0, { "1": radioRow(1, "kenwood-tnc2"), "2": radioRow(2, "mercury", { enabled: false, state: "stopped" }) }));
+    socket.say(
+      state("radios", 0, {
+        "1": radioRow(1, "kenwood-tnc2"),
+        "2": radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+      }),
+    );
     expect([...seen.radios.keys()]).toEqual(["1", "2"]);
     socket.say(
       patch("radios", 1, [
@@ -270,13 +295,22 @@ describe("Hub", () => {
     expect(seen.radios.get("2")?.enabled).toBe(true);
     socket.say(patch("radios", 2, [{ op: "del", key: "3" }]));
     expect([...seen.radios.keys()]).toEqual(["1", "2"]);
-    socket.say(patch("radios", 3, [{ op: "replace", value: { "1": radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }) } }]));
+    socket.say(
+      patch("radios", 3, [
+        { op: "replace", value: { "1": radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }) } },
+      ]),
+    );
     expect([...seen.radios.values()].map((row) => [row.id, row.removed])).toEqual([[1, true]]);
   });
 
   it("hands the answer to weather_series to the store as it is", () => {
     const { seen, socket } = opened();
-    const answer = { type: "weather_series", call: "OH2MUI", hours: 24, points: [["2026-10-21T12:00:00Z", 10, 1028.4, 1.6, 1.6, 0.3, 85]] };
+    const answer = {
+      type: "weather_series",
+      call: "OH2MUI",
+      hours: 24,
+      points: [["2026-10-21T12:00:00Z", 10, 1028.4, 1.6, 1.6, 0.3, 85]],
+    };
     socket.say(answer);
     expect(seen.series).toEqual([answer]);
   });
@@ -294,7 +328,15 @@ describe("Hub", () => {
       type: "ports",
       sound_cards: [],
       keying: "",
-      ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "USB VID:PID=0403:6001", vid: 1027, pid: 24577 }],
+      ports: [
+        {
+          device: "/dev/ttyUSB0",
+          description: "FT232R USB UART",
+          hwid: "USB VID:PID=0403:6001",
+          vid: 1027,
+          pid: 24577,
+        },
+      ],
       search: true,
       find: true,
       radio: null,
@@ -337,7 +379,14 @@ describe("Hub", () => {
 
   it("hands each alert of a station to the store as it comes, the same words twice as two", () => {
     const { seen, socket } = opened();
-    const fired = { type: "station_alert", call: "OH2XYZ", kind: "on_air", text: "OH2XYZ is on the air", at: "2026-10-21T12:00:00Z", km: null };
+    const fired = {
+      type: "station_alert",
+      call: "OH2XYZ",
+      kind: "on_air",
+      text: "OH2XYZ is on the air",
+      at: "2026-10-21T12:00:00Z",
+      km: null,
+    };
     socket.say(fired);
     socket.say(fired);
     expect(seen.stationAlerts).toEqual([fired, fired]);
@@ -383,7 +432,12 @@ describe("Hub", () => {
 
   it("follows the message board by sender and slot: a bulletin heard again is set again, one that was deleted is gone", () => {
     const { seen, socket } = opened();
-    socket.say(state("bulletins", 0, { "OH2XYZ/BLN1": bulletin("BLN1"), "OH2ABC/BLNA": bulletin("BLNA", { sender: "OH2ABC", kind: "announcement" }) }));
+    socket.say(
+      state("bulletins", 0, {
+        "OH2XYZ/BLN1": bulletin("BLN1"),
+        "OH2ABC/BLNA": bulletin("BLNA", { sender: "OH2ABC", kind: "announcement" }),
+      }),
+    );
     socket.say(
       patch("bulletins", 1, [
         { op: "set", key: "OH2XYZ/BLN1", value: bulletin("BLN1", { times_heard: 2 }) },
@@ -392,7 +446,11 @@ describe("Hub", () => {
     );
     expect([...seen.bulletins.keys()]).toEqual(["OH2XYZ/BLN1"]);
     expect(seen.bulletins.get("OH2XYZ/BLN1")?.times_heard).toBe(2);
-    socket.say(patch("bulletins", 2, [{ op: "replace", value: { "OH2DEF/QST": bulletin("QST", { sender: "OH2DEF", kind: "group" }) } }]));
+    socket.say(
+      patch("bulletins", 2, [
+        { op: "replace", value: { "OH2DEF/QST": bulletin("QST", { sender: "OH2DEF", kind: "group" }) } },
+      ]),
+    );
     expect([...seen.bulletins.keys()]).toEqual(["OH2DEF/QST"]);
   });
 
@@ -414,7 +472,9 @@ describe("Hub", () => {
 
   it("follows our own bulletins by slot: one posted or sent is set, one that is deleted is gone", () => {
     const { seen, socket } = opened();
-    socket.say(state("own_bulletins", 0, { BLN1: ownBulletin("BLN1"), BLNA: ownBulletin("BLNA", { kind: "announcement" }) }));
+    socket.say(
+      state("own_bulletins", 0, { BLN1: ownBulletin("BLN1"), BLNA: ownBulletin("BLNA", { kind: "announcement" }) }),
+    );
     socket.say(
       patch("own_bulletins", 1, [
         { op: "set", key: "BLN1", value: ownBulletin("BLN1", { sent: 3, next_at: null }) },
@@ -462,7 +522,8 @@ describe("Hub", () => {
     const { socket } = opened();
     socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
     socket.say(state("packets", 5, {}));
-    for (const rev of [8, 9, 10]) socket.say(patch("packets", rev, [{ op: "set", key: String(rev), value: packet(rev) }]));
+    for (const rev of [8, 9, 10])
+      socket.say(patch("packets", rev, [{ op: "set", key: String(rev), value: packet(rev) }]));
     expect(socket.sent).toEqual([{ cmd: "subscribe", topics: ["packets"] }]);
     socket.say(state("packets", 10, {}));
     socket.say(patch("packets", 13, [{ op: "set", key: "13", value: packet(13) }]));
@@ -478,7 +539,13 @@ describe("Hub", () => {
 
   it("hands an error to the store and ignores what it does not understand", () => {
     const { seen, socket } = opened();
-    socket.say(errorOf("set_config: station/lat: 95 is not between -90 and 90", "setting.range", { value: 95, min: -90, max: 90 }));
+    socket.say(
+      errorOf("set_config: station/lat: 95 is not between -90 and 90", "setting.range", {
+        value: 95,
+        min: -90,
+        max: 90,
+      }),
+    );
     socket.onmessage?.(new MessageEvent("message", { data: "not json" }));
     socket.onmessage?.(new MessageEvent("message", { data: JSON.stringify({ type: "unheard-of" }) }));
     socket.onmessage?.(new MessageEvent("message", { data: JSON.stringify([1, 2]) }));

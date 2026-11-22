@@ -23,7 +23,10 @@ export function placePin(
     const element = document.createElement("div");
     element.className = "setuppin";
     element.setAttribute("aria-hidden", "true");
-    const made = new engine.Marker({ element, anchor: "center" }).setLngLat([at.lon, at.lat]).setDraggable(true).addTo(map);
+    const made = new engine.Marker({ element, anchor: "center" })
+      .setLngLat([at.lon, at.lat])
+      .setDraggable(true)
+      .addTo(map);
     made.on("dragend", () => {
       const to = made.getLngLat();
       dropped(to.lat, to.lng);

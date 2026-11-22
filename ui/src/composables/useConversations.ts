@@ -67,7 +67,8 @@ export function useConversations(
   loaded?: Readonly<Ref<boolean>>,
 ) {
   const marks = useReadMarks();
-  if (loaded) seenAtStart(loaded, () => newestIncomingByCall(messages.values()).forEach((id, call) => marks.mark(call, id)));
+  if (loaded)
+    seenAtStart(loaded, () => newestIncomingByCall(messages.values()).forEach((id, call) => marks.mark(call, id)));
   const selected = ref<string | null>(null);
   const list = computed(() => conversations(messages.values(), marks.readUpTo, showOverheard.value));
   const unread = computed(() => unreadTotal(list.value));

@@ -13,7 +13,11 @@ describe("ActionRow", () => {
   it("is a labelled row of the form's grid: the label for the button, the slot, the (i), and the notes in their own cell", () => {
     const wrapper = mount(ActionRow, {
       props: { id: "go", label: "Go", tipLabel: "About go" },
-      slots: { default: '<button id="go" class="btn">Go now</button>', tip: "<span>what it does</span>", notes: "<p>done</p>" },
+      slots: {
+        default: '<button id="go" class="btn">Go now</button>',
+        tip: "<span>what it does</span>",
+        notes: "<p>done</p>",
+      },
     });
     const row = wrapper.get(".field.action-row");
     expect(row.get("label").attributes("for")).toBe("go");
@@ -25,7 +29,8 @@ describe("ActionRow", () => {
 });
 
 describe("the action rows of the Settings tab", () => {
-  const form = () => mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(fakeDaemon({ map: mapState() })) });
+  const form = () =>
+    mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(fakeDaemon({ map: mapState() })) });
 
   it.each([
     ["Detailed map", "Download map"],

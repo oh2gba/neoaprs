@@ -30,10 +30,16 @@ const isSource = computed(() => own.value?.role === "source");
 const info = computed<FieldInfo>(() => {
   const base = fieldFor(props.fieldKey);
   if (!own.value) return base;
-  return isSource.value ? { ...base, choices: sourceChoices(own.value.layer, layer.value?.offered) } : addressField(base, props.fieldKey, draft);
+  return isSource.value
+    ? { ...base, choices: sourceChoices(own.value.layer, layer.value?.offered) }
+    : addressField(base, props.fieldKey, draft);
 });
-const shown = computed(() => (isSource.value && own.value ? shownSource(model.value, layer.value?.offered, own.value.layer) : model.value));
-const look = computed(() => (own.value ? receiverLook(own.value.layer, layer.value?.receiver ?? null, now.value) : null));
+const shown = computed(() =>
+  isSource.value && own.value ? shownSource(model.value, layer.value?.offered, own.value.layer) : model.value,
+);
+const look = computed(() =>
+  own.value ? receiverLook(own.value.layer, layer.value?.receiver ?? null, now.value) : null,
+);
 /** A typed address follows the typing; a choice is made by `choose`. */
 const typed = (text: string): void => {
   if (!isSource.value) settings.edit(props.fieldKey, text);

@@ -44,10 +44,12 @@ const { ticks, radios: on, error: tickError, tick } = useSendOn("local_info", ra
 const request = useRequestPath("qru");
 /** Whether a request on these radios has a path and RF only to set: some radio that is on may
  * carry one (else no fold), and one of these does (else greyed). */
-const routable = (to: readonly PageRadio[]): boolean => allowsPath.value && (to.length === 0 || to.some((radio) => radio.carriesPath));
+const routable = (to: readonly PageRadio[]): boolean =>
+  allowsPath.value && (to.length === 0 || to.some((radio) => radio.carriesPath));
 /** The path a request uses on a radio when none is typed: on radio 1 the one set for the station
  * QRU (topic `station_prefs`), else the radio's own. */
-const qruPath = (radio: PageRadio): string => (radio.id === PREFS_RADIO ? effectivePath(prefs.paths.value, pathOf(radio), "QRU").text : pathOf(radio));
+const qruPath = (radio: PageRadio): string =>
+  radio.id === PREFS_RADIO ? effectivePath(prefs.paths.value, pathOf(radio), "QRU").text : pathOf(radio);
 /** The path INFO uses when none is typed: the one the radios share; null while they differ. */
 const usual = computed(() => sharedPath(on.value, qruPath));
 const typed = ref<string | null>(null); // typed text; null until typed (the field is then the map's radius)
@@ -59,7 +61,8 @@ const wrong = computed(() => kmWrong(km.value));
 const servers = computed(() => qru.value?.servers ?? []);
 /** The radio a server answered on while it is on and can send: where a request to it goes; null:
  * the ticked radios. */
-const radioOf = (server: QruServer): PageRadio | null => senders.value.find((radio) => radio.id === server.radio) ?? null;
+const radioOf = (server: QruServer): PageRadio | null =>
+  senders.value.find((radio) => radio.id === server.radio) ?? null;
 /** The radios a request to a server goes on: the one it answered on, else those of Send on. */
 const toServer = (server: QruServer): readonly PageRadio[] => {
   const one = radioOf(server);
@@ -78,7 +81,9 @@ const asked = computed(() => qru.value?.asked ?? null);
  * the last request and its radios) and a request waits for every radio it would go on. */
 const waitOn = (to: readonly PageRadio[], text: string | null): number => {
   const last = asked.value;
-  const theirs = last !== null && (last.radios.length === 0 || to.length === 0 || to.some((radio) => last.radios.includes(radio.id)));
+  const theirs =
+    last !== null &&
+    (last.radios.length === 0 || to.length === 0 || to.some((radio) => last.radios.includes(radio.id)));
   return askWait(theirs ? last : null, now.value, text);
 };
 const refusal = ref("");
@@ -95,12 +100,14 @@ const heldBy = (to: readonly PageRadio[], seconds: number): string | undefined =
     ? t("error.transmit.off")
     : several.value && to.length === 0
       ? ""
-      : (radiosBlockedReason(to, named, told.value) ?? (problem !== "" ? problem : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined));
+      : (radiosBlockedReason(to, named, told.value) ??
+        (problem !== "" ? problem : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined));
 };
 const why = computed(() => heldBy(on.value, waitOn(on.value, requestText("INFO", km.value))));
 /** Why a group's button is off (RX only, the server's radio, the path or its own wait);
  * undefined when it may be pressed. */
-const groupWhy = (server: QruServer, word: string): string | undefined => heldBy(toServer(server), waitOn(toServer(server), requestText(word, km.value)));
+const groupWhy = (server: QruServer, word: string): string | undefined =>
+  heldBy(toServer(server), waitOn(toServer(server), requestText(word, km.value)));
 
 /** A request in flight: no button sends another until the daemon reports or refuses it. */
 const asking = useCommandInFlight("qru_ask", () => asked.value?.at);
@@ -143,7 +150,8 @@ function askGroup(server: QruServer, word: string): void {
 
 /** Why Ask again is off (RX only, the server's radio, the path or that request's wait);
  * undefined when it may be pressed. */
-const againWhy = (server: QruServer, text: string): string | undefined => heldBy(toServer(server), waitOn(toServer(server), text));
+const againWhy = (server: QruServer, text: string): string | undefined =>
+  heldBy(toServer(server), waitOn(toServer(server), text));
 
 /** The same request again as it went (its own distance), on the radio the server answered on. */
 function again(server: QruServer, text: string): void {
@@ -169,7 +177,13 @@ function inStations(names: readonly string[]): void {
       </InfoTip>
     </legend>
     <div class="qru-ask">
-      <button type="button" class="btn" :disabled="why !== undefined || wrong || asking.busy.value" :title="why || undefined" @click="ask">
+      <button
+        type="button"
+        class="btn"
+        :disabled="why !== undefined || wrong || asking.busy.value"
+        :title="why || undefined"
+        @click="ask"
+      >
         {{ t("objects.qru_ask") }}
       </button>
       <input
@@ -184,7 +198,9 @@ function inStations(names: readonly string[]): void {
         :aria-label="t('objects.qru_km_label')"
         @keydown.enter="ask"
       />
-      <InfoTip :label="t('settings.about', { label: t('objects.qru_km_label') })">{{ t("objects.qru_km_tip") }}</InfoTip>
+      <InfoTip :label="t('settings.about', { label: t('objects.qru_km_label') })">{{
+        t("objects.qru_km_tip")
+      }}</InfoTip>
     </div>
     <SendOn v-if="ticks.length > 0" id="qru-send-on" :ticks="ticks" :error="tickError" @tick="tick" />
     <RequestPath
@@ -205,7 +221,9 @@ function inStations(names: readonly string[]): void {
       <li v-for="{ server, line, answered } in rows" :key="server.call" class="qru-server">
         <span class="qru-call"
           ><span class="mono strong">{{ server.call }}</span
-          ><TagMark v-if="answered" :tone="radioTone(answered)" :title="t('radio.heard_on', { name: answered.name })">{{ answered.name }}</TagMark></span
+          ><TagMark v-if="answered" :tone="radioTone(answered)" :title="t('radio.heard_on', { name: answered.name })">{{
+            answered.name
+          }}</TagMark></span
         >
         <span class="qru-groups">
           <button
@@ -214,25 +232,40 @@ function inStations(names: readonly string[]): void {
             type="button"
             class="btn small qru-group"
             :disabled="groupWhy(server, group.name) !== undefined || wrong || asking.busy.value"
-            :title="groupWhy(server, group.name) || t('objects.qru_group', { server: server.call, group: groupName(group.name) })"
+            :title="
+              groupWhy(server, group.name) ||
+              t('objects.qru_group', { server: server.call, group: groupName(group.name) })
+            "
             @click="askGroup(server, group.name)"
           >
             {{ categoryLabel(group.name) }}{{ " " }}<span class="qru-count">{{ group.count }}</span>
           </button>
         </span>
-        <span v-if="line" class="qru-sent" :class="line.warn ? 'warn' : 'muted'" :title="line.warn ? t('objects.qru_lost_title') : server.sent">
+        <span
+          v-if="line"
+          class="qru-sent"
+          :class="line.warn ? 'warn' : 'muted'"
+          :title="line.warn ? t('objects.qru_lost_title') : server.sent"
+        >
           {{ line.text }}
           <button
             v-if="line.again"
             type="button"
             class="btn small qru-again"
             :disabled="againWhy(server, line.again) !== undefined || asking.busy.value"
-            :title="againWhy(server, line.again) || t('objects.qru_again_title', { server: server.call, request: line.again })"
+            :title="
+              againWhy(server, line.again) || t('objects.qru_again_title', { server: server.call, request: line.again })
+            "
             @click="again(server, line.again)"
           >
             {{ t("objects.qru_again") }}
           </button>
-          <button v-if="server.received.length > 0" type="button" class="linkbutton qru-stations" @click="inStations(server.received)">
+          <button
+            v-if="server.received.length > 0"
+            type="button"
+            class="linkbutton qru-stations"
+            @click="inStations(server.received)"
+          >
             {{ t("objects.qru_in_stations", { tab: t("tab.stations") }) }}
           </button>
         </span>

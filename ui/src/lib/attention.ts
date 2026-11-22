@@ -19,7 +19,8 @@ export const REVEAL_EVENT = "neoaprs-reveal";
 
 /** The element that is flashed for a control: the group (fieldset) it is in, else its row, else
  * itself. */
-const flashed = (control: HTMLElement): HTMLElement => control.closest<HTMLElement>("fieldset") ?? control.closest<HTMLElement>(".field") ?? control;
+const flashed = (control: HTMLElement): HTMLElement =>
+  control.closest<HTMLElement>("fieldset") ?? control.closest<HTMLElement>(".field") ?? control;
 
 /** Opens the folded group the control is in, scrolls the group of the control with this id into
  * view, flashes it and focuses the control. Gives up quietly when the control does not appear.
@@ -36,7 +37,10 @@ export async function attend(controlId: string, root: Document = document): Prom
   control.dispatchEvent(new CustomEvent(REVEAL_EVENT, { bubbles: true }));
   await nextTick();
   const group = flashed(control);
-  group.scrollIntoView?.({ block: "center", behavior: matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  group.scrollIntoView?.({
+    block: "center",
+    behavior: matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+  });
   control.focus({ preventScroll: true });
   group.classList.remove("attend");
   setTimeout(() => {

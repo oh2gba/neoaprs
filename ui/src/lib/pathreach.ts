@@ -86,7 +86,8 @@ export function meaningOf(hops: readonly string[]): PathMeaning {
   const total = next - 1;
   const bad = parts.find((part) => part.problem !== "");
   if (bad !== undefined) return { parts, hops: total, level: "bad", reason: bad.problem };
-  if (total > USUAL_HOPS) return { parts, hops: total, level: "many", reason: t("pathbuilder.many", { n: total, most: USUAL_HOPS }) };
+  if (total > USUAL_HOPS)
+    return { parts, hops: total, level: "many", reason: t("pathbuilder.many", { n: total, most: USUAL_HOPS }) };
   return { parts, hops: total, level: "ok", reason: "" };
 }
 

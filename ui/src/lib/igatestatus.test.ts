@@ -11,7 +11,11 @@ describe("igateLook", () => {
   it("is connected, in the radio's word and colour, for a login that is up, whatever the daemon says of the login: verified, listening or not accepted", () => {
     for (const state of ["connected", "listening", "unverified"] as const) {
       const look = igateLook(igateState({ state }), values, 42);
-      expect([look.state, look.tone, look.line], state).toEqual(["connected", "tnc-connected", "rotate.aprs2.net · 42 stations within 50 km"]);
+      expect([look.state, look.tone, look.line], state).toEqual([
+        "connected",
+        "tnc-connected",
+        "rotate.aprs2.net · 42 stations within 50 km",
+      ]);
     }
   });
 
@@ -21,7 +25,11 @@ describe("igateLook", () => {
   });
 
   it("is stopped and says Off while the switch is off", () => {
-    const look = igateLook(igateState({ enabled: false, state: "off", server: "", gated: 0, dropped: {}, last_gated_at: null }), values, 0);
+    const look = igateLook(
+      igateState({ enabled: false, state: "off", server: "", gated: 0, dropped: {}, last_gated_at: null }),
+      values,
+      0,
+    );
     expect([look.state, look.line]).toEqual(["stopped", "Off"]);
   });
 
@@ -31,7 +39,9 @@ describe("igateLook", () => {
       tone: "tnc-connecting",
       line: "Connecting to T2FINLAND…",
     });
-    expect(igateLook(igateState({ state: "connecting", server: "" }), values, 0).line).toBe("Connecting to rotate.aprs2.net:14580…");
+    expect(igateLook(igateState({ state: "connecting", server: "" }), values, 0).line).toBe(
+      "Connecting to rotate.aprs2.net:14580…",
+    );
     expect(igateLook(igateState({ state: "connecting", reason: "unreachable" }), values, 0)).toMatchObject({
       state: "waiting",
       tone: "tnc-waiting",
@@ -42,7 +52,9 @@ describe("igateLook", () => {
   it("says why it is not connected in the page's language, never with the daemon's English after it", () => {
     try {
       setLocale("nl");
-      expect(igateLook(igateState({ state: "connecting", reason: "unreachable" }), {}, 0).line).toBe("Niet verbonden: de server is niet bereikbaar");
+      expect(igateLook(igateState({ state: "connecting", reason: "unreachable" }), {}, 0).line).toBe(
+        "Niet verbonden: de server is niet bereikbaar",
+      );
     } finally {
       setLocale("en");
     }
@@ -50,14 +62,22 @@ describe("igateLook", () => {
 
   it("has the server and the filter behind the arrow", () => {
     const look = igateLook(igateState({ server: "T2FINLAND" }), values, 3);
-    expect([look.server, look.filter]).toEqual(["Server: T2FINLAND (rotate.aprs2.net:14580)", "Filter: stations within 50 km of your position"]);
+    expect([look.server, look.filter]).toEqual([
+      "Server: T2FINLAND (rotate.aprs2.net:14580)",
+      "Filter: stations within 50 km of your position",
+    ]);
     expect(igateLook(igateState({ server: "" }), values, 3).server).toBe("Server: rotate.aprs2.net:14580");
   });
 
   it("never says gated, a passcode or an iGate, in any language", () => {
     for (const code of ["en", "de", "es", "fi", "fr", "it", "ja", "nl", "pt-BR"] as const) {
       setLocale(code);
-      const said = [igateState(), igateState({ state: "unverified" }), igateState({ state: "connecting" }), igateState({ state: "off" })].map((s) => {
+      const said = [
+        igateState(),
+        igateState({ state: "unverified" }),
+        igateState({ state: "connecting" }),
+        igateState({ state: "off" }),
+      ].map((s) => {
         const look = igateLook(s, values, 2);
         return `${look.state} ${look.line} ${look.server} ${look.filter}`;
       });

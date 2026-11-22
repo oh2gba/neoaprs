@@ -5,11 +5,20 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { NO_GRID, gridFeatures, type GridCollection } from "@/lib/layers/grid";
 import { addGridLayers, setGridData } from "@/lib/layers/gridlayers";
 
-export function useMapGrid(map: () => MapLibreMap | null, on: () => boolean): { add: (to: MapLibreMap) => void; listen: (to: MapLibreMap) => void } {
+export function useMapGrid(
+  map: () => MapLibreMap | null,
+  on: () => boolean,
+): { add: (to: MapLibreMap) => void; listen: (to: MapLibreMap) => void } {
   function data(of: MapLibreMap): GridCollection {
     if (!on()) return NO_GRID;
     const view = of.getBounds();
-    return gridFeatures({ west: view.getWest(), south: view.getSouth(), east: view.getEast(), north: view.getNorth(), zoom: of.getZoom() });
+    return gridFeatures({
+      west: view.getWest(),
+      south: view.getSouth(),
+      east: view.getEast(),
+      north: view.getNorth(),
+      zoom: of.getZoom(),
+    });
   }
   function draw(): void {
     const now = map();

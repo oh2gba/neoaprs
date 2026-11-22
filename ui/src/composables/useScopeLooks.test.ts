@@ -171,7 +171,11 @@ describe("the scope by radio", () => {
   });
 
   it("asks once for two panes of one radio, and a pane that names no radio looks at the first with a scope", async () => {
-    const { pane, asked } = byRadio(radioRow(1, "kenwood-tnc2"), mercury(4, { position: 1 }), mercury(9, { position: 2 }));
+    const { pane, asked } = byRadio(
+      radioRow(1, "kenwood-tnc2"),
+      mercury(4, { position: 1 }),
+      mercury(9, { position: 2 }),
+    );
     const one = pane(shallowRef(true));
     pane(shallowRef(true), shallowRef(4));
     expect(asked()).toEqual([{ cmd: "radio_scope", radio: 4, on: true }]);
@@ -214,7 +218,15 @@ describe("the scope by radio", () => {
   it("writes down the stations heard on each radio whose rows it keeps, with the SNR of the frame, in that radio's memory alone", async () => {
     const { rows, packets, clock } = byRadio(mercury(2), mercury(5));
     const heard = (id: number, radio: number, call: string, snr: number | null) =>
-      packets.set(String(id), packet(id, { radio_id: radio, source: call, snr, heard_at: new Date(clock.now).toISOString().replace(/\.\d+Z$/, "Z") }));
+      packets.set(
+        String(id),
+        packet(id, {
+          radio_id: radio,
+          source: call,
+          snr,
+          heard_at: new Date(clock.now).toISOString().replace(/\.\d+Z$/, "Z"),
+        }),
+      );
     rows.of(5); // (a pane showed radio 5)
     heard(1, 5, "OH5AAA", 7);
     heard(2, 2, "OH2BBB", 3);
@@ -234,7 +246,11 @@ describe("the scope by radio", () => {
     expect(byRadio(mercury(2), mercury(5)).looks.monitor.value).toBe(5);
     radios.value = radiosTopic(mercury(2), mercury(5, {}, false));
     expect(looks.monitor.value).toBe(5); // (its modem is without the interface for a moment: the card stays on it)
-    for (const gone of [mercury(5, { enabled: false, state: "stopped" }), mercury(5, { removed: true, enabled: false }), radioRow(5, "dummy-hf")]) {
+    for (const gone of [
+      mercury(5, { enabled: false, state: "stopped" }),
+      mercury(5, { removed: true, enabled: false }),
+      radioRow(5, "dummy-hf"),
+    ]) {
       radios.value = radiosTopic(mercury(2), mercury(5));
       expect(looks.monitor.value).toBe(5);
       radios.value = radiosTopic(mercury(2), gone);

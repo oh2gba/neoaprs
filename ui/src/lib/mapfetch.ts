@@ -32,7 +32,9 @@ export function downloadedLine(map: MapState): string {
  */
 export function currentEstimate(map: MapState): MapSizeEstimate | null {
   const estimate = map.estimate;
-  return estimate !== null && estimate.radius_km === map.radius_km && estimate.maxzoom === map.maxzoom ? estimate : null;
+  return estimate !== null && estimate.radius_km === map.radius_km && estimate.maxzoom === map.maxzoom
+    ? estimate
+    : null;
 }
 
 export function isRunning(map: MapState): boolean {

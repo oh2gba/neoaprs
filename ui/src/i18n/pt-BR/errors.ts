@@ -7,7 +7,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.bulletin.group": "'{value}': um boletim de grupo é BLN, um dígito e o grupo",
   "error.bulletin.not_on_board": "não há entrada {sender}/{slot} no mural",
   "error.bulletin.not_posted": "não há boletim {slot} nosso",
-  "error.bulletin.slot": "'{value}' não é BLN0 a BLN9, BLNA a BLNZ, nem BLN, um dígito e um grupo de no máximo {group_max} caracteres",
+  "error.bulletin.slot":
+    "'{value}' não é BLN0 a BLN9, BLNA a BLNZ, nem BLN, um dígito e um grupo de no máximo {group_max} caracteres",
   "error.call.characters": "o indicativo '{value}' tem caracteres além de A-Z, 0-9 e um '-SSID'",
   "error.call.shape": "o indicativo '{value}' não tem de 1 a 6 caracteres de A-Z e 0-9 com um '-SSID' opcional",
   "error.call.ssid": "o indicativo '{value}' tem um SSID acima de {max}",
@@ -27,7 +28,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.not_connected": "Não enviado: não há conexão com o NeoAPRS",
   "error.map.no_job": "nenhum trabalho de mapa em andamento",
   "error.update.unsupported": "esta cópia do NeoAPRS não consegue se atualizar sozinha; a página tem os passos",
-  "error.update.blocked": "o NeoAPRS não consegue se atualizar sozinho aqui: este usuário não pode gravar na pasta do AppImage",
+  "error.update.blocked":
+    "o NeoAPRS não consegue se atualizar sozinho aqui: este usuário não pode gravar na pasta do AppImage",
   "error.update.not_announced": "{version} não é a versão anunciada pela verificação de atualizações",
   "error.update.no_file": "a versão {version} não tem arquivo para esta cópia do NeoAPRS",
   "error.update.busy": "já há uma atualização em andamento",
@@ -74,7 +76,8 @@ export const errors: Record<keyof typeof source, Message> = {
     "": "o texto tem um caractere que não é ASCII imprimível: uma mensagem leva apenas ASCII imprimível",
     other: "o texto tem {chars} que não é ASCII imprimível: uma mensagem leva apenas ASCII imprimível",
   },
-  "error.message.too_long_for_radio": "a mensagem tem {length} bytes no ar, o rádio leva {max}: encurte-a em {cut} caracteres",
+  "error.message.too_long_for_radio":
+    "a mensagem tem {length} bytes no ar, o rádio leva {max}: encurte-a em {cut} caracteres",
   "error.message.too_long": "o texto tem {length} caracteres, no máximo {max} cabem em uma mensagem",
   "error.no_command": 'um comando tem um "cmd"',
   "error.not_object": 'Um comando é um objeto JSON com um "cmd"',
@@ -102,7 +105,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.pair.call_taken": "{call} é o indicativo de outro par",
   "error.pair.no_free_call": "todos os SSID de 1 a 15 estão em uso",
   "error.path.too_long": "{count} digipeaters são mais que os {max} que um caminho pode ter",
-  "error.path.too_long_rf_only": "caminho longo demais para só RF: {count} digipeaters e RFONLY são mais que os {max} que um caminho pode ter",
+  "error.path.too_long_rf_only":
+    "caminho longo demais para só RF: {count} digipeaters e RFONLY são mais que os {max} que um caminho pode ter",
   "error.query.not_capable": "{call} não recebe mensagens: não há ninguém para consultar",
   "error.transmit.call": "nada é enviado: {reason}",
   "error.transmit.off": "Somente RX: nada é enviado",
@@ -110,10 +114,12 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.query.form": "uma consulta começa com ? e diz depois o que pergunta",
   "error.qru.too_soon": "cedo demais para outro pedido de info local: aguarde {seconds} s",
   "error.path.direct_alone": "{word} não é um digipeater: escrito sozinho, significa nenhum digipeater",
-  "error.setting.comment_too_long": "{length} caracteres são mais que os {limit} permitidos com a extensão PHG (apague beacon/power_w para não enviar)",
+  "error.setting.comment_too_long":
+    "{length} caracteres são mais que os {limit} permitidos com a extensão PHG (apague beacon/power_w para não enviar)",
   "error.setting.call_of_pair": "{call} é o indicativo de um par dos seus rádios",
   "error.setting.local_only": "só uma página no computador do NeoAPRS pode fazer isso",
-  "error.setting.not_access_key": "não é uma chave de acesso (três grupos de quatro dígitos e letras, como k7m2-x9pq-4hrt)",
+  "error.setting.not_access_key":
+    "não é uma chave de acesso (três grupos de quatro dígitos e letras, como k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "tem caracteres que não são ASCII imprimível",
   "error.setting.not_boolean": "'{value}' não é true nem false",
   "error.setting.not_keying": "'{value}' não é um modo de chavear o rádio: vox, cm108, rts:PORTA ou dtr:PORTA",
@@ -137,12 +143,15 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_web_address": "'{value}' não é um endereço http ou https",
   "error.setting.not_whole": "'{value}' não é um número inteiro",
   "error.setting.off_or_range": "{value} não é 0 (desligado) nem está entre {min} e {max}",
-  "error.setting.profile_port": "{profile} conecta por TCP (tcp/host e tcp/port), não pela porta serial {port}: apague serial/port ou escolha um TNC serial",
+  "error.setting.profile_port":
+    "{profile} conecta por TCP (tcp/host e tcp/port), não pela porta serial {port}: apague serial/port ou escolha um TNC serial",
   "error.setting.range": "{value} não está entre {min} e {max}",
   "error.setting.status_needs_rigctld": "o rádio precisa de status/rigctld (host:porta de um rigctld, 127.0.0.1:4532)",
-  "error.setting.status_source": "'{value}' não é off, text nem rig (vazio: como dizem status/rigctld e station/status)",
+  "error.setting.status_source":
+    "'{value}' não é off, text nem rig (vazio: como dizem status/rigctld e station/status)",
   "error.setting.template_field": "{{{field}}} não é um campo do modelo (os campos são {{freq}} e {{mode}})",
-  "error.setting.template_long": "{length} caracteres com uma frequência e um modo longos são mais que os {max} permitidos",
+  "error.setting.template_long":
+    "{length} caracteres com uma frequência e um modo longos são mais que os {max} permitidos",
   "error.setting.tnc_char": "'{char}' é um caractere que o TNC toma por comando e não pode estar ali",
   "error.setting.too_long": "{length} caracteres são mais que os {max} permitidos",
   "error.setting.unknown": "esse ajuste não existe (os ajustes são {settings})",
@@ -167,7 +176,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.command_mode": "o TNC está no modo de comando (o KISS ON é enviado de novo)",
   "error.radio.checking": "o TNC está verificando se o rádio está lá",
   "error.radio.channel_busy": "o canal está ocupado",
-  "error.qru.form": "'{request}' não é um pedido ao QRU: INFO, NEXT ou um grupo de até {max} letras e dígitos, e uma distância de 1 a {km}",
+  "error.qru.form":
+    "'{request}' não é um pedido ao QRU: INFO, NEXT ou um grupo de até {max} letras e dígitos, e uma distância de 1 a {km}",
   "error.object.unknown": "não há objeto ou item '{name}' nosso",
   "error.object.own_call": "{name} é o nosso próprio indicativo",
   "error.object.is_station": "{name} é uma estação, não o nome de um objeto",
@@ -177,7 +187,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.message.busy": "{count} mensagens estão sendo enviadas ao mesmo tempo: nenhum número de mensagem está livre",
   "error.message.bad_text": "o texto tem um caractere que uma mensagem não pode levar, ou é longo demais",
   "error.message.addressee": "'{addressee}' não pode ser o destinatário de uma mensagem",
-  "error.map.no_position": "a estação ainda não tem posição: defina Latitude e Longitude (o mapa é recortado em volta delas)",
+  "error.map.no_position":
+    "a estação ainda não tem posição: defina Latitude e Longitude (o mapa é recortado em volta delas)",
   "error.map.busy": "já há um trabalho de mapa em andamento",
   "error.frame.too_long": "o campo de informação tem {length} bytes, mais que os {max} que o AX.25 permite",
   "error.call.placeholder": "{call} é um exemplo, não um indicativo: defina primeiro o seu indicativo",

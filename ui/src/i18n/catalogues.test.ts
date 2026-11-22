@@ -23,7 +23,8 @@ const names = (m: Message): string[] => [...new Set(texts(m).flatMap(placeholder
 /** The ids each language still has in English, by its code. */
 const UNTRANSLATED = untranslated as Record<string, string[]>;
 /** The English as a language writes a text it has not translated yet: Italian with the curly apostrophe. */
-const typeset = (code: string, m: Message): string => JSON.stringify(typeof m === "string" && code === "it" ? m.replace(/(\p{L})'(\p{L})/gu, "$1’$2") : m);
+const typeset = (code: string, m: Message): string =>
+  JSON.stringify(typeof m === "string" && code === "it" ? m.replace(/(\p{L})'(\p{L})/gu, "$1’$2") : m);
 
 describe("the languages of the page", () => {
   it("start with English, which is the source, and have a code and a name of their own", () => {
@@ -41,9 +42,12 @@ describe("the languages of the page", () => {
       });
 
       it("has nothing of the Mobile switch, the Mobile group, the SmartBeaconing numbers and the GPS source choice, which the position choice and Travelling replaced", () => {
-        const gone = /^(settings\.(mobile|smart_|gps_source|group\.mobile|fold\.smart)|error\.setting\.smart_|beacon\.(last_beacon|not_yet))/;
+        const gone =
+          /^(settings\.(mobile|smart_|gps_source|group\.mobile|fold\.smart)|error\.setting\.smart_|beacon\.(last_beacon|not_yet))/;
         expect(Object.keys(messages).filter((id) => gone.test(id))).toEqual([]);
-        expect(Object.keys(messages)).toEqual(expect.arrayContaining(["settings.position.label", "settings.travel.label", "beacon.line.timed"]));
+        expect(Object.keys(messages)).toEqual(
+          expect.arrayContaining(["settings.position.label", "settings.travel.label", "beacon.line.timed"]),
+        );
       });
 
       it("calls the button that chooses a place on the map by its words, once, and has no id of the Objects form for it", () => {
@@ -52,14 +56,17 @@ describe("the languages of the page", () => {
       });
 
       it("asks for the values the English asks for", () => {
-        const wrong = Object.entries(source).filter(([id, m]) => JSON.stringify(names(messages[id] ?? m)) !== JSON.stringify(names(m)));
+        const wrong = Object.entries(source).filter(
+          ([id, m]) => JSON.stringify(names(messages[id] ?? m)) !== JSON.stringify(names(m)),
+        );
         expect(wrong.map(([id]) => id)).toEqual([]);
       });
 
       if (locale.code !== SOURCE)
         it("has the English only where untranslated.json lists it, and every text listed is still the English", () => {
           const listed = UNTRANSLATED[locale.code] ?? [];
-          const english = (id: string): boolean => id in source && JSON.stringify(messages[id]) === typeset(locale.code, source[id]);
+          const english = (id: string): boolean =>
+            id in source && JSON.stringify(messages[id]) === typeset(locale.code, source[id]);
           expect(
             listed.filter((id) => !english(id)),
             "translated, or no id of the English: take it out of untranslated.json",
@@ -76,7 +83,8 @@ describe("the languages of the page", () => {
           ([, m]) =>
             typeof m === "object" &&
             !("select" in m) &&
-            (!("other" in m) || Object.keys(m).some((k) => !k.startsWith("=") && !(categories as string[]).includes(k) && k !== "other")),
+            (!("other" in m) ||
+              Object.keys(m).some((k) => !k.startsWith("=") && !(categories as string[]).includes(k) && k !== "other")),
         );
         expect(wrong.map(([id]) => id)).toEqual([]);
       });
@@ -84,11 +92,14 @@ describe("the languages of the page", () => {
   }
 
   it("list in untranslated.json only languages of the page other than English", () => {
-    expect(Object.keys(UNTRANSLATED).filter((code) => code === SOURCE || !LOCALES.some((l) => l.code === code))).toEqual([]);
+    expect(
+      Object.keys(UNTRANSLATED).filter((code) => code === SOURCE || !LOCALES.some((l) => l.code === code)),
+    ).toEqual([]);
   });
 
   it("writes French with a no-break space before : ; ? ! and %, and Italian with the curly apostrophe", () => {
-    const strings = (code: string) => Object.values(LOCALES.find((l) => l.code === code)?.messages ?? {}).flatMap((m) => texts(m));
+    const strings = (code: string) =>
+      Object.values(LOCALES.find((l) => l.code === code)?.messages ?? {}).flatMap((m) => texts(m));
     expect(strings("fr").filter((text) => / [:;?!%]/.test(text))).toEqual([]);
     expect(strings("it").filter((text) => /[A-Za-zÀ-ÿ]'[A-Za-zÀ-ÿ]/.test(text))).toEqual([]);
   });

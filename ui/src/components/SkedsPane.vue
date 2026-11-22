@@ -30,7 +30,8 @@ const listed = computed(() => state.value === "ok" || state.value === "closed");
 const canPost = computed(() => state.value === "ok" && mayPostAs(call.value));
 const remove = (g: SkedGroup): void => g.ours.forEach((row) => void send({ cmd: "sked_delete", id: row.id }));
 const joining = useCommandInFlight("sked_post", () => skeds.value?.rows);
-const join = (g: SkedGroup): boolean => joining.run(() => send({ cmd: "sked_post", from: g.from, to: g.to, dial: g.dial, note: "" }));
+const join = (g: SkedGroup): boolean =>
+  joining.run(() => send({ cmd: "sked_post", from: g.from, to: g.to, dial: g.dial, note: "" }));
 </script>
 
 <template>
@@ -71,7 +72,9 @@ const join = (g: SkedGroup): boolean => joining.run(() => send({ cmd: "sked_post
               class="btn small"
               :disabled="!canPost || joining.busy.value"
               :title="t('skeds.join_title')"
-              :aria-label="t('skeds.join_label', { calls: g.rows.map((r) => r.call).join(', '), when: whenText(g.from, g.to) })"
+              :aria-label="
+                t('skeds.join_label', { calls: g.rows.map((r) => r.call).join(', '), when: whenText(g.from, g.to) })
+              "
               @click="join(g)"
             >
               {{ t("skeds.join") }}

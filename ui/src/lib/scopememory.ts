@@ -57,7 +57,8 @@ export interface ScopeListener {
   whole?: () => void;
 }
 
-const same = (a: ScopeRow, b: ScopeRow): boolean => a.level === b.level && a.tx === b.tx && a.db.every((db, i) => db === b.db[i]);
+const same = (a: ScopeRow, b: ScopeRow): boolean =>
+  a.level === b.level && a.tx === b.tx && a.db.every((db, i) => db === b.db[i]);
 
 export class ScopeMemory {
   // oldest first
@@ -141,7 +142,9 @@ export class ScopeMemory {
   hear(call: string, snr: number | null, wall: number): void {
     const now = this.now();
     const fresh = Math.abs(wall + this.offset - now) <= FRESH_MS;
-    const heard: Written = fresh ? { at: now, call, snr, wall: null } : { at: wall + this.offset + HALF_SECOND_MS, call, snr: null, wall };
+    const heard: Written = fresh
+      ? { at: now, call, snr, wall: null }
+      : { at: wall + this.offset + HALF_SECOND_MS, call, snr: null, wall };
     if (heard.at < now - KEEP_MS) return;
     // Keep `told` ordered; a station heard just now goes at the end.
     let at = this.told.length;
@@ -170,7 +173,8 @@ export class ScopeMemory {
     for (let i = rows.length - 1; i >= 0; i--) {
       const off = Math.abs(now - rows[i].age - newest.at);
       if (now - rows[i].age < newest.at - MATCH_MS) break;
-      if (off > MATCH_MS || !same(rows[i].row, newest.row) || (before && !(i > 0 && same(rows[i - 1].row, before.row)))) continue;
+      if (off > MATCH_MS || !same(rows[i].row, newest.row) || (before && !(i > 0 && same(rows[i - 1].row, before.row))))
+        continue;
       if (found === null || off < Math.abs(now - rows[found].age - newest.at)) found = i;
     }
     return found;

@@ -28,7 +28,10 @@ export function numberText(n: number, locale: string, digits?: number): string {
   const key = `${locale}/${digits ?? ""}`;
   let format = numbers.get(key);
   if (!format) {
-    const fixed = digits === undefined ? { maximumFractionDigits: 20 } : { minimumFractionDigits: digits, maximumFractionDigits: digits };
+    const fixed =
+      digits === undefined
+        ? { maximumFractionDigits: 20 }
+        : { minimumFractionDigits: digits, maximumFractionDigits: digits };
     numbers.set(key, (format = new Intl.NumberFormat(locale, { useGrouping: false, ...fixed })));
   }
   return format.format(n);

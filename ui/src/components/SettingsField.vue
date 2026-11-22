@@ -34,13 +34,20 @@ const props = defineProps<{
   /** the limit of a typed field: its counter, and typing stops there */
   count?: TextLimit | undefined;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: [] }>();
+const emit = defineEmits<{
+  "update:modelValue": [value: string];
+  choose: [value: string];
+  commit: [next: EventTarget | null];
+  cancel: [];
+}>();
 
 const errorId = computed(() => `${props.id}-error`);
 const describedBy = computed(() => (props.error ? errorId.value : undefined));
 /** What is left of the limit; negative when the value is already longer. */
 const left = computed(() => (props.count === undefined ? 0 : leftOf(props.modelValue, props.count)));
-const placeholder = computed(() => props.info.empty ?? (props.fallback !== "" ? props.fallback : t("settings.default_placeholder")));
+const placeholder = computed(
+  () => props.info.empty ?? (props.fallback !== "" ? props.fallback : t("settings.default_placeholder")),
+);
 
 /**
  * The options of a choice: the words for each value, plus the value in force if it is none of them.
@@ -66,7 +73,8 @@ const sections = computed<{ group: string | undefined; choices: Choice[] }[]>(()
 
 function onInput(event: Event): void {
   const target = event.target;
-  const choice = target instanceof HTMLSelectElement || (target instanceof HTMLInputElement && target.type === "checkbox");
+  const choice =
+    target instanceof HTMLSelectElement || (target instanceof HTMLInputElement && target.type === "checkbox");
   const value =
     props.count !== undefined && target instanceof HTMLInputElement && target.type !== "checkbox"
       ? typedInto(event, props.modelValue, props.count)
@@ -120,12 +128,24 @@ function onEscape(event: KeyboardEvent): void {
       >
         <template v-for="section in sections" :key="section.choices[0]?.value">
           <optgroup v-if="section.group !== undefined" :label="section.group">
-            <option v-for="choice in section.choices" :key="choice.value" :value="choice.value" :title="choice.title" :disabled="choice.disabled">
+            <option
+              v-for="choice in section.choices"
+              :key="choice.value"
+              :value="choice.value"
+              :title="choice.title"
+              :disabled="choice.disabled"
+            >
               {{ choice.label }}
             </option>
           </optgroup>
           <template v-else>
-            <option v-for="choice in section.choices" :key="choice.value" :value="choice.value" :title="choice.title" :disabled="choice.disabled">
+            <option
+              v-for="choice in section.choices"
+              :key="choice.value"
+              :value="choice.value"
+              :title="choice.title"
+              :disabled="choice.disabled"
+            >
               {{ choice.label }}
             </option>
           </template>
@@ -168,7 +188,11 @@ function onEscape(event: KeyboardEvent): void {
       <LeftCounter v-if="count" :left="left" :max="count.max" :title="leftTitle(left, count.kind, count.max)" />
       <span v-if="info.unit" class="unit muted">{{ info.unit }}</span>
       <slot name="after"></slot>
-      <InfoTip v-if="info.tip" :label="info.tipLabel ?? t('settings.about', { label: info.label })" :picture="info.picture">
+      <InfoTip
+        v-if="info.tip"
+        :label="info.tipLabel ?? t('settings.about', { label: info.label })"
+        :picture="info.picture"
+      >
         <span v-for="line in info.tip" :key="line" class="info-line">{{ line }}</span>
       </InfoTip>
     </div>

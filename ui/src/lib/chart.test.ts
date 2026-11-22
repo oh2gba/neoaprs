@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { bandPath, bars, extent, lastIndex, linePath, linearScale, nearestIndex, niceTicks, tickDecimals, timeTicks, usualGap, type Point } from "@/lib/chart";
+import {
+  bandPath,
+  bars,
+  extent,
+  lastIndex,
+  linePath,
+  linearScale,
+  nearestIndex,
+  niceTicks,
+  tickDecimals,
+  timeTicks,
+  usualGap,
+  type Point,
+} from "@/lib/chart";
 
 const MIN = 60_000;
 const at = (minutes: number, v: number | null): Point => ({ t: minutes * MIN, v });
@@ -105,7 +118,11 @@ describe("linePath", () => {
   });
 
   it("carries on across a missing value and a long silence, with no break", () => {
-    const path = linePath([at(0, 1), at(1, 2), at(2, null), at(3, 3), at(4, 4), at(600, 5), at(601, 6)], (t) => t / MIN, identity);
+    const path = linePath(
+      [at(0, 1), at(1, 2), at(2, null), at(3, 3), at(4, 4), at(600, 5), at(601, 6)],
+      (t) => t / MIN,
+      identity,
+    );
     expect(path.match(/M/g)).toHaveLength(1);
     const segs = segments(path);
     expect(segs).toHaveLength(5); // 6 readings with a value
@@ -115,7 +132,17 @@ describe("linePath", () => {
   });
 
   it("stays between the neighbouring readings: no control point above or below them, so no invented peak", () => {
-    const series = [at(0, 1010), at(5, 1012), at(9, 1012), at(30, 1008), at(31, 1008.5), at(70, 1020), at(75, 1019), at(200, 1015), at(260, 1015.2)];
+    const series = [
+      at(0, 1010),
+      at(5, 1012),
+      at(9, 1012),
+      at(30, 1008),
+      at(31, 1008.5),
+      at(70, 1020),
+      at(75, 1019),
+      at(200, 1015),
+      at(260, 1015.2),
+    ];
     const y = (v: number): number => v;
     const readings = series.map((p) => p.v as number);
     const segs = segments(linePath(series, (t) => t / MIN, y));
@@ -152,13 +179,17 @@ describe("linePath", () => {
   });
 
   it("does not reach before the first reading or after the last", () => {
-    const xs = [...linePath([at(2, 1), at(3, 4), at(8, 2)], (t) => t / MIN, identity).matchAll(/[M,C](-?[\d.]+),(-?[\d.]+)/g)].map((m) => Number(m[1]));
+    const xs = [
+      ...linePath([at(2, 1), at(3, 4), at(8, 2)], (t) => t / MIN, identity).matchAll(/[M,C](-?[\d.]+),(-?[\d.]+)/g),
+    ].map((m) => Number(m[1]));
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(2);
     expect(Math.max(...xs)).toBeLessThanOrEqual(8);
   });
 
   it("rounds the numbers to two decimals", () => {
-    expect(linePath([at(0, 1.23456), at(1, 2)], (t) => t / 3 / MIN, identity)).toBe("M0,1.23C0.11,1.49,0.22,1.74,0.33,2");
+    expect(linePath([at(0, 1.23456), at(1, 2)], (t) => t / 3 / MIN, identity)).toBe(
+      "M0,1.23C0.11,1.49,0.22,1.74,0.33,2",
+    );
   });
 });
 

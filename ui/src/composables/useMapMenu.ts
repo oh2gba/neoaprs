@@ -47,7 +47,9 @@ export function useMapMenu(host: Readonly<Ref<HTMLElement | null>>, parts: () =>
     if (!event?.lngLat) return;
     event.preventDefault?.();
     event.originalEvent?.preventDefault();
-    const at = event.originalEvent ? { x: event.originalEvent.clientX, y: event.originalEvent.clientY } : pageXY(event.point);
+    const at = event.originalEvent
+      ? { x: event.originalEvent.clientX, y: event.originalEvent.clientY }
+      : pageXY(event.point);
     open(event.lngLat.lat, event.lngLat.lng, at.x, at.y);
   }
 

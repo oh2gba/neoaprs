@@ -20,7 +20,19 @@ describe("locatorToPosition", () => {
   });
 
   it("is null for what is no locator", () => {
-    for (const bad of ["", "KP", "KP2", "KP20i", "KP20ieX", "SS00aa", "KP20yy", "KP2Oie", "1P20ie", "KP20ie5", "KP20ie555"])
+    for (const bad of [
+      "",
+      "KP",
+      "KP2",
+      "KP20i",
+      "KP20ieX",
+      "SS00aa",
+      "KP20yy",
+      "KP2Oie",
+      "1P20ie",
+      "KP20ie5",
+      "KP20ie555",
+    ])
       expect(locatorToPosition(bad), bad).toBeNull();
   });
 });

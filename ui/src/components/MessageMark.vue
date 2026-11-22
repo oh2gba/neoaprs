@@ -13,7 +13,15 @@ const mark = computed(() => (props.mail ? mailMarkOf(props.row) : markOf(props.r
 </script>
 
 <template>
-  <span v-if="mark" class="mark" :class="`mark-${mark.kind}`" role="img" :title="mark.title" :aria-label="mark.title" :data-mark="mark.kind">
+  <span
+    v-if="mark"
+    class="mark"
+    :class="`mark-${mark.kind}`"
+    role="img"
+    :title="mark.title"
+    :aria-label="mark.title"
+    :data-mark="mark.kind"
+  >
     <svg
       viewBox="0 0 12 12"
       width="12"

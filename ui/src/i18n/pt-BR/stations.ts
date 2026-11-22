@@ -15,7 +15,8 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.card.label": "Estação",
   "station.card.qrz_title": "Abrir a página do QRZ deste indicativo",
-  "station.card.size_title": "Arraste para mover o cartão, as bordas para dimensioná-lo (Alt+setas movem o cartão em foco, Ctrl+Alt+setas o dimensionam)",
+  "station.card.size_title":
+    "Arraste para mover o cartão, as bordas para dimensioná-lo (Alt+setas movem o cartão em foco, Ctrl+Alt+setas o dimensionam)",
   "station.card.drag_title": "Arraste para mover o cartão (Alt+setas movem o cartão em foco)",
   "station.card.edit": "Editar",
   "station.card.kill": "Encerrar",
@@ -122,7 +123,13 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.freq.offset": "{khz} kHz",
   "station.freq.range": "alcance {km} km",
   "station.freq.receive": "recepção {mhz} MHz",
-  "station.storm.kind": { select: "kind", TS: "Tempestade tropical", HC: "Furacão", TD: "Depressão tropical", other: "{kind}" },
+  "station.storm.kind": {
+    select: "kind",
+    TS: "Tempestade tropical",
+    HC: "Furacão",
+    TD: "Depressão tropical",
+    other: "{kind}",
+  },
   "station.storm.wind": "vento {speed}",
   "station.storm.gusts": "rajadas {speed}",
   "station.storm.pressure": "pressão {value}",
@@ -136,7 +143,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter": "Filtrar",
   "station.table.filter_title": "Indicativo, símbolo, comentário, caminho",
   "station.table.about_label": "Sobre as estações",
-  "station.table.about1": "Cada estação ouvida, com distância e direção a partir de você. Clique em uma para vê-la no mapa.",
+  "station.table.about1":
+    "Cada estação ouvida, com distância e direção a partir de você. Clique em uma para vê-la no mapa.",
   "station.table.about2": "Um visto depois do indicativo significa que a estação foi ouvida direto, sem digipeater.",
   "station.table.filter_label": "Filtrar as estações",
   "station.table.hide_timed_out": "ocultar expiradas",
@@ -164,7 +172,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.menu.ask_heard": "Pedir o que ouve direto",
   "station.menu.ask_trace": "Rastrear a rota",
   "station.menu.ask_weather": "Pedir o tempo",
-  "station.menu.ask_weather_title": "?WX? não é uma consulta dirigida na especificação APRS: muitas estações não respondem",
+  "station.menu.ask_weather_title":
+    "?WX? não é uma consulta dirigida na especificação APRS: muitas estações não respondem",
   "station.menu.show_map": "Mostrar no mapa",
   "station.menu.show_card": "Abrir o cartão",
   "station.menu.copy": "Copiar indicativo",

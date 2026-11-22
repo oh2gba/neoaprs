@@ -78,7 +78,8 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "footer.cost": "NeoAPRS usa il {cpu} % di un core del processore e {mb} MB di memoria, in funzione da {span}",
   "footer.cost_no_memory": "NeoAPRS usa il {cpu} % di un core del processore, in funzione da {span}",
 
-  "mismatch.notice": "Questa pagina e NeoAPRS non corrispondono (pagina {page}, NeoAPRS {neoaprs}). Ricarica la pagina; se resta così, riavvia NeoAPRS.",
+  "mismatch.notice":
+    "Questa pagina e NeoAPRS non corrispondono (pagina {page}, NeoAPRS {neoaprs}). Ricarica la pagina; se resta così, riavvia NeoAPRS.",
   "mismatch.reload": "Ricarica",
 
   "copy.menu_label": "Copia",

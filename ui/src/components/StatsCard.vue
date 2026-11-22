@@ -22,7 +22,9 @@ import { CHART_HOURS, chartOf } from "@/lib/packetstats";
 import { emptyHistory, mapStats } from "@/lib/stats";
 import type { PacketRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ packets: ReadonlyMap<string, PacketRow>; movable?: boolean }>(), { movable: false });
+const props = withDefaults(defineProps<{ packets: ReadonlyMap<string, PacketRow>; movable?: boolean }>(), {
+  movable: false,
+});
 const emit = defineEmits<{ close: [] }>();
 const page = useDaemonContext();
 const root = ref<HTMLElement | null>(null);
@@ -46,7 +48,9 @@ const sections = computed(() =>
 /** The graph bars from the latest answer; an empty frame over the same hours until then. */
 const chart = computed(() => {
   const stats = page.packetStats.value;
-  return stats === null ? { ...emptyHistory(page.now.value, CHART_HOURS), parts: [] } : chartOf(stats, radios.all.value);
+  return stats === null
+    ? { ...emptyHistory(page.now.value, CHART_HOURS), parts: [] }
+    : chartOf(stats, radios.all.value);
 });
 
 /** The sections the person folded, by their title, remembered by this browser. */
@@ -112,7 +116,10 @@ watch(
       >
         <dl class="card-fields">
           <template v-for="line in section.lines" :key="line.key ?? line.label">
-            <dt><span v-if="line.tone" class="stats-swatch" :class="line.tone" aria-hidden="true"></span>{{ t(line.label, line.params) }}</dt>
+            <dt>
+              <span v-if="line.tone" class="stats-swatch" :class="line.tone" aria-hidden="true"></span
+              >{{ t(line.label, line.params) }}
+            </dt>
             <dd>{{ line.value }}</dd>
           </template>
         </dl>

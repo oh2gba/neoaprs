@@ -4,7 +4,9 @@
 import { computed } from "vue";
 import { SPRITE_COLUMNS, SPRITE_PX, SPRITE_ROWS, sheetUrl, symbolLayers } from "@/lib/symbols";
 
-const props = withDefaults(defineProps<{ table: string; code: string; x: number; y: number; size?: number }>(), { size: 26 });
+const props = withDefaults(defineProps<{ table: string; code: string; x: number; y: number; size?: number }>(), {
+  size: 26,
+});
 const layers = computed(() => symbolLayers(props.table, props.code));
 </script>
 

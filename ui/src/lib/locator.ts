@@ -86,5 +86,7 @@ const LOCATOR_FROM = 6;
  */
 export function locatorProblem(text: string): string {
   const typed = text.trim();
-  return typed.length >= LOCATOR_FROM && typed.length !== 7 && locatorToPosition(typed) === null ? t("settings.locator.invalid") : "";
+  return typed.length >= LOCATOR_FROM && typed.length !== 7 && locatorToPosition(typed) === null
+    ? t("settings.locator.invalid")
+    : "";
 }

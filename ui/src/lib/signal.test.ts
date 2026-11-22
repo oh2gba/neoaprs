@@ -3,7 +3,12 @@ import { readingText, signalLine, signalNumber } from "@/lib/signal";
 import type { SignalSeriesMessage } from "@/protocol/protocol";
 import { NOW, ago } from "@/test/fixtures";
 
-const series = (points: SignalSeriesMessage["points"]): SignalSeriesMessage => ({ type: "signal_series", call: "OH2HF", hours: 24, points });
+const series = (points: SignalSeriesMessage["points"]): SignalSeriesMessage => ({
+  type: "signal_series",
+  call: "OH2HF",
+  hours: 24,
+  points,
+});
 const DAY = 24 * 3600;
 
 describe("signal: the readings in words", () => {
@@ -25,7 +30,8 @@ describe("signal: the readings in words", () => {
     expect(signalNumber(-0.4, 1)).toBe("\u22120.4");
     expect(signalNumber(-0.04, 1)).toBe("0.0");
     expect(signalNumber(6, 0)).toBe("6");
-    for (const value of [-3.5, -2.5, -0.4, 0, 4.5, 12]) expect(`SNR ${signalNumber(value, 0)} dB`).toBe(readingText({ snr: value, rssi: null }));
+    for (const value of [-3.5, -2.5, -0.4, 0, 4.5, 12])
+      expect(`SNR ${signalNumber(value, 0)} dB`).toBe(readingText({ snr: value, rssi: null }));
   });
 });
 

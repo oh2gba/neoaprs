@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { placesAt, REPLAY_SPANS, replayClock, replayData, spanLabel, trailAt, trailLines, trailMinutes } from "@/lib/replay";
+import {
+  placesAt,
+  REPLAY_SPANS,
+  replayClock,
+  replayData,
+  spanLabel,
+  trailAt,
+  trailLines,
+  trailMinutes,
+} from "@/lib/replay";
 import { setLocale } from "@/i18n";
 import type { PositionHistoryMessage } from "@/protocol/protocol";
 
@@ -58,7 +67,8 @@ describe("the spans of the bar", () => {
 
 describe("where the stations are", () => {
   const data = replayData(message());
-  const place = (minutes: number) => Object.fromEntries(placesAt(data, T0 + minutes * MIN).map(([call, lat, lon]) => [call, [lat, lon]]));
+  const place = (minutes: number) =>
+    Object.fromEntries(placesAt(data, T0 + minutes * MIN).map(([call, lat, lon]) => [call, [lat, lon]]));
 
   it("shows a station from its first position on, and none before", () => {
     expect(place(5)).toEqual({});

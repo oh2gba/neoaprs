@@ -17,7 +17,13 @@ import {
 import { NOW, ago, station } from "@/test/fixtures";
 import type { ExtensionValues, FrequencyValues, PhgValues } from "@/protocol/protocol";
 
-const phg = (range_km: number): PhgValues => ({ power_w: 25, height_m: 12.2, gain_db: 5, direction_deg: null, range_km });
+const phg = (range_km: number): PhgValues => ({
+  power_w: 25,
+  height_m: 12.2,
+  gain_db: 5,
+  direction_deg: null,
+  range_km,
+});
 const extensions = (extra: Partial<ExtensionValues> = {}): ExtensionValues => ({
   phg: null,
   range_km: null,
@@ -43,13 +49,15 @@ const calls = (list: { call: string }[]): string[] => list.map((item) => item.ca
 
 describe("the symbols", () => {
   it("know a digipeater by its code in the primary table, the alternate one and any overlay", () => {
-    for (const table of ["/", "\\", "1", "S"]) expect(isDigipeaterSymbol({ symbol_table: table, symbol_code: "#" })).toBe(true);
+    for (const table of ["/", "\\", "1", "S"])
+      expect(isDigipeaterSymbol({ symbol_table: table, symbol_code: "#" })).toBe(true);
     expect(isDigipeaterSymbol({ symbol_table: "/", symbol_code: ">" })).toBe(false);
     expect(isDigipeaterSymbol({ symbol_table: "", symbol_code: "" })).toBe(false);
   });
 
   it("know an iGate by one of its overlays on the gateway symbol", () => {
-    for (const table of ["I", "R", "T", "2", "L"]) expect(isIgateSymbol({ symbol_table: table, symbol_code: "&" }), table).toBe(true);
+    for (const table of ["I", "R", "T", "2", "L"])
+      expect(isIgateSymbol({ symbol_table: table, symbol_code: "&" }), table).toBe(true);
     expect(isIgateSymbol({ symbol_table: "X", symbol_code: "&" })).toBe(false);
     expect(isIgateSymbol({ symbol_table: "\\", symbol_code: "&" })).toBe(false);
     expect(isIgateSymbol({ symbol_table: "I", symbol_code: "#" })).toBe(false);
@@ -67,7 +75,12 @@ describe("the digipeaters", () => {
       ],
     }),
     station("OH2BBB", { heard_via: [["OH2RCH-2", 10]] }),
-    station("OH2RCH-2", { symbol_code: "#", distance_km: 12, heard_via: [], extensions: extensions({ phg: phg(21.4) }) }),
+    station("OH2RCH-2", {
+      symbol_code: "#",
+      distance_km: 12,
+      heard_via: [],
+      extensions: extensions({ phg: phg(21.4) }),
+    }),
     station("OH2RCH-3", { symbol_code: "#", distance_km: 4, heard_via: [], extensions: extensions({ range_km: 40 }) }),
     station("OH2FILL", { symbol_table: "1", symbol_code: "#", distance_km: 30, heard_via: [] }),
     station("OH2CAR", { distance_km: 2, heard_via: [] }),
@@ -94,7 +107,10 @@ describe("the digipeaters", () => {
   });
 
   it("list a call that only repeated, with no row of its own, after the ones with a distance", () => {
-    const list = digipeaters([station("OH2AAA", { heard_via: [["OH2GHOST", 3]] }), station("OH2NEAR", { symbol_code: "#", distance_km: 50, heard_via: [] })]);
+    const list = digipeaters([
+      station("OH2AAA", { heard_via: [["OH2GHOST", 3]] }),
+      station("OH2NEAR", { symbol_code: "#", distance_km: 50, heard_via: [] }),
+    ]);
     expect(calls(list)).toEqual(["OH2NEAR", "OH2GHOST"]);
     expect(list[1]?.row).toBeNull();
     expect(digipeaterLines(list[1] as never)).toEqual(["3 packets repeated", "no packet of its own heard"]);
@@ -141,9 +157,21 @@ describe("the digipeaters", () => {
     expect(rangeCircleOf([...mine, hf], "OH2GBA")?.km).toBe(31.5);
     // no position of ours
     expect(rangeCircleOf([station("OH2GBA", { is_me: true, lat: null, lon: null }), mine[1]], "OH2GBA")).toBeNull();
-    expect(rangeCircleOf([station("X", { symbol_code: "#", lat: null, lon: null, extensions: extensions({ phg: phg(5) }) })], "X")).toBeNull();
-    expect(rangeCircleOf([station("X", { symbol_code: "#", extensions: extensions({ range_km: 0 }) })], "X")).toBeNull();
-    expect(rangeCircleOf([station("X", { symbol_code: "#", last_position_at: ago(5 * 3600), extensions: extensions({ range_km: 9 }) })], "X")?.km).toBe(9);
+    expect(
+      rangeCircleOf(
+        [station("X", { symbol_code: "#", lat: null, lon: null, extensions: extensions({ phg: phg(5) }) })],
+        "X",
+      ),
+    ).toBeNull();
+    expect(
+      rangeCircleOf([station("X", { symbol_code: "#", extensions: extensions({ range_km: 0 }) })], "X"),
+    ).toBeNull();
+    expect(
+      rangeCircleOf(
+        [station("X", { symbol_code: "#", last_position_at: ago(5 * 3600), extensions: extensions({ range_km: 9 }) })],
+        "X",
+      )?.km,
+    ).toBe(9);
   });
 });
 
@@ -152,7 +180,12 @@ describe("the voice frequencies", () => {
     station("OH2FAR", { distance_km: 40, frequency: frequency() }),
     station("OH2NONE", { distance_km: 1 }),
     station("OH2NEAR", { distance_km: 5, frequency: frequency({ mhz: 433.5, tone_hz: null, offset_khz: null }) }),
-    station("R-HELSINKI", { kind: "object", reported_by: "OH2XYZ", distance_km: null, frequency: frequency({ mhz: 145.6, offset_khz: -600 }) }),
+    station("R-HELSINKI", {
+      kind: "object",
+      reported_by: "OH2XYZ",
+      distance_km: null,
+      frequency: frequency({ mhz: 145.6, offset_khz: -600 }),
+    }),
   ];
 
   it("are every station, object and item that gave one, nearest first", () => {
@@ -212,17 +245,43 @@ describe("the stations heard direct", () => {
 });
 
 describe("a station known from the internet alone", () => {
-  const net = { heard_rf: 0, heard_is: 4, last_rf_at: null, last_is_at: ago(60), heard_via: [], heard_direct: 0, last_direct_at: null };
+  const net = {
+    heard_rf: 0,
+    heard_is: 4,
+    last_rf_at: null,
+    last_is_at: ago(60),
+    heard_via: [],
+    heard_direct: 0,
+    last_direct_at: null,
+  };
   const rows = [
     station("OH2GBA", { is_me: true, distance_km: null, heard_via: [] }),
-    station("OH2RCH-2", { symbol_code: "#", distance_km: 12, heard_via: [], extensions: extensions({ phg: phg(21.4) }) }),
+    station("OH2RCH-2", {
+      symbol_code: "#",
+      distance_km: 12,
+      heard_via: [],
+      extensions: extensions({ phg: phg(21.4) }),
+    }),
     station("OH2NETDIGI", { ...net, symbol_code: "#", distance_km: 3, extensions: extensions({ phg: phg(30) }) }),
     station("OH2NETGATE", { ...net, symbol_table: "I", symbol_code: "&", distance_km: 4, gated: 7, igate: true }),
     station("OH2NETVOICE", { ...net, distance_km: 5, frequency: frequency() }),
-    station("NETOBJ", { ...net, kind: "object", reported_by: "OH2XYZ", distance_km: 6, frequency: frequency({ mhz: 145.6 }) }),
+    station("NETOBJ", {
+      ...net,
+      kind: "object",
+      reported_by: "OH2XYZ",
+      distance_km: 6,
+      frequency: frequency({ mhz: 145.6 }),
+    }),
     station("OH2NETDIRECT", { ...net, distance_km: 7, heard_direct: 2, last_direct_at: ago(30) }),
     station("OH2BOTHDIGI", { symbol_code: "#", distance_km: 8, heard_via: [], heard_is: 3 }),
-    station("OH2GATEONLY", { distance_km: 9, heard_rf: 0, heard_rf_gated: 2, heard_via: [], symbol_table: "I", symbol_code: "&" }),
+    station("OH2GATEONLY", {
+      distance_km: 9,
+      heard_rf: 0,
+      heard_rf_gated: 2,
+      heard_via: [],
+      symbol_table: "I",
+      symbol_code: "&",
+    }),
   ];
 
   it("is in none of the four lists, whatever its symbol, its frequency or its counts say; one also heard on the radio is, and so is an iGate's", () => {

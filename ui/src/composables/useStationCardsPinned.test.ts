@@ -13,7 +13,9 @@ const mounted: VueWrapper[] = [];
 
 function setUp(stored?: unknown, told = true) {
   if (stored !== undefined) localStorage.setItem(KEY, JSON.stringify(stored));
-  const stations = shallowRef<ReadonlyMap<string, StationRow>>(told ? new Map(CALLS.map((call) => [call, station(call)] as const)) : new Map());
+  const stations = shallowRef<ReadonlyMap<string, StationRow>>(
+    told ? new Map(CALLS.map((call) => [call, station(call)] as const)) : new Map(),
+  );
   const ready = ref(told);
   const layout = { capacity: ref(4), phone: ref(false), showMap: vi.fn() } as unknown as Layout;
   let cards!: ReturnType<typeof useStationCards>;
@@ -36,8 +38,10 @@ function setUp(stored?: unknown, told = true) {
   return { cards, stations, ready, layout, wrapper };
 }
 
-const escape = () => document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
-const stored = (): Record<string, unknown> => JSON.parse(localStorage.getItem(KEY) ?? "null") as Record<string, unknown>;
+const escape = () =>
+  document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+const stored = (): Record<string, unknown> =>
+  JSON.parse(localStorage.getItem(KEY) ?? "null") as Record<string, unknown>;
 
 afterEach(() => {
   for (const wrapper of mounted.splice(0)) wrapper.unmount();
@@ -122,7 +126,9 @@ describe("useStationCards: pinned cards", () => {
 
   it("does not open the pinned cards on a phone, whose card is a sheet, and opens them when the window is wide again", async () => {
     localStorage.setItem(KEY, JSON.stringify({ OH2ZWA: null }));
-    const stations = shallowRef<ReadonlyMap<string, StationRow>>(new Map(CALLS.map((call) => [call, station(call)] as const)));
+    const stations = shallowRef<ReadonlyMap<string, StationRow>>(
+      new Map(CALLS.map((call) => [call, station(call)] as const)),
+    );
     const layout = { capacity: ref(1), phone: ref(true), showMap: vi.fn() } as unknown as Layout;
     let cards!: ReturnType<typeof useStationCards>;
     mounted.push(

@@ -103,7 +103,11 @@ describe("the padlock of an encrypted message", () => {
     const lock = wrapper.find(".compose-lock");
     expect(lock.attributes("aria-pressed")).toBe("false");
     expect(lock.attributes("aria-label")).toBe("Encrypt");
-    expect([...wrapper.find(".composebar-foot").element.children].map((c) => c.tagName)).toEqual(["SPAN", "BUTTON", "BUTTON"]);
+    expect([...wrapper.find(".composebar-foot").element.children].map((c) => c.tagName)).toEqual([
+      "SPAN",
+      "BUTTON",
+      "BUTTON",
+    ]);
     expect(wrapper.find(".compose-left").text()).toBe("67 left");
   });
 

@@ -21,7 +21,9 @@ const wrong = computed(() => text.value.trim() !== "" && "problem" in checked.va
 const title = computed(() => {
   if (rxOnly.value) return rxOnlyReason();
   const found = checked.value;
-  return wrong.value && "problem" in found ? t(`station.query.problem.${found.problem}`, { max: QUERY_MAX }) : t("station.query.title");
+  return wrong.value && "problem" in found
+    ? t(`station.query.problem.${found.problem}`, { max: QUERY_MAX })
+    : t("station.query.title");
 });
 
 /** Why Ask is off besides an invalid text: RX only or the radio not connected. */
@@ -52,7 +54,13 @@ function submit(): void {
       spellcheck="false"
       data-query="text"
     />
-    <button type="submit" class="btn" :disabled="blocked !== undefined || !('text' in checked)" :title="blocked ?? title" data-query="ask">
+    <button
+      type="submit"
+      class="btn"
+      :disabled="blocked !== undefined || !('text' in checked)"
+      :title="blocked ?? title"
+      data-query="ask"
+    >
       {{ t("station.query.ask") }}
     </button>
   </form>

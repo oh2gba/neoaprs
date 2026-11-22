@@ -13,7 +13,10 @@ const T0 = Date.parse(START);
 const at = (minutes: number): string => new Date(T0 + minutes * 60_000).toISOString().replace(".000", "");
 
 const props = (extra = {}) => ({
-  stations: table(station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94 }), station("OH2RDG-9", { lat: 60.5, lon: 25.5, symbol_code: ">" })),
+  stations: table(
+    station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94 }),
+    station("OH2RDG-9", { lat: 60.5, lon: 25.5, symbol_code: ">" }),
+  ),
   selected: null,
   focus: null,
   home: { lat: 60.17, lon: 24.94 },
@@ -63,7 +66,11 @@ afterEach(() => {
 describe("the replay of the map", () => {
   it("is the last item of the map's menu, which asks the page to open it", async () => {
     const { wrapper } = await mounted();
-    FakeMap.last().fire("contextmenu", { lngLat: { lat: 60.1, lng: 24.9 }, point: { x: 1, y: 1 }, originalEvent: new MouseEvent("contextmenu") });
+    FakeMap.last().fire("contextmenu", {
+      lngLat: { lat: 60.1, lng: 24.9 },
+      point: { x: 1, y: 1 },
+      originalEvent: new MouseEvent("contextmenu"),
+    });
     await flushPromises();
     document.querySelector<HTMLElement>(".mapmenu [data-item='replay']")?.click();
     await flushPromises();
@@ -88,7 +95,9 @@ describe("the replay of the map", () => {
     vi.advanceTimersByTime(1000); // (five minutes of the span)
     await flushPromises();
     expect(replayMarkers()[0]?.lngLat).toEqual([25.0, 60.02]);
-    const trails = map.getSource("replay-trails")?.setData.mock.calls.at(-1)?.[0] as { features: { geometry: { coordinates: number[][] } }[] };
+    const trails = map.getSource("replay-trails")?.setData.mock.calls.at(-1)?.[0] as {
+      features: { geometry: { coordinates: number[][] } }[];
+    };
     expect(trails.features[0]?.geometry.coordinates).toEqual([
       [25.0, 60.0],
       [25.0, 60.02],
@@ -114,7 +123,9 @@ describe("the replay of the map", () => {
     expect(wrapper.find(".replaybar").exists()).toBe(false);
     expect(liveLayers.map((id) => map.visibility.get(id))).toEqual(liveLayers.map(() => "visible"));
     expect(FakeMarker.live().map((m) => m.element.textContent)).toEqual(["OH2GBA", "OH2RDG-9"]);
-    expect((map.getSource("replay-trails")?.setData.mock.calls.at(-1)?.[0] as { features: unknown[] }).features).toEqual([]);
+    expect(
+      (map.getSource("replay-trails")?.setData.mock.calls.at(-1)?.[0] as { features: unknown[] }).features,
+    ).toEqual([]);
   });
 
   it("hides the live layers again when the style is set again (the colour scheme changed)", async () => {

@@ -74,7 +74,10 @@ export class FakeMap {
   }
   specs = new Map<string, { id: string; type?: string; minzoom?: number; layout?: Record<string, unknown> }>();
   beneath = new Map<string, string>();
-  addLayer(layer: { id: string; type?: string; minzoom?: number; layout?: Record<string, unknown> }, before?: string): void {
+  addLayer(
+    layer: { id: string; type?: string; minzoom?: number; layout?: Record<string, unknown> },
+    before?: string,
+  ): void {
     const at = before === undefined ? -1 : this.layers.indexOf(before);
     if (at < 0) this.layers.push(layer.id);
     else this.layers.splice(at, 0, layer.id);
@@ -116,7 +119,10 @@ export class FakeMap {
   }
   rendered: { layer: string; properties: Record<string, unknown> }[] = [];
   queried: unknown[] = [];
-  queryRenderedFeatures(where?: unknown, options: { layers?: string[] } = {}): { properties: Record<string, unknown> }[] {
+  queryRenderedFeatures(
+    where?: unknown,
+    options: { layers?: string[] } = {},
+  ): { properties: Record<string, unknown> }[] {
     this.queried.push(where);
     return this.rendered.filter((feature) => options.layers === undefined || options.layers.includes(feature.layer));
   }

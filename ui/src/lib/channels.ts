@@ -18,7 +18,8 @@ export type Channel = "rf" | "gated" | "is" | "dummy";
 /** Channels a tag names by a word of its own; a radio is named by the radio. */
 type Worded = Exclude<Channel, "rf">;
 
-type Heard = Pick<StationRow, "heard_rf" | "heard_rf_gated" | "heard_is" | "heard_dummy" | "is_me" | "own"> & Partial<Pick<StationRow, "heard">>;
+type Heard = Pick<StationRow, "heard_rf" | "heard_rf_gated" | "heard_is" | "heard_dummy" | "is_me" | "own"> &
+  Partial<Pick<StationRow, "heard">>;
 type Times = Pick<StationRow, "last_rf_at" | "last_rf_gated_at" | "last_is_at" | "last_dummy_at">;
 
 /** The channels a station was heard by, in display order; none for our own station and objects. */
@@ -34,7 +35,14 @@ export function channelsOf(row: Heard): Channel[] {
 
 /** Whether the station is known from the internet alone, with nothing heard on any radio. */
 export function internetOnly(row: Heard): boolean {
-  return !row.is_me && !row.own && row.heard_is > 0 && row.heard_rf === 0 && row.heard_rf_gated === 0 && row.heard_dummy === 0;
+  return (
+    !row.is_me &&
+    !row.own &&
+    row.heard_is > 0 &&
+    row.heard_rf === 0 &&
+    row.heard_rf_gated === 0 &&
+    row.heard_dummy === 0
+  );
 }
 
 /** Whether the station counts for what is on the air nearby: anything but internet-only. */
@@ -98,7 +106,12 @@ function dummyPart(radio: PageRadio, at: string | null): HeardPart {
 
 /** The tag of the radio that heard it, with the time that radio last heard the station.
  * Null for a radio the page does not know yet. */
-function radioPart(id: RadioId, at: string | null, radios: readonly PageRadio[], row?: Heard & Times): HeardPart | null {
+function radioPart(
+  id: RadioId,
+  at: string | null,
+  radios: readonly PageRadio[],
+  row?: Heard & Times,
+): HeardPart | null {
   const radio = radios.find((one) => one.id === id);
   if (radio === undefined) return null;
   if (dummyMark(radios, id)) return dummyPart(radio, row === undefined ? at : row.last_dummy_at);
@@ -171,7 +184,12 @@ export const HEARD_ON_RADIOS = 2;
 
 /** The tags of "Heard on": the `room` radios that heard the station last, then "+n" whose title
  * lists the rest with their times, then iGate and Internet. */
-export function heardTags(row: Heard & Times, radios: readonly PageRadio[], nowMs: number, room = HEARD_ON_RADIOS): HeardTag[] {
+export function heardTags(
+  row: Heard & Times,
+  radios: readonly PageRadio[],
+  nowMs: number,
+  room = HEARD_ON_RADIOS,
+): HeardTag[] {
   const parts = heardParts(row, radios);
   const ofRadios = parts.filter((part) => part.radio);
   const latest = [...ofRadios].sort((a, b) => (b.at ?? "").localeCompare(a.at ?? "")).slice(0, room);
@@ -183,7 +201,14 @@ export function heardTags(row: Heard & Times, radios: readonly PageRadio[], nowM
   const more: HeardTag[] =
     rest.length === 0
       ? []
-      : [{ key: "more", label: t("radio.more", { n: rest.length }), title: titled(rest.map((part) => timed(part, nowMs, colon))), tone: "neutral" }];
+      : [
+          {
+            key: "more",
+            label: t("radio.more", { n: rest.length }),
+            title: titled(rest.map((part) => timed(part, nowMs, colon))),
+            tone: "neutral",
+          },
+        ];
   return [...shown.map(tag), ...more, ...parts.filter((part) => !part.radio).map(tag)];
 }
 
@@ -214,7 +239,12 @@ export function packetChannel(via: PacketRow["via"]): Channel {
 type Packet = Pick<PacketRow, "via"> & Partial<Pick<PacketRow, "radio_id" | "direction">>;
 
 /** The tag of a channel's packet. */
-const wordTag = (channel: Worded, title = meaning(channel)): HeardTag => ({ key: channel, label: name(channel), title, tone: toneOf(channel) });
+const wordTag = (channel: Worded, title = meaning(channel)): HeardTag => ({
+  key: channel,
+  label: name(channel),
+  title,
+  tone: toneOf(channel),
+});
 
 /** The tag of a logged packet: the radio it came or went on, iGate (its title names the radio
  * that heard it) or Internet. Null for a radio the page does not know yet. */
@@ -224,7 +254,10 @@ export function packetTag(packet: Packet, radios: readonly PageRadio[]): HeardTa
   const radio = id === null ? undefined : radios.find((one) => one.id === id);
   if (channel === "is") return wordTag("is");
   if (channel === "gated")
-    return wordTag("gated", radio === undefined ? meaning("gated") : titled([meaning("gated"), t("radio.heard_on", { name: radio.name })]));
+    return wordTag(
+      "gated",
+      radio === undefined ? meaning("gated") : titled([meaning("gated"), t("radio.heard_on", { name: radio.name })]),
+    );
   const part = id === null ? null : radioPart(id, null, radios);
   if (id === null || part === null) return channel === "dummy" ? wordTag("dummy") : null;
   if (dummyMark(radios, id, channel === "dummy")) return { ...wordTag("dummy"), key: part.key };
@@ -239,5 +272,7 @@ export function packetCameBy(packet: Packet, radios: readonly PageRadio[]): stri
   if (tag === null) return null;
   const id = packet.radio_id ?? null;
   const radio = tag.key.startsWith("radio-") && id !== null ? radios.find((one) => one.id === id) : undefined;
-  return radio !== undefined && !dummyMark(radios, radio.id, packet.via === "dummy") ? t("packets.came_by.radio", { name: tag.label }) : tag.title;
+  return radio !== undefined && !dummyMark(radios, radio.id, packet.via === "dummy")
+    ? t("packets.came_by.radio", { name: tag.label })
+    : tag.title;
 }

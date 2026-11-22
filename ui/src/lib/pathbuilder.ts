@@ -67,7 +67,12 @@ const time = (iso: string | null): number => (iso === null ? 0 : Date.parse(iso)
 export function firstHops(rows: Iterable<StationRow>): HopChoice[] {
   return digipeaters(rows)
     .filter((digi) => digi.repeated > 0 || (digi.row?.last_direct_at ?? null) !== null)
-    .map((digi) => ({ call: digi.call, count: digi.repeated, at: digi.row?.last_direct_at ?? null, km: digi.row?.distance_km ?? null }))
+    .map((digi) => ({
+      call: digi.call,
+      count: digi.repeated,
+      at: digi.row?.last_direct_at ?? null,
+      km: digi.row?.distance_km ?? null,
+    }))
     .sort((a, b) => b.count - a.count || time(b.at) - time(a.at) || nearer(a.km, b.km) || a.call.localeCompare(b.call));
 }
 
@@ -109,13 +114,21 @@ export function nextHops(source: Iterable<StationRow>, after: string, used: read
   const skip = new Set([...used, ...rows.filter((row) => row.is_me).map((row) => row.call)]);
   return [...(neighbours(rows).get(after) ?? new Map<string, number>())]
     .filter(([call]) => !skip.has(call))
-    .map(([call, count]) => ({ call, count, at: byCall.get(call)?.last_direct_at ?? null, km: byCall.get(call)?.distance_km ?? null }))
+    .map(([call, count]) => ({
+      call,
+      count,
+      at: byCall.get(call)?.last_direct_at ?? null,
+      km: byCall.get(call)?.distance_km ?? null,
+    }))
     .sort((a, b) => b.count - a.count || nearer(a.km, b.km) || a.call.localeCompare(b.call));
 }
 
 /** What the builder offers for the next hop of `hops`: heard digipeaters for the first, those next
  * to the last hop for a later one (`after`); null when it offers none. */
-export function choicesFor(rows: Iterable<StationRow>, hops: readonly string[]): { after: string | null; choices: HopChoice[] } | null {
+export function choicesFor(
+  rows: Iterable<StationRow>,
+  hops: readonly string[],
+): { after: string | null; choices: HopChoice[] } | null {
   if (hops.length >= SUGGESTED_HOPS) return null;
   const last = hops[hops.length - 1];
   if (last === undefined) return { after: null, choices: firstHops(rows) };

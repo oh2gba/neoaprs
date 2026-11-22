@@ -39,7 +39,13 @@ function make(rows = [A, B], size: SizeClass = "desktop", extra: { pinned?: stri
   // (the places are the page's, as in the page: a write comes back as the prop only when the page
   // has been drawn again, so a second write at once does not see the first)
   const wrapper: Wrapper = mount(StationCards, {
-    props: { rows, size, ...extra, places: {}, "onUpdate:places": (places: Places) => void wrapper.setProps({ places }) },
+    props: {
+      rows,
+      size,
+      ...extra,
+      places: {},
+      "onUpdate:places": (places: Places) => void wrapper.setProps({ places }),
+    },
     global: withDaemon(fakeDaemon()),
     attachTo: wrap,
   });
@@ -52,7 +58,12 @@ beforeEach(() => {
     if (this.classList.contains("cardstack")) return rect(10, 84, 1180, 686);
     if (this.classList.contains("card")) {
       if (this.classList.contains("moved"))
-        return rect(10 + parseFloat(this.style.left), 84 + parseFloat(this.style.top), CARD.width, taller[this.dataset.call ?? ""] ?? CARD.height);
+        return rect(
+          10 + parseFloat(this.style.left),
+          84 + parseFloat(this.style.top),
+          CARD.width,
+          taller[this.dataset.call ?? ""] ?? CARD.height,
+        );
       const inRow = [...(this.parentElement?.querySelectorAll(":scope > .card:not(.moved)") ?? [])];
       return rect(10 + inRow.indexOf(this) * 348, 770 - CARD.height, CARD.width, CARD.height);
     }
@@ -104,7 +115,9 @@ describe("StationCards: moving a card by its head", () => {
     expect(card(wrapper, "OH2ZWB").classes()).toContain("moved");
     expect(style(wrapper, "OH2ZWB")).toEqual({ left: "408px", top: "326px" });
     expect(style(wrapper, "OH2ZWA")).toEqual({ left: "0px", top: "386px" });
-    expect(wrapper.emitted("update:places")?.at(-1)).toEqual([{ OH2ZWA: { x: 0, y: 386 }, OH2ZWB: { x: 408, y: 326 } }]);
+    expect(wrapper.emitted("update:places")?.at(-1)).toEqual([
+      { OH2ZWA: { x: 0, y: 386 }, OH2ZWB: { x: 408, y: 326 } },
+    ]);
   });
 
   it("moves with touch and pen the same way, and follows the pointer in steps", async () => {
@@ -179,7 +192,9 @@ describe("StationCards: moving a card by its head", () => {
       return rect(10 + parseFloat(this.style.left), 84 + parseFloat(this.style.top), CARD.width, CARD.height);
     });
     // (the row's size observer asks for this when the map gets smaller; here the next move does)
-    card(wrapper, "OH2ZWA").element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true, cancelable: true }));
+    card(wrapper, "OH2ZWA").element.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true, cancelable: true }),
+    );
     await wrapper.vm.$nextTick();
     expect(style(wrapper, "OH2ZWA").left).toBe("450px"); // (800 - 340 - 10)
   });
@@ -206,7 +221,10 @@ describe("StationCards: moving a card by its head", () => {
 });
 
 describe("StationCards: moving a card never moves another", () => {
-  const spot = (wrapper: Wrapper, call: string) => ({ ...style(wrapper, call), moved: card(wrapper, call).classes().includes("moved") });
+  const spot = (wrapper: Wrapper, call: string) => ({
+    ...style(wrapper, call),
+    moved: card(wrapper, call).classes().includes("moved"),
+  });
 
   it("drag the first (the leftmost) of two cards: the second stays where it was, and the first one's slot is empty", async () => {
     const wrapper = make([A, B]);
@@ -229,7 +247,9 @@ describe("StationCards: moving a card never moves another", () => {
     const wrapper = make([A, B, C]);
     card(wrapper, "OH2ZWA")
       .find("button[aria-label='Close']")
-      .element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+      .element.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, shiftKey: true, bubbles: true, cancelable: true }),
+      );
     await wrapper.vm.$nextTick();
     expect(spot(wrapper, "OH2ZWA").top).toBe("290px");
     expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px", moved: true });
@@ -343,7 +363,9 @@ describe("StationCards: the bottom sheet of a phone", () => {
     // the handle's style is for the row only: the sheet is excluded by the selector
     expect(cssRule(".cardstack:not(.sheet) .card-head")).not.toBe("");
     drag(wrapper, "OH2ZWA", [100, 600], [200, 400]);
-    card(wrapper, "OH2ZWA").element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true }));
+    card(wrapper, "OH2ZWA").element.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true }),
+    );
     await wrapper.vm.$nextTick();
     expect(wrapper.findAll(".card.moved")).toHaveLength(0);
     expect(card(wrapper, "OH2ZWA").attributes("style")).toBeUndefined();

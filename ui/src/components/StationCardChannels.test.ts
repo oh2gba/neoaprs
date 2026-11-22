@@ -6,13 +6,23 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { ago, heardBy, NOW, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const fieldsOf = (wrapper: ReturnType<typeof mount>) =>
-  Object.fromEntries(wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]));
+  Object.fromEntries(
+    wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]),
+  );
 /** The station of the tests: the FM radio (radio 1) on, the HF radio (radio 2) off. */
-const TODAY = () => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
+const TODAY = () =>
+  radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
 const card = (row: ReturnType<typeof station>, stations: ReadonlyMap<string, ReturnType<typeof station>> = new Map()) =>
   mount(StationCard, { props: { row, now: NOW, stations }, global: withDaemon(fakeDaemon({ radios: TODAY() })) });
 
-const both = station("OH2BOTH", { heard_rf: 3, heard_is: 2, last_rf_at: ago(180), last_is_at: ago(40), last_heard: ago(40), position_via: "is" });
+const both = station("OH2BOTH", {
+  heard_rf: 3,
+  heard_is: 2,
+  last_rf_at: ago(180),
+  last_is_at: ago(40),
+  last_heard: ago(40),
+  position_via: "is",
+});
 const net = station("OH2NET", {
   heard_rf: 0,
   heard_is: 5,
@@ -38,7 +48,12 @@ describe("the card of a station heard on the Mercury radio", () => {
       last_heard: ago(60),
     });
     expect(fieldsOf(card(both))["Last heard"]).toBe("FM 3 min ago · Mercury 1 min ago");
-    const hf = station("OH2HF", { heard_rf: 2, heard: heardBy([2, 2, ago(60)]), last_rf_at: ago(60), last_heard: ago(60) });
+    const hf = station("OH2HF", {
+      heard_rf: 2,
+      heard: heardBy([2, 2, ago(60)]),
+      last_rf_at: ago(60),
+      last_heard: ago(60),
+    });
     expect(fieldsOf(card(hf))["Last heard"]).toBe("Mercury 1 min ago");
   });
 });
@@ -111,7 +126,9 @@ describe("the card of a station, by channel", () => {
   });
 
   it("counts the packets by channel under Details, the ones from the internet apart from those of an iGate", () => {
-    const wrapper = card(station("OH2ALL", { heard_direct: 1, heard_via: [["OH2RCH-2", 2]], heard_rf_gated: 3, heard_is: 4 }));
+    const wrapper = card(
+      station("OH2ALL", { heard_direct: 1, heard_via: [["OH2RCH-2", 2]], heard_rf_gated: 3, heard_is: 4 }),
+    );
     expect(fieldsOf(wrapper)["Heard"]).toBe("1 direct, 2 via OH2RCH-2, 3 via an iGate, 4 over the internet");
   });
 
@@ -159,11 +176,19 @@ describe("the card of a station, with several radios", () => {
       radioRow(5, "kantronics", { number: 3 }),
       radioRow(6, "dummy", { number: 4 }),
     ];
-    expect(fieldsOf(withRadios(row, ...six))["Last heard"]).toBe("FM: 10 min ago · Shack: 1 min ago · 20 m: 30 s ago · FM 4: 1 h ago · Internet: 20 s ago");
+    expect(fieldsOf(withRadios(row, ...six))["Last heard"]).toBe(
+      "FM: 10 min ago · Shack: 1 min ago · 20 m: 30 s ago · FM 4: 1 h ago · Internet: 20 s ago",
+    );
   });
 
   it("says FM and Mercury for the owner's two radios", () => {
-    const both = station("OH2FMHF", { heard_rf: 5, heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]), last_heard: ago(60) });
-    expect(fieldsOf(withRadios(both, radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")))["Last heard"]).toBe("FM 3 min ago · Mercury 1 min ago");
+    const both = station("OH2FMHF", {
+      heard_rf: 5,
+      heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]),
+      last_heard: ago(60),
+    });
+    expect(fieldsOf(withRadios(both, radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")))["Last heard"]).toBe(
+      "FM 3 min ago · Mercury 1 min ago",
+    );
   });
 });

@@ -29,22 +29,27 @@ describe("qrMatrix", () => {
     expect(new TextEncoder().encode(fixture.longest_local.text).length).toBeGreaterThan(100);
   });
 
-  it.each(GOLDENS)("makes %s module for module as Nayuki's encoder, inside a quiet zone of four light modules", (_, golden) => {
-    const matrix = qrMatrix(golden.text);
-    const n = golden.rows.length;
-    expect(n).toBe(golden.version * 4 + 17);
-    expect(matrix).toHaveLength(n + 2 * QUIET);
-    expect(matrix.every((row) => row.length === n + 2 * QUIET)).toBe(true);
-    const inner = matrix.slice(QUIET, QUIET + n).map((row) =>
-      row
-        .slice(QUIET, QUIET + n)
-        .map((dark) => (dark ? "1" : "0"))
-        .join(""),
-    );
-    expect(inner).toEqual(golden.rows);
-    const quiet = matrix.flatMap((row, y) => row.filter((dark, x) => dark && (y < QUIET || y >= QUIET + n || x < QUIET || x >= QUIET + n)));
-    expect(quiet).toEqual([]);
-  });
+  it.each(GOLDENS)(
+    "makes %s module for module as Nayuki's encoder, inside a quiet zone of four light modules",
+    (_, golden) => {
+      const matrix = qrMatrix(golden.text);
+      const n = golden.rows.length;
+      expect(n).toBe(golden.version * 4 + 17);
+      expect(matrix).toHaveLength(n + 2 * QUIET);
+      expect(matrix.every((row) => row.length === n + 2 * QUIET)).toBe(true);
+      const inner = matrix.slice(QUIET, QUIET + n).map((row) =>
+        row
+          .slice(QUIET, QUIET + n)
+          .map((dark) => (dark ? "1" : "0"))
+          .join(""),
+      );
+      expect(inner).toEqual(golden.rows);
+      const quiet = matrix.flatMap((row, y) =>
+        row.filter((dark, x) => dark && (y < QUIET || y >= QUIET + n || x < QUIET || x >= QUIET + n)),
+      );
+      expect(quiet).toEqual([]);
+    },
+  );
 });
 
 describe("qrPath", () => {

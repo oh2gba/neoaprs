@@ -17,7 +17,13 @@ import { t } from "@/i18n";
 import { clips, dbText, gainText } from "@/lib/hflevel";
 import { typeOf, type PageRadio } from "@/lib/radios";
 
-const props = defineProps<{ id: string; settings: Settings; form: SettingsFormState; radio: PageRadio; settingKey: string }>();
+const props = defineProps<{
+  id: string;
+  settings: Settings;
+  form: SettingsFormState;
+  radio: PageRadio;
+  settingKey: string;
+}>();
 /** The gain range from the radio type's field (none: the level is not moved). */
 const range = computed(() => typeOf(props.radio)?.fields.find((field) => field.key === "tx_gain_db")?.range ?? [0, 0]);
 const min = computed(() => range.value[0]);
@@ -59,7 +65,14 @@ function move(by: number): void {
     <label :for="`${id}-up`">{{ t("settings.txlevel.label") }}</label>
     <div class="field-control txlevel-control">
       <template v-if="known">
-        <CardSlider v-if="card !== null" :id="`${id}-up`" :label="t('settings.txlevel.label')" :setting-key="cardKey" :level="card" :form="form" />
+        <CardSlider
+          v-if="card !== null"
+          :id="`${id}-up`"
+          :label="t('settings.txlevel.label')"
+          :setting-key="cardKey"
+          :level="card"
+          :form="form"
+        />
         <template v-else>
           <button
             class="btn stepbtn"
@@ -90,7 +103,9 @@ function move(by: number): void {
         >
       </template>
     </div>
-    <output v-if="peakShown" class="mono txlevel-peak" :class="{ clip: clips(peak) }">{{ t("settings.txlevel.peak", { value: dbText(peak) }) }}</output>
+    <output v-if="peakShown" class="mono txlevel-peak" :class="{ clip: clips(peak) }">{{
+      t("settings.txlevel.peak", { value: dbText(peak) })
+    }}</output>
   </div>
 </template>
 

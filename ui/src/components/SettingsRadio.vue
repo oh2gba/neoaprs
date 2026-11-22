@@ -69,7 +69,13 @@ watch(lastError, (toast) => {
 </script>
 
 <template>
-  <SettingsSwitch v-if="!guide && keys.includes(RX_ONLY_KEY)" :name="RX_ONLY_KEY" :settings="settings" :form="form" :defaults="defaults" />
+  <SettingsSwitch
+    v-if="!guide && keys.includes(RX_ONLY_KEY)"
+    :name="RX_ONLY_KEY"
+    :settings="settings"
+    :form="form"
+    :defaults="defaults"
+  />
   <RadioBox
     v-for="radio in boxes"
     :key="radio.id"

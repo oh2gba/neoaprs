@@ -14,14 +14,19 @@ import { ref } from "vue";
 import { vi } from "vitest";
 
 function make(props: Record<string, unknown> = {}) {
-  return mount(LocationField, { props: { id: "loc", place: "60.17 N, 24.94 E · KP20le", picking: false, lat: "60.17", lon: "24.94", ...props } });
+  return mount(LocationField, {
+    props: { id: "loc", place: "60.17 N, 24.94 E · KP20le", picking: false, lat: "60.17", lon: "24.94", ...props },
+  });
 }
 
 describe("LocationField", () => {
   it("is one row: the plain Choose on map button at the left and, beside it, the place as text that is a button", () => {
     const wrapper = make();
     const control = wrapper.find(".field-control");
-    expect([...control.element.children].map((c) => c.tagName + "." + c.className.split(" ")[0])).toEqual(["BUTTON.btn", "BUTTON.location-place"]);
+    expect([...control.element.children].map((c) => c.tagName + "." + c.className.split(" ")[0])).toEqual([
+      "BUTTON.btn",
+      "BUTTON.location-place",
+    ]);
     expect(wrapper.find(".location-pick").classes()).not.toContain("primary");
     expect(wrapper.find(".location-place").attributes("type")).toBe("button");
     expect(wrapper.find(".location-place").text()).toBe("60.17 N, 24.94 E · KP20le");
@@ -61,7 +66,10 @@ describe("LocationField", () => {
     const always = make({ alwaysOpen: true });
     expect(always.find(".location-entry").exists()).toBe(true);
     expect(always.find(".location-place").exists()).toBe(false);
-    expect([always.find(".location-shown").element.tagName, always.find(".location-shown").text()]).toEqual(["SPAN", "60.17 N, 24.94 E · KP20le"]);
+    expect([always.find(".location-shown").element.tagName, always.find(".location-shown").text()]).toEqual([
+      "SPAN",
+      "60.17 N, 24.94 E · KP20le",
+    ]);
     expect(
       make({ errors: { lon: "Between -180 and 180" } })
         .find(".location-entry")
@@ -140,7 +148,10 @@ describe("LocationField", () => {
 
 describe("the one Location control", () => {
   it("is the same component in the My station tab, the Objects form and the first-run guide, where the place is plain text and the entry is open from the start", async () => {
-    const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(fakeDaemon({ config: configValues() })) });
+    const beacon = mount(SettingsForm, {
+      props: { scope: "beacon" },
+      global: withDaemon(fakeDaemon({ config: configValues() })),
+    });
     const form = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
     form.place(60.17, 24.94);
     const objects = mount(ObjectForm, { props: { form } });
@@ -153,7 +164,9 @@ describe("the one Location control", () => {
       const row = wrapper.find(".location-field");
       return {
         children: [...row.element.children].map((c) => c.className.split(" ")[0]),
-        control: [...row.find(".field-control").element.children].map((c) => c.tagName + "." + c.className.split(" ")[0]),
+        control: [...row.find(".field-control").element.children].map(
+          (c) => c.tagName + "." + c.className.split(" ")[0],
+        ),
         label: row.find(".field-label").text(),
         button: [row.find(".location-pick").text(), row.find(".location-pick").classes().includes("primary")],
         place: row.find(".location-place, .location-shown").text(),
@@ -168,7 +181,11 @@ describe("the one Location control", () => {
     for (const wrapper of [beacon, objects, setup]) {
       expect(wrapper.find(".location-pick").classes()).not.toContain("primary");
       if (wrapper !== setup) await wrapper.find(".location-place").trigger("click");
-      expect(wrapper.findAll(".location-entry label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
+      expect(wrapper.findAll(".location-entry label").map((l) => l.text())).toEqual([
+        "Latitude",
+        "Longitude",
+        "Locator",
+      ]);
     }
   });
 });

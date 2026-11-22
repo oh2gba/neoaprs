@@ -6,7 +6,18 @@
 import { t } from "@/i18n";
 
 // ordered by importance: raw packets and settings last
-export const TAB_IDS = ["messages", "stations", "nearby", "email", "bulletins", "skeds", "objects", "beacon", "packets", "settings"] as const;
+export const TAB_IDS = [
+  "messages",
+  "stations",
+  "nearby",
+  "email",
+  "bulletins",
+  "skeds",
+  "objects",
+  "beacon",
+  "packets",
+  "settings",
+] as const;
 export type TabId = (typeof TAB_IDS)[number];
 
 /** The tabs offered, in TAB_IDS order: HF tests (`skeds`) only while an HF radio is on. */

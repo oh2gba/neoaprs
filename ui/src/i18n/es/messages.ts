@@ -52,7 +52,11 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "messages.state.rejected": "rechazado",
   "messages.state.failed": "sin respuesta tras {n} intentos",
   "messages.state.too_long_for_radio": "demasiado largo para la radio",
-  "messages.state.unconfirmed": { "=1": "enviado una vez, sin acuse", "=2": "enviado dos veces, sin acuse", other: "enviado {n} veces, sin acuse" },
+  "messages.state.unconfirmed": {
+    "=1": "enviado una vez, sin acuse",
+    "=2": "enviado dos veces, sin acuse",
+    other: "enviado {n} veces, sin acuse",
+  },
   "messages.state.cancelled": { "=1": "cancelado tras {n} intento", other: "cancelado tras {n} intentos" },
 
   "messages.mark.acked": "con acuse",
@@ -111,17 +115,21 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "route.own": "Tu ruta: {path}",
   "route.rf_only": "Solo RF",
   "route.rf_only_title": "Los iGates no pasan estos mensajes a internet",
-  "route.request_path_tip": "Indicativos o alias separados por comas (OH2RDK-7,OH2RCH-2 o WIDE1-1,WIDE2-1), DIRECT para ninguno. Vacío es la ruta habitual.",
-  "route.request_rf_only_tip": "Añade RFONLY a la ruta: los iGates no pasan la petición a internet, y solo responden las estaciones al alcance de radio.",
+  "route.request_path_tip":
+    "Indicativos o alias separados por comas (OH2RDK-7,OH2RCH-2 o WIDE1-1,WIDE2-1), DIRECT para ninguno. Vacío es la ruta habitual.",
+  "route.request_rf_only_tip":
+    "Añade RFONLY a la ruta: los iGates no pasan la petición a internet, y solo responden las estaciones al alcance de radio.",
   "pathbuilder.open": "Construir la ruta",
   "pathbuilder.title": "Construir una ruta",
   "pathbuilder.cancel": "Cancelar",
   "pathbuilder.use": "Usar",
   "pathbuilder.direct": "Directo",
-  "pathbuilder.tip1": "WIDEn-N: n es cuántos saltos pide la ruta y N cuántos quedan. Cada digipeater que la repite resta uno a N; en 0 se detiene.",
+  "pathbuilder.tip1":
+    "WIDEn-N: n es cuántos saltos pide la ruta y N cuántos quedan. Cada digipeater que la repite resta uno a N; en 0 se detiene.",
   "pathbuilder.tip2":
     "WIDE1-1 es un salto por cualquier digipeater, también uno de relleno (fill-in). WIDE2-1 es un salto y WIDE2-2 dos, solo por digipeaters amplios.",
-  "pathbuilder.tip3": "Dos saltos en total llegan bastante lejos casi en todas partes; más solo saturan el canal, y muchos digipeaters los cortan.",
+  "pathbuilder.tip3":
+    "Dos saltos en total llegan bastante lejos casi en todas partes; más solo saturan el canal, y muchos digipeaters los cortan.",
   "pathbuilder.tip4": "Un digipeater nombrado (OH2RDK-7) es un salto por exactamente ese.",
   "pathbuilder.reach_direct": "Sin digipeater: solo las estaciones que te oyen",
   "pathbuilder.reach_title": { one: "{n} salto en total: {path}", other: "{n} saltos en total: {path}" },
@@ -145,7 +153,8 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "pathbuilder.many": "{n} saltos: más de los {most} que admite la mayoría de las redes",
   "pathbuilder.bad.shape": "{alias} no es una ruta: en WIDEn-N, n y N van de 1 a 7",
   "pathbuilder.bad.used_up": "{alias} no tiene saltos restantes: ningún digipeater lo repite",
-  "pathbuilder.bad.more_left": "{alias} no es una ruta: N ({left}) nunca es mayor que n ({n}); los digipeaters de relleno solo responden a WIDE1-1",
+  "pathbuilder.bad.more_left":
+    "{alias} no es una ruta: N ({left}) nunca es mayor que n ({n}); los digipeaters de relleno solo responden a WIDE1-1",
   "pathbuilder.as_it_comes": "Como llegan sus paquetes",
   "pathbuilder.no_route": "No se conoce ninguna ruta de sus paquetes",
   "pathbuilder.hops_label": "Saltos",
@@ -156,7 +165,10 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "pathbuilder.add": "Añadir",
   "pathbuilder.heard": "Digipeaters oídos",
   "pathbuilder.next_to": "Junto a {call}",
-  "pathbuilder.seen_next": { one: "Junto a {call} en las rutas de {n} estación", other: "Junto a {call} en las rutas de {n} estaciones" },
+  "pathbuilder.seen_next": {
+    one: "Junto a {call} en las rutas de {n} estación",
+    other: "Junto a {call} en las rutas de {n} estaciones",
+  },
   "pathbuilder.add_hop": "Añadir {call}",
 
   "compose.tnc_not_connected": "La radio no está conectada",

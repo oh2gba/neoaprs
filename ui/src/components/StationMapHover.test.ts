@@ -18,7 +18,13 @@ const stations = () =>
       bearing_deg: 270,
       last_route: "via OH2RCH-2",
     }),
-    station("OH2MUI", { lat: 60.3, lon: 25.1, last_route: "direct", symbol_code: "_", weather: weather({ temp_c: 10 }) }),
+    station("OH2MUI", {
+      lat: 60.3,
+      lon: 25.1,
+      last_route: "direct",
+      symbol_code: "_",
+      weather: weather({ temp_c: 10 }),
+    }),
   );
 const props = (extra = {}) => ({
   stations: stations(),
@@ -30,7 +36,8 @@ const props = (extra = {}) => ({
   aging: { defaultMin: 0 },
   ...extra,
 });
-const markerOf = (call: string) => FakeMarker.live().find((m) => m.element.textContent === call)?.element as HTMLElement;
+const markerOf = (call: string) =>
+  FakeMarker.live().find((m) => m.element.textContent === call)?.element as HTMLElement;
 const card = () => document.querySelector<HTMLElement>(".hovercard");
 const shown = () => card() !== null && !card()?.hidden;
 
@@ -66,7 +73,8 @@ describe("the card of a station under the pointer", () => {
     vi.advanceTimersByTime(60);
     expect(shown()).toBe(true);
     const text = card()?.textContent ?? "";
-    for (const part of ["OH2PU-9", "Car", "2 min ago", "On the road", "Going home", "21 km, 270° W", "via OH2RCH-2"]) expect(text).toContain(part);
+    for (const part of ["OH2PU-9", "Car", "2 min ago", "On the road", "Going home", "21 km, 270° W", "via OH2RCH-2"])
+      expect(text).toContain(part);
   });
 
   it("says heard direct and the temperature of a weather station", async () => {

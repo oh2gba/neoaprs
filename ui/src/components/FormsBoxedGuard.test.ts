@@ -9,11 +9,13 @@ import { describe, expect, it } from "vitest";
 const COMPONENTS = resolve(__dirname);
 
 const FORMS: Record<string, string> = {
-  "ComposeBar.vue": "the box of every form of the Bulletins, Email and Objects tabs: a fieldset with its legend unless it is `inline` (the chat line)",
+  "ComposeBar.vue":
+    "the box of every form of the Bulletins, Email and Objects tabs: a fieldset with its legend unless it is `inline` (the chat line)",
   "SettingsForm.vue": "the Settings and My station tabs: a fieldset for each group",
   "SetupGuide.vue": "a dialog: the panel is the box, the steps are its pages",
   "KeyScreen.vue": "the gate before the page: one field and its button on the whole screen",
-  "StationQuery.vue": "the operator's own query in the station panel of the Stations tab: one field and its button in a line, inside the panel's group box",
+  "StationQuery.vue":
+    "the operator's own query in the station panel of the Stations tab: one field and its button in a line, inside the panel's group box",
 };
 
 describe("every form of fields is a group box", () => {

@@ -7,7 +7,9 @@ describe("the alert's Test and the socket", () => {
   it("stops waiting when the socket closes: the answer is lost with it", async () => {
     const connection = shallowRef<Connection>("open");
     const scope = effectScope();
-    const alert = scope.run(() => useAlertTest(shallowRef(null), shallowRef(null), () => true, { [ALERT_KEY]: "beep" }, ref("beep"), connection));
+    const alert = scope.run(() =>
+      useAlertTest(shallowRef(null), shallowRef(null), () => true, { [ALERT_KEY]: "beep" }, ref("beep"), connection),
+    );
     if (!alert) throw new Error("no scope");
     alert.test();
     expect(alert.running.value).toBe(true);

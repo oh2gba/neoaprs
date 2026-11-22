@@ -48,7 +48,12 @@ export function emailBytesLeft(to: string, text: string): number {
 export function canSendEmail(connected: boolean, to: string, text: string): boolean {
   const addressee = to.trim();
   return (
-    connected && addressee !== "" && !/\s/.test(addressee) && text.trim() !== "" && emailBytesLeft(to, text) >= 0 && textRefusal(emailLine(to, text)) === null
+    connected &&
+    addressee !== "" &&
+    !/\s/.test(addressee) &&
+    text.trim() !== "" &&
+    emailBytesLeft(to, text) >= 0 &&
+    textRefusal(emailLine(to, text)) === null
   );
 }
 

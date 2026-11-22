@@ -5,20 +5,38 @@ import type { Message } from "@/i18n/message";
 export const objects: Record<keyof typeof source, Message> = {
   "schedule.sent": { "=0": "ainda não enviado", "=1": "enviado uma vez", other: "enviado {n} vezes" },
   "schedule.ended": { "=1": "enviado uma vez, encerrado", other: "enviado {n} vezes, encerrado" },
-  "schedule.next": { "=0": "ainda não enviado, próximo {when}", "=1": "enviado uma vez, próximo {when}", other: "enviado {n} vezes, próximo {when}" },
-  "schedule.waiting": { "=0": "ainda não enviado, aguardando", "=1": "enviado uma vez, aguardando", other: "enviado {n} vezes, aguardando" },
-  "schedule.killing": { "=0": "encerrando, ainda não enviado", "=1": "encerrando, enviado uma vez", other: "encerrando, enviado {n} vezes" },
+  "schedule.next": {
+    "=0": "ainda não enviado, próximo {when}",
+    "=1": "enviado uma vez, próximo {when}",
+    other: "enviado {n} vezes, próximo {when}",
+  },
+  "schedule.waiting": {
+    "=0": "ainda não enviado, aguardando",
+    "=1": "enviado uma vez, aguardando",
+    other: "enviado {n} vezes, aguardando",
+  },
+  "schedule.killing": {
+    "=0": "encerrando, ainda não enviado",
+    "=1": "encerrando, enviado uma vez",
+    other: "encerrando, enviado {n} vezes",
+  },
   "schedule.on_request": "enviado só quando pedido",
 
   "objects.none": "Nenhum objeto.",
   "objects.list": "Objetos",
   "objects.mine": "Meus objetos",
   "objects.about_label": "Sobre objetos",
-  "objects.about1": "Um objeto é um marcador que você coloca no mapa para algo que não é uma estação: um repetidor, um ponto de encontro, um evento.",
+  "objects.about1":
+    "Um objeto é um marcador que você coloca no mapa para algo que não é uma estação: um repetidor, um ponto de encontro, um evento.",
   "objects.about2": "Todos perto de você o veem, enquanto você o enviar.",
   "objects.edit_label": "Editar {name}",
   "objects.delete_title": "Excluir (encerrar no ar)",
-  "objects.delete_label": { select: "kind", object: "Excluir o objeto {name}", item: "Excluir o item {name}", other: "Excluir o objeto {name}" },
+  "objects.delete_label": {
+    select: "kind",
+    object: "Excluir o objeto {name}",
+    item: "Excluir o item {name}",
+    other: "Excluir o objeto {name}",
+  },
   "objects.kind_word": { select: "kind", object: "objeto", item: "item", other: "objeto" },
   "objects.in_group": "Categoria: {group}",
   "objects.category.rp2m": "Repetidora de 2 m",
@@ -54,7 +72,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.category.other": "Outra…",
   "objects.qru": "Info local",
   "objects.qru_tip_label": "Sobre a info local",
-  "objects.qru_tip": "Pede às estações próximas os objetos delas (APRS QRU): repetidoras, eventos, lugares. Enviado só por rádio.",
+  "objects.qru_tip":
+    "Pede às estações próximas os objetos delas (APRS QRU): repetidoras, eventos, lugares. Enviado só por rádio.",
   "objects.qru_ask": "Perguntar",
   "objects.qru_km": "km",
   "objects.qru_km_label": "Distância em km",
@@ -96,7 +115,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.speed": "A velocidade com que ele se move, em km/h. Deixe os dois vazios para um objeto parado.",
   "objects.tip.path": "Os digipeaters que seus pacotes pedem. Vazio usa o caminho da sua baliza.",
   "objects.tip.category": "Dê a um objeto uma categoria para oferecê-lo às estações que pedem info local.",
-  "objects.tip.category_code": "Sua própria categoria: até {max} letras ou dígitos, não INFO nem NEXT. As estações pedem por esta palavra.",
+  "objects.tip.category_code":
+    "Sua própria categoria: até {max} letras ou dígitos, não INFO nem NEXT. As estações pedem por esta palavra.",
   "objects.tip.on_request": "Não é enviado em baliza; só vai para a estação que pede info local.",
   "objects.sent_on": "Enviado pelo rádio {name}",
 

@@ -13,7 +13,11 @@ import type { PageRadio, RadioId } from "@/lib/radios";
  * several: a line for each, "FM: not connected"), or there is none. Undefined while one is
  * connected, and while `told` is false (before the daemon has told its radios).
  */
-export function radiosBlockedReason(on: readonly PageRadio[], named: (id: RadioId) => boolean, told: boolean): string | undefined {
+export function radiosBlockedReason(
+  on: readonly PageRadio[],
+  named: (id: RadioId) => boolean,
+  told: boolean,
+): string | undefined {
   if (!told || on.some((radio) => radio.connected)) return undefined;
   const [one] = on;
   return on.length > 1 ? notConnectedWhy(on) : radioBlockedReason(one, one !== undefined && named(one.id), told);
@@ -23,7 +27,11 @@ export function radiosBlockedReason(on: readonly PageRadio[], named: (id: RadioI
  * The names of the radios something went on, for the front of its line ("FM and Mercury"): those
  * that are named (several radios on, or a radio that is off); "" while none is.
  */
-export function radiosNamed(ids: readonly RadioId[], byId: (id: RadioId) => PageRadio | undefined, named: (id: RadioId) => boolean): string {
+export function radiosNamed(
+  ids: readonly RadioId[],
+  byId: (id: RadioId) => PageRadio | undefined,
+  named: (id: RadioId) => boolean,
+): string {
   const names = ids
     .filter(named)
     .map((id) => byId(id)?.name ?? "")

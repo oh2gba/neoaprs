@@ -53,7 +53,11 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.state.rejected": "rejeitada",
   "messages.state.failed": "sem resposta após {n} tentativas",
   "messages.state.too_long_for_radio": "longa demais para o rádio",
-  "messages.state.unconfirmed": { "=1": "enviada uma vez, sem ack", "=2": "enviada duas vezes, sem ack", other: "enviada {n} vezes, sem ack" },
+  "messages.state.unconfirmed": {
+    "=1": "enviada uma vez, sem ack",
+    "=2": "enviada duas vezes, sem ack",
+    other: "enviada {n} vezes, sem ack",
+  },
   "messages.state.cancelled": { "=1": "cancelada após {n} tentativa", other: "cancelada após {n} tentativas" },
 
   "messages.mark.acked": "confirmada",
@@ -114,16 +118,19 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.rf_only_title": "Os iGates não colocam estas mensagens na internet",
   "route.request_path_tip":
     "Indicativos ou aliases separados por vírgulas (OH2RDK-7,OH2RCH-2 ou WIDE1-1,WIDE2-1), DIRECT para nenhum. Vazio é o caminho usual.",
-  "route.request_rf_only_tip": "Acrescenta RFONLY ao caminho: os iGates não passam o pedido à internet, e só respondem as estações ao alcance do rádio.",
+  "route.request_rf_only_tip":
+    "Acrescenta RFONLY ao caminho: os iGates não passam o pedido à internet, e só respondem as estações ao alcance do rádio.",
   "pathbuilder.open": "Montar o caminho",
   "pathbuilder.title": "Montar um caminho",
   "pathbuilder.cancel": "Cancelar",
   "pathbuilder.use": "Usar",
   "pathbuilder.direct": "Direto",
-  "pathbuilder.tip1": "WIDEn-N: n é quantos saltos o caminho pede, N quantos restam. Cada digipeater que o repete tira um de N; em 0 ele para.",
+  "pathbuilder.tip1":
+    "WIDEn-N: n é quantos saltos o caminho pede, N quantos restam. Cada digipeater que o repete tira um de N; em 0 ele para.",
   "pathbuilder.tip2":
     "WIDE1-1 é um salto por qualquer digipeater, também um de preenchimento (fill-in). WIDE2-1 é um salto e WIDE2-2 dois, só por digipeaters amplos.",
-  "pathbuilder.tip3": "Dois saltos no total chegam longe o bastante quase em todo lugar; mais só congestionam o canal, e muitos digipeaters os cortam.",
+  "pathbuilder.tip3":
+    "Dois saltos no total chegam longe o bastante quase em todo lugar; mais só congestionam o canal, e muitos digipeaters os cortam.",
   "pathbuilder.tip4": "Um digipeater nomeado (OH2RDK-7) é um salto por exatamente esse.",
   "pathbuilder.reach_direct": "Sem digipeater: só as estações que ouvem você",
   "pathbuilder.reach_title": { one: "{n} salto no total: {path}", other: "{n} saltos no total: {path}" },
@@ -147,7 +154,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.many": "{n} saltos: mais que os {most} que a maioria das redes aceita",
   "pathbuilder.bad.shape": "{alias} não é um caminho: em WIDEn-N, n e N vão de 1 a 7",
   "pathbuilder.bad.used_up": "{alias} não tem saltos restantes: nenhum digipeater o repete",
-  "pathbuilder.bad.more_left": "{alias} não é um caminho: N ({left}) nunca é maior que n ({n}); digipeaters de preenchimento só respondem a WIDE1-1",
+  "pathbuilder.bad.more_left":
+    "{alias} não é um caminho: N ({left}) nunca é maior que n ({n}); digipeaters de preenchimento só respondem a WIDE1-1",
   "pathbuilder.as_it_comes": "Como chegam seus pacotes",
   "pathbuilder.no_route": "Nenhuma rota conhecida dos seus pacotes",
   "pathbuilder.hops_label": "Saltos",
@@ -158,7 +166,10 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.add": "Adicionar",
   "pathbuilder.heard": "Digipeaters ouvidos",
   "pathbuilder.next_to": "Ao lado de {call}",
-  "pathbuilder.seen_next": { one: "Ao lado de {call} nas rotas de {n} estação", other: "Ao lado de {call} nas rotas de {n} estações" },
+  "pathbuilder.seen_next": {
+    one: "Ao lado de {call} nas rotas de {n} estação",
+    other: "Ao lado de {call} nas rotas de {n} estações",
+  },
   "pathbuilder.add_hop": "Adicionar {call}",
 
   "compose.tnc_not_connected": "O rádio não está conectado",

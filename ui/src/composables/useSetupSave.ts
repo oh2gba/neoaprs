@@ -58,7 +58,9 @@ export function useSetupSave(
    */
   watch(step, (now, before) => {
     if (before !== STEP_OF.lat || now <= before) return;
-    const values = Object.fromEntries(Object.entries(answers.changes.value).filter(([key]) => key === "station/lat" || key === "station/lon"));
+    const values = Object.fromEntries(
+      Object.entries(answers.changes.value).filter(([key]) => key === "station/lat" || key === "station/lon"),
+    );
     send(Object.keys(values).length > 0 ? { cmd: "set_config", values } : { cmd: "map_wanted" });
   });
 

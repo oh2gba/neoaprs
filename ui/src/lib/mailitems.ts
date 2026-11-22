@@ -37,7 +37,8 @@ function outgoing(row: MessageRow): MailItem {
   const split = /^(\S+)\s+(.+)$/.exec(line);
   const to = split?.[1];
   const text = split?.[2]?.trim();
-  if (to === undefined || text === undefined) return { row, kind: "mail", title: t("email.to", { address: line }), text: "", line, address: line };
+  if (to === undefined || text === undefined)
+    return { row, kind: "mail", title: t("email.to", { address: line }), text: "", line, address: line };
   return { row, kind: "mail", title: t("email.to", { address: to }), text, line, address: to };
 }
 
@@ -50,7 +51,8 @@ function incoming(row: MessageRow): MailItem {
   const forwarded = /^<?([^\s@<>]+@[^\s@<>:]+?)>?:?\s+(.+)$/.exec(line);
   const from = forwarded?.[1];
   const text = forwarded?.[2];
-  if (from !== undefined && text !== undefined) return { row, kind: "forwarded", title: t("email.from", { address: from }), text, line, address: from };
+  if (from !== undefined && text !== undefined)
+    return { row, kind: "forwarded", title: t("email.from", { address: from }), text, line, address: from };
   return { row, kind: "reply", title: t("email.from", { address: row.from_call }), text: line, line, address: "" };
 }
 
@@ -73,7 +75,10 @@ export function mailState(row: MessageRow): MailState | null {
   switch (row.state) {
     case "sending":
       return {
-        word: row.attempts === 0 ? t("email.state.waiting") : t("email.state.sending", { attempt: row.attempts, max: row.attempts_max }),
+        word:
+          row.attempts === 0
+            ? t("email.state.waiting")
+            : t("email.state.sending", { attempt: row.attempts, max: row.attempts_max }),
         tone: "plain",
       };
     case "acked":
@@ -97,5 +102,7 @@ export function mailTime(iso: string, nowMs: number): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return dateTimeText(iso);
   const clock = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-  return d.toDateString() === new Date(nowMs).toDateString() ? clock : t("email.date_time", { day: d.getDate(), month: monthShort(d), time: clock });
+  return d.toDateString() === new Date(nowMs).toDateString()
+    ? clock
+    : t("email.date_time", { day: d.getDate(), month: monthShort(d), time: clock });
 }

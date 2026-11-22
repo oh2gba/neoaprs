@@ -2,7 +2,15 @@ import "@/test/mockmap";
 import { describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeSocket } from "@/test/fakesocket";
-import { APP_WINDOWS, FakeAudioContext, FakeNotification, openedAt, openedInApp, setSeen, stubBrowser } from "@/test/fakealert";
+import {
+  APP_WINDOWS,
+  FakeAudioContext,
+  FakeNotification,
+  openedAt,
+  openedInApp,
+  setSeen,
+  stubBrowser,
+} from "@/test/fakealert";
 import { MODE_KEY } from "@/lib/alertmode";
 import { clockText } from "@/lib/format";
 import { hello, incoming, message } from "@/test/fixtures";
@@ -18,10 +26,15 @@ describe("App: the alert of this browser", () => {
     stubBrowser();
     const { wrapper } = await open();
     await tabButton(wrapper, "Settings")?.trigger("click");
-    const groups = wrapper.findAll("#pane-settings fieldset").filter((g) => g.find("legend").text() === "Notifications");
+    const groups = wrapper
+      .findAll("#pane-settings fieldset")
+      .filter((g) => g.find("legend").text() === "Notifications");
     expect(groups).toHaveLength(1);
     const boxes = groups[0]?.findAll("fieldset.subbox") ?? [];
-    expect(boxes.map((b) => b.find("legend").text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
+    expect(boxes.map((b) => b.find("legend").text().replace(/ i$/, ""))).toEqual([
+      "On the NeoAPRS computer",
+      "In this browser",
+    ]);
     expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Command"]);
     // The loopback starts unticked: no tests.
     expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me"]);
@@ -30,7 +43,10 @@ describe("App: the alert of this browser", () => {
     await boxes[1]?.find("#alert-mode").setValue(true);
     await flushPromises();
     expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Sound", "Notification"]);
-    expect(boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test notification"]);
+    expect(boxes[1]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual([
+      "Test sound",
+      "Test notification",
+    ]);
     expect(groups[0]?.findAll("h3")).toHaveLength(0);
   });
 
@@ -52,7 +68,9 @@ describe("App: the alert of this browser", () => {
         boxes.map((b) => b.find("legend").text().replace(/ i$/, "")),
         name,
       ).toEqual(["On this computer"]);
-      expect(boxes[0]?.find("legend").attributes("title"), name).toBe("NeoAPRS's own alert: the command run on this computer");
+      expect(boxes[0]?.find("legend").attributes("title"), name).toBe(
+        "NeoAPRS's own alert: the command run on this computer",
+      );
       expect(
         boxes[0]?.findAll("label").map((l) => l.text()),
         name,
@@ -61,7 +79,9 @@ describe("App: the alert of this browser", () => {
       expect(
         boxes[0]?.findAll(".info-text .info-line").map((l) => l.text()),
         name,
-      ).toEqual(["The alert of this computer: it runs the Command for each new message, by default a sound and a notification."]);
+      ).toEqual([
+        "The alert of this computer: it runs the Command for each new message, by default a sound and a notification.",
+      ]);
       expect(group?.text(), name).not.toMatch(/browser|server|window|pop-up/i);
       expect(FakeNotification.asked, name).toBe(0);
       socket.hangUp();
@@ -141,7 +161,12 @@ describe("App: the alert of this browser", () => {
     vi.useRealTimers();
     const again = FakeSocket.last();
     again.say(hello());
-    again.say({ type: "state", topic: "messages", rev: 0, value: { ...messages, "4": incoming(4, "OH2DPN", { text: "Moi!" }) } });
+    again.say({
+      type: "state",
+      topic: "messages",
+      rev: 0,
+      value: { ...messages, "4": incoming(4, "OH2DPN", { text: "Moi!" }) },
+    });
     await flushPromises();
     expect(FakeAudioContext.played()).toBe(2);
   });

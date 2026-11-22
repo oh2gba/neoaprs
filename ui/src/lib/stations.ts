@@ -89,7 +89,16 @@ export function itemLabel(item: PanelItem, row: StationRow, armed: boolean): str
   }
 }
 
-export type SortKey = "call" | "distance_km" | "bearing_deg" | "last_heard" | "last_position_at" | "last_direct_at" | "packets" | "last_path" | "temp_c";
+export type SortKey =
+  | "call"
+  | "distance_km"
+  | "bearing_deg"
+  | "last_heard"
+  | "last_position_at"
+  | "last_direct_at"
+  | "packets"
+  | "last_path"
+  | "temp_c";
 export interface Sort {
   key: SortKey;
   /** 1 ascending, -1 descending. */
@@ -99,7 +108,13 @@ export interface Sort {
 /** The order a column starts in when clicked: call and path from A, the rest (distance, age,
  * packets) nearest, newest, most first. */
 export function firstDirection(key: SortKey): 1 | -1 {
-  return key === "last_heard" || key === "last_position_at" || key === "last_direct_at" || key === "packets" || key === "temp_c" ? -1 : 1;
+  return key === "last_heard" ||
+    key === "last_position_at" ||
+    key === "last_direct_at" ||
+    key === "packets" ||
+    key === "temp_c"
+    ? -1
+    : 1;
 }
 
 function sortValue(row: StationRow, key: SortKey): string | number | null {
@@ -154,14 +169,18 @@ export function rowSymbolName(row: Pick<StationRow, "symbol_table" | "symbol_cod
 
 /** The symbol name with its owner: "Car (ours)" for our object or item, and with `me` "Car (our
  * station)" for our own station. */
-export function symbolLabel(row: Pick<StationRow, "symbol_table" | "symbol_code" | "own" | "is_me">, me = false): string {
+export function symbolLabel(
+  row: Pick<StationRow, "symbol_table" | "symbol_code" | "own" | "is_me">,
+  me = false,
+): string {
   const name = rowSymbolName(row);
   return me && row.is_me ? t("station.symbol.me", { name }) : row.own ? t("station.symbol.own", { name }) : name;
 }
 
 function matches(row: StationRow, needle: string): boolean {
   if (needle === "") return true;
-  const text = `${row.call} ${rowSymbolName(row)} ${row.last_comment} ${row.last_status} ${row.last_path.join(",")} ${row.reported_by}`.toLowerCase();
+  const text =
+    `${row.call} ${rowSymbolName(row)} ${row.last_comment} ${row.last_status} ${row.last_path.join(",")} ${row.reported_by}`.toLowerCase();
   return text.includes(needle);
 }
 
@@ -172,7 +191,12 @@ export function listStations(rows: Iterable<StationRow>, options: ListOptions): 
   const needle = options.filter.trim().toLowerCase();
   const gone = options.hideTimedOut === true && options.timedOut ? options.timedOut : () => false;
   const kept = [...rows].filter(
-    (r) => r.is_me || ((options.directOnly !== true || directAt(r) !== null) && (options.rfOnly !== true || onAir(r)) && !gone(r) && matches(r, needle)),
+    (r) =>
+      r.is_me ||
+      ((options.directOnly !== true || directAt(r) !== null) &&
+        (options.rfOnly !== true || onAir(r)) &&
+        !gone(r) &&
+        matches(r, needle)),
   );
   const { key, dir } = options.sort;
   // A station past its timeout sorts after the live ones, whatever the column.
@@ -188,7 +212,10 @@ export function listStations(rows: Iterable<StationRow>, options: ListOptions): 
 
 /** The rows with our own station drawn as the settings say when its row has no symbol of its own;
  * the same array when nothing changes. */
-export function withOwnSymbol(rows: ReadonlyMap<string, StationRow>, settings: Readonly<Record<string, string>> | undefined): ReadonlyMap<string, StationRow> {
+export function withOwnSymbol(
+  rows: ReadonlyMap<string, StationRow>,
+  settings: Readonly<Record<string, string>> | undefined,
+): ReadonlyMap<string, StationRow> {
   const table = settings?.["station/symbol_table"] ?? "";
   const code = settings?.["station/symbol_code"] ?? "";
   if (table === "" || code === "") return rows;

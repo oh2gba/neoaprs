@@ -29,7 +29,9 @@ export function useRadioAsks(
   const looking = shallowRef<readonly (() => RadioId | null)[]>([]);
   const asked = computed<readonly RadioId[]>((old) => {
     const wanted = visible.value && connection.value === "open" ? looking.value.map((pane) => pane()) : [];
-    const ids = (offered() ?? [...new Set(wanted)].filter((id): id is RadioId => id !== null).sort((a, b) => a - b)).filter((radio) => wanted.includes(radio));
+    const ids = (
+      offered() ?? [...new Set(wanted)].filter((id): id is RadioId => id !== null).sort((a, b) => a - b)
+    ).filter((radio) => wanted.includes(radio));
     return keepList(old, ids);
   });
   // At once, not on the next tick: a pane that looks from its first moment asks in that moment. A
@@ -37,7 +39,8 @@ export function useRadioAsks(
   watch(
     asked,
     (now, was = []) => {
-      if (connection.value === "open") for (const radio of was.filter((id) => !now.includes(id))) send({ cmd, radio, on: false });
+      if (connection.value === "open")
+        for (const radio of was.filter((id) => !now.includes(id))) send({ cmd, radio, on: false });
       for (const radio of now.filter((id) => !was.includes(id))) send({ cmd, radio, on: true });
     },
     { flush: "sync" },

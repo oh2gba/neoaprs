@@ -60,7 +60,8 @@ function connectingText(gps: GpsState, values: Readonly<Record<string, string>>)
   const host = (values["gps/host"] ?? "").trim();
   const device = (values["gps/device"] ?? "").trim();
   if (gps.source === "gpsd" && host !== "") return t("gps.connecting_gpsd", { host });
-  if (gps.source === "serial" && device !== "") return t("gps.connecting_serial", { device, baud: values["gps/baud"] ?? "" });
+  if (gps.source === "serial" && device !== "")
+    return t("gps.connecting_serial", { device, baud: values["gps/baud"] ?? "" });
   return t("gps.connecting");
 }
 
@@ -75,7 +76,9 @@ export function gpsStatus(gps: GpsState, values: Readonly<Record<string, string>
   if (gps.state === "stale" && gps.fix_at !== null) return t("gps.stale", { span: ageText(gps.fix_at, nowMs) });
   if (gps.state !== "fix" || gps.lat === null || gps.lon === null) return t("gps.no_fix");
   const age = gps.fix_at === null ? [] : [t("time.ago", { span: ageText(gps.fix_at, nowMs) })];
-  return t("gps.fix", { facts: [positionText(gps.lat, gps.lon, FIX_DECIMALS), ...facts(gps), ...age].join(t("gps.separator")) });
+  return t("gps.fix", {
+    facts: [positionText(gps.lat, gps.lon, FIX_DECIMALS), ...facts(gps), ...age].join(t("gps.separator")),
+  });
 }
 
 /**

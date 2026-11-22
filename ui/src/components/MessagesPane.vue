@@ -50,7 +50,9 @@ const radios = useRadios();
 
 /** Whether the link of each group recipient's radio is up (each text is a separate message). */
 const groupConnected = computed(() =>
-  (props.group ?? []).every((call) => (radios.forStation(stations.value.get(call) ?? null) ?? radios.unheard.value)?.connected === true),
+  (props.group ?? []).every(
+    (call) => (radios.forStation(stations.value.get(call) ?? null) ?? radios.unheard.value)?.connected === true,
+  ),
 );
 
 const root = ref<HTMLElement | null>(null);
@@ -69,7 +71,9 @@ async function back(): Promise<void> {
   if (was === null) return;
   emit("select", null);
   await nextTick();
-  [...(root.value?.querySelectorAll<HTMLElement>(".conv") ?? [])].find((row) => row.dataset.call === was)?.focus({ preventScroll: true });
+  [...(root.value?.querySelectorAll<HTMLElement>(".conv") ?? [])]
+    .find((row) => row.dataset.call === was)
+    ?.focus({ preventScroll: true });
 }
 
 /** Esc closes the group compose or leaves the open conversation. Inner Esc handlers go first
@@ -128,7 +132,16 @@ function sent(send: () => void): void {
       @delete="emit('deleteMessage', $event)"
     />
     <div v-else-if="wide" class="convo-empty">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true">
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.4"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M4 5.5h16v10H10l-4.5 3.5V15.5H4z" />
       </svg>
       <p>{{ t("messages.choose") }}</p>

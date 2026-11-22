@@ -21,12 +21,16 @@ import { stubWidth } from "@/test/width";
 /** A station whose one radio on is radio 2, the Mercury modem with a scope. */
 const hfAlone = (over: Given = {}) =>
   fakeDaemon({
-    radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { modem: modemState({ scope: true }) })),
+    radios: radiosTopic(
+      radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }),
+      radioRow(2, "mercury", { modem: modemState({ scope: true }) }),
+    ),
     ...over,
   });
 const rect = (x: number, y: number, w: number, h: number) =>
   ({ x, y, left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, toJSON: () => ({}) }) as DOMRect;
-const scopeCalls = (daemon: ReturnType<typeof fakeDaemon>) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "radio_scope");
+const scopeCalls = (daemon: ReturnType<typeof fakeDaemon>) =>
+  daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "radio_scope");
 
 /** The sizes of the strips the painter made, one for every look it took: a strip is one line of
  * the picture. */
@@ -42,7 +46,10 @@ beforeEach(() => {
         name === "measureText"
           ? () => ({ width: 10 })
           : name === "createImageData"
-            ? (w: number, h: number) => (images.push([w, h]), { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) })
+            ? (w: number, h: number) => (
+                images.push([w, h]),
+                { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }
+              )
             : () => undefined,
       set: () => true,
     },
@@ -89,11 +96,14 @@ describe("MonitorCard", () => {
   it("is dragged by its head where moving is on, stays inside the map, remembers where it was left, and is not dragged on a phone", async () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
       if (!this.classList.contains("monitorcard")) return rect(0, 0, 1200, 800);
-      return this.classList.contains("moved") ? rect(parseFloat(this.style.left), parseFloat(this.style.top), 560, 500) : rect(630, 270, 560, 500);
+      return this.classList.contains("moved")
+        ? rect(parseFloat(this.style.left), parseFloat(this.style.top), 560, 500)
+        : rect(630, 270, 560, 500);
     });
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(800);
-    const mounted = (movable: boolean) => mount(MonitorCard, { props: { movable }, global: withDaemon(hfAlone()), attachTo: document.body });
+    const mounted = (movable: boolean) =>
+      mount(MonitorCard, { props: { movable }, global: withDaemon(hfAlone()), attachTo: document.body });
     const wrapper = mounted(true);
     const el = wrapper.find(".monitorcard").element as HTMLElement;
     const head = wrapper.find(".card-head strong").element;
@@ -191,14 +201,21 @@ describe("the one counting place", () => {
 describe("the card's menu", () => {
   const mounted = () => mount(MonitorCard, { global: withDaemon(hfAlone()), attachTo: document.body });
   const menu = (): HTMLElement | null => document.body.querySelector<HTMLElement>(".monitormenu");
-  const items = (): HTMLButtonElement[] => [...document.body.querySelectorAll<HTMLButtonElement>(".monitormenu [role='menuitemradio']")];
+  const items = (): HTMLButtonElement[] => [
+    ...document.body.querySelectorAll<HTMLButtonElement>(".monitormenu [role='menuitemradio']"),
+  ];
   const words = (): string[] => items().map((item) => (item.textContent ?? "").replace("\u2713", "").trim());
   const checked = (): string[] => items().map((item) => item.getAttribute("aria-checked") ?? "");
   const settle = async (wrapper: { vm: { $nextTick: () => Promise<void> } }): Promise<void> => {
     await wrapper.vm.$nextTick();
     await wrapper.vm.$nextTick();
   };
-  async function rightClick(wrapper: ReturnType<typeof mounted>, selector: string, x = 300, y = 200): Promise<MouseEvent> {
+  async function rightClick(
+    wrapper: ReturnType<typeof mounted>,
+    selector: string,
+    x = 300,
+    y = 200,
+  ): Promise<MouseEvent> {
     const event = new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true, cancelable: true });
     wrapper.find(selector).element.dispatchEvent(event);
     await settle(wrapper);
@@ -254,16 +271,24 @@ describe("the card's menu", () => {
     vi.useFakeTimers();
     try {
       const wrapper = mounted();
-      await wrapper.find(".monitor-picture").trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 60, clientY: 80 });
+      await wrapper
+        .find(".monitor-picture")
+        .trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 60, clientY: 80 });
       vi.advanceTimersByTime(600);
       await settle(wrapper);
       expect(words()).toEqual(["Slow", "Normal", "Fast"]);
       expect(menu()?.getAttribute("style")).toContain("left: 60px");
-      await wrapper.find("[role='meter']").trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 70, clientY: 400 });
+      await wrapper
+        .find("[role='meter']")
+        .trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 70, clientY: 400 });
       vi.advanceTimersByTime(600);
       await settle(wrapper);
       expect(menu()?.getAttribute("style")).toContain("top: 400px"); // (on the receive level too)
-      for (const rule of [/-webkit-touch-callout:\s*none/, /-webkit-user-select:\s*none/, /(^|[^-])user-select:\s*none/])
+      for (const rule of [
+        /-webkit-touch-callout:\s*none/,
+        /-webkit-user-select:\s*none/,
+        /(^|[^-])user-select:\s*none/,
+      ])
         expect(mediaRule("(pointer: coarse)", ".monitorcard .card-body")).toMatch(rule);
       wrapper.unmount();
     } finally {
@@ -300,7 +325,9 @@ describe("the card's menu", () => {
     const wrapper = mounted();
     await rightClick(wrapper, ".monitor-picture canvas");
     const key = (name: string): void =>
-      void document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }));
+      void document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }),
+      );
     const on = (): string | null => (document.activeElement as HTMLElement | null)?.dataset.speed ?? null;
     expect(on()).toBe("slow");
     key("ArrowDown");
@@ -324,7 +351,8 @@ describe("the card's menu", () => {
   it("closes on a choice, draws the same rows again at once at the new speed, and this browser remembers it", async () => {
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(380);
     const rows = useScopeRows();
-    const mountedWith = () => mount(MonitorCard, { global: withDaemon(hfAlone({ scopeOf: rows.of })), attachTo: document.body });
+    const mountedWith = () =>
+      mount(MonitorCard, { global: withDaemon(hfAlone({ scopeOf: rows.of })), attachTo: document.body });
     const speeds = vi.spyOn(Waterfall.prototype, "setSpeed");
     const shows = vi.spyOn(Waterfall.prototype, "show");
     const tall = (): number | undefined => images.at(-1)?.[1]; // (how many pixels high the painter's line is)
@@ -405,7 +433,8 @@ describe("the card's menu", () => {
 });
 
 /** A Mercury radio whose modem has the interface (or has not, `scope` false). */
-const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow => radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
+const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow =>
+  radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
 
 /** The page's context with these radios, its counting of who looks given the topic `radios` and
  * the page's rows, as the page makes it. */
@@ -435,7 +464,11 @@ describe("the card by radio", () => {
   });
 
   it("with several radios with a scope, shows the first until another is chosen in the map's menu, then that one's, and names it", async () => {
-    const { daemon, card } = station(radioRow(1, "kenwood-tnc2"), mercury(2, { name: "20 m" }), mercury(5, { name: "40 m" }));
+    const { daemon, card } = station(
+      radioRow(1, "kenwood-tnc2"),
+      mercury(2, { name: "20 m" }),
+      mercury(5, { name: "40 m" }),
+    );
     const wrapper = card();
     await flushPromises();
     expect(head(wrapper)).toBe("20 m: Monitor");
@@ -485,7 +518,9 @@ describe("the card by radio", () => {
       await flushPromises();
       for (let i = 0; i < 5; i++) scopeRows.hfScopeRow(row(), chosen);
       const shows = vi.spyOn(Waterfall.prototype, "show");
-      daemon.radios.value = radiosTopic(...rows.map((radio) => (radio.id === chosen ? mercury(chosen, { name }, false) : radio)));
+      daemon.radios.value = radiosTopic(
+        ...rows.map((radio) => (radio.id === chosen ? mercury(chosen, { name }, false) : radio)),
+      );
       await flushPromises();
       expect(head(wrapper)).toBe(`${name}: Monitor`);
       expect(scopeRows.of(chosen).rows).toHaveLength(5);
@@ -537,7 +572,8 @@ describe("the card by radio", () => {
     daemon.scope.showOnMonitor(1);
     const wrapper = card();
     expect(head(wrapper)).toBe("WWWWWWWW: Monitor");
-    for (const rule of [".card-head", ".card-title", ".card-call"]) expect(cssRule(rule)).not.toMatch(/text-overflow|white-space:\s*nowrap|overflow:\s*hidden/);
+    for (const rule of [".card-head", ".card-title", ".card-call"])
+      expect(cssRule(rule)).not.toMatch(/text-overflow|white-space:\s*nowrap|overflow:\s*hidden/);
     expect(cssRule(".monitorcard")).toMatch(/width:\s*min\(560px, calc\(100% - 20px\)\)/);
   });
 });

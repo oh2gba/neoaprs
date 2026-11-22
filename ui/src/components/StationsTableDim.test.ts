@@ -18,7 +18,8 @@ const stations = table(
   station("OH2GONE", { bearing_deg: 10, last_heard: ago(120), last_position_at: ago(5 * 3600) }),
 );
 const aging: Aging = { defaultMin: 60 };
-const make = () => mount(StationsTable, { props: { selected: "OH2OLD" }, global: withDaemon(fakeDaemon({ stations, aging })) });
+const make = () =>
+  mount(StationsTable, { props: { selected: "OH2OLD" }, global: withDaemon(fakeDaemon({ stations, aging })) });
 const sheet = readFileSync(resolve(__dirname, "../styles/tables.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 
 beforeEach(() => localStorage.clear());
@@ -54,7 +55,9 @@ describe("the rows of the Stations table", () => {
   it("have the arrow in the bearing cell that the dimming rules leave out, and not in another cell", () => {
     const wrapper = make();
     const cells = wrapper.findAll("tbody tr.timedout td");
-    expect(cells.filter((td) => td.find("svg.arrow").exists()).every((td) => td.classes().includes("bearing"))).toBe(true);
+    expect(cells.filter((td) => td.find("svg.arrow").exists()).every((td) => td.classes().includes("bearing"))).toBe(
+      true,
+    );
     for (const tr of wrapper.findAll("tbody tr.timedout")) expect(tr.find("td.bearing svg.arrow").exists()).toBe(true);
   });
 

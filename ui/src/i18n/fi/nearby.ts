@@ -6,11 +6,13 @@ export const nearby: Record<keyof typeof source, Message> = {
   "nearby.digipeaters": "Digipeaterit",
   "nearby.digipeaters_help": "Asemat, jotka toistivat kuulemiamme paketteja, ja asemat, joilla on digipeaterisymboli.",
   "nearby.digipeaters_tip_label": "Tietoa kantamasta",
-  "nearby.digipeaters_tip": "Digipeateri toistaa kuulemansa. Sen ympyrän sisällä olevat asemat kuuluvat sille, ulkopuoliset eivät.",
+  "nearby.digipeaters_tip":
+    "Digipeateri toistaa kuulemansa. Sen ympyrän sisällä olevat asemat kuuluvat sille, ulkopuoliset eivät.",
   "nearby.voice": "Puhetaajuudet",
   "nearby.voice_help": "Asemat, kohteet ja itemit, jotka ilmoittivat kutsutaajuuden.",
   "nearby.igates": "iGatet",
-  "nearby.igates_help": "Asemat, jotka tuovat paketteja internetistä ilmaan, ilmoittivat olevansa iGate tai joilla on iGate-symboli.",
+  "nearby.igates_help":
+    "Asemat, jotka tuovat paketteja internetistä ilmaan, ilmoittivat olevansa iGate tai joilla on iGate-symboli.",
   "nearby.igates_tip_label": "Tietoa iGateista",
   "nearby.igates_tip": "iGate välittää paketteja radion ja internetin välillä, jotta kaukaiset asemat näkevät sinut.",
   "nearby.direct": "Kuultu suoraan",
@@ -29,7 +31,8 @@ export const nearby: Record<keyof typeof source, Message> = {
   "nearby.direct_last": "viimeksi kuultu suoraan {when}",
   "nearby.ask": "Kysy ympäriltä",
   "nearby.ask_tip_label": "Tietoa ympäriltä kysymisestä",
-  "nearby.ask_tip": "Lähettää yhden kyselyn radiolla. Asemat vastaavat sijainnillaan, iGatet toiminnallaan, sääasemat säällään.",
+  "nearby.ask_tip":
+    "Lähettää yhden kyselyn radiolla. Asemat vastaavat sijainnillaan, iGatet toiminnallaan, sääasemat säällään.",
   "nearby.ask_kind_label": "Mitä kysytään",
   "nearby.ask_kind.aprs": "Ketä on lähellä",
   "nearby.ask_kind.igate": "iGatet",
@@ -39,10 +42,14 @@ export const nearby: Record<keyof typeof source, Message> = {
   "nearby.ask_wait": "Kysytty hetki sitten: uudelleen {seconds} s kuluttua",
   "nearby.ask_help": "Pyytää radiokantaman asemia ilmoittautumaan.",
   "nearby.ask_refused": "Ei lähetetty: {reason}",
-  "nearby.ask_sent.aprs": "Kysyttiin, ketä on lähellä, klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
-  "nearby.ask_sent.igate": "Kysyttiin iGateja klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
-  "nearby.ask_sent.wx": "Kysyttiin sääasemia klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
-  "nearby.ask_sent_own.aprs": "Kysyttiin, ketä on lähellä, klo {time}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
+  "nearby.ask_sent.aprs":
+    "Kysyttiin, ketä on lähellä, klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
+  "nearby.ask_sent.igate":
+    "Kysyttiin iGateja klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
+  "nearby.ask_sent.wx":
+    "Kysyttiin sääasemia klo {time} polulla {path}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
+  "nearby.ask_sent_own.aprs":
+    "Kysyttiin, ketä on lähellä, klo {time}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
   "nearby.ask_sent_own.igate": "Kysyttiin iGateja klo {time}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
   "nearby.ask_sent_own.wx": "Kysyttiin sääasemia klo {time}; vastaukset tulevat kartalle ja Asemat-välilehdelle",
   "nearby.ask_new_counting": {
@@ -55,7 +62,8 @@ export const nearby: Record<keyof typeof source, Message> = {
     one: "{n} edeltävät {min} minuuttia hiljaa ollut asema puhui seuraavien {after} minuutin aikana",
     other: "{n} edeltävät {min} minuuttia hiljaa ollutta asemaa puhui seuraavien {after} minuutin aikana",
   },
-  "nearby.ask_new_title": "{calls}. Useimmat ovat todennäköisesti vastauksia; myös asema, jonka oma majakka osui näihin minuutteihin, lasketaan.",
+  "nearby.ask_new_title":
+    "{calls}. Useimmat ovat todennäköisesti vastauksia; myös asema, jonka oma majakka osui näihin minuutteihin, lasketaan.",
   "nearby.ask_new_note":
     "Radiolla kyselyn jälkeen kuullut asemat, joita ei ollut kuultu edeltävinä {min} minuuttina. Useimmat ovat todennäköisesti vastauksia; silloin osunut majakkakin lasketaan.",
 };

@@ -5,7 +5,15 @@ import LevelBar from "@/components/LevelBar.vue";
 describe("LevelBar", () => {
   it("is a meter with its value for a screen reader: the percent of the bar, and the number shown as its words", () => {
     const wrapper = mount(LevelBar, {
-      props: { id: "lvl", label: "Receive level", percent: 42.6, zone: "ok", good: [30, 60], held: false, value: "-18 dBFS" },
+      props: {
+        id: "lvl",
+        label: "Receive level",
+        percent: 42.6,
+        zone: "ok",
+        good: [30, 60],
+        held: false,
+        value: "-18 dBFS",
+      },
     });
     const meter = wrapper.find("[role='meter']");
     expect([

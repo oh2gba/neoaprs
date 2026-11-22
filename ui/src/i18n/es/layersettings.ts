@@ -7,7 +7,8 @@ export const layersettings: Readonly<Record<keyof typeof en, Message>> = {
   "layers.settings.aircraft_tip1": "De dónde vienen los aviones: un servicio de internet, o un receptor propio.",
   "layers.settings.aircraft_tip2": "Los aviones salen en el mapa cuando Aviones está marcado en el cuadro Capas.",
   "layers.settings.ships_tip_label": "Acerca de los barcos",
-  "layers.settings.ships_tip1": "Fintraffic cubre las aguas de Finlandia y solo aparece donde tu mapa llega a ellas. O usa un receptor propio.",
+  "layers.settings.ships_tip1":
+    "Fintraffic cubre las aguas de Finlandia y solo aparece donde tu mapa llega a ellas. O usa un receptor propio.",
   "layers.settings.ships_tip2": "Los barcos salen en el mapa cuando Barcos está marcado en el cuadro Capas.",
   "layers.receiver.own": "Mi propio receptor",
   "layers.receiver.address": "Dirección del receptor",
@@ -25,8 +26,14 @@ export const layersettings: Readonly<Record<keyof typeof en, Message>> = {
   "layers.receiver.state.no_answer": "sin respuesta",
   "layers.receiver.line.looking": "Buscando el receptor",
   "layers.receiver.line.no_answer": "Sin respuesta del receptor",
-  "layers.receiver.line.aircraft": { one: "Recibiendo: {n} avión, hace {span}", other: "Recibiendo: {n} aviones, hace {span}" },
+  "layers.receiver.line.aircraft": {
+    one: "Recibiendo: {n} avión, hace {span}",
+    other: "Recibiendo: {n} aviones, hace {span}",
+  },
   "layers.receiver.line.aircraft_none": "Recibiendo, aún sin aviones",
-  "layers.receiver.line.ships": { one: "Recibiendo: {n} barco, hace {span}", other: "Recibiendo: {n} barcos, hace {span}" },
+  "layers.receiver.line.ships": {
+    one: "Recibiendo: {n} barco, hace {span}",
+    other: "Recibiendo: {n} barcos, hace {span}",
+  },
   "layers.receiver.line.ships_none": "Conectado, aún no se oye ningún barco",
 };

@@ -56,7 +56,8 @@ describe("App: the Nearby tab", () => {
     FakeMap.last().fire("style.load");
     await tabButton(wrapper, "Nearby")?.trigger("click");
     const ranges = () =>
-      FakeMap.last().getSource("digipeater-ranges")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string } }[] } | undefined;
+      FakeMap.last().getSource("digipeater-ranges")?.setData.mock.calls.at(-1)?.[0] as
+        { features: { properties: { call: string } }[] } | undefined;
     expect(ranges()).toBeUndefined(); // (the digipeaters are listed, none is drawn)
     await wrapper.find("#pane-nearby tr[data-call='OH2RDG']").trigger("click");
     await flushPromises();
@@ -76,7 +77,8 @@ describe("App: the Nearby tab", () => {
     await flushPromises();
     FakeMap.last().fire("style.load");
     const ranges = () =>
-      FakeMap.last().getSource("digipeater-ranges")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string } }[] } | undefined;
+      FakeMap.last().getSource("digipeater-ranges")?.setData.mock.calls.at(-1)?.[0] as
+        { features: { properties: { call: string } }[] } | undefined;
     await wrapper.find("#pane-stations tr[data-call='OH2RDG']").trigger("click");
     await flushPromises();
     expect(ranges()?.features.map((f) => f.properties.call)).toEqual(["OH2RDG"]);
@@ -90,7 +92,12 @@ describe("App: the Nearby tab", () => {
 
   it("lists an iGate that put third-party packets on the air", async () => {
     const { wrapper, socket } = await open();
-    socket.say({ type: "patch", topic: "stations", rev: 1, ops: [{ op: "set", key: "OH7JHF-1", value: station("OH7JHF-1", { gated: 5, heard_via: [] }) }] });
+    socket.say({
+      type: "patch",
+      topic: "stations",
+      rev: 1,
+      ops: [{ op: "set", key: "OH7JHF-1", value: station("OH7JHF-1", { gated: 5, heard_via: [] }) }],
+    });
     await flushPromises();
     await tabButton(wrapper, "Nearby")?.trigger("click");
     const gates = wrapper.findAll("#pane-nearby fieldset.nearby-section:not(.nearby-ask)")[2];

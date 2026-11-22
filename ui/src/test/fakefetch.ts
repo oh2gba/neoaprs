@@ -7,7 +7,14 @@ export class FakeFetch {
 
   fetch: typeof fetch = (input, init) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    this.calls.push({ url, method: init?.method ?? "GET", body: typeof init?.body === "string" ? init.body : "", cache: init?.cache ?? "default" });
-    return this.status === 0 ? Promise.reject(new TypeError("network")) : Promise.resolve(new Response(null, { status: this.status }));
+    this.calls.push({
+      url,
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? init.body : "",
+      cache: init?.cache ?? "default",
+    });
+    return this.status === 0
+      ? Promise.reject(new TypeError("network"))
+      : Promise.resolve(new Response(null, { status: this.status }));
   };
 }

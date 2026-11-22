@@ -32,7 +32,10 @@ interface DetailRow {
   direction?: Directivity;
 }
 
-const directivity = (deg: number | null): Directivity => ({ deg, title: deg === null ? t("station.ext.omni") : bearingTitle(deg) });
+const directivity = (deg: number | null): Directivity => ({
+  deg,
+  title: deg === null ? t("station.ext.omni") : bearingTitle(deg),
+});
 
 /** One row for each data extension a position had: "PHG", "Range", "DF signal", "DF bearing",
  * "Area". */
@@ -65,7 +68,12 @@ export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
     const b = ext.df_bearing;
     rows.push({
       label: t("station.ext.df_bearing"),
-      text: t("station.ext.df_bearing_value", { bearing: b.bearing_deg, range: Math.round(b.range_km), quality: b.quality, hits: b.hits }),
+      text: t("station.ext.df_bearing_value", {
+        bearing: b.bearing_deg,
+        range: Math.round(b.range_km),
+        quality: b.quality,
+        hits: b.hits,
+      }),
     });
   }
   if (ext.area !== null) {
@@ -137,14 +145,20 @@ function valueText(v: number): string {
  * defined (or A1 to A5). */
 export function telemetryText(telemetry: TelemetryValues | null): string {
   if (telemetry === null) return "-";
-  const channels = telemetry.channels.map((c) => `${c.name} ${valueText(c.value)}${c.unit === "" ? "" : ` ${c.unit}`}`).join(", ");
-  return telemetry.sequence === null ? channels : t("station.telemetry.numbered", { number: telemetry.sequence, channels });
+  const channels = telemetry.channels
+    .map((c) => `${c.name} ${valueText(c.value)}${c.unit === "" ? "" : ` ${c.unit}`}`)
+    .join(", ");
+  return telemetry.sequence === null
+    ? channels
+    : t("station.telemetry.numbered", { number: telemetry.sequence, channels });
 }
 
 /** "Camera on, Chute off": the digital channels, named as the station defined them (or B1 to B8).
  */
 export function telemetryBitsText(telemetry: TelemetryValues | null): string {
-  return telemetry === null ? "-" : telemetry.bits.map((b) => t("station.telemetry.bit", { name: b.name, state: b.on ? "on" : "off" })).join(", ");
+  return telemetry === null
+    ? "-"
+    : telemetry.bits.map((b) => t("station.telemetry.bit", { name: b.name, state: b.on ? "on" : "off" })).join(", ");
 }
 
 /** The offset with its sign: "-600 kHz", "+1000 kHz". */
@@ -156,7 +170,8 @@ function offsetText(khz: number): string {
  * 40 km"; only what the sender said. */
 export function frequencyText(f: FrequencyValues): string {
   const parts = [t("station.freq.mhz", { mhz: formatNumber(f.mhz, 3) })];
-  if (f.tone_hz !== null) parts.push(t(f.tone_both ? "station.freq.tone_both" : "station.freq.tone", { hz: f.tone_hz }));
+  if (f.tone_hz !== null)
+    parts.push(t(f.tone_both ? "station.freq.tone_both" : "station.freq.tone", { hz: f.tone_hz }));
   if (f.dcs !== null) parts.push(t("station.freq.dcs", { code: f.dcs }));
   if (f.tone_off) parts.push(t("station.freq.no_tone"));
   if (f.tone_burst) parts.push(t("station.freq.burst"));
@@ -174,7 +189,8 @@ export function stormText(s: StormValues): string {
   if (s.wind_kmh !== null) parts.push(t("station.storm.wind", { speed: speedText(s.wind_kmh) }));
   if (s.gust_kmh !== null) parts.push(t("station.storm.gusts", { speed: speedText(s.gust_kmh) }));
   if (s.pressure_hpa !== null) parts.push(t("station.storm.pressure", { value: `${s.pressure_hpa} hPa` }));
-  if (s.hurricane_radius_km !== null) parts.push(t("station.storm.hurricane_radius", { km: distanceText(s.hurricane_radius_km) }));
+  if (s.hurricane_radius_km !== null)
+    parts.push(t("station.storm.hurricane_radius", { km: distanceText(s.hurricane_radius_km) }));
   if (s.storm_radius_km !== null) parts.push(t("station.storm.storm_radius", { km: distanceText(s.storm_radius_km) }));
   if (s.gale_radius_km !== null) parts.push(t("station.storm.gale_radius", { km: distanceText(s.gale_radius_km) }));
   return parts.join(", ");
@@ -192,7 +208,9 @@ function carried(row: PacketRow): { at: string; local: boolean } | null {
   }
   if (d.type === "position" || d.type === "status" || d.type === "other") {
     const stamped = d as DecodedPosition | DecodedStatus | DecodedOther;
-    return stamped.timestamp === null ? null : { at: stamped.timestamp, local: "timestamp_local" in stamped && stamped.timestamp_local };
+    return stamped.timestamp === null
+      ? null
+      : { at: stamped.timestamp, local: "timestamp_local" in stamped && stamped.timestamp_local };
   }
   return null;
 }
@@ -204,5 +222,7 @@ export function sentTimeText(row: PacketRow): string | null {
   if (sent === null) return null;
   if (!sent.local) return dateTimeText(sent.at);
   const d = new Date(sent.at);
-  return t("station.sent_local", { time: `${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}` });
+  return t("station.sent_local", {
+    time: `${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`,
+  });
 }

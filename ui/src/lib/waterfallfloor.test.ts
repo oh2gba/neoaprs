@@ -22,7 +22,10 @@ function dice(seed: number): () => number {
  * `level(bin)` dB, two spectra averaged.
  */
 function noise(random: () => number, level: (bin: number) => number): Float32Array {
-  return Float32Array.from({ length: BINS }, (_, i) => level(i) + 10 * Math.log10((-Math.log(1 - random()) - Math.log(1 - random())) / 2));
+  return Float32Array.from(
+    { length: BINS },
+    (_, i) => level(i) + 10 * Math.log10((-Math.log(1 - random()) - Math.log(1 - random())) / 2),
+  );
 }
 
 /** Feed a floor `seconds` of noise, with `signal(bin)` dB of signal power added where given. */
@@ -56,7 +59,8 @@ describe("the floor", () => {
    * at the last bin.
    */
   const skirt = (bins: number): number => -14 / (1 + Math.exp((bins - 4) / 3));
-  const filter = (bin: number): number => -40 - (6 * bin) / BINS + 1.5 * Math.cos((2 * Math.PI * bin) / 120) + skirt(bin) + skirt(BINS - 1 - bin);
+  const filter = (bin: number): number =>
+    -40 - (6 * bin) / BINS + 1.5 * Math.cos((2 * Math.PI * bin) / 120) + skirt(bin) + skirt(BINS - 1 - bin);
 
   it("is there with the first row, and stands at the noise", () => {
     const [floor, random] = [new Floor(), dice(1)];

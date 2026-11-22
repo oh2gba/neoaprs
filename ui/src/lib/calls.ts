@@ -10,7 +10,9 @@ const CALL = new RegExp(`^[A-Z0-9]{1,${LIMITS.call.baseMax}}(-[0-9]{1,2})?$`);
 /** A station's name on APRS-IS (neoaprs/callsign.py `normal_name`): 1 to 9 letters, digits and
  * hyphens, the first not a hyphen. */
 const STATION_NAME = /^[A-Z0-9][A-Z0-9-]{0,8}$/;
-const AMATEUR = new RegExp(`^(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{${LIMITS.call.amateurBaseMin},${LIMITS.call.baseMax}}$`);
+const AMATEUR = new RegExp(
+  `^(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{${LIMITS.call.amateurBaseMin},${LIMITS.call.baseMax}}$`,
+);
 
 /** A call as typed: spaces off, upper case. */
 export function normalizeCall(text: string): string {
@@ -23,7 +25,9 @@ export function splitCall(text: string): { base: string; ssid: string } {
   const call = normalizeCall(text);
   const found = /^(.*)-(\d{1,2})$/.exec(call);
   const number = found === null ? NaN : Number(found[2]);
-  return found !== null && number <= LIMITS.call.maxSsid ? { base: found[1] ?? "", ssid: number === 0 ? "" : String(number) } : { base: call, ssid: "" };
+  return found !== null && number <= LIMITS.call.maxSsid
+    ? { base: found[1] ?? "", ssid: number === 0 ? "" : String(number) }
+    : { base: call, ssid: "" };
 }
 
 /** The call and its SSID put together as the settings keep them: the SSID after a dash, none for
@@ -44,7 +48,12 @@ export function callInput(raw: string): { base: string; ssid: string | null; tex
   if (found === null) return { base: clean(typed), ssid: null, text: clean(typed) };
   const base = clean(found[1] ?? "");
   const digits = found[2] ?? "";
-  const ssid = digits !== "" && Number(digits) <= LIMITS.call.maxSsid ? (Number(digits) === 0 ? "" : String(Number(digits))) : null;
+  const ssid =
+    digits !== "" && Number(digits) <= LIMITS.call.maxSsid
+      ? Number(digits) === 0
+        ? ""
+        : String(Number(digits))
+      : null;
   return { base, ssid, text: base === "" ? "" : `${base}-${digits}` };
 }
 
@@ -108,7 +117,9 @@ export const DIRECT = LIMITS.path.direct;
  * no call or there are more than the daemon takes. An empty text is no calls. */
 export function parsePath(text: string): string[] | null {
   const calls = callList(text);
-  return calls.length <= LIMITS.path.maxCalls && calls.every((call) => validCall(call) && call !== DIRECT) ? calls : null;
+  return calls.length <= LIMITS.path.maxCalls && calls.every((call) => validCall(call) && call !== DIRECT)
+    ? calls
+    : null;
 }
 
 /** What a typed path says: nothing (`auto`: the recommended path), DIRECT alone (`direct`), or
@@ -127,5 +138,11 @@ export function parsePathSetting(text: string): PathSetting | null {
  * symbol; DIRECT is none); null if the text is no path. */
 export function pathCalls(text: string, recommended: string): string[] | null {
   const setting = parsePathSetting(text);
-  return setting === null ? null : setting.kind === "direct" ? [] : setting.kind === "auto" ? recommended.split(",") : setting.calls;
+  return setting === null
+    ? null
+    : setting.kind === "direct"
+      ? []
+      : setting.kind === "auto"
+        ? recommended.split(",")
+        : setting.calls;
 }

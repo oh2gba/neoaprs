@@ -25,7 +25,9 @@ function make(unavailable: string[] = []) {
  */
 const drawn = (wrapper: VueWrapper) =>
   [...wrapper.find<HTMLSelectElement>("select").element.children].map((child) =>
-    child instanceof HTMLOptGroupElement ? { [child.label]: [...child.children].map((o) => o.textContent?.trim()) } : child.textContent?.trim(),
+    child instanceof HTMLOptGroupElement
+      ? { [child.label]: [...child.children].map((o) => o.textContent?.trim()) }
+      : child.textContent?.trim(),
   );
 
 const FM = [
@@ -38,13 +40,23 @@ const FM = [
   "Yaesu FTM, TNC in monitor mode (RX only)",
 ];
 const MERCURY = ["Mercury modem (sound card)"];
-const LORA = ["LoRa APRS board on the network", "LoRa APRS board on USB or Bluetooth", "LoRa APRS iGate on USB (RX only)"];
+const LORA = [
+  "LoRa APRS board on the network",
+  "LoRa APRS board on USB or Bluetooth",
+  "LoRa APRS iGate on USB (RX only)",
+];
 const WITHOUT = ["Dummy FM radio", "Dummy Mercury radio", "Dummy LoRa radio"];
 
 describe("Add radio's list", () => {
   it("has the placeholder first, then the four groups in order with their types, those that only receive last in their group", () => {
     const { wrapper } = make();
-    expect(drawn(wrapper)).toEqual(["Radio type", { FM }, { Mercury: MERCURY }, { LoRa: LORA }, { "Without a radio": WITHOUT }]);
+    expect(drawn(wrapper)).toEqual([
+      "Radio type",
+      { FM },
+      { Mercury: MERCURY },
+      { LoRa: LORA },
+      { "Without a radio": WITHOUT },
+    ]);
   });
 
   it("leaves out a type this installation does not carry (Direwolf), its group stays", () => {
@@ -67,7 +79,12 @@ describe("Add radio's list", () => {
   it("names its groups in the page's language: the kind words, and Without a radio", () => {
     setLocale("de");
     const { wrapper } = make();
-    expect(wrapper.findAll("optgroup").map((group) => group.attributes("label"))).toEqual(["FM", "Mercury", "LoRa", "Ohne Funkgerät"]);
+    expect(wrapper.findAll("optgroup").map((group) => group.attributes("label"))).toEqual([
+      "FM",
+      "Mercury",
+      "LoRa",
+      "Ohne Funkgerät",
+    ]);
   });
 
   it("adds the type chosen in a group, as before", async () => {

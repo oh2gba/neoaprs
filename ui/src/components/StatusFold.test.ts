@@ -54,7 +54,12 @@ describe("StatusFold", () => {
     const content = ref(false);
     const wrapper = mount(
       defineComponent({
-        render: () => h(StatusFold, { state: "on", tone: "beacon-on", line: "x" }, { default: () => (content.value ? h("p", "later") : null) }),
+        render: () =>
+          h(
+            StatusFold,
+            { state: "on", tone: "beacon-on", line: "x" },
+            { default: () => (content.value ? h("p", "later") : null) },
+          ),
       }),
     );
     expect(wrapper.find("details").exists()).toBe(false);

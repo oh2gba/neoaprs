@@ -8,7 +8,8 @@ export const layersettings: Record<keyof typeof source, Message> = {
   "layers.settings.aircraft_tip1": "Waar de vliegtuigen vandaan komen: een dienst op internet, of een eigen ontvanger.",
   "layers.settings.aircraft_tip2": "Vliegtuigen staan op de kaart als Vliegtuigen is aangevinkt in het vak Lagen.",
   "layers.settings.ships_tip_label": "Over schepen",
-  "layers.settings.ships_tip1": "Fintraffic dekt de wateren van Finland en staat er alleen bij waar je kaart die bereikt. Of gebruik een eigen ontvanger.",
+  "layers.settings.ships_tip1":
+    "Fintraffic dekt de wateren van Finland en staat er alleen bij waar je kaart die bereikt. Of gebruik een eigen ontvanger.",
   "layers.settings.ships_tip2": "Schepen staan op de kaart als Schepen is aangevinkt in het vak Lagen.",
   "layers.receiver.own": "Mijn eigen ontvanger",
   "layers.receiver.address": "Adres van de ontvanger",
@@ -26,8 +27,14 @@ export const layersettings: Record<keyof typeof source, Message> = {
   "layers.receiver.state.no_answer": "geen antwoord",
   "layers.receiver.line.looking": "De ontvanger zoeken",
   "layers.receiver.line.no_answer": "Geen antwoord van de ontvanger",
-  "layers.receiver.line.aircraft": { one: "Ontvangt: {n} vliegtuig, {span} geleden", other: "Ontvangt: {n} vliegtuigen, {span} geleden" },
+  "layers.receiver.line.aircraft": {
+    one: "Ontvangt: {n} vliegtuig, {span} geleden",
+    other: "Ontvangt: {n} vliegtuigen, {span} geleden",
+  },
   "layers.receiver.line.aircraft_none": "Ontvangt, nog geen vliegtuig",
-  "layers.receiver.line.ships": { one: "Ontvangt: {n} schip, {span} geleden", other: "Ontvangt: {n} schepen, {span} geleden" },
+  "layers.receiver.line.ships": {
+    one: "Ontvangt: {n} schip, {span} geleden",
+    other: "Ontvangt: {n} schepen, {span} geleden",
+  },
   "layers.receiver.line.ships_none": "Verbonden, nog geen schip gehoord",
 };

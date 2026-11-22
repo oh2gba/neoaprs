@@ -46,19 +46,35 @@ const LITERAL = /(?<![\w&])#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|hwb)
  * component, by path under ui/src. */
 const STYLE: [string, string][] = files(SRC)
   .map((path) => [relative(SRC, path).replaceAll("\\", "/"), path] as const)
-  .filter(([name]) => (name.startsWith("styles/") && name.endsWith(".css") && name !== "styles/tokens.css") || name.endsWith(".vue"))
+  .filter(
+    ([name]) =>
+      (name.startsWith("styles/") && name.endsWith(".css") && name !== "styles/tokens.css") || name.endsWith(".vue"),
+  )
   .map(([name, path]) => {
     const text = readFileSync(path, "utf-8");
-    return [name, strip(name.endsWith(".vue") ? [...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1] ?? "").join("\n") : text)];
+    return [
+      name,
+      strip(
+        name.endsWith(".vue")
+          ? [...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1] ?? "").join("\n")
+          : text,
+      ),
+    ];
   });
 /** Every rule of the style: where it is, its selector and its declarations (the innermost
  * braces: a rule inside a media query is found too). */
 const RULES = STYLE.flatMap(([name, css]) =>
-  [...css.matchAll(/([^{};]+)\{([^{}]*)\}/g)].map((m) => ({ name, selector: (m[1] ?? "").trim().replace(/\s+/g, " "), body: m[2] ?? "" })),
+  [...css.matchAll(/([^{};]+)\{([^{}]*)\}/g)].map((m) => ({
+    name,
+    selector: (m[1] ?? "").trim().replace(/\s+/g, " "),
+    body: m[2] ?? "",
+  })),
 );
 
 function luminance(hex: string): number {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const [r, g, b] = [1, 3, 5]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
   return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
 }
 function contrast(a: string, b: string): number {
@@ -102,7 +118,8 @@ describe("the palette", () => {
       readFileSync(path, "utf-8")
         .split("\n")
         .forEach((line, i) => {
-          if (LITERAL.test(line.replace(/\/\*.*?\*\//g, ""))) found.push(`${name}:${i + 1}: ${line.trim().slice(0, 80)}`);
+          if (LITERAL.test(line.replace(/\/\*.*?\*\//g, "")))
+            found.push(`${name}:${i + 1}: ${line.trim().slice(0, 80)}`);
         });
     }
     expect(found).toEqual([]);
@@ -112,7 +129,8 @@ describe("the palette", () => {
     const colours = Object.keys(light).filter((k) => COLOUR.test(light[k] ?? ""));
     expect(colours.length).toBeGreaterThan(30);
     for (const tone of TAGS) {
-      for (const part of ["bg", "fg"]) expect(dark, `--${tone}-soft-${part} for dark`).toHaveProperty(`--${tone}-soft-${part}`);
+      for (const part of ["bg", "fg"])
+        expect(dark, `--${tone}-soft-${part} for dark`).toHaveProperty(`--${tone}-soft-${part}`);
     }
     for (const strong of [
       "--ok",
@@ -152,7 +170,9 @@ describe("the palette", () => {
   });
 
   it("gives a drag across text a tone of its own: the text reads on it, and it is told from every ground it is dragged over, our own bubble and the selected row among them, in both themes", () => {
-    expect(readFileSync(join(SRC, "styles", "base.css"), "utf-8")).toMatch(/::selection \{\s*background: var\(--selection\);\s*color: var\(--text\);/);
+    expect(readFileSync(join(SRC, "styles", "base.css"), "utf-8")).toMatch(
+      /::selection \{\s*background: var\(--selection\);\s*color: var\(--text\);/,
+    );
     const low: string[] = [];
     for (const [name, theme] of THEMES) {
       const text = contrast(theme["--text"] ?? "#000000", theme["--selection"] ?? "#000000");
@@ -193,13 +213,17 @@ describe("the palette", () => {
   });
 
   it("never writes a warn word in the bare --warn: a warn word is the soft pair, its word on its plate", () => {
-    const words = RULES.filter(({ body }) => /(?<![\w-])(?:color|-webkit-text-fill-color):\s*var\(--warn(?:,[^)]*)?\)/.test(body)).map(
-      ({ name, selector }) => `${name}: ${selector}`,
-    );
+    const words = RULES.filter(({ body }) =>
+      /(?<![\w-])(?:color|-webkit-text-fill-color):\s*var\(--warn(?:,[^)]*)?\)/.test(body),
+    ).map(({ name, selector }) => `${name}: ${selector}`);
     expect(words).toEqual([]);
     const plated = RULES.filter(({ body }) => /(?<![\w-])color:\s*var\(--warn-soft-fg\)/.test(body));
     expect(plated.length).toBeGreaterThan(5);
-    expect(plated.filter(({ body }) => !/background:\s*var\(--warn-soft-bg\)/.test(body)).map(({ name, selector }) => `${name}: ${selector}`)).toEqual([]);
+    expect(
+      plated
+        .filter(({ body }) => !/background:\s*var\(--warn-soft-bg\)/.test(body))
+        .map(({ name, selector }) => `${name}: ${selector}`),
+    ).toEqual([]);
   });
 
   it("tells the Mercury radio's tag, the site's inverse pill, from every other tag by its lightness, in both themes: 3 to 1 between the plates at least", () => {
@@ -234,7 +258,9 @@ describe("the palette", () => {
       }
       // Dimmed: a removed radio's word is quieter than the text, and apart from the FM radio's
       // neutral plate it has none.
-      expect(contrast(theme["--muted"] ?? "", theme["--panel"] ?? "")).toBeLessThan(contrast(theme["--text"] ?? "", theme["--panel"] ?? ""));
+      expect(contrast(theme["--muted"] ?? "", theme["--panel"] ?? "")).toBeLessThan(
+        contrast(theme["--text"] ?? "", theme["--panel"] ?? ""),
+      );
     }
     expect(low).toEqual([]);
   });
@@ -270,9 +296,14 @@ describe("the palette", () => {
   it("gives the page's theme colour and the manifest's the palette's: the header's surface, and the page behind it", () => {
     const index = readFileSync(join(SRC, "..", "index.html"), "utf-8");
     const theme = (scheme: string): string | undefined =>
-      index.match(new RegExp(`<meta name="theme-color" content="(#[0-9a-f]{6})" media="\\(prefers-color-scheme: ${scheme}\\)"`))?.[1];
+      index.match(
+        new RegExp(`<meta name="theme-color" content="(#[0-9a-f]{6})" media="\\(prefers-color-scheme: ${scheme}\\)"`),
+      )?.[1];
     expect([theme("light"), theme("dark")]).toEqual([light["--panel"], dark["--panel"]]);
-    const manifest = JSON.parse(readFileSync(join(SRC, "..", "public", "manifest.webmanifest"), "utf-8")) as { theme_color: string; background_color: string };
+    const manifest = JSON.parse(readFileSync(join(SRC, "..", "public", "manifest.webmanifest"), "utf-8")) as {
+      theme_color: string;
+      background_color: string;
+    };
     expect([manifest.theme_color, manifest.background_color]).toEqual([light["--panel"], light["--bg"]]);
   });
 });

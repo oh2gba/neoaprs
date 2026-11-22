@@ -17,9 +17,12 @@ import { summaryText } from "@/lib/packetview";
 import { routeWords } from "@/lib/routes";
 import type { PacketRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ rows: readonly PacketRow[]; stacked: boolean; empty: string; keyOf?: (row: PacketRow) => string }>(), {
-  keyOf: (row: PacketRow) => String(row.id),
-});
+const props = withDefaults(
+  defineProps<{ rows: readonly PacketRow[]; stacked: boolean; empty: string; keyOf?: (row: PacketRow) => string }>(),
+  {
+    keyOf: (row: PacketRow) => String(row.id),
+  },
+);
 const radios = useRadios();
 const tagOf = (row: PacketRow) => packetTag(row, radios.all.value);
 defineSlots<{ note?: (props: { row: PacketRow }) => unknown }>();

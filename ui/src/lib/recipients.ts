@@ -33,7 +33,10 @@ export function textRefusal(text: string): { code: string; params: { chars: stri
   if (bad.length > 0) return { code: "message.forbidden", params: { chars: bad.join(" ") } };
   if (isPrintable(text)) return null;
   if ([...text].some((c) => c > "\x7f"))
-    return { code: "message.not_ascii", params: { chars: [...new Set([...text].filter((c) => c > "\x7f" && !/[\p{C}\p{Z}]/u.test(c)))].join("") } };
+    return {
+      code: "message.not_ascii",
+      params: { chars: [...new Set([...text].filter((c) => c > "\x7f" && !/[\p{C}\p{Z}]/u.test(c)))].join("") },
+    };
   return { code: "message.control", params: { chars: "" } };
 }
 
@@ -44,5 +47,12 @@ export function textRefusal(text: string): { code: string; params: { chars: stri
  */
 export function canSendAll(connected: boolean, chosen: readonly string[], typed: string, text: string): boolean {
   const typedOk = typed.trim() === "" || (validName(typed) && !isGateway(typed));
-  return connected && typedOk && recipientsOf(chosen, typed).length > 0 && text.trim() !== "" && bytesLeft(text) >= 0 && textRefusal(text) === null;
+  return (
+    connected &&
+    typedOk &&
+    recipientsOf(chosen, typed).length > 0 &&
+    text.trim() !== "" &&
+    bytesLeft(text) >= 0 &&
+    textRefusal(text) === null
+  );
 }

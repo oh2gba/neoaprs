@@ -15,7 +15,9 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 
 const dialog = (): HTMLElement | null => document.body.querySelector<HTMLElement>(".pathbuild");
 const button = (text: string): HTMLButtonElement | undefined =>
-  [...(dialog()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find((b) => (b.textContent ?? "").trim() === text);
+  [...(dialog()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+    (b) => (b.textContent ?? "").trim() === text,
+  );
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 async function pick(...texts: string[]): Promise<void> {
@@ -29,7 +31,10 @@ afterEach(() => (document.body.innerHTML = ""));
 
 describe("the path builder of each path field", () => {
   it("of a station's Route starts from the path in force and saves the path built as the station's own", async () => {
-    const wrapper = mount(StationPath, { props: { call: "OH2DPN", paths: new Map(), fallback: "WIDE1-1,WIDE2-1" }, attachTo: document.body });
+    const wrapper = mount(StationPath, {
+      props: { call: "OH2DPN", paths: new Map(), fallback: "WIDE1-1,WIDE2-1" },
+      attachTo: document.body,
+    });
     await wrapper.find("button.pathbuild-open").trigger("click");
     expect(dialog()?.querySelector("output")?.textContent).toBe("WIDE1-1,WIDE2-1");
     expect(button("As its packets come")).toBeDefined();
@@ -47,7 +52,14 @@ describe("the path builder of each path field", () => {
 
   it("of the beacon's path starts from the recommended one, is held to the setting's rule and applies at once", async () => {
     const wrapper = mount(SettingsPath, {
-      props: { id: "set-beacon-path", info: FIELDS["beacon/path"], modelValue: "", error: "", changed: false, recommended: "WIDE2-1" },
+      props: {
+        id: "set-beacon-path",
+        info: FIELDS["beacon/path"],
+        modelValue: "",
+        error: "",
+        changed: false,
+        recommended: "WIDE2-1",
+      },
       attachTo: document.body,
     });
     await wrapper.find("button.pathbuild-open").trigger("click");
@@ -69,13 +81,24 @@ describe("the path builder of each path field", () => {
 
   it("of the beacon's path is off while the field is", () => {
     const wrapper = mount(SettingsPath, {
-      props: { id: "set-beacon-path", info: FIELDS["beacon/path"], modelValue: "", error: "", changed: false, recommended: "WIDE2-1", disabled: true },
+      props: {
+        id: "set-beacon-path",
+        info: FIELDS["beacon/path"],
+        modelValue: "",
+        error: "",
+        changed: false,
+        recommended: "WIDE2-1",
+        disabled: true,
+      },
     });
     expect(wrapper.find("button.pathbuild-open").attributes("disabled")).toBeDefined();
   });
 
   it("of a request's Path gives it the path built, with no room for one too long for RF only", async () => {
-    const wrapper = mount(RequestPath, { props: { path: "", rfOnly: true, usual: "", problem: "" }, attachTo: document.body });
+    const wrapper = mount(RequestPath, {
+      props: { path: "", rfOnly: true, usual: "", problem: "" },
+      attachTo: document.body,
+    });
     expect(wrapper.find("input[type='text']").attributes("placeholder")).toBe("direct");
     await wrapper.find("button.pathbuild-open").trigger("click");
     expect(dialog()?.querySelector("output")?.textContent).toBe("DIRECT");
@@ -93,7 +116,11 @@ describe("the path builder of each path field", () => {
 
   it("of an object puts the path built into the form", async () => {
     const view = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-    const wrapper = mount(ObjectForm, { props: { form: view }, attachTo: document.body, global: withDaemon(fakeDaemon()) });
+    const wrapper = mount(ObjectForm, {
+      props: { form: view },
+      attachTo: document.body,
+      global: withDaemon(fakeDaemon()),
+    });
     const opener = wrapper.findAll("button.pathbuild-open");
     expect(opener).toHaveLength(1);
     await opener[0]?.trigger("click");

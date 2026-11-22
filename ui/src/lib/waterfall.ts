@@ -4,7 +4,8 @@
 // via LIMITS.
 import { LIMITS } from "@/protocol/lists";
 
-const { loHz, hiHz, signalLoHz, signalHiHz, modemRate, modemBins, rowFirstBin, rowBins, rowSpectra, historySec } = LIMITS.scope;
+const { loHz, hiHz, signalLoHz, signalHiHz, modemRate, modemBins, rowFirstBin, rowBins, rowSpectra, historySec } =
+  LIMITS.scope;
 /** The modem's spectrum interval; the real rate is nearer 17 a second. */
 const MODEM_SPECTRA_PER_SECOND = 20;
 
@@ -49,7 +50,8 @@ export const hzOfBin = (bin: number): number => (FIRST_BIN + bin) * BIN_HZ;
 const BYTE_MIN_DB = -16;
 const BYTE_STEP_DB = 0.25;
 export const dbOfByte = (byte: number): number => BYTE_MIN_DB + byte * BYTE_STEP_DB;
-export const byteOfDb = (db: number): number => Math.max(0, Math.min(255, Math.round((db - BYTE_MIN_DB) / BYTE_STEP_DB)));
+export const byteOfDb = (db: number): number =>
+  Math.max(0, Math.min(255, Math.round((db - BYTE_MIN_DB) / BYTE_STEP_DB)));
 /** The power each byte value stands for. */
 const POWER_OF_BYTE = Float64Array.from({ length: 256 }, (_, byte) => 10 ** (dbOfByte(byte) / 10));
 
@@ -110,7 +112,14 @@ export function scalePosition(db: number): number {
 function toHsv([r, g, b]: Rgb): [number, number, number] {
   const [high, low] = [Math.max(r, g, b), Math.min(r, g, b)];
   const spread = high - low;
-  const hue = spread === 0 ? 0 : high === r ? ((g - b) / spread + 6) % 6 : high === g ? (b - r) / spread + 2 : (r - g) / spread + 4;
+  const hue =
+    spread === 0
+      ? 0
+      : high === r
+        ? ((g - b) / spread + 6) % 6
+        : high === g
+          ? (b - r) / spread + 2
+          : (r - g) / spread + 4;
   return [hue * 60, high === 0 ? 0 : spread / high, high / 255];
 }
 
@@ -161,7 +170,12 @@ export function spread(values: ArrayLike<number>, width: number): Float32Array {
       out[x] = values[lo] + (values[hi] - values[lo]) * Math.max(0, Math.min(1, at - lo));
     } else {
       let top = -Infinity;
-      for (let bin = Math.max(0, Math.round(at - each / 2)); bin <= Math.min(BINS - 1, Math.round(at + each / 2)); bin++) top = Math.max(top, values[bin]);
+      for (
+        let bin = Math.max(0, Math.round(at - each / 2));
+        bin <= Math.min(BINS - 1, Math.round(at + each / 2));
+        bin++
+      )
+        top = Math.max(top, values[bin]);
       out[x] = top;
     }
   }
@@ -240,7 +254,8 @@ export interface Tick {
 export function rulerTicks(width: number, room: number): Tick[] {
   const every = xOfHz(loHz + 500, width) >= room ? 500 : 1000;
   const ticks: Tick[] = [];
-  for (let hz = Math.ceil(loHz / 100) * 100; hz <= hiHz; hz += 100) ticks.push({ hz, x: Math.min(width - 1, xOfHz(hz, width)), numbered: hz % every === 0 });
+  for (let hz = Math.ceil(loHz / 100) * 100; hz <= hiHz; hz += 100)
+    ticks.push({ hz, x: Math.min(width - 1, xOfHz(hz, width)), numbered: hz % every === 0 });
   return ticks;
 }
 
@@ -282,11 +297,16 @@ export function placeLabel(row: number, w: number, taken: readonly Slot[], l: La
   const gap = 4 * l.unit;
   const high = Math.ceil((l.plate + l.unit) / l.rowPx); // lines a label covers, plus a pixel of air
   const [right, left] = [xOfHz(signalHiHz, l.width) + gap, xOfHz(signalLoHz, l.width) - gap - w];
-  const places = [right + w <= l.width - gap ? [right] : [], left >= l.gutter ? [left] : [], [Math.max(l.gutter, l.width - gap - w)]].flat();
+  const places = [
+    right + w <= l.width - gap ? [right] : [],
+    left >= l.gutter ? [left] : [],
+    [Math.max(l.gutter, l.width - gap - w)],
+  ].flat();
   for (let down = 0; down < 3; down++) {
     for (const x of places) {
       const slot = { row: row - down * high, x, w };
-      if (!taken.some((other) => Math.abs(other.row - slot.row) < high && other.x < x + w && x < other.x + other.w)) return slot;
+      if (!taken.some((other) => Math.abs(other.row - slot.row) < high && other.x < x + w && x < other.x + other.w))
+        return slot;
     }
   }
   return null;
@@ -294,7 +314,10 @@ export function placeLabel(row: number, w: number, taken: readonly Slot[], l: La
 
 /** Points of the curve for bin heights `ys`: one per bin centre, the ends carried to the edges. */
 export function curvePoints(ys: ArrayLike<number>, width: number): { x: number; y: number }[] {
-  const points = Array.from({ length: ys.length }, (_, i) => ({ x: ((hzOfBin(i) - loHz) / (hiHz - loHz)) * width, y: ys[i] }));
+  const points = Array.from({ length: ys.length }, (_, i) => ({
+    x: ((hzOfBin(i) - loHz) / (hiHz - loHz)) * width,
+    y: ys[i],
+  }));
   return ys.length === 0 ? [] : [{ x: 0, y: ys[0] }, ...points, { x: width, y: ys[ys.length - 1] }];
 }
 
@@ -323,9 +346,15 @@ function newest<T extends { tx: boolean }>(lines: readonly T[], count: number): 
  * lines from before our own transmission changed, or a signal no longer there would linger for two
  * seconds.
  */
-export function curveMean(lines: readonly { bytes: Uint8Array; tx: boolean }[], count = CURVE_MEAN_LINES): Float32Array {
+export function curveMean(
+  lines: readonly { bytes: Uint8Array; tx: boolean }[],
+  count = CURVE_MEAN_LINES,
+): Float32Array {
   const last = newest(lines, count);
-  return Float32Array.from({ length: BINS }, (_, i) => last.reduce((sum, line) => sum + line.bytes[i], 0) / Math.max(1, last.length));
+  return Float32Array.from(
+    { length: BINS },
+    (_, i) => last.reduce((sum, line) => sum + line.bytes[i], 0) / Math.max(1, last.length),
+  );
 }
 
 /** Bright line of the curve: mean power of the last second's lines, with the same care. */

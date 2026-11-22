@@ -15,8 +15,11 @@ const DAYS = LIMITS.bulletin.announcementRepeatDays;
 const many = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
 
 /** The daemon has the post: its row is told. */
-const answer = (wrapper: { setProps: (props: { ownBulletins: Map<string, OwnBulletinRow> }) => Promise<void> }, slot: string, text: string) =>
-  wrapper.setProps({ ownBulletins: new Map([[slot, ownBulletin(slot, { text })]]) });
+const answer = (
+  wrapper: { setProps: (props: { ownBulletins: Map<string, OwnBulletinRow> }) => Promise<void> },
+  slot: string,
+  text: string,
+) => wrapper.setProps({ ownBulletins: new Map([[slot, ownBulletin(slot, { text })]]) });
 
 function compose() {
   const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() } });
@@ -67,9 +70,11 @@ describe("BulletinCompose", () => {
 
   it("has an (i) at the end of each of the four rows, named after the row, and none on Send on", async () => {
     const { wrapper, kind } = compose();
-    const names = () => wrapper.findAll(".composebar-fields > .field").map((row) => row.find(".info-toggle").attributes("aria-label"));
+    const names = () =>
+      wrapper.findAll(".composebar-fields > .field").map((row) => row.find(".info-toggle").attributes("aria-label"));
     expect(names()).toEqual(["About Kind", "About Number", "About Group", "About Text"]);
-    for (const row of wrapper.findAll(".composebar-fields > .field")) expect(row.find(".field-control .info-toggle").exists()).toBe(true);
+    for (const row of wrapper.findAll(".composebar-fields > .field"))
+      expect(row.find(".field-control .info-toggle").exists()).toBe(true);
     await kind.setValue("announcement");
     expect(names()[1]).toBe("About Letter");
   });
@@ -105,7 +110,8 @@ describe("BulletinCompose", () => {
     const { wrapper, kind, id, group, text } = compose();
     const places = () => wrapper.findAll(".composebar-fields > .field").map((row) => row.element);
     const form = wrapper.element as HTMLElement;
-    const controls = () => [kind.element, id.element, group.element, text.element].map((control) => form.contains(control));
+    const controls = () =>
+      [kind.element, id.element, group.element, text.element].map((control) => form.contains(control));
     const before = places();
     const seen: Record<string, ReturnType<typeof rows>> = {};
     for (const value of ["announcement", "group", "bulletin"]) {
@@ -142,7 +148,8 @@ describe("BulletinCompose", () => {
     // and no wider than its row on a phone, in the language with the longest words: the choice, its
     // row and the box may all be narrower than the longest option, which the browser then cuts off
     // in the closed choice (the open list has it whole), as it does the long types of radio
-    for (const selector of [".input", ".field-control", "fieldset.composebox"]) expect(cssRule(selector), selector).toMatch(/min-width:\s*0/);
+    for (const selector of [".input", ".field-control", "fieldset.composebox"])
+      expect(cssRule(selector), selector).toMatch(/min-width:\s*0/);
     expect(cssRule(".field")).toMatch(/grid-template-columns:\s*minmax\(7em, min\(36%, 15em\)\) 1fr/);
     expect(cssRule(".input:disabled")).toMatch(/opacity/);
     expect(cssRule(".input:disabled")).not.toMatch(/display|visibility|height/);
@@ -180,7 +187,8 @@ describe("BulletinCompose", () => {
       ["BLN3HAMS", ownBulletin("BLN3HAMS", { kind: "group", group: "HAMS", next_at: null })],
     ]);
     const { wrapper, kind, id, group, post } = compose();
-    const faces = () => post.findAll(".twowords > span").map((face) => [face.text(), face.classes().includes("twowords-off")]);
+    const faces = () =>
+      post.findAll(".twowords > span").map((face) => [face.text(), face.classes().includes("twowords-off")]);
     expect(faces()).toEqual([
       ["Post", false],
       ["Replace", true],
@@ -260,7 +268,10 @@ describe("BulletinCompose", () => {
 
   it("keeps the text when the daemon refuses, and a bulletin of the slot with another text is not the answer", async () => {
     const daemon = fakeDaemon();
-    const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });
+    const wrapper = mount(BulletinCompose, {
+      props: { ownBulletins: new Map<string, OwnBulletinRow>() },
+      global: withDaemon(daemon),
+    });
     const text = wrapper.find<HTMLInputElement>("#post-text");
     await text.setValue("Road closed");
     await wrapper.find("form").trigger("submit");
@@ -341,7 +352,10 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
   /** A station of these radios as the daemon tells them: the topic `radios`. */
   function on(given: Given, ...rows: RadioRow[]) {
     const daemon = fakeDaemon({ ...ofRadios(...rows), ...given });
-    const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });
+    const wrapper = mount(BulletinCompose, {
+      props: { ownBulletins: new Map<string, OwnBulletinRow>() },
+      global: withDaemon(daemon),
+    });
     const sendOn = () => wrapper.find(".field.send-on");
     const ticks = () =>
       sendOn()
@@ -356,7 +370,14 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
         .find((one) => one.text() === name)
         ?.find("input")
         .trigger("change");
-    return { wrapper, daemon, sendOn, ticks, tick, post: () => wrapper.find<HTMLButtonElement>("button[type='submit']") };
+    return {
+      wrapper,
+      daemon,
+      sendOn,
+      ticks,
+      tick,
+      post: () => wrapper.find<HTMLButtonElement>("button[type='submit']"),
+    };
   }
   const FM = radioRow(1, "kenwood-tnc2");
   const HF = radioRow(2, "mercury");
@@ -415,7 +436,12 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
   });
 
   it("shows no tick ticked and none greyed while none of the radios it starts with is on, and Post is off until one is ticked", async () => {
-    const three = on({ status: status({ new_bulletin_radios: [3] }) }, FM, HF, radioRow(3, "kiss", { number: 2, enabled: false }));
+    const three = on(
+      { status: status({ new_bulletin_radios: [3] }) },
+      FM,
+      HF,
+      radioRow(3, "kiss", { number: 2, enabled: false }),
+    );
     await three.wrapper.find("#post-text").setValue("Net tonight");
     expect(three.ticks()).toEqual([
       ["FM", false, false],

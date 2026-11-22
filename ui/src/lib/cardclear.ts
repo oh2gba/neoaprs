@@ -32,7 +32,12 @@ const EDGE = 30;
 
 /** Whether the card covers the marker (or the call under it). */
 export function covers(card: Box, marker: Point): boolean {
-  return marker.x >= card.left - ROOM_SIDE && marker.x <= card.right + ROOM_SIDE && marker.y >= card.top - ROOM_ABOVE && marker.y <= card.bottom + ROOM_BELOW;
+  return (
+    marker.x >= card.left - ROOM_SIDE &&
+    marker.x <= card.right + ROOM_SIDE &&
+    marker.y >= card.top - ROOM_ABOVE &&
+    marker.y <= card.bottom + ROOM_BELOW
+  );
 }
 
 /**

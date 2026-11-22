@@ -3,11 +3,13 @@ export const nearby = {
   "nearby.digipeaters": "Digipeaters",
   "nearby.digipeaters_help": "Estações que repetiram pacotes que recebemos e estações com símbolo de digipeater.",
   "nearby.digipeaters_tip_label": "Sobre o alcance",
-  "nearby.digipeaters_tip": "Um digipeater repete o que ouve. As estações dentro do círculo o alcançam; as de fora não.",
+  "nearby.digipeaters_tip":
+    "Um digipeater repete o que ouve. As estações dentro do círculo o alcançam; as de fora não.",
   "nearby.voice": "Frequências de voz",
   "nearby.voice_help": "Estações, objetos e itens que informaram uma frequência para chamar.",
   "nearby.igates": "iGates",
-  "nearby.igates_help": "Estações que puseram no ar pacotes da internet, disseram ser um iGate ou têm o símbolo de iGate.",
+  "nearby.igates_help":
+    "Estações que puseram no ar pacotes da internet, disseram ser um iGate ou têm o símbolo de iGate.",
   "nearby.igates_tip_label": "Sobre iGates",
   "nearby.igates_tip": "Um iGate passa pacotes entre o rádio e a internet, para que estações distantes vejam você.",
   "nearby.direct": "Recebidas direto",
@@ -26,7 +28,8 @@ export const nearby = {
   "nearby.direct_last": "último recebimento direto {when}",
   "nearby.ask": "Perguntar ao redor",
   "nearby.ask_tip_label": "Sobre perguntar ao redor",
-  "nearby.ask_tip": "Envia uma consulta pelo rádio. As estações respondem com a posição, os iGates com o que fazem, as meteorológicas com o tempo.",
+  "nearby.ask_tip":
+    "Envia uma consulta pelo rádio. As estações respondem com a posição, os iGates com o que fazem, as meteorológicas com o tempo.",
   "nearby.ask_kind_label": "O que perguntar",
   "nearby.ask_kind.aprs": "Quem está por perto",
   "nearby.ask_kind.igate": "iGates",
@@ -36,9 +39,11 @@ export const nearby = {
   "nearby.ask_wait": "Perguntado agora há pouco: de novo em {seconds} s",
   "nearby.ask_help": "Pede às estações ao alcance do rádio que se apresentem.",
   "nearby.ask_refused": "Não enviado: {reason}",
-  "nearby.ask_sent.aprs": "Perguntado quem está por perto às {time} via {path}; as respostas chegam ao mapa e a Estações",
+  "nearby.ask_sent.aprs":
+    "Perguntado quem está por perto às {time} via {path}; as respostas chegam ao mapa e a Estações",
   "nearby.ask_sent.igate": "Perguntado aos iGates às {time} via {path}; as respostas chegam ao mapa e a Estações",
-  "nearby.ask_sent.wx": "Perguntado às estações meteorológicas às {time} via {path}; as respostas chegam ao mapa e a Estações",
+  "nearby.ask_sent.wx":
+    "Perguntado às estações meteorológicas às {time} via {path}; as respostas chegam ao mapa e a Estações",
   "nearby.ask_sent_own.aprs": "Perguntado quem está por perto às {time}; as respostas chegam ao mapa e a Estações",
   "nearby.ask_sent_own.igate": "Perguntado aos iGates às {time}; as respostas chegam ao mapa e a Estações",
   "nearby.ask_sent_own.wx": "Perguntado às estações meteorológicas às {time}; as respostas chegam ao mapa e a Estações",
@@ -52,7 +57,8 @@ export const nearby = {
     one: "{n} estação calada nos {min} minutos anteriores falou nos {after} minutos seguintes",
     other: "{n} estações caladas nos {min} minutos anteriores falaram nos {after} minutos seguintes",
   },
-  "nearby.ask_new_title": "{calls}. Provavelmente quase todas são respostas; uma estação cujo beacon caiu nesses minutos também conta.",
+  "nearby.ask_new_title":
+    "{calls}. Provavelmente quase todas são respostas; uma estação cujo beacon caiu nesses minutos também conta.",
   "nearby.ask_new_note":
     "Estações ouvidas pelo rádio após a consulta que não tinham sido ouvidas nos {min} minutos anteriores. Quase todas serão respostas; um beacon nessa hora também conta.",
 };

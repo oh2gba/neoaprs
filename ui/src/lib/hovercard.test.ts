@@ -6,7 +6,10 @@ import { ago, heardBy, NOW, radioRow, radiosTopic, station, weather } from "@/te
 
 describe("hoverRows", () => {
   it("has when it was heard, how far and which way, and the route", () => {
-    const rows = hoverRows(station("OH2PU-9", { last_heard: ago(120), distance_km: 12.4, bearing_deg: 45, last_route: "via OH2RCH-2" }), NOW);
+    const rows = hoverRows(
+      station("OH2PU-9", { last_heard: ago(120), distance_km: 12.4, bearing_deg: 45, last_route: "via OH2RCH-2" }),
+      NOW,
+    );
     expect(rows).toEqual([
       { label: "Heard", text: "2 min ago" },
       { label: "From us", text: "12 km, 45° NE" },
@@ -24,11 +27,16 @@ describe("hoverRows", () => {
     expect(labelled({ heard_is: 2 })).toBe("FM · Internet");
     expect(labelled({ heard_is: 2 }, radioRow(1, "kenwood-tnc2", { name: "2 m" }))).toBe("2 m · Internet");
     expect(labelled({ heard_rf: 0, heard_rf_gated: 1 })).toBe("iGate");
-    expect(labelled({ heard_rf: 0, heard_is: 2, last_rf_at: null })).toBe("Received over the internet (APRS-IS), not on the radio");
+    expect(labelled({ heard_rf: 0, heard_is: 2, last_rf_at: null })).toBe(
+      "Received over the internet (APRS-IS), not on the radio",
+    );
   });
 
   it("adds the status, the comment and the temperature of a weather station when there are any", () => {
-    const rows = hoverRows(station("OH2MUI", { last_status: "On the roof", last_comment: "Davis", weather: weather({ temp_c: 10 }) }), NOW);
+    const rows = hoverRows(
+      station("OH2MUI", { last_status: "On the roof", last_comment: "Davis", weather: weather({ temp_c: 10 }) }),
+      NOW,
+    );
     expect(rows.map((r) => r.label)).toEqual(["Heard", "Status", "Comment", "From us", "Temperature", "Route"]);
     expect(rows.find((r) => r.label === "Temperature")?.text).toBe("10.0 °C");
   });
@@ -42,7 +50,9 @@ describe("hoverRows", () => {
   it("leaves out a distance and a route that are not there, and the route of our own station", () => {
     const none = hoverRows(station("X", { distance_km: null, bearing_deg: null, last_route: "" }), NOW);
     expect(none.map((r) => r.label)).toEqual(["Heard"]);
-    expect(hoverRows(station("OH2GBA", { is_me: true, last_route: "direct" }), NOW).some((r) => r.label === "Route")).toBe(false);
+    expect(
+      hoverRows(station("OH2GBA", { is_me: true, last_route: "direct" }), NOW).some((r) => r.label === "Route"),
+    ).toBe(false);
   });
 });
 
@@ -56,7 +66,8 @@ describe("hoverRows with several radios", () => {
     radioRow(5, "kantronics", { number: 3 }),
     radioRow(6, "dummy", { number: 4 }),
   );
-  const heardOn = (row: StationRow, radios: Parameters<typeof hoverRows>[2]) => hoverRows(row, NOW, radios).find((r) => r.label === "Heard on")?.text;
+  const heardOn = (row: StationRow, radios: Parameters<typeof hoverRows>[2]) =>
+    hoverRows(row, NOW, radios).find((r) => r.label === "Heard on")?.text;
 
   it("lists every radio that heard the station with its time, then the internet", () => {
     const row = station("OH2SIX", {

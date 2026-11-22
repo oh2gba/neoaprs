@@ -61,5 +61,8 @@ export function readView(): MapView | null {
 }
 
 export function writeView(view: MapView): void {
-  writeStored(KEY, JSON.stringify({ lat: +view.lat.toFixed(5), lon: +view.lon.toFixed(5), zoom: +view.zoom.toFixed(2) }));
+  writeStored(
+    KEY,
+    JSON.stringify({ lat: +view.lat.toFixed(5), lon: +view.lon.toFixed(5), zoom: +view.zoom.toFixed(2) }),
+  );
 }

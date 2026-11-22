@@ -50,7 +50,11 @@ export function useMapReplay(parts: () => ReplayParts) {
       if (!one) {
         const dom = buildMarkerDom();
         paintReplayMarker(dom, call, page.stations.value.get(call));
-        one = { marker: new engine.Marker({ element: dom.root, anchor: "center" }).setLngLat([lon, lat]).addTo(map), lat, lon };
+        one = {
+          marker: new engine.Marker({ element: dom.root, anchor: "center" }).setLngLat([lon, lat]).addTo(map),
+          lat,
+          lon,
+        };
         markers.set(call, one);
       } else if (one.lat !== lat || one.lon !== lon) {
         one.marker.setLngLat([lon, lat]);

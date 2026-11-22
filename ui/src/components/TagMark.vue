@@ -8,7 +8,8 @@
 // radio's: sage), `dummy` (made up: neutral, dashed border), `removed` (a removed radio: quiet
 // words, no plate, thin edge), `outline` (text colour, for a mark inside coloured text).
 // A pressed mark is `as="button"`.
-export type TagTone = "accent" | "neutral" | "ok" | "warn" | "bad" | "info" | "hf" | "lora" | "dummy" | "removed" | "outline";
+export type TagTone =
+  "accent" | "neutral" | "ok" | "warn" | "bad" | "info" | "hf" | "lora" | "dummy" | "removed" | "outline";
 
 /** The class of each tone, written out so that the style sheet's rules are found by name. */
 const TONE_CLASS: Record<TagTone, string> = {
@@ -29,5 +30,7 @@ withDefaults(defineProps<{ tone?: TagTone; as?: "span" | "button" }>(), { tone: 
 </script>
 
 <template>
-  <component :is="as" class="tag" :class="TONE_CLASS[tone]" :type="as === 'button' ? 'button' : undefined"><slot></slot></component>
+  <component :is="as" class="tag" :class="TONE_CLASS[tone]" :type="as === 'button' ? 'button' : undefined"
+    ><slot></slot
+  ></component>
 </template>

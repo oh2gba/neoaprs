@@ -11,7 +11,12 @@ import type { PageRadio } from "@/lib/radios";
 import { groupKeys, shownByValues } from "@/lib/settings";
 import { boxKeys, fieldOfKey, shownFor } from "@/lib/settingsradio";
 
-const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position", "setup.step.symbol", "setup.step.radio"];
+const STEP_IDS: readonly MessageId[] = [
+  "setup.step.call",
+  "setup.step.position",
+  "setup.step.symbol",
+  "setup.step.radio",
+];
 export const STEP_COUNT = STEP_IDS.length;
 export const LAST_STEP = STEP_COUNT - 1;
 
@@ -170,7 +175,10 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
 }
 
 /** The keys of the Radio group as the form shows them, for the Radio step's boxes. */
-export function radioStepKeys(values: Readonly<Record<string, string>>, draft: Readonly<Record<string, string>>): string[] {
+export function radioStepKeys(
+  values: Readonly<Record<string, string>>,
+  draft: Readonly<Record<string, string>>,
+): string[] {
   const group = groupKeys(Object.keys(values), "settings").find((g) => g.id === "serial");
   return (group?.keys ?? []).filter((key) => shownFor(key) && shownByValues(key, draft));
 }
@@ -194,6 +202,10 @@ export interface RadioStep {
  */
 export function radioReady(radios: readonly PageRadio[], step: RadioStep): boolean {
   const right = (radio: PageRadio): boolean =>
-    boxKeys(radio).every((key) => (step.errors[key] ?? "") === "" && !(step.search === false && fieldOfKey(key) === "port" && (step.draft[key] ?? "") === ""));
+    boxKeys(radio).every(
+      (key) =>
+        (step.errors[key] ?? "") === "" &&
+        !(step.search === false && fieldOfKey(key) === "port" && (step.draft[key] ?? "") === ""),
+    );
   return radios.some((radio) => !radio.removed && radio.enabled && right(radio));
 }

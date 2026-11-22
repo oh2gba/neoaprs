@@ -14,7 +14,13 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({ kind, appimage: "", service: false, arch: "", ...extra });
+const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({
+  kind,
+  appimage: "",
+  service: false,
+  arch: "",
+  ...extra,
+});
 const job = (over: Partial<UpdateState> = {}): UpdateState => ({
   supported: true,
   state: "idle",
@@ -35,7 +41,9 @@ const copyButtons = (wrapper: ReturnType<typeof dialog>["wrapper"]) =>
 
 describe("UpdateDialog", () => {
   it("is a modal dialog headed with the new version, the installed one small, and what is new: the note, and the release notes it asks the daemon for as it opens", () => {
-    const { wrapper, daemon } = dialog({ status: status({ update: { version: "0.4.0", url: "", message: "Fixes the map download" } }) });
+    const { wrapper, daemon } = dialog({
+      status: status({ update: { version: "0.4.0", url: "", message: "Fixes the map download" } }),
+    });
     const box = wrapper.find("[role=dialog]");
     expect(box.attributes("aria-modal")).toBe("true");
     expect(box.attributes("aria-labelledby")).toBe("updatedialog-title");
@@ -85,9 +93,17 @@ describe("UpdateDialog", () => {
   });
 
   it("offers the release page when the notes could not be fetched", () => {
-    const failed = { type: "release_notes" as const, version: "0.4.0", since: "", sections: [], problem: "unreachable" as const };
+    const failed = {
+      type: "release_notes" as const,
+      version: "0.4.0",
+      since: "",
+      sections: [],
+      problem: "unreachable" as const,
+    };
     const { wrapper } = dialog({ releaseNotes: failed });
-    expect(wrapper.find(".updatedialog-news .muted").text()).toBe("What is new could not be fetched; the release page has it:");
+    expect(wrapper.find(".updatedialog-news .muted").text()).toBe(
+      "What is new could not be fetched; the release page has it:",
+    );
     const news = wrapper.find(".updatedialog-news a.btn");
     expect(news.text()).toBe("What's new in 0.4.0");
     expect(news.attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/tag/v0.4.0");
@@ -146,7 +162,9 @@ describe("UpdateDialog", () => {
     const hand = wrapper.find("details.updatedialog-hand");
     expect(hand.find("summary").text()).toBe("Or update by hand");
     expect(hand.attributes("open")).toBeUndefined();
-    expect(hand.find("a.updatesteps-file").attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-Setup-0.4.0.exe");
+    expect(hand.find("a.updatesteps-file").attributes("href")).toBe(
+      "https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-Setup-0.4.0.exe",
+    );
     await go.trigger("click");
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "update_now", version: "0.4.0" });
     expect(daemon.send.mock.calls.filter(([command]) => command.cmd === "update_now")).toHaveLength(1);
@@ -191,14 +209,22 @@ describe("UpdateDialog", () => {
   });
 
   it("keeps the progress while the topic says the copy can no longer update itself (the restart is on its way)", () => {
-    const { wrapper } = dialog({ install: install("appimage"), selfUpdate: job({ supported: false, state: "restarting", version: "0.4.0" }) });
+    const { wrapper } = dialog({
+      install: install("appimage"),
+      selfUpdate: job({ supported: false, state: "restarting", version: "0.4.0" }),
+    });
     expect(wrapper.find(".updatedialog-state").text()).toBe("NeoAPRS restarts in a moment");
   });
 
   it("says a failure in plain words, without the daemon's detail (that is for the log, and is not on the wire), offers Try again, and leaves the steps by hand folded (opening by themselves they would move the dialog)", async () => {
-    const { wrapper, daemon } = dialog({ install: install("appimage"), selfUpdate: job({ state: "error", version: "0.4.0", problem: "checksum" }) });
+    const { wrapper, daemon } = dialog({
+      install: install("appimage"),
+      selfUpdate: job({ state: "error", version: "0.4.0", problem: "checksum" }),
+    });
     const problem = wrapper.find(".updatedialog-problem");
-    expect(problem.text()).toBe("The download is not the release's file, so it was deleted and nothing was installed. Try again.");
+    expect(problem.text()).toBe(
+      "The download is not the release's file, so it was deleted and nothing was installed. Try again.",
+    );
     expect(problem.attributes("role")).toBe("alert");
     expect(problem.attributes("title")).toBeUndefined();
     expect(wrapper.html()).not.toContain("SHA-256 is ab");
@@ -213,7 +239,9 @@ describe("UpdateDialog", () => {
     expect(win.find("a.updatesteps-file").classes()).toContain("btn");
     expect(copyButtons(win)).toHaveLength(0);
     win.unmount();
-    const image = dialog({ install: install("appimage", { appimage: "/home/ham/NeoAPRS-0.3.0-x86_64.AppImage", service: true }) }).wrapper;
+    const image = dialog({
+      install: install("appimage", { appimage: "/home/ham/NeoAPRS-0.3.0-x86_64.AppImage", service: true }),
+    }).wrapper;
     expect(image.findAll("code").map((c) => c.text())).toEqual([
       "chmod +x NeoAPRS-0.4.0-x86_64.AppImage",
       "./NeoAPRS-0.4.0-x86_64.AppImage",
@@ -223,19 +251,28 @@ describe("UpdateDialog", () => {
     image.unmount();
     const deb = dialog({ install: install("deb", { arch: "arm64", service: true }) }).wrapper;
     expect(deb.find("a[href$='neoaprs_0.4.0_arm64.deb']").exists()).toBe(true);
-    expect(deb.findAll("code").map((c) => c.text())).toEqual(["sudo apt install ./neoaprs_0.4.0_arm64.deb", "systemctl --user restart neoaprs"]);
+    expect(deb.findAll("code").map((c) => c.text())).toEqual([
+      "sudo apt install ./neoaprs_0.4.0_arm64.deb",
+      "systemctl --user restart neoaprs",
+    ]);
     deb.unmount();
     const wheel = dialog({ install: install("uv-tool", { service: true }) }).wrapper;
     expect(wheel.findAll("code")).toHaveLength(0);
     expect(wheel.find("a[href$='/releases/tag/v0.4.0']").exists()).toBe(true);
     const clone = dialog({ install: install("source", { service: true }) }).wrapper;
-    expect(clone.findAll("code").map((c) => c.text())).toEqual(["git pull", "uv sync", "systemctl --user restart neoaprs"]);
+    expect(clone.findAll("code").map((c) => c.text())).toEqual([
+      "git pull",
+      "uv sync",
+      "systemctl --user restart neoaprs",
+    ]);
     expect(copyButtons(clone)).toHaveLength(3);
   });
 
   it("has only the release page while the install kind is not known", () => {
     const { wrapper } = dialog({ install: null });
-    expect(wrapper.find("a.updatesteps-file").attributes("href")).toBe("https://github.com/oh2gba/neoaprs/releases/tag/v0.4.0");
+    expect(wrapper.find("a.updatesteps-file").attributes("href")).toBe(
+      "https://github.com/oh2gba/neoaprs/releases/tag/v0.4.0",
+    );
     expect(wrapper.find("code").exists()).toBe(false);
   });
 
@@ -309,7 +346,9 @@ describe("the box of Update now keeps its shape", () => {
     expect(cssRule(".updatedialog-act .btn")).toMatch(/flex:\s*none/);
     expect(cssRule(".updatedialog-now")).toMatch(/flex-direction:\s*column/);
     // A failure only colours the line.
-    expect(cssRule(".updatedialog-problem")).not.toMatch(/(^|;)\s*(min-height|height|margin|padding|font[a-z-]*|line-height)\s*:/);
+    expect(cssRule(".updatedialog-problem")).not.toMatch(
+      /(^|;)\s*(min-height|height|margin|padding|font[a-z-]*|line-height)\s*:/,
+    );
     expect(cssRule(".updatedialog")).toMatch(/width:\s*min\(540px, 100%\)/);
   });
 

@@ -18,10 +18,14 @@ function viewAt(lat: number, lon: number, zoom: number, w = 1280, h = 800): Grid
 const ESPOO = { lat: 60.2231, lon: 24.7152 };
 const names = (features: readonly GridFeature[]) =>
   features.flatMap((feature) =>
-    feature.geometry.type === "Point" && "name" in feature.properties ? [{ name: feature.properties.name, at: feature.geometry.coordinates }] : [],
+    feature.geometry.type === "Point" && "name" in feature.properties
+      ? [{ name: feature.properties.name, at: feature.geometry.coordinates }]
+      : [],
   );
-const lines = (features: readonly GridFeature[], rank: 0 | 1) => features.filter((feature) => "rank" in feature.properties && feature.properties.rank === rank);
-const inView = (view: GridView, [lon, lat]: [number, number]) => lon >= view.west && lon <= view.east && lat >= view.south && lat <= view.north;
+const lines = (features: readonly GridFeature[], rank: 0 | 1) =>
+  features.filter((feature) => "rank" in feature.properties && feature.properties.rank === rank);
+const inView = (view: GridView, [lon, lat]: [number, number]) =>
+  lon >= view.west && lon <= view.east && lat >= view.south && lat <= view.north;
 
 describe("the locator grid", () => {
   it.each([
@@ -36,18 +40,21 @@ describe("the locator grid", () => {
     expect(namedStep(viewAt(ESPOO.lat, ESPOO.lon, zoom))).toBe(step);
   });
 
-  it.each([2, 3, 5, 6, 8, 9, 10, 12, 15])("names at most 400 cells at zoom %s, and the cell under the middle of the view has its name in sight", (zoom) => {
-    const view = viewAt(ESPOO.lat, ESPOO.lon, zoom);
-    const shown = names(gridFeatures(view).features);
-    expect(shown.length).toBeGreaterThan(0);
-    expect(shown.length).toBeLessThanOrEqual(MAX_CELLS);
-    const chars = { field: 2, square: 4, subsquare: 6 }[namedStep(view)];
-    const middle = positionToLocator(ESPOO.lat, ESPOO.lon).slice(0, chars);
-    const own = shown.find((one) => one.name === middle);
-    expect(own).toBeDefined();
-    expect(inView(view, own?.at ?? [999, 999])).toBe(true);
-    for (const one of shown) expect(inView(view, one.at)).toBe(true);
-  });
+  it.each([2, 3, 5, 6, 8, 9, 10, 12, 15])(
+    "names at most 400 cells at zoom %s, and the cell under the middle of the view has its name in sight",
+    (zoom) => {
+      const view = viewAt(ESPOO.lat, ESPOO.lon, zoom);
+      const shown = names(gridFeatures(view).features);
+      expect(shown.length).toBeGreaterThan(0);
+      expect(shown.length).toBeLessThanOrEqual(MAX_CELLS);
+      const chars = { field: 2, square: 4, subsquare: 6 }[namedStep(view)];
+      const middle = positionToLocator(ESPOO.lat, ESPOO.lon).slice(0, chars);
+      const own = shown.find((one) => one.name === middle);
+      expect(own).toBeDefined();
+      expect(inView(view, own?.at ?? [999, 999])).toBe(true);
+      for (const one of shown) expect(inView(view, one.at)).toBe(true);
+    },
+  );
 
   it("has a name in sight at every zoom from 2 to 15, in steps of a quarter, on a phone and on a wide window, here and at the far ends of the world", () => {
     for (const place of [ESPOO, { lat: -33.9, lon: 18.4 }, { lat: 0.01, lon: -179.99 }, { lat: 71, lon: 179.9 }]) {
@@ -123,18 +130,21 @@ describe("the locator grid", () => {
       [190, 215],
       [-200, -150],
       [-215, -190],
-    ])("names the cells of a view from %s to %s in the copy of the world they are seen in, the cell under the middle always", (west, east) => {
-      const shown = view(west, east);
-      const named = names(gridFeatures(shown).features);
-      expect(named.length).toBeGreaterThan(0);
-      expect(named.length).toBeLessThanOrEqual(MAX_CELLS);
-      for (const one of named) {
-        expect(inView(shown, one.at)).toBe(true);
-        expect(positionToLocator(one.at[1], wrapped(one.at[0])).slice(0, 4)).toBe(one.name);
-      }
-      const middle = positionToLocator(-40, wrapped((west + east) / 2)).slice(0, 4);
-      expect(named.map((one) => one.name)).toContain(middle);
-    });
+    ])(
+      "names the cells of a view from %s to %s in the copy of the world they are seen in, the cell under the middle always",
+      (west, east) => {
+        const shown = view(west, east);
+        const named = names(gridFeatures(shown).features);
+        expect(named.length).toBeGreaterThan(0);
+        expect(named.length).toBeLessThanOrEqual(MAX_CELLS);
+        for (const one of named) {
+          expect(inView(shown, one.at)).toBe(true);
+          expect(positionToLocator(one.at[1], wrapped(one.at[0])).slice(0, 4)).toBe(one.name);
+        }
+        const middle = positionToLocator(-40, wrapped((west + east) / 2)).slice(0, 4);
+        expect(named.map((one) => one.name)).toContain(middle);
+      },
+    );
 
     it("names the cells on both sides of it and draws it as a line", () => {
       const features = gridFeatures(view(170, 200)).features;
@@ -142,14 +152,18 @@ describe("the locator grid", () => {
       expect(named).toContain(positionToLocator(-40, 179.5).slice(0, 4));
       expect(named).toContain(positionToLocator(-40, -179.5).slice(0, 4));
       const meridians = lines(features, 0).flatMap((one) =>
-        one.geometry.type === "LineString" && one.geometry.coordinates[0]?.[0] === one.geometry.coordinates[1]?.[0] ? [one.geometry.coordinates[0]?.[0]] : [],
+        one.geometry.type === "LineString" && one.geometry.coordinates[0]?.[0] === one.geometry.coordinates[1]?.[0]
+          ? [one.geometry.coordinates[0]?.[0]]
+          : [],
       );
       expect(meridians).toContain(180);
       expect(meridians).toContain(190);
     });
 
     it("counts the 400 cells over both copies of the world together", () => {
-      expect(cellCount(view(170, 200), "square")).toBe(cellCount(view(170, 180), "square") + cellCount(view(-180, -160), "square"));
+      expect(cellCount(view(170, 200), "square")).toBe(
+        cellCount(view(170, 180), "square") + cellCount(view(-180, -160), "square"),
+      );
       expect(cellCount(view(190, 215), "square")).toBe(cellCount(view(-170, -145), "square"));
     });
   });

@@ -18,7 +18,9 @@ const { version, status } = useDaemonContext();
 
 /** What the daemon costs the machine, as a sentence ("NeoAPRS uses 0.3 % of one processor core
  * and 42 MB of memory, running for 3 h"). */
-const cost = computed(() => (status.value ? processText(status.value.cpu_percent, status.value.rss_mb, status.value.uptime_sec) : undefined));
+const cost = computed(() =>
+  status.value ? processText(status.value.cpu_percent, status.value.rss_mb, status.value.uptime_sec) : undefined,
+);
 const known = computed(() => status.value?.update?.version ?? null);
 /** The word after the version: running check, outcome, or the newer version found daily. */
 const word = computed<{ text: string; tone: string } | null>(() => {
@@ -27,12 +29,16 @@ const word = computed<{ text: string; tone: string } | null>(() => {
   if (known.value) return { text: t("settings.update.available", { version: known.value }), tone: "update-available" };
   return null;
 });
-const offered = computed(() => known.value !== null && !props.running && (props.outcome === null || props.outcome.newer));
+const offered = computed(
+  () => known.value !== null && !props.running && (props.outcome === null || props.outcome.newer),
+);
 </script>
 
 <template>
   <ActionRow id="set-update-now" :label="t('settings.update.label')" :tip-label="t('settings.update.tip_label')">
-    <button id="set-update-now" class="btn" type="button" :disabled="running" @click="emit('check')">{{ t("settings.update.check") }}</button>
+    <button id="set-update-now" class="btn" type="button" :disabled="running" @click="emit('check')">
+      {{ t("settings.update.check") }}
+    </button>
     <span class="updateline" role="status">
       <template v-if="version">
         <span class="updateversion" :title="cost">{{ t("settings.update.version", { version }) }}</span>

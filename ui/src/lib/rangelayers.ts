@@ -11,7 +11,12 @@ export function addRangeLayers(map: MapLibreMap, data: RangeCollection): void {
   if (map.getSource(RANGE_SOURCE)) return;
   const colour = paletteColor("--map-range", "#1565c0");
   map.addSource(RANGE_SOURCE, { type: "geojson", data });
-  map.addLayer({ id: "digipeater-ranges-fill", type: "fill", source: RANGE_SOURCE, paint: { "fill-color": colour, "fill-opacity": 0.07 } });
+  map.addLayer({
+    id: "digipeater-ranges-fill",
+    type: "fill",
+    source: RANGE_SOURCE,
+    paint: { "fill-color": colour, "fill-opacity": 0.07 },
+  });
   map.addLayer({
     id: "digipeater-ranges-line",
     type: "line",

@@ -29,28 +29,52 @@ import { noteBlocks } from "@/lib/releasenotes";
 import { problemText, progressText, releaseNotes, updateHelp, updateRunning } from "@/lib/update";
 
 const props = defineProps<{ version: string; notesOnly?: boolean; since?: string }>();
-const { install, version: installed, status, selfUpdate, connection, send, releaseNotes: notesAnswer } = useDaemonContext();
+const {
+  install,
+  version: installed,
+  status,
+  selfUpdate,
+  connection,
+  send,
+  releaseNotes: notesAnswer,
+} = useDaemonContext();
 const emit = defineEmits<{ close: [] }>();
 
 const steps = computed(() => updateHelp(install.value, props.version));
 const note = computed(() => (props.notesOnly ? "" : (status.value?.update?.message ?? "")));
 /** The daemon's answer for this version and this `since`: null while it has not come. */
-const notes = computed(() => (notesAnswer.value?.version === props.version && notesAnswer.value.since === (props.since ?? "") ? notesAnswer.value : null));
+const notes = computed(() =>
+  notesAnswer.value?.version === props.version && notesAnswer.value.since === (props.since ?? "")
+    ? notesAnswer.value
+    : null,
+);
 /** The sections to show, each as blocks; with several, each is headed by its version. */
-const sections = computed(() => (notes.value?.sections ?? []).map((section) => ({ version: section.version, blocks: noteBlocks(section.text) })));
+const sections = computed(() =>
+  (notes.value?.sections ?? []).map((section) => ({ version: section.version, blocks: noteBlocks(section.text) })),
+);
 /** The daemon can update itself: Update now is offered (and stays while one runs). */
 const running = computed(() => updateRunning(selfUpdate.value));
 const offered = computed(() => selfUpdate.value?.supported === true || running.value);
-const progress = computed(() => (selfUpdate.value ? progressText(selfUpdate.value, install.value?.kind, connection.value === "open") : null));
+const progress = computed(() =>
+  selfUpdate.value ? progressText(selfUpdate.value, install.value?.kind, connection.value === "open") : null,
+);
 const failed = computed(() => (selfUpdate.value?.state === "error" ? selfUpdate.value : null));
-const cancellable = computed(() => selfUpdate.value?.state === "downloading" || selfUpdate.value?.state === "verifying");
+const cancellable = computed(
+  () => selfUpdate.value?.state === "downloading" || selfUpdate.value?.state === "verifying",
+);
 
 const dialog = ref<HTMLElement | null>(null);
-const keys = useDialogFocus(dialog, () => emit("close"), { first: () => dialog.value?.querySelector<HTMLElement>(".updatedialog-go") ?? null });
+const keys = useDialogFocus(dialog, () => emit("close"), {
+  first: () => dialog.value?.querySelector<HTMLElement>(".updatedialog-go") ?? null,
+});
 
 onMounted(() => {
   if (notes.value === null)
-    send(props.since ? { cmd: "release_notes", version: props.version, since: props.since } : { cmd: "release_notes", version: props.version });
+    send(
+      props.since
+        ? { cmd: "release_notes", version: props.version, since: props.since }
+        : { cmd: "release_notes", version: props.version },
+    );
   document.addEventListener("keydown", keys.onKey);
 });
 onBeforeUnmount(() => document.removeEventListener("keydown", keys.onKey));
@@ -61,12 +85,25 @@ const cancel = (): boolean => send({ cmd: "update_cancel" });
 
 <template>
   <div class="updatedialog-backdrop" @pointerdown.self="emit('close')">
-    <section ref="dialog" class="updatedialog" role="dialog" aria-modal="true" aria-labelledby="updatedialog-title" tabindex="-1">
+    <section
+      ref="dialog"
+      class="updatedialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="updatedialog-title"
+      tabindex="-1"
+    >
       <header class="updatedialog-head">
         <div class="updatedialog-titles">
-          <h2 id="updatedialog-title">{{ t(notesOnly ? "help.update.notes_title" : "help.update.title", { version }) }}</h2>
-          <p v-if="notesOnly && since" class="muted updatedialog-installed">{{ t("help.update.notes_since", { version: since }) }}</p>
-          <p v-else-if="!notesOnly && installed" class="muted updatedialog-installed">{{ t("help.update.installed", { version: installed }) }}</p>
+          <h2 id="updatedialog-title">
+            {{ t(notesOnly ? "help.update.notes_title" : "help.update.title", { version }) }}
+          </h2>
+          <p v-if="notesOnly && since" class="muted updatedialog-installed">
+            {{ t("help.update.notes_since", { version: since }) }}
+          </p>
+          <p v-else-if="!notesOnly && installed" class="muted updatedialog-installed">
+            {{ t("help.update.installed", { version: installed }) }}
+          </p>
         </div>
         <IconButton kind="close" :label="t('help.close')" @click="emit('close')" />
       </header>
@@ -101,7 +138,9 @@ const cancel = (): boolean => send({ cmd: "update_cancel" });
         </div>
         <template v-else-if="notes !== null">
           <p class="muted">{{ t("help.update.news_failed") }}</p>
-          <a class="btn" :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">{{ t("help.update.news_link", { version }) }}</a>
+          <a class="btn" :href="releaseNotes(version)" target="_blank" rel="noopener noreferrer">{{
+            t("help.update.news_link", { version })
+          }}</a>
         </template>
         <p v-else class="muted" role="status">{{ t("help.update.news_loading") }}</p>
       </section>
@@ -112,8 +151,14 @@ const cancel = (): boolean => send({ cmd: "update_cancel" });
           </p>
           <div class="updatedialog-act">
             <template v-if="progress">
-              <progress v-if="selfUpdate?.state === 'downloading'" max="100" :value="selfUpdate.percent ?? undefined"></progress>
-              <button v-if="cancellable" type="button" class="btn" @click="cancel">{{ t("help.update.cancel") }}</button>
+              <progress
+                v-if="selfUpdate?.state === 'downloading'"
+                max="100"
+                :value="selfUpdate.percent ?? undefined"
+              ></progress>
+              <button v-if="cancellable" type="button" class="btn" @click="cancel">
+                {{ t("help.update.cancel") }}
+              </button>
             </template>
             <button v-else type="button" class="btn primary updatedialog-go" @click="updateNow">
               {{ t(failed ? "help.update.retry" : "help.update.now") }}

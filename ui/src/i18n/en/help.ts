@@ -7,27 +7,41 @@ export const help = {
   "help.me": "This station",
   "help.picture.object":
     "A map with your car station and two objects you send, a repeater with its frequency and a meeting point; both appear on the maps of two other stations.",
-  "help.picture.bulletin": "One station sends a bulletin, BLN1, and the same message appears on the board of three other stations.",
+  "help.picture.bulletin":
+    "One station sends a bulletin, BLN1, and the same message appears on the board of three other stations.",
   "help.picture.bulletingroup":
     "One station sends a group bulletin, BLN3HAMS, to three stations: the two that show the group HAMS put it on their board, the third has picked other groups, hears it and shows nothing.",
-  "help.picture.beacon": "Your station sends its position again and again, with a clock between the beacons, and appears on the map of the others.",
+  "help.picture.beacon":
+    "Your station sends its position again and again, with a clock between the beacons, and appears on the map of the others.",
   "help.picture.path":
     "Your packet goes from your car to a fill-in digipeater, WIDE1-1, then to a wide-area one, WIDE2-1: two hops before the other stations hear it.",
-  "help.picture.status": "Your short status text, QRV 145.500, appears on the map of the other stations under your call.",
-  "help.picture.range": "A digipeater with its range circle: the stations inside the circle are heard through it, the stations outside it are not.",
-  "help.picture.request": "A station asks for local info, and your station answers with the object, which is otherwise not sent.",
-  "help.picture.ssid": "One call sign, YOURCALL, for three stations: the plain call is a house, -9 a car, -10 an iGate.",
-  "help.picture.symbol": "A choice of symbols with the car picked, and the car on the map of another station under your call.",
-  "help.picture.network": "The computer that runs NeoAPRS, connected over the network to a phone, a tablet and a laptop that open its page.",
+  "help.picture.status":
+    "Your short status text, QRV 145.500, appears on the map of the other stations under your call.",
+  "help.picture.range":
+    "A digipeater with its range circle: the stations inside the circle are heard through it, the stations outside it are not.",
+  "help.picture.request":
+    "A station asks for local info, and your station answers with the object, which is otherwise not sent.",
+  "help.picture.ssid":
+    "One call sign, YOURCALL, for three stations: the plain call is a house, -9 a car, -10 an iGate.",
+  "help.picture.symbol":
+    "A choice of symbols with the car picked, and the car on the map of another station under your call.",
+  "help.picture.network":
+    "The computer that runs NeoAPRS, connected over the network to a phone, a tablet and a laptop that open its page.",
   "help.picture.accesskey": "A key typed once on a phone, which then stays logged in.",
   "help.picture.igate": "A car's packet goes by radio to an iGate, which passes it to the internet, APRS-IS, and back.",
-  "help.picture.radius": "A map with the station in the middle: the detailed map reaches the circle around it, the world map the rest.",
-  "help.picture.position": "A fixed station that stays at its place, and a station with a GPS that moves, with its beacons along the track.",
-  "help.picture.digipeater": "A car that cannot reach the wide-area digipeater directly is repeated by your station, which passes its packet on.",
+  "help.picture.radius":
+    "A map with the station in the middle: the detailed map reaches the circle around it, the world map the rest.",
+  "help.picture.position":
+    "A fixed station that stays at its place, and a station with a GPS that moves, with its beacons along the track.",
+  "help.picture.digipeater":
+    "A car that cannot reach the wide-area digipeater directly is repeated by your station, which passes its packet on.",
   "help.picture.logs": "A log file that goes, attached, in an e-mail.",
-  "help.picture.transmit": "Our station hears the others (the arrow in) while what it would send goes nowhere: the dashed arrow is crossed out.",
-  "help.picture.beaconoff": "With the beacon off the clock sends nothing, the beacons on the time line are empty; a press of the button still sends one.",
-  "help.picture.internet": "Stations that APRS-IS has within the map's radius come from the cloud to your map, one way only; nothing goes back.",
+  "help.picture.transmit":
+    "Our station hears the others (the arrow in) while what it would send goes nowhere: the dashed arrow is crossed out.",
+  "help.picture.beaconoff":
+    "With the beacon off the clock sends nothing, the beacons on the time line are empty; a press of the button still sends one.",
+  "help.picture.internet":
+    "Stations that APRS-IS has within the map's radius come from the cloud to your map, one way only; nothing goes back.",
   "help.picture.channels":
     "A station heard on the radio, by waves, is tagged with the radio that heard it, FM; one that came from the cloud, APRS-IS, has a dotted outline and its own tag.",
   "help.picture.mercury":
@@ -36,11 +50,14 @@ export const help = {
     "A distant station sends; the waterfall shows its frame as a block in the marked band, the newest at the top, and the receive level bar below stands in its good range.",
   "help.picture.tworadios":
     "Your station with two radios: the FM radio reaches the car and the digipeater nearby along the ground, the Mercury radio reaches a distant station by the signal that goes up and comes down.",
-  "help.picture.dummy": "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
-  "help.picture.notifications": "A message from a station arrives, and this device plays a sound, the speaker, and shows a notification, the card.",
+  "help.picture.dummy":
+    "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
+  "help.picture.notifications":
+    "A message from a station arrives, and this device plays a sound, the speaker, and shows a notification, the card.",
   "help.picture.encrypt":
     "Two stations give each other their keys. Then our locked message is read by the station that has the key, while a third station that hears it sees only the lock.",
-  "help.picture.qru": "Your station asks for local info, and a server station answers with objects, a repeater and an event, which appear on your map.",
+  "help.picture.qru":
+    "Your station asks for local info, and a server station answers with objects, a repeater and an event, which appear on your map.",
   "help.not_copied": "Not copied",
 
   "help.install.label": "App",
@@ -63,7 +80,8 @@ export const help = {
   "help.cert.ios2": "Open Settings → Profile Downloaded → Install.",
   "help.cert.ios3": 'Open Settings → General → About → Certificate Trust Settings and switch on "NeoAPRS local CA".',
   "help.cert.windows1": "Open {file} → Install Certificate → Current User or Local Machine → Next.",
-  "help.cert.windows2": 'Choose "Place all certificates in the following store" → Browse → Trusted Root Certification Authorities → Next → Finish.',
+  "help.cert.windows2":
+    'Choose "Place all certificates in the following store" → Browse → Trusted Root Certification Authorities → Next → Finish.',
   "help.cert.windows3": "Restart the browser.",
   "help.cert.mac1": "Open Keychain Access and import {file} into the System keychain (File → Import Items).",
   "help.cert.mac2": 'Double-click "NeoAPRS local CA", open Trust and choose Always Trust.',
@@ -88,11 +106,13 @@ export const help = {
   "help.popup.chromium3": 'Click "Relaunch" at the bottom.',
   "help.popup.back": "Come back here and {reload}",
   "help.popup.reload": "Reload",
-  "help.popup.phone": "Phones show notifications only for https pages, and this page is not one. The sound and the tab alert work here.",
+  "help.popup.phone":
+    "Phones show notifications only for https pages, and this page is not one. The sound and the tab alert work here.",
   "help.popup.other":
     "This browser has no way to allow notifications for this address. The sound and the tab alert work here. Firefox, Chrome and Edge on a computer can allow them.",
   "help.popup.still": "If the notification still doesn't show",
-  "help.popup.flatpak": "Firefox installed as a Flatpak (KDE) needs these two commands in a terminal, then a restart of Firefox:",
+  "help.popup.flatpak":
+    "Firefox installed as a Flatpak (KDE) needs these two commands in a terminal, then a restart of Firefox:",
 
   "help.update.title": "NeoAPRS {version} is available",
   "help.update.installed": "You have NeoAPRS {version}",
@@ -113,11 +133,15 @@ export const help = {
   "help.update.restarting": "NeoAPRS restarts in a moment",
   "help.update.restarting_installer": "Installing… NeoAPRS restarts in a moment",
   "help.update.reconnecting": "NeoAPRS is restarting",
-  "help.update.problem.download": "The update could not be downloaded. Try again, or download it from the project page.",
-  "help.update.problem.unverified": "This update could not be checked, so nothing was installed. Download it from the project page.",
-  "help.update.problem.checksum": "The download is not the release's file, so it was deleted and nothing was installed. Try again.",
+  "help.update.problem.download":
+    "The update could not be downloaded. Try again, or download it from the project page.",
+  "help.update.problem.unverified":
+    "This update could not be checked, so nothing was installed. Download it from the project page.",
+  "help.update.problem.checksum":
+    "The download is not the release's file, so it was deleted and nothing was installed. Try again.",
   "help.update.problem.install": "The update could not be installed. Update by hand.",
-  "help.update.problem.no_restart": "The update is installed, but NeoAPRS did not restart. Quit NeoAPRS and start it again.",
+  "help.update.problem.no_restart":
+    "The update is installed, but NeoAPRS did not restart. Quit NeoAPRS and start it again.",
   "help.update.by_hand": "Or update by hand",
   "help.update.steps": "How to update",
   "help.update.restart_service": "Restart the service",
@@ -135,7 +159,8 @@ export const help = {
   "help.update.deb.install": "Install it from the folder you downloaded it to (it asks for your password)",
   "help.update.deb.service": "The service restarts by itself. If it still shows the old version:",
   "help.update.macos.download": "Download the new app",
-  "help.update.macos.replace": "Quit NeoAPRS, open the download and drag NeoAPRS to Applications in the place of the old one",
+  "help.update.macos.replace":
+    "Quit NeoAPRS, open the download and drag NeoAPRS to Applications in the place of the old one",
   "help.update.macos.start": "Start NeoAPRS from Applications again",
   "help.update.source.pull": "In the folder of the clone",
   "help.update.source.sync": "Bring the environment up to date",

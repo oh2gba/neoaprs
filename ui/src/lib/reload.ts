@@ -52,12 +52,19 @@ export function matches(hello: DaemonHello, page: PageIdentity = currentPage()):
 }
 
 export function describeMismatch(hello: DaemonHello, page: PageIdentity = currentPage()): Mismatch {
-  return { page: `${page.page || "-"}/${page.protocol}`, neoaprs: `${hello.version}, ${hello.page || "-"}/${hello.protocol}` };
+  return {
+    page: `${page.page || "-"}/${page.protocol}`,
+    neoaprs: `${hello.version}, ${hello.page || "-"}/${hello.protocol}`,
+  };
 }
 
 /** Looks at a hello and reloads the page when the daemon has another protocol or build; the last
  * two arguments are for the tests. */
-export function reloadForDaemon(hello: DaemonHello, page: PageIdentity = currentPage(), reload: () => void = () => location.reload()): Reload {
+export function reloadForDaemon(
+  hello: DaemonHello,
+  page: PageIdentity = currentPage(),
+  reload: () => void = () => location.reload(),
+): Reload {
   try {
     if (matches(hello, page)) {
       sessionStorage.removeItem(KEY);

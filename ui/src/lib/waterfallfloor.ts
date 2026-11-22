@@ -72,7 +72,10 @@ export class Floor {
 
   feed(row: Float32Array): void {
     const reading = this.read(row, this.tilt);
-    this.level = this.level === null ? reading : this.level + Math.max(-LEVEL_SLEW_DB, Math.min(LEVEL_SLEW_DB, LEVEL_GAIN * (reading - this.level)));
+    this.level =
+      this.level === null
+        ? reading
+        : this.level + Math.max(-LEVEL_SLEW_DB, Math.min(LEVEL_SLEW_DB, LEVEL_GAIN * (reading - this.level)));
     // relative to the row's own reading, not the level still on its way: a noise step is no dip in
     // a bin
     for (let i = 0; i < BINS; i++) this.sum[i] += 10 ** ((row[i] - reading) / 10);

@@ -32,7 +32,16 @@ describe("useOwnObjects", () => {
 
   it("is dirty once something is typed, and Cancel clears all of it: name, place, symbol, comment, Moving and Advanced", () => {
     const { view } = setUp();
-    Object.assign(view.draft, { name: "OLD", comment: "typed", symbol: "/>", course: "90", speed: "5", path: "WIDE1-1", qru: "NET", onRequest: true });
+    Object.assign(view.draft, {
+      name: "OLD",
+      comment: "typed",
+      symbol: "/>",
+      course: "90",
+      speed: "5",
+      path: "WIDE1-1",
+      qru: "NET",
+      onRequest: true,
+    });
     view.place(60.1, 24.9);
     expect(view.dirty).toBe(true);
     expect(view.pin).toEqual({ lat: 60.1, lon: 24.9 });
@@ -76,12 +85,22 @@ describe("useOwnObjects", () => {
   });
 
   it("selects an object: the form has what the daemon has of it and the Objects tab is put in front", () => {
-    const { view, show } = setUp([ownObject("LEADER", { comment: "Rescue 1", course_deg: 88, speed_kmh: 40, path: "WIDE2-1" })]);
+    const { view, show } = setUp([
+      ownObject("LEADER", { comment: "Rescue 1", course_deg: 88, speed_kmh: 40, path: "WIDE2-1" }),
+    ]);
     view.edit("LEADER");
     expect(show).toHaveBeenCalledWith("objects");
     expect(view.editing).toBe("LEADER");
     expect(view.dirty).toBe(true);
-    expect(view.draft).toMatchObject({ name: "LEADER", comment: "Rescue 1", course: "88", speed: "40", path: "WIDE2-1", lat: "60.2", lon: "24.9" });
+    expect(view.draft).toMatchObject({
+      name: "LEADER",
+      comment: "Rescue 1",
+      course: "88",
+      speed: "40",
+      path: "WIDE2-1",
+      lat: "60.2",
+      lon: "24.9",
+    });
   });
 
   it("leaves the selection and clears the form on Cancel", () => {
@@ -174,7 +193,10 @@ describe("useOwnObjects", () => {
     ]);
     expect(view.dirty).toBe(true);
     expect(view.draft).toMatchObject({ name: "LEADER", comment: "Rescue 1", speed: "40" });
-    table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 1", speed_kmh: 40, symbol_code: "r" }));
+    table.set(
+      "LEADER",
+      ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 1", speed_kmh: 40, symbol_code: "r" }),
+    );
     await nextTick();
     expect(view.dirty).toBe(false);
     expect(view.draft.name).toBe("");
@@ -264,7 +286,9 @@ describe("useOwnObjects", () => {
   });
 
   it("moves an object to where its marker was dropped, everything else as it is", () => {
-    const { view, sent } = setUp([ownObject("LEADER", { comment: "Rescue 1", course_deg: 88, speed_kmh: 40, path: "WIDE2-1" })]);
+    const { view, sent } = setUp([
+      ownObject("LEADER", { comment: "Rescue 1", course_deg: 88, speed_kmh: 40, path: "WIDE2-1" }),
+    ]);
     view.move("LEADER", 60.5, 25.5);
     expect(sent).toEqual([
       {

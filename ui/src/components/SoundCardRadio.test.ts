@@ -17,7 +17,16 @@ import { configValues, portRow, radioRow, radiosTopic, soundCard, soundCardModem
 
 const ports: PortsMessage = {
   type: "ports",
-  sound_cards: [{ id: "plughw:CARD=AIOC,DEV=0", name: "All-In-One-Cable", numbered: "plughw:2,0", default: false, pick: true, held_by: null }],
+  sound_cards: [
+    {
+      id: "plughw:CARD=AIOC,DEV=0",
+      name: "All-In-One-Cable",
+      numbered: "plughw:2,0",
+      default: false,
+      pick: true,
+      held_by: null,
+    },
+  ],
   keying: "cm108",
   search: true,
   find: true,
@@ -44,12 +53,20 @@ function radios(modem: Partial<RadioRow["modem"]> = {}): Map<string, RadioRow> {
 function make(unavailable: string[] = []) {
   const config = configValues({});
   const daemon = fakeDaemon({
-    config: { ...config, radio_values: { ...config.radio_values, ...OWN }, radio_defaults: { ...config.radio_defaults, ...OWN } },
+    config: {
+      ...config,
+      radio_values: { ...config.radio_values, ...OWN },
+      radio_defaults: { ...config.radio_defaults, ...OWN },
+    },
     radios: radios(),
     ports,
     status: status({ unheard_radio: 1, unavailable_types: unavailable }),
   });
-  const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(SettingsForm, {
+    props: { scope: "settings" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   const box = () => {
     const found = wrapper.findAll("fieldset.subbox").find((f) => f.find("legend").text() === "Attic");
     if (!found) throw new Error("no box of the Sound card radio");
@@ -122,10 +139,12 @@ describe("a Sound card radio's box", () => {
     const { daemon, wrapper, box } = make();
     globalThis.IntersectionObserver = original;
     // the Receive level row, not the Transmit level row
-    const seen = (entries: { isIntersecting: boolean }[]) => observers.filter((o) => o.target?.querySelector(".levelbar")).forEach((o) => o.run(entries));
+    const seen = (entries: { isIntersecting: boolean }[]) =>
+      observers.filter((o) => o.target?.querySelector(".levelbar")).forEach((o) => o.run(entries));
     mounted = wrapper;
     await flushPromises();
-    const levelAsks = () => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === "radio_level");
+    const levelAsks = () =>
+      daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === "radio_level");
     expect(levelAsks()).toEqual([]);
     seen([{ isIntersecting: true }]);
     expect(levelAsks()).toEqual([{ cmd: "radio_level", radio: 3, on: true }]);
@@ -176,24 +195,51 @@ describe("a Sound card radio's box", () => {
   });
 
   it("is asked for and takes its own sound cards and proposal, never those of the Mercury radio's answer, as every radio with a sound card does", async () => {
-    expect(portsAsks([radioRow(1, "kenwood-tnc2"), radioRow(3, "direwolf")])).toEqual([{ cmd: "list_ports", radio: 3 }]);
+    expect(portsAsks([radioRow(1, "kenwood-tnc2"), radioRow(3, "direwolf")])).toEqual([
+      { cmd: "list_ports", radio: 3 },
+    ]);
     const CODEC = "plughw:CARD=CODEC,DEV=0";
     // the HF radio has its own already
-    const empty = { ...OWN, "radio/2/sound_card": CODEC, "radio/2/keying": "rts:/dev/ttyUSB0", "radio/3/sound_card": "", "radio/3/keying": "" };
+    const empty = {
+      ...OWN,
+      "radio/2/sound_card": CODEC,
+      "radio/2/keying": "rts:/dev/ttyUSB0",
+      "radio/3/sound_card": "",
+      "radio/3/keying": "",
+    };
     const config = configValues({});
-    const hfAnswer: PortsMessage = { ...ports, radio: 2, keying: "rts:/dev/ttyUSB0", sound_cards: [soundCard(CODEC, "USB Audio CODEC", { pick: true })] };
+    const hfAnswer: PortsMessage = {
+      ...ports,
+      radio: 2,
+      keying: "rts:/dev/ttyUSB0",
+      sound_cards: [soundCard(CODEC, "USB Audio CODEC", { pick: true })],
+    };
     const daemon = fakeDaemon({
-      config: { ...config, radio_values: { ...config.radio_values, ...empty }, radio_defaults: { ...config.radio_defaults, ...OWN } },
-      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "direwolf", { name: "Attic", number: 2, modem: soundCardModem() })),
+      config: {
+        ...config,
+        radio_values: { ...config.radio_values, ...empty },
+        radio_defaults: { ...config.radio_defaults, ...OWN },
+      },
+      radios: radiosTopic(
+        radioRow(1, "kenwood-tnc2"),
+        radioRow(2, "mercury"),
+        radioRow(3, "direwolf", { name: "Attic", number: 2, modem: soundCardModem() }),
+      ),
       ports: hfAnswer,
       portsByRadio: new Map([[2, hfAnswer]]),
       status: status({ unheard_radio: 1 }),
     });
-    const sets = () => daemon.send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
-    const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
+    const sets = () =>
+      daemon.send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
+    const wrapper = mount(SettingsForm, {
+      props: { scope: "settings" },
+      global: withDaemon(daemon),
+      attachTo: document.body,
+    });
     mounted = wrapper;
     await flushPromises();
-    const cards = () => [...wrapper.find<HTMLSelectElement>("#set-radio-3-sound_card").element.options].map((o) => o.value);
+    const cards = () =>
+      [...wrapper.find<HTMLSelectElement>("#set-radio-3-sound_card").element.options].map((o) => o.value);
     expect(sets()).toEqual([]);
     expect(cards()).not.toContain(CODEC);
     await tell(daemon, {
@@ -211,38 +257,65 @@ describe("a Sound card radio's box", () => {
   it.each([
     ["by its id", "plughw:CARD=FTX1,DEV=0"],
     ["by its number, as an old setting has it", "plughw:1,0"],
-  ])("offers first the keying lines of the ports that sit on one USB hub with its sound card, by the order alone, the card stored %s", async (_how, stored) => {
-    const FTX1 = "plughw:CARD=FTX1,DEV=0";
-    const own: PortsMessage = {
-      ...ports,
-      keying: "",
-      sound_cards: [
-        soundCard(FTX1, "USB Audio Device", { numbered: "plughw:1,0", usb_group: "ftx1" }),
-        soundCard("plughw:CARD=CODEC,DEV=0", "USB Audio CODEC", { usb_group: "other" }),
-      ],
-      ports: [portRow("/dev/ttyUSB0", "CP2105", { usb_group: "other" }), portRow("/dev/ttyUSB1", "CP2105", { usb_group: "ftx1" })],
-    };
-    const config = configValues({});
-    const values = { ...OWN, "radio/3/sound_card": stored, "radio/3/keying": "vox" };
-    const daemon = fakeDaemon({
-      config: { ...config, radio_values: { ...config.radio_values, ...values }, radio_defaults: { ...config.radio_defaults, ...OWN } },
-      radios: radios(),
-      ports: own,
-      portsByRadio: new Map([[3, own]]),
-      status: status({ unheard_radio: 1 }),
-    });
-    const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
-    mounted = wrapper;
-    await flushPromises();
-    const keying = () => [...wrapper.find<HTMLSelectElement>("#set-radio-3-keying").element.options].map((o) => o.value);
-    expect(keying()).toEqual(["vox", "cm108", "rts:/dev/ttyUSB1", "dtr:/dev/ttyUSB1", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
-    // no heading: the order alone
-    expect(wrapper.find("#set-radio-3-keying").element.closest("fieldset")?.querySelectorAll("optgroup")).toHaveLength(0);
-  });
+  ])(
+    "offers first the keying lines of the ports that sit on one USB hub with its sound card, by the order alone, the card stored %s",
+    async (_how, stored) => {
+      const FTX1 = "plughw:CARD=FTX1,DEV=0";
+      const own: PortsMessage = {
+        ...ports,
+        keying: "",
+        sound_cards: [
+          soundCard(FTX1, "USB Audio Device", { numbered: "plughw:1,0", usb_group: "ftx1" }),
+          soundCard("plughw:CARD=CODEC,DEV=0", "USB Audio CODEC", { usb_group: "other" }),
+        ],
+        ports: [
+          portRow("/dev/ttyUSB0", "CP2105", { usb_group: "other" }),
+          portRow("/dev/ttyUSB1", "CP2105", { usb_group: "ftx1" }),
+        ],
+      };
+      const config = configValues({});
+      const values = { ...OWN, "radio/3/sound_card": stored, "radio/3/keying": "vox" };
+      const daemon = fakeDaemon({
+        config: {
+          ...config,
+          radio_values: { ...config.radio_values, ...values },
+          radio_defaults: { ...config.radio_defaults, ...OWN },
+        },
+        radios: radios(),
+        ports: own,
+        portsByRadio: new Map([[3, own]]),
+        status: status({ unheard_radio: 1 }),
+      });
+      const wrapper = mount(SettingsForm, {
+        props: { scope: "settings" },
+        global: withDaemon(daemon),
+        attachTo: document.body,
+      });
+      mounted = wrapper;
+      await flushPromises();
+      const keying = () =>
+        [...wrapper.find<HTMLSelectElement>("#set-radio-3-keying").element.options].map((o) => o.value);
+      expect(keying()).toEqual([
+        "vox",
+        "cm108",
+        "rts:/dev/ttyUSB1",
+        "dtr:/dev/ttyUSB1",
+        "rts:/dev/ttyUSB0",
+        "dtr:/dev/ttyUSB0",
+      ]);
+      // no heading: the order alone
+      expect(
+        wrapper.find("#set-radio-3-keying").element.closest("fieldset")?.querySelectorAll("optgroup"),
+      ).toHaveLength(0);
+    },
+  );
 
   it("says why its modem waits, and has the (i) of its keying, Tune and transmit level, in words of any modem: never Mercury's, the ALC or a steady tone", () => {
     const waiting = (reason: ModemState["reason"]) =>
-      rowStatus(radioRow(3, "direwolf", { state: "waiting", modem: soundCardModem({ state: "waiting", reason }) }), Date.now());
+      rowStatus(
+        radioRow(3, "direwolf", { state: "waiting", modem: soundCardModem({ state: "waiting", reason }) }),
+        Date.now(),
+      );
     const lines = (["not_installed", "network", "not_started", "sound_card", "keying"] as const).map(waiting);
     expect(lines).toEqual([
       "This installation does not carry this radio's modem",
@@ -251,7 +324,12 @@ describe("a Sound card radio's box", () => {
       "Sound card could not be opened: choose another",
       "Keying device could not be opened: choose another way of keying",
     ]);
-    const tips = [t("settings.keying.tip1"), t("settings.keying.tip2"), t("settings.tune.tip1"), t("settings.txlevel.tip1")];
+    const tips = [
+      t("settings.keying.tip1"),
+      t("settings.keying.tip2"),
+      t("settings.tune.tip1"),
+      t("settings.txlevel.tip1"),
+    ];
     for (const words of [...lines, ...tips]) expect(words).not.toMatch(/Mercury|ALC|steady/);
   });
 
@@ -271,9 +349,18 @@ describe("a Sound card radio's box", () => {
     const said = (code: string) => {
       setLocale(code);
       const lines = (["not_installed", "network", "not_started", "sound_card", "keying"] as const).map((reason) =>
-        rowStatus(radioRow(3, "direwolf", { state: "waiting", modem: soundCardModem({ state: "waiting", reason }) }), Date.now()),
+        rowStatus(
+          radioRow(3, "direwolf", { state: "waiting", modem: soundCardModem({ state: "waiting", reason }) }),
+          Date.now(),
+        ),
       );
-      return [...lines, t("settings.keying.tip1"), t("settings.keying.tip2"), t("settings.tune.tip1"), t("settings.txlevel.tip1")];
+      return [
+        ...lines,
+        t("settings.keying.tip1"),
+        t("settings.keying.tip2"),
+        t("settings.tune.tip1"),
+        t("settings.txlevel.tip1"),
+      ];
     };
     try {
       const wrong = LOCALES.flatMap(({ code }) =>

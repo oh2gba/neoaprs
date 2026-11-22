@@ -43,17 +43,28 @@ const NO_CONTROLS: CardLevelsRow = { tx: null, rx: null, read: true };
 const NOT_READ: CardLevelsRow = { tx: null, rx: null, read: false };
 
 function radios(card: CardLevelsRow): Map<string, RadioRow> {
-  return radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(3, "direwolf", { name: "FTX1", number: 2, modem: soundCardModem({ rx_level: 48 }), card }));
+  return radiosTopic(
+    radioRow(1, "kenwood-tnc2"),
+    radioRow(3, "direwolf", { name: "FTX1", number: 2, modem: soundCardModem({ rx_level: 48 }), card }),
+  );
 }
 
 function settingsWith(own: Record<string, string> = {}) {
   const config = configValues({});
-  return { ...config, radio_values: { ...config.radio_values, ...OWN, ...own }, radio_defaults: { ...config.radio_defaults, ...OWN } };
+  return {
+    ...config,
+    radio_values: { ...config.radio_values, ...OWN, ...own },
+    radio_defaults: { ...config.radio_defaults, ...OWN },
+  };
 }
 
 function make(card: CardLevelsRow, own: Record<string, string> = {}) {
   const daemon = fakeDaemon({ config: settingsWith(own), radios: radios(card), status: status({}) });
-  const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(SettingsForm, {
+    props: { scope: "settings" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   const box = () => {
     const found = wrapper.findAll("fieldset.subbox").find((f) => f.find("legend").text() === "FTX1");
     if (!found) throw new Error("no box of the Sound card radio");
@@ -88,7 +99,12 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     const rx = level.find("input[type=range]");
     expect((rx.element as HTMLInputElement).value).toBe("50");
     expect(rx.attributes("aria-label")).toBe("Sound card input level");
-    expect([...level.element.children].map((c) => c.className.split(" ")[0])).toEqual(["cardslider", "levelbar", "mono", "infotip"]);
+    expect([...level.element.children].map((c) => c.className.split(" ")[0])).toEqual([
+      "cardslider",
+      "levelbar",
+      "mono",
+      "infotip",
+    ]);
     expect(level.find(".levelvalue").text()).toBe("48");
   });
 
@@ -104,7 +120,9 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(tx.find(".cardslider-value").text()).toBe("38 %");
     expect(rx.find(".cardslider-value").text()).toBe("50 %");
     expect(box().find(".txlevel .txlevel-control").element.lastElementChild?.className).toContain("infotip");
-    expect(rule(SLIDER, ".cardslider")).toMatch(/flex: 0 0 min\(40%, calc\(100% - 104px - 9ch\)\);\s*font-family: var\(--mono\);/);
+    expect(rule(SLIDER, ".cardslider")).toMatch(
+      /flex: 0 0 min\(40%, calc\(100% - 104px - 9ch\)\);\s*font-family: var\(--mono\);/,
+    );
     expect(rule(SLIDER, ".cardslider-value")).toMatch(/width: 5ch;[^]*text-align: right;/);
     expect(rule(TXLEVEL, ".txlevel-control > .infotip")).toMatch(/margin-left: auto;/);
   });
@@ -126,8 +144,12 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
       width.set(220); // (a tablet's panel)
       await flushPromises();
       expect(narrow()).toEqual([true, true]);
-      expect(RESPONSIVE).toMatch(/\.size-phone \.field-control > \.cardslider,\s*\.field-control > \.cardslider\.narrow \{\s*flex-basis: calc\(100% - 28px\);/);
-      expect(RESPONSIVE).toMatch(/\.size-phone \.scope-level > \.cardslider,\s*\.scope-level > \.cardslider\.narrow \{\s*order: 1;/);
+      expect(RESPONSIVE).toMatch(
+        /\.size-phone \.field-control > \.cardslider,\s*\.field-control > \.cardslider\.narrow \{\s*flex-basis: calc\(100% - 28px\);/,
+      );
+      expect(RESPONSIVE).toMatch(
+        /\.size-phone \.scope-level > \.cardslider,\s*\.scope-level > \.cardslider\.narrow \{\s*order: 1;/,
+      );
       expect(RESPONSIVE).toMatch(/\n\.scope-level:has\(> \.cardslider\) \{\s*flex-wrap: wrap;/);
     } finally {
       width.restore();
@@ -151,7 +173,9 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(rule(SLIDER, ".cardslider-input::-moz-range-track")).toMatch(/height: 4px;[^]*background: var\(--border\);/);
     expect(rule(SLIDER, ".cardslider-input::-moz-range-progress")).toMatch(/background: var\(--accent\);/);
     for (const thumb of ["::-webkit-slider-thumb", "::-moz-range-thumb"]) {
-      expect(rule(SLIDER, `.cardslider-input${thumb}`)).toMatch(/width: 16px;\s*height: 16px;[^]*border: 1px solid var\(--border\);\s*border-radius: 50%;/);
+      expect(rule(SLIDER, `.cardslider-input${thumb}`)).toMatch(
+        /width: 16px;\s*height: 16px;[^]*border: 1px solid var\(--border\);\s*border-radius: 50%;/,
+      );
       expect(rule(SLIDER, `.cardslider-input:focus-visible${thumb}`)).toMatch(/outline: 2px solid var\(--accent\);/);
     }
     expect(rule(SLIDER, ".cardslider-input:disabled")).toMatch(/opacity: 0\.5;/);
@@ -234,7 +258,8 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(box().find(".txlevel .txlevel-control").exists()).toBe(true);
     expect(box().find(".txlevel input[type=range]").exists()).toBe(false);
     expect(box().find(".txlevel .stepbtn").exists()).toBe(false);
-    const children = () => [...box().find(".scope-level").element.children].map((c) => `${c.tagName}.${c.className.split(" ")[0]}`);
+    const children = () =>
+      [...box().find(".scope-level").element.children].map((c) => `${c.tagName}.${c.className.split(" ")[0]}`);
     expect(children()).toEqual(["SPAN.cardslider", "DIV.levelbar", "OUTPUT.mono", "SPAN.infotip"]);
     await tell(daemon, { radios: radios(FTX1) });
     expect(box().find(".txlevel input[type=range]").exists()).toBe(true);
@@ -272,7 +297,10 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(box().findAll(".txlevel .stepbtn")).toHaveLength(2);
     expect(box().find(".txlevel .txlevel-value").text()).toBe("-1 dB");
     const control = box().find(".txlevel .txlevel-control").element;
-    expect([control.firstElementChild?.className, control.lastElementChild?.className]).toEqual(["btn stepbtn", "infotip"]);
+    expect([control.firstElementChild?.className, control.lastElementChild?.className]).toEqual([
+      "btn stepbtn",
+      "infotip",
+    ]);
     await box().find("#set-radio-3-txlevel-up").trigger("click");
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/3/tx_gain_db": "0" } });
     await tell(daemon, { config: settingsWith({ "radio/3/tx_gain_db": "0" }) });
@@ -298,7 +326,9 @@ describe("the sound card's own levels in a Sound card radio's box", () => {
     expect(none.labels()).toEqual(phone);
     expect(RESPONSIVE).toMatch(/\n\.scope-level:has\(> \.cardslider\) \{\s*flex-wrap: wrap;/);
     expect(RESPONSIVE).toMatch(/\.size-phone \.scope-level > \.cardslider,[^{]*\{\s*order: 1;/);
-    expect(RESPONSIVE).toMatch(/\.size-phone \.field-control > \.cardslider,[^{]*\{\s*flex-basis: calc\(100% - 28px\);/);
+    expect(RESPONSIVE).toMatch(
+      /\.size-phone \.field-control > \.cardslider,[^{]*\{\s*flex-basis: calc\(100% - 28px\);/,
+    );
   });
 });
 
@@ -315,9 +345,16 @@ describe("the sound card's own levels in a Mercury radio's box", () => {
   it("has the card's slider in the Transmit level row with the peak under it", async () => {
     const daemon = fakeDaemon({
       config: configValues({}, HF),
-      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { modem: modemState({ scope: true, tx_peak_dbfs: -6 }), card: FTX1 })),
+      radios: radiosTopic(
+        radioRow(1, "kenwood-tnc2"),
+        radioRow(2, "mercury", { modem: modemState({ scope: true, tx_peak_dbfs: -6 }), card: FTX1 }),
+      ),
     });
-    const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
+    const wrapper = mount(SettingsForm, {
+      props: { scope: "settings" },
+      global: withDaemon(daemon),
+      attachTo: document.body,
+    });
     mounted = wrapper;
     await flushPromises();
     const row = wrapper.find("#set-radio-2-txlevel-up").element.closest(".txlevel");
@@ -330,7 +367,10 @@ describe("the sound card's own levels in a Mercury radio's box", () => {
     const row = radioRow(2, "mercury", { modem: modemState({ scope: true }), card: FTX1 });
     const daemon = fakeDaemon({ radios: radiosTopic(row) });
     const form = { choose: vi.fn() } as unknown as SettingsFormState;
-    const box = mount(HfLevelBar, { props: { on: true, radio: 2, tip: true, card: { radio: pageRadio(row), form } }, global: withDaemon(daemon) });
+    const box = mount(HfLevelBar, {
+      props: { on: true, radio: 2, tip: true, card: { radio: pageRadio(row), form } },
+      global: withDaemon(daemon),
+    });
     mounted = box;
     const slider = box.find(".scope-level input[type=range]");
     expect((slider.element as HTMLInputElement).value).toBe("50");

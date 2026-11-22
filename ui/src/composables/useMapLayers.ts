@@ -17,7 +17,12 @@ function pageTicks(): Ticks {
   if (ticks) return ticks;
   scope = effectScope(true);
   ticks =
-    scope.run(() => Object.fromEntries(LAYER_TABLE.map((row) => [row.id, usePersistedFlag(`layer.${row.id}`, ["on", "off"], row.tick)])) as Ticks) ?? null;
+    scope.run(
+      () =>
+        Object.fromEntries(
+          LAYER_TABLE.map((row) => [row.id, usePersistedFlag(`layer.${row.id}`, ["on", "off"], row.tick)]),
+        ) as Ticks,
+    ) ?? null;
   if (!ticks) throw new Error("the ticks of the layers were not made");
   return ticks;
 }

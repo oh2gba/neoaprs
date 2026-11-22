@@ -14,7 +14,12 @@ import { bearingTitle, distanceText } from "@/lib/format";
 import type { NearbyItem } from "@/lib/nearby";
 import { rowSymbolName } from "@/lib/stations";
 
-const props = defineProps<{ items: readonly NearbyItem[]; selected: string | null; others?: readonly string[]; label: string }>();
+const props = defineProps<{
+  items: readonly NearbyItem[];
+  selected: string | null;
+  others?: readonly string[];
+  label: string;
+}>();
 const emit = defineEmits<{ select: [call: string, multi?: boolean] }>();
 const { now, aging } = useDaemonContext();
 
@@ -22,7 +27,9 @@ const isOpen = (call: string): boolean => call === props.selected || (props.othe
 /** Ctrl (Cmd on a Mac) held: the card is added to the open ones, or closed when open. */
 const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
 /** The copy menu of a row: its call. */
-const copy = useCopyMenu((row) => (row.dataset["call"] === undefined ? [] : [{ kind: "call", text: row.dataset["call"] }]));
+const copy = useCopyMenu((row) =>
+  row.dataset["call"] === undefined ? [] : [{ kind: "call", text: row.dataset["call"] }],
+);
 </script>
 
 <template>
@@ -42,7 +49,11 @@ const copy = useCopyMenu((row) => (row.dataset["call"] === undefined ? [] : [{ k
       <tr
         v-for="item in items"
         :key="item.call"
-        :class="{ selected: isOpen(item.call), timedout: item.row !== null && timedOut(aging, item.row, now), inert: item.row === null }"
+        :class="{
+          selected: isOpen(item.call),
+          timedout: item.row !== null && timedOut(aging, item.row, now),
+          inert: item.row === null,
+        }"
         :aria-selected="item.row === null ? undefined : isOpen(item.call)"
         :tabindex="item.row === null ? undefined : 0"
         class="copysource"

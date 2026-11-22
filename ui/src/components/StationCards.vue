@@ -33,7 +33,18 @@ const props = defineProps<{
   /** The calls of the pinned cards (tablet and desktop): they stay open past Esc and Close all. */
   pinned?: readonly string[];
 }>();
-const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, signalSeriesByCall, stations, prefs, send, traffic } = useDaemonContext();
+const {
+  now,
+  aging,
+  weatherSeries,
+  packetHistoryByCall,
+  speedSeriesByCall,
+  signalSeriesByCall,
+  stations,
+  prefs,
+  send,
+  traffic,
+} = useDaemonContext();
 const thing = traffic.card;
 /**
  * A card asks for its station's packets by the hour when it opens and each minute (kept by call).
@@ -137,9 +148,12 @@ watch(callsKey, (key, was) => {
   const gone = before.filter((call) => !calls.includes(call));
   if (gone.length === 0) return;
   // one write: what the page is told is seen only after the next draw
-  const kept = Object.entries({ ...places.value, ...drag.pinAfter(gone, calls) }).filter(([call]) => calls.includes(call));
+  const kept = Object.entries({ ...places.value, ...drag.pinAfter(gone, calls) }).filter(([call]) =>
+    calls.includes(call),
+  );
   const next = Object.fromEntries(kept);
-  if (kept.length !== Object.keys(places.value).length || kept.some(([call, at]) => places.value[call] !== at)) places.value = next;
+  if (kept.length !== Object.keys(places.value).length || kept.some(([call, at]) => places.value[call] !== at))
+    places.value = next;
 });
 // A card that stands where it was put grows downwards (Details, weather graphs): keep it inside the
 // map.
@@ -220,10 +234,20 @@ function tap(): void {
 
 <template>
   <div v-if="rows.length + (thing ? 1 : 0) > 1 && size !== 'phone'" class="cards-actions">
-    <button v-if="thing || rows.some((row) => !isPinned(row.call))" type="button" class="btn cards-closeall" @click="closeAll">
+    <button
+      v-if="thing || rows.some((row) => !isPinned(row.call))"
+      type="button"
+      class="btn cards-closeall"
+      @click="closeAll"
+    >
       {{ t("station.cards.close_all") }}
     </button>
-    <button v-if="askable.length > 1" type="button" class="btn msgbtn cards-message" @click="emit('messageAll', askable)">
+    <button
+      v-if="askable.length > 1"
+      type="button"
+      class="btn msgbtn cards-message"
+      @click="emit('messageAll', askable)"
+    >
       <MessageGlyph :size="14" /> {{ t("station.cards.message_all", { n: askable.length }) }}
     </button>
   </div>

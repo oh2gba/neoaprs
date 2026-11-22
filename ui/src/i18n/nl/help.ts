@@ -11,26 +11,40 @@ export const help: Record<keyof typeof source, Message> = {
     "Een kaart met je station in de auto en twee objecten die je verzendt: een repeater met zijn frequentie en een verzamelpunt; beide verschijnen op de kaarten van twee andere stations.",
   "help.picture.bulletingroup":
     "Eén station verzendt een groepsbulletin, BLN3HAMS, naar drie stations: de twee die de groep HAMS tonen zetten het op hun bord, het derde heeft andere groepen gekozen, hoort het en toont niets.",
-  "help.picture.bulletin": "Eén station verzendt een bulletin, BLN1, en hetzelfde bericht verschijnt op het bord van drie andere stations.",
-  "help.picture.beacon": "Je station verzendt keer op keer zijn positie, met een klok tussen de bakens, en verschijnt op de kaart van de anderen.",
+  "help.picture.bulletin":
+    "Eén station verzendt een bulletin, BLN1, en hetzelfde bericht verschijnt op het bord van drie andere stations.",
+  "help.picture.beacon":
+    "Je station verzendt keer op keer zijn positie, met een klok tussen de bakens, en verschijnt op de kaart van de anderen.",
   "help.picture.path":
     "Je pakket gaat van je auto naar een fill-in-digipeater, WIDE1-1, en dan naar een wide-digipeater, WIDE2-1: twee hops voordat de andere stations het horen.",
-  "help.picture.status": "Je korte statustekst, QRV 145.500, verschijnt op de kaart van de andere stations onder je roepnaam.",
-  "help.picture.range": "Een digipeater met zijn bereikcirkel: de stations binnen de cirkel worden via hem gehoord, de stations erbuiten niet.",
-  "help.picture.request": "Een station vraagt om lokale info, en je station antwoordt met het object, dat anders niet wordt verzonden.",
-  "help.picture.ssid": "Eén roepnaam, YOURCALL, voor drie stations: de kale roepnaam is een huis, -9 een auto, -10 een iGate.",
-  "help.picture.symbol": "Een rij symbolen waaruit de auto is gekozen, en die auto op de kaart van een ander station, onder je roepnaam.",
-  "help.picture.network": "De computer waarop NeoAPRS draait, via het netwerk verbonden met een telefoon, een tablet en een laptop die zijn pagina openen.",
+  "help.picture.status":
+    "Je korte statustekst, QRV 145.500, verschijnt op de kaart van de andere stations onder je roepnaam.",
+  "help.picture.range":
+    "Een digipeater met zijn bereikcirkel: de stations binnen de cirkel worden via hem gehoord, de stations erbuiten niet.",
+  "help.picture.request":
+    "Een station vraagt om lokale info, en je station antwoordt met het object, dat anders niet wordt verzonden.",
+  "help.picture.ssid":
+    "Eén roepnaam, YOURCALL, voor drie stations: de kale roepnaam is een huis, -9 een auto, -10 een iGate.",
+  "help.picture.symbol":
+    "Een rij symbolen waaruit de auto is gekozen, en die auto op de kaart van een ander station, onder je roepnaam.",
+  "help.picture.network":
+    "De computer waarop NeoAPRS draait, via het netwerk verbonden met een telefoon, een tablet en een laptop die zijn pagina openen.",
   "help.picture.accesskey": "Een sleutel die één keer op een telefoon is ingetypt, waarna de telefoon ingelogd blijft.",
-  "help.picture.igate": "Het pakket van een auto gaat via de radio naar een iGate, die het doorgeeft aan internet, APRS-IS, en andersom.",
-  "help.picture.radius": "Een kaart met het station in het midden: de detailkaart reikt tot de cirkel eromheen, de wereldkaart doet de rest.",
-  "help.picture.position": "Een vast station dat op zijn plek blijft, en een station met GPS dat beweegt, met zijn bakens langs het spoor.",
-  "help.picture.digipeater": "Een auto die de wide-digipeater niet direct bereikt, wordt herhaald door je station, dat zijn pakket doorgeeft.",
+  "help.picture.igate":
+    "Het pakket van een auto gaat via de radio naar een iGate, die het doorgeeft aan internet, APRS-IS, en andersom.",
+  "help.picture.radius":
+    "Een kaart met het station in het midden: de detailkaart reikt tot de cirkel eromheen, de wereldkaart doet de rest.",
+  "help.picture.position":
+    "Een vast station dat op zijn plek blijft, en een station met GPS dat beweegt, met zijn bakens langs het spoor.",
+  "help.picture.digipeater":
+    "Een auto die de wide-digipeater niet direct bereikt, wordt herhaald door je station, dat zijn pakket doorgeeft.",
   "help.picture.logs": "Een logbestand dat als bijlage met een e-mail meegaat.",
   "help.picture.transmit":
     "Ons station hoort de anderen (de pijl naar binnen), terwijl wat het zou verzenden nergens heen gaat: de onderbroken pijl is doorgestreept.",
-  "help.picture.beaconoff": "Met het baken uit verzendt de klok niets, de bakens op de tijdlijn zijn leeg; een druk op de knop verzendt er toch een.",
-  "help.picture.internet": "Stations die APRS-IS binnen de kaartstraal heeft, komen uit de cloud naar je kaart, maar één kant op; er gaat niets terug.",
+  "help.picture.beaconoff":
+    "Met het baken uit verzendt de klok niets, de bakens op de tijdlijn zijn leeg; een druk op de knop verzendt er toch een.",
+  "help.picture.internet":
+    "Stations die APRS-IS binnen de kaartstraal heeft, komen uit de cloud naar je kaart, maar één kant op; er gaat niets terug.",
   "help.picture.channels":
     "Een station dat via de radio is gehoord, met golven, krijgt het label van de radio die het hoorde, FM; een station uit de cloud, APRS-IS, heeft een gestippelde rand en een eigen label.",
   "help.picture.mercury":
@@ -67,26 +81,32 @@ export const help: Record<keyof typeof source, Message> = {
   "help.cert.android3": "Open de beveiligde pagina opnieuw.",
   "help.cert.ios1": "Open deze pagina in Safari, tik op Certificaat downloaden en op Sta toe.",
   "help.cert.ios2": "Open Instellingen → Profiel gedownload → Installeer.",
-  "help.cert.ios3": "Open Instellingen → Algemeen → Info → Certificaatvertrouwensinstellingen en zet “NeoAPRS local CA” aan.",
+  "help.cert.ios3":
+    "Open Instellingen → Algemeen → Info → Certificaatvertrouwensinstellingen en zet “NeoAPRS local CA” aan.",
   "help.cert.windows1": "Open {file} → Certificaat installeren → Huidige gebruiker of Lokale computer → Volgende.",
   "help.cert.windows2":
     "Kies “Alle certificaten in het onderstaande archief opslaan” → Bladeren → Vertrouwde basiscertificeringsinstanties → Volgende → Voltooien.",
   "help.cert.windows3": "Start de browser opnieuw.",
-  "help.cert.mac1": "Open Sleutelhangertoegang en importeer {file} in de sleutelhanger Systeem (Archief → Importeer onderdelen).",
+  "help.cert.mac1":
+    "Open Sleutelhangertoegang en importeer {file} in de sleutelhanger Systeem (Archief → Importeer onderdelen).",
   "help.cert.mac2": "Dubbelklik op “NeoAPRS local CA”, open Vertrouw en kies Vertrouw altijd.",
   "help.cert.mac3": "Start de browser opnieuw.",
   "help.cert.linux1": "Open Instellingen → Privacy en beveiliging → Beveiliging → Certificaten beheren → Instanties.",
-  "help.cert.linux2": "Klik op Importeren, kies {file} en vink “Dit certificaat vertrouwen voor het identificeren van websites” aan.",
+  "help.cert.linux2":
+    "Klik op Importeren, kies {file} en vink “Dit certificaat vertrouwen voor het identificeren van websites” aan.",
   "help.cert.linux3": "Start de browser opnieuw.",
-  "help.cert.firefox1": "Open Instellingen → Privacy & Beveiliging → Certificaten → Certificaten bekijken → Autoriteiten.",
-  "help.cert.firefox2": "Klik op Importeren, kies {file} en vink “Deze CA vertrouwen voor het identificeren van websites” aan.",
+  "help.cert.firefox1":
+    "Open Instellingen → Privacy & Beveiliging → Certificaten → Certificaten bekijken → Autoriteiten.",
+  "help.cert.firefox2":
+    "Klik op Importeren, kies {file} en vink “Deze CA vertrouwen voor het identificeren van websites” aan.",
 
   "help.popup.title": "Meldingen inschakelen",
   "help.popup.title_in": "Meldingen inschakelen in {browser}",
   "help.popup.secure_page": "Open de beveiligde pagina: {link}",
   "help.popup.remove_warning": "Browserwaarschuwing verwijderen",
   "help.popup.keep_http": "Of bij http blijven",
-  "help.popup.firefox1": "Open een nieuw tabblad, typ {config} en druk op Enter; klik dan op “Het risico aanvaarden en doorgaan”.",
+  "help.popup.firefox1":
+    "Open een nieuw tabblad, typ {config} en druk op Enter; klik dan op “Het risico aanvaarden en doorgaan”.",
   "help.popup.firefox2": "Zoek naar {key}.",
   "help.popup.firefox3a": "Staat het er niet, kies dan “Tekenreeks” en klik op “+”. Vul dit in en klik op het vinkje:",
   "help.popup.firefox3b": "Staat er al tekst, zet er dan een komma en dit achter.",
@@ -100,7 +120,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.popup.other":
     "Deze browser kan meldingen voor dit adres op geen enkele manier toestaan. Het geluid en het signaal op het tabblad werken hier wel. Firefox, Chrome en Edge op een computer kunnen dat wel.",
   "help.popup.still": "Als de melding nog steeds niet verschijnt",
-  "help.popup.flatpak": "Voor Firefox, geïnstalleerd als Flatpak (KDE), zijn deze twee opdrachten in een terminal nodig, en daarna een herstart van Firefox:",
+  "help.popup.flatpak":
+    "Voor Firefox, geïnstalleerd als Flatpak (KDE), zijn deze twee opdrachten in een terminal nodig, en daarna een herstart van Firefox:",
 
   "help.update.title": "NeoAPRS {version} is beschikbaar",
   "help.update.installed": "Je hebt NeoAPRS {version}",
@@ -121,11 +142,15 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.restarting": "NeoAPRS start zo opnieuw",
   "help.update.restarting_installer": "Installeren… NeoAPRS start zo opnieuw",
   "help.update.reconnecting": "NeoAPRS start opnieuw",
-  "help.update.problem.download": "De update kon niet worden gedownload. Probeer het opnieuw of download hem van de projectpagina.",
-  "help.update.problem.unverified": "Deze update kon niet worden gecontroleerd, dus er is niets geïnstalleerd. Download hem van de projectpagina.",
-  "help.update.problem.checksum": "De download is niet het bestand van de release, dus hij is verwijderd en er is niets geïnstalleerd. Probeer het opnieuw.",
+  "help.update.problem.download":
+    "De update kon niet worden gedownload. Probeer het opnieuw of download hem van de projectpagina.",
+  "help.update.problem.unverified":
+    "Deze update kon niet worden gecontroleerd, dus er is niets geïnstalleerd. Download hem van de projectpagina.",
+  "help.update.problem.checksum":
+    "De download is niet het bestand van de release, dus hij is verwijderd en er is niets geïnstalleerd. Probeer het opnieuw.",
   "help.update.problem.install": "De update kon niet worden geïnstalleerd. Werk NeoAPRS handmatig bij.",
-  "help.update.problem.no_restart": "De update is geïnstalleerd, maar NeoAPRS is niet opnieuw gestart. Sluit NeoAPRS af en start het opnieuw.",
+  "help.update.problem.no_restart":
+    "De update is geïnstalleerd, maar NeoAPRS is niet opnieuw gestart. Sluit NeoAPRS af en start het opnieuw.",
   "help.update.by_hand": "Of handmatig bijwerken",
   "help.update.steps": "Zo werk je bij",
   "help.update.restart_service": "Start de service opnieuw",
@@ -140,10 +165,12 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.appimage.delete_old": "Verwijder daarna het oude bestand, {name}",
   "help.update.deb.download": "Download het pakket",
   "help.update.deb.download_here": "Download het pakket voor je computer van de releasepagina",
-  "help.update.deb.install": "Installeer het vanuit de map waarin je het hebt gedownload (er wordt om je wachtwoord gevraagd)",
+  "help.update.deb.install":
+    "Installeer het vanuit de map waarin je het hebt gedownload (er wordt om je wachtwoord gevraagd)",
   "help.update.deb.service": "De service start vanzelf opnieuw. Toont hij nog de oude versie:",
   "help.update.macos.download": "Download de nieuwe app",
-  "help.update.macos.replace": "Sluit NeoAPRS af, open de download en sleep NeoAPRS naar Apps, in de plaats van de oude",
+  "help.update.macos.replace":
+    "Sluit NeoAPRS af, open de download en sleep NeoAPRS naar Apps, in de plaats van de oude",
   "help.update.macos.start": "Start NeoAPRS weer vanuit Apps",
   "help.update.source.pull": "In de map van de clone",
   "help.update.source.sync": "Werk de omgeving bij",

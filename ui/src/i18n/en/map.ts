@@ -13,7 +13,8 @@ export const map = {
   "map.credits.hide": "Hide the credits",
   "map.credits.show": "Map and symbol credits",
   "map.credits.symbols": "APRS symbols: aprs.fi set by Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
-  "map.credits.devices": "Device names: APRS device identification list by Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.devices":
+    "Device names: APRS device identification list by Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
   "map.credits.aircraft": "Aircraft shapes: tar1090 by Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 or later",
 
   "map.menu_label": "Map",

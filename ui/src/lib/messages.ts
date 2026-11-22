@@ -64,14 +64,21 @@ export function conversationName(call: string): string {
   return call.replaceAll(">", " > ");
 }
 
-const QUERY_TEXT: Record<string, QueryKind> = { "?APRSP": "position", "?APRSS": "status", "?APRSD": "heard", "?APRST": "trace", "?WX?": "weather" };
+const QUERY_TEXT: Record<string, QueryKind> = {
+  "?APRSP": "position",
+  "?APRSS": "status",
+  "?APRSD": "heard",
+  "?APRST": "trace",
+  "?WX?": "weather",
+};
 
 /** The note for a row that is a query of ours: a message of ours with no id whose text begins with
  * "?"
  * (no ack is waited for), such as "You asked for its status"; null for any other message.
  * The thread shows such a row as a grey line, not a bubble. */
 export function askedNote(row: Pick<MessageRow, "direction" | "msg_id" | "text" | "state">): string | null {
-  if (row.direction !== "out" || row.msg_id !== null || row.state === "overheard" || !row.text.startsWith("?")) return null;
+  if (row.direction !== "out" || row.msg_id !== null || row.state === "overheard" || !row.text.startsWith("?"))
+    return null;
   const kind = QUERY_TEXT[row.text];
   return kind === undefined ? t("messages.asked.custom", { text: row.text }) : t(`messages.asked.${kind}`);
 }
@@ -94,7 +101,11 @@ export function bytesLeft(text: string): number {
 
 /** The conversations, newest message first; the email gateway's is not among them.
  * `readUpTo(call)` is the highest message id the user has seen in the conversation. */
-export function conversations(rows: Iterable<MessageRow>, readUpTo: (call: string) => number, showOverheard = false): Conversation[] {
+export function conversations(
+  rows: Iterable<MessageRow>,
+  readUpTo: (call: string) => number,
+  showOverheard = false,
+): Conversation[] {
   const byCall = new Map<string, Conversation>();
   for (const row of rows) {
     if (row.state === "overheard" && !showOverheard) continue;
@@ -160,7 +171,9 @@ export function attemptText(row: MessageRow): string {
 
 /** Why a failed message of ours failed: its reason if it has one, else that no answer came. */
 export function failedText(row: MessageRow): string {
-  return row.failure === "too_long_for_radio" ? t("messages.state.too_long_for_radio") : t("messages.state.failed", { n: row.attempts });
+  return row.failure === "too_long_for_radio"
+    ? t("messages.state.too_long_for_radio")
+    : t("messages.state.failed", { n: row.attempts });
 }
 
 /** The state of a message in words, with its attempts. Nothing for a message that came in. */
@@ -190,7 +203,10 @@ export function stateText(row: MessageRow): string {
 
 /** A message of ours that did not get through can be sent again. */
 export function canRetry(row: MessageRow): boolean {
-  return row.direction === "out" && (row.state === "failed" || row.state === "unconfirmed" || row.state === "rejected" || row.state === "cancelled");
+  return (
+    row.direction === "out" &&
+    (row.state === "failed" || row.state === "unconfirmed" || row.state === "rejected" || row.state === "cancelled")
+  );
 }
 
 /** A message of ours that is no longer being sent and was never acked can be deleted. */
@@ -206,7 +222,11 @@ export function canCancel(row: MessageRow): boolean {
 
 /** The path a message to the station goes by: its own if it has one (empty is direct), else the
  * beacon's. */
-export function effectivePath(paths: ReadonlyMap<string, string>, fallback: string, call: string): { text: string; own: boolean } {
+export function effectivePath(
+  paths: ReadonlyMap<string, string>,
+  fallback: string,
+  call: string,
+): { text: string; own: boolean } {
   const own = paths.get(normalizeCall(call));
   return own === undefined ? { text: fallback, own: false } : { text: own, own: true };
 }
@@ -228,7 +248,9 @@ interface Mark {
 export function markOf(row: MessageRow): Mark | null {
   const mark = markWithoutSignal(row);
   const signal = mark === null ? null : readingText(row);
-  return mark === null || signal === null ? mark : { ...mark, title: t("messages.mark.with_signal", { mark: mark.title, signal }) };
+  return mark === null || signal === null
+    ? mark
+    : { ...mark, title: t("messages.mark.with_signal", { mark: mark.title, signal }) };
 }
 
 /** The mark as `markOf` says it, with the SNR of the returned ack added to the title (null until
@@ -241,10 +263,19 @@ function markWithoutSignal(row: MessageRow): Mark | null {
     case "sending":
       return { kind: "clock", title: row.attempts === 0 ? t("messages.state.waiting") : attemptText(row) };
     case "acked":
-      return { kind: "check", title: row.acked_at === null ? t("messages.mark.acked") : t("messages.mark.acked_at", { time: dateTimeText(row.acked_at) }) };
+      return {
+        kind: "check",
+        title:
+          row.acked_at === null
+            ? t("messages.mark.acked")
+            : t("messages.mark.acked_at", { time: dateTimeText(row.acked_at) }),
+      };
     case "rejected":
     case "failed":
-      return { kind: "cross", title: row.state === "failed" ? t("messages.mark.failed") : t("messages.state.rejected") };
+      return {
+        kind: "cross",
+        title: row.state === "failed" ? t("messages.mark.failed") : t("messages.state.rejected"),
+      };
     case "unconfirmed":
       return { kind: "hollow", title: t("messages.mark.no_ack_expected") };
     case "cancelled":

@@ -24,7 +24,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.group.lora_radio": "LoRa無線機",
   "settings.fm_enabled.name": "FM無線機",
   "settings.fm_enabled.tip_label": "FM無線機について",
-  "settings.fm_enabled.tip1": "FM無線機とそのTNCまたはサウンドカード：デジピーターやパスを使うローカルのネットワークと、GPSに追従するビーコン。",
+  "settings.fm_enabled.tip1":
+    "FM無線機とそのTNCまたはサウンドカード：デジピーターやパスを使うローカルのネットワークと、GPSに追従するビーコン。",
   "settings.fm_enabled.tip2": "チェックを外すとこの無線機はオフのままになり、設定は残ります。",
   "settings.hf_enabled.name": "Mercury無線機",
   "settings.hf_enabled.tip_label": "Mercury無線機について",
@@ -110,7 +111,8 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "無線機の種類",
   "settings.profile.tip_label": "無線機の種類の選び方",
-  "settings.profile.tip1": "Digirig、SignaLink、AIOC、または無線機自身のUSBオーディオを使うFM無線機は「サウンドカード」です。TNCの多くは「KISS TNC」です。",
+  "settings.profile.tip1":
+    "Digirig、SignaLink、AIOC、または無線機自身のUSBオーディオを使うFM無線機は「サウンドカード」です。TNCの多くは「KISS TNC」です。",
   "settings.profile.tip2":
     "「Mercuryモデム」を受信できるのはMercuryの局だけで、バンドを問わずSSBでもFMでも使えます。無線機がなければ「ダミー」を選んでください。",
 
@@ -118,7 +120,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.port.label": "ポート",
   "settings.port.tip_label": "ポートについて",
   "settings.port.tip1": "無線機との接続です。「自動で検出」はUSBポートから探して記憶します。",
-  "settings.port.tip2": "USB 接続の無線機は Linux では /dev/ttyUSB0、Windows では COM3 です。「更新」で一覧を読み直します。",
+  "settings.port.tip2":
+    "USB 接続の無線機は Linux では /dev/ttyUSB0、Windows では COM3 です。「更新」で一覧を読み直します。",
   "settings.port.auto": "自動で検出",
   "settings.port.none": "未設定",
   "settings.port.unset": "未設定",
@@ -135,7 +138,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.baud.tip2": "TNC の説明書に書かれている場合だけ設定します(NinoTNC なら 57600 など)。",
 
   "settings.tcp_host.label": "アドレス",
-  "settings.tcp_host.tip1": "自分の Direwolf や soundmodem が動いているコンピューターです。127.0.0.1 はこのコンピューター自身です。",
+  "settings.tcp_host.tip1":
+    "自分の Direwolf や soundmodem が動いているコンピューターです。127.0.0.1 はこのコンピューター自身です。",
   "settings.tcp_port.label": "ポート",
   "settings.tcp_port.tip1": "Direwolf は 8001、soundmodem は 8100 で待ち受けます(変更していなければ)。",
   "settings.tcp_port.title": "Direwolf 8001、soundmodem 8100",
@@ -145,11 +149,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.board_port.label": "ポート",
   "settings.sound_card.label": "サウンドカード",
   "settings.sound_card.tip_label": "サウンドカードについて",
-  "settings.sound_card.tip1": "無線機の音声が通るサウンドカード：USBコーデック、Digirig、または無線機自身のUSBオーディオ。",
-  "settings.sound_card.tip2": "無線機自身のカードは通常USBコーデックと名乗ります。チューンで選んだカードから音が出ます。更新で一覧を読み直します。",
+  "settings.sound_card.tip1":
+    "無線機の音声が通るサウンドカード：USBコーデック、Digirig、または無線機自身のUSBオーディオ。",
+  "settings.sound_card.tip2":
+    "無線機自身のカードは通常USBコーデックと名乗ります。チューンで選んだカードから音が出ます。更新で一覧を読み直します。",
   "settings.keying.label": "送信切替",
   "settings.keying.tip_label": "送信切替について",
-  "settings.keying.tip1": "無線機を送信に切り替える方法：無線機自身（VOXまたはデータモード）、CM108サウンドチップ、またはシリアルポートの信号線。",
+  "settings.keying.tip1":
+    "無線機を送信に切り替える方法：無線機自身（VOXまたはデータモード）、CM108サウンドチップ、またはシリアルポートの信号線。",
   "settings.keying.tip2": "DigirigはシリアルポートのRTSで切り替えます。",
   "settings.keying.vox": "無線機自身で切り替え（VOX）",
   "settings.keying.cm108": "CM108サウンドチップ",
@@ -158,12 +165,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "テスト",
   "settings.hf_frequencies.label": "推奨周波数",
   "settings.scope.title": "スペクトラム",
-  "settings.scope.aria": "無線機の音声の300〜2700 Hzのウォーターフォール。新しいものが上で、受信した局は信号の位置に書かれ、下にスペクトラムがあります。",
+  "settings.scope.aria":
+    "無線機の音声の300〜2700 Hzのウォーターフォール。新しいものが上で、受信した局は信号の位置に書かれ、下にスペクトラムがあります。",
   "settings.scope.level": "受信レベル",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "受信レベルについて",
   "settings.scope.tip1": "バーは無線機の音声レベルで、緑の部分が適正範囲です。",
-  "settings.scope.tip2": "低すぎる場合は無線機の音声出力かサウンドカードの入力を上げ、赤ならサウンドカードが飽和しているので下げてください。",
+  "settings.scope.tip2":
+    "低すぎる場合は無線機の音声出力かサウンドカードの入力を上げ、赤ならサウンドカードが飽和しているので下げてください。",
   "settings.scope.heard": "{call} {db} dB",
   "settings.txlevel.label": "送信レベル",
   "settings.txlevel.lower": "送信レベルを下げる",
@@ -171,22 +180,26 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.txlevel.value": "{value} dB",
   "settings.txlevel.peak": "ピーク {value} dBFS",
   "settings.txlevel.tip_label": "送信レベルについて",
-  "settings.txlevel.tip1": "モデムの音声が無線機へ入る強さ（dB）です。チューンを押して無線機のメーターを見ながら合わせてください。",
+  "settings.txlevel.tip1":
+    "モデムの音声が無線機へ入る強さ（dB）です。チューンを押して無線機のメーターを見ながら合わせてください。",
   "settings.txlevel.tip2": "ピークは0 dBFSでオレンジ色になり、サウンドカードが飽和します。",
-  "settings.txlevel.card_tip1": "サウンドカードの音声が無線機へ入る強さです。チューンを押して無線機のメーターを見ながら合わせてください。",
+  "settings.txlevel.card_tip1":
+    "サウンドカードの音声が無線機へ入る強さです。チューンを押して無線機のメーターを見ながら合わせてください。",
   "settings.cardlevel.value": "{value} %",
   "settings.cardlevel.rx_label": "サウンドカードの入力レベル",
   "settings.tune": "チューン",
   "settings.tune_stop": "停止",
   "settings.tune.label": "チューン音",
   "settings.tune.tip_label": "チューン音について",
-  "settings.tune.tip1": "無線機を送信状態にして10秒間チューン音を送ります。アンテナの調整、音声レベルの設定、サウンドカードの確認に使えます。",
+  "settings.tune.tip1":
+    "無線機を送信状態にして10秒間チューン音を送ります。アンテナの調整、音声レベルの設定、サウンドカードの確認に使えます。",
   "settings.last_port.label": "最後に検出したポート",
 
   "settings.network.name": "ネットワークアクセス",
   "settings.network.label": "ネットワークからのアクセスを許可",
   "settings.network.tip_label": "ネットワークアクセスについて",
-  "settings.network.tip1": "ネットワーク上のスマートフォン、タブレット、ノートパソコンからこのページを開けるようにします。オフならこのコンピューターだけです。",
+  "settings.network.tip1":
+    "ネットワーク上のスマートフォン、タブレット、ノートパソコンからこのページを開けるようにします。オフならこのコンピューターだけです。",
 
   "settings.access_key.label": "アクセスキー",
   "settings.access_key.tip_label": "アクセスキーについて",
@@ -219,7 +232,8 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.digipeater.name": "デジピーター",
   "settings.digipeater.tip_label": "デジピーターの働き",
-  "settings.digipeater.tip1": "デジピーターに届かない近くの局のパケット(WIDE1-1、またはあなたのコールサイン経由)を中継します。",
+  "settings.digipeater.tip1":
+    "デジピーターに届かない近くの局のパケット(WIDE1-1、またはあなたのコールサイン経由)を中継します。",
   "settings.digipeater.tip2": "電波の届きにくい場所でない限り、オフのままにしてください。",
 
   "settings.igate.name": "インターネットの局",
@@ -235,7 +249,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.line.offline": "未接続: サーバー名を引けません。接続はありますか?",
   "settings.igate.line.not_server": "未接続: サーバーがAPRS-ISサーバーとして応答しませんでした",
   "settings.igate.line.lost": "未接続: 接続が切れました",
-  "settings.igate.line.receiving": { other: "{server} · 半径{km} km以内に{n}局", "=0": "{server} · 半径{km} km以内の局はまだありません" },
+  "settings.igate.line.receiving": {
+    other: "{server} · 半径{km} km以内に{n}局",
+    "=0": "{server} · 半径{km} km以内の局はまだありません",
+  },
   "settings.igate.fold.server": "サーバー: {server}",
   "settings.igate.fold.filter": "フィルター: あなたの位置から半径{km} km以内の局",
   "settings.igate.fold.named": "{name}({server})",
@@ -243,7 +260,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "「通知」をオンにすると、メッセージが届いたときにコマンドを実行します。",
   "settings.alert_command.name": "アラートのコマンド",
   "settings.alert_command.label": "コマンド",
-  "settings.alert_command.tip1": "新着メッセージと局の通知ごとに実行されます。NEOAPRS_TITLE と NEOAPRS_TEXT にタイトルと本文が入ります。",
+  "settings.alert_command.tip1":
+    "新着メッセージと局の通知ごとに実行されます。NEOAPRS_TITLE と NEOAPRS_TEXT にタイトルと本文が入ります。",
   "settings.alert_test": "テスト",
   "settings.alert_test.ran": "通知コマンドを実行しました",
   "settings.alert_test.exit": "通知コマンドが終了コード{status}で終わりました",
@@ -255,13 +273,16 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alerts.title": "NeoAPRS自身のアラート: NeoAPRSのパソコンで実行するコマンド",
   "settings.alerts.title_app": "NeoAPRS自身のアラート: このコンピューターで実行するコマンド",
   "settings.alerts.tip_label": "通知について",
-  "settings.alerts.tip1": "NeoAPRSのパソコンが出すアラートです。新着メッセージごとにコマンドを実行します(既定は音と通知)。",
-  "settings.alerts.tip1_app": "このコンピューター自身のアラートです。新着メッセージごとにコマンドを実行します(既定は音と通知)。",
+  "settings.alerts.tip1":
+    "NeoAPRSのパソコンが出すアラートです。新着メッセージごとにコマンドを実行します(既定は音と通知)。",
+  "settings.alerts.tip1_app":
+    "このコンピューター自身のアラートです。新着メッセージごとにコマンドを実行します(既定は音と通知)。",
   "settings.alerts.tip2": "次のグループはこのブラウザーです。どちらか一方で十分で、両方なら2回知らせます。",
   "settings.alerts.tip2_app": "次のグループはこのウィンドウです。どちらか一方で十分で、両方なら2回知らせます。",
 
   "settings.encrypt.tip_label": "暗号化メッセージについて",
-  "settings.encrypt.tip1": "鍵を持っている局宛てのメッセージは暗号化でき、その局だけが読めます。自動で暗号化や送信はされません。",
+  "settings.encrypt.tip1":
+    "鍵を持っている局宛てのメッセージは暗号化でき、その局だけが読めます。自動で暗号化や送信はされません。",
   "settings.encrypt.tip2":
     "アマチュア無線の規則では通信内容の秘匿は禁じられています。状況が許す場合に限り、--encryption 付きで起動した NeoAPRS だけが使えます。",
   "settings.encrypt.key_label": "あなたの鍵",
@@ -293,24 +314,29 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.status_source.off": "なし",
   "settings.status_source.text": "自分のテキスト",
   "settings.status_source.rig": "無線機の周波数(rigctld)",
-  "settings.status_source.tip1": "他の局にコールサインの後ろに見える1行です。なし、自分の文、または無線機の周波数(rigctld)から選びます。",
+  "settings.status_source.tip1":
+    "他の局にコールサインの後ろに見える1行です。なし、自分の文、または無線機の周波数(rigctld)から選びます。",
   "settings.status_rigctld.label": "Rigctld",
-  "settings.status_rigctld.tip1": "rigctld(Hamlib のプログラム)が、無線機の受信周波数などを NeoAPRS に伝えます。先に起動し、アドレス:ポートを入力します。",
+  "settings.status_rigctld.tip1":
+    "rigctld(Hamlib のプログラム)が、無線機の受信周波数などを NeoAPRS に伝えます。先に起動し、アドレス:ポートを入力します。",
   "settings.status_rigctld.tip2": "例: 127.0.0.1:4532",
   "settings.status_interval.name": "ステータスの間隔",
   "settings.status_interval.label": "間隔",
   "settings.status_interval.tip1": "2回のステータスの間隔です。",
   "settings.status_template.name": "ステータスのテンプレート",
   "settings.status_template.label": "テキスト",
-  "settings.status_template.tip1": "{{freq}} は無線機の周波数、{{mode}} は電波型式に置き換わります。置き換え後で最大{max}文字。",
+  "settings.status_template.tip1":
+    "{{freq}} は無線機の周波数、{{mode}} は電波型式に置き換わります。置き換え後で最大{max}文字。",
   "settings.status_template.tip2": "例: QRV {{freq}} {{mode}} は QRV 14.074 MHz USB になります",
 
   "settings.beacon_interval.name": "ビーコンの間隔",
   "settings.beacon_interval.label": "ビーコン",
   "settings.beacon_interval.off": "オフ",
-  "settings.beacon_interval.tip1": "位置を送る間隔:{min}分より短くはなりません。オフ:自動のビーコンは送りません。「今すぐビーコン」は送ります。",
+  "settings.beacon_interval.tip1":
+    "位置を送る間隔:{min}分より短くはなりません。オフ:自動のビーコンは送りません。「今すぐビーコン」は送ります。",
   "settings.beacon_interval.tip2": "動かない局なら30分が適当です。",
-  "settings.beacon_interval.tip_moving": "オン:SmartBeaconingがGPS位置を送ります。速いほど、曲がるたびに多く送ります。オフ:自動のビーコンは送りません。",
+  "settings.beacon_interval.tip_moving":
+    "オン:SmartBeaconingがGPS位置を送ります。速いほど、曲がるたびに多く送ります。オフ:自動のビーコンは送りません。",
   "settings.path.name": "ビーコンのパス",
   "settings.path.label": "パス",
   "settings.path.on_radio": "{name}: パス",
@@ -430,7 +456,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.step_percent": "{step} {percent}%",
   "settings.map.downloaded": "地図をダウンロード済み",
   "settings.map.downloaded_on": "地図のダウンロード日: {month}{day}日",
-  "settings.map.problem.no_position": "局の位置がまだありません: 緯度と経度を設定してください(地図はその周りを切り出します)",
+  "settings.map.problem.no_position":
+    "局の位置がまだありません: 緯度と経度を設定してください(地図はその周りを切り出します)",
   "settings.map.problem.busy": "地図ジョブを実行中です",
   "settings.map.problem.slow": "地図サーバーが今は遅すぎます。あとでもう一度お試しください",
   "settings.map.problem.unreachable": "地図サーバーに接続できませんでした。接続はありますか?",
@@ -455,9 +482,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.position.gpsd": "gpsd経由のGPS",
   "settings.position.serial": "シリアルポートのGPS",
   "settings.position.tip1": "固定: 局は下の場所にとどまります。GPS: 位置・針路・速度は受信機から得ます。",
-  "settings.position.tip2": "gpsd は Linux の GPS サービスです。最新の測位がないときは何も送らず、自宅の位置を送ることもありません。",
+  "settings.position.tip2":
+    "gpsd は Linux の GPS サービスです。最新の測位がないときは何も送らず、自宅の位置を送ることもありません。",
   "settings.gps_host.label": "gpsdのアドレス",
-  "settings.gps_host.tip1": "gpsd が待ち受ける場所(ホスト:ポート)です。gpsd がこのコンピューターで動いているなら、そのままにします。",
+  "settings.gps_host.tip1":
+    "gpsd が待ち受ける場所(ホスト:ポート)です。gpsd がこのコンピューターで動いているなら、そのままにします。",
   "settings.gps_device.label": "GPSのポート",
   "settings.gps_device.tip1": "GPS 受信機のポートです。Linux なら /dev/ttyUSB1、Windows なら COM4 など。",
   "settings.gps_device.tip2": "無線機のポートとは別にしてください。1つのデバイスを両方には使えません。",
@@ -468,7 +497,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.travel.bicycle": "自転車で",
   "settings.travel.foot": "徒歩で",
   "settings.travel.boat": "船で",
-  "settings.travel.tip1": "ビーコンを送る頻度と、どのカーブで送るかを決めます。車は徒歩より速度が出るので、より頻繁に送ります。",
+  "settings.travel.tip1":
+    "ビーコンを送る頻度と、どのカーブで送るかを決めます。車は徒歩より速度が出るので、より頻繁に送ります。",
 
   "settings.update.group": "更新の確認",
   "settings.update.label": "新しいバージョン",
@@ -491,16 +521,19 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.send": "フィードバック / ログを送信",
   "settings.help.sending": "送信中…",
   "settings.help.tip_label": "ログについて",
-  "settings.help.tip": "ログ、設定、受信・送信したパケット。ファイルに保存することも、プロジェクトに送ることもできます。",
+  "settings.help.tip":
+    "ログ、設定、受信・送信したパケット。ファイルに保存することも、プロジェクトに送ることもできます。",
   "settings.help.saved": "{file} を保存しました。",
   "settings.help.sent": "送信しました。参照番号 {ref}。",
-  "settings.help.problem.access": "アクセスできません。ページを再読み込みし、アクセスキーを入力してもう一度お試しください。",
+  "settings.help.problem.access":
+    "アクセスできません。ページを再読み込みし、アクセスキーを入力してもう一度お試しください。",
   "settings.help.problem.busy": "別のファイルを作成中です。1分ほどしてからもう一度お試しください。",
   "settings.help.problem.unreachable": "NeoAPRSに接続できませんでした。",
   "settings.help.problem.failed": "ファイルを作成できませんでした(エラー {status})。",
   "settings.help.problem.offline": "送信できませんでした。インターネットに接続されていません。",
   "settings.help.problem.refused": "送信できませんでした。サーバーに拒否されました。",
-  "settings.help.problem.rate": "送信できませんでした。短時間に送信が多すぎます。しばらくしてからもう一度お試しください。",
+  "settings.help.problem.rate":
+    "送信できませんでした。短時間に送信が多すぎます。しばらくしてからもう一度お試しください。",
   "settings.help.problem.too_large": "送信できませんでした。ログが大きすぎます。",
   "settings.help.dialog.title": "フィードバック / ログを送信",
   "settings.help.dialog.label": "メッセージ",
@@ -511,7 +544,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.dialog.send": "送信",
   "settings.help.dialog.cancel": "キャンセル",
   "settings.about.group": "このアプリについて",
-  "settings.about.intro": "NeoAPRS {version}、FM・Mercury・LoRaの無線機に対応したAPRSクライアント。作者:{call}({year}年)。",
+  "settings.about.intro":
+    "NeoAPRS {version}、FM・Mercury・LoRaの無線機に対応したAPRSクライアント。作者:{call}({year}年)。",
   "settings.about.license": "{license} バージョン3以降に基づくフリーソフトウェアです。",
   "settings.about.license_link": "GNU一般公衆利用許諾書",
   "settings.about.source": "ソースコード",

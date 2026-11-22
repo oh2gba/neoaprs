@@ -450,7 +450,9 @@
 .app:not(.size-phone) .mapwrap:has(:is(.packetscard:not(.moved), .packetscard.sized)) .monitorcard:not(.moved) {
   right: 580px;
 }
-.app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)):has(:is(.packetscard:not(.moved), .packetscard.sized)) .monitorcard:not(.moved) {
+.app:not(.size-phone)
+  .mapwrap:has(.statscard:not(.moved)):has(:is(.packetscard:not(.moved), .packetscard.sized))
+  .monitorcard:not(.moved) {
   right: 930px;
 }
 /* a station card's hourly packets (components/StationPackets.vue), the speed of a moving station

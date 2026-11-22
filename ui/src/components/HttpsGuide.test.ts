@@ -15,10 +15,14 @@ const ON: HttpsState = { on: true, port: 7304, fingerprint: FINGERPRINT, reason:
 const OFF: HttpsState = { on: false, port: 0, fingerprint: "", reason: "" };
 const NETWORK = { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" };
 
-const ANDROID = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
-const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
-const WINDOWS = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
-const MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
+const ANDROID =
+  "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
+const IPHONE =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+const WINDOWS =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+const MAC =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
 const LINUX = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const FIREFOX = "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0";
 
@@ -76,7 +80,14 @@ describe("the guide", () => {
 
   it("lets the person ask for the steps of another device", async () => {
     const wrapper = guide(LINUX);
-    expect(wrapper.findAll("option").map((o) => o.text())).toEqual(["Android", "iPhone, iPad", "Windows", "macOS", "Linux (Chrome)", "Firefox"]);
+    expect(wrapper.findAll("option").map((o) => o.text())).toEqual([
+      "Android",
+      "iPhone, iPad",
+      "Windows",
+      "macOS",
+      "Linux (Chrome)",
+      "Firefox",
+    ]);
     await wrapper.find("select").setValue("windows");
     expect(steps(wrapper).join(" ")).toContain("Install Certificate");
   });
@@ -126,9 +137,15 @@ describe("the Web page group", () => {
   it("shows no guide while https is not served, and the reason when it could not start", () => {
     const off = settings(OFF);
     expect(off.find(".httpsguide").exists()).toBe(false);
-    expect(off.findAll("details.disclosure").some((box) => box.find("summary").text() === "Install the certificate on a device")).toBe(false);
+    expect(
+      off
+        .findAll("details.disclosure")
+        .some((box) => box.find("summary").text() === "Install the certificate on a device"),
+    ).toBe(false);
     const failed = settings({ ...OFF, reason: "no_port" });
-    expect(failed.find(".field-error").text(), "the page's words, no port number").toBe("the secure page cannot listen on a port: none is free");
+    expect(failed.find(".field-error").text(), "the page's words, no port number").toBe(
+      "the secure page cannot listen on a port: none is free",
+    );
   });
 
   it("has the guide under a heading while https is served", () => {

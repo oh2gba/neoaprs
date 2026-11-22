@@ -21,7 +21,18 @@ export interface AircraftOutline {
   readonly d: string;
 }
 
-export type AircraftShape = "airliner" | "heavy" | "heavy4" | "bizjet" | "twin" | "light" | "helicopter" | "glider" | "balloon" | "drone" | "unknown";
+export type AircraftShape =
+  | "airliner"
+  | "heavy"
+  | "heavy4"
+  | "bizjet"
+  | "twin"
+  | "light"
+  | "helicopter"
+  | "glider"
+  | "balloon"
+  | "drone"
+  | "unknown";
 
 export const AIRCRAFT_SHAPES: Readonly<Record<AircraftShape, AircraftOutline>> = {
   /** an airliner: two engines under swept wings (tar1090's `airliner`) */

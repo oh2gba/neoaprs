@@ -11,11 +11,19 @@ import { t } from "@/i18n";
 import { mailItems } from "@/lib/mailitems";
 import type { MessageRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; freshAfter?: number; heardDirect?: ReadonlySet<string>; offline?: string }>(), {
-  freshAfter: Number.MAX_SAFE_INTEGER,
-  heardDirect: () => new Set<string>(),
-  offline: undefined,
-});
+const props = withDefaults(
+  defineProps<{
+    thread: readonly MessageRow[];
+    freshAfter?: number;
+    heardDirect?: ReadonlySet<string>;
+    offline?: string;
+  }>(),
+  {
+    freshAfter: Number.MAX_SAFE_INTEGER,
+    heardDirect: () => new Set<string>(),
+    offline: undefined,
+  },
+);
 const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [id: number] }>();
 const now = useNow(30000);
 const items = computed(() => mailItems(props.thread));

@@ -31,7 +31,8 @@ export interface PointCollection {
   features: PointFeature[];
 }
 
-const picked = (selected: string | null | readonly string[]): readonly string[] => (typeof selected === "string" ? [selected] : (selected ?? []));
+const picked = (selected: string | null | readonly string[]): readonly string[] =>
+  typeof selected === "string" ? [selected] : (selected ?? []);
 
 /**
  * A trail point as the lines are made from it: its place [lon, lat] and the opacity of the stretch
@@ -43,7 +44,12 @@ type TrailPoint<P> = (point: P) => { at: [number, number]; opacity: number };
  * The lines of one trail, oldest point first: runs of stretches of one opacity. Also used for the
  * replay's trails (lib/replay.ts).
  */
-export function fadingLines<P>(call: string, points: readonly P[], selected: boolean, of: TrailPoint<P>): TrackFeature[] {
+export function fadingLines<P>(
+  call: string,
+  points: readonly P[],
+  selected: boolean,
+  of: TrailPoint<P>,
+): TrackFeature[] {
   const features: TrackFeature[] = [];
   for (let i = 0; i + 1 < points.length; i++) {
     const [from, to] = [points[i], points[i + 1]];
@@ -67,14 +73,22 @@ export function fadingLines<P>(call: string, points: readonly P[], selected: boo
 
 function stationLines(row: StationRow, selected: boolean, nowMs: number, aging: Aging): TrackFeature[] {
   const minutes = timeoutMin(aging, row);
-  return fadingLines(row.call, row.track, selected, ([at, lat, lon]) => ({ at: [lon, lat], opacity: trailOpacity(ageSeconds(at, nowMs), minutes) }));
+  return fadingLines(row.call, row.track, selected, ([at, lat, lon]) => ({
+    at: [lon, lat],
+    opacity: trailOpacity(ageSeconds(at, nowMs), minutes),
+  }));
 }
 
 /**
  * `selected` is the call of the selected station, or the calls of all stations whose cards are
  * open.
  */
-export function trackLines(rows: Iterable<StationRow>, selected: string | null | readonly string[], nowMs: number, aging: Aging): TrackCollection {
+export function trackLines(
+  rows: Iterable<StationRow>,
+  selected: string | null | readonly string[],
+  nowMs: number,
+  aging: Aging,
+): TrackCollection {
   const calls = picked(selected);
   const features: TrackFeature[] = [];
   for (const row of rows) features.push(...stationLines(row, calls.includes(row.call), nowMs, aging));
@@ -85,7 +99,12 @@ export function trackLines(rows: Iterable<StationRow>, selected: string | null |
  * The positions of the selected stations' tracks (those with more than one point), each with the
  * opacity of its age, oldest first.
  */
-export function trackPoints(rows: Iterable<StationRow>, selected: string | null | readonly string[], nowMs: number, aging: Aging): PointCollection {
+export function trackPoints(
+  rows: Iterable<StationRow>,
+  selected: string | null | readonly string[],
+  nowMs: number,
+  aging: Aging,
+): PointCollection {
   const calls = picked(selected);
   const features: PointFeature[] = [];
   for (const row of rows) {

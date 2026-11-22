@@ -3,7 +3,8 @@ import { noteBlocks, noteParts } from "@/lib/releasenotes";
 
 describe("the release notes as blocks", () => {
   it("reads a heading, bullets and paragraphs, the lines of a paragraph joined, blank lines between blocks", () => {
-    const text = "Bug fixes on the air.\nNothing to set up.\n\n- **Fixed:** one thing.\n* Another, with `code`.\n\n### Under the hood\n\nSmaller cleanups.\n";
+    const text =
+      "Bug fixes on the air.\nNothing to set up.\n\n- **Fixed:** one thing.\n* Another, with `code`.\n\n### Under the hood\n\nSmaller cleanups.\n";
     expect(noteBlocks(text)).toEqual([
       { kind: "paragraph", parts: [{ text: "Bug fixes on the air. Nothing to set up." }] },
       { kind: "bullet", parts: [{ text: "Fixed:", bold: true }, { text: " one thing." }] },

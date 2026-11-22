@@ -43,7 +43,10 @@ describe("SymbolField", () => {
   });
 
   it("is the same control, opened by a click on the symbol, in the My station tab and the Objects form; the first-run guide shows the symbol as plain text and opens the picker with More symbols…", async () => {
-    const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(fakeDaemon({ config: configValues() })) });
+    const beacon = mount(SettingsForm, {
+      props: { scope: "beacon" },
+      global: withDaemon(fakeDaemon({ config: configValues() })),
+    });
     const objects = mount(ObjectForm, {
       props: {
         form: useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel),

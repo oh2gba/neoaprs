@@ -72,9 +72,11 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.message.not_ascii": {
     select: "chars",
     "": "tekstissä on merkki, joka ei ole tulostettavaa ASCII-merkkiä: viesti sisältää vain tulostettavaa ASCII-tekstiä",
-    other: "tekstissä on {chars}, joka ei ole tulostettavaa ASCII-merkkiä: viesti sisältää vain tulostettavaa ASCII-tekstiä",
+    other:
+      "tekstissä on {chars}, joka ei ole tulostettavaa ASCII-merkkiä: viesti sisältää vain tulostettavaa ASCII-tekstiä",
   },
-  "error.message.too_long_for_radio": "viesti on {length} tavua ilmassa, radio kantaa {max}: lyhennä sitä {cut} merkillä",
+  "error.message.too_long_for_radio":
+    "viesti on {length} tavua ilmassa, radio kantaa {max}: lyhennä sitä {cut} merkillä",
   "error.message.too_long": "teksti on {length} merkkiä, viestiin mahtuu enintään {max}",
   "error.no_command": 'komennolla on "cmd"',
   "error.not_object": 'Komento on JSON-objekti, jossa on "cmd"',
@@ -102,25 +104,29 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.pair.call_taken": "{call} on toisen parin kutsu",
   "error.pair.no_free_call": "kaikki SSID:t 1–15 ovat käytössä",
   "error.path.too_long": "{count} digipeateria on enemmän kuin polulla saa olla ({max})",
-  "error.path.too_long_rf_only": "polku on liian pitkä vain RF:lle: {count} digipeateria ja RFONLY ylittävät polun enimmäismäärän {max}",
+  "error.path.too_long_rf_only":
+    "polku on liian pitkä vain RF:lle: {count} digipeateria ja RFONLY ylittävät polun enimmäismäärän {max}",
   "error.query.not_capable": "{call} ei ota vastaan viestejä: ei ole ketään, jolta kysyä",
   "error.transmit.call": "mitään ei lähetetä: {reason}",
   "error.transmit.off": "Vain RX: mitään ei lähetetä",
   "error.query.too_soon": "asemalta {call} kysyttiin sama hetki sitten: odota {seconds} s",
   "error.query.form": "kysely alkaa merkillä ? ja sen perässä sanotaan, mitä kysytään",
   "error.qru.too_soon": "liian pian uutta paikallistietopyyntöä varten: odota {seconds} s",
-  "error.path.direct_alone": "{word} ei ole digipeateri: yksin kirjoitettuna se tarkoittaa, ettei digipeaterejä ole lainkaan",
+  "error.path.direct_alone":
+    "{word} ei ole digipeateri: yksin kirjoitettuna se tarkoittaa, ettei digipeaterejä ole lainkaan",
   "error.setting.comment_too_long":
     "{length} merkkiä on enemmän kuin PHG-laajennuksen kanssa sallitut {limit} (tyhjennä beacon/power_w, jos et halua lähettää sitä)",
   "error.setting.call_of_pair": "{call} on radiopariesi kutsu",
   "error.setting.local_only": "tämän voi tehdä vain sivulta NeoAPRS-tietokoneella",
-  "error.setting.not_access_key": "se ei ole pääsyavain (kolme neljän numeron ja kirjaimen ryhmää, kuten k7m2-x9pq-4hrt)",
+  "error.setting.not_access_key":
+    "se ei ole pääsyavain (kolme neljän numeron ja kirjaimen ryhmää, kuten k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "siinä on merkkejä, jotka eivät ole tulostettavaa ASCII-merkkiä",
   "error.setting.not_boolean": "'{value}' ei ole true eikä false",
   "error.setting.not_keying": "'{value}' ei ole tapa avaintaa radiota: vox, cm108, rts:PORTTI tai dtr:PORTTI",
   "error.setting.not_among": "{value} ei ole mikään näistä: {choices}",
   "error.setting.not_direction": "'{value}' ei ole omni eikä mikään näistä: N NE E SE S SW W NW",
-  "error.setting.not_globs": "'{value}' ei ole yksi tai useampi välilyönnein erotettu absoluuttinen kuvio, kuten /dev/ttyUSB*",
+  "error.setting.not_globs":
+    "'{value}' ei ole yksi tai useampi välilyönnein erotettu absoluuttinen kuvio, kuten /dev/ttyUSB*",
   "error.setting.not_host": "'{value}' ei ole osoite eikä nimi",
   "error.setting.not_hostport": "'{value}' ei ole muotoa palvelin:portti (4532 on rigctld:n portti)",
   "error.setting.not_receiver": "'{value}' ei ole vastaanottimen osoite",
@@ -141,8 +147,10 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.profile_port":
     "{profile} yhdistää TCP:n kautta (tcp/host ja tcp/port), ei sarjaporttiin {port}: tyhjennä serial/port tai valitse sarjaportin TNC",
   "error.setting.range": "{value} ei ole välillä {min}–{max}",
-  "error.setting.status_needs_rigctld": "radio tarvitsee asetuksen status/rigctld (rigctld:n palvelin:portti, 127.0.0.1:4532)",
-  "error.setting.status_source": "'{value}' ei ole off, text eikä rig (tyhjä: kuten status/rigctld ja station/status sanovat)",
+  "error.setting.status_needs_rigctld":
+    "radio tarvitsee asetuksen status/rigctld (rigctld:n palvelin:portti, 127.0.0.1:4532)",
+  "error.setting.status_source":
+    "'{value}' ei ole off, text eikä rig (tyhjä: kuten status/rigctld ja station/status sanovat)",
   "error.setting.template_field": "{{{field}}} ei ole mallin kenttä (kentät ovat {{freq}} ja {{mode}})",
   "error.setting.template_long": "{length} merkkiä pitkällä taajuudella ja tilalla on enemmän kuin sallitut {max}",
   "error.setting.tnc_char": "'{char}' on merkki, jonka TNC tulkitsee komennoksi, eikä sitä saa olla siinä",
@@ -169,7 +177,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.command_mode": "TNC on komentotilassa (KISS ON lähetetään uudelleen)",
   "error.radio.checking": "TNC tarkistaa, että radio on paikalla",
   "error.radio.channel_busy": "kanava on varattu",
-  "error.qru.form": "'{request}' ei ole QRU-pyyntö: INFO, NEXT tai enintään {max} kirjaimen ja numeron ryhmä sekä etäisyys 1–{km}",
+  "error.qru.form":
+    "'{request}' ei ole QRU-pyyntö: INFO, NEXT tai enintään {max} kirjaimen ja numeron ryhmä sekä etäisyys 1–{km}",
   "error.object.unknown": "meillä ei ole kohdetta tai itemiä '{name}'",
   "error.object.own_call": "{name} on oma kutsumme",
   "error.object.is_station": "{name} on asema eikä kohteen nimi",
@@ -179,7 +188,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.message.busy": "{count} viestiä lähetetään yhtä aikaa: vapaata viestinumeroa ei ole",
   "error.message.bad_text": "tekstissä on merkki, jota viesti ei voi sisältää, tai se on liian pitkä",
   "error.message.addressee": "'{addressee}' ei voi olla viestin vastaanottaja",
-  "error.map.no_position": "asemalla ei ole vielä sijaintia: aseta Leveysaste ja Pituusaste (kartta rajataan niiden ympäriltä)",
+  "error.map.no_position":
+    "asemalla ei ole vielä sijaintia: aseta Leveysaste ja Pituusaste (kartta rajataan niiden ympäriltä)",
   "error.map.busy": "karttatyö on jo käynnissä",
   "error.frame.too_long": "tietokenttä on {length} tavua, enemmän kuin AX.25:n sallimat {max}",
   "error.call.placeholder": "{call} on paikanpitäjä eikä kutsu: aseta ensin kutsusi",

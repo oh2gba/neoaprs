@@ -54,7 +54,8 @@ function untranslated(root: HTMLElement): string[] {
   };
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) seen(node.textContent ?? "");
-  for (const el of root.querySelectorAll("*")) for (const a of ATTRIBUTES) if (el.hasAttribute(a)) seen(el.getAttribute(a) ?? "");
+  for (const el of root.querySelectorAll("*"))
+    for (const a of ATTRIBUTES) if (el.hasAttribute(a)) seen(el.getAttribute(a) ?? "");
   return found;
 }
 
@@ -64,11 +65,22 @@ describe("the page in the pseudo-locale", () => {
       setLocale("en-XA");
       localStorage.setItem("NeoAPRS.tab", tab);
       const { wrapper, socket } = await open();
-      const fm = fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } } });
-      const hf = hfRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "Mercury", radio: 2 } } });
+      const fm = fmRow({
+        state: "waiting",
+        problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } },
+      });
+      const hf = hfRow({
+        state: "waiting",
+        problem: { code: "radio.not_connected", params: { name: "Mercury", radio: 2 } },
+      });
       const off = fmRow({ enabled: false, state: "stopped" });
       // The HF tests tab is there while an HF radio is on; one radio on, one Radio mark.
-      socket.say({ type: "state", topic: "radios", rev: 5, value: tab === "skeds" ? radiosValue(off, hf) : radiosValue(fm) });
+      socket.say({
+        type: "state",
+        topic: "radios",
+        rev: 5,
+        value: tab === "skeds" ? radiosValue(off, hf) : radiosValue(fm),
+      });
       socket.say({ type: "state", topic: "config", rev: 5, value: configValues({ "station/call": "" }) });
       socket.say(status({ update: { version: "9.9.9", message: "", url: "https://example.org/" } }));
       await flushPromises();

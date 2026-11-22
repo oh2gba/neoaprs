@@ -9,7 +9,9 @@ useAppHarness();
 afterEach(() => setLocale("en"));
 
 const row = (wrapper: VueWrapper, call: string) =>
-  wrapper.findAll("#pane-stations table.stations > tbody > tr").find((r) => r.find("td.call .callname").text() === call)!;
+  wrapper
+    .findAll("#pane-stations table.stations > tbody > tr")
+    .find((r) => r.find("td.call .callname").text() === call)!;
 /** A press of a button of the station panel, which a click on the row of the station opens. */
 const choose = async (wrapper: VueWrapper, name: string) => {
   await wrapper.find(`.stationpanel [data-item='${name}']`).trigger("click");
@@ -98,7 +100,9 @@ describe("App: the station panel of the Stations tab, and the menu of a row", ()
 
   it("copies the call and says so", async () => {
     const written: string[] = [];
-    vi.stubGlobal("navigator", { clipboard: { writeText: (text: string) => Promise.resolve(void written.push(text)) } });
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: (text: string) => Promise.resolve(void written.push(text)) },
+    });
     const { wrapper } = await open();
     await row(wrapper, "OH2RDG").trigger("contextmenu", { clientX: 200, clientY: 100 });
     await wrapper.find("[role='menuitem'][data-item='copy']").trigger("click");
@@ -123,7 +127,18 @@ describe("App: the station panel of the Stations tab, and the menu of a row", ()
       topic: "messages",
       rev: 1,
       ops: [
-        { op: "set", key: "4", value: message(4, { to_call: "OH2RDG", text: "?APRSD", msg_id: null, state: "unconfirmed", attempts: 1, attempts_max: 1 }) },
+        {
+          op: "set",
+          key: "4",
+          value: message(4, {
+            to_call: "OH2RDG",
+            text: "?APRSD",
+            msg_id: null,
+            state: "unconfirmed",
+            attempts: 1,
+            attempts_max: 1,
+          }),
+        },
         {
           op: "set",
           key: "5",

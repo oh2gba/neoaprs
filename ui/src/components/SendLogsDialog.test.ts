@@ -26,35 +26,60 @@ function daemonSays(answer: () => Promise<Response>) {
   return fetcher;
 }
 
-const json = (body: unknown, status = 200): Promise<Response> => Promise.resolve(new Response(JSON.stringify(body), { status }));
+const json = (body: unknown, status = 200): Promise<Response> =>
+  Promise.resolve(new Response(JSON.stringify(body), { status }));
 const NAME = "neoaprs-support-OH2GBA.zip";
 const MADE = "neoaprs-support-OH2GBA-20261021-123456Z.zip";
 const zip = (): Promise<Response> =>
-  Promise.resolve(new Response("PK", { status: 200, headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${MADE}"` } }));
+  Promise.resolve(
+    new Response("PK", {
+      status: 200,
+      headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${MADE}"` },
+    }),
+  );
 
-const address = (input: RequestInfo | URL | undefined): string => (typeof input === "string" ? input : input instanceof URL ? input.href : (input?.url ?? ""));
+const address = (input: RequestInfo | URL | undefined): string =>
+  typeof input === "string" ? input : input instanceof URL ? input.href : (input?.url ?? "");
 
 /**
  * The fetch of the page with the daemon's two routes: `bundle` answers Download logs, `send` the
  * dialog's Send.
  */
-function daemonRoutes(bundle: () => Promise<Response> = zip, send: () => Promise<Response> = () => json({ ok: true, ref: REF })) {
-  return daemonSays(() => Promise.reject(new Error("unused"))).mockImplementation((input) => (address(input).endsWith("/support/bundle") ? bundle() : send()));
+function daemonRoutes(
+  bundle: () => Promise<Response> = zip,
+  send: () => Promise<Response> = () => json({ ok: true, ref: REF }),
+) {
+  return daemonSays(() => Promise.reject(new Error("unused"))).mockImplementation((input) =>
+    address(input).endsWith("/support/bundle") ? bundle() : send(),
+  );
 }
 
 /** What a request of the page carried: the address, the method and the rest, and the body read. */
 function asked(call: [RequestInfo | URL, RequestInit?] | undefined) {
   const [url, init] = call ?? [];
-  const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as { page: Record<string, unknown>; note?: string; file?: unknown };
-  return { url: address(url), method: init?.method, headers: init?.headers, credentials: init?.credentials, cache: init?.cache, body };
+  const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as {
+    page: Record<string, unknown>;
+    note?: string;
+    file?: unknown;
+  };
+  return {
+    url: address(url),
+    method: init?.method,
+    headers: init?.headers,
+    credentials: init?.credentials,
+    cache: init?.cache,
+    body,
+  };
 }
 
 const row = (): HTMLElement => document.body.querySelector<HTMLElement>(".logsdialog-attached") as HTMLElement;
-const fileName = (): HTMLButtonElement => row().querySelector<HTMLButtonElement>(".logsdialog-file") as HTMLButtonElement;
+const fileName = (): HTMLButtonElement =>
+  row().querySelector<HTMLButtonElement>(".logsdialog-file") as HTMLButtonElement;
 const toggle = (): HTMLButtonElement => row().querySelector<HTMLButtonElement>(".logsdialog-x") as HTMLButtonElement;
 const statusLine = (): HTMLElement => document.body.querySelector<HTMLElement>(".logsdialog-status") as HTMLElement;
 /** The face of the × that is shown: "×" or "Attach". */
-const face = (): string | undefined => toggle().querySelector(".twowords > span:not(.twowords-off)")?.textContent?.trim();
+const face = (): string | undefined =>
+  toggle().querySelector(".twowords > span:not(.twowords-off)")?.textContent?.trim();
 const downloads: { href: string; download: string }[] = [];
 
 async function write(text: string) {
@@ -68,14 +93,20 @@ async function press(control: HTMLElement) {
   await flushPromises();
 }
 const dialog = (): HTMLElement | null => document.body.querySelector<HTMLElement>(".logsdialog");
-const area = (): HTMLTextAreaElement => document.body.querySelector<HTMLTextAreaElement>(".logsdialog textarea") as HTMLTextAreaElement;
+const area = (): HTMLTextAreaElement =>
+  document.body.querySelector<HTMLTextAreaElement>(".logsdialog textarea") as HTMLTextAreaElement;
 const button = (text: string): HTMLButtonElement =>
-  [...document.body.querySelectorAll<HTMLButtonElement>(".logsdialog button")].find((b) => b.textContent?.trim() === text) as HTMLButtonElement;
+  [...document.body.querySelectorAll<HTMLButtonElement>(".logsdialog button")].find(
+    (b) => b.textContent?.trim() === text,
+  ) as HTMLButtonElement;
 
 let wrapper: VueWrapper;
 
 function make(over = {}) {
-  wrapper = mount(SettingsHelp, { global: withDaemon(fakeDaemon({ call: "OH2GBA", version: "0.16.1", ...over })), attachTo: document.body });
+  wrapper = mount(SettingsHelp, {
+    global: withDaemon(fakeDaemon({ call: "OH2GBA", version: "0.16.1", ...over })),
+    attachTo: document.body,
+  });
   return wrapper;
 }
 
@@ -110,7 +141,10 @@ describe("the Send feedback button", () => {
     const fetcher = daemonSays(() => json({ ok: true, ref: REF }));
     make();
     const control = wrapper.get(".help-logs .field-control").element;
-    expect([...control.children].map((c) => c.textContent?.trim())).toEqual(["Send feedback / logs", expect.any(String)]);
+    expect([...control.children].map((c) => c.textContent?.trim())).toEqual([
+      "Send feedback / logs",
+      expect.any(String),
+    ]);
     expect(control.lastElementChild?.classList.contains("infotip")).toBe(true);
     expect(wrapper.get("#set-help-send").classes()).toEqual(["btn", "primary"]);
     expect(wrapper.find("#set-help-logs").exists()).toBe(false);
@@ -143,7 +177,10 @@ describe("the dialog", () => {
     await open();
     const box = dialog();
     expect([...(box?.querySelectorAll("textarea") ?? [])]).toHaveLength(1);
-    expect([...(box?.querySelectorAll(".logsdialog-foot button") ?? [])].map((b) => b.textContent?.trim())).toEqual(["Send", "Cancel"]);
+    expect([...(box?.querySelectorAll(".logsdialog-foot button") ?? [])].map((b) => b.textContent?.trim())).toEqual([
+      "Send",
+      "Cancel",
+    ]);
     expect(box?.querySelector(".logsdialog-foot .btn.primary")?.textContent).toBe("Send");
   });
 
@@ -151,9 +188,18 @@ describe("the dialog", () => {
     make();
     await open();
     const box = dialog() as HTMLElement;
-    expect([...box.children].map((part) => part.tagName.toLowerCase())).toEqual(["header", "label", "textarea", "div", "p", "footer"]);
+    expect([...box.children].map((part) => part.tagName.toLowerCase())).toEqual([
+      "header",
+      "label",
+      "textarea",
+      "div",
+      "p",
+      "footer",
+    ]);
     expect(box.querySelector(".infotip")).toBeNull();
-    expect([...box.querySelectorAll("p")].map((line) => [line.className, line.textContent?.trim()])).toEqual([["logsdialog-status", ""]]);
+    expect([...box.querySelectorAll("p")].map((line) => [line.className, line.textContent?.trim()])).toEqual([
+      ["logsdialog-status", ""],
+    ]);
     expect(row().getAttribute("role")).toBe("group");
     expect(row().getAttribute("aria-label")).toBe("Attached");
     expect(fileName().textContent?.trim()).toBe(NAME);
@@ -163,7 +209,10 @@ describe("the dialog", () => {
   it.each([
     ["Cancel", () => button("Cancel").click()],
     ["the cross", () => (dialog()?.querySelector(".xbtn") as HTMLButtonElement).click()],
-    ["Esc", () => dialog()?.parentElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))],
+    [
+      "Esc",
+      () => dialog()?.parentElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    ],
     ["a press beside it", () => dialog()?.parentElement?.dispatchEvent(new Event("pointerdown", { bubbles: true }))],
   ])("is closed by %s and sends nothing, and the focus goes back to the button", async (_name, close) => {
     const fetcher = daemonSays(() => json({ ok: true, ref: REF }));
@@ -192,7 +241,12 @@ describe("the dialog", () => {
   });
 
   it("emits the words with the blanks round them taken off, and nothing else", async () => {
-    const download = { running: ref(false), saved: shallowRef<string | null>(null), problem: ref(""), collect: vi.fn(() => Promise.resolve()) };
+    const download = {
+      running: ref(false),
+      saved: shallowRef<string | null>(null),
+      problem: ref(""),
+      collect: vi.fn(() => Promise.resolve()),
+    };
     const standalone = mount(SendLogsDialog, { props: { opener: null, download }, attachTo: document.body });
     await standalone.get("textarea").setValue("  It stopped.\nTwo lines.  \n");
     await standalone.get(".btn.primary").trigger("click");
@@ -215,7 +269,10 @@ describe("sending", () => {
     const [url, init] = fetcher.mock.calls[0] ?? [];
     expect(url).toBe("http://127.0.0.1:7303/support/send");
     expect(init).toMatchObject({ method: "POST", credentials: "same-origin" });
-    const body = JSON.parse(typeof init?.body === "string" ? init.body : "") as { page: Record<string, unknown>; note: string };
+    const body = JSON.parse(typeof init?.body === "string" ? init.body : "") as {
+      page: Record<string, unknown>;
+      note: string;
+    };
     expect(Object.keys(body).sort()).toEqual(["note", "page"]);
     expect(body.note).toBe("It stopped beaconing.");
     expect(body.page).toMatchObject({ daemonVersion: "0.16.1", connection: "open" });
@@ -254,7 +311,10 @@ describe("sending", () => {
     [() => json({ ok: false, reason: "rate" }), "Not sent: too many sends just now. Try again later."],
     [() => json({ ok: false, reason: "too_large" }), "Not sent: the logs are too large."],
     [() => json({ ok: false, reason: "something new" }), "Not sent: the server refused it."],
-    [() => Promise.resolve(new Response(null, { status: 401 })), "No access: reload the page, enter the access key and try again."],
+    [
+      () => Promise.resolve(new Response(null, { status: 401 })),
+      "No access: reload the page, enter the access key and try again.",
+    ],
     [() => Promise.resolve(new Response(null, { status: 429 })), "Another file is being made. Try again in a minute."],
     [() => Promise.resolve(new Response(null, { status: 500 })), "The file could not be made (error 500)."],
     [() => Promise.reject(new TypeError("network")), "NeoAPRS could not be reached."],
@@ -322,7 +382,9 @@ describe("the file's row", () => {
   it("downloads by its name what Download logs downloads: the same request to the daemon, saved the same way under the daemon's name", async () => {
     const fetcher = daemonRoutes();
     make({ connection: "open" });
-    const about = mount(SettingsAbout, { global: withDaemon(fakeDaemon({ call: "OH2GBA", version: "0.16.1", connection: "open" })) });
+    const about = mount(SettingsAbout, {
+      global: withDaemon(fakeDaemon({ call: "OH2GBA", version: "0.16.1", connection: "open" })),
+    });
     await about.get("#set-help-logs").trigger("click");
     await flushPromises();
     await open();
@@ -330,7 +392,10 @@ describe("the file's row", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     const [fromAbout, fromDialog] = fetcher.mock.calls.map(asked);
     expect(fromDialog?.url).toBe("http://127.0.0.1:7303/support/bundle");
-    const same = (request: typeof fromAbout) => ({ ...request, body: { ...request?.body, page: { ...request?.body.page, time: "", timeMs: 0 } } });
+    const same = (request: typeof fromAbout) => ({
+      ...request,
+      body: { ...request?.body, page: { ...request?.body.page, time: "", timeMs: 0 } },
+    });
     expect(same(fromDialog)).toEqual(same(fromAbout));
     expect(Object.keys(fromDialog?.body ?? {})).toEqual(["page"]);
     expect(downloads).toEqual([
@@ -397,7 +462,10 @@ describe("the file's row", () => {
 
   it.each([
     ["Cancel", () => button("Cancel").click()],
-    ["Esc", () => dialog()?.parentElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))],
+    [
+      "Esc",
+      () => dialog()?.parentElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    ],
   ])(
     "forgets the downloaded file when it is closed by %s with nothing sent: the next opening does not say Saved, and Send sends the logs as they are then",
     async (_name, close) => {
@@ -470,7 +538,9 @@ describe("the file's row", () => {
     await press(fileName());
     fetcher.mockImplementation(() => Promise.resolve(new Response(null, { status: 429 })));
     await press(fileName());
-    expect(statusLine().querySelector(".field-error")?.textContent).toBe("Another file is being made. Try again in a minute.");
+    expect(statusLine().querySelector(".field-error")?.textContent).toBe(
+      "Another file is being made. Try again in a minute.",
+    );
     fetcher.mockImplementation(() => json({ ok: true, ref: REF }));
     await typeAndSend("x");
     expect(asked(fetcher.mock.calls[2]).body.file).toBe(MADE);
@@ -488,23 +558,29 @@ describe("the file's row", () => {
   });
 
   it.each([
-    [() => Promise.resolve(new Response(null, { status: 401 })), "No access: reload the page, enter the access key and try again."],
+    [
+      () => Promise.resolve(new Response(null, { status: 401 })),
+      "No access: reload the page, enter the access key and try again.",
+    ],
     [() => Promise.resolve(new Response(null, { status: 429 })), "Another file is being made. Try again in a minute."],
     [() => Promise.resolve(new Response(null, { status: 500 })), "The file could not be made (error 500)."],
     [() => Promise.reject(new TypeError("network")), "NeoAPRS could not be reached."],
-  ])("says under the file why it could not be downloaded, stays open, and Send still sends (%#)", async (answer, text) => {
-    const fetcher = daemonRoutes(answer);
-    make();
-    await open();
-    await press(fileName());
-    expect(statusLine().querySelector(".field-error")?.textContent).toBe(text);
-    expect(downloads).toEqual([]);
-    expect(dialog()).not.toBeNull();
-    expect(wrapper.get(".help-result").text()).toBe("");
-    await typeAndSend("x");
-    expect(Object.keys(asked(fetcher.mock.calls[1]).body).sort()).toEqual(["note", "page"]);
-    expect(wrapper.get(".help-result .muted").text()).toBe(`Sent. Reference ${REF}.`);
-  });
+  ])(
+    "says under the file why it could not be downloaded, stays open, and Send still sends (%#)",
+    async (answer, text) => {
+      const fetcher = daemonRoutes(answer);
+      make();
+      await open();
+      await press(fileName());
+      expect(statusLine().querySelector(".field-error")?.textContent).toBe(text);
+      expect(downloads).toEqual([]);
+      expect(dialog()).not.toBeNull();
+      expect(wrapper.get(".help-result").text()).toBe("");
+      await typeAndSend("x");
+      expect(Object.keys(asked(fetcher.mock.calls[1]).body).sort()).toEqual(["note", "page"]);
+      expect(wrapper.get(".help-result .muted").text()).toBe(`Sent. Reference ${REF}.`);
+    },
+  );
 });
 
 describe("the × of the file", () => {
@@ -631,7 +707,8 @@ describe("nothing in the dialog moves", () => {
     make();
     await open();
     const withFile = shape();
-    const parts = () => [...(dialog()?.children ?? [])].map((part) => `${part.tagName}.${part.className.replace(/ ?off/, "")}`);
+    const parts = () =>
+      [...(dialog()?.children ?? [])].map((part) => `${part.tagName}.${part.className.replace(/ ?off/, "")}`);
     const round = parts();
     expect(withFile.map((part) => part[2]).filter(Boolean)).toEqual([NAME, "×", "Attach"]);
     await press(toggle());
@@ -674,8 +751,12 @@ describe("nothing in the dialog moves", () => {
     daemonRoutes();
     make();
     await open();
-    const parts = () => [...(dialog()?.children ?? [])].map((part) => `${part.tagName}.${part.className.replace(/ ?off/, "")}`);
-    const foot = () => [...(dialog()?.querySelector(".logsdialog-foot")?.children ?? [])].map((part) => `${part.tagName}.${part.className}`);
+    const parts = () =>
+      [...(dialog()?.children ?? [])].map((part) => `${part.tagName}.${part.className.replace(/ ?off/, "")}`);
+    const foot = () =>
+      [...(dialog()?.querySelector(".logsdialog-foot")?.children ?? [])].map(
+        (part) => `${part.tagName}.${part.className}`,
+      );
     const before = parts();
     expect(before.slice(-3)).toEqual(["DIV.logsdialog-attached", "P.logsdialog-status", "FOOTER.logsdialog-foot"]);
     expect(foot()).toEqual(["BUTTON.btn primary", "BUTTON.btn"]);
@@ -693,7 +774,17 @@ describe("the words of the file's row in nine languages", () => {
   const GONE = ["settings.help.dialog.tip_label", "settings.help.dialog.tip", "settings.help.dialog.tip2"];
 
   it("are nine", () => {
-    expect(LOCALES.map((locale) => locale.code).sort()).toEqual(["de", "en", "es", "fi", "fr", "it", "ja", "nl", "pt-BR"]);
+    expect(LOCALES.map((locale) => locale.code).sort()).toEqual([
+      "de",
+      "en",
+      "es",
+      "fi",
+      "fr",
+      "it",
+      "ja",
+      "nl",
+      "pt-BR",
+    ]);
   });
 
   for (const locale of LOCALES) {

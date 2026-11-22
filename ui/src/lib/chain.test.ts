@@ -3,7 +3,13 @@ import { chainOf, isAlias, isMarker } from "@/lib/chain";
 import type { AttemptRow, HopRow } from "@/protocol/protocol";
 import { attemptRow, message } from "@/test/fixtures";
 
-const hop = (call: string, extra: Partial<HopRow> = {}): HopRow => ({ call, heard: false, heard_at: null, by_internet: false, ...extra });
+const hop = (call: string, extra: Partial<HopRow> = {}): HopRow => ({
+  call,
+  heard: false,
+  heard_at: null,
+  by_internet: false,
+  ...extra,
+});
 const attempt = (hops: HopRow[], extra: Partial<AttemptRow> = {}): AttemptRow => attemptRow({ hops, ...extra });
 const row = message(1, { to_call: "OH2CUB-7" });
 
@@ -30,19 +36,31 @@ describe("chainOf", () => {
   });
 
   it("says a hop was also seen over the internet when both were", () => {
-    const [, chip] = chainOf(row, attempt([hop("OH2RCH-2", { heard: true, heard_at: "2026-10-22T12:00:05Z", by_internet: true })]), true);
+    const [, chip] = chainOf(
+      row,
+      attempt([hop("OH2RCH-2", { heard: true, heard_at: "2026-10-22T12:00:05Z", by_internet: true })]),
+      true,
+    );
     expect(chip?.title).toContain("and over the internet");
   });
 
   it("shows a hop seen only in a copy an iGate gated back as internet, and says it was not heard here", () => {
-    const [, chip] = chainOf(row, attempt([hop("OH2RDG", { by_internet: true, heard_at: "2026-10-22T12:00:05Z" })]), true);
+    const [, chip] = chainOf(
+      row,
+      attempt([hop("OH2RDG", { by_internet: true, heard_at: "2026-10-22T12:00:05Z" })]),
+      true,
+    );
     expect([chip?.kind, chip?.mark]).toEqual(["internet", "internet"]);
     expect(chip?.title).toContain("not heard here");
   });
 
   it("shows a hop that was not heard grey with a ?, and says it is beyond what this station can hear when that digipeater was never heard direct", () => {
     const [, never, direct] = chainOf(row, attempt([hop("OH2RDG"), hop("OH2RCH-2")]), true, new Set(["OH2RCH-2"]));
-    expect([never?.kind, never?.mark, never?.title]).toEqual(["unheard", "?", "not heard here: beyond what this station can hear"]);
+    expect([never?.kind, never?.mark, never?.title]).toEqual([
+      "unheard",
+      "?",
+      "not heard here: beyond what this station can hear",
+    ]);
     expect([direct?.kind, direct?.mark, direct?.title]).toEqual(["unheard", "?", "not heard"]);
   });
 
@@ -68,16 +86,25 @@ describe("chainOf", () => {
 
   it("makes the recipient orange on failure and on a rejection, on the latest attempt only", () => {
     const failed = message(1, { to_call: "OH2CUB-7", state: "failed", attempts: 6 });
-    expect(chainOf(failed, attempt([]), true).at(-1)).toMatchObject({ kind: "failed", mark: "✗", title: "no answer after 6 attempts" });
+    expect(chainOf(failed, attempt([]), true).at(-1)).toMatchObject({
+      kind: "failed",
+      mark: "✗",
+      title: "no answer after 6 attempts",
+    });
     expect(chainOf(failed, attempt([]), false).at(-1)?.kind).toBe("waiting");
     const refused = message(1, { to_call: "OH2CUB-7", state: "failed", attempts: 1, failure: "too_long_for_radio" });
-    expect(chainOf(refused, attempt([]), true).at(-1)).toMatchObject({ kind: "failed", mark: "✗", title: "too long for the radio" });
+    expect(chainOf(refused, attempt([]), true).at(-1)).toMatchObject({
+      kind: "failed",
+      mark: "✗",
+      title: "too long for the radio",
+    });
     const rejected = message(1, { to_call: "OH2CUB-7", state: "rejected" });
     expect(chainOf(rejected, attempt([]), true).at(-1)).toMatchObject({ kind: "failed", title: "rejected" });
   });
 
   it("leaves the recipient grey while it waits, and says why when it is not waiting", () => {
-    const waiting = (state: "sending" | "unconfirmed" | "cancelled", latest = true) => chainOf(message(1, { state }), attempt([]), latest).at(-1);
+    const waiting = (state: "sending" | "unconfirmed" | "cancelled", latest = true) =>
+      chainOf(message(1, { state }), attempt([]), latest).at(-1);
     expect(waiting("sending")).toMatchObject({ kind: "waiting", mark: "", title: "waiting for the ack" });
     expect(waiting("unconfirmed")?.title).toBe("sent, no ack expected");
     expect(waiting("cancelled")?.title).toBe("cancelled");
@@ -114,7 +141,8 @@ describe("the radio of an attempt on the you chip", () => {
 
 describe("isMarker", () => {
   it("knows the markers for the iGates from digipeaters", () => {
-    for (const marker of ["RFONLY", "NOGATE", "TCPIP", "TCPXX", "NOTCP", "qAR", "qAC"]) expect(isMarker(marker)).toBe(true);
+    for (const marker of ["RFONLY", "NOGATE", "TCPIP", "TCPXX", "NOTCP", "qAR", "qAC"])
+      expect(isMarker(marker)).toBe(true);
     for (const call of ["OH2RCH-2", "WIDE1-1", "RELAY", "OH2RDG"]) expect(isMarker(call)).toBe(false);
   });
 });

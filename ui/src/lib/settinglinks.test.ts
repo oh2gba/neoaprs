@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { TOGETHER, confirmMessage, linkedValues, refusalFor, refusedAtField, remotePage, togetherOf } from "@/lib/settinglinks";
+import {
+  TOGETHER,
+  confirmMessage,
+  linkedValues,
+  refusalFor,
+  refusedAtField,
+  remotePage,
+  togetherOf,
+} from "@/lib/settinglinks";
 import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
 import { reasonOf } from "@/lib/settings";
 import { openedAt, resetSeen } from "@/test/fakealert";
@@ -44,8 +52,12 @@ describe("pairProblems", () => {
   it("wants both of a position or neither", () => {
     expect(pairProblems(keys, { "station/lat": "60", "station/lon": "24" })).toEqual({});
     expect(pairProblems(keys, { "station/lat": "", "station/lon": " " })).toEqual({});
-    expect(pairProblems(keys, { "station/lat": "60", "station/lon": "" })).toEqual({ "station/lon": "Needed with the latitude" });
-    expect(pairProblems(keys, { "station/lat": "", "station/lon": "24" })).toEqual({ "station/lat": "Needed with the longitude" });
+    expect(pairProblems(keys, { "station/lat": "60", "station/lon": "" })).toEqual({
+      "station/lon": "Needed with the latitude",
+    });
+    expect(pairProblems(keys, { "station/lat": "", "station/lon": "24" })).toEqual({
+      "station/lat": "Needed with the longitude",
+    });
     expect(pairProblems(["tcp/host", "tcp/port"], { "tcp/host": "a" })).toEqual({});
   });
 });
@@ -76,27 +88,40 @@ describe("settinglinks", () => {
       { length: 40, limit: 36 },
     );
     expect(
-      refusalFor(errorOf("set_config: station/lat: 95 is out", "setting.range", { value: 95, min: -90, max: 90 }), ["station/lat", "station/lon"]),
+      refusalFor(errorOf("set_config: station/lat: 95 is out", "setting.range", { value: 95, min: -90, max: 90 }), [
+        "station/lat",
+        "station/lon",
+      ]),
     ).toEqual({
       key: "station/lat",
       reason: "95 is not between -90 and 90",
     });
-    expect(refusalFor(comment, ["beacon/power_w"])).toEqual({ key: "beacon/power_w", reason: "Shorten the comment to 36 first" });
-    expect(refusalFor(errorOf("set_config: status/source: needs it", "setting.status_needs_rigctld"), ["status/rigctld"])).toEqual({
+    expect(refusalFor(comment, ["beacon/power_w"])).toEqual({
+      key: "beacon/power_w",
+      reason: "Shorten the comment to 36 first",
+    });
+    expect(
+      refusalFor(errorOf("set_config: status/source: needs it", "setting.status_needs_rigctld"), ["status/rigctld"]),
+    ).toEqual({
       key: "status/rigctld",
       reason: "the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)",
     });
-    expect(refusalFor(errorOf("set_config: the settings could not be stored", "setting.not_stored"), ["digi/enabled"])).toEqual({
+    expect(
+      refusalFor(errorOf("set_config: the settings could not be stored", "setting.not_stored"), ["digi/enabled"]),
+    ).toEqual({
       key: "digi/enabled",
       reason: "the settings could not be stored (the database would not take them); nothing changed",
     });
-    expect(refusalFor(errorOf("set_config: serial/baud: x", "setting.not_whole", { value: "x" }), ["map/radius_km"])).toEqual({
+    expect(
+      refusalFor(errorOf("set_config: serial/baud: x", "setting.not_whole", { value: "x" }), ["map/radius_km"]),
+    ).toEqual({
       key: "map/radius_km",
       reason: "'x' is not a whole number",
     });
-    expect(refusalFor({ ...comment, code: "other", params: {} }, ["beacon/power_w"]).reason, "without a code: the plain words, never the English").toBe(
-      reasonOf({ ...comment, code: "other", params: {} }),
-    );
+    expect(
+      refusalFor({ ...comment, code: "other", params: {} }, ["beacon/power_w"]).reason,
+      "without a code: the plain words, never the English",
+    ).toBe(reasonOf({ ...comment, code: "other", params: {} }));
   });
 
   it("asks only for what would cut the device off, and only on another device", () => {

@@ -50,7 +50,8 @@ describe("in the app's window", () => {
       `<form><input id="a"><input id="b" type="search"><input id="c" type="number"><input id="d" type="password"><textarea id="e"></textarea><div id="f" contenteditable="true"><b id="g">x</b></div><div id="h" contenteditable="false">y</div></form>`,
       "form",
     );
-    for (const id of ["a", "b", "c", "d", "e", "f", "g"]) expect(rightClick(document.getElementById(id) as Element), id).toBe(true);
+    for (const id of ["a", "b", "c", "d", "e", "f", "g"])
+      expect(rightClick(document.getElementById(id) as Element), id).toBe(true);
     expect(rightClick(document.getElementById("h") as Element)).toBe(false);
   });
 
@@ -62,7 +63,11 @@ describe("in the app's window", () => {
     expect(rightClick(text, 50, 10)).toBe(true);
     expect(rightClick(text, 150, 10)).toBe(false);
     expect(rightClick(text, 50, 40)).toBe(false);
-    choose.mockReturnValue({ isCollapsed: true, rangeCount: 1, getRangeAt: () => ({ getClientRects: () => [] }) } as unknown as Selection);
+    choose.mockReturnValue({
+      isCollapsed: true,
+      rangeCount: 1,
+      getRangeAt: () => ({ getClientRects: () => [] }),
+    } as unknown as Selection);
     expect(rightClick(text, 50, 10)).toBe(false);
     choose.mockReturnValue(null);
     expect(rightClick(text, 50, 10)).toBe(false);

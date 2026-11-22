@@ -25,7 +25,8 @@ const NONE = "–";
 
 /** A radio's colour: by its place among the page's radios (silent ones counted), so it stays the
  * same. */
-const toneOf = (radio: PageRadio, radios: readonly PageRadio[]): string => SERIES[radios.indexOf(radio) % SERIES.length] ?? "series-net";
+const toneOf = (radio: PageRadio, radios: readonly PageRadio[]): string =>
+  SERIES[radios.indexOf(radio) % SERIES.length] ?? "series-net";
 
 /** One radio's or the internet's part of the graph and lines: name, colour, and what it heard in
  * each of the last CHART_HOURS hours. */
@@ -57,16 +58,29 @@ function channels(stats: PacketStatsMessage, radios: readonly PageRadio[]): Chan
   for (const { radio, counts } of stats.heard) {
     const known = radio === null ? undefined : radios.find((one) => one.id === radio);
     if (radio !== null && known === undefined) continue;
-    const points = Array.from({ length: CHART_HOURS }, (_, i) => ({ t: from + i * HOUR_MS + HOUR_MS / 2, v: counts[first + i] ?? 0 }));
+    const points = Array.from({ length: CHART_HOURS }, (_, i) => ({
+      t: from + i * HOUR_MS + HOUR_MS / 2,
+      v: counts[first + i] ?? 0,
+    }));
     const label = known === undefined ? t("channel.is") : known.name;
     const tone = known === undefined ? "series-net" : toneOf(known, radios);
-    found.push({ key: radio === null ? "is" : `radio-${radio}`, radio, label, tone, points, heard: points.reduce((sum, p) => sum + (p.v ?? 0), 0) });
+    found.push({
+      key: radio === null ? "is" : `radio-${radio}`,
+      radio,
+      label,
+      tone,
+      points,
+      heard: points.reduce((sum, p) => sum + (p.v ?? 0), 0),
+    });
   }
   return found;
 }
 
 /** The bars of the graph: each whole hour (axis and reading) and each channel's part of it. */
-export function chartOf(stats: PacketStatsMessage, radios: readonly PageRadio[]): { from: number; to: number; points: Point[]; parts: Channel[] } {
+export function chartOf(
+  stats: PacketStatsMessage,
+  radios: readonly PageRadio[],
+): { from: number; to: number; points: Point[]; parts: Channel[] } {
   const { from, to } = chartSpan(stats);
   const parts = channels(stats, radios);
   const points = Array.from({ length: CHART_HOURS }, (_, i) => ({
@@ -76,11 +90,17 @@ export function chartOf(stats: PacketStatsMessage, radios: readonly PageRadio[])
   return { from, to, points, parts };
 }
 
-const sentOf = (row: RadioSent): number => row.beacons + row.messages + row.acks + row.objects + row.other + row.repeated;
+const sentOf = (row: RadioSent): number =>
+  row.beacons + row.messages + row.acks + row.objects + row.other + row.repeated;
 
 /** A radio's line for the last 24 hours: "1 204 heard · 45 sent", or "1 204 heard"; dashes until
  * the answer; null for an off or removed radio with nothing that day. */
-function radioLine(stats: PacketStatsMessage | null, parts: readonly Channel[], radio: PageRadio, radios: readonly PageRadio[]): StatLine | null {
+function radioLine(
+  stats: PacketStatsMessage | null,
+  parts: readonly Channel[],
+  radio: PageRadio,
+  radios: readonly PageRadio[],
+): StatLine | null {
   const heard = parts.find((part) => part.radio === radio.id)?.heard;
   const sent = stats?.sent.find((row) => row.radio === radio.id);
   if (!radio.enabled && heard === undefined && sent === undefined) return null;
@@ -89,22 +109,37 @@ function radioLine(stats: PacketStatsMessage | null, parts: readonly Channel[], 
     senders(radios).includes(radio) || sent !== undefined
       ? t("stats.heard_sent", { heard: counted(heard ?? 0), sent: counted(sent === undefined ? 0 : sentOf(sent)) })
       : t("stats.heard_value", { n: counted(heard ?? 0) });
-  return { label: "stats.channel", params: { name: radio.name }, value, tone: toneOf(radio, radios), key: `radio-${radio.id}` };
+  return {
+    label: "stats.channel",
+    params: { name: radio.name },
+    value,
+    tone: toneOf(radio, radios),
+    key: `radio-${radio.id}`,
+  };
 }
 
 /** Each radio by name with its colour, what it heard and (if it can send) sent over the last 24
  * hours, the internet's "240 heard", and the copies. Radios that are on always have their line
  * (a dash until the answer), and so has the internet while `internet` is on; others only where
  * the day has something of them. */
-export function channelLines(stats: PacketStatsMessage | null, radios: readonly PageRadio[], internet: boolean): StatLine[] {
+export function channelLines(
+  stats: PacketStatsMessage | null,
+  radios: readonly PageRadio[],
+  internet: boolean,
+): StatLine[] {
   const parts = stats === null ? [] : channels(stats, radios);
-  const lines = radios.map((radio) => radioLine(stats, parts, radio, radios)).filter((one): one is StatLine => one !== null);
+  const lines = radios
+    .map((radio) => radioLine(stats, parts, radio, radios))
+    .filter((one): one is StatLine => one !== null);
   const net = parts.find((part) => part.radio === null);
   if (internet || (net !== undefined && net.heard > 0)) {
     const value = t("stats.heard_value", { n: stats === null ? NONE : whole(net?.heard ?? 0) });
     lines.push({ label: "stats.channel", params: { name: t("channel.is") }, value, tone: "series-net", key: "is" });
   }
-  const copies = stats === null ? NONE : t("stats.copies_value", { n: whole(stats.frames - stats.packets), packets: whole(stats.packets) });
+  const copies =
+    stats === null
+      ? NONE
+      : t("stats.copies_value", { n: whole(stats.frames - stats.packets), packets: whole(stats.packets) });
   return [...lines, ...line("stats.copies", copies)];
 }
 
@@ -126,15 +161,25 @@ export function ownLines(stats: PacketStatsMessage | null): StatLine[] {
  * (a dash until the answer) and since the daemon started (`since`; the iGate's is null while it is
  * off; `digipeater`: a radio that is on repeats). The repeated line shows while a radio repeats or
  * something was repeated. */
-export function throughLines(stats: PacketStatsMessage | null, since: { repeated: number; gated: number | null; digipeater: boolean }): StatLine[] {
+export function throughLines(
+  stats: PacketStatsMessage | null,
+  since: { repeated: number; gated: number | null; digipeater: boolean },
+): StatLine[] {
   const both = (hour: number | null | undefined, all: number): string =>
     t("stats.hour_and_all", { hour: stats === null ? NONE : whole(hour ?? 0), all: whole(all) });
-  const repeated = since.digipeater || (stats?.repeated_hour ?? 0) > 0 || since.repeated > 0 ? both(stats?.repeated_hour, since.repeated) : null;
-  return [...line("stats.digipeated", repeated), ...line("stats.gated", since.gated === null ? null : both(stats?.gated_hour, since.gated))];
+  const repeated =
+    since.digipeater || (stats?.repeated_hour ?? 0) > 0 || since.repeated > 0
+      ? both(stats?.repeated_hour, since.repeated)
+      : null;
+  return [
+    ...line("stats.digipeated", repeated),
+    ...line("stats.gated", since.gated === null ? null : both(stats?.gated_hour, since.gated)),
+  ];
 }
 
 /** The hour of the day as written, "17:00–18:00". */
-const hourSpan = (hour: number): string => t("stats.hour_span", { from: `${pad2(hour)}:00`, to: `${pad2((hour + 1) % 24)}:00` });
+const hourSpan = (hour: number): string =>
+  t("stats.hour_span", { from: `${pad2(hour)}:00`, to: `${pad2((hour + 1) % 24)}:00` });
 
 /** The busiest and quietest hour in the viewer's time, by packets heard per hour on average over
  * the hours that are over; null until a whole day is counted. The daemon's hours are whole UTC

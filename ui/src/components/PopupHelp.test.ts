@@ -8,9 +8,12 @@ const FIREFOX_WINDOWS = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gec
 const CHROME = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const EDGE = `${CHROME} Edg/140.0.0.0`;
 const OPERA = `${CHROME} OPR/120.0.0.0`;
-const ANDROID_CHROME = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
-const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
-const SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
+const ANDROID_CHROME =
+  "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
+const IPHONE =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+const SAFARI =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
 
 const writeText = vi.fn(() => Promise.resolve());
 
@@ -90,7 +93,10 @@ describe("the steps to allow notifications", () => {
     await copyButton(wrapper, 0)?.trigger("click");
     await copyButton(wrapper, 1)?.trigger("click");
     await flushPromises();
-    expect(writeText.mock.calls).toEqual([["chrome://flags/#unsafely-treat-insecure-origin-as-secure"], ["http://neoaprs-pi.local:7303"]]);
+    expect(writeText.mock.calls).toEqual([
+      ["chrome://flags/#unsafely-treat-insecure-origin-as-secure"],
+      ["http://neoaprs-pi.local:7303"],
+    ]);
   });
 
   it("reloads the page from Reload", async () => {
@@ -116,7 +122,9 @@ describe("the steps to allow notifications", () => {
     ]);
     await fold.findAll("button")[1]?.trigger("click");
     await flushPromises();
-    expect(writeText).toHaveBeenCalledExactlyOnceWith("flatpak override --user --env=NOTIFY_IGNORE_PORTAL=1 org.mozilla.firefox");
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(
+      "flatpak override --user --env=NOTIFY_IGNORE_PORTAL=1 org.mozilla.firefox",
+    );
     expect(panel(FIREFOX_WINDOWS).find("details").exists()).toBe(false);
     expect(panel(CHROME).find("details").exists()).toBe(false);
   });

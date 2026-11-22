@@ -17,7 +17,15 @@ export interface PopupOptions {
   escapeAnywhere?: boolean;
 }
 
-export function usePopup({ open, root, trigger, close, focusAway = true, stopEscape = false, escapeAnywhere = false }: PopupOptions) {
+export function usePopup({
+  open,
+  root,
+  trigger,
+  close,
+  focusAway = true,
+  stopEscape = false,
+  escapeAnywhere = false,
+}: PopupOptions) {
   function away(event: Event): void {
     if (!(event.target instanceof Node) || !root.value?.contains(event.target)) close();
   }

@@ -10,7 +10,8 @@ import { radioRow, radiosTopic } from "@/test/fixtures";
  * SidePanelMore.test.ts).
  */
 // the HF radio on: every tab
-const global = () => withDaemon(fakeDaemon({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) }));
+const global = () =>
+  withDaemon(fakeDaemon({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) }));
 
 const slots = {
   stations: "<p>stations pane</p>",
@@ -30,7 +31,11 @@ afterEach(() => {
 
 describe("SidePanel", () => {
   it("keeps the tab bar to one row that never scrolls, and no tab changes its width when it is picked", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400 },
+      slots,
+      global: global(),
+    });
     expect(wrapper.find("[role='tablist']").classes()).toContain("tabs");
     expect(cssRule(".tabs")).toMatch(/flex-wrap:\s*nowrap/);
     expect(cssRule(".tabs")).toMatch(/overflow:\s*hidden/);
@@ -40,7 +45,11 @@ describe("SidePanel", () => {
   });
 
   it("has the ten tabs, the chosen one selected, and shows its pane only", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "packets", collapsed: false, width: 400 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "packets", collapsed: false, width: 400 },
+      slots,
+      global: global(),
+    });
     expect(wrapper.findAll("[role='tab']").map((t) => t.text())).toEqual([
       "Messages",
       "Stations",
@@ -54,17 +63,27 @@ describe("SidePanel", () => {
       "Settings",
     ]);
     expect(wrapper.find("[aria-selected='true']").text()).toBe("Packets");
-    const visible = wrapper.findAll("[role='tabpanel']").filter((p) => (p.element as HTMLElement).style.display !== "none");
+    const visible = wrapper
+      .findAll("[role='tabpanel']")
+      .filter((p) => (p.element as HTMLElement).style.display !== "none");
     expect(visible.map((p) => p.text())).toEqual(["packets pane"]);
   });
 
   it("keeps every pane mounted", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400 },
+      slots,
+      global: global(),
+    });
     expect(wrapper.text()).toContain("settings pane");
   });
 
   it("says which tab was picked", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400 },
+      slots,
+      global: global(),
+    });
     await wrapper.findAll("[role='tab']")[9]?.trigger("click");
     expect(wrapper.emitted("update:tab")).toEqual([["settings"]]);
   });
@@ -76,26 +95,49 @@ describe("SidePanel", () => {
       global: global(),
     });
     const tabs = wrapper.findAll("[role='tab']");
-    expect(tabs.map((t) => t.find(".badge").exists())).toEqual([true, false, false, false, false, false, false, false, false, false]);
+    expect(tabs.map((t) => t.find(".badge").exists())).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
     expect(tabs[0]?.find(".badge").text()).toBe("3");
     expect(tabs[0]?.text()).toBe("Messages 3");
     expect(tabs[0]?.find(".badge").attributes("title")).toBe("3 messages not seen yet");
   });
 
   it("counts the messages of the Email tab as messages not seen", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { email: 1 } }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400, badges: { email: 1 } },
+      slots,
+      global: global(),
+    });
     const badge = wrapper.findAll("[role='tab']")[3]?.find(".badge");
     expect([badge?.text(), badge?.attributes("title")]).toEqual(["1", "1 message not seen yet"]);
   });
 
   it("words the badge of the Bulletins tab as the bulletins that are new", () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400, badges: { bulletins: 2 } }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400, badges: { bulletins: 2 } },
+      slots,
+      global: global(),
+    });
     const badge = wrapper.findAll("[role='tab']")[4]?.find(".badge");
     expect([badge?.text(), badge?.attributes("title")]).toEqual(["2", "2 new bulletins"]);
   });
 
   it("folds away and back", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400 },
+      slots,
+      global: global(),
+    });
     await wrapper.find(".panel-fold").trigger("click");
     expect(wrapper.emitted("update:collapsed")).toEqual([[true]]);
     await wrapper.setProps({ collapsed: true });
@@ -106,7 +148,11 @@ describe("SidePanel", () => {
   });
 
   it("has the width it is given, and changes it with the arrow keys", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400 },
+      slots,
+      global: global(),
+    });
     expect(wrapper.find(".panel").attributes("style")).toContain("--panel-width: 400px");
     await wrapper.find("[role='separator']").trigger("keydown", { key: "ArrowLeft" });
     expect(wrapper.emitted("update:width")?.[0]?.[0]).toBeGreaterThan(400);
@@ -133,7 +179,11 @@ describe("SidePanel", () => {
 
   it("shows a remembered width clamped to what the window allows, and the whole width again when the window is wide", async () => {
     window.innerWidth = 1000;
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 900 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 900 },
+      slots,
+      global: global(),
+    });
     expect(wrapper.find(".panel").attributes("style")).toContain("--panel-width: 640px");
     window.innerWidth = 700;
     window.dispatchEvent(new Event("resize"));
@@ -148,7 +198,11 @@ describe("SidePanel", () => {
 
   it("does not ask for more than 80 % of the window, nor for less than 360 px of map, with the arrow keys", async () => {
     window.innerWidth = 1000;
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 630 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 630 },
+      slots,
+      global: global(),
+    });
     await wrapper.find("[role='separator']").trigger("keydown", { key: "ArrowLeft" });
     expect(wrapper.emitted("update:width")?.[0]).toEqual([640]);
     window.innerWidth = 3000;
@@ -162,7 +216,12 @@ describe("SidePanel", () => {
 
 describe("SidePanel for the keyboard", () => {
   it("is one Tab stop for the row of tabs, the tab on show, and the arrows show the tab beside it, round the row", async () => {
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global(), attachTo: document.body });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400 },
+      slots,
+      global: global(),
+      attachTo: document.body,
+    });
     const tabs = wrapper.findAll("[role='tab']");
     const ids = tabs.map((tab) => tab.attributes("id")?.replace("tab-", ""));
     expect(tabs.map((tab) => tab.attributes("tabindex"))).toEqual(ids.map((id) => (id === "stations" ? "0" : "-1")));
@@ -171,13 +230,21 @@ describe("SidePanel for the keyboard", () => {
     await tabs[at]?.trigger("keydown", { key: "ArrowLeft" });
     await tabs[at]?.trigger("keydown", { key: "End" });
     await tabs[at]?.trigger("keydown", { key: "a" });
-    expect(wrapper.emitted("update:tab")?.map(([id]) => id)).toEqual([ids[at + 1], ids[(at - 1 + ids.length) % ids.length], ids.at(-1)]);
+    expect(wrapper.emitted("update:tab")?.map(([id]) => id)).toEqual([
+      ids[at + 1],
+      ids[(at - 1 + ids.length) % ids.length],
+      ids.at(-1),
+    ]);
     wrapper.unmount();
   });
 
   it("gives the handle its width as a value", () => {
     window.innerWidth = 1400;
-    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
+    const wrapper = mount(SidePanel, {
+      props: { tab: "stations", collapsed: false, width: 400 },
+      slots,
+      global: global(),
+    });
     const handle = wrapper.find(".panel-handle");
     expect(handle.attributes("aria-valuenow")).toBe("400");
     expect(handle.attributes("aria-valuemin")).toBe("280");

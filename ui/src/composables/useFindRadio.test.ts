@@ -7,7 +7,8 @@ import type { RadioSearchMessage } from "@/protocol/protocol";
 import { configValues, radioSearch, toastOf } from "@/test/fixtures";
 
 const step = (extra: Partial<RadioSearchMessage>): RadioSearchMessage => radioSearch(extra);
-const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage => step({ state: "found", profile: "kenwood-tnc2", number: 0, total: 0, ...extra });
+const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage =>
+  step({ state: "found", profile: "kenwood-tnc2", number: 0, total: 0, ...extra });
 
 function setUp(saved: Record<string, string> = {}) {
   const message = shallowRef<RadioSearchMessage | null>(null);
@@ -19,7 +20,17 @@ function setUp(saved: Record<string, string> = {}) {
   const values: Record<string, string> = { "radio/1/port": "", "radio/1/baud": "9600", ...saved };
   const config = shallowRef(configValues());
   const scope = effectScope();
-  const find = scope.run(() => useFindRadio(message, error, connection, send, { change, expected: (key: string) => values[key] ?? "" }, config, say));
+  const find = scope.run(() =>
+    useFindRadio(
+      message,
+      error,
+      connection,
+      send,
+      { change, expected: (key: string) => values[key] ?? "" },
+      config,
+      say,
+    ),
+  );
   if (!find) throw new Error("no scope");
   return { find, message, error, connection, send, change, say };
 }
@@ -169,6 +180,8 @@ describe("useFindRadio for one radio of several", () => {
     await nextTick();
     expect(send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, type: "kenwood-tnc2" });
     expect(change).toHaveBeenCalledWith({ "radio/3/port": "/dev/ttyUSB0", "radio/3/baud": "9600" });
-    expect(change.mock.calls.flatMap((call: unknown[]) => Object.keys(call[0] as Record<string, string>))).not.toContain("radio/3/type");
+    expect(
+      change.mock.calls.flatMap((call: unknown[]) => Object.keys(call[0] as Record<string, string>)),
+    ).not.toContain("radio/3/type");
   });
 });

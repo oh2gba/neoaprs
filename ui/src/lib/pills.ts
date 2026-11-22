@@ -77,8 +77,11 @@ interface Line {
  */
 function whyOf(state: RadioRow["state"], radio: PageRadio | undefined, radios: readonly PageRadio[] = []): string {
   const problem = radio?.problem ?? null;
-  if (state === "connecting" && (problem === null || problem.code === "radio.not_connected")) return t("settings.tnc.searching");
-  return problem === null ? t(`settings.tnc.state.${state}`) : problemText(problem, t, { byId: (id) => radios.find((one) => one.id === id) });
+  if (state === "connecting" && (problem === null || problem.code === "radio.not_connected"))
+    return t("settings.tnc.searching");
+  return problem === null
+    ? t(`settings.tnc.state.${state}`)
+    : problemText(problem, t, { byId: (id) => radios.find((one) => one.id === id) });
 }
 
 /** The line of a radio from its row of the topic `radios`. */
@@ -109,23 +112,35 @@ function radioFocus(radio: Pick<PageRadio, "id"> | undefined): string {
 }
 
 /** The title "{why}. Settings → Radio"; the reason has no stop of its own. */
-const whyTitle = (text: string) => ({ title: "pill.radio_why_title", titleValues: { why: text.replace(/[.…。]+$/u, "") } }) as const;
+const whyTitle = (text: string) =>
+  ({ title: "pill.radio_why_title", titleValues: { why: text.replace(/[.…。]+$/u, "") } }) as const;
 
 /**
  * The mark of a radio in the state of its line. `name` is its short name when several marks show.
  */
-function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: string, name: string | null): HeaderPill {
+function radioPill(
+  link: Link,
+  line: Line | null,
+  id: HeaderPill["id"],
+  focus: string,
+  name: string | null,
+): HeaderPill {
   const base = { id, target: "settings", focus } as const;
   // `name` also fills the shared words, e.g. "{name}: not connected"
   const values = name === null ? undefined : { radio: name, name };
-  const word = (plain: MessageId, withName: MessageId) => ({ text: name === null ? plain : withName, textValues: values }) as const;
+  const word = (plain: MessageId, withName: MessageId) =>
+    ({ text: name === null ? plain : withName, textValues: values }) as const;
   if (line === null) {
     // socket away: use the Daemon mark's words
-    const title = link.connection === "open" ? whyTitle(t("pill.radio_waiting_why")) : { title: DAEMON_STATES[link.connection].title };
+    const title =
+      link.connection === "open"
+        ? whyTitle(t("pill.radio_waiting_why"))
+        : { title: DAEMON_STATES[link.connection].title };
     return { ...base, ...word("pill.radio_waiting", "pill.radio_named_waiting"), tone: "warn", ...title };
   }
   if (line.state === "connected") {
-    if (line.dummy) return { ...base, ...word("pill.radio", "pill.radio_named"), title: "pill.radio_dummy_title", tone: "dummy" };
+    if (line.dummy)
+      return { ...base, ...word("pill.radio", "pill.radio_named"), title: "pill.radio_dummy_title", tone: "dummy" };
     return name === null
       ? { ...base, text: "pill.radio", title: "pill.radio_title", tone: "ok" }
       : {
@@ -137,8 +152,19 @@ function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: s
         };
   }
   if (line.state === "silent")
-    return { ...base, ...word("pill.radio_silent", "pill.radio_named_silent"), tone: "warn", ...whyTitle(silentText(line.since, link.now)) };
-  if (line.state === "connecting") return { ...base, ...word("pill.radio_searching", "pill.radio_named_searching"), tone: "warn", ...whyTitle(line.why) };
+    return {
+      ...base,
+      ...word("pill.radio_silent", "pill.radio_named_silent"),
+      tone: "warn",
+      ...whyTitle(silentText(line.since, link.now)),
+    };
+  if (line.state === "connecting")
+    return {
+      ...base,
+      ...word("pill.radio_searching", "pill.radio_named_searching"),
+      tone: "warn",
+      ...whyTitle(line.why),
+    };
   return { ...base, ...word("pill.radio_off", "radio.not_connected"), tone: "warn", ...whyTitle(line.why) };
 }
 
@@ -151,7 +177,8 @@ function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: s
 function radiosPill(link: Link, on: readonly PageRadio[], first: PageRadio | undefined): HeaderPill {
   const lines = on.map((radio) => ({ radio, line: lineOf(link, radio) }));
   const said = lines.map(({ radio, line }) => {
-    if (line?.state === "connected") return t("radio.line", { name: radio.name, line: t("settings.tnc.state.connected") });
+    if (line?.state === "connected")
+      return t("radio.line", { name: radio.name, line: t("settings.tnc.state.connected") });
     // the words its own mark would use: "Portable: searching…"
     const mark = radioPill(link, line, "radios", "", radio.name);
     return t(mark.text, mark.textValues);
@@ -160,11 +187,32 @@ function radiosPill(link: Link, on: readonly PageRadio[], first: PageRadio | und
   const trouble = lines.filter(({ line }) => line?.state !== "connected");
   const base = { id: "radios", target: "settings" } as const;
   if (link.connection !== "open")
-    return { ...base, text: "pill.radios_waiting", tone: "warn", title: DAEMON_STATES[link.connection].title, focus: radioFocus(first) };
+    return {
+      ...base,
+      text: "pill.radios_waiting",
+      tone: "warn",
+      title: DAEMON_STATES[link.connection].title,
+      focus: radioFocus(first),
+    };
   const [one] = trouble;
-  if (one === undefined) return { ...base, text: "pill.radios", tone: on.every((radio) => radio.dummy) ? "dummy" : "ok", ...title, focus: radioFocus(first) };
-  if (trouble.length === 1) return { ...radioPill(link, one.line, "radios", radioFocus(one.radio), one.radio.name), ...title };
-  return { ...base, text: "pill.radios_trouble", textValues: { n: trouble.length }, tone: "warn", ...title, focus: radioFocus(one.radio) };
+  if (one === undefined)
+    return {
+      ...base,
+      text: "pill.radios",
+      tone: on.every((radio) => radio.dummy) ? "dummy" : "ok",
+      ...title,
+      focus: radioFocus(first),
+    };
+  if (trouble.length === 1)
+    return { ...radioPill(link, one.line, "radios", radioFocus(one.radio), one.radio.name), ...title };
+  return {
+    ...base,
+    text: "pill.radios_trouble",
+    textValues: { n: trouble.length },
+    tone: "warn",
+    ...title,
+    focus: radioFocus(one.radio),
+  };
 }
 
 /**
@@ -183,7 +231,8 @@ function radioPills(link: Link): HeaderPill[] {
         radios.find((radio) => !radio.removed),
       ),
     ];
-  if (on.length === 2) return on.map((radio) => radioPill(link, lineOf(link, radio), `radio-${radio.id}`, radioFocus(radio), radio.name));
+  if (on.length === 2)
+    return on.map((radio) => radioPill(link, lineOf(link, radio), `radio-${radio.id}`, radioFocus(radio), radio.name));
   const one = on[0] ?? radios[0];
   return [radioPill(link, lineOf(link, one), "radio", radioFocus(one), null)];
 }
@@ -203,7 +252,11 @@ const updatePill = (update: UpdateInfo): HeaderPill => ({
  * RX only while transmitting is off or no radio that is on can send (`listening`; it leads to the
  * box of `first`, the first radio on), else Beacon off while the beacon is; nothing when neither.
  */
-function sendingPill(values: Readonly<Record<string, string>>, listening: boolean, first: PageRadio | undefined): HeaderPill | null {
+function sendingPill(
+  values: Readonly<Record<string, string>>,
+  listening: boolean,
+  first: PageRadio | undefined,
+): HeaderPill | null {
   if (values["station/transmit"] === "false" || listening) {
     const radios = listening && values["station/transmit"] !== "false";
     return {
@@ -216,7 +269,14 @@ function sendingPill(values: Readonly<Record<string, string>>, listening: boolea
     };
   }
   if (!beaconOff(values)) return null;
-  return { id: "beacon_off", text: "pill.beacon_off", title: "pill.beacon_off_title", tone: "neutral", target: "beacon", focus: "set-beacon-interval_min" };
+  return {
+    id: "beacon_off",
+    text: "pill.beacon_off",
+    title: "pill.beacon_off_title",
+    tone: "neutral",
+    target: "beacon",
+    focus: "set-beacon-interval_min",
+  };
 }
 
 /** GPS, only when a GPS is the position source: ok with a fix, warn without. */
@@ -235,8 +295,20 @@ function gpsPill(values: Readonly<Record<string, string>>, gps: GpsState | null)
 
 /** Internet, while Internet stations is enabled and connected. */
 function internetPill(igate: IgateState | null): HeaderPill | null {
-  const up = igate !== null && igate.enabled && (igate.state === "connected" || igate.state === "listening" || igate.state === "unverified");
-  return up ? { id: "internet", text: "pill.internet", title: "pill.internet_title", tone: "info", target: "settings", focus: "set-igate-enabled" } : null;
+  const up =
+    igate !== null &&
+    igate.enabled &&
+    (igate.state === "connected" || igate.state === "listening" || igate.state === "unverified");
+  return up
+    ? {
+        id: "internet",
+        text: "pill.internet",
+        title: "pill.internet_title",
+        tone: "info",
+        target: "settings",
+        focus: "set-igate-enabled",
+      }
+    : null;
 }
 
 /**
@@ -245,8 +317,16 @@ function internetPill(igate: IgateState | null): HeaderPill | null {
  */
 function mapPill(map: MapState | null): HeaderPill | null {
   if (map === null || map.state !== "downloading") return null;
-  const base = { id: "map", title: "pill.map_title", tone: "info", target: "settings", focus: "set-map-fetch" } as const;
-  return map.percent === null ? { ...base, text: "pill.map_working" } : { ...base, text: "pill.map", textValues: { percent: map.percent } };
+  const base = {
+    id: "map",
+    title: "pill.map_title",
+    tone: "info",
+    target: "settings",
+    focus: "set-map-fetch",
+  } as const;
+  return map.percent === null
+    ? { ...base, text: "pill.map_working" }
+    : { ...base, text: "pill.map", textValues: { percent: map.percent } };
 }
 
 /**

@@ -52,7 +52,8 @@ const callChoices = (key: string, values: Readonly<Record<string, string>>): Cho
 export function pairField(key: string, values: Readonly<Record<string, string>>): FieldInfo | undefined {
   const pair = pairFieldOf(key);
   if (pair === null) return undefined;
-  if (pair.field === "ssid") return { label: t("settings.pair.call"), kind: "choice", choices: callChoices(key, values) };
+  if (pair.field === "ssid")
+    return { label: t("settings.pair.call"), kind: "choice", choices: callChoices(key, values) };
   return {
     label: t("settings.enable.label"),
     name: t("settings.pair.name"),

@@ -20,11 +20,13 @@ describe("App: two objects", () => {
         .findAll("#pane-objects .location-entry .field")
         .find((f) => f.find("label").text() === label)
         ?.find<HTMLInputElement>("input");
-    if (!wrapper.find("#pane-objects .location-entry").exists()) await wrapper.find("#pane-objects .location-place").trigger("click");
+    if (!wrapper.find("#pane-objects .location-entry").exists())
+      await wrapper.find("#pane-objects .location-place").trigger("click");
     await entry("Latitude")?.setValue("60.17");
     await entry("Longitude")?.setValue("24.94");
   };
-  const sentSets = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd?: string }).cmd === "object_set") as { name: string }[];
+  const sentSets = (socket: FakeSocket) =>
+    socket.sent.filter((c) => (c as { cmd?: string }).cmd === "object_set") as { name: string }[];
 
   it("makes a second object while the first stays, as the daemon tells it in patches", async () => {
     const { wrapper, socket } = await open();
@@ -37,7 +39,13 @@ describe("App: two objects", () => {
       type: "patch",
       topic: "own_objects",
       rev: 1,
-      ops: [{ op: "set", key: "ALPHA", value: ownObject("ALPHA", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null, symbol_code: "r" }) }],
+      ops: [
+        {
+          op: "set",
+          key: "ALPHA",
+          value: ownObject("ALPHA", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null, symbol_code: "r" }),
+        },
+      ],
     });
     await flushPromises();
     expect(field(wrapper, "Name")?.element.value).toBe("");
@@ -49,7 +57,13 @@ describe("App: two objects", () => {
       type: "patch",
       topic: "own_objects",
       rev: 2,
-      ops: [{ op: "set", key: "BRAVO", value: ownObject("BRAVO", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null, symbol_code: "r" }) }],
+      ops: [
+        {
+          op: "set",
+          key: "BRAVO",
+          value: ownObject("BRAVO", { lat: 60.17, lon: 24.94, sent: 0, last_sent_at: null, symbol_code: "r" }),
+        },
+      ],
     });
     await flushPromises();
     expect(field(wrapper, "Name")?.element.value).toBe("");
@@ -58,7 +72,10 @@ describe("App: two objects", () => {
 
   it("changes and kills one of two without touching the other, and shows both again after a reload", async () => {
     const { wrapper, socket } = await open();
-    const both = { ALPHA: ownObject("ALPHA", { lat: 60.17, lon: 24.94 }), BRAVO: ownObject("BRAVO", { lat: 60.17, lon: 24.94 }) };
+    const both = {
+      ALPHA: ownObject("ALPHA", { lat: 60.17, lon: 24.94 }),
+      BRAVO: ownObject("BRAVO", { lat: 60.17, lon: 24.94 }),
+    };
     socket.say({ type: "state", topic: "own_objects", rev: 0, value: both });
     await tabButton(wrapper, "Objects")?.trigger("click");
     await flushPromises();
@@ -70,8 +87,15 @@ describe("App: two objects", () => {
     const kill = () => wrapper.findAll("#pane-objects .ownobject .bulletin-delete")[0];
     await kill()?.trigger("click");
     await kill()?.trigger("click");
-    expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "object_kill")).toEqual([{ cmd: "object_kill", name: "ALPHA" }]);
-    socket.say({ type: "patch", topic: "own_objects", rev: 1, ops: [{ op: "set", key: "ALPHA", value: ownObject("ALPHA", { state: "killing", sent: 0 }) }] });
+    expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "object_kill")).toEqual([
+      { cmd: "object_kill", name: "ALPHA" },
+    ]);
+    socket.say({
+      type: "patch",
+      topic: "own_objects",
+      rev: 1,
+      ops: [{ op: "set", key: "ALPHA", value: ownObject("ALPHA", { state: "killing", sent: 0 }) }],
+    });
     await flushPromises();
     expect(wrapper.findAll("#pane-objects .ownobject strong").map((e) => e.text())).toEqual(["ALPHA", "BRAVO"]);
     // A reload: the daemon tells the table whole.

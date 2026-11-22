@@ -3,7 +3,10 @@
 // frequency) under it. `faded` marks one that is out of range.
 import HelpSymbol from "@/help/HelpSymbol.vue";
 
-withDefaults(defineProps<{ table: string; code: string; x: number; y: number; label?: string; size?: number; faded?: boolean }>(), { label: "", size: 26 });
+withDefaults(
+  defineProps<{ table: string; code: string; x: number; y: number; label?: string; size?: number; faded?: boolean }>(),
+  { label: "", size: 26 },
+);
 </script>
 
 <template>

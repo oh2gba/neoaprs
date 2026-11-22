@@ -47,7 +47,8 @@ export function bestText(row: Suggestion): string {
   const route = routeWords(row.best_route);
   if (row.suggested_path === null) return route;
   const unknown = row.best_route.includes("?");
-  if (row.suggested_path === "") return t(unknown ? "route.best.unknown_send_direct" : "route.best.send_direct", { route });
+  if (row.suggested_path === "")
+    return t(unknown ? "route.best.unknown_send_direct" : "route.best.send_direct", { route });
   return t(unknown ? "route.best.unknown_send_by" : "route.best.send_by", { route, path: row.suggested_path });
 }
 
@@ -66,7 +67,9 @@ export function heardDirect(row: Pick<StationRow, "kind" | "is_me"> & Direct): b
 /** The way of the latest packet for a person: "direct", "via OH2RCH-2", "via a repeater →
  * OH2RCH-2", "via OH7JHF-1 (internet)"; before a route is known, the way most packets came; null
  * if none is known (a station known from the internet alone has no route). */
-export function reachedText(row: Pick<StationRow, "last_route" | "heard_direct" | "heard_via" | "heard_rf_gated">): string | null {
+export function reachedText(
+  row: Pick<StationRow, "last_route" | "heard_direct" | "heard_via" | "heard_rf_gated">,
+): string | null {
   if (row.last_route !== "") return routeWords(row.last_route, t("route.hop.repeater"));
   if (row.heard_direct > 0) return t("route.direct");
   const first = row.heard_via[0];
@@ -85,11 +88,14 @@ export function internetText(
   const reach = row.internet_reach;
   if (reach === null) return null;
   if (reach.kind === "app")
-    return row.kind !== undefined && row.kind !== "station" && row.reported_by ? t("route.reach.app_by", { call: row.reported_by }) : t("route.reach.app");
+    return row.kind !== undefined && row.kind !== "station" && row.reported_by
+      ? t("route.reach.app_by", { call: row.reported_by })
+      : t("route.reach.app");
   const found = stations.get(reach.igate);
   const placed = found !== undefined && hasPosition(found);
   const igate = reach.igate;
-  if (reach.hops.length === 0) return t(placed ? "route.reach.igate_direct" : "route.reach.igate_direct_unplaced", { igate });
+  if (reach.hops.length === 0)
+    return t(placed ? "route.reach.igate_direct" : "route.reach.igate_direct_unplaced", { igate });
   const hops = reach.hops.map((hop) => (hop === "?" ? t("route.hop.repeater") : hop)).join(" → ");
   return t(placed ? "route.reach.igate_via" : "route.reach.igate_via_unplaced", { igate, hops });
 }

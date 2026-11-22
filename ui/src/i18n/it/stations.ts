@@ -122,7 +122,13 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.freq.offset": "{khz} kHz",
   "station.freq.range": "portata {km} km",
   "station.freq.receive": "ricezione {mhz} MHz",
-  "station.storm.kind": { select: "kind", TS: "Tempesta tropicale", HC: "Uragano", TD: "Depressione tropicale", other: "{kind}" },
+  "station.storm.kind": {
+    select: "kind",
+    TS: "Tempesta tropicale",
+    HC: "Uragano",
+    TD: "Depressione tropicale",
+    other: "{kind}",
+  },
   "station.storm.wind": "vento {speed}",
   "station.storm.gusts": "raffiche {speed}",
   "station.storm.pressure": "pressione {value}",
@@ -136,8 +142,10 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.table.filter": "Filtro",
   "station.table.filter_title": "Nominativo, simbolo, commento, percorso",
   "station.table.about_label": "Sulle stazioni",
-  "station.table.about1": "Ogni stazione ascoltata, con distanza e direzione da te. Fai clic su una per vederla sulla mappa.",
-  "station.table.about2": "Un segno di spunta dopo un nominativo significa che la stazione è stata sentita diretta, senza digipeater.",
+  "station.table.about1":
+    "Ogni stazione ascoltata, con distanza e direzione da te. Fai clic su una per vederla sulla mappa.",
+  "station.table.about2":
+    "Un segno di spunta dopo un nominativo significa che la stazione è stata sentita diretta, senza digipeater.",
   "station.table.filter_label": "Filtra le stazioni",
   "station.table.hide_timed_out": "nascondi scadute",
   "station.table.direct_only": "solo dirette",
@@ -164,7 +172,8 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.menu.ask_heard": "Chiedi cosa sente in diretta",
   "station.menu.ask_trace": "Traccia il percorso",
   "station.menu.ask_weather": "Chiedi il meteo",
-  "station.menu.ask_weather_title": "?WX? non è una richiesta diretta nella specifica APRS: molte stazioni non rispondono",
+  "station.menu.ask_weather_title":
+    "?WX? non è una richiesta diretta nella specifica APRS: molte stazioni non rispondono",
   "station.menu.show_map": "Mostra sulla mappa",
   "station.menu.show_card": "Apri la sua scheda",
   "station.menu.copy": "Copia nominativo",

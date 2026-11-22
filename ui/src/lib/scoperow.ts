@@ -58,7 +58,11 @@ export const dbOfRowByte = (byte: number): number => rowOffsetDb + byte * rowSte
 /** The row whose flags and level are at `at` and whose bins start at `bins`. */
 function rowAt(view: DataView, at: number, bins: number): ScopeRow {
   const bytes = new Uint8Array(view.buffer, view.byteOffset + bins, rowBins);
-  return { db: Float32Array.from(bytes, dbOfRowByte), level: view.getInt8(at + 1), tx: (view.getUint8(at) & TX_FLAG) !== 0 };
+  return {
+    db: Float32Array.from(bytes, dbOfRowByte),
+    level: view.getInt8(at + 1),
+    tx: (view.getUint8(at) & TX_FLAG) !== 0,
+  };
 }
 
 /** The row in a frame; null if the frame is of another kind or size. */

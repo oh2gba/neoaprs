@@ -20,7 +20,8 @@ function setUp(blocked = false) {
   return { closeAll, state, wrapper };
 }
 
-const press = (target: Element | Document, key = "Escape") => target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+const press = (target: Element | Document, key = "Escape") =>
+  target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
 
 afterEach(() => {
   for (const wrapper of mounted.splice(0)) wrapper.unmount();

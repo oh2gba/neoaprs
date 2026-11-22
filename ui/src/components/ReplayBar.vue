@@ -39,7 +39,13 @@ function onKey(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <div class="replaybar" role="group" :aria-label="t('map.replay.label')" :aria-busy="replay.loading.value" @keydown="onKey">
+  <div
+    class="replaybar"
+    role="group"
+    :aria-label="t('map.replay.label')"
+    :aria-busy="replay.loading.value"
+    @keydown="onKey"
+  >
     <button
       class="btn replay-play"
       type="button"
@@ -64,7 +70,14 @@ function onKey(event: KeyboardEvent): void {
     >
       <option v-for="o in speeds" :key="o.value" :value="o.value">{{ o.label }}</option>
     </select>
-    <select class="input replay-span" :value="replay.hours.value" :disabled="playing" :aria-label="t('map.replay.span')" :title="spanTitle" @change="setSpan">
+    <select
+      class="input replay-span"
+      :value="replay.hours.value"
+      :disabled="playing"
+      :aria-label="t('map.replay.span')"
+      :title="spanTitle"
+      @change="setSpan"
+    >
       <option v-for="o in spans" :key="o.value" :value="o.value">{{ o.label }}</option>
     </select>
     <IconButton kind="close" class="replay-close" :label="t('map.replay.close')" @click="emit('close')" />

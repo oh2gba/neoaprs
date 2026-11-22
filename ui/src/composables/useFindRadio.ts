@@ -25,7 +25,9 @@ function targetOf(given: RadioId | Event | undefined): Target {
   if (typeof given === "number") return { ...NONE, id: given };
   const box = given?.currentTarget instanceof Element ? given.currentTarget.closest<HTMLElement>("[data-radio]") : null;
   const id = Number(box?.dataset["radio"] ?? "");
-  return Number.isInteger(id) && id > 0 ? { id, name: box?.dataset["radioName"] ?? "", type: box?.dataset["radioType"] ?? "" } : NONE;
+  return Number.isInteger(id) && id > 0
+    ? { id, name: box?.dataset["radioName"] ?? "", type: box?.dataset["radioType"] ?? "" }
+    : NONE;
 }
 
 function foundOwn(found: RadioSearchMessage, id: RadioId): Record<string, string> {
@@ -72,7 +74,9 @@ export function useFindRadio(
 
   /** Put what was found into the settings where it differs, else say they have it already. */
   function put(wanted: Record<string, string>, port: string): void {
-    const changes = Object.fromEntries(Object.entries(wanted).filter(([key, value]) => settings.expected(key) !== value));
+    const changes = Object.fromEntries(
+      Object.entries(wanted).filter(([key, value]) => settings.expected(key) !== value),
+    );
     if (Object.keys(changes).length > 0) settings.change(changes);
     else say(t("settings.find.already", { port }));
   }

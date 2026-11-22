@@ -25,7 +25,11 @@ function place(): void {
   if (!trigger || !box) return;
   const width = box.offsetWidth || box.getBoundingClientRect().width;
   const height = box.offsetHeight || box.getBoundingClientRect().height;
-  spot.value = placeNote(trigger, { width, height }, { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight });
+  spot.value = placeNote(
+    trigger,
+    { width, height },
+    { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight },
+  );
 }
 
 function close(): void {
@@ -73,7 +77,11 @@ onBeforeUnmount(() => {
       class="info-text"
       :class="{ 'with-picture': picture }"
       role="note"
-      :style="spot === null ? { visibility: 'hidden' } : { left: `${spot.left}px`, top: `${spot.top}px`, width: `${spot.width}px` }"
+      :style="
+        spot === null
+          ? { visibility: 'hidden' }
+          : { left: `${spot.left}px`, top: `${spot.top}px`, width: `${spot.width}px` }
+      "
       ><slot></slot><template v-if="picture"><component :is="PICTURES[picture]" /></template
     ></span>
   </span>

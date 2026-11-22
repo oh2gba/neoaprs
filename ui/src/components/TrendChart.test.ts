@@ -10,7 +10,9 @@ const at = (hoursAgo: number, v: number | null): Point => ({ t: TO - hoursAgo * 
 const temps = [at(20, 4), at(15, 6), at(10, 9), at(5, 8), at(1, 7)];
 
 function make(props: Record<string, unknown> = {}) {
-  return mount(TrendChart, { props: { title: "Temperature", unit: "°C", from: FROM, to: TO, main: temps, tone: "temp", ...props } });
+  return mount(TrendChart, {
+    props: { title: "Temperature", unit: "°C", from: FROM, to: TO, main: temps, tone: "temp", ...props },
+  });
 }
 
 describe("TrendChart", () => {
@@ -33,7 +35,17 @@ describe("TrendChart", () => {
   it("shows a line, a dot and the value and time of the nearest observation under the pointer, and takes them away when it leaves", async () => {
     const wrapper = make();
     const svg = wrapper.find("svg");
-    svg.element.getBoundingClientRect = () => ({ left: 0, width: 320, top: 0, height: 100, right: 320, bottom: 100, x: 0, y: 0, toJSON: () => ({}) });
+    svg.element.getBoundingClientRect = () => ({
+      left: 0,
+      width: 320,
+      top: 0,
+      height: 100,
+      right: 320,
+      bottom: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
     // The plot is 278 wide from 36: just right of the observation 10 h ago.
     await svg.trigger("pointermove", { clientX: 36 + ((TO - 10 * HOUR - FROM) / (24 * HOUR)) * 278 + 2 });
     expect(wrapper.find(".trend-cursor").exists()).toBe(true);

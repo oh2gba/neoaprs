@@ -9,13 +9,23 @@ import { NOW, station } from "@/test/fixtures";
 afterEach(() => document.body.replaceChildren());
 
 const START = "2026-10-20T13:00:00Z"; // (the top of the hour 23 hours before NOW's)
-const answer = (call: string, counts: number[]): PacketHistoryMessage => ({ type: "packet_history", hours: 24, call, start: START, counts });
+const answer = (call: string, counts: number[]): PacketHistoryMessage => ({
+  type: "packet_history",
+  hours: 24,
+  call,
+  start: START,
+  counts,
+});
 
 function make(rows: ReturnType<typeof station>[]) {
   const now = shallowRef(NOW);
   const histories = shallowRef<ReadonlyMap<string, PacketHistoryMessage>>(new Map());
   const daemon = fakeDaemon({ now, packetHistoryByCall: histories });
-  const wrapper = mount(StationCards, { props: { rows, size: "desktop" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(StationCards, {
+    props: { rows, size: "desktop" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   return { wrapper, daemon, now, histories };
 }
 
@@ -70,7 +80,10 @@ describe("the packets of a station on its card", () => {
   it("has its frame before the answer comes, over the same hours, so the card does not grow when the bars arrive", async () => {
     const { wrapper, histories } = make([station("OH2RDG")]);
     const ticks = () => wrapper.findAll("[data-packets] .trend-grid text").length;
-    const before = { figures: wrapper.findAll("[data-packets] svg").length, xs: wrapper.findAll("[data-packets] .tick").map((l) => l.attributes("x1")) };
+    const before = {
+      figures: wrapper.findAll("[data-packets] svg").length,
+      xs: wrapper.findAll("[data-packets] .tick").map((l) => l.attributes("x1")),
+    };
     expect(before.figures).toBe(1);
     expect(ticks()).toBeGreaterThan(0);
     histories.value = new Map([

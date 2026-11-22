@@ -12,7 +12,14 @@ import { effectivePath } from "@/lib/messages";
 import { LIMITS } from "@/protocol/lists";
 
 const props = withDefaults(
-  defineProps<{ call: string; paths: ReadonlyMap<string, string>; fallback: string; heard?: string | null; pathless?: string; reply?: string }>(),
+  defineProps<{
+    call: string;
+    paths: ReadonlyMap<string, string>;
+    fallback: string;
+    heard?: string | null;
+    pathless?: string;
+    reply?: string;
+  }>(),
   {
     heard: null,
     pathless: undefined,
@@ -33,7 +40,8 @@ watch([() => props.call, own], () => (draft.value = own.value));
 /** The one line under the field: what the messages go by. */
 const line = computed(() => {
   const word = (path: string): string => (path === "" ? t("route.direct") : path);
-  if (props.pathless !== undefined) return t("route.auto", { path: props.reply === "" ? t("route.direct") : t("route.via", { hops: props.reply }) });
+  if (props.pathless !== undefined)
+    return t("route.auto", { path: props.reply === "" ? t("route.direct") : t("route.via", { hops: props.reply }) });
   if (effective.value.own) return t("route.own", { path: word(effective.value.text) });
   if (props.heard === null || props.heard === props.fallback) return t("route.auto", { path: word(props.fallback) });
   if (props.heard === "") return t("route.auto_direct", { path: word(props.fallback) });
@@ -76,7 +84,14 @@ function build(path: string): void {
       spellcheck="false"
       @change="save"
     />
-    <PathBuilder :value="draft" :usual="effective.text" :station="call" :disabled="pathless !== undefined" :why="pathless" @use="build" />
+    <PathBuilder
+      :value="draft"
+      :usual="effective.text"
+      :station="call"
+      :disabled="pathless !== undefined"
+      :why="pathless"
+      @use="build"
+    />
     <button
       v-if="effective.own"
       type="button"

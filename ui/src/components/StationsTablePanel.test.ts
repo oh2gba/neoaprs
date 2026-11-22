@@ -61,14 +61,20 @@ describe("the station panel: where it is and what shows it", () => {
 
   it("shows the station of the row clicked next, and the same click again leaves it as it is; nothing in the list opens or moves", async () => {
     make();
-    const before = wrapper.findAll("table.stations > tbody > tr").map((r) => r.html().replace(/ selected|aria-selected="true"/g, ""));
+    const before = wrapper
+      .findAll("table.stations > tbody > tr")
+      .map((r) => r.html().replace(/ selected|aria-selected="true"/g, ""));
     await row("OH2RDG").trigger("click");
     await row("OH2XYZ").trigger("click");
     expect(shown()).toBe("OH2XYZ");
     await row("OH2XYZ").trigger("click");
     expect(shown()).toBe("OH2XYZ");
     expect(wrapper.findAll("table.stations > tbody > tr")).toHaveLength(3);
-    expect(wrapper.findAll("table.stations > tbody > tr").map((r) => r.html().replace(/ selected|aria-selected="true"/g, ""))).toEqual(before);
+    expect(
+      wrapper
+        .findAll("table.stations > tbody > tr")
+        .map((r) => r.html().replace(/ selected|aria-selected="true"/g, "")),
+    ).toEqual(before);
     expect(wrapper.find("table.stations tr.detail").exists()).toBe(false);
   });
 

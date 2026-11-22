@@ -30,7 +30,8 @@ interface Box {
  */
 function drawn(extra: Record<string, string>, scope: Scope, more: Given = {}): Record<string, Box> {
   localStorage.setItem("NeoAPRS.alert.mode", "both");
-  const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
+  const own = (radio: boolean) =>
+    Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
   const daemon = fakeDaemon({ config: configValues(own(false), own(true)), ...more });
   const wrapper = mount(SettingsForm, { props: { scope }, global: withDaemon(daemon) });
   const out: Record<string, Box> = {};
@@ -39,7 +40,11 @@ function drawn(extra: Record<string, string>, scope: Scope, more: Given = {}): R
     if (title === "Radio") continue;
     out[title] = {
       legends: group.findAll("legend").map((l) => l.text()),
-      ids: group.findAll("[id]").flatMap((e) => (/^(v-\d+|settings-group-.*)$/.test(e.attributes("id") ?? "") ? [] : [e.attributes("id") ?? ""])),
+      ids: group
+        .findAll("[id]")
+        .flatMap((e) =>
+          /^(v-\d+|settings-group-.*)$/.test(e.attributes("id") ?? "") ? [] : [e.attributes("id") ?? ""],
+        ),
       fields: group.findAll(".field").length,
     };
   }
@@ -74,7 +79,13 @@ const SETTINGS_TAB = {
   Help: box(["set-help-send"], 1, ["Help"]),
   About: box(["set-help-logs"], 0, ["About"]),
 };
-const STATION = ["set-station-call", "set-station-call-ssid", "set-gps-source", "set-station-place", "set-station-symbol-change"];
+const STATION = [
+  "set-station-call",
+  "set-station-call-ssid",
+  "set-gps-source",
+  "set-station-place",
+  "set-station-symbol-change",
+];
 
 describe("the Settings tab and the My station tab with the FM radio alone", () => {
   it("draw the groups other than Radio as they were before the Mercury radio", () => {
@@ -82,7 +93,14 @@ describe("the Settings tab and the My station tab with the FM radio alone", () =
   });
 
   it("draw them so with the Digipeater, the iGate and the network on, and the radio's states told", () => {
-    const busy = { "radio/1/digipeat": "true", "igate/enabled": "true", "web/network": "true", "web/key": "abc", "web/https": "true", "map/radius_km": "50" };
+    const busy = {
+      "radio/1/digipeat": "true",
+      "igate/enabled": "true",
+      "web/network": "true",
+      "web/key": "abc",
+      "web/https": "true",
+      "map/radius_km": "50",
+    };
     expect(drawn(busy, "settings", { igate: igateState() })).toEqual({
       ...SETTINGS_TAB,
       "Web page": box(["set-web-network", "set-web-key", "set-web-https"], 3, ["Web page"]),
@@ -92,7 +110,9 @@ describe("the Settings tab and the My station tab with the FM radio alone", () =
   it("draw the My station tab as before", () => {
     const fixed = {
       Station: box(STATION, 4, ["Station"]),
-      Beacon: box(["set-beacon-interval_min", "set-station-comment", "set-beacon-power_w", "set-radio-1-path"], 4, ["Beacon"]),
+      Beacon: box(["set-beacon-interval_min", "set-station-comment", "set-beacon-power_w", "set-radio-1-path"], 4, [
+        "Beacon",
+      ]),
       Status: box(["set-status-source"], 1, ["Status"]),
     };
     expect(drawn({}, "beacon")).toEqual(fixed);
@@ -100,10 +120,21 @@ describe("the Settings tab and the My station tab with the FM radio alone", () =
 
   it("draw the My station tab of a moving station as before", () => {
     expect(drawn({ "gps/source": "serial", "beacon/power_w": "5", "status/source": "rigctld" }, "beacon")).toEqual({
-      Station: box(["set-station-call", "set-station-call-ssid", "set-gps-source", "set-gps-device", "set-gps-baud", "set-station-symbol-change"], 5, [
-        "Station",
+      Station: box(
+        [
+          "set-station-call",
+          "set-station-call-ssid",
+          "set-gps-source",
+          "set-gps-device",
+          "set-gps-baud",
+          "set-station-symbol-change",
+        ],
+        5,
+        ["Station"],
+      ),
+      Beacon: box(["set-beacon-interval_min", "set-beacon-travel", "set-station-comment", "set-radio-1-path"], 4, [
+        "Beacon",
       ]),
-      Beacon: box(["set-beacon-interval_min", "set-beacon-travel", "set-station-comment", "set-radio-1-path"], 4, ["Beacon"]),
       Status: box(["set-status-source"], 1, ["Status"]),
     });
   });
@@ -153,12 +184,20 @@ describe("the header with the FM radio alone", () => {
       ["BUTTON", "Radio", "Radio connected. Settings → Radio", "tag-ok pill-radio"],
     ];
     expect(marks(open)).toEqual(today);
-    expect(marks({ ...open, radios: pageRadiosOf(fmRow(), hfRow({ enabled: false, state: "stopped" })) })).toEqual(today);
+    expect(marks({ ...open, radios: pageRadiosOf(fmRow(), hfRow({ enabled: false, state: "stopped" })) })).toEqual(
+      today,
+    );
   });
 
   it("is the Radio mark on the warn plate with the state in words, as it was: waiting, silent, not connected, searching", () => {
-    const radio = (row: Parameters<typeof fmRow>[0] | null) => marks({ ...open, radios: row === null ? [] : pageRadiosOf(fmRow(row)), told: row !== null })[1];
-    expect(radio(null)).toEqual(["BUTTON", "Radio: waiting…", "No word from the radio yet. Settings → Radio", "tag-warn pill-radio"]);
+    const radio = (row: Parameters<typeof fmRow>[0] | null) =>
+      marks({ ...open, radios: row === null ? [] : pageRadiosOf(fmRow(row)), told: row !== null })[1];
+    expect(radio(null)).toEqual([
+      "BUTTON",
+      "Radio: waiting…",
+      "No word from the radio yet. Settings → Radio",
+      "tag-warn pill-radio",
+    ]);
     // the title says the state in the page's words; "entering KISS" is no state of a radio's row
     expect(radio({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM" } } })).toEqual([
       "BUTTON",
@@ -166,7 +205,9 @@ describe("the header with the FM radio alone", () => {
       "Not connected. Settings → Radio",
       "tag-warn pill-radio",
     ]);
-    expect(radio({ state: "connecting", problem: { code: "radio.searching", params: {} } })?.[1]).toBe("Radio: searching…");
+    expect(radio({ state: "connecting", problem: { code: "radio.searching", params: {} } })?.[1]).toBe(
+      "Radio: searching…",
+    );
     expect(marks({ ...open, radios: pageRadiosOf(radioRow(1, "dummy")) })[1]).toEqual([
       "BUTTON",
       "Radio",

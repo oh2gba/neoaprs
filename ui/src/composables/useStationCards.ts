@@ -22,9 +22,17 @@ export function useStationCards(
 ) {
   // Where moved cards stand; kept for the session (and with pinned cards), not on a phone.
   const saved = loadPinned();
-  const places = ref<Places>(Object.fromEntries(Object.entries(saved).flatMap(([call, place]) => (place === null ? [] : [[call, place] as const]))));
+  const places = ref<Places>(
+    Object.fromEntries(
+      Object.entries(saved).flatMap(([call, place]) => (place === null ? [] : [[call, place] as const])),
+    ),
+  );
   const pinned = ref<string[]>(Object.keys(saved));
-  const cards = useSelection(stations, send, layout.capacity, { pinned, pinsOn: computed(() => !layout.phone.value), ready });
+  const cards = useSelection(stations, send, layout.capacity, {
+    pinned,
+    pinsOn: computed(() => !layout.phone.value),
+    ready,
+  });
   watch([pinned, places], () => savePinned(pinned.value, places.value), { deep: true });
   useCardEsc(() => [cards.closeAll(), alsoClose()].some(Boolean), blocked);
 

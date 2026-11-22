@@ -50,7 +50,10 @@ export function useMapFollow(
     const [x, y] = offset ?? [0, 0];
     const across = FIT_PADDING + Math.abs(x);
     const down = FIT_PADDING + Math.abs(y);
-    on.fitBounds(bounds, { padding: { left: across, right: across, top: down, bottom: down }, ...(offset ? { offset } : {}) });
+    on.fitBounds(bounds, {
+      padding: { left: across, right: across, top: down, bottom: down },
+      ...(offset ? { offset } : {}),
+    });
   }
 
   watch(
@@ -94,7 +97,8 @@ export function useMapFollow(
     () => {
       const at = what.follow();
       const on = map();
-      if (on && at) on.easeTo({ center: [at.lon, at.lat], zoom: Math.max(on.getZoom(), FOLLOW_ZOOM), duration: FOLLOW_MS });
+      if (on && at)
+        on.easeTo({ center: [at.lon, at.lat], zoom: Math.max(on.getZoom(), FOLLOW_ZOOM), duration: FOLLOW_MS });
     },
     { flush: "post" },
   );

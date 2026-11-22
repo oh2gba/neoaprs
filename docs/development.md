@@ -286,7 +286,7 @@ to a daemon on port 7303.
 - `ui/src/composables` is state and behaviour. `useDaemon` holds the topics as reactive maps, reconnects with a backoff and shows "Daemon offline" in the
   footer. `useDaemonContext` is the one typed context that `App.vue` provides and the panes inject, so the panes take no chain of props. `usePanel`,
   `useSelection`, `useMessagesView`, `useEmail`, `useBulletins`, `useOwnObjects` and `useAppShell` run the panel, the station picked, and the tabs.
-- `ui/src/components` has the single-file components, none over 300 lines. They take props and emit events.
+- `ui/src/components` has the single-file components, none over 400 lines at 120 columns. They take props and emit events.
 - `ui/src/help/` has the small pictures that an (i) note can show under its text (`InfoTip` takes one by name, `help/names.ts`): each is inline SVG 280 by 150 in the colours of the page
   (`styles/helppictures.css`, so that it follows light and dark), its symbols are cut from the map's own sheets, and it has no words in it but calls and codes; its
   description for a screen reader is `help.picture.<name>` in the catalogues. A tab says what it is for in an (i) bar at its top (`TabHelp`).

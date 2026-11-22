@@ -6,7 +6,15 @@ import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type RadioNames } from "@/i18n/errortext";
 import { pathCalls } from "@/lib/calls";
 import { RADIO_TYPES } from "@/protocol/lists";
-import type { ConfigValues, ListPortsCommand, MessageRow, RadioProblem, RadioRow, StationRow, StatusMessage } from "@/protocol/protocol";
+import type {
+  ConfigValues,
+  ListPortsCommand,
+  MessageRow,
+  RadioProblem,
+  RadioRow,
+  StationRow,
+  StatusMessage,
+} from "@/protocol/protocol";
 
 /** A radio's id: what every row and command names it by. */
 export type RadioId = number;
@@ -52,7 +60,11 @@ export interface PageRadio {
   readonly row: RadioRow;
 }
 
-export const KIND_WORDS: Record<RadioRow["kind"], MessageId> = { fm: "channel.fm", hf: "channel.hf", lora: "channel.lora" };
+export const KIND_WORDS: Record<RadioRow["kind"], MessageId> = {
+  fm: "channel.fm",
+  hf: "channel.hf",
+  lora: "channel.lora",
+};
 
 /** Display name: the typed name, else the kind's word, numbered from the second ("HF", "HF 2"). */
 export function radioLabel(row: Pick<RadioRow, "name" | "kind" | "number">, words: typeof t = t): string {
@@ -65,7 +77,8 @@ export function radioLabel(row: Pick<RadioRow, "name" | "kind" | "number">, word
 export const fieldId = (key: string): string => key.replaceAll("/", "-");
 
 /** The type for a key, or undefined if the page does not know it. */
-export const typeOf = (radio: { type: string }): RadioType | undefined => RADIO_TYPES.find((entry) => entry.key === radio.type);
+export const typeOf = (radio: { type: string }): RadioType | undefined =>
+  RADIO_TYPES.find((entry) => entry.key === radio.type);
 
 /** Wording for each line state, as the Radio group shows it. */
 const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
@@ -90,13 +103,19 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
 export function problemText(problem: RadioProblem, words: typeof t = t, radios?: RadioNames): string {
   const id = PROBLEM_WORDS[problem.code];
   if (id !== undefined) return words(id, problem.params);
-  return errorReason({ code: problem.code, params: problem.params, cmd: "", key: null, text: "" }, radios, () => words("settings.tnc.not_connected"));
+  return errorReason({ code: problem.code, params: problem.params, cmd: "", key: null, text: "" }, radios, () =>
+    words("settings.tnc.not_connected"),
+  );
 }
 
 /** A radio's own settings from `radio_values`, by field key. */
 function settingsOf(id: RadioId, radioValues: Values): Record<string, string> {
   const prefix = `radio/${id}/`;
-  return Object.fromEntries(Object.entries(radioValues).flatMap(([key, value]) => (key.startsWith(prefix) ? [[key.slice(prefix.length), value]] : [])));
+  return Object.fromEntries(
+    Object.entries(radioValues).flatMap(([key, value]) =>
+      key.startsWith(prefix) ? [[key.slice(prefix.length), value]] : [],
+    ),
+  );
 }
 
 /**
@@ -132,7 +151,9 @@ export function pageRadios(
   live?: (id: RadioId) => RadioRow | undefined,
 ): PageRadio[] {
   const radioValues = config?.radio_values ?? {};
-  return [...rows.values()].sort((a, b) => a.position - b.position || a.id - b.id).map((row) => pageRadio(row, radioValues, live && (() => live(row.id))));
+  return [...rows.values()]
+    .sort((a, b) => a.position - b.position || a.id - b.id)
+    .map((row) => pageRadio(row, radioValues, live && (() => live(row.id))));
 }
 
 /** Whether two builds of a radio say the same (ignoring `row`'s counts, lines and beacon). */
@@ -164,7 +185,8 @@ export const enabledRadios = (radios: readonly PageRadio[]): PageRadio[] => radi
  * The radios that are on and can send, in box order. Listen-only types (`can.transmit` false) are
  * never included.
  */
-export const senders = (radios: readonly PageRadio[]): PageRadio[] => enabledRadios(radios).filter((radio) => typeOf(radio)?.can.transmit !== false);
+export const senders = (radios: readonly PageRadio[]): PageRadio[] =>
+  enabledRadios(radios).filter((radio) => typeOf(radio)?.can.transmit !== false);
 
 /**
  * True when some radio is on but none can send, so nothing is sent (as with RX only). False for a
@@ -180,7 +202,9 @@ export function listensOnly(rows: ReadonlyMap<string, RadioRow> | null): boolean
  * LoRa WIDE1-1), else `symbolPath`, the recommended path of the station's symbol.
  */
 export function recommendedFor(radio: Pick<PageRadio, "kind">, symbolPath: string): string {
-  return RADIO_TYPES.find((type) => type.kind === radio.kind && type.recommended_path !== "")?.recommended_path || symbolPath;
+  return (
+    RADIO_TYPES.find((type) => type.kind === radio.kind && type.recommended_path !== "")?.recommended_path || symbolPath
+  );
 }
 
 /**
@@ -200,16 +224,21 @@ export function sharedPath(radios: readonly PageRadio[], pathOf: (radio: PageRad
 }
 
 /** Whether the radio with that id exists and is on. */
-export const isOn = (radios: readonly PageRadio[], id: RadioId): boolean => radios.some((radio) => radio.id === id && radio.enabled);
+export const isOn = (radios: readonly PageRadio[], id: RadioId): boolean =>
+  radios.some((radio) => radio.id === id && radio.enabled);
 
 /** Whether a radio is named in displays: when several are on, and always for one that is not on. */
-export const isNamed = (radios: readonly PageRadio[], id: RadioId): boolean => enabledRadios(radios).length > 1 || !isOn(radios, id);
+export const isNamed = (radios: readonly PageRadio[], id: RadioId): boolean =>
+  enabledRadios(radios).length > 1 || !isOn(radios, id);
 
 /**
  * The radio for a message to a call no radio heard, or to CQ, ALL, QST: the status's
  * `unheard_radio`, else the first radio that is on and can send.
  */
-export function unheardRadio(radios: readonly PageRadio[], status: Partial<Pick<StatusMessage, "unheard_radio">> | null): PageRadio | null {
+export function unheardRadio(
+  radios: readonly PageRadio[],
+  status: Partial<Pick<StatusMessage, "unheard_radio">> | null,
+): PageRadio | null {
   const named = status?.unheard_radio;
   if (named === null) return null;
   const on = senders(radios);
@@ -217,7 +246,10 @@ export function unheardRadio(radios: readonly PageRadio[], status: Partial<Pick<
 }
 
 /** The email radio: the status's `email_radio`, else the first radio that can send. */
-export function emailRadio(radios: readonly PageRadio[], status: Partial<Pick<StatusMessage, "email_radio">> | null): PageRadio | null {
+export function emailRadio(
+  radios: readonly PageRadio[],
+  status: Partial<Pick<StatusMessage, "email_radio">> | null,
+): PageRadio | null {
   const named = status?.email_radio;
   if (named === null) return null;
   const on = senders(radios);
@@ -236,14 +268,20 @@ type OnItsWay = Pick<MessageRow, "state"> & Partial<Pick<MessageRow, "radio_now"
  * - for a call not in the book (`row` null), the unheard radio (`status.unheard_radio`). Null where
  *   the daemon says there is none, or does not say (no `radio_now`).
  */
-export function sendingRadio(row: ToStation | null | undefined, thread: readonly OnItsWay[] = [], unheard: RadioId | null = null): RadioId | null {
+export function sendingRadio(
+  row: ToStation | null | undefined,
+  thread: readonly OnItsWay[] = [],
+  unheard: RadioId | null = null,
+): RadioId | null {
   if (row?.radio_choice != null && row.radio_now != null) return row.radio_now;
-  const ours = (state: MessageRow["state"]) => thread.find((message) => message.state === state && message.radio_now != null)?.radio_now;
+  const ours = (state: MessageRow["state"]) =>
+    thread.find((message) => message.state === state && message.radio_now != null)?.radio_now;
   return ours("sending") ?? ours("queued") ?? (row != null ? (row.radio_now ?? null) : unheard);
 }
 
 /** A message's radio: its next attempt's radio while on its way, else `radio_id`; null if none. */
-export const messageRadio = (row: Partial<Pick<MessageRow, "radio_now" | "radio_id">>): RadioId | null => row.radio_now ?? row.radio_id ?? null;
+export const messageRadio = (row: Partial<Pick<MessageRow, "radio_now" | "radio_id">>): RadioId | null =>
+  row.radio_now ?? row.radio_id ?? null;
 
 /**
  * The port asks: one for each radio that is on and has a sound card, else a plain ask. The page
@@ -251,6 +289,8 @@ export const messageRadio = (row: Partial<Pick<MessageRow, "radio_now" | "radio_
  * cards.
  */
 export function portsAsks(rows: Iterable<RadioRow>): ListPortsCommand[] {
-  const named = [...rows].filter((row) => row.enabled && !row.removed && row.can.tune).map((row): ListPortsCommand => ({ cmd: "list_ports", radio: row.id }));
+  const named = [...rows]
+    .filter((row) => row.enabled && !row.removed && row.can.tune)
+    .map((row): ListPortsCommand => ({ cmd: "list_ports", radio: row.id }));
   return named.length > 0 ? named : [{ cmd: "list_ports" }];
 }

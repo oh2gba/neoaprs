@@ -34,7 +34,12 @@ const WORDS = [
 ];
 /** The refusals whose name is a radio's: the daemon passes the radio's id with them. The `name_*` ones quote the name typed, which is no radio's yet. */
 const REFUSALS = Object.entries(daemon as Record<string, { params: string[] }>)
-  .filter(([code, r]) => code.startsWith("radio.") && !code.startsWith("radio.name_") && (r.params.includes("radio") || r.params.includes("held_by")))
+  .filter(
+    ([code, r]) =>
+      code.startsWith("radio.") &&
+      !code.startsWith("radio.name_") &&
+      (r.params.includes("radio") || r.params.includes("held_by")),
+  )
   .map(([code]) => `error.${code}`);
 const IDS = Object.keys(en).filter((id) => REFUSALS.includes(id) || WORDS.some((re) => re.test(id)));
 const LISTED = untranslated as Record<string, string[]>;
@@ -49,10 +54,15 @@ function inForm(text: string, at: number, length: number, nouns: string[], cjk: 
 }
 
 function offForm(code: string, messages: Record<string, Message>): string[] {
-  const nouns = (id: string) => [NOUN[code] ?? NOUN.en ?? "radio", ...((LISTED[code] ?? []).includes(id) ? [NOUN.en ?? "radio"] : [])];
+  const nouns = (id: string) => [
+    NOUN[code] ?? NOUN.en ?? "radio",
+    ...((LISTED[code] ?? []).includes(id) ? [NOUN.en ?? "radio"] : []),
+  ];
   return IDS.flatMap((id) =>
     texts(messages[id] ?? "")
-      .filter((text) => [...text.matchAll(NAME)].some((m) => !inForm(text, m.index, m[0].length, nouns(id), code === "ja")))
+      .filter((text) =>
+        [...text.matchAll(NAME)].some((m) => !inForm(text, m.index, m[0].length, nouns(id), code === "ja")),
+      )
       .map((text) => `${id}: ${text}`),
   );
 }
@@ -60,9 +70,23 @@ function offForm(code: string, messages: Record<string, Message>): string[] {
 describe("a radio's name in a text", () => {
   it("is looked at in the refusals that name a radio and in the words of the radios", () => {
     expect(REFUSALS).toEqual(
-      expect.arrayContaining(["error.radio.not_connected", "error.radio.off", "error.radio.resource_held", "error.radio.type_kind", "error.radio.unknown"]),
+      expect.arrayContaining([
+        "error.radio.not_connected",
+        "error.radio.off",
+        "error.radio.resource_held",
+        "error.radio.type_kind",
+        "error.radio.unknown",
+      ]),
     );
-    expect(IDS).toEqual(expect.arrayContaining(["radio.heard_on", "radio.line", "chain.sent_on", "pill.radio_named", "error.radio.no_line"]));
+    expect(IDS).toEqual(
+      expect.arrayContaining([
+        "radio.heard_on",
+        "radio.line",
+        "chain.sent_on",
+        "pill.radio_named",
+        "error.radio.no_line",
+      ]),
+    );
     expect(IDS.filter((id) => id.startsWith("error.radio.name_"))).toEqual([]);
   });
 
@@ -73,11 +97,16 @@ describe("a radio's name in a text", () => {
 
   it("is told apart from a text in neither form", () => {
     const at = (text: string) => inForm(text, text.indexOf("{name}"), 6, ["radio"], false);
-    expect([at("{name}: not connected"), at("Heard on radio {name}"), at("Automatic: {name}"), at("{name}")]).toEqual([true, true, true, true]);
-    expect([at("the {name} radio is off"), at("that device is in use by {name}: choose another"), at("the stereo {name} is off")]).toEqual([
-      false,
-      false,
-      false,
+    expect([at("{name}: not connected"), at("Heard on radio {name}"), at("Automatic: {name}"), at("{name}")]).toEqual([
+      true,
+      true,
+      true,
+      true,
     ]);
+    expect([
+      at("the {name} radio is off"),
+      at("that device is in use by {name}: choose another"),
+      at("the stereo {name} is off"),
+    ]).toEqual([false, false, false]);
   });
 });

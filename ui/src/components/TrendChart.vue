@@ -51,7 +51,15 @@ const props = withDefaults(
     /** how a value is written in the heading and on the axis (the locale's number by default) */
     numberText?: (value: number, decimals: number) => string;
   }>(),
-  { band: () => [], asBars: false, parts: () => [], zero: false, range: undefined, valueDecimals: 1, numberText: formatNumber },
+  {
+    band: () => [],
+    asBars: false,
+    parts: () => [],
+    zero: false,
+    range: undefined,
+    valueDecimals: 1,
+    numberText: formatNumber,
+  },
 );
 
 const W = 320;
@@ -72,7 +80,9 @@ const x = computed(() => linearScale([props.from, props.to], [LEFT, RIGHT]));
 const y = computed(() => linearScale([axis.value.min, axis.value.max], [BOTTOM, TOP]));
 const decimals = computed(() => tickDecimals(axis.value.step));
 const xTicks = computed(() => timeTicks(props.from, props.to).map((t) => ({ ...t, x: x.value(t.at) })));
-const yTicks = computed(() => axis.value.ticks.map((v) => ({ v, y: y.value(v), label: props.numberText(v, decimals.value) })));
+const yTicks = computed(() =>
+  axis.value.ticks.map((v) => ({ v, y: y.value(v), label: props.numberText(v, decimals.value) })),
+);
 
 const line = computed(() => (props.asBars ? "" : linePath(props.main, x.value, y.value)));
 const upper = computed(() => linePath(props.band, x.value, y.value));
@@ -81,13 +91,17 @@ const barWidth = computed(() => {
   const span = Math.max(1, props.to - props.from);
   return Math.min(8, Math.max(1.5, (usualGap(props.main) * 0.8 * (RIGHT - LEFT)) / span));
 });
-const columns = computed(() => (props.asBars && props.parts.length === 0 ? bars(props.main, x.value, y.value, 0, barWidth.value) : []));
+const columns = computed(() =>
+  props.asBars && props.parts.length === 0 ? bars(props.main, x.value, y.value, 0, barWidth.value) : [],
+);
 const stacked = computed(() => (props.asBars ? stackedBars(props.parts, x.value, y.value, barWidth.value) : []));
 
 const shown = computed(() => {
   const i = hover.value ?? lastIndex(props.main);
   const p = props.main[i];
-  return p === undefined || p.v === null ? null : { p, at: x.value(p.t), top: y.value(p.v), hovered: hover.value !== null };
+  return p === undefined || p.v === null
+    ? null
+    : { p, at: x.value(p.t), top: y.value(p.v), hovered: hover.value !== null };
 });
 const readout = computed(() =>
   shown.value === null
@@ -133,8 +147,25 @@ function move(event: PointerEvent): void {
       <path v-if="area" class="trend-band" :d="area" />
       <path v-if="upper" class="trend-upper" :d="upper" />
       <path v-if="line" class="trend-line" :d="line" />
-      <rect v-for="(b, i) in columns" :key="i" class="trend-bar" :x="b.x" :y="b.y" :width="b.width" :height="b.height" />
-      <rect v-for="(b, i) in stacked" :key="`s${i}`" class="trend-bar" :class="b.tone" :x="b.x" :y="b.y" :width="b.width" :height="b.height" />
+      <rect
+        v-for="(b, i) in columns"
+        :key="i"
+        class="trend-bar"
+        :x="b.x"
+        :y="b.y"
+        :width="b.width"
+        :height="b.height"
+      />
+      <rect
+        v-for="(b, i) in stacked"
+        :key="`s${i}`"
+        class="trend-bar"
+        :class="b.tone"
+        :x="b.x"
+        :y="b.y"
+        :width="b.width"
+        :height="b.height"
+      />
       <g v-if="shown && shown.hovered">
         <line class="trend-cursor" :x1="shown.at" :x2="shown.at" :y1="TOP" :y2="BOTTOM" />
         <circle class="trend-dot" :cx="shown.at" :cy="shown.top" r="3" />

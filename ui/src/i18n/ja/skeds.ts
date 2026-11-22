@@ -4,7 +4,8 @@ import type { Message } from "@/i18n/message";
 
 export const skeds: Record<keyof typeof source, Message> = {
   "skeds.about_label": "HFテストについて",
-  "skeds.about1": "HFでAPRSを試している局のための掲示板です。いつどの周波数で運用するかを知らせると、ほかの局が一緒にテストできます。",
+  "skeds.about1":
+    "HFでAPRSを試している局のための掲示板です。いつどの周波数で運用するかを知らせると、ほかの局が一緒にテストできます。",
   "skeds.about2": "掲示板は公開で、neo.oh2gba.eu にあります。無線では送信されません。",
 
   "skeds.empty": "予定のテストはありません。",

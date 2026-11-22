@@ -119,7 +119,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.rf_only_title": "iGates zetten deze berichten niet op internet",
   "route.request_path_tip":
     "Roepnamen of aliassen gescheiden door komma's (OH2RDK-7,OH2RCH-2 of WIDE1-1,WIDE2-1), DIRECT voor geen. Leeg laten geeft het gewone pad.",
-  "route.request_rf_only_tip": "Voegt RFONLY aan het pad toe: iGates zetten de vraag niet op internet, en alleen stations binnen radiobereik antwoorden.",
+  "route.request_rf_only_tip":
+    "Voegt RFONLY aan het pad toe: iGates zetten de vraag niet op internet, en alleen stations binnen radiobereik antwoorden.",
   "pathbuilder.open": "Pad samenstellen",
   "pathbuilder.title": "Pad samenstellen",
   "pathbuilder.cancel": "Annuleren",
@@ -127,13 +128,16 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.direct": "Direct",
   "pathbuilder.tip1":
     "WIDEn-N: n is het aantal gevraagde hops, N hoeveel er nog over zijn. Elke digipeater die het herhaalt, haalt er één van N af; bij 0 stopt het.",
-  "pathbuilder.tip2": "WIDE1-1 is één hop door elke digipeater, ook een fill-in-digi. WIDE2-1 is één hop en WIDE2-2 twee, alleen door wide-digipeaters.",
-  "pathbuilder.tip3": "Met twee hops in totaal kom je bijna overal ver genoeg; meer hops belasten alleen het kanaal, en veel digipeaters korten zo'n pad in.",
+  "pathbuilder.tip2":
+    "WIDE1-1 is één hop door elke digipeater, ook een fill-in-digi. WIDE2-1 is één hop en WIDE2-2 twee, alleen door wide-digipeaters.",
+  "pathbuilder.tip3":
+    "Met twee hops in totaal kom je bijna overal ver genoeg; meer hops belasten alleen het kanaal, en veel digipeaters korten zo'n pad in.",
   "pathbuilder.tip4": "Een digipeater met naam (OH2RDK-7) is één hop door precies die ene.",
   "pathbuilder.reach_direct": "Geen digipeater: alleen de stations die je horen",
   "pathbuilder.reach_title": { one: "{n} hop in totaal: {path}", other: "{n} hops in totaal: {path}" },
   "pathbuilder.home": "Fill-in-digi's mogen de eerste hop nemen",
-  "pathbuilder.home_title": "Aan: de eerste hop is WIDE1-1, die fill-in-digipeaters net als wide-digipeaters nemen. Uit: alleen wide-digipeaters",
+  "pathbuilder.home_title":
+    "Aan: de eerste hop is WIDE1-1, die fill-in-digipeaters net als wide-digipeaters nemen. Uit: alleen wide-digipeaters",
   "pathbuilder.home_named": "De eerste hop is {call}",
   "pathbuilder.home_choose": "Kies eerst 1, 2 of 3 hops",
   "pathbuilder.drawing_label": "Het pad, hop voor hop",
@@ -147,11 +151,13 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.node.wide": "Hop {n}: een wide-digipeater; fill-in-digi's laten het liggen",
   "pathbuilder.node.call": "Hop {n}: {call}, en geen andere digipeater",
   "pathbuilder.node.alias": "Hop {n}: de digipeaters die op {alias} reageren",
-  "pathbuilder.wide_part": "{alias}: n = {n} gevraagde hops, N = {left} nog te gaan; elke digipeater haalt er één van N af",
+  "pathbuilder.wide_part":
+    "{alias}: n = {n} gevraagde hops, N = {left} nog te gaan; elke digipeater haalt er één van N af",
   "pathbuilder.many": "{n} hops: meer dan de {most} die de meeste netwerken toestaan",
   "pathbuilder.bad.shape": "{alias} is geen pad: in WIDEn-N lopen n en N van 1 tot 7",
   "pathbuilder.bad.used_up": "{alias} heeft geen hops meer: geen digipeater herhaalt het",
-  "pathbuilder.bad.more_left": "{alias} is geen pad: N ({left}) is nooit groter dan n ({n}); fill-in-digipeaters reageren alleen op WIDE1-1",
+  "pathbuilder.bad.more_left":
+    "{alias} is geen pad: N ({left}) is nooit groter dan n ({n}); fill-in-digipeaters reageren alleen op WIDE1-1",
   "pathbuilder.as_it_comes": "Zoals zijn pakketten binnenkomen",
   "pathbuilder.no_route": "Geen route van zijn pakketten bekend",
   "pathbuilder.hops_label": "Hops",
@@ -162,7 +168,10 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.add": "Toevoegen",
   "pathbuilder.heard": "Gehoorde digipeaters",
   "pathbuilder.next_to": "Naast {call}",
-  "pathbuilder.seen_next": { one: "Naast {call} in de routes van {n} station", other: "Naast {call} in de routes van {n} stations" },
+  "pathbuilder.seen_next": {
+    one: "Naast {call} in de routes van {n} station",
+    other: "Naast {call} in de routes van {n} stations",
+  },
   "pathbuilder.add_hop": "{call} toevoegen",
 
   "compose.tnc_not_connected": "De radio is niet verbonden",

@@ -18,7 +18,8 @@ export function availableLocales(): readonly LocaleInfo[] {
   return PSEUDO_ON ? [...LOCALES, { code: PSEUDO, name: "Pseudo (en-XA)", messages: en }] : LOCALES;
 }
 
-const known = (code: string | null | undefined): code is string => code != null && availableLocales().some((l) => l.code === code);
+const known = (code: string | null | undefined): code is string =>
+  code != null && availableLocales().some((l) => l.code === code);
 
 /** The language for a list of language tags (`navigator.languages`): the first tag that is a language of the page, whole (`pt-BR`) or by its language (`de-AT` is `de`, `pt` is `pt-BR`); English when none is. */
 export function detectLocale(languages: readonly string[]): string {
@@ -46,7 +47,9 @@ export function setLocale(code: string, remember = false): void {
 }
 
 /** The language at the start: the person's choice, kept in this browser, else the browser's own. */
-export function startLocale(languages: readonly string[] = typeof navigator === "undefined" ? [] : navigator.languages): void {
+export function startLocale(
+  languages: readonly string[] = typeof navigator === "undefined" ? [] : navigator.languages,
+): void {
   const stored = readStored(STORED);
   setLocale(known(stored) ? stored : detectLocale(languages));
 }
@@ -98,7 +101,12 @@ export function monthShort(date: Date): string {
 
 /** A day as the language writes it with its weekday, "Sat 14 Nov": in UTC, or in the viewer's own time. English is written day first, "14 Nov". */
 export function dayText(date: Date, utc: boolean): string {
-  const options: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short", ...(utc ? { timeZone: "UTC" } : {}) };
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    ...(utc ? { timeZone: "UTC" } : {}),
+  };
   return new Intl.DateTimeFormat(tag() === SOURCE ? "en-GB" : tag(), options).format(date).replaceAll(",", "");
 }
 

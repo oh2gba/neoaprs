@@ -15,10 +15,12 @@ const BOAT = ship({ id: "230999111", name: "WALL STAR", destination: "NOWHERE" }
 const WORDS = ["4ca1fe", "4CA1FE", "WALL123", "OH-WAL", "230999111", "WALL STAR", "NOWHERE"];
 
 const drawn = (): string[] =>
-  ((FakeMap.last().getSource("traffic")?.setData.mock.calls.at(-1)?.[0] as TrafficCollection | undefined)?.features ?? []).map(
-    (feature) => feature.properties.id,
-  );
-const esc = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  (
+    (FakeMap.last().getSource("traffic")?.setData.mock.calls.at(-1)?.[0] as TrafficCollection | undefined)?.features ??
+    []
+  ).map((feature) => feature.properties.id);
+const esc = () =>
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
 
 /** The page with aircraft from the own receiver and ships from Fintraffic ticked, tables sent. */
 async function withTraffic() {
@@ -31,7 +33,9 @@ async function withTraffic() {
     type: "state",
     topic: "map",
     rev: 0,
-    value: mapState({ layers: [mapLayer("aircraft", { source: "receiver" }), mapLayer("ships", { source: "fintraffic" })] }),
+    value: mapState({
+      layers: [mapLayer("aircraft", { source: "receiver" }), mapLayer("ships", { source: "fintraffic" })],
+    }),
   });
   await flushPromises();
   page.socket.say(layerThings("aircraft", [PLANE]));
@@ -42,7 +46,11 @@ async function withTraffic() {
 
 async function clickThing(layer: string, id: string): Promise<void> {
   FakeMap.last().rendered = [{ layer: "traffic", properties: { layer, id } }];
-  FakeMap.last().fire("click", { point: { x: 5, y: 5 }, lngLat: { lat: 60.3, lng: 24.9 }, originalEvent: new MouseEvent("click") });
+  FakeMap.last().fire("click", {
+    point: { x: 5, y: 5 },
+    lngLat: { lat: 60.3, lng: 24.9 },
+    originalEvent: new MouseEvent("click"),
+  });
   FakeMap.last().rendered = [];
   await flushPromises();
 }
@@ -105,11 +113,15 @@ describe("App: the aircraft and ships on the map", () => {
       document.querySelector<HTMLElement>(`.mapmenu [role='menuitem'][data-item='${item}']`)?.click();
       await flushPromises();
     }
-    const overlays = [...document.querySelectorAll(".statscard, .packetscard")].map((card) => card.textContent ?? "").join(" ");
+    const overlays = [...document.querySelectorAll(".statscard, .packetscard")]
+      .map((card) => card.textContent ?? "")
+      .join(" ");
     expect(overlays).not.toBe("");
     for (const word of WORDS) expect(overlays.includes(word)).toBe(false);
     // the ship's card is the map's own, and the only place its name is on the page
-    const named = [...document.querySelectorAll("body *")].filter((node) => node.children.length === 0 && node.textContent?.includes("WALL STAR"));
+    const named = [...document.querySelectorAll("body *")].filter(
+      (node) => node.children.length === 0 && node.textContent?.includes("WALL STAR"),
+    );
     expect(named.every((node) => node.closest(".layercard") !== null)).toBe(true);
     expect(named.length).toBe(1);
     wrapper.unmount();

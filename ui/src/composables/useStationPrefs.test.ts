@@ -41,7 +41,13 @@ describe("useStationPrefs", () => {
     prefs.set("OH2XYZ", { path: null, rf_only: false, alert: { on_air: true, within_km: 10, direct: false } });
     expect([...own.alerts.value]).toEqual([["OH2XYZ", { on_air: true, within_km: 10, direct: false }]]);
     own.setAlert("OH2XYZ", { on_air: false, within_km: null, direct: true });
-    expect(send).toHaveBeenCalledWith({ cmd: "set_station_alert", call: "OH2XYZ", on_air: false, within_km: null, direct: true });
+    expect(send).toHaveBeenCalledWith({
+      cmd: "set_station_alert",
+      call: "OH2XYZ",
+      on_air: false,
+      within_km: null,
+      direct: true,
+    });
   });
 
   it("sends the four commands", () => {

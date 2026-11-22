@@ -23,7 +23,8 @@ const props = () => ({
 });
 
 const SOURCES: MapLayer[] = [mapLayer("aircraft", { source: "adsbfi" }), mapLayer("ships", { source: "fintraffic" })];
-const drawn = (): TrafficCollection => FakeMap.last().getSource("traffic")?.setData.mock.calls.at(-1)?.[0] as TrafficCollection;
+const drawn = (): TrafficCollection =>
+  FakeMap.last().getSource("traffic")?.setData.mock.calls.at(-1)?.[0] as TrafficCollection;
 const drawnIds = () => drawn().features.map((feature) => feature.properties.id);
 const control = () => FakeMap.last().controls.find((box) => box.classList.contains("layers-ctrl"));
 const hovercard = () => document.querySelector<HTMLElement>(".hovercard");
@@ -78,7 +79,9 @@ describe("the aircraft and ships on the map", () => {
     const style = map.getStyle().layers;
     const firstBaseName = style.find((layer) => layer.type === "symbol" && !map.layers.includes(layer.id))?.id;
     expect(firstBaseName).toBeDefined();
-    expect(style.findIndex((layer) => layer.id === "traffic-names")).toBeLessThan(style.findIndex((layer) => layer.id === firstBaseName));
+    expect(style.findIndex((layer) => layer.id === "traffic-names")).toBeLessThan(
+      style.findIndex((layer) => layer.id === firstBaseName),
+    );
     const names = map.specs.get("traffic-names");
     expect(names?.minzoom).toBe(10);
     expect(names?.layout).toMatchObject({ "text-field": ["get", "name"] });
@@ -104,7 +107,11 @@ describe("the aircraft and ships on the map", () => {
       translate: vi.fn(),
       stroke: vi.fn(),
       fill: vi.fn(() => drawnWith.push(String(context.fillStyle))),
-      getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) })),
+      getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({
+        width: w,
+        height: h,
+        data: new Uint8ClampedArray(w * h * 4),
+      })),
       fillStyle: "",
       strokeStyle: "",
       lineWidth: 0,
@@ -113,10 +120,15 @@ describe("the aircraft and ships on the map", () => {
     vi.stubGlobal("Path2D", class {});
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context as unknown as CanvasRenderingContext2D);
     await mounted();
-    expect([...FakeMap.last().images.keys()].sort()).toEqual(THING_SHAPES.flatMap((shape) => [`traffic-${shape}`, `traffic-${shape}-bad`]).sort());
+    expect([...FakeMap.last().images.keys()].sort()).toEqual(
+      THING_SHAPES.flatMap((shape) => [`traffic-${shape}`, `traffic-${shape}-bad`]).sort(),
+    );
     expect(THING_SHAPES).toHaveLength(13);
     expect(FakeMap.last().images.get("traffic-diamond")).toMatchObject({ width: 32, height: 32 });
-    expect(FakeMap.last().images.get("traffic-heavy4")).toMatchObject({ width: 2 * AIRCRAFT_SHAPES.heavy4.size, height: 2 * AIRCRAFT_SHAPES.heavy4.size });
+    expect(FakeMap.last().images.get("traffic-heavy4")).toMatchObject({
+      width: 2 * AIRCRAFT_SHAPES.heavy4.size,
+      height: 2 * AIRCRAFT_SHAPES.heavy4.size,
+    });
     expect(FakeMap.last().images.get("traffic-balloon")).toMatchObject({ width: 2 * AIRCRAFT_SHAPES.balloon.size });
     const before = drawnWith.length;
     FakeMap.last().fire("style.load");
@@ -130,7 +142,10 @@ describe("the aircraft and ships on the map", () => {
     expect(daemon.send).not.toHaveBeenCalledWith({ cmd: "layer_look", layer: "aircraft", on: true });
     await setTick("aircraft", true);
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "layer_look", layer: "aircraft", on: true });
-    await told(daemon, layerThings("aircraft", [aircraft({ id: "a" }), aircraft({ id: "b", heading_deg: null })], { source: "adsbfi" }));
+    await told(
+      daemon,
+      layerThings("aircraft", [aircraft({ id: "a" }), aircraft({ id: "b", heading_deg: null })], { source: "adsbfi" }),
+    );
     expect(drawnIds()).toEqual(["a", "b"]);
     expect(drawn().features.map((feature) => feature.properties.icon)).toEqual(["traffic-airliner", "traffic-diamond"]);
     await setTick("aircraft", false);
@@ -141,7 +156,12 @@ describe("the aircraft and ships on the map", () => {
   it("are dropped by their age as the clock moves on, between two tables", async () => {
     const { daemon } = await mounted();
     await setTick("ships", true);
-    await told(daemon, layerThings("ships", [ship({ id: "old", at: ago(1790) }), ship({ id: "new", at: ago(10) })], { source: "fintraffic" }));
+    await told(
+      daemon,
+      layerThings("ships", [ship({ id: "old", at: ago(1790) }), ship({ id: "new", at: ago(10) })], {
+        source: "fintraffic",
+      }),
+    );
     expect(drawnIds()).toEqual(["old", "new"]);
     await tell(daemon, { now: NOW + 20_000 });
     expect(drawnIds()).toEqual(["new"]);
@@ -162,7 +182,12 @@ describe("the aircraft and ships on the map", () => {
     await setTick("aircraft", true);
     const count = () => control()?.querySelector('.layers-row[data-layer="aircraft"] .layers-count')?.textContent;
     expect(count()).toBe("");
-    await told(daemon, layerThings("aircraft", [aircraft({ id: "a" }), aircraft({ id: "b" }), aircraft({ id: "c" })], { source: "adsbfi" }));
+    await told(
+      daemon,
+      layerThings("aircraft", [aircraft({ id: "a" }), aircraft({ id: "b" }), aircraft({ id: "c" })], {
+        source: "adsbfi",
+      }),
+    );
     control()?.querySelector<HTMLButtonElement>(".layers-toggle")?.click();
     await nextTick();
     control()?.querySelector<HTMLButtonElement>(".layers-toggle")?.click();
@@ -228,7 +253,11 @@ describe("the trail of the thing whose card is open", () => {
     await setTick("aircraft", true);
     await told(
       daemon,
-      layerThings("aircraft", [aircraft({ id: "a", lat: 60.1, at: ago(20) }), aircraft({ id: "b", lat: 60.5, at: ago(20) })], { source: "adsbfi" }),
+      layerThings(
+        "aircraft",
+        [aircraft({ id: "a", lat: 60.1, at: ago(20) }), aircraft({ id: "b", lat: 60.5, at: ago(20) })],
+        { source: "adsbfi" },
+      ),
     );
     const layers = FakeMap.last()
       .getStyle()
@@ -241,7 +270,11 @@ describe("the trail of the thing whose card is open", () => {
     expect(trail()?.features).toEqual([]);
     await told(
       daemon,
-      layerThings("aircraft", [aircraft({ id: "a", lat: 60.2, at: ago(10) }), aircraft({ id: "b", lat: 60.6, at: ago(10) })], { source: "adsbfi" }),
+      layerThings(
+        "aircraft",
+        [aircraft({ id: "a", lat: 60.2, at: ago(10) }), aircraft({ id: "b", lat: 60.6, at: ago(10) })],
+        { source: "adsbfi" },
+      ),
     );
     const calls = FakeMap.last().getSource("traffic-trail")?.setData.mock.calls.length ?? 0;
     expect(trail()?.features.map((feature) => feature.properties.call)).toEqual(["aircraft:a"]);
@@ -277,7 +310,11 @@ describe("a mouse resting on an aircraft or a ship", () => {
     vi.advanceTimersByTime(200);
     expect(hovercard()?.hidden).toBe(false);
     expect(hovercard()?.querySelector(".hc-call")?.textContent).toBe("FIN7AB");
-    expect([...(hovercard()?.querySelectorAll(".hc-key") ?? [])].map((key) => key.textContent)).toEqual(["Altitude", "Speed", "Age"]);
+    expect([...(hovercard()?.querySelectorAll(".hc-key") ?? [])].map((key) => key.textContent)).toEqual([
+      "Altitude",
+      "Speed",
+      "Age",
+    ]);
     FakeMap.last().fire("mouseleave", {}, "traffic");
     expect(hovercard()?.hidden).toBe(true);
   });
@@ -288,7 +325,11 @@ describe("a mouse resting on an aircraft or a ship", () => {
     await setTick("ships", true);
     await told(
       daemon,
-      layerThings("aircraft", [aircraft({ id: "h", category: "A7", designator: "", heading_deg: null, emergency: true, at: ago(4) })], { source: "adsbfi" }),
+      layerThings(
+        "aircraft",
+        [aircraft({ id: "h", category: "A7", designator: "", heading_deg: null, emergency: true, at: ago(4) })],
+        { source: "adsbfi" },
+      ),
       layerThings("ships", [ship({ id: "s", at: ago(4) })], { source: "fintraffic" }),
     );
     vi.useFakeTimers();
@@ -346,9 +387,14 @@ describe("the credits of a service", () => {
     await openCredits();
     expect(credits()).toEqual([]);
     await setTick("ships", true);
-    expect(credits().map((line) => line.textContent)).toEqual(["Source: Fintraffic / digitraffic.fi, license CC 4.0 BY"]);
+    expect(credits().map((line) => line.textContent)).toEqual([
+      "Source: Fintraffic / digitraffic.fi, license CC 4.0 BY",
+    ]);
     const links = [...(credits()[0]?.querySelectorAll("a") ?? [])];
-    expect(links.map((link) => link.getAttribute("href"))).toEqual(["https://www.digitraffic.fi/", "https://creativecommons.org/licenses/by/4.0/"]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "https://www.digitraffic.fi/",
+      "https://creativecommons.org/licenses/by/4.0/",
+    ]);
     expect(links.every((link) => link.target === "_blank" && link.rel.includes("noopener"))).toBe(true);
     await setTick("aircraft", true);
     expect(credits().map((line) => line.dataset.source)).toEqual(["adsbfi", "fintraffic"]);

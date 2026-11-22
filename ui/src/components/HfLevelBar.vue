@@ -15,7 +15,12 @@ import type { SettingsFormState } from "@/composables/useSettingsForm";
 import type { PageRadio, RadioId } from "@/lib/radios";
 import type { ScopeRow } from "@/lib/scoperow";
 
-const props = defineProps<{ on: boolean; radio: RadioId | null; tip?: boolean; card?: { radio: PageRadio; form: SettingsFormState } }>();
+const props = defineProps<{
+  on: boolean;
+  radio: RadioId | null;
+  tip?: boolean;
+  card?: { radio: PageRadio; form: SettingsFormState };
+}>();
 const { scopeOf } = useDaemonContext();
 const id = useId();
 const level = ref<number | null>(null);
@@ -69,7 +74,11 @@ const fill = computed(() => (level.value === null ? 0 : levelPercent(level.value
     :value="t('settings.scope.value', { value: dbText(level) })"
   >
     <template v-if="card" #control
-      ><CardSlider :label="t('settings.cardlevel.rx_label')" :setting-key="`radio/${card.radio.id}/rx_card`" :level="capture" :form="card.form"
+      ><CardSlider
+        :label="t('settings.cardlevel.rx_label')"
+        :setting-key="`radio/${card.radio.id}/rx_card`"
+        :level="capture"
+        :form="card.form"
     /></template>
     <InfoTip v-if="tip" :label="t('settings.scope.tip_label')" picture="scope"
       ><span class="info-line">{{ t("settings.scope.tip1") }}</span

@@ -19,10 +19,20 @@ export interface Outcome {
 }
 
 export function outcomeOf(message: UpdateResultMessage): Outcome {
-  if (message.outcome === "newer") return { text: t("settings.update.available", { version: message.version }), tone: "update-available", newer: true };
-  if (message.outcome === "current") return { text: t("settings.update.current"), tone: "update-current", newer: false };
+  if (message.outcome === "newer")
+    return {
+      text: t("settings.update.available", { version: message.version }),
+      tone: "update-available",
+      newer: true,
+    };
+  if (message.outcome === "current")
+    return { text: t("settings.update.current"), tone: "update-current", newer: false };
   const id =
-    message.reason === "offline" ? "settings.update.offline" : message.reason === "bad_answer" ? "settings.update.bad_answer" : "settings.update.no_answer";
+    message.reason === "offline"
+      ? "settings.update.offline"
+      : message.reason === "bad_answer"
+        ? "settings.update.bad_answer"
+        : "settings.update.no_answer";
   return { text: t(id), tone: "update-failed", newer: false };
 }
 
@@ -47,7 +57,8 @@ export function useUpdateCheck(
     if (message && running.value) show(outcomeOf(message));
   });
   watch(lastError, (toast) => {
-    if (toast && running.value && toast.cmd === "update_check") show({ text: reasonOf(toast), tone: "update-failed", newer: false });
+    if (toast && running.value && toast.cmd === "update_check")
+      show({ text: reasonOf(toast), tone: "update-failed", newer: false });
   });
 
   endWithTheSocket(connection, () => (running.value = false));

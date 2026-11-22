@@ -9,7 +9,13 @@ import { fieldId, type SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
 import { FIELDS, storedFor, valueFor, type FieldInfo } from "@/lib/settings";
 
-const props = defineProps<{ name: string; settings: Settings; form: SettingsFormState; defaults: Record<string, string>; only?: boolean }>();
+const props = defineProps<{
+  name: string;
+  settings: Settings;
+  form: SettingsFormState;
+  defaults: Record<string, string>;
+  only?: boolean;
+}>();
 const info = computed<FieldInfo>(() => {
   const own = FIELDS[props.name] ?? { label: props.name };
   return props.only ? { ...own, title: t("settings.enable.only_radio_title") } : own;

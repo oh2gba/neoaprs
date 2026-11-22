@@ -94,7 +94,9 @@ describe("archivesPresent", () => {
     vi.stubGlobal("fetch", (input: string, init?: RequestInit) => {
       asked.push(`${init?.method ?? "GET"} ${new URL(input).pathname}`);
       const answer = files[new URL(input).pathname.slice(1)] ?? 404;
-      return answer === "down" ? Promise.reject(new TypeError("network")) : Promise.resolve(new Response(null, { status: answer }));
+      return answer === "down"
+        ? Promise.reject(new TypeError("network"))
+        : Promise.resolve(new Response(null, { status: answer }));
     });
     return asked;
   }

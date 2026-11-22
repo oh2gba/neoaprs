@@ -11,7 +11,13 @@ const code = computed(() => qrPath(qrMatrix(props.link)));
 </script>
 
 <template>
-  <svg class="phonecode" role="img" :aria-labelledby="labelledby" :viewBox="`0 0 ${code.size} ${code.size}`" shape-rendering="crispEdges">
+  <svg
+    class="phonecode"
+    role="img"
+    :aria-labelledby="labelledby"
+    :viewBox="`0 0 ${code.size} ${code.size}`"
+    shape-rendering="crispEdges"
+  >
     <rect class="phonecode-field" :width="code.size" :height="code.size" />
     <path class="phonecode-dark" :d="code.d" />
   </svg>

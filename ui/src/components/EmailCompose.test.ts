@@ -7,7 +7,11 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 /** The form in the page's context: radio 1 alone, which internet gateways hear (email goes on
  * it). */
 function box(extra: Record<string, unknown> = {}) {
-  return mount(EmailCompose, { props: { connected: true, addresses: [], ...extra }, attachTo: document.body, global: withDaemon(fakeDaemon()) });
+  return mount(EmailCompose, {
+    props: { connected: true, addresses: [], ...extra },
+    attachTo: document.body,
+    global: withDaemon(fakeDaemon()),
+  });
 }
 const send = (wrapper: ReturnType<typeof box>) => wrapper.find<HTMLButtonElement>("button[type='submit']");
 const picks = (wrapper: ReturnType<typeof box>) => wrapper.findAll(".suggestion-pick").map((b) => b.text());
@@ -33,7 +37,9 @@ describe("EmailCompose", () => {
     await wrapper.find("#mail-to").setValue("me");
     await wrapper.find("#mail-text").setValue("Hello");
     expect(wrapper.find(".compose-left").text()).toBe("59 left");
-    expect(wrapper.find(".compose-left").attributes("title")).toBe("59 of 67 characters left; the address and the space count too");
+    expect(wrapper.find(".compose-left").attributes("title")).toBe(
+      "59 of 67 characters left; the address and the space count too",
+    );
     await wrapper.find("#mail-text").setValue("x".repeat(70));
     expect(wrapper.find<HTMLInputElement>("#mail-text").element.value).toBe("x".repeat(64));
     expect(wrapper.find(".compose-left").text()).toBe("0 left");
@@ -201,7 +207,11 @@ describe("EmailCompose: what a mail cannot carry, and no connection", () => {
 
   it("keeps Send off and the text while the socket is closed", async () => {
     const daemon = fakeDaemon();
-    const wrapper = mount(EmailCompose, { props: { connected: true, addresses: [] }, attachTo: document.body, global: withDaemon(daemon) });
+    const wrapper = mount(EmailCompose, {
+      props: { connected: true, addresses: [] },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     await wrapper.find("#mail-to").setValue("a@b.fi");
     await wrapper.find("#mail-text").setValue("Hello");
     daemon.connection.value = "closed";

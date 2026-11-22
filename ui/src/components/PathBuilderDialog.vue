@@ -41,9 +41,17 @@ const keys = useDialogFocus(dialog, () => emit("close"), { back: () => props.ope
 const draft = ref<string[]>([...props.start]);
 const home = ref(homeFirst(props.start) ?? props.home);
 const meaning = computed(() => meaningOf(draft.value));
-const problem = computed(() => props.check(pathOf(draft.value)) || (meaning.value.level === "bad" ? meaning.value.reason : ""));
+const problem = computed(
+  () => props.check(pathOf(draft.value)) || (meaning.value.level === "bad" ? meaning.value.reason : ""),
+);
 const named = computed(() => splitPath(draft.value).lead);
-const offer = computed(() => choicesFor(props.stations.values(), named.value) ?? { after: named.value[named.value.length - 1] ?? null, choices: [] });
+const offer = computed(
+  () =>
+    choicesFor(props.stations.values(), named.value) ?? {
+      after: named.value[named.value.length - 1] ?? null,
+      choices: [],
+    },
+);
 const reversed = computed(() => (props.station === undefined ? null : reversedRoute(props.stations, props.station)));
 
 watch(draft, (hops) => (home.value = homeFirst(hops) ?? home.value));
@@ -79,7 +87,14 @@ function escapeNote(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <div class="pathbuild-backdrop" title="" @pointerdown="press" @focusin.stop @keydown.capture="escapeNote" @keydown="keys.onKey">
+  <div
+    class="pathbuild-backdrop"
+    title=""
+    @pointerdown="press"
+    @focusin.stop
+    @keydown.capture="escapeNote"
+    @keydown="keys.onKey"
+  >
     <section ref="dialog" class="pathbuild" role="dialog" aria-modal="true" :aria-labelledby="titleId" tabindex="-1">
       <header class="updatedialog-head">
         <h2 :id="titleId" class="pathbuild-title">{{ t("pathbuilder.title") }}</h2>
@@ -106,7 +121,13 @@ function escapeNote(event: KeyboardEvent): void {
       <PathHops :hops="draft" :meaning="meaning" :problem="problem" @remove="remove" @add="add" />
       <PathChoices :choices="offer.choices" :after="offer.after" :now="now" @pick="pick" />
       <footer class="pathbuild-foot">
-        <button type="button" class="btn primary" :disabled="problem !== ''" :title="problem || undefined" @click="emit('use', pathOf(draft))">
+        <button
+          type="button"
+          class="btn primary"
+          :disabled="problem !== ''"
+          :title="problem || undefined"
+          @click="emit('use', pathOf(draft))"
+        >
           {{ t("pathbuilder.use") }}
         </button>
         <button type="button" class="btn" @click="emit('close')">{{ t("pathbuilder.cancel") }}</button>

@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { TAB_IDS } from "@/lib/layout";
 import { badgeText, isViewingTab, titleText, unreadText, type PanelView } from "@/lib/unread";
 
-const view = (extra: Partial<PanelView> = {}): PanelView => ({ tab: "messages", onScreen: true, visible: true, ...extra });
+const view = (extra: Partial<PanelView> = {}): PanelView => ({
+  tab: "messages",
+  onScreen: true,
+  visible: true,
+  ...extra,
+});
 
 describe("isViewingTab", () => {
   it("is true only with the tab on show, the panel open and the page visible", () => {
@@ -13,7 +18,8 @@ describe("isViewingTab", () => {
   });
 
   it("is false for every other tab", () => {
-    for (const tab of TAB_IDS.filter((t) => t !== "messages")) expect(isViewingTab(view({ tab }), "messages"), tab).toBe(false);
+    for (const tab of TAB_IDS.filter((t) => t !== "messages"))
+      expect(isViewingTab(view({ tab }), "messages"), tab).toBe(false);
     expect(isViewingTab(view({ tab: "bulletins" }), "bulletins")).toBe(true);
   });
 

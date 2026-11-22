@@ -37,7 +37,9 @@ export function sharedRanges(all: readonly (WeatherSeriesMessage | null)[], hour
   const used = all.filter((series): series is WeatherSeriesMessage => series !== null && series.hours === hours);
   const out: Ranges = {};
   for (const { quantity, columns, zero } of SHARED) {
-    const values = used.flatMap((series) => columns.flatMap((column) => columnOf(series, column).flatMap((p) => (p.v === null ? [] : [p.v]))));
+    const values = used.flatMap((series) =>
+      columns.flatMap((column) => columnOf(series, column).flatMap((p) => (p.v === null ? [] : [p.v]))),
+    );
     if (values.length > 0) out[quantity] = extent(values, zero);
   }
   return out;

@@ -47,9 +47,18 @@ describe("the times of the form", () => {
   });
 
   it("makes To after From the same day, and To at or before From the next day", () => {
-    expect(instants(draft())).toEqual({ from: Date.parse("2026-10-22T18:00:00Z"), to: Date.parse("2026-10-22T20:00:00Z") });
-    expect(instants(draft({ from: "22:00", to: "02:00" }))).toEqual({ from: Date.parse("2026-10-22T22:00:00Z"), to: Date.parse("2026-10-23T02:00:00Z") });
-    expect(instants(draft({ from: "18:00", to: "18:00" }))).toEqual({ from: Date.parse("2026-10-22T18:00:00Z"), to: Date.parse("2026-10-23T18:00:00Z") });
+    expect(instants(draft())).toEqual({
+      from: Date.parse("2026-10-22T18:00:00Z"),
+      to: Date.parse("2026-10-22T20:00:00Z"),
+    });
+    expect(instants(draft({ from: "22:00", to: "02:00" }))).toEqual({
+      from: Date.parse("2026-10-22T22:00:00Z"),
+      to: Date.parse("2026-10-23T02:00:00Z"),
+    });
+    expect(instants(draft({ from: "18:00", to: "18:00" }))).toEqual({
+      from: Date.parse("2026-10-22T18:00:00Z"),
+      to: Date.parse("2026-10-23T18:00:00Z"),
+    });
     expect(instants(draft({ from: "23:30", to: "00:00" }))?.to).toBe(Date.parse("2026-10-23T00:00:00Z"));
   });
 
@@ -106,12 +115,23 @@ describe("the days of the form", () => {
 
 describe("the form as it opens", () => {
   it("starts at the next half hour for an hour, on the first dial the project suggests", () => {
-    expect(startDraft(NOW, FREQUENCIES)).toEqual({ day: "2026-10-21", from: "12:00", to: "13:00", dial: "3.5850 MHz USB", typed: false, note: "" });
+    expect(startDraft(NOW, FREQUENCIES)).toEqual({
+      day: "2026-10-21",
+      from: "12:00",
+      to: "13:00",
+      dial: "3.5850 MHz USB",
+      typed: false,
+      note: "",
+    });
     expect(startDraft(NOW + 60_000, FREQUENCIES)).toMatchObject({ from: "12:30", to: "13:30" });
   });
 
   it("goes over midnight to the next UTC day", () => {
-    expect(startDraft(Date.parse("2026-10-21T23:40:00Z"), FREQUENCIES)).toMatchObject({ day: "2026-10-22", from: "00:00", to: "01:00" });
+    expect(startDraft(Date.parse("2026-10-21T23:40:00Z"), FREQUENCIES)).toMatchObject({
+      day: "2026-10-22",
+      from: "00:00",
+      to: "01:00",
+    });
   });
 
   it("asks for a dial to be typed where the project suggests none", () => {
@@ -201,7 +221,10 @@ describe("the command that posts", () => {
   });
 
   it("has the end on the next day for a To that is not after From", () => {
-    expect(postCommand(draft({ from: "22:00", to: "02:00" }), NOW)).toMatchObject({ from: "2026-10-22T22:00:00Z", to: "2026-10-23T02:00:00Z" });
+    expect(postCommand(draft({ from: "22:00", to: "02:00" }), NOW)).toMatchObject({
+      from: "2026-10-22T22:00:00Z",
+      to: "2026-10-23T02:00:00Z",
+    });
   });
 
   it("is none while the form is not right", () => {
@@ -224,12 +247,20 @@ describe("the call a sked may be posted under", () => {
 
 describe("the rows of the board", () => {
   it("are the skeds to come in the order of their start, then end", () => {
-    const rows = [sked("c", { from: at(30), to: at(32) }), sked("a", { from: at(2), to: at(3) }), sked("b", { from: at(2), to: at(4) })];
+    const rows = [
+      sked("c", { from: at(30), to: at(32) }),
+      sked("a", { from: at(2), to: at(3) }),
+      sked("b", { from: at(2), to: at(4) }),
+    ];
     expect(groups(rows, NOW).map((g) => g.rows[0]?.id)).toEqual(["a", "b", "c"]);
   });
 
   it("leave out a sked that has ended by the page's clock, and keep one that is running", () => {
-    const rows = [sked("old", { from: at(-3), to: at(-1) }), sked("now", { from: at(-1), to: at(1) }), sked("end", { from: at(-2), to: at(0) })];
+    const rows = [
+      sked("old", { from: at(-3), to: at(-1) }),
+      sked("now", { from: at(-1), to: at(1) }),
+      sked("end", { from: at(-2), to: at(0) }),
+    ];
     expect(groups(rows, NOW).map((g) => g.rows[0]?.id)).toEqual(["now"]);
     expect(groups([sked("x", { to: "not a time" })], NOW)).toEqual([]);
   });
@@ -262,9 +293,20 @@ describe("the rows of the board", () => {
     expect(noteOf(groups([sked("a", { note: "Mercury, 10 W" })], NOW)[0])).toBe("Mercury, 10 W");
     expect(noteOf(groups([sked("a")], NOW)[0])).toBe("");
     expect(
-      noteOf(groups([sked("a", { call: "OH2AAA", note: "one" }), sked("b", { call: "OH2BBB", note: "" }), sked("c", { call: "OH2CCC", note: "two" })], NOW)[0]),
+      noteOf(
+        groups(
+          [
+            sked("a", { call: "OH2AAA", note: "one" }),
+            sked("b", { call: "OH2BBB", note: "" }),
+            sked("c", { call: "OH2CCC", note: "two" }),
+          ],
+          NOW,
+        )[0],
+      ),
     ).toBe("OH2AAA: one; OH2CCC: two");
-    expect(noteOf(groups([sked("a", { call: "OH2AAA", note: "one" }), sked("b", { call: "OH2BBB" })], NOW)[0])).toBe("OH2AAA: one");
+    expect(noteOf(groups([sked("a", { call: "OH2AAA", note: "one" }), sked("b", { call: "OH2BBB" })], NOW)[0])).toBe(
+      "OH2AAA: one",
+    );
   });
 });
 

@@ -25,7 +25,13 @@ import { speedFallback } from "@/lib/tncprofile";
 import type { Command, PortsMessage } from "@/protocol/protocol";
 
 const props = withDefaults(
-  defineProps<{ keys: readonly string[]; settings: Settings; form: SettingsFormState; defaults: Record<string, string>; radio?: PageRadio | null }>(),
+  defineProps<{
+    keys: readonly string[];
+    settings: Settings;
+    form: SettingsFormState;
+    defaults: Record<string, string>;
+    radio?: PageRadio | null;
+  }>(),
   {
     radio: null,
   },
@@ -41,16 +47,20 @@ const isCard = (key: string): boolean => fieldOfKey(key) === "sound_card";
 const isKeying = (key: string): boolean => fieldOfKey(key) === "keying";
 const isPort = (key: string): boolean => fieldOfKey(key) === "port";
 /** A speed's placeholder follows the radio's TNC type. */
-const fallback = (key: string) => (fieldOfKey(key) === "baud" ? speedFallback(props.radio?.type, defaultOf(key)) : defaultOf(key));
+const fallback = (key: string) =>
+  fieldOfKey(key) === "baud" ? speedFallback(props.radio?.type, defaultOf(key)) : defaultOf(key);
 /** The default of a key, from the form or the settings. */
 const defaultOf = (key: string): string => props.defaults[key] ?? props.settings.defaults.value[key] ?? "";
 const cardKey = computed(() => props.keys.find(isCard));
 const keyingKey = computed(() => props.keys.find(isKeying));
 /** The answer to `list_ports` for this radio (null until one came). */
-const own = computed<PortsMessage | null>(() => (props.radio === null ? null : (portsByRadio.value.get(props.radio.id) ?? null)));
+const own = computed<PortsMessage | null>(() =>
+  props.radio === null ? null : (portsByRadio.value.get(props.radio.id) ?? null),
+);
 /** The daemon's proposals, shown as chosen while the setting is empty and then stored. */
 const pick = (key: string): string => (isCard(key) ? soundCardPick(own.value) : (own.value?.keying ?? ""));
-const valueOf = (key: string): string => (props.settings.draft[key] ?? "") || (isCard(key) || isKeying(key) ? pick(key) : "");
+const valueOf = (key: string): string =>
+  (props.settings.draft[key] ?? "") || (isCard(key) || isKeying(key) ? pick(key) : "");
 const cardInfo = computed<FieldInfo>(() => ({
   ...fieldFor(cardKey.value ?? ""),
   kind: "choice",
@@ -72,12 +82,14 @@ const keyingInfo = computed<FieldInfo>(() => ({
 }));
 /** A field's words: the kind's own where they differ. */
 const wordsOf = (key: string): FieldInfo => fieldFor(key, {}, props.radio?.kind);
-const infoOf = (key: string): FieldInfo => (isCard(key) ? cardInfo.value : isKeying(key) ? keyingInfo.value : wordsOf(key));
+const infoOf = (key: string): FieldInfo =>
+  isCard(key) ? cardInfo.value : isKeying(key) ? keyingInfo.value : wordsOf(key);
 /**
  * The port the search found last, shown beside an automatic port (`serial/last_port`, radio 1
  * only).
  */
-const found = (key: string): string => (radioFieldOf(key)?.id === 1 ? (config.value?.values["serial/last_port"] ?? "") : "");
+const found = (key: string): string =>
+  radioFieldOf(key)?.id === 1 ? (config.value?.values["serial/last_port"] ?? "") : "";
 /** Whether the proposal was already stored from this answer and refused (its key has an error). */
 const refusedAgain = (key: string, value: string): boolean =>
   own.value !== null && proposedFrom(own.value, key, value) && (props.settings.errors[key] ?? "") !== "";
@@ -161,7 +173,14 @@ function refresh(key: string): void {
         <button class="btn" type="button" @click="refresh(key)">{{ t("settings.port.refresh") }}</button>
       </template>
       <template v-else-if="isKeying(key)" #after>
-        <button :id="ids(`${inputId(key)}-test`)" class="btn" type="button" :disabled="tests.testOff.value" :title="tests.why.value" @click="tests.keyTest">
+        <button
+          :id="ids(`${inputId(key)}-test`)"
+          class="btn"
+          type="button"
+          :disabled="tests.testOff.value"
+          :title="tests.why.value"
+          @click="tests.keyTest"
+        >
           {{ t("settings.keying.test") }}
         </button>
       </template>

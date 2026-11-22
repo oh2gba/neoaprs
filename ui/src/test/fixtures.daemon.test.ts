@@ -28,7 +28,8 @@ const FILE = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "te
 const ROWS = JSON.parse(readFileSync(FILE, "utf8")) as Record<string, Record<string, unknown> | unknown[]>;
 
 /** The daemon's rows of a topic: a keyed topic's values, a whole one's list. */
-const rows = (topic: string): Record<string, unknown>[] => Object.values(ROWS[topic] ?? []) as Record<string, unknown>[];
+const rows = (topic: string): Record<string, unknown>[] =>
+  Object.values(ROWS[topic] ?? []) as Record<string, unknown>[];
 const keys = (row: object): string[] => Object.keys(row).sort();
 /**
  * The keys of an object field with the same keys in every row (a radio's `can`, `stats`), as
@@ -38,7 +39,9 @@ const inner = (row: Record<string, unknown>, fields: readonly string[]): string[
   fields
     .flatMap((field) => {
       const value = row[field];
-      return value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).map((key) => `${field}.${key}`) : [];
+      return value !== null && typeof value === "object" && !Array.isArray(value)
+        ? Object.keys(value).map((key) => `${field}.${key}`)
+        : [];
     })
     .sort();
 
@@ -66,7 +69,10 @@ describe("the makers of rows, against the daemon's own", () => {
     });
 
   it("give a radio the parts of the daemon's row (what it can, may and does), and an attempt the fields of the daemon's", () => {
-    for (const row of rows("radios")) expect(inner(radioRow(1, "kiss") as unknown as Record<string, unknown>, RADIO_PARTS)).toEqual(inner(row, RADIO_PARTS));
+    for (const row of rows("radios"))
+      expect(inner(radioRow(1, "kiss") as unknown as Record<string, unknown>, RADIO_PARTS)).toEqual(
+        inner(row, RADIO_PARTS),
+      );
     const attempts = rows("messages").flatMap((row) => row["attempts_detail"] as Record<string, unknown>[]);
     expect(attempts.length).toBeGreaterThan(0);
     for (const attempt of attempts) expect(keys(attemptRow())).toEqual(keys(attempt));
@@ -79,11 +85,18 @@ describe("the one source of the radios, on the daemon's topic", () => {
   const radios = pageRadios(topic, config ?? null);
 
   it("has every radio of the topic by its place, removed ones too, each of a type of the page's list", () => {
-    expect(radios.map((radio) => radio.id)).toEqual([...topic.values()].sort((a, b) => a.position - b.position || a.id - b.id).map((row) => row.id));
+    expect(radios.map((radio) => radio.id)).toEqual(
+      [...topic.values()].sort((a, b) => a.position - b.position || a.id - b.id).map((row) => row.id),
+    );
     expect(radios.map((radio) => [radio.id, radio.enabled, radio.removed, radio.connected])).toEqual(
       [...topic.values()]
         .sort((a, b) => a.position - b.position || a.id - b.id)
-        .map((row) => [row.id, row.enabled && !row.removed, row.removed, row.enabled && !row.removed && row.state === "connected"]),
+        .map((row) => [
+          row.id,
+          row.enabled && !row.removed,
+          row.removed,
+          row.enabled && !row.removed && row.state === "connected",
+        ]),
     );
     expect(radios.filter((radio) => typeOf(radio) === undefined).map((radio) => radio.type)).toEqual([]);
   });
@@ -97,7 +110,9 @@ describe("the one source of the radios, on the daemon's topic", () => {
   });
 
   it("has words for every problem the daemon's rows name, the device another radio holds in the sentence of its refusal", () => {
-    const named = radios.flatMap((radio) => (radio.problem === null ? [] : [[radio.problem.code, problemText(radio.problem)]]));
+    const named = radios.flatMap((radio) =>
+      radio.problem === null ? [] : [[radio.problem.code, problemText(radio.problem)]],
+    );
     expect(named).toEqual([
       ["radio.not_connected", "Not connected"],
       ["radio.resource_held", "the device is in use by radio Mobile: choose another"],

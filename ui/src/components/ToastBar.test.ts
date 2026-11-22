@@ -4,7 +4,8 @@ import ToastBar from "@/components/ToastBar.vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { Notice } from "@/composables/useNotice";
 
-const failure = (n: number, text: string, extra: Partial<Toast> = {}): Toast => ({ cmd: "send_message", text, n, ...extra }) as Toast;
+const failure = (n: number, text: string, extra: Partial<Toast> = {}): Toast =>
+  ({ cmd: "send_message", text, n, ...extra }) as Toast;
 const notice = (n: number, text: string): Notice => ({ text, n });
 
 beforeEach(() => vi.useFakeTimers());
@@ -18,15 +19,18 @@ describe("ToastBar", () => {
 
   it("shows the error the daemon told, as an alert, in the line the daemon writes it", async () => {
     const wrapper = mount(ToastBar, { props: { toast: null } });
-    await wrapper.setProps({ toast: failure(1, "send_message: the radio is silent", { code: "radio.silent", params: {} }) });
+    await wrapper.setProps({
+      toast: failure(1, "send_message: the radio is silent", { code: "radio.silent", params: {} }),
+    });
     const bar = wrapper.find(".toast");
     expect(bar.attributes("role")).toBe("alert");
     expect(bar.classes()).not.toContain("notice");
     expect(bar.text()).toContain("the radio is silent");
     await wrapper.setProps({ toast: failure(2, "send_message: the daemon's words") });
-    expect(wrapper.find(".toast").text(), "a refusal without a sentence of the page's: its plain words, never the daemon's English").toBe(
-      "That did not work; try again. If it keeps happening, send the logs (Settings → Help).",
-    );
+    expect(
+      wrapper.find(".toast").text(),
+      "a refusal without a sentence of the page's: its plain words, never the daemon's English",
+    ).toBe("That did not work; try again. If it keeps happening, send the logs (Settings → Help).");
   });
 
   it("shows a notice as a status in the colours of the Undo toast", async () => {
@@ -88,7 +92,10 @@ describe("ToastBar", () => {
   });
 
   it("draws the line of its slot as a notice while it has nothing else to say, and again when what it said has gone", async () => {
-    const wrapper = mount(ToastBar, { props: { toast: null, notice: null }, slots: { default: "<span class='standing'>Updated</span>" } });
+    const wrapper = mount(ToastBar, {
+      props: { toast: null, notice: null },
+      slots: { default: "<span class='standing'>Updated</span>" },
+    });
     expect(wrapper.find(".toast.notice .standing").exists()).toBe(true);
     await wrapper.setProps({ toast: failure(1, "the radio is silent") });
     expect(wrapper.findAll(".toast")).toHaveLength(1);

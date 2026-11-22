@@ -25,13 +25,19 @@ export interface DigiLook {
  * The look for a radio's counters: when the daemon started (`startedAt`, ISO), the time now, and
  * whether RX only is ticked.
  */
-export function digiLook(tnc: Pick<RadioRow, "stats">, startedAt: string | null, nowMs: number, rxOnly: boolean): DigiLook {
+export function digiLook(
+  tnc: Pick<RadioRow, "stats">,
+  startedAt: string | null,
+  nowMs: number,
+  rxOnly: boolean,
+): DigiLook {
   const { digipeated, digipeated_at, digipeat_held } = tnc.stats;
   const behind = {
     since: startedAt === null ? "" : t("settings.digi.fold.since", { when: dateTimeText(startedAt) }),
     held: digipeat_held > 0 ? t("settings.digi.fold.held", { n: digipeat_held }) : "",
   };
-  if (rxOnly) return { state: t("settings.digi.off"), tone: "tnc-waiting", line: t("settings.digi.line.rx_only"), ...behind };
+  if (rxOnly)
+    return { state: t("settings.digi.off"), tone: "tnc-waiting", line: t("settings.digi.line.rx_only"), ...behind };
   const line =
     digipeated === 0 || digipeated_at === null
       ? t("settings.digi.line.none")
@@ -85,11 +91,27 @@ export function pairLook(pair: PairLink, startedAt: string | null, nowMs: number
   const latest = ats.sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
   const behind = {
     since: startedAt === null ? "" : t("settings.digi.fold.since", { when: dateTimeText(startedAt) }),
-    ways: sent > 0 ? t("settings.pair.fold.each_way", { n: onto[0].sent, first: pair.first.name, m: onto[1].sent, second: pair.second.name }) : "",
-    held: onto.flatMap((way, i) => (way.held > 0 ? [t("settings.pair.fold.held", { n: way.held, radio: ends[i].name })] : [])),
-    tooLong: onto.flatMap((way, i) => (way.too_long > 0 ? [t("settings.pair.fold.too_long", { n: way.too_long, radio: ends[i].name })] : [])),
+    ways:
+      sent > 0
+        ? t("settings.pair.fold.each_way", {
+            n: onto[0].sent,
+            first: pair.first.name,
+            m: onto[1].sent,
+            second: pair.second.name,
+          })
+        : "",
+    held: onto.flatMap((way, i) =>
+      way.held > 0 ? [t("settings.pair.fold.held", { n: way.held, radio: ends[i].name })] : [],
+    ),
+    tooLong: onto.flatMap((way, i) =>
+      way.too_long > 0 ? [t("settings.pair.fold.too_long", { n: way.too_long, radio: ends[i].name })] : [],
+    ),
   };
-  if (rxOnly) return { state: t("settings.digi.off"), tone: "tnc-waiting", line: t("settings.digi.line.rx_only"), ...behind };
-  const line = sent === 0 || latest === null ? t("settings.digi.line.none") : t("settings.digi.line.count", { n: sent, span: ageText(latest, nowMs) });
+  if (rxOnly)
+    return { state: t("settings.digi.off"), tone: "tnc-waiting", line: t("settings.digi.line.rx_only"), ...behind };
+  const line =
+    sent === 0 || latest === null
+      ? t("settings.digi.line.none")
+      : t("settings.digi.line.count", { n: sent, span: ageText(latest, nowMs) });
   return { state: t("settings.digi.on"), tone: "tnc-connected", line, ...behind };
 }

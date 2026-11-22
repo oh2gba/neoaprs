@@ -41,10 +41,15 @@ export function fadeOpacity(ageSec: number, maxSec: number): number {
 export type ThingShape = AircraftShape | "hull" | "diamond";
 
 /** Every shape the map draws things with. */
-export const THING_SHAPES: readonly ThingShape[] = [...(Object.keys(AIRCRAFT_SHAPES) as AircraftShape[]), "hull", "diamond"];
+export const THING_SHAPES: readonly ThingShape[] = [
+  ...(Object.keys(AIRCRAFT_SHAPES) as AircraftShape[]),
+  "hull",
+  "diamond",
+];
 
 /** The side of a shape's image in pixels: an aircraft's own size, else a mark's. */
-export const sideOf = (shape: ThingShape): number => (shape === "hull" || shape === "diamond" ? MARK_SIZE : AIRCRAFT_SHAPES[shape].size);
+export const sideOf = (shape: ThingShape): number =>
+  shape === "hull" || shape === "diamond" ? MARK_SIZE : AIRCRAFT_SHAPES[shape].size;
 
 /** Whether a shape is turned to where the thing heads. */
 const turns = (shape: ThingShape): boolean => shape === "hull" || (shape !== "diamond" && AIRCRAFT_SHAPES[shape].turns);
@@ -60,7 +65,8 @@ export function thingShape(layer: LayerName, thing: LayerThing): ThingShape {
 }
 
 /** The map image name of a shape, in the layer colour or the bad colour for an emergency. */
-export const imageName = (shape: ThingShape, emergency: boolean): string => `traffic-${shape}${emergency ? "-bad" : ""}`;
+export const imageName = (shape: ThingShape, emergency: boolean): string =>
+  `traffic-${shape}${emergency ? "-bad" : ""}`;
 
 /** The key of a thing: its layer and id. */
 const thingKey = (layer: LayerName, id: string): string => `${layer}:${id}`;

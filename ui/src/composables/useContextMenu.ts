@@ -24,7 +24,14 @@ export function useContextMenu({ x, y, trigger, list, buttons, close }: ContextM
     open.value = false;
     close();
   }
-  const popup = usePopup({ open, root: list, trigger: computed(trigger), close: closeMenu, focusAway: false, stopEscape: true });
+  const popup = usePopup({
+    open,
+    root: list,
+    trigger: computed(trigger),
+    close: closeMenu,
+    focusAway: false,
+    stopEscape: true,
+  });
 
   function focusItem(index: number): void {
     const count = buttons.value.length;

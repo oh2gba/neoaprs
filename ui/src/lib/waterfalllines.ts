@@ -95,7 +95,8 @@ export class Lines {
   until(slot: number): number {
     const first = this.lines.length > 0 ? this.top + 1 : Math.min(this.open?.slot ?? slot, slot);
     let added = 0;
-    for (let at = Math.max(first, slot - this.kept); at < slot; at++, added++) this.put(this.open?.slot === at ? this.gathered() : this.empty(at));
+    for (let at = Math.max(first, slot - this.kept); at < slot; at++, added++)
+      this.put(this.open?.slot === at ? this.gathered() : this.empty(at));
     if (this.open && this.open.slot < slot) this.open = null;
     return added;
   }

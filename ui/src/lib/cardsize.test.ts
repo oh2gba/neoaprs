@@ -17,7 +17,10 @@ describe("clampSize", () => {
   });
 
   it("gives the map's room where the map is smaller than the least", () => {
-    expect(clampSize({ width: 500, height: 500 }, least, { width: 250, height: 150 })).toEqual({ width: 250, height: 150 });
+    expect(clampSize({ width: 500, height: 500 }, least, { width: 250, height: 150 })).toEqual({
+      width: 250,
+      height: 150,
+    });
   });
 });
 
@@ -75,6 +78,11 @@ describe("resizeByKey", () => {
   });
 
   it("makes a card at the map's top left larger to the right and down", () => {
-    expect(resizeByKey({ x: 10, y: 10, width: 400, height: 300 }, { dx: 24, dy: 24 }, least, map)).toEqual({ x: 10, y: 10, width: 424, height: 324 });
+    expect(resizeByKey({ x: 10, y: 10, width: 400, height: 300 }, { dx: 24, dy: 24 }, least, map)).toEqual({
+      x: 10,
+      y: 10,
+      width: 424,
+      height: 324,
+    });
   });
 });

@@ -22,7 +22,11 @@ export function soundCardChoices(ports: PortsMessage | null, holder: HolderOf = 
   const cards = ports?.sound_cards ?? [];
   return cards.map((c) =>
     heldChoice(
-      { value: c.id, label: cards.filter((o) => o.name === c.name).length > 1 ? `${c.name} (${c.id})` : c.name, title: c.id },
+      {
+        value: c.id,
+        label: cards.filter((o) => o.name === c.name).length > 1 ? `${c.name} (${c.id})` : c.name,
+        title: c.id,
+      },
       c.held_by,
       holder,
       current,
@@ -48,7 +52,11 @@ const PAIR = "|";
 export const soundCardWith = (ports: PortsMessage | null, value: string): string => {
   const cards = ports?.sound_cards ?? [];
   if (value === "" || value.includes(PAIR) || cards.some((c) => c.id === value)) return "";
-  return cards.find((c) => (c.id.includes(PAIR) && c.id.split(PAIR).includes(value)) || (c.numbered !== "" && c.numbered === value))?.id ?? "";
+  return (
+    cards.find(
+      (c) => (c.id.includes(PAIR) && c.id.split(PAIR).includes(value)) || (c.numbered !== "" && c.numbered === value),
+    )?.id ?? ""
+  );
 };
 
 /**
@@ -68,6 +76,8 @@ export function keyingChoices(ports: PortsMessage | null, current = "", group: s
   const devices = [...listed.filter(own), ...listed.filter((p) => !own(p))].map((p) => p.device);
   const [kind, device] = current.split(":", 2);
   if (device && !devices.includes(device) && (LINES as readonly string[]).includes(kind ?? "")) devices.push(device);
-  const lines = devices.flatMap((d) => LINES.map((line) => ({ value: `${line}:${d}`, label: t(`settings.keying.${line}`, { port: d }) })));
+  const lines = devices.flatMap((d) =>
+    LINES.map((line) => ({ value: `${line}:${d}`, label: t(`settings.keying.${line}`, { port: d }) })),
+  );
   return [...plain, ...lines];
 }

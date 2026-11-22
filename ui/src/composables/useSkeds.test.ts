@@ -29,7 +29,8 @@ function setUp(rows: SkedRow[], show?: "skeds" | "stations", collapsed = false, 
   if (made === undefined) throw new Error("not set up");
   return { ...made, topic, send, wrapper, live };
 }
-const wanted = (send: ReturnType<typeof setUp>["send"]) => send.mock.calls.filter(([command]) => command.cmd === "skeds_wanted").length;
+const wanted = (send: ReturnType<typeof setUp>["send"]) =>
+  send.mock.calls.filter(([command]) => command.cmd === "skeds_wanted").length;
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.useRealTimers());

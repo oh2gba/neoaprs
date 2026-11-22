@@ -44,7 +44,8 @@ const DOINGS: readonly (readonly [string, Partial<ModemState>])[] = [
 const AGES: readonly (string | null)[] = [ago(5), ago(12 * 60), ago(3 * 3600), null];
 const soundCard = (modem: Partial<ModemState>, last: string | null): RadioRow =>
   radioRow(1, "direwolf", { modem: soundCardModem(modem), stats: lineStats({ last_packet: last }) });
-const mercury = (modem: Partial<ModemState>, last: string | null): RadioRow => hfRow({ stats: lineStats({ last_packet: last }) }, modem);
+const mercury = (modem: Partial<ModemState>, last: string | null): RadioRow =>
+  hfRow({ stats: lineStats({ last_packet: last }) }, modem);
 
 afterEach(() => setLocale("en"));
 
@@ -66,16 +67,24 @@ describe("the line of a connected radio", () => {
   });
 
   it("keeps the mode with what the modem does, and the SNR with the last packet", () => {
-    expect(rowParts(soundCard({ busy: true }, ago(12)), NOW)).toEqual(["AFSK1200 · Channel busy, waiting", "Last packet 12 s ago"]);
+    expect(rowParts(soundCard({ busy: true }, ago(12)), NOW)).toEqual([
+      "AFSK1200 · Channel busy, waiting",
+      "Last packet 12 s ago",
+    ]);
     expect(rowParts(soundCard({}, null), NOW)).toEqual(["AFSK1200 · Listening", "No packet yet"]);
-    expect(rowParts(mercury({ keyed: true, snr: 3.4 }, ago(120)), NOW)).toEqual(["DATAC3 · Transmitting…", "Last packet 2 min ago · SNR 3 dB"]);
+    expect(rowParts(mercury({ keyed: true, snr: 3.4 }, ago(120)), NOW)).toEqual([
+      "DATAC3 · Transmitting…",
+      "Last packet 2 min ago · SNR 3 dB",
+    ]);
   });
 
   it("is one part for a radio without a modem, and no parts for a line that is a sentence: not connected, searching, silent, the Dummy", () => {
     expect(rowParts(fmRow(), NOW)).toEqual(["Last packet 30 s ago"]);
     expect(rowParts(fmRow({ state: "waiting", problem: null }), NOW)).toBeNull();
     expect(rowParts(fmRow({ state: "waiting", problem: { code: "radio.searching", params: {} } }), NOW)).toBeNull();
-    expect(rowParts(fmRow({ state: "silent", problem: { code: "radio.silent", params: { since: ago(600) } } }), NOW)).toBeNull();
+    expect(
+      rowParts(fmRow({ state: "silent", problem: { code: "radio.silent", params: { since: ago(600) } } }), NOW),
+    ).toBeNull();
     expect(rowParts(fmRow({ dummy: true }), NOW)).toBeNull();
   });
 

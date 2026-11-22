@@ -122,17 +122,43 @@ export function useSelection(
     if (send({ cmd: "forget_station", call })) close(call);
   }
 
-  return { selected, others, mapSelected, mapOthers, open, rows, focus, row, pinned, pin, pick, pickFromTable, close, closeOldest, closeAll, forget };
+  return {
+    selected,
+    others,
+    mapSelected,
+    mapOthers,
+    open,
+    rows,
+    focus,
+    row,
+    pinned,
+    pin,
+    pick,
+    pickFromTable,
+    close,
+    closeOldest,
+    closeAll,
+    forget,
+  };
 }
 
 /**
  * Drop cards of stations the daemon does not have; once it has sent them, open the returning pinned
  * cards.
  */
-function followStations(stations: Readonly<Ref<ReadonlyMap<string, StationRow>>>, open: Ref<string[]>, pinned: Ref<string[]>, pins: Pins): void {
+function followStations(
+  stations: Readonly<Ref<ReadonlyMap<string, StationRow>>>,
+  open: Ref<string[]>,
+  pinned: Ref<string[]>,
+  pins: Pins,
+): void {
   const told = (): boolean => pins.ready?.value ?? true;
   watch(
-    () => [told(), ...open.value.filter((call) => !stations.value.has(call)), ...pinned.value.filter((call) => !stations.value.has(call))],
+    () => [
+      told(),
+      ...open.value.filter((call) => !stations.value.has(call)),
+      ...pinned.value.filter((call) => !stations.value.has(call)),
+    ],
     ([done, ...gone]) => {
       const missing = gone as string[];
       if (done !== true || missing.length === 0) return;

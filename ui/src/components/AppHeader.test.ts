@@ -7,7 +7,8 @@ import { cssRule, mediaRule } from "@/test/css";
 import { pageRadios } from "@/lib/radios";
 import { NOW, gpsState, igateState, radioRow, radiosTopic } from "@/test/fixtures";
 
-const header = (props: Partial<InstanceType<typeof AppHeader>["$props"]> = {}) => mount(AppHeader, { props: { call: "OH2GBA", unread: 0, ...props } });
+const header = (props: Partial<InstanceType<typeof AppHeader>["$props"]> = {}) =>
+  mount(AppHeader, { props: { call: "OH2GBA", unread: 0, ...props } });
 
 describe("AppHeader", () => {
   it("has the title as a link to the project page that opens in a new tab and cannot reach back to the page", () => {
@@ -68,11 +69,17 @@ describe("AppHeader", () => {
     expect(header({ call: null }).find(".nocall").exists()).toBe(false);
   });
 
-  const pills = (values: Record<string, string>, gps: Parameters<typeof headerPills>[1] = null, igate: Parameters<typeof headerPills>[2] = null) =>
-    headerPills(values, gps, igate);
+  const pills = (
+    values: Record<string, string>,
+    gps: Parameters<typeof headerPills>[1] = null,
+    igate: Parameters<typeof headerPills>[2] = null,
+  ) => headerPills(values, gps, igate);
 
   it("shows the marks before the count of messages, in the one TagMark style, each a button with a hover title", () => {
-    const wrapper = header({ unread: 2, pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()) });
+    const wrapper = header({
+      unread: 2,
+      pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()),
+    });
     const marks = wrapper.findAll(".headpills .tag");
     expect(marks.map((m) => m.text())).toEqual(["RX only", "GPS", "Internet"]);
     expect(marks.every((m) => m.element.tagName === "BUTTON" && m.classes().includes("tag"))).toBe(true);
@@ -85,12 +92,12 @@ describe("AppHeader", () => {
     const link = { connection: "closed", now: 0, inApp: false, radios: [], told: false } as const;
     const wrapper = header({ pills: headerPills({}, null, null, null, link) });
     const [daemon, radio] = wrapper.findAll(".headpills .tag");
-    expect([daemon?.element.tagName, daemon?.text(), daemon?.classes().includes("tag-bad"), daemon?.attributes("role")]).toEqual([
-      "SPAN",
-      "NeoAPRS: offline",
-      true,
-      "status",
-    ]);
+    expect([
+      daemon?.element.tagName,
+      daemon?.text(),
+      daemon?.classes().includes("tag-bad"),
+      daemon?.attributes("role"),
+    ]).toEqual(["SPAN", "NeoAPRS: offline", true, "status"]);
     expect([radio?.element.tagName, radio?.text()]).toEqual(["BUTTON", "Radio: waiting…"]);
     await daemon?.trigger("click");
     expect(wrapper.emitted("open")).toBeUndefined();
@@ -99,18 +106,26 @@ describe("AppHeader", () => {
   });
 
   it("has RX only in warn while transmitting is off, and the others as they are: Beacon off neutral only while transmitting is on, Internet info, GPS ok with a fix and warn without", () => {
-    const rx = header({ pills: pills({ "station/transmit": "false", "beacon/interval_min": "0" }) }).findAll(".headpills .tag");
+    const rx = header({ pills: pills({ "station/transmit": "false", "beacon/interval_min": "0" }) }).findAll(
+      ".headpills .tag",
+    );
     expect(rx.map((m) => m.text())).toEqual(["RX only"]);
     expect(rx[0]?.classes()).toContain("tag-warn");
     expect(rx[0]?.classes()).toContain("rxonly");
-    const off = header({ pills: pills({ "station/transmit": "true", "beacon/interval_min": "0" }) }).findAll(".headpills .tag");
+    const off = header({ pills: pills({ "station/transmit": "true", "beacon/interval_min": "0" }) }).findAll(
+      ".headpills .tag",
+    );
     expect(off.map((m) => m.text())).toEqual(["Beacon off"]);
     expect(off[0]?.classes()).toContain("tag-neutral");
     const net = header({ pills: pills({}, null, igateState()) }).findAll(".headpills .tag");
     expect(net.map((m) => [m.text(), m.classes().includes("tag-info")])).toEqual([["Internet", true]]);
-    const fix = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "fix" })) }).find(".headpills .pill-gps");
+    const fix = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "fix" })) }).find(
+      ".headpills .pill-gps",
+    );
     expect(fix.classes()).toContain("tag-ok");
-    const none = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "no_fix" })) }).find(".headpills .pill-gps");
+    const none = header({ pills: pills({ "gps/source": "gpsd" }, gpsState({ state: "no_fix" })) }).find(
+      ".headpills .pill-gps",
+    );
     expect(none.classes()).toContain("tag-warn");
     expect(header({ pills: [] }).find(".headpills").exists()).toBe(false);
   });
@@ -126,7 +141,12 @@ describe("AppHeader", () => {
   });
 
   it("says in the hover title what a mark means and where it is set, in a few words", () => {
-    const titles = Object.fromEntries(headerPills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()).map((p) => [p.id, t(p.title)]));
+    const titles = Object.fromEntries(
+      headerPills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()).map((p) => [
+        p.id,
+        t(p.title),
+      ]),
+    );
     expect(titles.rx).toBe("Nothing is sent. Settings → Radio → RX only");
     expect(titles.internet).toContain("Settings → Internet");
     expect(titles.gps).toContain("My station tab");
@@ -155,7 +175,12 @@ describe("the header with any number of radios", () => {
     radioRow(1, "kenwood-tnc2"),
     radioRow(2, "mercury"),
     radioRow(3, "kiss", { name: "Shack", number: 2 }),
-    radioRow(4, "mercury", { name: "20 m", number: 2, state: "waiting", problem: { code: "radio.not_connected", params: {} } }),
+    radioRow(4, "mercury", {
+      name: "20 m",
+      number: 2,
+      state: "waiting",
+      problem: { code: "radio.not_connected", params: {} },
+    }),
     radioRow(5, "kantronics", { name: "Portable", number: 3 }),
     radioRow(6, "dummy", { name: "Bench", number: 4 }),
   ];
@@ -170,8 +195,12 @@ describe("the header with any number of radios", () => {
 
   it("has one mark for six radios, which names the one in trouble and opens its box, its title each radio in the words of its own mark", async () => {
     const wrapper = header({ pills: marksOf() });
-    const radios = wrapper.findAll(".headpill").filter((mark) => mark.classes().some((c) => c.startsWith("pill-radio")));
-    expect(radios.map((mark) => [mark.text(), mark.classes()])).toEqual([["20 m: not connected", ["tag", "tag-warn", "headpill", "pill-radios"]]]);
+    const radios = wrapper
+      .findAll(".headpill")
+      .filter((mark) => mark.classes().some((c) => c.startsWith("pill-radio")));
+    expect(radios.map((mark) => [mark.text(), mark.classes()])).toEqual([
+      ["20 m: not connected", ["tag", "tag-warn", "headpill", "pill-radios"]],
+    ]);
     expect(radios[0]?.attributes("title")).toBe(
       "FM: connected; Mercury: connected; Shack: connected; 20 m: not connected; Portable: connected; Bench: connected. Settings → Radio",
     );

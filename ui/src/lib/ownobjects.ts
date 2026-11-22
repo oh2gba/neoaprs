@@ -100,7 +100,9 @@ export function nameProblem(name: string, kind: Kind): string {
   if (name === "") return "";
   if (name !== name.trim() || !isPrintable(name) || holds(name, NAME_FORBIDDEN)) return t("objects.problem.name_chars");
   if (name.length > NAME_MAX) return t("objects.problem.at_most", { max: NAME_MAX });
-  return kind === "item" && name.length < ITEM_NAME_MIN ? t("objects.problem.item_name", { min: ITEM_NAME_MIN, max: NAME_MAX }) : "";
+  return kind === "item" && name.length < ITEM_NAME_MIN
+    ? t("objects.problem.item_name", { min: ITEM_NAME_MIN, max: NAME_MAX })
+    : "";
 }
 
 /**
@@ -109,16 +111,20 @@ export function nameProblem(name: string, kind: Kind): string {
 export function qruProblem(group: string): string {
   const text = group.trim().toUpperCase();
   if (text === "") return "";
-  return new RegExp(`^[A-Z0-9]{1,${LIMITS.object.qruGroupMax}}$`).test(text) && !(LIMITS.object.qruReserved as readonly string[]).includes(text)
+  return new RegExp(`^[A-Z0-9]{1,${LIMITS.object.qruGroupMax}}$`).test(text) &&
+    !(LIMITS.object.qruReserved as readonly string[]).includes(text)
     ? ""
     : t("objects.problem.qru_group", { max: LIMITS.object.qruGroupMax });
 }
 
-const wholeIn = (text: string, min: number, max: number): boolean => /^\d+$/.test(text.trim()) && Number(text) >= min && Number(text) <= max;
+const wholeIn = (text: string, min: number, max: number): boolean =>
+  /^\d+$/.test(text.trim()) && Number(text) >= min && Number(text) <= max;
 
 /** The comment's length limit: lower when a course or speed precedes it. */
 export function commentLimit(draft: ObjectDraft): number {
-  return draft.course.trim() === "" && draft.speed.trim() === "" ? LIMITS.object.commentMax : LIMITS.object.commentMaxMotion;
+  return draft.course.trim() === "" && draft.speed.trim() === ""
+    ? LIMITS.object.commentMax
+    : LIMITS.object.commentMaxMotion;
 }
 
 /** What is wrong with each field; empty fields are not flagged here (`draftReady` covers them). */
@@ -154,9 +160,19 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
         ? t("objects.problem.at_most", { max: commentLimit(draft) })
         : "",
   );
-  set("course", draft.course.trim() === "" || wholeIn(draft.course, 0, COURSE_MAX) ? "" : t("objects.problem.course", { max: COURSE_MAX }));
+  set(
+    "course",
+    draft.course.trim() === "" || wholeIn(draft.course, 0, COURSE_MAX)
+      ? ""
+      : t("objects.problem.course", { max: COURSE_MAX }),
+  );
   const speed = parseNumber(draft.speed);
-  set("speed", draft.speed.trim() === "" || (speed !== null && speed >= 0 && speed <= SPEED_MAX_KMH) ? "" : t("objects.problem.speed", { max: SPEED_MAX_KMH }));
+  set(
+    "speed",
+    draft.speed.trim() === "" || (speed !== null && speed >= 0 && speed <= SPEED_MAX_KMH)
+      ? ""
+      : t("objects.problem.speed", { max: SPEED_MAX_KMH }),
+  );
   set("path", parsePathSetting(draft.path) === null ? t("route.calls_hint", { max: LIMITS.path.maxCalls }) : "");
   set("qru", qruProblem(draft.qru));
   return found;
@@ -214,7 +230,8 @@ export function objectCommand(draft: ObjectDraft, start: readonly RadioId[] = []
     comment: draft.comment.trim(),
     course_deg: draft.course.trim() === "" ? null : Number(draft.course),
     speed_kmh: speed === null ? null : speed,
-    path: setting === null || setting.kind === "auto" ? null : setting.kind === "direct" ? DIRECT : setting.calls.join(","),
+    path:
+      setting === null || setting.kind === "auto" ? null : setting.kind === "direct" ? DIRECT : setting.calls.join(","),
     qru_group: draft.qru.trim().toUpperCase(),
     on_request: draft.onRequest,
     radios,
@@ -223,7 +240,8 @@ export function objectCommand(draft: ObjectDraft, start: readonly RadioId[] = []
 
 /** Whether the daemon's object matches the command, i.e. the daemon has taken it. */
 export function isObjectOf(row: OwnObjectRow, command: ObjectCommand): boolean {
-  const near = (a: number | null, b: number | null): boolean => (a === null || b === null ? a === b : Math.abs(a - b) < 1e-9);
+  const near = (a: number | null, b: number | null): boolean =>
+    a === null || b === null ? a === b : Math.abs(a - b) < 1e-9;
   return (
     row.name === command.name &&
     row.kind === command.kind &&
@@ -275,5 +293,7 @@ export function stateText(row: OwnObjectRow, nowMs: number): string {
   if (row.on_request) return t("schedule.on_request");
   const due = row.next_at === null ? NaN : Date.parse(row.next_at);
   if (Number.isNaN(due)) return sentText(row.sent);
-  return nowMs - due > OVERDUE_MS ? t("schedule.waiting", { n: row.sent }) : t("schedule.next", { n: row.sent, when: untilText(row.next_at, nowMs) });
+  return nowMs - due > OVERDUE_MS
+    ? t("schedule.waiting", { n: row.sent })
+    : t("schedule.next", { n: row.sent, when: untilText(row.next_at, nowMs) });
 }

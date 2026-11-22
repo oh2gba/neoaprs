@@ -14,5 +14,7 @@ const over = computed(() => leftText(-props.max));
 </script>
 
 <template>
-  <span class="compose-left mono" :class="{ over: left < 0 }" :data-room="room" :data-over="over" :title="title">{{ leftText(left) }}</span>
+  <span class="compose-left mono" :class="{ over: left < 0 }" :data-room="room" :data-over="over" :title="title">{{
+    leftText(left)
+  }}</span>
 </template>

@@ -50,7 +50,9 @@ describe("useDaemon and the errors of the page", () => {
     pageErrors.record(new Error("before the daemon spoke"), "window");
     expect(socket.sent).toEqual([]);
     socket.say(hello());
-    expect(socket.sent).toEqual([expect.objectContaining({ cmd: "page_error", message: "before the daemon spoke", source: "window" })]);
+    expect(socket.sent).toEqual([
+      expect.objectContaining({ cmd: "page_error", message: "before the daemon spoke", source: "window" }),
+    ]);
     pageErrors.record(new Error("after"), "window");
     expect(socket.sent).toHaveLength(2);
     wrapper.unmount();
@@ -111,10 +113,20 @@ describe("useDaemon", () => {
     const { daemon, socket } = setUp();
     socket.say(hello());
     expect(daemon.radios.value).toBeNull();
-    socket.say({ type: "state", topic: "radios", rev: 0, value: { "1": radioRow(1, "kenwood-tnc2"), "2": radioRow(2, "mercury") } });
+    socket.say({
+      type: "state",
+      topic: "radios",
+      rev: 0,
+      value: { "1": radioRow(1, "kenwood-tnc2"), "2": radioRow(2, "mercury") },
+    });
     const first = daemon.radios.value;
     expect([...(first?.keys() ?? [])]).toEqual(["1", "2"]);
-    socket.say({ type: "patch", topic: "radios", rev: 1, ops: [{ op: "set", key: "2", value: radioRow(2, "mercury", { state: "waiting" }) }] });
+    socket.say({
+      type: "patch",
+      topic: "radios",
+      rev: 1,
+      ops: [{ op: "set", key: "2", value: radioRow(2, "mercury", { state: "waiting" }) }],
+    });
     expect(daemon.radios.value).not.toBe(first);
     expect(daemon.radios.value?.get("2")?.state).toBe("waiting");
     expect(first?.get("2")?.state).toBe("connected");
@@ -142,7 +154,12 @@ describe("useDaemon", () => {
   it("holds our own objects by name and our own bulletins by slot, whole and by patch", () => {
     const { daemon, socket } = setUp();
     socket.say(hello());
-    socket.say({ type: "state", topic: "own_objects", rev: 0, value: { LEADER: ownObject("LEADER"), AID: ownObject("AID", { kind: "item" }) } });
+    socket.say({
+      type: "state",
+      topic: "own_objects",
+      rev: 0,
+      value: { LEADER: ownObject("LEADER"), AID: ownObject("AID", { kind: "item" }) },
+    });
     socket.say({ type: "state", topic: "own_bulletins", rev: 0, value: { BLN1: ownBulletin("BLN1") } });
     expect([...daemon.ownObjects.keys()]).toEqual(["LEADER", "AID"]);
     expect(daemon.ownBulletins.get("BLN1")?.text).toBe("ours in BLN1");
@@ -198,7 +215,12 @@ describe("useDaemon", () => {
   it("keeps the latest position_history", () => {
     const { daemon, socket } = setUp();
     expect(daemon.positionHistory.value).toBeNull();
-    socket.say({ type: "position_history", hours: 3, start: "2026-10-20T13:00:00Z", stations: { OH2RDG: [["2026-10-20T13:05:00Z", 60.1, 24.9]] } });
+    socket.say({
+      type: "position_history",
+      hours: 3,
+      start: "2026-10-20T13:00:00Z",
+      stations: { OH2RDG: [["2026-10-20T13:05:00Z", 60.1, 24.9]] },
+    });
     expect(daemon.positionHistory.value?.stations.OH2RDG).toEqual([["2026-10-20T13:05:00Z", 60.1, 24.9]]);
   });
 
@@ -206,7 +228,12 @@ describe("useDaemon", () => {
     const { daemon, socket } = setUp();
     expect(daemon.weatherSeriesByCall.value.size).toBe(0);
     socket.say({ type: "weather_series", call: "OH2MUI", hours: 24, points: [] });
-    socket.say({ type: "weather_series", call: "OH2NJR", hours: 168, points: [["2026-10-21T12:00:00Z", 10, null, null, null, null, null]] });
+    socket.say({
+      type: "weather_series",
+      call: "OH2NJR",
+      hours: 168,
+      points: [["2026-10-21T12:00:00Z", 10, null, null, null, null, null]],
+    });
     expect([...daemon.weatherSeriesByCall.value.keys()]).toEqual(["OH2MUI", "OH2NJR"]);
     expect(daemon.weatherSeriesByCall.value.get("OH2NJR")?.points).toHaveLength(1);
   });
@@ -245,19 +272,39 @@ describe("useDaemon", () => {
 
   it("keeps the status and the last error", () => {
     const { daemon, socket } = setUp();
-    socket.say({ type: "status", version: "0.1.0", started_at: "2026-10-21T00:00:00Z", packets: 5, stations: 2, call: "OH2GBA", lat: 60, lon: 24 });
+    socket.say({
+      type: "status",
+      version: "0.1.0",
+      started_at: "2026-10-21T00:00:00Z",
+      packets: 5,
+      stations: 2,
+      call: "OH2GBA",
+      lat: 60,
+      lon: 24,
+    });
     expect(daemon.status.value?.packets).toBe(5);
     socket.say(errorOf("nope"));
     socket.say(errorOf("nope"));
     expect(daemon.lastError.value).toEqual({ cmd: "", key: null, code: "other", params: {}, text: "nope", n: 2 });
     socket.say(errorOf("set_config: station/lat: 95 is out", "setting.range", { value: 95 }));
-    expect(daemon.lastError.value).toMatchObject({ cmd: "set_config", key: "station/lat", code: "setting.range", params: { value: 95 }, n: 3 });
+    expect(daemon.lastError.value).toMatchObject({
+      cmd: "set_config",
+      key: "station/lat",
+      code: "setting.range",
+      params: { value: 95 },
+      n: 3,
+    });
   });
 
   it("sends a command, and says so in the toast when it cannot", () => {
     const { daemon, socket } = setUp();
     expect(daemon.send({ cmd: "ping" })).toBe(false);
-    expect(daemon.lastError.value).toMatchObject({ cmd: "", key: null, code: "not_connected", text: "Not sent: there is no connection to NeoAPRS" });
+    expect(daemon.lastError.value).toMatchObject({
+      cmd: "",
+      key: null,
+      code: "not_connected",
+      text: "Not sent: there is no connection to NeoAPRS",
+    });
     socket.say(hello());
     expect(daemon.send({ cmd: "list_ports" })).toBe(true);
     expect(socket.sent).toEqual([{ cmd: "list_ports" }]);
@@ -327,7 +374,10 @@ describe("useDaemon", () => {
     const { daemon: second, socket: again } = setUp();
     again.say(hello(wrong));
     expect(reload).toHaveBeenCalledTimes(1);
-    expect(second.mismatch.value).toEqual({ page: `-/${PROTOCOL}`, neoaprs: `9.9.9, index-Daemon01.js/${PROTOCOL + 1}` });
+    expect(second.mismatch.value).toEqual({
+      page: `-/${PROTOCOL}`,
+      neoaprs: `9.9.9, index-Daemon01.js/${PROTOCOL + 1}`,
+    });
     expect(again.closed).toBe(true);
     expect(second.connection.value).toBe("closed");
     again.say({ type: "state", topic: "stations", rev: 0, value: { A: station("A") } });
@@ -349,7 +399,12 @@ describe("useDaemon", () => {
     const { daemon, socket } = setUp();
     expect(daemon.updateResult.value).toBeNull();
     socket.say({ type: "update_result", outcome: "current", version: "0.3.0", text: "" });
-    expect(daemon.updateResult.value).toEqual({ type: "update_result", outcome: "current", version: "0.3.0", text: "" });
+    expect(daemon.updateResult.value).toEqual({
+      type: "update_result",
+      outcome: "current",
+      version: "0.3.0",
+      text: "",
+    });
   });
 
   it("finds the socket beside the page", () => {

@@ -23,8 +23,14 @@ export const bulletins: Readonly<Record<keyof typeof en, Message>> = {
   "bulletins.post_label": "Pubblica un bollettino",
   "bulletins.kind": "Tipo",
   "bulletins.kind.bulletin": { one: "Bollettino (inviato per {n} ora)", other: "Bollettino (inviato per {n} ore)" },
-  "bulletins.kind.announcement": { one: "Annuncio (inviato per {n} giorno)", other: "Annuncio (inviato per {n} giorni)" },
-  "bulletins.kind.group": { one: "Bollettino di gruppo (a un gruppo, inviato per {n} ora)", other: "Bollettino di gruppo (a un gruppo, inviato per {n} ore)" },
+  "bulletins.kind.announcement": {
+    one: "Annuncio (inviato per {n} giorno)",
+    other: "Annuncio (inviato per {n} giorni)",
+  },
+  "bulletins.kind.group": {
+    one: "Bollettino di gruppo (a un gruppo, inviato per {n} ora)",
+    other: "Bollettino di gruppo (a un gruppo, inviato per {n} ore)",
+  },
   "bulletins.letter": "Lettera",
   "bulletins.number": "Numero",
   "bulletins.group": "Gruppo",
@@ -36,7 +42,8 @@ export const bulletins: Readonly<Record<keyof typeof en, Message>> = {
     "Un bollettino e un annuncio sono mostrati da ogni stazione che li ascolta. Un bollettino è per ciò che conta ora e viene inviato per {hours}; un annuncio è per ciò che resta vero e viene inviato per {days}.",
   "bulletins.tip.kind2":
     "Un bollettino di gruppo viene inviato per {hours}; ogni stazione lo mostra, a meno che il suo operatore non abbia scelto altri gruppi da mostrare.",
-  "bulletins.tip.id1": "Il numero dà il nome al messaggio, una lettera per un annuncio; un nuovo messaggio con lo stesso numero lo sostituisce.",
+  "bulletins.tip.id1":
+    "Il numero dà il nome al messaggio, una lettera per un annuncio; un nuovo messaggio con lo stesso numero lo sostituisce.",
   "bulletins.tip.id2": "Pubblicare di nuovo con lo stesso numero o la stessa lettera invia il nuovo testo dall’inizio.",
   "bulletins.tip.group1":
     "Il nome fa parte dell’indirizzo, come in BLN3HAMS, così ogni stazione ascolta il bollettino e lo mostra, a meno che il suo operatore non abbia scelto altri gruppi da mostrare.",

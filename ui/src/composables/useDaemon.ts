@@ -200,7 +200,15 @@ export function useDaemon(url: () => string = socketUrl) {
 
   function send(command: Parameters<Hub["send"]>[0]): boolean {
     const sent = hub.send(command);
-    if (!sent) store.error({ type: "error", cmd: "", key: null, code: "not_connected", params: {}, text: "Not sent: there is no connection to NeoAPRS" });
+    if (!sent)
+      store.error({
+        type: "error",
+        cmd: "",
+        key: null,
+        code: "not_connected",
+        params: {},
+        text: "Not sent: there is no connection to NeoAPRS",
+      });
     return sent;
   }
 

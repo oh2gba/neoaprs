@@ -26,7 +26,8 @@ export function isTrafficOf(row: PacketRow, call: string): boolean {
 }
 
 /** One packet whichever way it came (the log and the topic use different ids). */
-export const trafficKey = (row: PacketRow): string => `${row.heard_at} ${row.direction} ${row.radio_id ?? ""} ${row.tnc2}`;
+export const trafficKey = (row: PacketRow): string =>
+  `${row.heard_at} ${row.direction} ${row.radio_id ?? ""} ${row.tnc2}`;
 
 /**
  * The lines of the list: packets of both sources once each, newest first (arrival order for equal
@@ -48,7 +49,9 @@ export function mergeTraffic(live: Iterable<PacketRow>, logged: readonly PacketR
  */
 export function queryAsked(row: PacketRow, call: string): string | null {
   const d = ourMessageTo(row, call);
-  return d !== null && d.msg_id === null && d.ack_id === null && d.rej_id === null && d.text.startsWith("?") ? d.text.toUpperCase() : null;
+  return d !== null && d.msg_id === null && d.ack_id === null && d.rej_id === null && d.text.startsWith("?")
+    ? d.text.toUpperCase()
+    : null;
 }
 
 /** Whether `reply`, a packet the station sent, answers the query. */
@@ -71,12 +74,19 @@ export function queryState(row: PacketRow, call: string, rows: readonly PacketRo
   const query = queryAsked(row, call);
   if (query === null) return null;
   const sent = time(row);
-  if (rows.some((reply) => reply.direction === "in" && reply.sender === call && time(reply) > sent && answers(query, reply))) return "answered";
+  if (
+    rows.some(
+      (reply) => reply.direction === "in" && reply.sender === call && time(reply) > sent && answers(query, reply),
+    )
+  )
+    return "answered";
   return now - sent >= ANSWER_WAIT_MS ? "no_answer" : "waiting";
 }
 
 /** The earliest moment a waiting query times out; null if none waits. */
 export function nextDeadline(call: string, rows: readonly PacketRow[], now: number): number | null {
-  const due = rows.filter((row) => queryState(row, call, rows, now) === "waiting").map((row) => time(row) + ANSWER_WAIT_MS);
+  const due = rows
+    .filter((row) => queryState(row, call, rows, now) === "waiting")
+    .map((row) => time(row) + ANSWER_WAIT_MS);
   return due.length === 0 ? null : Math.min(...due);
 }

@@ -10,7 +10,15 @@ const emit = defineEmits<{ press: [] }>();
 </script>
 
 <template>
-  <button :id="id" class="btn" :class="{ danger: armed }" type="button" :disabled="disabled" :title="why" @click="emit('press')">
+  <button
+    :id="id"
+    class="btn"
+    :class="{ danger: armed }"
+    type="button"
+    :disabled="disabled"
+    :title="why"
+    @click="emit('press')"
+  >
     <TwoWords :second="armed"
       ><template #first>{{ label }}</template
       ><template #second>{{ t("beacon.really_send") }}</template></TwoWords

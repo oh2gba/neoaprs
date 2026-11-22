@@ -10,7 +10,12 @@ import { isGateway } from "@/lib/messages";
 import { addable } from "@/lib/recipients";
 import type { Command, MessageRow } from "@/protocol/protocol";
 
-export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel: Panel, send: (command: Command) => boolean, loaded?: Readonly<Ref<boolean>>) {
+export function useMessagesView(
+  messages: ReadonlyMap<string, MessageRow>,
+  panel: Panel,
+  send: (command: Command) => boolean,
+  loaded?: Readonly<Ref<boolean>>,
+) {
   const viewing = useViewing(panel, "messages");
   const showOverheard = usePersistedFlag("overheard", ["on", "off"], false);
   const talk = useConversations(messages, viewing, showOverheard, loaded);
@@ -26,7 +31,10 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
    * email gateway or a duplicate is dropped; with none left nothing opens.
    */
   function openGroup(calls: readonly string[]): void {
-    const list = calls.reduce<string[]>((kept, call) => (addable(call, kept) ? [...kept, normalizeCall(call)] : kept), []);
+    const list = calls.reduce<string[]>(
+      (kept, call) => (addable(call, kept) ? [...kept, normalizeCall(call)] : kept),
+      [],
+    );
     if (list.length === 0) return;
     talk.selected.value = null;
     group.value = list;
@@ -56,11 +64,13 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
   }
 
   function deleteOverheard(from: string, to: string): void {
-    if (send({ cmd: "overheard_delete", from_call: from, to_call: to }) && talk.selected.value === `${from}>${to}`) talk.selected.value = null;
+    if (send({ cmd: "overheard_delete", from_call: from, to_call: to }) && talk.selected.value === `${from}>${to}`)
+      talk.selected.value = null;
   }
 
   function sendMessage(to: string, text: string, locked = false): void {
-    if (send(locked ? { cmd: "send_message", to, text, locked: true } : { cmd: "send_message", to, text })) talk.selected.value = to;
+    if (send(locked ? { cmd: "send_message", to, text, locked: true } : { cmd: "send_message", to, text }))
+      talk.selected.value = to;
   }
 
   /** Send the same text to several stations, one message each, and close the group compose. */
@@ -68,5 +78,16 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
     for (const call of to) send({ cmd: "send_message", to: call, text });
   }
 
-  return { ...talk, group, openGroup, showOverheard, writeTo, openMessages, deleteConversation, deleteOverheard, sendMessage, sendMessages };
+  return {
+    ...talk,
+    group,
+    openGroup,
+    showOverheard,
+    writeTo,
+    openMessages,
+    deleteConversation,
+    deleteOverheard,
+    sendMessage,
+    sendMessages,
+  };
 }

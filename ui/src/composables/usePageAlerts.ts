@@ -5,7 +5,11 @@ import { computed, watch, type Ref } from "vue";
 import { scan } from "@/lib/pagealert";
 import type { MessageRow } from "@/protocol/protocol";
 
-export function usePageAlerts(messages: ReadonlyMap<string, MessageRow>, loaded: Ref<boolean>, announce: (fresh: MessageRow[]) => void): void {
+export function usePageAlerts(
+  messages: ReadonlyMap<string, MessageRow>,
+  loaded: Ref<boolean>,
+  announce: (fresh: MessageRow[]) => void,
+): void {
   let mark: number | null = null;
   const rows = computed(() => (loaded.value ? [...messages.values()] : null));
   watch(

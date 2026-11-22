@@ -38,9 +38,16 @@ export function useLayout(panel: Panel, guideOpen: Readonly<Ref<boolean>>, picki
   );
   // A window that changes between phone and the others forgets the tab to return to.
   watch(phone, () => (returnToTab = false));
-  watch([phone, showing], ([isPhone, now]) => (panel.phoneShowsPanel.value = isPhone ? now === "panel" : null), { immediate: true, flush: "sync" });
+  watch([phone, showing], ([isPhone, now]) => (panel.phoneShowsPanel.value = isPhone ? now === "panel" : null), {
+    immediate: true,
+    flush: "sync",
+  });
 
-  const rootClass = computed(() => [`size-${size.value}`, phone.value ? `view-${showing.value}` : "", guideOpen.value ? "guide-open" : ""]);
+  const rootClass = computed(() => [
+    `size-${size.value}`,
+    phone.value ? `view-${showing.value}` : "",
+    guideOpen.value ? "guide-open" : "",
+  ]);
 
   return { size, phone, view, showing, capacity, rootClass, showMap: () => (view.value = "map") };
 }

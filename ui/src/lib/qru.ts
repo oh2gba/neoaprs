@@ -65,12 +65,18 @@ export interface QruLook {
  * time, waiting while the minute runs, then how many servers answered or none; null before a
  * request.
  */
-export function qruLook(asked: QruAsked | null, servers: readonly QruServer[], refusal: string, nowMs: number): QruLook | null {
+export function qruLook(
+  asked: QruAsked | null,
+  servers: readonly QruServer[],
+  refusal: string,
+  nowMs: number,
+): QruLook | null {
   if (refusal !== "") return { state: t("objects.qru_refused"), tone: "tnc-waiting", line: refusal };
   if (asked === null) return null;
   const time = hourMinuteText(asked.at);
   const state = t("objects.qru_state");
-  if (askWait(asked, nowMs, asked.text) > 0) return { state, tone: "tnc-waiting", line: t("objects.qru_waiting", { time }) };
+  if (askWait(asked, nowMs, asked.text) > 0)
+    return { state, tone: "tnc-waiting", line: t("objects.qru_waiting", { time }) };
   const n = answeredSince(asked, servers);
   return n > 0
     ? { state, tone: "tnc-connected", line: t("objects.qru_answered", { time, n }) }
@@ -103,8 +109,13 @@ export interface QruSentLine {
  */
 export function sentLine(server: QruServer, nowMs: number): QruSentLine | null {
   const arrived = server.received.length;
-  if (server.sent_objects === null) return arrived > 0 ? { text: t("objects.qru_got", { arrived }), warn: false, again: null } : null;
+  if (server.sent_objects === null)
+    return arrived > 0 ? { text: t("objects.qru_got", { arrived }), warn: false, again: null } : null;
   const settled = server.settles_at !== null && Date.parse(server.settles_at) <= nowMs;
   const warn = settled && arrived < server.sent_objects;
-  return { text: t("objects.qru_arrived", { sent: server.sent_objects, arrived }), warn, again: warn && server.request !== "" ? server.request : null };
+  return {
+    text: t("objects.qru_arrived", { sent: server.sent_objects, arrived }),
+    warn,
+    again: warn && server.request !== "" ? server.request : null,
+  };
 }

@@ -11,7 +11,8 @@ export const MODE_KEY = "alert.mode";
 const MODES: readonly AlertMode[] = ["off", "sound", "both", "popup"];
 
 /** The choice that has these parts: Alert is ticked, so neither part is the sound. */
-export const modeOf = (sound: boolean, popup: boolean): AlertMode => (sound && popup ? "both" : popup ? "popup" : "sound");
+export const modeOf = (sound: boolean, popup: boolean): AlertMode =>
+  sound && popup ? "both" : popup ? "popup" : "sound";
 
 export const wantsSound = (mode: AlertMode): boolean => mode === "sound" || mode === "both";
 export const wantsPopup = (mode: AlertMode): boolean => mode === "both" || mode === "popup";
@@ -20,7 +21,8 @@ export const wantsPopup = (mode: AlertMode): boolean => mode === "both" || mode 
  * The choice without its notification, for a page that cannot show one: sound and notification
  * becomes sound, notification only becomes off.
  */
-export const withoutPopup = (mode: AlertMode): AlertMode => (wantsPopup(mode) ? (wantsSound(mode) ? "sound" : "off") : mode);
+export const withoutPopup = (mode: AlertMode): AlertMode =>
+  wantsPopup(mode) ? (wantsSound(mode) ? "sound" : "off") : mode;
 
 /**
  * Why this browser cannot show a notification, else undefined: `possible` is a secure context with

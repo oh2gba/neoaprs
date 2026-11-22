@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { bytesText } from "@/lib/format";
-import { blockedText, currentEstimate, downloadedLine, filesKey, isRunning, problemText, progressText, setupMapLine } from "@/lib/mapfetch";
+import {
+  blockedText,
+  currentEstimate,
+  downloadedLine,
+  filesKey,
+  isRunning,
+  problemText,
+  progressText,
+  setupMapLine,
+} from "@/lib/mapfetch";
 import type { MapState } from "@/protocol/protocol";
 import { mapFile, mapState } from "@/test/fixtures";
 
@@ -18,14 +27,22 @@ describe("bytesText", () => {
     ]);
   });
   it("chooses the unit after rounding", () => {
-    expect([999_600, 999_999, 9_960, 1_048_575, 1_048_000].map(bytesText)).toEqual(["1.0 MB", "1.0 MB", "10 kB", "1.0 MB", "1.0 MB"]);
+    expect([999_600, 999_999, 9_960, 1_048_575, 1_048_000].map(bytesText)).toEqual([
+      "1.0 MB",
+      "1.0 MB",
+      "10 kB",
+      "1.0 MB",
+      "1.0 MB",
+    ]);
   });
 });
 
 describe("downloadedLine", () => {
   it("is one plain line with the day of the detailed map, and nothing without one (the world map ships with NeoAPRS)", () => {
     expect(downloadedLine(mapState({ detail: mapFile() }))).toBe("Map downloaded 22 Oct");
-    expect(downloadedLine(mapState({ detail: mapFile({ modified: "2026-01-03T00:00:00Z" }) }))).toBe("Map downloaded 3 Jan");
+    expect(downloadedLine(mapState({ detail: mapFile({ modified: "2026-01-03T00:00:00Z" }) }))).toBe(
+      "Map downloaded 3 Jan",
+    );
     expect(downloadedLine(mapState({ detail: mapFile({ modified: "" }) }))).toBe("Map downloaded");
     expect(downloadedLine(mapState({ world: mapFile({ max_zoom: 5 }) }))).toBe("");
     expect(downloadedLine(mapState())).toBe("");
@@ -33,7 +50,14 @@ describe("downloadedLine", () => {
 });
 
 describe("currentEstimate", () => {
-  const estimate = { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" };
+  const estimate = {
+    bytes: 493_000_000,
+    tiles: 41233,
+    radius_km: 150,
+    maxzoom: 12,
+    box: [22.1, 58.8, 27.8, 61.5],
+    build: "20261022",
+  };
 
   it("is the estimate while the settings are the ones it was made for", () => {
     expect(currentEstimate(mapState({ estimate }))).toEqual(estimate);
@@ -48,7 +72,11 @@ describe("currentEstimate", () => {
 
 describe("the job", () => {
   it("is running while it estimates or downloads", () => {
-    expect(["none", "ready", "error"].map((state) => isRunning(mapState({ state: state as "none" })))).toEqual([false, false, false]);
+    expect(["none", "ready", "error"].map((state) => isRunning(mapState({ state: state as "none" })))).toEqual([
+      false,
+      false,
+      false,
+    ]);
     expect(isRunning(mapState({ state: "estimating" }))).toBe(true);
     expect(isRunning(mapState({ state: "downloading" }))).toBe(true);
   });
@@ -56,17 +84,25 @@ describe("the job", () => {
   it("says what it is doing, with the percent when there is one", () => {
     expect(progressText(mapState({ state: "downloading", step: "world", percent: 42 }))).toBe("World map 42%");
     expect(progressText(mapState({ state: "downloading", step: "area", percent: 0 }))).toBe("Map of the area 0%");
-    expect(progressText(mapState({ state: "estimating", step: "build", percent: null }))).toBe("Finding the latest build");
+    expect(progressText(mapState({ state: "estimating", step: "build", percent: null }))).toBe(
+      "Finding the latest build",
+    );
     expect(progressText(mapState({ state: "estimating", step: "", percent: null }))).toBe("Estimating");
   });
 
   it("shows the size downloaded so far next to the percent, and says when it is trying again", () => {
-    expect(progressText(mapState({ state: "downloading", step: "area", percent: 49, downloaded: 340_000_000 }))).toBe("Map of the area 49% · 340 MB");
-    expect(progressText(mapState({ state: "downloading", step: "area", percent: 0, downloaded: 0 }))).toBe("Map of the area 0%");
-    expect(progressText(mapState({ state: "downloading", step: "world", percent: null, downloaded: 12_300_000 }))).toBe("World map · 12 MB");
-    expect(progressText(mapState({ state: "downloading", step: "area", percent: null, retry: { attempt: 2, tries: 3 } }))).toBe(
-      "Map of the area · no progress: trying again (2 of 3)",
+    expect(progressText(mapState({ state: "downloading", step: "area", percent: 49, downloaded: 340_000_000 }))).toBe(
+      "Map of the area 49% · 340 MB",
     );
+    expect(progressText(mapState({ state: "downloading", step: "area", percent: 0, downloaded: 0 }))).toBe(
+      "Map of the area 0%",
+    );
+    expect(progressText(mapState({ state: "downloading", step: "world", percent: null, downloaded: 12_300_000 }))).toBe(
+      "World map · 12 MB",
+    );
+    expect(
+      progressText(mapState({ state: "downloading", step: "area", percent: null, retry: { attempt: 2, tries: 3 } })),
+    ).toBe("Map of the area · no progress: trying again (2 of 3)");
   });
 });
 
@@ -80,7 +116,10 @@ describe("the problem and the block", () => {
   });
 
   it("do not throw on what a daemon of another build sends (an English sentence, a code the page does not know)", () => {
-    const other = mapState({ blocked: "a map job is running" as MapState["blocked"], problem: "the map could not be made" as unknown as MapState["problem"] });
+    const other = mapState({
+      blocked: "a map job is running" as MapState["blocked"],
+      problem: "the map could not be made" as unknown as MapState["problem"],
+    });
     expect(blockedText(other)).toBe("");
     expect(problemText(other)).toBe("the map could not be made; the log says why");
   });
@@ -104,7 +143,9 @@ describe("setupMapLine", () => {
   });
 
   it("says the detailed map will come when online, when the daemon could not fetch it yet (and no job runs)", () => {
-    expect(setupMapLine(mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } }, later: true }))).toBe("setup.map_later");
+    expect(
+      setupMapLine(mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } }, later: true })),
+    ).toBe("setup.map_later");
     expect(setupMapLine(mapState({ state: "downloading", later: true }))).toBe("setup.map_auto");
   });
 

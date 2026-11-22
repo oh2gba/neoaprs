@@ -12,7 +12,13 @@ import { stubWidth } from "@/test/width";
 
 const me = station("OH2GBA", { is_me: true, distance_km: null, bearing_deg: null, last_heard: ago(900), heard_rf: 0 });
 const rf = station("OH2RF", { last_heard: ago(30), heard_rf: 4 });
-const gated = station("OH2GATED", { last_heard: ago(60), heard_rf: 0, heard_rf_gated: 2, last_rf_at: null, last_rf_gated_at: ago(60) });
+const gated = station("OH2GATED", {
+  last_heard: ago(60),
+  heard_rf: 0,
+  heard_rf_gated: 2,
+  last_rf_at: null,
+  last_rf_gated_at: ago(60),
+});
 const net = station("OH2NET", {
   last_heard: ago(90),
   heard_rf: 0,
@@ -23,15 +29,29 @@ const net = station("OH2NET", {
   last_route: "",
   can_message: false,
 });
-const both = station("OH2BOTH", { last_heard: ago(20), heard_rf: 2, heard_is: 1, last_is_at: ago(20), last_rf_at: ago(100) });
+const both = station("OH2BOTH", {
+  last_heard: ago(20),
+  heard_rf: 2,
+  heard_is: 1,
+  last_is_at: ago(20),
+  last_rf_at: ago(100),
+});
 const hfOnly = station("OH2HF", { last_heard: ago(40), heard_rf: 2, heard: heardBy([2, 2, ago(40)]) });
-const fmAndHf = station("OH2FMHF", { last_heard: ago(10), heard_rf: 5, heard: heardBy([1, 3, ago(200)], [2, 2, ago(10)]) });
+const fmAndHf = station("OH2FMHF", {
+  last_heard: ago(10),
+  heard_rf: 5,
+  heard: heardBy([1, 3, ago(200)], [2, 2, ago(10)]),
+});
 const object = station("LEADER", { kind: "object", own: true, last_heard: ago(200), heard_rf: 0 });
 
 /** The station of the tests: the FM radio (radio 1) on, the HF radio (radio 2) off. */
-const TODAY = () => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
+const TODAY = () =>
+  radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
 const make = (...rows: ReturnType<typeof station>[]) =>
-  mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations: table(...rows), radios: TODAY() })) });
+  mount(StationsTable, {
+    props: { selected: null },
+    global: withDaemon(fakeDaemon({ stations: table(...rows), radios: TODAY() })),
+  });
 const labels = (wrapper: ReturnType<typeof make>): [string, string][] =>
   wrapper.findAll("tbody tr[data-call]").map((tr): [string, string] => [
     tr.find(".callname").text(),
@@ -93,7 +113,10 @@ describe("how a station was heard, in the Stations table", () => {
       const cells = tr.findAll("td").map((td) => td.classes()[0]);
       expect(cells.slice(0, 3)).toEqual(["symbol", "mono", "heard"]);
       // The bell of an alert has its place, empty or not.
-      expect([...tr.get("td.call").element.children].map((c) => c.className.split(" ")[0])).toEqual(["callname", "alert-bell"]);
+      expect([...tr.get("td.call").element.children].map((c) => c.className.split(" ")[0])).toEqual([
+        "callname",
+        "alert-bell",
+      ]);
       expect(
         tr
           .get("td.heard .via")
@@ -148,7 +171,9 @@ describe("the tickbox heard on RF only", () => {
   });
 
   it("has a title that says what it leaves out", () => {
-    expect(make(net).find("label[title]").attributes("title")).toBe("Leave out the stations known only from the internet");
+    expect(make(net).find("label[title]").attributes("title")).toBe(
+      "Leave out the stations known only from the internet",
+    );
   });
 });
 
@@ -188,14 +213,21 @@ describe("how a station was heard, with several radios", () => {
     ]);
     const both = mount(StationsTable, {
       props: { selected: null },
-      global: withDaemon(fakeDaemon({ stations: table(rf, hfOnly, fmAndHf), radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) })),
+      global: withDaemon(
+        fakeDaemon({
+          stations: table(rf, hfOnly, fmAndHf),
+          radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")),
+        }),
+      ),
     });
     expect(labels(both)).toEqual([
       ["OH2FMHF", "FM · Mercury"],
       ["OH2RF", "FM"],
       ["OH2HF", "Mercury"],
     ]);
-    expect(both.findAll("tr[data-call='OH2FMHF'] .via").map((tag) => [tag.attributes("title"), tag.classes()[1]])).toEqual([
+    expect(
+      both.findAll("tr[data-call='OH2FMHF'] .via").map((tag) => [tag.attributes("title"), tag.classes()[1]]),
+    ).toEqual([
       ["Heard on radio FM", "tag-neutral"],
       ["Heard on radio Mercury", "tag-hf"],
     ]);
@@ -224,7 +256,8 @@ describe("how a station was heard, with several radios", () => {
       heard_rf: 12,
       heard: Object.fromEntries(eight.map((row, i) => [String(row.id), { count: 2, last_at: ago(60 * (i + 1)) }])),
     });
-    const shown = (wrapper: ReturnType<typeof withRadios>) => wrapper.findAll("tr[data-call='OH2ALL'] .via").map((tag) => seen(tag));
+    const shown = (wrapper: ReturnType<typeof withRadios>) =>
+      wrapper.findAll("tr[data-call='OH2ALL'] .via").map((tag) => seen(tag));
 
     it("shows at six radios and names of eight letters one radio and +n in a table as narrow as a phone's (375 px), so that the row stays in the width", async () => {
       width = stubWidth(375);
@@ -251,7 +284,10 @@ describe("how a station was heard, with several radios", () => {
 
     it("shows one radio and +n at 375 px for a station that more radios heard than two, also with one radio on (the others off or removed)", async () => {
       width = stubWidth(375);
-      const three = station("OH2THREE", { heard_rf: 6, heard: heardBy([1, 2, ago(30)], [2, 2, ago(60)], [3, 2, ago(90)]) });
+      const three = station("OH2THREE", {
+        heard_rf: 6,
+        heard: heardBy([1, 2, ago(30)], [2, 2, ago(60)], [3, 2, ago(90)]),
+      });
       const wrapper = withRadios(
         [
           radioRow(1, "kenwood-tnc2"),
@@ -308,8 +344,12 @@ describe("how a station was heard, with several radios", () => {
     expect(alone.map((tag) => [tag.text(), tag.classes()[1], tag.attributes("title")])).toEqual([
       ["Dummy", "tag-dummy", "Made up by the Dummy radio, which is no real radio"],
     ]);
-    const beside = withRadios([radioRow(1, "kenwood-tnc2"), radioRow(2, "dummy-hf")], made).findAll("tr[data-call='OH2DUM'] .via");
-    expect(beside.map((tag) => [tag.text(), tag.classes()[1], tag.attributes("title")])).toEqual([["Mercury", "tag-dummy", "Heard on radio Mercury"]]);
+    const beside = withRadios([radioRow(1, "kenwood-tnc2"), radioRow(2, "dummy-hf")], made).findAll(
+      "tr[data-call='OH2DUM'] .via",
+    );
+    expect(beside.map((tag) => [tag.text(), tag.classes()[1], tag.attributes("title")])).toEqual([
+      ["Mercury", "tag-dummy", "Heard on radio Mercury"],
+    ]);
   });
 
   it("gives a radio the page does not know yet (the instant before the topic tells it) no tag: no word that names no radio", () => {
@@ -321,7 +361,9 @@ describe("how a station was heard, with several radios", () => {
     const removed = [SIX[0], SIX[1], { ...SIX[2], removed: true, enabled: false, state: "stopped" as const }];
     const old = station("OH2OLD", { heard_rf: 3, heard: { "3": { count: 3, last_at: ago(120) } } });
     const tags = withRadios(removed, old).findAll("tr[data-call='OH2OLD'] .via");
-    expect(tags.map((tag) => [tag.text(), tag.classes()[1], tag.attributes("title")])).toEqual([["Shack", "tag-removed", "Heard on radio Shack"]]);
+    expect(tags.map((tag) => [tag.text(), tag.classes()[1], tag.attributes("title")])).toEqual([
+      ["Shack", "tag-removed", "Heard on radio Shack"],
+    ]);
   });
 });
 
@@ -329,9 +371,14 @@ describe("how a station was heard, with one radio", () => {
   const one =
     (...rows: RadioRow[]) =>
     (...stations: StationRow[]) =>
-      mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations: table(...stations), radios: radiosTopic(...rows) })) });
+      mount(StationsTable, {
+        props: { selected: null },
+        global: withDaemon(fakeDaemon({ stations: table(...stations), radios: radiosTopic(...rows) })),
+      });
   const tags = (wrapper: ReturnType<ReturnType<typeof one>>, call: string) =>
-    wrapper.findAll(`tr[data-call='${call}'] .via`).map((tag) => [tag.text(), tag.classes()[1], tag.attributes("title")]);
+    wrapper
+      .findAll(`tr[data-call='${call}'] .via`)
+      .map((tag) => [tag.text(), tag.classes()[1], tag.attributes("title")]);
   const iGate = ["iGate", "tag-neutral", "Heard on the radio from an iGate, which took it from the internet"];
   const internet = ["Internet", "tag-info", "Received over the internet (APRS-IS), not on the radio"];
 
@@ -344,7 +391,9 @@ describe("how a station was heard, with one radio", () => {
   });
 
   it("names a radio by the name the operator gave it", () => {
-    expect(tags(one(radioRow(1, "kenwood-tnc2", { name: "2 m" }))(rf), "OH2RF")).toEqual([["2 m", "tag-neutral", "Heard on radio 2 m"]]);
+    expect(tags(one(radioRow(1, "kenwood-tnc2", { name: "2 m" }))(rf), "OH2RF")).toEqual([
+      ["2 m", "tag-neutral", "Heard on radio 2 m"],
+    ]);
   });
 
   it("names an HF radio alone Mercury in its own tone, and a LoRa radio alone LoRa in its sage", () => {
@@ -354,7 +403,10 @@ describe("how a station was heard, with one radio", () => {
 
   it("keeps a removed radio's name, dimmed, beside the one radio's", () => {
     const old = station("OH2OLD", { heard_rf: 5, heard: heardBy([1, 2, ago(30)], [3, 3, ago(120)]) });
-    const wrapper = one(radioRow(1, "kenwood-tnc2"), radioRow(3, "kiss", { name: "Shack", number: 2, removed: true, enabled: false, state: "stopped" }))(old);
+    const wrapper = one(
+      radioRow(1, "kenwood-tnc2"),
+      radioRow(3, "kiss", { name: "Shack", number: 2, removed: true, enabled: false, state: "stopped" }),
+    )(old);
     expect(tags(wrapper, "OH2OLD")).toEqual([
       ["FM", "tag-neutral", "Heard on radio FM"],
       ["Shack", "tag-removed", "Heard on radio Shack"],

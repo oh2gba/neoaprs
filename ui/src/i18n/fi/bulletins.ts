@@ -35,7 +35,8 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.tip.days": { one: "{n} päivän", other: "{n} päivän" },
   "bulletins.tip.kind1":
     "Tiedote ja ilmoitus näkyvät jokaisella asemalla, joka ne kuulee. Tiedote on sille, mikä on tärkeää nyt, ja sitä lähetetään {hours} ajan; ilmoitus on sille, mikä pysyy totena, ja sitä lähetetään {days} ajan.",
-  "bulletins.tip.kind2": "Ryhmätiedotetta lähetetään {hours} ajan; jokainen asema näyttää sen, ellei sen käyttäjä ole valinnut näytettäväksi muita ryhmiä.",
+  "bulletins.tip.kind2":
+    "Ryhmätiedotetta lähetetään {hours} ajan; jokainen asema näyttää sen, ellei sen käyttäjä ole valinnut näytettäväksi muita ryhmiä.",
   "bulletins.tip.id1": "Numero nimeää julkaisun, ilmoituksella kirjain; sen alle tehty uusi julkaisu korvaa sen.",
   "bulletins.tip.id2": "Uusi julkaisu samalla numerolla tai kirjaimella lähettää uuden tekstin alusta.",
   "bulletins.tip.group1":

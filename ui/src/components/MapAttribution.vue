@@ -9,7 +9,10 @@ import { t } from "@/i18n";
 import { ATTRIBUTION } from "@/lib/basemapstyle";
 import { CREDITS, type ServiceName } from "@/lib/layers/sources";
 
-withDefaults(defineProps<{ credits?: readonly ServiceName[]; aircraft?: boolean }>(), { credits: () => [], aircraft: false });
+withDefaults(defineProps<{ credits?: readonly ServiceName[]; aircraft?: boolean }>(), {
+  credits: () => [],
+  aircraft: false,
+});
 
 const open = ref(false);
 </script>
@@ -28,7 +31,13 @@ const open = ref(false);
         </template>
       </p>
     </div>
-    <button class="attrib-toggle" type="button" :aria-expanded="open" :aria-label="open ? t('map.credits.hide') : t('map.credits.show')" @click="open = !open">
+    <button
+      class="attrib-toggle"
+      type="button"
+      :aria-expanded="open"
+      :aria-label="open ? t('map.credits.hide') : t('map.credits.show')"
+      @click="open = !open"
+    >
       i
     </button>
   </div>

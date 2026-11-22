@@ -5,20 +5,38 @@ import type { Message } from "@/i18n/message";
 export const objects: Record<keyof typeof source, Message> = {
   "schedule.sent": { "=0": "ei vielä lähetetty", "=1": "lähetetty kerran", other: "lähetetty {n} kertaa" },
   "schedule.ended": { "=1": "lähetetty kerran, päättynyt", other: "lähetetty {n} kertaa, päättynyt" },
-  "schedule.next": { "=0": "ei vielä lähetetty, seuraava {when}", "=1": "lähetetty kerran, seuraava {when}", other: "lähetetty {n} kertaa, seuraava {when}" },
-  "schedule.waiting": { "=0": "ei vielä lähetetty, odottaa", "=1": "lähetetty kerran, odottaa", other: "lähetetty {n} kertaa, odottaa" },
-  "schedule.killing": { "=0": "poistetaan, ei vielä lähetetty", "=1": "poistetaan, lähetetty kerran", other: "poistetaan, lähetetty {n} kertaa" },
+  "schedule.next": {
+    "=0": "ei vielä lähetetty, seuraava {when}",
+    "=1": "lähetetty kerran, seuraava {when}",
+    other: "lähetetty {n} kertaa, seuraava {when}",
+  },
+  "schedule.waiting": {
+    "=0": "ei vielä lähetetty, odottaa",
+    "=1": "lähetetty kerran, odottaa",
+    other: "lähetetty {n} kertaa, odottaa",
+  },
+  "schedule.killing": {
+    "=0": "poistetaan, ei vielä lähetetty",
+    "=1": "poistetaan, lähetetty kerran",
+    other: "poistetaan, lähetetty {n} kertaa",
+  },
   "schedule.on_request": "lähetetään vain pyydettäessä",
 
   "objects.none": "Ei kohteita.",
   "objects.list": "Kohteet",
   "objects.mine": "Omat kohteeni",
   "objects.about_label": "Tietoa kohteista",
-  "objects.about1": "Kohde on kartalle asetettava merkki jostakin, mikä ei ole asema: toistin, kokoontumispaikka, tapahtuma.",
+  "objects.about1":
+    "Kohde on kartalle asetettava merkki jostakin, mikä ei ole asema: toistin, kokoontumispaikka, tapahtuma.",
   "objects.about2": "Kaikki lähelläsi näkevät sen, niin kauan kuin lähetät sitä.",
   "objects.edit_label": "Muokkaa: {name}",
   "objects.delete_title": "Poista (poista ilmasta)",
-  "objects.delete_label": { select: "kind", object: "Poista kohde {name}", item: "Poista APRS-item {name}", other: "Poista kohde {name}" },
+  "objects.delete_label": {
+    select: "kind",
+    object: "Poista kohde {name}",
+    item: "Poista APRS-item {name}",
+    other: "Poista kohde {name}",
+  },
   "objects.kind_word": { select: "kind", object: "kohde", item: "APRS-item", other: "kohde" },
   "objects.in_group": "Luokka: {group}",
   "objects.category.rp2m": "2 m toistin",
@@ -54,7 +72,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.category.other": "Muu…",
   "objects.qru": "Paikallistieto",
   "objects.qru_tip_label": "Tietoa paikallistiedosta",
-  "objects.qru_tip": "Kysyy lähellä olevilta asemilta niiden kohteita (APRS QRU): toistimia, tapahtumia, paikkoja. Lähetetään vain radiolla.",
+  "objects.qru_tip":
+    "Kysyy lähellä olevilta asemilta niiden kohteita (APRS QRU): toistimia, tapahtumia, paikkoja. Lähetetään vain radiolla.",
   "objects.qru_ask": "Kysy",
   "objects.qru_km": "km",
   "objects.qru_km_label": "Etäisyys km",
@@ -96,7 +115,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.speed": "Kuinka nopeasti kohde liikkuu, km/h. Jätä molemmat tyhjiksi paikallaan pysyvälle kohteelle.",
   "objects.tip.path": "Digipeaterit, joita sen paketit pyytävät. Tyhjä käyttää majakkasi polkua.",
   "objects.tip.category": "Anna kohteelle luokka, jotta se tarjotaan paikallistietoa kysyville asemille.",
-  "objects.tip.category_code": "Oma luokkasi: enintään {max} kirjainta tai numeroa, ei INFO tai NEXT. Asemat kysyvät sitä tällä sanalla.",
+  "objects.tip.category_code":
+    "Oma luokkasi: enintään {max} kirjainta tai numeroa, ei INFO tai NEXT. Asemat kysyvät sitä tällä sanalla.",
   "objects.tip.on_request": "Ei majakkana; lähetetään vain asemalle, joka kysyy paikallistietoa.",
   "objects.sent_on": "Lähtee radiolla {name}",
 

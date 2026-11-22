@@ -14,7 +14,17 @@ describe("WeatherPanel", () => {
     const wrapper = make();
     expect(wrapper.find(".wx-temp").text()).toBe("10.0 °C");
     const text = wrapper.find(".wx-now").text();
-    for (const wanted of ["2 km/h", "from 107° ESE", "gusts 2 km/h", "85 %", "1028.4 hPa", "0.3 mm", "4.1 mm", "3.3 mm", "10 min ago"])
+    for (const wanted of [
+      "2 km/h",
+      "from 107° ESE",
+      "gusts 2 km/h",
+      "85 %",
+      "1028.4 hPa",
+      "0.3 mm",
+      "4.1 mm",
+      "3.3 mm",
+      "10 min ago",
+    ])
       expect(text, wanted).toContain(wanted);
     expect(text).not.toContain("W/m²");
     expect(text).not.toContain("Snow");

@@ -11,7 +11,11 @@ import type { BulletinRow } from "@/protocol/protocol";
 
 const KEY = "bulletinsseen";
 
-export function useBulletins(bulletins: ReadonlyMap<string, BulletinRow>, panel: Panel, loaded?: Readonly<Ref<boolean>>) {
+export function useBulletins(
+  bulletins: ReadonlyMap<string, BulletinRow>,
+  panel: Panel,
+  loaded?: Readonly<Ref<boolean>>,
+) {
   const viewing = useViewing(panel, "bulletins");
   const seenUpTo = ref(readStoredNumber(KEY, 0, 0, Number.MAX_SAFE_INTEGER));
   const fresh = computed(() => newCount(bulletins.values(), seenUpTo.value));

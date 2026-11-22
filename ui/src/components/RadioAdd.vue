@@ -43,7 +43,9 @@ function add(): void {
     @choose="chosen = $event"
   >
     <template #after>
-      <button :id="`${props.id}-button`" class="btn" type="button" :disabled="chosen === ''" @click="add">{{ t("radio.add_button") }}</button>
+      <button :id="`${props.id}-button`" class="btn" type="button" :disabled="chosen === ''" @click="add">
+        {{ t("radio.add_button") }}
+      </button>
     </template>
   </SettingsField>
 </template>

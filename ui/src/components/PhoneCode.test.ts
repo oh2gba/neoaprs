@@ -45,7 +45,8 @@ describe("PhoneCode", () => {
   });
 
   it("is a square of 196 px in the style sheet, dark on white in both themes", () => {
-    const rule = (selector: string) => css.match(new RegExp(`\\n${selector.replace(".", "\\.")} \\{([^}]*)\\}`))?.[1] ?? "";
+    const rule = (selector: string) =>
+      css.match(new RegExp(`\\n${selector.replace(".", "\\.")} \\{([^}]*)\\}`))?.[1] ?? "";
     expect(rule(".phonecode")).toMatch(/flex: 0 1 196px;[\s\S]*max-width: 196px;[\s\S]*aspect-ratio: 1;/);
     expect(rule(".phonecode-field")).toContain("fill: var(--code-field);");
     expect(rule(".phonecode-dark")).toContain("fill: var(--code-dark);");

@@ -7,7 +7,8 @@ export const layersettings: Readonly<Record<keyof typeof en, Message>> = {
   "layers.settings.aircraft_tip1": "Da dove vengono gli aerei: un servizio su internet o un ricevitore tuo.",
   "layers.settings.aircraft_tip2": "Gli aerei compaiono sulla mappa quando Aerei è spuntato nel riquadro Livelli.",
   "layers.settings.ships_tip_label": "Informazioni sulle navi",
-  "layers.settings.ships_tip1": "Fintraffic copre le acque della Finlandia ed è nell’elenco solo dove la tua mappa le raggiunge. Oppure usa un ricevitore tuo.",
+  "layers.settings.ships_tip1":
+    "Fintraffic copre le acque della Finlandia ed è nell’elenco solo dove la tua mappa le raggiunge. Oppure usa un ricevitore tuo.",
   "layers.settings.ships_tip2": "Le navi compaiono sulla mappa quando Navi è spuntato nel riquadro Livelli.",
   "layers.receiver.own": "Il mio ricevitore",
   "layers.receiver.address": "Indirizzo del ricevitore",
@@ -25,8 +26,14 @@ export const layersettings: Readonly<Record<keyof typeof en, Message>> = {
   "layers.receiver.state.no_answer": "nessuna risposta",
   "layers.receiver.line.looking": "Ricerca del ricevitore",
   "layers.receiver.line.no_answer": "Nessuna risposta dal ricevitore",
-  "layers.receiver.line.aircraft": { one: "In ricezione: {n} aereo, {span} fa", other: "In ricezione: {n} aerei, {span} fa" },
+  "layers.receiver.line.aircraft": {
+    one: "In ricezione: {n} aereo, {span} fa",
+    other: "In ricezione: {n} aerei, {span} fa",
+  },
   "layers.receiver.line.aircraft_none": "In ricezione, ancora nessun aereo",
-  "layers.receiver.line.ships": { one: "In ricezione: {n} nave, {span} fa", other: "In ricezione: {n} navi, {span} fa" },
+  "layers.receiver.line.ships": {
+    one: "In ricezione: {n} nave, {span} fa",
+    other: "In ricezione: {n} navi, {span} fa",
+  },
   "layers.receiver.line.ships_none": "Connesso, ancora nessuna nave ricevuta",
 };

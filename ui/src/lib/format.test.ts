@@ -133,9 +133,15 @@ describe("times", () => {
 
 describe("processText", () => {
   it("says in a sentence the share of a core, the memory and the time up, in the units of the page", () => {
-    expect(processText(0.3, 42.4, 3 * 3600 + 120)).toBe("NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h");
-    expect(processText(12, 100.6, 45)).toBe("NeoAPRS uses 12.0 % of one processor core and 101 MB of memory, running for 45 s");
-    expect(processText(1.25, 9, 3 * 86400)).toBe("NeoAPRS uses 1.3 % of one processor core and 9 MB of memory, running for 3 d");
+    expect(processText(0.3, 42.4, 3 * 3600 + 120)).toBe(
+      "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h",
+    );
+    expect(processText(12, 100.6, 45)).toBe(
+      "NeoAPRS uses 12.0 % of one processor core and 101 MB of memory, running for 45 s",
+    );
+    expect(processText(1.25, 9, 3 * 86400)).toBe(
+      "NeoAPRS uses 1.3 % of one processor core and 9 MB of memory, running for 3 d",
+    );
   });
   it("does not count a negative time up", () => {
     expect(processText(0, 9, -5)).toBe("NeoAPRS uses 0.0 % of one processor core and 9 MB of memory, running for 0 s");
@@ -154,7 +160,9 @@ describe("the numbers and words of another language", () => {
     expect([verticalText(3.2), verticalText(-10.7), verticalText(0)]).toEqual(["+3,2 m/s", "\u221210,7 m/s", "0 m/s"]);
     expect(agoWords(ago(120), NOW)).toBe("vor 2 min");
     expect(ageText(ago(7200), NOW)).toBe("2 h");
-    expect(processText(0.3, 56.4, 3 * 3600)).toBe("NeoAPRS belegt 0,3 % eines Prozessorkerns und 56 MB Arbeitsspeicher, in Betrieb seit 3 h");
+    expect(processText(0.3, 56.4, 3 * 3600)).toBe(
+      "NeoAPRS belegt 0,3 % eines Prozessorkerns und 56 MB Arbeitsspeicher, in Betrieb seit 3 h",
+    );
   });
   it("says the sentence in every language, with the number written as the language writes it", () => {
     const said: Record<string, string> = {

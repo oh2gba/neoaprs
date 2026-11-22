@@ -17,9 +17,20 @@ function mapOf(key: string | null | undefined) {
   return mapState({ detail: file(detail), world: file(world) });
 }
 
-export function mountStationMap(props: Record<string, unknown>, attachTo: HTMLElement = document.body): { wrapper: VueWrapper; daemon: FakeDaemon } {
+export function mountStationMap(
+  props: Record<string, unknown>,
+  attachTo: HTMLElement = document.body,
+): { wrapper: VueWrapper; daemon: FakeDaemon } {
   const { stations, home, now, dark, aging, gps, filesKey, ...own } = props;
-  const daemon = fakeDaemon({ stations, home, now, dark, aging, gps, map: mapOf(filesKey as string | null | undefined) } as Parameters<typeof fakeDaemon>[0]);
+  const daemon = fakeDaemon({
+    stations,
+    home,
+    now,
+    dark,
+    aging,
+    gps,
+    map: mapOf(filesKey as string | null | undefined),
+  } as Parameters<typeof fakeDaemon>[0]);
   const wrapper = mount(StationMap, { props: own as never, global: withDaemon(daemon), attachTo });
   const setProps = wrapper.setProps.bind(wrapper);
   wrapper.setProps = async (next: Record<string, unknown>) => {

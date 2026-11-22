@@ -39,7 +39,24 @@ const { heardDirect, heardPaths, prefs, keys, stations } = useDaemonContext();
 /** The station's row; null for a call nothing is known of. */
 const row = computed(() => stations.value.get(props.selected) ?? null);
 /** The radio the messages to the station go on, and its Route. */
-const { over, named, offline, shown, paths, fallback, choices, choice, auto, fixed, pathShown, pathless, reply, setPath, clearPath, choose } = useStationRadio(
+const {
+  over,
+  named,
+  offline,
+  shown,
+  paths,
+  fallback,
+  choices,
+  choice,
+  auto,
+  fixed,
+  pathShown,
+  pathless,
+  reply,
+  setPath,
+  clearPath,
+  choose,
+} = useStationRadio(
   () => props.selected,
   () => row.value,
   () => props.thread,
@@ -47,7 +64,9 @@ const { over, named, offline, shown, paths, fallback, choices, choice, auto, fix
 /** The tags that reserve the radio tag's width: its own first, then every other radio, stacked
  * with the others hidden (`.twowords`), so that the call and Route do not move. */
 const radios = useRadios();
-const room = computed(() => (over.value === null ? [] : [over.value, ...radios.senders.value.filter((radio) => radio.id !== over.value?.id)]));
+const room = computed(() =>
+  over.value === null ? [] : [over.value, ...radios.senders.value.filter((radio) => radio.id !== over.value?.id)],
+);
 /** The station's position says it takes no messages and it never sent one, so a message may go
  * unread. */
 const mayNot = computed(() => row.value?.may_not_message === true);
@@ -59,7 +78,9 @@ const heard = computed(() => isOverheard(props.selected));
 const theirs = computed(() => keys.of(replyTo(props.selected)));
 const lockable = computed(() => keys.canLock(replyTo(props.selected)));
 /** The copy menu of the title: the call, or both calls of an overheard pair. */
-const copy = useCopyMenu(() => (overheardPair(props.selected) ?? [props.selected]).map((text) => ({ kind: "call" as const, text })));
+const copy = useCopyMenu(() =>
+  (overheardPair(props.selected) ?? [props.selected]).map((text) => ({ kind: "call" as const, text })),
+);
 
 onMounted(() => {
   if (props.narrow) root.value?.focus({ preventScroll: true });
@@ -67,9 +88,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <section ref="root" class="convo" tabindex="-1" :aria-label="t('messages.conversation_with', { name: conversationName(selected) })">
+  <section
+    ref="root"
+    class="convo"
+    tabindex="-1"
+    :aria-label="t('messages.conversation_with', { name: conversationName(selected) })"
+  >
     <header class="convo-head">
-      <button v-if="narrow" type="button" class="convo-back" :aria-label="t('messages.back_label')" :title="t('messages.back')" @click="emit('back')">
+      <button
+        v-if="narrow"
+        type="button"
+        class="convo-back"
+        :aria-label="t('messages.back_label')"
+        :title="t('messages.back')"
+        @click="emit('back')"
+      >
         <span aria-hidden="true">‹</span>
       </button>
       <h3 class="convo-title copysource" v-on="copy.on.value">
@@ -78,10 +111,16 @@ onMounted(() => {
       </h3>
       <span v-if="!heard && named && over" class="convo-radio">
         <span class="twowords"
-          ><span v-for="radio in room" :key="radio.id" :class="{ 'twowords-off': radio.id !== over.id }" :aria-hidden="radio.id !== over.id"
-            ><TagMark :tone="radioTone(radio)" :title="radio.id === over.id ? t('messages.radio_title', { name: radio.name }) : undefined">{{
-              radio.name
-            }}</TagMark></span
+          ><span
+            v-for="radio in room"
+            :key="radio.id"
+            :class="{ 'twowords-off': radio.id !== over.id }"
+            :aria-hidden="radio.id !== over.id"
+            ><TagMark
+              :tone="radioTone(radio)"
+              :title="radio.id === over.id ? t('messages.radio_title', { name: radio.name }) : undefined"
+              >{{ radio.name }}</TagMark
+            ></span
           ></span
         >
       </span>

@@ -6,12 +6,15 @@
 import { ref, watch } from "vue";
 
 const emit = defineEmits<{ folded: [open: boolean] }>();
-const props = withDefaults(defineProps<{ title?: string; open?: boolean; plain?: boolean; summaryClass?: string | Record<string, boolean> }>(), {
-  title: "",
-  open: false,
-  plain: false,
-  summaryClass: undefined,
-});
+const props = withDefaults(
+  defineProps<{ title?: string; open?: boolean; plain?: boolean; summaryClass?: string | Record<string, boolean> }>(),
+  {
+    title: "",
+    open: false,
+    plain: false,
+    summaryClass: undefined,
+  },
+);
 const shown = ref(props.open);
 watch(
   () => props.open,

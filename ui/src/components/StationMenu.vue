@@ -20,7 +20,14 @@ const list = ref<HTMLElement | null>(null);
 const buttons = ref<HTMLElement[]>([]);
 const items = computed(() => menuItems(props.row));
 const qrz = computed(() => qrzUrl(props.row.call) ?? undefined);
-const menu = useContextMenu({ x: () => props.x, y: () => props.y, trigger: () => props.trigger, list, buttons, close: () => emit("close") });
+const menu = useContextMenu({
+  x: () => props.x,
+  y: () => props.y,
+  trigger: () => props.trigger,
+  list,
+  buttons,
+  close: () => emit("close"),
+});
 
 function choose(item: MenuItem): void {
   if (item === "show") emit("show", props.row.call);

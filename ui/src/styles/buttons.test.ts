@@ -12,7 +12,11 @@ const strip = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 function files(dir: string, extension: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-    entry.isDirectory() ? files(resolve(dir, entry.name), extension) : entry.name.endsWith(extension) ? [resolve(dir, entry.name)] : [],
+    entry.isDirectory()
+      ? files(resolve(dir, entry.name), extension)
+      : entry.name.endsWith(extension)
+        ? [resolve(dir, entry.name)]
+        : [],
   );
 }
 
@@ -43,7 +47,12 @@ describe("the sizes of the buttons", () => {
         const selector = (match[1] ?? "").trim();
         if (!/\.btn(?![\w-])/.test(selector) || !sizes.test(match[2] ?? "")) continue;
         // The finger's minimum.
-        if (file.endsWith("responsive.css") && /^\.btn,\s*\.btn\.small,/.test(selector) && !/padding|font-size|line-height/.test(match[2] ?? "")) continue;
+        if (
+          file.endsWith("responsive.css") &&
+          /^\.btn,\s*\.btn\.small,/.test(selector) &&
+          !/padding|font-size|line-height/.test(match[2] ?? "")
+        )
+          continue;
         found.push(`${file.slice(STYLES.length + 1)}: ${selector.replace(/\s+/g, " ")}`);
       }
     }
@@ -52,7 +61,9 @@ describe("the sizes of the buttons", () => {
 
   it("change only their colours under the pointer, as the site's do: the plain one takes the accent's edge, a filled one lightens", () => {
     const sheet = strip(readFileSync(resolve(STYLES, "controls.css"), "utf8"));
-    const hovers = [...sheet.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].filter((match) => /\.btn(?![\w-])[^{]*:hover/.test(match[1] ?? ""));
+    const hovers = [...sheet.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].filter((match) =>
+      /\.btn(?![\w-])[^{]*:hover/.test(match[1] ?? ""),
+    );
     expect(hovers.map((match) => (match[1] ?? "").trim().replace(/\s+/g, " "))).toEqual([
       ".btn:not(.primary):not(.danger):not(:disabled):hover",
       ".btn.primary:not(:disabled):hover, .btn.danger:not(:disabled):hover",
@@ -73,7 +84,15 @@ describe("the sizes of the buttons", () => {
 
   it("are small only inside a line of text or a list row: the components listed here; every other button is the normal height", () => {
     // Message rows, a server row's groups, a copy beside a command, the Join of a sked's row.
-    const allowed = new Set(["ConversationThread", "EmailRow", "CopyField", "PopupHelp", "UpdateSteps", "ObjectsQru", "SkedsPane"]);
+    const allowed = new Set([
+      "ConversationThread",
+      "EmailRow",
+      "CopyField",
+      "PopupHelp",
+      "UpdateSteps",
+      "ObjectsQru",
+      "SkedsPane",
+    ]);
     const small = files(resolve(SRC, "components"), ".vue")
       .filter((file) => /class="btn small/.test(readFileSync(file, "utf8")))
       .map((file) => file.replace(/^.*\//, "").replace(/\.vue$/, ""));

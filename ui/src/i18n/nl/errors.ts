@@ -7,7 +7,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.bulletin.group": "‘{value}’: een groepsbulletin is BLN, een cijfer en de groep",
   "error.bulletin.not_on_board": "er staat geen bulletin {sender}/{slot} op het bord",
   "error.bulletin.not_posted": "er is geen bulletin {slot} van ons",
-  "error.bulletin.slot": "‘{value}’ is niet BLN0 tot BLN9, BLNA tot BLNZ of BLN, een cijfer en een groep van maximaal {group_max} tekens",
+  "error.bulletin.slot":
+    "‘{value}’ is niet BLN0 tot BLN9, BLNA tot BLNZ of BLN, een cijfer en een groep van maximaal {group_max} tekens",
   "error.call.characters": "roepnaam ‘{value}’ bevat andere tekens dan A-Z, 0-9 en een ‘-SSID’",
   "error.call.shape": "roepnaam ‘{value}’ bestaat niet uit 1 tot 6 tekens A-Z en 0-9 met een eventuele ‘-SSID’",
   "error.call.ssid": "roepnaam ‘{value}’ heeft een SSID hoger dan {max}",
@@ -27,7 +28,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.not_connected": "Niet verzonden: er is geen verbinding met NeoAPRS",
   "error.map.no_job": "er wordt geen kaart gedownload",
   "error.update.unsupported": "deze installatie van NeoAPRS kan zichzelf niet bijwerken; de stappen staan op de pagina",
-  "error.update.blocked": "NeoAPRS kan zichzelf hier niet bijwerken: deze gebruiker kan niet schrijven in de map van de AppImage",
+  "error.update.blocked":
+    "NeoAPRS kan zichzelf hier niet bijwerken: deze gebruiker kan niet schrijven in de map van de AppImage",
   "error.update.not_announced": "{version} is niet de versie die bij het zoeken naar updates is gevonden",
   "error.update.no_file": "de release {version} heeft geen bestand voor deze installatie van NeoAPRS",
   "error.update.busy": "er loopt al een update",
@@ -60,7 +62,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.unknown": { select: "removed", "1": "radio {name} is verwijderd", other: "er is geen radio {radio}" },
   "error.radio.unknown_type": "‘{type}’ is geen radiotype (de types zijn die van de lijst)",
   "error.radio.failed": "het zoeken naar de radio is mislukt",
-  "error.radio.no_ports": "er is geen poort om te proberen: geen van de poorten waar de radio wordt gezocht, is aanwezig",
+  "error.radio.no_ports":
+    "er is geen poort om te proberen: geen van de poorten waar de radio wordt gezocht, is aanwezig",
   "error.radio.not_found":
     "geen radio antwoordde op de geprobeerde poorten (een KISS-TNC zegt niets tot hij een pakket hoort: probeer het opnieuw als er verkeer op het kanaal is)",
   "error.radio.not_running": "er wordt geen radio gezocht",
@@ -74,7 +77,8 @@ export const errors: Record<keyof typeof source, Message> = {
     "": "de tekst bevat een teken dat geen afdrukbare ASCII is: een bericht kan alleen afdrukbare ASCII bevatten",
     other: "de tekst bevat {chars}, dat geen afdrukbare ASCII is: een bericht kan alleen afdrukbare ASCII bevatten",
   },
-  "error.message.too_long_for_radio": "het bericht is in de lucht {length} bytes, de radio kan er {max} kwijt: maak het {cut} tekens korter",
+  "error.message.too_long_for_radio":
+    "het bericht is in de lucht {length} bytes, de radio kan er {max} kwijt: maak het {cut} tekens korter",
   "error.message.too_long": "de tekst is {length} tekens, er passen maximaal {max} in een bericht",
   "error.no_command": 'een commando heeft een "cmd"',
   "error.not_object": 'Een commando is een JSON-object met een "cmd"',
@@ -102,7 +106,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.pair.call_taken": "{call} is de roepnaam van een ander paar",
   "error.pair.no_free_call": "alle SSID's van 1 tot 15 zijn in gebruik",
   "error.path.too_long": "{count} digipeaters zijn meer dan de {max} die een pad mag hebben",
-  "error.path.too_long_rf_only": "pad te lang voor alleen RF: {count} digipeaters en RFONLY zijn samen meer dan de {max} die een pad mag hebben",
+  "error.path.too_long_rf_only":
+    "pad te lang voor alleen RF: {count} digipeaters en RFONLY zijn samen meer dan de {max} die een pad mag hebben",
   "error.query.not_capable": "{call} neemt geen berichten aan: er valt niemand te vragen",
   "error.transmit.call": "er wordt niets verzonden: {reason}",
   "error.transmit.off": "Alleen RX: er wordt niets verzonden",
@@ -114,25 +119,29 @@ export const errors: Record<keyof typeof source, Message> = {
     "{length} tekens is meer dan de {limit} die met de PHG-uitbreiding zijn toegestaan (maak beacon/power_w leeg om geen PHG te verzenden)",
   "error.setting.call_of_pair": "{call} is de roepnaam van een radiopaar van jou",
   "error.setting.local_only": "dit kan alleen vanaf een pagina op de computer waarop NeoAPRS draait",
-  "error.setting.not_access_key": "het is geen toegangssleutel (drie groepen van vier cijfers en letters, zoals k7m2-x9pq-4hrt)",
+  "error.setting.not_access_key":
+    "het is geen toegangssleutel (drie groepen van vier cijfers en letters, zoals k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "het bevat tekens die geen afdrukbare ASCII zijn",
   "error.setting.not_boolean": "‘{value}’ is niet true of false",
   "error.setting.not_keying": "‘{value}’ is geen manier om de PTT te bedienen: vox, cm108, rts:POORT of dtr:POORT",
   "error.setting.not_among": "{value} hoort niet bij {choices}",
   "error.setting.not_direction": "‘{value}’ is niet omni of een van N NE E SE S SW W NW",
-  "error.setting.not_globs": "‘{value}’ bestaat niet uit een of meer absolute patronen, gescheiden door spaties, zoals /dev/ttyUSB*",
+  "error.setting.not_globs":
+    "‘{value}’ bestaat niet uit een of meer absolute patronen, gescheiden door spaties, zoals /dev/ttyUSB*",
   "error.setting.not_host": "‘{value}’ is geen adres of naam",
   "error.setting.not_hostport": "‘{value}’ is geen host:poort (4532 is de poort van rigctld)",
   "error.setting.not_receiver": "‘{value}’ is niet het adres van een ontvanger",
   "error.setting.not_server": "‘{value}’ is geen host:poort (14580 is de gangbare poort van een APRS-IS-server)",
   "error.setting.not_passcode": "de passcode van je roepnaam is een getal van 0 tot {max}",
-  "error.setting.passcode_read_only": "-1 is de passcode om alleen te lezen; een iGate heeft de passcode van zijn roepnaam nodig",
+  "error.setting.passcode_read_only":
+    "-1 is de passcode om alleen te lezen; een iGate heeft de passcode van zijn roepnaam nodig",
   "error.setting.not_map_source": "‘{value}’ is geen webadres of pad van een PMTiles-bestand",
   "error.setting.not_number": "‘{value}’ is geen getal",
   "error.setting.not_printable": "het bevat tekens die niet afdrukbaar zijn",
   "error.setting.not_profile": "‘{value}’ is geen radiotype (de types zijn {profiles})",
   "error.setting.not_hf_profile": "‘{value}’ is geen type Mercury-radio (de types zijn mercury, dummy-hf)",
-  "error.setting.not_stored": "de instellingen konden niet worden opgeslagen (de database nam ze niet aan); er is niets veranderd",
+  "error.setting.not_stored":
+    "de instellingen konden niet worden opgeslagen (de database nam ze niet aan); er is niets veranderd",
   "error.setting.not_symbol_code": "‘{value}’ is niet één afdrukbaar ASCII-teken",
   "error.setting.not_symbol_table": "‘{value}’ is niet / of \\ of een overlayteken A-Z, 0-9",
   "error.setting.not_web_address": "‘{value}’ is geen http- of https-adres",
@@ -141,8 +150,10 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.profile_port":
     "{profile} verbindt via TCP (tcp/host en tcp/port), niet met de seriële poort {port}: maak serial/port leeg of kies een seriële TNC",
   "error.setting.range": "{value} ligt niet tussen {min} en {max}",
-  "error.setting.status_needs_rigctld": "de radio heeft status/rigctld nodig (host:poort van een rigctld, 127.0.0.1:4532)",
-  "error.setting.status_source": "‘{value}’ is niet off, text of rig (leeg: zoals status/rigctld en station/status zeggen)",
+  "error.setting.status_needs_rigctld":
+    "de radio heeft status/rigctld nodig (host:poort van een rigctld, 127.0.0.1:4532)",
+  "error.setting.status_source":
+    "‘{value}’ is niet off, text of rig (leeg: zoals status/rigctld en station/status zeggen)",
   "error.setting.template_field": "{{{field}}} is geen veld van het sjabloon (de velden zijn {{freq}} en {{mode}})",
   "error.setting.template_long": "{length} tekens met een lange frequentie en mode is meer dan de toegestane {max}",
   "error.setting.tnc_char": "‘{char}’ is een teken dat een TNC als commando opvat en mag er niet in staan",
@@ -169,7 +180,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.command_mode": "de TNC staat in commandomodus (KISS ON wordt opnieuw verzonden)",
   "error.radio.checking": "de TNC controleert of de radio er is",
   "error.radio.channel_busy": "het kanaal is bezet",
-  "error.qru.form": "‘{request}’ is geen verzoek aan QRU: INFO, NEXT of een groep van maximaal {max} letters en cijfers, en een afstand van 1 tot {km}",
+  "error.qru.form":
+    "‘{request}’ is geen verzoek aan QRU: INFO, NEXT of een groep van maximaal {max} letters en cijfers, en een afstand van 1 tot {km}",
   "error.object.unknown": "er is geen object of item ‘{name}’ van ons",
   "error.object.own_call": "{name} is onze eigen roepnaam",
   "error.object.is_station": "{name} is een station, geen naam van een object",
@@ -179,7 +191,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.message.busy": "er worden {count} berichten tegelijk verzonden: er is geen berichtnummer vrij",
   "error.message.bad_text": "de tekst bevat een teken dat niet in een bericht kan, of is te lang",
   "error.message.addressee": "‘{addressee}’ kan niet de geadresseerde van een bericht zijn",
-  "error.map.no_position": "het station heeft nog geen positie: stel Breedtegraad en Lengtegraad in (de kaart wordt eromheen uitgesneden)",
+  "error.map.no_position":
+    "het station heeft nog geen positie: stel Breedtegraad en Lengtegraad in (de kaart wordt eromheen uitgesneden)",
   "error.map.busy": "er wordt al een kaart gedownload",
   "error.frame.too_long": "het informatieveld is {length} bytes, meer dan de {max} die AX.25 toestaat",
   "error.call.placeholder": "{call} is een voorbeeld, geen roepnaam: stel eerst je roepnaam in",

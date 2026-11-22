@@ -15,7 +15,8 @@ import { configValues, mapFile, mapState, radioRow, radiosTopic, status, toastOf
  * pair's (`pair/1/2/enabled`) among the radios' values.
  */
 function cfg(extra: Record<string, string> = {}) {
-  const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => /^(radio|pair)\//.test(key) === radio));
+  const own = (radio: boolean) =>
+    Object.fromEntries(Object.entries(extra).filter(([key]) => /^(radio|pair)\//.test(key) === radio));
   return configValues(own(false), own(true));
 }
 
@@ -40,7 +41,9 @@ afterEach(() => localStorage.clear());
  * The boxes of the Notifications group (the Radio group has two of its own, FM radio and HF radio).
  */
 const notificationBoxes = (wrapper: ReturnType<typeof make>["wrapper"]) =>
-  wrapper.findAll("fieldset.subbox").filter((box) => !["FM radio", "Mercury radio"].includes(box.find("legend").text()));
+  wrapper
+    .findAll("fieldset.subbox")
+    .filter((box) => !["FM radio", "Mercury radio"].includes(box.find("legend").text()));
 
 const row = (device: string, description: string) => portRow(device, description);
 const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
@@ -119,7 +122,13 @@ describe("SettingsForm", () => {
 
   it("has no field for what is fixed or left to the shell: the log time, the daily update check, the page's port and host names", () => {
     const { wrapper } = make();
-    for (const id of ["set-log-keep_days", "set-update-check", "set-web-port", "set-web-allowed_hosts", "set-update-url"])
+    for (const id of [
+      "set-log-keep_days",
+      "set-update-check",
+      "set-web-port",
+      "set-web-allowed_hosts",
+      "set-update-url",
+    ])
       expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
     expect(wrapper.text()).not.toContain("Allowed hosts");
   });
@@ -136,11 +145,21 @@ describe("SettingsForm", () => {
       global: withDaemon(),
     });
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual(["Station", "Beacon", "Status"]);
-    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Call", "Position", "Symbol", "Beacon", "Comment", "Power", "Path", "Status"]);
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
+      "Call",
+      "Position",
+      "Symbol",
+      "Beacon",
+      "Comment",
+      "Power",
+      "Path",
+      "Status",
+    ]);
   });
 
   describe("the position choice of the Station group of the My station tab", () => {
-    const group = (wrapper: ReturnType<typeof make>["wrapper"], title: string) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
+    const group = (wrapper: ReturnType<typeof make>["wrapper"], title: string) =>
+      wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
     const labels = (wrapper: ReturnType<typeof make>["wrapper"], title = "Station") =>
       group(wrapper, title)
         ?.findAll(".field > label")
@@ -167,8 +186,12 @@ describe("SettingsForm", () => {
       expect(field?.querySelector(".info-toggle")).not.toBeNull();
       (field?.querySelector(".info-toggle") as HTMLElement).click();
       await wrapper.vm.$nextTick();
-      expect(field?.querySelector(".info-text")?.textContent).toContain("Fixed: the station stays at the location below");
-      expect(field?.querySelector(".info-text")?.textContent).toContain("A GPS: position, course and speed come from the receiver");
+      expect(field?.querySelector(".info-text")?.textContent).toContain(
+        "Fixed: the station stays at the location below",
+      );
+      expect(field?.querySelector(".info-text")?.textContent).toContain(
+        "A GPS: position, course and speed come from the receiver",
+      );
     });
 
     it("asks for the address of gpsd for gpsd, with the default as the placeholder, and no place to give while a GPS is chosen", () => {
@@ -186,7 +209,8 @@ describe("SettingsForm", () => {
     });
 
     describe("the port of a serial receiver", () => {
-      const options = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll("#set-gps-device option").map((o) => [o.attributes("value"), o.text()]);
+      const options = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+        wrapper.findAll("#set-gps-device option").map((o) => [o.attributes("value"), o.text()]);
 
       it("is picked from the ports of the system, with not set first and Other... last, and never says find automatically or found", () => {
         const { wrapper } = make({ "gps/source": "serial" }, "beacon", { ports: portList() });
@@ -207,7 +231,9 @@ describe("SettingsForm", () => {
       });
 
       it("keeps a port that is set and the system does not list among the options", () => {
-        const { wrapper } = make({ "gps/source": "serial", "gps/device": "socket://10.0.0.5:4001" }, "beacon", { ports: portList() });
+        const { wrapper } = make({ "gps/source": "serial", "gps/device": "socket://10.0.0.5:4001" }, "beacon", {
+          ports: portList(),
+        });
         expect(options(wrapper).map(([value]) => value)).toContain("socket://10.0.0.5:4001");
         expect(wrapper.find<HTMLSelectElement>("#set-gps-device").element.value).toBe("socket://10.0.0.5:4001");
       });
@@ -271,7 +297,9 @@ describe("SettingsForm", () => {
     it("shows the Location (Choose on map, the place, the coordinates and the locator behind it) for Fixed and hides it while a GPS is chosen, in both directions", async () => {
       const { wrapper } = make({ "station/lat": "60.17", "station/lon": "24.94" }, "beacon");
       const location = () =>
-        ["button.location-pick", ".location-place", "#set-station-lat", "#set-station-lon", "#set-station-locator"].map((css) => wrapper.find(css).exists());
+        ["button.location-pick", ".location-place", "#set-station-lat", "#set-station-lon", "#set-station-locator"].map(
+          (css) => wrapper.find(css).exists(),
+        );
       expect(wrapper.find(".location-field .field-label").text()).toBe("Location");
       expect(location()).toEqual([true, true, false, false, false]);
       await wrapper.find(".location-place").trigger("click");
@@ -287,7 +315,10 @@ describe("SettingsForm", () => {
     });
 
     it("hides the Location of a GPS station without touching the stored place", () => {
-      const { wrapper, send } = make({ "gps/source": "gpsd", "station/lat": "60.17", "station/lon": "24.94" }, "beacon");
+      const { wrapper, send } = make(
+        { "gps/source": "gpsd", "station/lat": "60.17", "station/lon": "24.94" },
+        "beacon",
+      );
       expect(wrapper.find(".location-field").exists()).toBe(false);
       expect(send).not.toHaveBeenCalled();
     });
@@ -301,7 +332,15 @@ describe("SettingsForm", () => {
 
       it("has the interval, the comment, the antenna and the path of a fixed station, and no Travelling", () => {
         const { wrapper } = make({ "beacon/power_w": "5" }, "beacon");
-        expect(beaconLabels(wrapper)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
+        expect(beaconLabels(wrapper)).toEqual([
+          "Beacon",
+          "Comment",
+          "Power",
+          "Antenna height",
+          "Antenna gain",
+          "Antenna direction",
+          "Path",
+        ]);
         expect(folds(wrapper)).toEqual(["Antenna", "Advanced"]);
         expect(wrapper.find("#set-beacon-travel").exists()).toBe(false);
       });
@@ -311,7 +350,12 @@ describe("SettingsForm", () => {
           const { wrapper } = make({ "gps/source": source, "beacon/power_w": "5" }, "beacon");
           expect(beaconLabels(wrapper), source).toEqual(["Beacon", "Travelling", "Comment", "Path"]);
           expect(folds(wrapper), source).toEqual(["Advanced"]);
-          for (const id of ["beacon-power_w", "beacon-antenna_height_m", "beacon-antenna_gain_db", "beacon-antenna_direction"])
+          for (const id of [
+            "beacon-power_w",
+            "beacon-antenna_height_m",
+            "beacon-antenna_gain_db",
+            "beacon-antenna_direction",
+          ])
             expect(wrapper.find(`#set-${id}`).exists(), id).toBe(false);
         }
       });
@@ -349,7 +393,15 @@ describe("SettingsForm", () => {
         await wrapper.find("#set-gps-source").setValue("gpsd");
         expect(beaconLabels(wrapper)).toEqual(["Beacon", "Travelling", "Comment", "Path"]);
         await wrapper.find("#set-gps-source").setValue("off");
-        expect(beaconLabels(wrapper)).toEqual(["Beacon", "Comment", "Power", "Antenna height", "Antenna gain", "Antenna direction", "Path"]);
+        expect(beaconLabels(wrapper)).toEqual([
+          "Beacon",
+          "Comment",
+          "Power",
+          "Antenna height",
+          "Antenna gain",
+          "Antenna direction",
+          "Path",
+        ]);
       });
 
       it("offers the four ways of travelling, By car first, with a one-line (i) that says what it changes", async () => {
@@ -379,7 +431,9 @@ describe("SettingsForm", () => {
 
     it("has none of the old Mobile switch or SmartBeaconing numbers, nor the names of the daemon's old keys in the page", () => {
       const { wrapper } = make({ "gps/source": "gpsd" }, "beacon");
-      expect((CONFIG_KEYS as readonly string[]).filter((k) => k === "beacon/mobile" || k.startsWith("smart/"))).toEqual([]);
+      expect((CONFIG_KEYS as readonly string[]).filter((k) => k === "beacon/mobile" || k.startsWith("smart/"))).toEqual(
+        [],
+      );
       expect(wrapper.find("#set-beacon-mobile").exists()).toBe(false);
       expect(wrapper.find("#set-smart-fast_kmh").exists()).toBe(false);
       expect(wrapper.text().replace("On (SmartBeaconing)", "")).not.toContain("SmartBeaconing");
@@ -388,8 +442,10 @@ describe("SettingsForm", () => {
   });
 
   describe("the Beacon group of the My station tab", () => {
-    const group = (wrapper: ReturnType<typeof make>["wrapper"], title: string) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
-    const folds = (wrapper: ReturnType<typeof make>["wrapper"]) => group(wrapper, "Beacon")?.findAll("details.disclosure") ?? [];
+    const group = (wrapper: ReturnType<typeof make>["wrapper"], title: string) =>
+      wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
+    const folds = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+      group(wrapper, "Beacon")?.findAll("details.disclosure") ?? [];
 
     it("has Call, Location and Symbol in the Station group, and the comment with the beacon", () => {
       const { wrapper } = make({}, "beacon");
@@ -425,7 +481,13 @@ describe("SettingsForm", () => {
     it("shows a stored interval that is none of the choices as one more, so that nothing changes until another is picked", async () => {
       const { wrapper, send } = make({ "beacon/interval_min": "20" }, "beacon");
       const select = wrapper.find<HTMLSelectElement>("#set-beacon-interval_min");
-      expect(select.findAll("option").map((o) => o.text())).toEqual(["Off", "Every 30 min", "Every 60 min", "Every 3 hours", "Every 20 min"]);
+      expect(select.findAll("option").map((o) => o.text())).toEqual([
+        "Off",
+        "Every 30 min",
+        "Every 60 min",
+        "Every 3 hours",
+        "Every 20 min",
+      ]);
       expect(select.element.value).toBe("20");
       expect(send).not.toHaveBeenCalled();
       await select.setValue("60");
@@ -445,23 +507,39 @@ describe("SettingsForm", () => {
         ["Advanced", false],
       ]);
       const antenna = folds(wrapper)[0];
-      expect(antenna?.findAll(".field > label").map((l) => l.text())).toEqual(["Power", "Antenna height", "Antenna gain", "Antenna direction"]);
+      expect(antenna?.findAll(".field > label").map((l) => l.text())).toEqual([
+        "Power",
+        "Antenna height",
+        "Antenna gain",
+        "Antenna direction",
+      ]);
       expect(antenna?.findAll(".info-toggle")).toHaveLength(4);
       const advanced = folds(wrapper)[1];
       expect(advanced?.findAll(".field > label").map((l) => l.text())).toEqual(["Path"]);
       expect(advanced?.find(".info-toggle").exists()).toBe(true);
       expect(advanced?.find<HTMLSelectElement>("#set-radio-1-path").element.value).toBe("recommended");
-      expect(advanced?.findAll("#set-radio-1-path option").map((o) => o.text())).toEqual(["Recommended (WIDE2-2)", "Direct only (no digipeaters)", "Custom…"]);
+      expect(advanced?.findAll("#set-radio-1-path option").map((o) => o.text())).toEqual([
+        "Recommended (WIDE2-2)",
+        "Direct only (no digipeaters)",
+        "Custom…",
+      ]);
       expect(advanced?.find("#set-radio-1-path-typed").exists()).toBe(false);
     });
 
     it("names the recommended path of the symbol in the Path choice, and follows a change of the symbol", async () => {
-      const { wrapper, daemon } = make({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": ">" }, "beacon");
+      const { wrapper, daemon } = make(
+        { "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": ">" },
+        "beacon",
+      );
       const options = () => wrapper.findAll("#set-radio-1-path option").map((o) => o.text());
       expect(options()[0]).toBe("Recommended (WIDE1-1,WIDE2-1)");
-      await tell(daemon, { config: cfg({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": "-" }) });
+      await tell(daemon, {
+        config: cfg({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": "-" }),
+      });
       expect(options()[0]).toBe("Recommended (WIDE2-2)");
-      await tell(daemon, { config: cfg({ "beacon/power_w": "5", "station/symbol_table": "E", "station/symbol_code": "s" }) });
+      await tell(daemon, {
+        config: cfg({ "beacon/power_w": "5", "station/symbol_table": "E", "station/symbol_code": "s" }),
+      });
       expect(options()[0]).toBe("Recommended (WIDE1-1,WIDE2-1)");
       expect(wrapper.find<HTMLSelectElement>("#set-radio-1-path").element.value).toBe("recommended");
     });
@@ -547,7 +625,17 @@ describe("SettingsForm", () => {
     expect(units).toEqual(["W", "m", "dB"]);
     const direction = station?.find("#set-beacon-antenna_direction");
     expect(direction?.element.tagName).toBe("SELECT");
-    expect(direction?.findAll("option").map((o) => o.text())).toEqual(["omni", "N", "NE", "E", "SE", "S", "SW", "W", "NW"]);
+    expect(direction?.findAll("option").map((o) => o.text())).toEqual([
+      "omni",
+      "N",
+      "NE",
+      "E",
+      "SE",
+      "S",
+      "SW",
+      "W",
+      "NW",
+    ]);
     expect(wrapper.find("#set-beacon-dao").exists()).toBe(false);
     expect(wrapper.find("#set-beacon-compressed").exists()).toBe(false);
     expect(wrapper.find("#set-beacon-destination").exists()).toBe(false);
@@ -569,7 +657,8 @@ describe("SettingsForm", () => {
         // the radio's fields: its tickbox is the first row of its box
         .filter((id) => id !== "set-radio-1-enabled" && id !== "set-radio-1-find");
     /** The form with radio 1 of this type. */
-    const typed = (type: string, extra: Record<string, string> = {}) => make(extra, "settings", { radios: radiosTopic(radioRow(1, type)) });
+    const typed = (type: string, extra: Record<string, string> = {}) =>
+      make(extra, "settings", { radios: radiosTopic(radioRow(1, type)) });
 
     it("is a select of the profiles by their names, the radio's type chosen", () => {
       const { wrapper } = make();
@@ -611,28 +700,44 @@ describe("SettingsForm", () => {
     });
 
     it("shows the speed of the profile as the placeholder of an empty speed", () => {
-      expect(typed("kenwood-tnc2", { "radio/1/baud": "" }).wrapper.find("#set-radio-1-baud").attributes("placeholder")).toBe("9600");
-      expect(typed("kantronics", { "radio/1/baud": "" }).wrapper.find("#set-radio-1-baud").attributes("placeholder")).toBe("9600");
+      expect(
+        typed("kenwood-tnc2", { "radio/1/baud": "" }).wrapper.find("#set-radio-1-baud").attributes("placeholder"),
+      ).toBe("9600");
+      expect(
+        typed("kantronics", { "radio/1/baud": "" }).wrapper.find("#set-radio-1-baud").attributes("placeholder"),
+      ).toBe("9600");
     });
 
     it("shows the refusal of the daemon under the type", async () => {
       const { wrapper, daemon } = make();
       await wrapper.find("#set-radio-1-type").setValue("kiss-tcp");
       await tell(daemon, {
-        lastError: toastOf("radio_change: kiss-tcp connects over TCP, not to the serial port COM3", "setting.profile_port", {
-          profile: "kiss-tcp",
-          port: "COM3",
-        }),
+        lastError: toastOf(
+          "radio_change: kiss-tcp connects over TCP, not to the serial port COM3",
+          "setting.profile_port",
+          {
+            profile: "kiss-tcp",
+            port: "COM3",
+          },
+        ),
       });
-      expect(wrapper.find("#set-radio-1-type").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("COM3");
+      expect(
+        wrapper.find("#set-radio-1-type").element.closest(".field")?.querySelector(".field-error")?.textContent,
+      ).toContain("COM3");
       // a refused choice shows as it was
       expect(wrapper.find<HTMLSelectElement>("#set-radio-1-type").element.value).toBe("kenwood-tnc2");
     });
   });
 
   describe("the TNC port", () => {
-    const OWNER = { "radio/1/port": "/dev/brainbox_3", "serial/pattern": "/dev/brainbox_*", "serial/last_port": "/dev/brainbox_3", "radio/1/baud": "9600" };
-    const withPorts = (extra: Record<string, string> = {}, ports: PortsMessage | null = portList()) => make(extra, "settings", { ports });
+    const OWNER = {
+      "radio/1/port": "/dev/brainbox_3",
+      "serial/pattern": "/dev/brainbox_*",
+      "serial/last_port": "/dev/brainbox_3",
+      "radio/1/baud": "9600",
+    };
+    const withPorts = (extra: Record<string, string> = {}, ports: PortsMessage | null = portList()) =>
+      make(extra, "settings", { ports });
     type Wrapper = ReturnType<typeof make>["wrapper"];
     const select = (wrapper: Wrapper) => wrapper.find<HTMLSelectElement>("#set-radio-1-port");
     const options = (wrapper: Wrapper) =>
@@ -655,7 +760,13 @@ describe("SettingsForm", () => {
       const { wrapper } = withPorts();
       expect(wrapper.find("label[for=set-radio-1-port]").text()).toBe("Port");
       expect(select(wrapper).element.tagName).toBe("SELECT");
-      expect(options(wrapper)).toEqual(["find automatically", "/dev/ttyUSB0 - FT232R USB UART", "/dev/ttyS0", "/dev/brainbox_3", "Other..."]);
+      expect(options(wrapper)).toEqual([
+        "find automatically",
+        "/dev/ttyUSB0 - FT232R USB UART",
+        "/dev/ttyS0",
+        "/dev/brainbox_3",
+        "Other...",
+      ]);
       expect(select(wrapper).element.value).toBe("");
     });
 
@@ -707,7 +818,9 @@ describe("SettingsForm", () => {
       const box = radio(wrapper)
         ?.findAll("fieldset.subbox")
         .find((f) => f.find("legend").text() === "LoRa radio");
-      expect(box?.findAll("label").map((l) => l.text())).toEqual(expect.arrayContaining(["Radio type", "Address", "Port"]));
+      expect(box?.findAll("label").map((l) => l.text())).toEqual(
+        expect.arrayContaining(["Radio type", "Address", "Port"]),
+      );
       expect(box?.text()).not.toContain("TCP");
     });
 
@@ -731,7 +844,10 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-radio-1-port-typed").setValue("socket://10.0.0.5:8100");
       expect(send).not.toHaveBeenCalled(); // (not while it is typed)
       await wrapper.find("#set-radio-1-port-typed").trigger("blur");
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/1/port": "socket://10.0.0.5:8100" } });
+      expect(send).toHaveBeenLastCalledWith({
+        cmd: "set_config",
+        values: { "radio/1/port": "socket://10.0.0.5:8100" },
+      });
     });
 
     it("sends a typed path on Enter, and Esc puts the port in force back", async () => {
@@ -760,7 +876,9 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-radio-1-baud").trigger("blur");
       await wrapper.find("#set-map-radius_km").setValue("200");
       await wrapper.find("#set-map-radius_km").trigger("blur");
-      expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toEqual([[{ cmd: "set_config", values: { "radio/1/baud": "19200" } }]]);
+      expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toEqual([
+        [{ cmd: "set_config", values: { "radio/1/baud": "19200" } }],
+      ]);
       await tell(daemon, { config: cfg({ "radio/1/port": "", "radio/1/baud": "19200" }) });
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "map/radius_km": "200" } });
     });
@@ -792,7 +910,8 @@ describe("SettingsForm", () => {
   describe("typed fields", () => {
     const type = async (wrapper: ReturnType<typeof make>["wrapper"], id: string, text: string) => {
       // the coordinates are behind the place
-      if (id.startsWith("set-station-l") && !wrapper.find(`#${id}`).exists()) await wrapper.find(".location-place").trigger("click");
+      if (id.startsWith("set-station-l") && !wrapper.find(`#${id}`).exists())
+        await wrapper.find(".location-place").trigger("click");
       await wrapper.find(`#${id}`).setValue(text);
     };
 
@@ -822,8 +941,12 @@ describe("SettingsForm", () => {
       await type(wrapper, "set-station-lat", "95");
       await wrapper.find("#set-station-lat").trigger("blur");
       expect(send).not.toHaveBeenCalled();
-      expect(wrapper.find("#set-station-call").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Not a call");
-      expect(wrapper.find("#set-station-lat").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Between -90 and 90");
+      expect(
+        wrapper.find("#set-station-call").element.closest(".field")?.querySelector(".field-error")?.textContent,
+      ).toBe("Not a call");
+      expect(
+        wrapper.find("#set-station-lat").element.closest(".field")?.querySelector(".field-error")?.textContent,
+      ).toBe("Between -90 and 90");
       expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("95");
     });
 
@@ -855,20 +978,28 @@ describe("SettingsForm", () => {
       const { wrapper, send } = make({}, "beacon");
       await wrapper.find(".location-place").trigger("click");
       await wrapper.find("#set-station-lat").setValue("61.5");
-      await wrapper.find("#set-station-lat").trigger("blur", { relatedTarget: wrapper.find("#set-station-lon").element });
+      await wrapper
+        .find("#set-station-lat")
+        .trigger("blur", { relatedTarget: wrapper.find("#set-station-lon").element });
       expect(send).not.toHaveBeenCalled();
       await wrapper.find("#set-station-lon").setValue("25.5");
       await wrapper.find("#set-station-lon").trigger("blur");
-      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "61.5", "station/lon": "25.5" } }]]);
+      expect(send.mock.calls).toEqual([
+        [{ cmd: "set_config", values: { "station/lat": "61.5", "station/lon": "25.5" } }],
+      ]);
     });
 
     it("send the TCP host and the TCP port in one set_config, so that the TNC restarts once", async () => {
       const { wrapper, send } = make({}, "settings", { radios: radiosTopic(radioRow(1, "kiss-tcp")) });
       await wrapper.find("#set-radio-1-tcp_host").setValue("10.0.0.5");
-      await wrapper.find("#set-radio-1-tcp_host").trigger("blur", { relatedTarget: wrapper.find("#set-radio-1-tcp_port").element });
+      await wrapper
+        .find("#set-radio-1-tcp_host")
+        .trigger("blur", { relatedTarget: wrapper.find("#set-radio-1-tcp_port").element });
       await wrapper.find("#set-radio-1-tcp_port").setValue("8100");
       await wrapper.find("#set-radio-1-tcp_port").trigger("keydown", { key: "Enter" });
-      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "radio/1/tcp_host": "10.0.0.5", "radio/1/tcp_port": "8100" } }]]);
+      expect(send.mock.calls).toEqual([
+        [{ cmd: "set_config", values: { "radio/1/tcp_host": "10.0.0.5", "radio/1/tcp_port": "8100" } }],
+      ]);
     });
 
     it("send a place picked on the map as latitude and longitude together", async () => {
@@ -877,7 +1008,9 @@ describe("SettingsForm", () => {
       await wrapper.find(".location-place").trigger("click");
       expect(wrapper.find<HTMLInputElement>("#set-station-lat").element.value).toBe("60.42945");
       expect(wrapper.find<HTMLInputElement>("#set-station-lon").element.value).toBe("24.14524");
-      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
+      expect(send.mock.calls).toEqual([
+        [{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }],
+      ]);
     });
   });
 
@@ -897,7 +1030,12 @@ describe("SettingsForm", () => {
       const { wrapper, daemon } = make({}, "beacon");
       await wrapper.find("#set-station-comment").setValue("é is not ascii");
       await wrapper.find("#set-station-comment").trigger("blur");
-      await tell(daemon, { lastError: toastOf("set_config: station/comment: it has characters that are not printable ASCII", "setting.not_ascii") });
+      await tell(daemon, {
+        lastError: toastOf(
+          "set_config: station/comment: it has characters that are not printable ASCII",
+          "setting.not_ascii",
+        ),
+      });
       const field = wrapper.find("#set-station-comment").element.closest(".field");
       expect(field?.querySelector(".field-error")?.textContent).toBe("it has characters that are not printable ASCII");
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("é is not ascii");
@@ -924,9 +1062,16 @@ describe("SettingsForm", () => {
     it("shows a refused choice as it was, with the reason under it", async () => {
       const { wrapper, daemon } = make({}, "beacon");
       await wrapper.find("#set-gps-source").setValue("gpsd");
-      await tell(daemon, { lastError: toastOf("set_config: gps/source: 'gpsd' is not one of off", "setting.not_among", { value: "gpsd", choices: "off" }) });
+      await tell(daemon, {
+        lastError: toastOf("set_config: gps/source: 'gpsd' is not one of off", "setting.not_among", {
+          value: "gpsd",
+          choices: "off",
+        }),
+      });
       expect(wrapper.find<HTMLSelectElement>("#set-gps-source").element.value).toBe("off");
-      expect(wrapper.find("#set-gps-source").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("gpsd is not one of off");
+      expect(
+        wrapper.find("#set-gps-source").element.closest(".field")?.querySelector(".field-error")?.textContent,
+      ).toBe("gpsd is not one of off");
     });
 
     it("leaves a field that is being edited alone when the daemon tells other settings, and follows it in a field that is not", async () => {
@@ -943,7 +1088,10 @@ describe("SettingsForm", () => {
     it("fills in the usual rigctld with the radio as the status, so that the choice is valid at once", async () => {
       const { wrapper, send } = make({}, "beacon");
       await wrapper.find("#set-status-source").setValue("rig");
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "status/source": "rig", "status/rigctld": "127.0.0.1:4532" } });
+      expect(send).toHaveBeenCalledWith({
+        cmd: "set_config",
+        values: { "status/source": "rig", "status/rigctld": "127.0.0.1:4532" },
+      });
       expect(wrapper.find<HTMLInputElement>("#set-status-rigctld").element.value).toBe("127.0.0.1:4532");
     });
 
@@ -958,7 +1106,9 @@ describe("SettingsForm", () => {
           { length: 40, limit: 36 },
         ),
       });
-      expect(wrapper.find("#set-beacon-power_w").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Shorten the comment to 36 first");
+      expect(
+        wrapper.find("#set-beacon-power_w").element.closest(".field")?.querySelector(".field-error")?.textContent,
+      ).toBe("Shorten the comment to 36 first");
       expect(wrapper.find<HTMLInputElement>("#set-beacon-power_w").element.value).toBe("5");
     });
   });
@@ -974,7 +1124,10 @@ describe("SettingsForm", () => {
       const boxes = group?.findAll("fieldset") ?? [];
       expect(boxes).toHaveLength(2);
       expect(boxes.map((b) => b.classes())).toEqual([["subbox"], ["subbox"]]);
-      expect(boxes.map((b) => b.element.parentElement)).toEqual([group?.find(".group-body").element, group?.find(".group-body").element]);
+      expect(boxes.map((b) => b.element.parentElement)).toEqual([
+        group?.find(".group-body").element,
+        group?.find(".group-body").element,
+      ]);
       expect(boxes[0]?.find("legend").text()).toBe("On the NeoAPRS computer i");
       expect(boxes[0]?.find("legend").attributes("title")).toBeTruthy();
       expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Command"]);
@@ -1053,7 +1206,8 @@ describe("SettingsForm", () => {
   });
 
   describe("the Digipeater group", () => {
-    const group = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Digipeater");
+    const group = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+      wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Digipeater");
 
     it("is one switch, off by default, with an (i) that says what it does", async () => {
       const { wrapper } = make();
@@ -1109,11 +1263,17 @@ describe("SettingsForm", () => {
         const select = wrapper.find<HTMLSelectElement>("#set-pair-1-2-ssid");
         expect(wrapper.find("label[for='set-pair-1-2-ssid']").text()).toBe("Call");
         expect(select.element.value).toBe("12");
-        expect([...select.element.options].map((o) => o.text).slice(0, 3)).toEqual(["OH2GBA-14", "OH2GBA-13", "OH2GBA-12"]);
+        expect([...select.element.options].map((o) => o.text).slice(0, 3)).toEqual([
+          "OH2GBA-14",
+          "OH2GBA-13",
+          "OH2GBA-12",
+        ]);
         const fields = box(wrapper)?.findAll(".field") ?? [];
         expect(fields).toHaveLength(2);
         const fold = box(wrapper)?.find(".statusfold");
-        expect(fields[1]?.element.compareDocumentPosition(fold?.element as Element)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(fields[1]?.element.compareDocumentPosition(fold?.element as Element)).toBe(
+          Node.DOCUMENT_POSITION_FOLLOWING,
+        );
         expect(fold?.find(".tncstatus").text()).toBe("None repeated yet");
       });
 
@@ -1122,23 +1282,37 @@ describe("SettingsForm", () => {
         await wrapper.find("#set-pair-1-2-ssid").setValue("11");
         expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "pair/1/2/ssid": "11" } });
         await tell(daemon, {
-          lastError: toastOf("set_config: pair/1/2/ssid: OH2GBA-11 is the call of another pair", "pair.call_taken", { call: "OH2GBA-11" }),
+          lastError: toastOf("set_config: pair/1/2/ssid: OH2GBA-11 is the call of another pair", "pair.call_taken", {
+            call: "OH2GBA-11",
+          }),
         });
-        expect(wrapper.find("#set-pair-1-2-ssid").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe(
-          "OH2GBA-11 is the call of another pair",
-        );
+        expect(
+          wrapper.find("#set-pair-1-2-ssid").element.closest(".field")?.querySelector(".field-error")?.textContent,
+        ).toBe("OH2GBA-11 is the call of another pair");
       });
 
       it("is not there for a radio that is off", () => {
-        const radios = { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) };
+        const radios = {
+          radios: radiosTopic(
+            radioRow(1, "kenwood-tnc2"),
+            radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+          ),
+        };
         expect(make(ON, "settings", radios).wrapper.find("#set-pair-1-2-enabled").exists()).toBe(false);
       });
     });
   });
 
   describe("the Check now button of the update check", () => {
-    const check = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll(".field button").find((b) => b.text() === "Check now");
-    const answer = (extra: object) => ({ type: "update_result" as const, outcome: "current" as const, version: "0.3.0", reason: "" as const, ...extra });
+    const check = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+      wrapper.findAll(".field button").find((b) => b.text() === "Check now");
+    const answer = (extra: object) => ({
+      type: "update_result" as const,
+      outcome: "current" as const,
+      version: "0.3.0",
+      reason: "" as const,
+      ...extra,
+    });
 
     it("is the group's only field: the daily check has no switch and the address is not on the page", () => {
       const { wrapper } = make();
@@ -1168,16 +1342,23 @@ describe("SettingsForm", () => {
     });
 
     it("has the button, with the version beside it and its cost as the title, in one row", () => {
-      const { wrapper } = make({}, "settings", { version: "0.10.0-rc1", status: status({ cpu_percent: 0.3, rss_mb: 42.4, uptime_sec: 3 * 3600 }) });
+      const { wrapper } = make({}, "settings", {
+        version: "0.10.0-rc1",
+        status: status({ cpu_percent: 0.3, rss_mb: 42.4, uptime_sec: 3 * 3600 }),
+      });
       const control = wrapper.find(".action-row .field-control");
       expect(control.element.firstElementChild).toBe(check(wrapper)?.element);
       expect(line(wrapper).element.previousElementSibling).toBe(check(wrapper)?.element);
       expect(line(wrapper).find(".updateversion").text()).toBe("NeoAPRS 0.10.0-rc1");
-      expect(line(wrapper).find(".updateversion").attributes("title")).toBe("NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h");
+      expect(line(wrapper).find(".updateversion").attributes("title")).toBe(
+        "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h",
+      );
     });
 
     it("says the newer version next to the button, with an Update button that asks for the panel with the steps, and opens nothing by itself", async () => {
-      const { wrapper, daemon } = make({}, "settings", { status: status({ update: { version: "0.4.0", url: "", message: "" } }) });
+      const { wrapper, daemon } = make({}, "settings", {
+        status: status({ update: { version: "0.4.0", url: "", message: "" } }),
+      });
       await check(wrapper)?.trigger("click");
       await tell(daemon, { updateResult: answer({ outcome: "newer", version: "0.4.0" }) });
       expect(wrapper.emitted("update")).toBeUndefined();
@@ -1235,7 +1416,9 @@ describe("SettingsForm", () => {
       ]);
       expect(
         make({}, "beacon")
-          .wrapper.findAll(".field button:not(.info-toggle):not(.location-pick):not(.location-place):not(.symbolbtn):not(.pathbuild-open)")
+          .wrapper.findAll(
+            ".field button:not(.info-toggle):not(.location-pick):not(.location-place):not(.symbolbtn):not(.pathbuild-open)",
+          )
           .map((b) => b.text()),
       ).toEqual([]);
     });
@@ -1247,7 +1430,9 @@ describe("SettingsForm", () => {
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(true);
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
       expect(send.mock.calls.filter(([c]) => c.cmd === "alert_test")).toHaveLength(1);
-      await tell(daemon, { alertResult: { type: "alert_result", ok: true, outcome: "ran", status: 0, seconds: 20, line: "" } });
+      await tell(daemon, {
+        alertResult: { type: "alert_result", ok: true, outcome: "ran", status: 0, seconds: 20, line: "" },
+      });
       expect(button(wrapper)?.hasAttribute("disabled")).toBe(false);
       expect(daemon.say).toHaveBeenCalledExactlyOnceWith("The alert command ran");
       expect(beside(wrapper)).toBeNull();
@@ -1256,7 +1441,9 @@ describe("SettingsForm", () => {
     it("says a failure in the toast", async () => {
       const { wrapper, daemon } = make();
       await wrapper.find("#set-messages-alert_command + button").trigger("click");
-      await tell(daemon, { alertResult: { type: "alert_result", ok: false, outcome: "exit", status: 3, seconds: 20, line: "no display" } });
+      await tell(daemon, {
+        alertResult: { type: "alert_result", ok: false, outcome: "exit", status: 3, seconds: 20, line: "no display" },
+      });
       expect(daemon.say).toHaveBeenCalledExactlyOnceWith("The alert command ended with exit code 3: no display");
       expect(beside(wrapper)).toBeNull();
     });
@@ -1285,7 +1472,8 @@ describe("SettingsForm", () => {
   });
 
   describe("the Map group", () => {
-    const mount_ = (map = mapState(), extra: Record<string, string> = {}, scope: Scope = "settings") => make(extra, scope, { map });
+    const mount_ = (map = mapState(), extra: Record<string, string> = {}, scope: Scope = "settings") =>
+      make(extra, scope, { map });
 
     it("is two rows, Radius with its field and unit and then the row Detailed map with a plain Download map first in its control column, in the Map group and nowhere else", () => {
       const { wrapper } = mount_();
@@ -1293,11 +1481,11 @@ describe("SettingsForm", () => {
       expect(group?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => shown(b))).toEqual(["Download map"]);
       expect(wrapper.findAll(".mapfetch-button")).toHaveLength(1);
       const row = wrapper.find("#set-map-radius_km").element.closest(".field");
-      expect([...(row?.querySelector(".field-control")?.children ?? [])].map((c) => c.tagName + "." + (c.className.split(" ")[0] || "")).slice(0, 3)).toEqual([
-        "INPUT.input",
-        "SPAN.unit",
-        "SPAN.infotip",
-      ]);
+      expect(
+        [...(row?.querySelector(".field-control")?.children ?? [])]
+          .map((c) => c.tagName + "." + (c.className.split(" ")[0] || ""))
+          .slice(0, 3),
+      ).toEqual(["INPUT.input", "SPAN.unit", "SPAN.infotip"]);
       const action = wrapper.find(".mapfetch-button").element.closest(".field");
       expect(row?.nextElementSibling).toBe(action);
       expect(action?.classList.contains("action-row")).toBe(true);
@@ -1322,7 +1510,9 @@ describe("SettingsForm", () => {
     });
 
     it("reads Download map, and says nothing of a map downloaded, while there is a world map and no detailed one", () => {
-      const { wrapper } = mount_(mapState({ state: "none", detail: null, world: mapFile({ name: "basemap-world.pmtiles", max_zoom: 4 }) }));
+      const { wrapper } = mount_(
+        mapState({ state: "none", detail: null, world: mapFile({ name: "basemap-world.pmtiles", max_zoom: 4 }) }),
+      );
       expect(shown(wrapper.find(".mapfetch-button"))).toBe("Download map");
       expect(wrapper.find(".mapfetch-file").exists()).toBe(false);
       expect(shown(wrapper)).not.toContain("Download again");
@@ -1337,7 +1527,9 @@ describe("SettingsForm", () => {
     it("has the radius in km, and no detail, no map source and no time for stations to leave the map: those are not on the page", () => {
       const { wrapper } = mount_();
       expect(wrapper.find<HTMLInputElement>("#set-map-radius_km").element.value).toBe("150");
-      expect(wrapper.find("#set-map-radius_km").element.closest(".field")?.querySelector(".unit")?.textContent).toBe("km");
+      expect(wrapper.find("#set-map-radius_km").element.closest(".field")?.querySelector(".unit")?.textContent).toBe(
+        "km",
+      );
       for (const id of ["set-map-maxzoom", "set-map-source", "set-map-hide_after_min", "set-map-station_hours"])
         expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
       expect(
@@ -1389,7 +1581,9 @@ describe("SettingsForm", () => {
       expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true); // (typing sends nothing)
       await wrapper.find("#set-map-radius_km").trigger("blur");
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "map/radius_km": "60" } });
-      expect(buttons().every((b) => b.attributes("disabled") !== undefined && b.attributes("title") === "Saving…")).toBe(true);
+      expect(
+        buttons().every((b) => b.attributes("disabled") !== undefined && b.attributes("title") === "Saving…"),
+      ).toBe(true);
       await tell(daemon, { config: cfg({ "map/radius_km": "60" }) });
       expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true);
     });
@@ -1426,8 +1620,12 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
   });
 
   it("writes south and west as S and W, and says Not set while there is no place", () => {
-    expect(make({ "station/lat": "-33.8568", "station/lon": "-70.1" }, "beacon").wrapper.find(".location-place").text()).toMatch(/^33\.8568 S, 70\.1 W · /);
-    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find(".location-place").text()).toBe("Not set");
+    expect(
+      make({ "station/lat": "-33.8568", "station/lon": "-70.1" }, "beacon").wrapper.find(".location-place").text(),
+    ).toMatch(/^33\.8568 S, 70\.1 W · /);
+    expect(make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper.find(".location-place").text()).toBe(
+      "Not set",
+    );
   });
 
   it("keeps the coordinates and the locator behind the place: closed while there is a place, opened by a click on the place, closed too while there is none", async () => {
@@ -1437,7 +1635,11 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     await open(wrapper);
     expect(place(wrapper).attributes("aria-expanded")).toBe("true");
     expect(wrapper.findAll(".location-entry label").map((l) => l.text())).toEqual(["Latitude", "Longitude", "Locator"]);
-    expect([lat(wrapper).element.value, lon(wrapper).element.value, locator(wrapper).element.value]).toEqual(["60.17", "24.94", "KP20le"]);
+    expect([lat(wrapper).element.value, lon(wrapper).element.value, locator(wrapper).element.value]).toEqual([
+      "60.17",
+      "24.94",
+      "KP20le",
+    ]);
     await open(wrapper);
     expect(wrapper.find(".location-entry").exists()).toBe(false);
     const unset = make({ "station/lat": "", "station/lon": "" }, "beacon").wrapper;
@@ -1449,9 +1651,13 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     const { wrapper, daemon } = make({}, "beacon");
     expect(wrapper.find(".location-entry").exists()).toBe(false);
     await wrapper.setProps({ picked: { lat: 60.4, lon: 24.1, n: 1 } });
-    await tell(daemon, { lastError: toastOf("set_config: station/lat: 'x' is not a number", "setting.not_number", { value: "x" }) });
+    await tell(daemon, {
+      lastError: toastOf("set_config: station/lat: 'x' is not a number", "setting.not_number", { value: "x" }),
+    });
     expect(wrapper.find(".location-entry").exists()).toBe(true);
-    expect(lat(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("not a number");
+    expect(lat(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toContain(
+      "not a number",
+    );
   });
 
   it("has no Enter coordinates heading and no disclosure in the row", () => {
@@ -1463,7 +1669,9 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
   it("applies a place picked on the map at once, latitude and longitude in one set_config", async () => {
     const { wrapper, send, daemon } = make({}, "beacon");
     await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
-    expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
+    expect(send.mock.calls).toEqual([
+      [{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }],
+    ]);
     await tell(daemon, { config: cfg({ "station/lat": "60.42945", "station/lon": "24.14524" }) });
     expect(place(wrapper).text()).toContain("60.42945 N, 24.14524 E");
   });
@@ -1476,7 +1684,9 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     expect(send).not.toHaveBeenCalled();
     await lon(wrapper).setValue("24,5");
     await lon(wrapper).trigger("blur");
-    expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.5", "station/lon": "24,5" } }]]);
+    expect(send.mock.calls).toEqual([
+      [{ cmd: "set_config", values: { "station/lat": "60.5", "station/lon": "24,5" } }],
+    ]);
   });
 
   it("applies a locator as the centre of its square, latitude and longitude in one set_config, when its field is left or Enter is pressed", async () => {
@@ -1486,7 +1696,9 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     expect([lat(wrapper).element.value, lon(wrapper).element.value]).toEqual(["60.1875", "24.7083"]);
     expect(send).not.toHaveBeenCalled(); // (typing sends nothing)
     await locator(wrapper).trigger("keydown", { key: "Enter" });
-    expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.1875", "station/lon": "24.7083" } }]]);
+    expect(send.mock.calls).toEqual([
+      [{ cmd: "set_config", values: { "station/lat": "60.1875", "station/lon": "24.7083" } }],
+    ]);
     await locator(wrapper).trigger("blur");
     // leaving it afterwards sends nothing more: the pair is what it was sent as
     expect(send).toHaveBeenCalledTimes(1);
@@ -1498,10 +1710,16 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     await locator(wrapper).setValue("KP20ie");
     expect(lat(wrapper).element.closest(".field")?.classList.contains("changed")).toBe(true);
     await locator(wrapper).trigger("keydown", { key: "Escape" });
-    expect([lat(wrapper).element.value, lon(wrapper).element.value, locator(wrapper).element.value]).toEqual(["60.17", "24.94", "KP20le"]);
+    expect([lat(wrapper).element.value, lon(wrapper).element.value, locator(wrapper).element.value]).toEqual([
+      "60.17",
+      "24.94",
+      "KP20le",
+    ]);
     expect(send).not.toHaveBeenCalled();
     await locator(wrapper).setValue("SS00aa");
-    expect(locator(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Not a locator");
+    expect(locator(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toBe(
+      "Not a locator",
+    );
     await locator(wrapper).trigger("keydown", { key: "Escape" });
     expect(locator(wrapper).element.closest(".field")?.querySelector(".field-error")).toBeNull();
     expect(locator(wrapper).element.value).toBe("KP20le");
@@ -1521,7 +1739,9 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     await lat(wrapper).setValue("60.5");
     await lat(wrapper).trigger("blur");
     expect(send).not.toHaveBeenCalled();
-    expect(lon(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("Needed with the latitude");
+    expect(lon(wrapper).element.closest(".field")?.querySelector(".field-error")?.textContent).toBe(
+      "Needed with the latitude",
+    );
   });
 });
 
@@ -1538,17 +1758,33 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
   ];
   const off = (extra: Record<string, string> = {}) =>
     make(
-      { "beacon/interval_min": "0", "beacon/power_w": "5", "status/source": "rig", "status/rigctld": "127.0.0.1:4532", "radio/1/path": "WIDE2-2", ...extra },
+      {
+        "beacon/interval_min": "0",
+        "beacon/power_w": "5",
+        "status/source": "rig",
+        "status/rigctld": "127.0.0.1:4532",
+        "radio/1/path": "WIDE2-2",
+        ...extra,
+      },
       "beacon",
     );
-  const control = (wrapper: ReturnType<typeof make>["wrapper"], id: string) => wrapper.find<HTMLInputElement | HTMLSelectElement>(`#${id}`);
+  const control = (wrapper: ReturnType<typeof make>["wrapper"], id: string) =>
+    wrapper.find<HTMLInputElement | HTMLSelectElement>(`#${id}`);
 
   it("greys only the timing while the beacon is Off, the status's Every, and keeps what is sent editable with its value (Beacon now still sends)", () => {
     const { wrapper } = off({ "status/source": "text", "station/status": "QRV" });
     expect(control(wrapper, "set-status-interval_min").element.disabled).toBe(true);
-    expect(control(wrapper, "set-status-interval_min").element.closest(".field")?.classList.contains("disabled")).toBe(true);
+    expect(control(wrapper, "set-status-interval_min").element.closest(".field")?.classList.contains("disabled")).toBe(
+      true,
+    );
     expect(control(wrapper, "set-status-interval_min").element.value).toBe("30");
-    for (const id of ["set-station-comment", "set-beacon-power_w", "set-radio-1-path", "set-station-status", "set-status-source"]) {
+    for (const id of [
+      "set-station-comment",
+      "set-beacon-power_w",
+      "set-radio-1-path",
+      "set-station-status",
+      "set-status-source",
+    ]) {
       expect(control(wrapper, id).exists(), id).toBe(true);
       expect(control(wrapper, id).element.disabled, id).toBe(false);
     }
@@ -1558,14 +1794,16 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
 
   it("leaves the rigctld fields editable too when the status comes from the radio", () => {
     const { wrapper } = off();
-    for (const id of ["set-status-rigctld", "set-status-template"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
+    for (const id of ["set-status-rigctld", "set-status-template"])
+      expect(control(wrapper, id).element.disabled, id).toBe(false);
     expect(control(wrapper, "set-status-rigctld").element.value).toBe("127.0.0.1:4532");
   });
 
   it("greys Travelling for a moving station and leaves the comment and the path, and shows no antenna", () => {
     const { wrapper } = off({ "gps/source": "gpsd" });
     expect(control(wrapper, "set-beacon-travel").element.disabled).toBe(true);
-    for (const id of ["set-station-comment", "set-radio-1-path", "set-status-source"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
+    for (const id of ["set-station-comment", "set-radio-1-path", "set-status-source"])
+      expect(control(wrapper, id).element.disabled, id).toBe(false);
     expect(control(wrapper, "set-beacon-power_w").exists()).toBe(false);
     expect(control(wrapper, "set-beacon-travel").element.value).toBe("car");
   });
@@ -1582,9 +1820,17 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
       },
       "beacon",
     );
-    for (const id of ["set-station-comment", "set-beacon-power_w", "set-radio-1-path", "set-station-status", "set-status-source", "set-status-interval_min"])
+    for (const id of [
+      "set-station-comment",
+      "set-beacon-power_w",
+      "set-radio-1-path",
+      "set-station-status",
+      "set-status-source",
+      "set-status-interval_min",
+    ])
       expect(control(wrapper, id).element.disabled, id).toBe(true);
-    for (const id of ["set-station-call", "set-beacon-interval_min"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
+    for (const id of ["set-station-call", "set-beacon-interval_min"])
+      expect(control(wrapper, id).element.disabled, id).toBe(false);
   });
 
   it("never greys the Station group or the Beacon choice", () => {
@@ -1597,7 +1843,10 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
         source,
       ).toEqual([]);
       expect(wrapper.find<HTMLButtonElement>("#set-station-symbol-change").element.disabled, source).toBe(false);
-      expect(wrapper.find("#set-station-symbol-change").element.closest(".field")?.classList.contains("disabled"), source).toBe(false);
+      expect(
+        wrapper.find("#set-station-symbol-change").element.closest(".field")?.classList.contains("disabled"),
+        source,
+      ).toBe(false);
     }
   });
 
@@ -1611,10 +1860,11 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
   });
 
   it("greys nothing while the beacon is on, for any interval and for a moving station", () => {
-    for (const extra of [{ "beacon/interval_min": "30" }, { "beacon/interval_min": "180" }, { "beacon/interval_min": "30", "gps/source": "serial" }] as Record<
-      string,
-      string
-    >[]) {
+    for (const extra of [
+      { "beacon/interval_min": "30" },
+      { "beacon/interval_min": "180" },
+      { "beacon/interval_min": "30", "gps/source": "serial" },
+    ] as Record<string, string>[]) {
       const { wrapper } = off(extra);
       expect(wrapper.findAll(".field.disabled"), JSON.stringify(extra)).toHaveLength(0);
       expect(wrapper.findAll("input:disabled, select:disabled"), JSON.stringify(extra)).toHaveLength(0);
@@ -1665,7 +1915,11 @@ describe("SettingsForm: the RX only tickbox", () => {
     const off = make({ "station/transmit": "false" }, "settings");
     await off.wrapper.find("#set-station-transmit").setValue(false);
     expect(off.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "station/transmit": "true" } });
-    wrapper.find("#set-station-transmit").element.closest(".field")?.querySelector<HTMLButtonElement>(".info-toggle")?.click();
+    wrapper
+      .find("#set-station-transmit")
+      .element.closest(".field")
+      ?.querySelector<HTMLButtonElement>(".info-toggle")
+      ?.click();
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".info-line").text()).toBe("Nothing is sent: no beacon, message, ack or digipeat.");
   });
@@ -1730,7 +1984,12 @@ describe("the radios that are on", () => {
     for (const more of [{}, BOTH, FM_OFF]) {
       const { wrapper } = make({ "beacon/interval_min": "30" }, "beacon", more);
       const select = wrapper.find<HTMLSelectElement>("#set-beacon-interval_min");
-      expect([...select.element.options].map((o) => o.text)).toEqual(["Off", "Every 30 min", "Every 60 min", "Every 3 hours"]);
+      expect([...select.element.options].map((o) => o.text)).toEqual([
+        "Off",
+        "Every 30 min",
+        "Every 60 min",
+        "Every 3 hours",
+      ]);
       expect(wrapper.find("label[for=set-beacon-interval_min]").text()).toBe("Beacon");
       expect(wrapper.find("#set-hf-beacon_interval_min").exists()).toBe(false);
     }
@@ -1739,7 +1998,8 @@ describe("the radios that are on", () => {
   it("leaves out the path fold and Travelling while the FM radio is off, and keeps the Position choice, the GPS and the comment", () => {
     const { wrapper } = make({ "gps/source": "gpsd" }, "beacon", FM_OFF);
     for (const id of FM_ONLY_FIELDS) expect(wrapper.find(id).exists(), id).toBe(false);
-    for (const id of ["#set-gps-source", "#set-gps-host", "#set-station-comment", "#set-beacon-interval_min"]) expect(wrapper.find(id).exists(), id).toBe(true);
+    for (const id of ["#set-gps-source", "#set-gps-host", "#set-station-comment", "#set-beacon-interval_min"])
+      expect(wrapper.find(id).exists(), id).toBe(true);
     expect(wrapper.text()).not.toContain("Advanced");
     expect(ids(make({ "gps/source": "gpsd" }, "beacon", BOTH).wrapper, FM_ONLY_FIELDS)).toEqual(FM_ONLY_FIELDS);
   });

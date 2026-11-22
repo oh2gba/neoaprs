@@ -155,19 +155,30 @@ describe("the list of conversations", () => {
 
 describe("the open conversation", () => {
   it("offers to copy the call from the title of the header, and both of an overheard pair", async () => {
-    wrapper = mount(ConversationView, { props: { selected: "OH2RDG", narrow: false, thread: [] }, attachTo: document.body, global: withDaemon(daemon) });
+    wrapper = mount(ConversationView, {
+      props: { selected: "OH2RDG", narrow: false, thread: [] },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     await rightClick(wrapper.find(".convo-title"));
     expect(labels()).toEqual(["Copy OH2RDG"]);
     await choose("call");
     expect(written).toEqual(["OH2RDG"]);
     wrapper.unmount();
-    wrapper = mount(ConversationView, { props: { selected: "OH2AAA>OH2BBB", narrow: false, thread: [] }, attachTo: document.body, global: withDaemon(daemon) });
+    wrapper = mount(ConversationView, {
+      props: { selected: "OH2AAA>OH2BBB", narrow: false, thread: [] },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     await rightClick(wrapper.find(".convo-title"));
     expect(labels()).toEqual(["Copy OH2AAA", "Copy OH2BBB"]);
   });
 
   it("has the Route button at the normal height of a button, not the compact one", () => {
-    wrapper = mount(ConversationView, { props: { selected: "OH2RDG", narrow: false, thread: [] }, global: withDaemon(daemon) });
+    wrapper = mount(ConversationView, {
+      props: { selected: "OH2RDG", narrow: false, thread: [] },
+      global: withDaemon(daemon),
+    });
     expect(wrapper.find(".route-button").classes()).toContain("btn");
     expect(wrapper.find(".route-button").classes()).not.toContain("small");
   });
@@ -175,7 +186,11 @@ describe("the open conversation", () => {
   it("offers Copy message on a bubble, which copies the text whole and says it cut short", async () => {
     const long = "This is a message that is longer than the forty characters the toast repeats of it";
     const thread = [message(1, { text: "Hello", state: "acked" }), incoming(2, "OH2RDG", { text: long })];
-    wrapper = mount(ConversationThread, { props: { thread, peer: "OH2RDG" }, attachTo: document.body, global: withDaemon(daemon) });
+    wrapper = mount(ConversationThread, {
+      props: { thread, peer: "OH2RDG" },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     const bubbles = wrapper.findAll(".bubble");
     await rightClick(bubbles[1]);
     expect(labels()).toEqual(["Copy message"]);
@@ -204,7 +219,11 @@ describe("the other places of the page", () => {
   });
 
   it("a station's card: the head offers the call", async () => {
-    wrapper = mount(StationCard, { props: { row: station("OH2PU-9"), now: NOW }, attachTo: document.body, global: withDaemon(daemon) });
+    wrapper = mount(StationCard, {
+      props: { row: station("OH2PU-9"), now: NOW },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     await rightClick(wrapper.find(".card-head"));
     expect(labels()).toEqual(["Copy OH2PU-9"]);
     await choose("call");
@@ -213,7 +232,11 @@ describe("the other places of the page", () => {
 
   it("a station's card: a long press on the head opens the menu too, and a finger that goes on to drag the card does not", async () => {
     vi.useFakeTimers();
-    wrapper = mount(StationCard, { props: { row: station("OH2PU-9"), now: NOW }, attachTo: document.body, global: withDaemon(daemon) });
+    wrapper = mount(StationCard, {
+      props: { row: station("OH2PU-9"), now: NOW },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     const head = wrapper.find(".card-head");
     await head.trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 60, clientY: 80 });
     await head.trigger("pointermove", { clientX: 60, clientY: 140 });
@@ -241,7 +264,10 @@ describe("the other places of the page", () => {
     wrapper.unmount();
     const rows: BulletinRow[] = [bulletin("BLN1", { sender: "OH2ABC", text: "Road closed" })];
     wrapper = mount(BulletinsPane, {
-      props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>() },
+      props: {
+        bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])),
+        ownBulletins: new Map<string, OwnBulletinRow>(),
+      },
       attachTo: document.body,
       global: withDaemon(daemon),
     });
@@ -259,7 +285,10 @@ describe("the other places of the page", () => {
   it("Bulletins: a bulletin offers its text and its sender", async () => {
     const rows: BulletinRow[] = [bulletin("BLN1", { sender: "OH2ABC", text: "Road closed at Kaivopuisto" })];
     wrapper = mount(BulletinsPane, {
-      props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>() },
+      props: {
+        bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])),
+        ownBulletins: new Map<string, OwnBulletinRow>(),
+      },
       attachTo: document.body,
       global: withDaemon(daemon),
     });
@@ -304,7 +333,11 @@ describe("the other places of the page", () => {
   it("Objects: an own object offers its name", async () => {
     const table = new Map([["LEADER", ownObject("LEADER", { comment: "Rescue 1" })]]);
     const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-    wrapper = mount(ObjectsPane, { props: { objects: table, form }, attachTo: document.body, global: withDaemon(daemon) });
+    wrapper = mount(ObjectsPane, {
+      props: { objects: table, form },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
     await rightClick(wrapper.find("li.ownobject"));
     expect(labels()).toEqual(["Copy name"]);
     await choose("name");

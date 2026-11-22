@@ -15,9 +15,12 @@ import { radioBlockedReason } from "@/lib/compose";
 import { checkingMail } from "@/lib/email";
 import type { MessageRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; addresses: readonly string[]; freshAfter?: number }>(), {
-  freshAfter: Number.MAX_SAFE_INTEGER,
-});
+const props = withDefaults(
+  defineProps<{ thread: readonly MessageRow[]; addresses: readonly string[]; freshAfter?: number }>(),
+  {
+    freshAfter: Number.MAX_SAFE_INTEGER,
+  },
+);
 const { heardDirect, settings } = useDaemonContext();
 const emit = defineEmits<{
   send: [to: string, text: string];
@@ -59,7 +62,9 @@ const away = computed(() => offline.value ?? (checking.value ? t("email.checking
 <template>
   <div class="mailpane">
     <div class="mail-bar">
-      <button type="button" class="btn" :disabled="away !== undefined" :title="away" @click="emit('get')">{{ t("email.check") }}</button>
+      <button type="button" class="btn" :disabled="away !== undefined" :title="away" @click="emit('get')">
+        {{ t("email.check") }}
+      </button>
       <div v-if="choices.length > 0" class="pathbox mail-radio">
         <label :for="listId" class="path-label">{{ t("radio.send_on") }}</label>
         <select :id="listId" class="input" :value="shown" @change="pick">

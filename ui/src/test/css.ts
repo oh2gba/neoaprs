@@ -3,7 +3,9 @@ import { resolve } from "node:path";
 
 // The page's style sheets as one, in the order main.ts imports them, with comments taken out
 // (a comment above a rule is not part of its selector).
-const SHEETS = [...readFileSync(resolve(__dirname, "../main.ts"), "utf8").matchAll(/^import "\.\/(styles\/[^"]+\.css)";$/gm)].map((match) => match[1] ?? "");
+const SHEETS = [
+  ...readFileSync(resolve(__dirname, "../main.ts"), "utf8").matchAll(/^import "\.\/(styles\/[^"]+\.css)";$/gm),
+].map((match) => match[1] ?? "");
 const SHEET = SHEETS.map((file) => readFileSync(resolve(__dirname, "..", file), "utf8"))
   .join("\n")
   .replace(/\/\*[\s\S]*?\*\//g, "");

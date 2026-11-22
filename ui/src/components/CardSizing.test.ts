@@ -20,13 +20,21 @@ function standIn(): void {
     if (!/card/.test(this.className) || this.className.includes("card-")) return rect(0, 0, MAP.width, MAP.height);
     const w = parseFloat(this.style.width) || 560;
     const h = parseFloat(this.style.height) || 480;
-    return this.style.left ? rect(parseFloat(this.style.left), parseFloat(this.style.top), w, h) : rect(MAP.width - 10 - w, MAP.height - 30 - h, w, h);
+    return this.style.left
+      ? rect(parseFloat(this.style.left), parseFloat(this.style.top), w, h)
+      : rect(MAP.width - 10 - w, MAP.height - 30 - h, w, h);
   });
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(MAP.width);
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(MAP.height);
 }
-const packets = (movable = true) => mount(PacketsCard, { props: { packets: new Map(), movable }, global: withDaemon(fakeDaemon()), attachTo: document.body });
-const monitor = (movable = true) => mount(MonitorCard, { props: { movable }, global: withDaemon(fakeDaemon()), attachTo: document.body });
+const packets = (movable = true) =>
+  mount(PacketsCard, {
+    props: { packets: new Map(), movable },
+    global: withDaemon(fakeDaemon()),
+    attachTo: document.body,
+  });
+const monitor = (movable = true) =>
+  mount(MonitorCard, { props: { movable }, global: withDaemon(fakeDaemon()), attachTo: document.body });
 const pointer = (target: Element, type: string, x: number, y: number) =>
   target.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
 
@@ -40,8 +48,22 @@ afterEach(() => {
 });
 
 describe.each([
-  { name: "Packets card", make: packets, selector: ".packetscard", sizeKey: "NeoAPRS.packetssize", placeKey: "NeoAPRS.packetsplace", least: [380, 240] },
-  { name: "Monitor card", make: monitor, selector: ".monitorcard", sizeKey: "NeoAPRS.monitorsize", placeKey: "NeoAPRS.monitorplace", least: [340, 300] },
+  {
+    name: "Packets card",
+    make: packets,
+    selector: ".packetscard",
+    sizeKey: "NeoAPRS.packetssize",
+    placeKey: "NeoAPRS.packetsplace",
+    least: [380, 240],
+  },
+  {
+    name: "Monitor card",
+    make: monitor,
+    selector: ".monitorcard",
+    sizeKey: "NeoAPRS.monitorsize",
+    placeKey: "NeoAPRS.monitorplace",
+    least: [340, 300],
+  },
 ])("$name", ({ make, selector, sizeKey, placeKey, least }) => {
   it("has a handle on each edge and corner for the pointer, hidden from a screen reader that has the card's keys, and none on a phone", () => {
     const wrapper = make(true);
@@ -108,7 +130,8 @@ describe.each([
   it("is made larger with Ctrl and Alt and Right and Down where it stands by default, at the map's bottom right", async () => {
     const wrapper = make(true);
     const el = wrapper.find(selector).element as HTMLElement;
-    for (let n = 0; n < 3; n++) await wrapper.find(selector).trigger("keydown", { key: "ArrowRight", altKey: true, ctrlKey: true });
+    for (let n = 0; n < 3; n++)
+      await wrapper.find(selector).trigger("keydown", { key: "ArrowRight", altKey: true, ctrlKey: true });
     await wrapper.find(selector).trigger("keydown", { key: "ArrowDown", altKey: true, ctrlKey: true, shiftKey: true });
     expect([el.style.width, el.style.height]).toEqual(["632px", "576px"]);
     expect([el.style.left, el.style.top]).toEqual(["558px", "194px"]); // (right and bottom sides stayed)
@@ -157,7 +180,11 @@ describe.each([
 
 describe("StatsCard", () => {
   it("has no handles: its content has its size", () => {
-    const wrapper = mount(StatsCard, { props: { packets: new Map(), movable: true }, global: withDaemon(fakeDaemon()), attachTo: document.body });
+    const wrapper = mount(StatsCard, {
+      props: { packets: new Map(), movable: true },
+      global: withDaemon(fakeDaemon()),
+      attachTo: document.body,
+    });
     expect(wrapper.findAll(".sizer")).toHaveLength(0);
     expect(wrapper.find(".statscard").classes()).not.toContain("sized");
   });

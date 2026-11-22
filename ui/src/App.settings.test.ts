@@ -52,9 +52,16 @@ describe("App: the Settings tab", () => {
     await wrapper.find("#set-messages-alert_command").setValue("x".repeat(1001));
     await wrapper.find("#set-messages-alert_command").trigger("blur");
     expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "messages/alert_command": "x".repeat(1001) } });
-    socket.say(errorOf("set_config: messages/alert_command: 1001 characters is more than the 1000 allowed", "setting.too_long", { length: 1001, max: 1000 }));
+    socket.say(
+      errorOf("set_config: messages/alert_command: 1001 characters is more than the 1000 allowed", "setting.too_long", {
+        length: 1001,
+        max: 1000,
+      }),
+    );
     await flushPromises();
-    expect(wrapper.find("#set-messages-alert_command").element.closest(".field")?.textContent).toContain("more than the 1000 allowed");
+    expect(wrapper.find("#set-messages-alert_command").element.closest(".field")?.textContent).toContain(
+      "more than the 1000 allowed",
+    );
     expect(wrapper.find<HTMLInputElement>("#set-messages-alert_command").element.value).toBe("x".repeat(1001));
     expect(wrapper.find(".toast").exists()).toBe(false);
   });
@@ -67,7 +74,8 @@ describe("App: the Settings tab", () => {
      * values.
      */
     const told = (socket: FakeSocket, changes: Record<string, string>) => {
-      const own = (radio: boolean) => Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("radio/") === radio));
+      const own = (radio: boolean) =>
+        Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("radio/") === radio));
       socket.say({ type: "state", topic: "config", rev: 1, value: configValues(own(false), own(true)) });
     };
 
@@ -127,7 +135,16 @@ describe("App: the Settings tab", () => {
       ops: [
         {
           op: "replace",
-          value: mapState({ estimate: { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" } }),
+          value: mapState({
+            estimate: {
+              bytes: 493_000_000,
+              tiles: 41233,
+              radius_km: 150,
+              maxzoom: 12,
+              box: [22.1, 58.8, 27.8, 61.5],
+              build: "20261022",
+            },
+          }),
         },
       ],
     });

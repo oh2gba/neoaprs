@@ -32,7 +32,9 @@ describe("PacketsLog", () => {
     const wrapper = mount(PacketsLog, { props: { packets } });
     expect(wrapper.find(".tablepane").element.firstElementChild?.className).toBe("tab-help");
     await wrapper.find(".tab-help .info-toggle").trigger("click");
-    expect(wrapper.find(".tab-help .info-text").text()).toContain("Every packet heard (in) or sent by you (out), newest first");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain(
+      "Every packet heard (in) or sent by you (out), newest first",
+    );
   });
 
   it("has the filter in a group box with the legend Filter, as the Stations tab has its filters", () => {
@@ -56,13 +58,32 @@ describe("PacketsLog", () => {
       props: {
         packets: new Map([
           ["1", packet(1, { route: "via OH2RCH-2" })],
-          ["2", packet(2, { route: "via OH7JHF-1 (internet) → OH2RCH-3", via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1" })],
+          [
+            "2",
+            packet(2, {
+              route: "via OH7JHF-1 (internet) → OH2RCH-3",
+              via: "rf-gated",
+              gate: "OH7JHF-1",
+              source: "OH7JHF-1",
+            }),
+          ],
           ["3", packet(3, { direction: "out", route: "" })],
         ]),
       },
     });
-    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["Time", "Dir", "Via", "Packet", "Route", "Summary"]);
-    expect(wrapper.findAll("tbody tr").map((tr) => tr.findAll("td")[4]?.text())).toEqual(["", "via OH7JHF-1 (internet) → OH2RCH-3", "via OH2RCH-2"]);
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual([
+      "Time",
+      "Dir",
+      "Via",
+      "Packet",
+      "Route",
+      "Summary",
+    ]);
+    expect(wrapper.findAll("tbody tr").map((tr) => tr.findAll("td")[4]?.text())).toEqual([
+      "",
+      "via OH7JHF-1 (internet) → OH2RCH-3",
+      "via OH2RCH-2",
+    ]);
   });
 
   it("has a Via column with how every packet came: the radio's name for the radio's and for ours (FM, also with one radio on), iGate, Internet; with what it means as the title (ours: sent on it)", () => {
@@ -71,8 +92,25 @@ describe("PacketsLog", () => {
       props: {
         packets: new Map([
           ["1", packet(1)],
-          ["2", packet(2, { via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1", route: "via OH7JHF-1 (internet) → OH2RCH-3" })],
-          ["3", packet(3, { via: "is", route: "", path: ["TCPIP*", "qAC", "T2FINLAND"], source: "OH2ABC", tnc2: "OH2ABC>APRS,TCPIP*,qAC,T2FINLAND:>x" })],
+          [
+            "2",
+            packet(2, {
+              via: "rf-gated",
+              gate: "OH7JHF-1",
+              source: "OH7JHF-1",
+              route: "via OH7JHF-1 (internet) → OH2RCH-3",
+            }),
+          ],
+          [
+            "3",
+            packet(3, {
+              via: "is",
+              route: "",
+              path: ["TCPIP*", "qAC", "T2FINLAND"],
+              source: "OH2ABC",
+              tnc2: "OH2ABC>APRS,TCPIP*,qAC,T2FINLAND:>x",
+            }),
+          ],
           ["4", packet(4, { direction: "out", route: "" })],
           ["5", packet(5, { via: "dummy", source: "QDUMMY-1" })],
         ]),
@@ -89,11 +127,20 @@ describe("PacketsLog", () => {
     ]);
     expect(cells.map((td) => td.classes().includes("internet"))).toEqual([false, false, true, false, false]);
     expect(cssRule(".grid.packets td.via.internet .tag")).toMatch(/font-style:\s*italic/);
-    expect(wrapper.findAll("td.via .tag").map((t) => t.classes()[1])).toEqual(["tag-dummy", "tag-neutral", "tag-info", "tag-neutral", "tag-neutral"]);
+    expect(wrapper.findAll("td.via .tag").map((t) => t.classes()[1])).toEqual([
+      "tag-dummy",
+      "tag-neutral",
+      "tag-info",
+      "tag-neutral",
+      "tag-neutral",
+    ]);
   });
 
   it("marks a packet heard on the Mercury radio with a tag of its own, apart from the FM radio's: FM and Mercury", () => {
-    const today = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
+    const today = radiosTopic(
+      radioRow(1, "kenwood-tnc2"),
+      radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+    );
     const wrapper = mount(PacketsLog, {
       global: withDaemon(fakeDaemon({ radios: today })),
       props: {
@@ -162,7 +209,9 @@ describe("PacketsLog", () => {
     const wrapper = mount(PacketsLog, { props: { packets } });
     expect(wrapper.find(".packet-detail").exists()).toBe(false);
     await wrapper.findAll("tbody tr")[0]?.trigger("click");
-    const facts = Object.fromEntries(wrapper.findAll(".packet-detail dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]));
+    const facts = Object.fromEntries(
+      wrapper.findAll(".packet-detail dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]),
+    );
     expect(facts["From"]).toBe("OH2GBA");
     expect(facts["Kind"]).toBe("Position report");
     expect(facts["Position"]).toBe("60.12000 N 24.49000 E");
@@ -194,7 +243,10 @@ describe("PacketsLog", () => {
   });
   it("says in the detail that a time in the packet is the sender's local time", async () => {
     const base = packet(1);
-    const local = { ...base, decoded: { ...base.decoded, timestamp: "2026-10-09T23:45:00.000000Z", timestamp_local: true } } as typeof base;
+    const local = {
+      ...base,
+      decoded: { ...base.decoded, timestamp: "2026-10-09T23:45:00.000000Z", timestamp_local: true },
+    } as typeof base;
     const wrapper = mount(PacketsLog, { props: { packets: new Map([["1", local]]) } });
     await wrapper.find("tbody tr").trigger("click");
     const labels = (w: ReturnType<typeof mount>) => w.findAll(".packet-detail dt").map((dt) => dt.text());
@@ -208,7 +260,9 @@ describe("PacketsLog", () => {
     const live = new Map(packets);
     const wrapper = mount(PacketsLog, { props: { packets: live } });
     await wrapper.findAll("tbody tr")[1]?.trigger("click"); // packet 2
-    await wrapper.setProps({ packets: new Map([...live, ["4", packet(4, { tnc2: "OH2NEW>APRS:!6007.47N/02429.82E- newer" })]]) });
+    await wrapper.setProps({
+      packets: new Map([...live, ["4", packet(4, { tnc2: "OH2NEW>APRS:!6007.47N/02429.82E- newer" })]]),
+    });
     expect(wrapper.find("pre").exists()).toBe(true);
     expect(wrapper.findAll("tbody tr")[0]?.text()).toContain("newer");
   });
@@ -240,7 +294,14 @@ describe("PacketsLog on a narrow tab", () => {
     const wrapper = await narrow(PACKETS_TABLE - 1);
     expect(wrapper.find("table").classes()).toContain("stacked");
     expect(wrapper.find("thead").classes()).toContain("sr-only");
-    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["Time", "Dir", "Via", "Packet", "Route", "Summary"]);
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual([
+      "Time",
+      "Dir",
+      "Via",
+      "Packet",
+      "Route",
+      "Summary",
+    ]);
     const row = wrapper.findAll("tbody tr")[2];
     expect(row?.findAll("td")).toHaveLength(6);
     expect(row?.find("td.line").text()).toContain("OH2RDG>APN391");
@@ -304,7 +365,8 @@ describe("PacketsLog with several radios", () => {
     ["6", packet(6, { radio_id: 3, via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1" })],
     ["7", packet(7, { radio_id: null, via: "is", route: "" })],
   ]);
-  const log = (rows = SIX) => mount(PacketsLog, { props: { packets }, global: withDaemon(fakeDaemon({ radios: radiosTopic(...rows) })) });
+  const log = (rows = SIX) =>
+    mount(PacketsLog, { props: { packets }, global: withDaemon(fakeDaemon({ radios: radiosTopic(...rows) })) });
 
   it("names in Via the radio each packet came on, in the tone of its kind, dimmed for a removed one; the iGate's says in its title which radio heard it", () => {
     const wrapper = log();
@@ -349,7 +411,15 @@ describe("PacketsLog with several radios", () => {
   it("names the radio for a station with one radio on too (FM, not RF), the HF radio that is off by its name, and gives no tag to a radio the page does not know", () => {
     const wrapper = log([SIX[0], { ...SIX[1], enabled: false, state: "stopped" }]);
     // radios 3 to 6 are not of this station: no tag but the Dummy's mark
-    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "", "Dummy", "", "Mercury", "FM"]);
+    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual([
+      "Internet",
+      "iGate",
+      "",
+      "Dummy",
+      "",
+      "Mercury",
+      "FM",
+    ]);
     expect(wrapper.findAll("td.via")[2]?.find(".tag").exists()).toBe(false);
   });
 });
@@ -361,11 +431,16 @@ describe("PacketsLog with one radio", () => {
     ["3", packet(3, { radio_id: 1, via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1" })],
     ["4", packet(4, { radio_id: null, via: "is", route: "" })],
   ]);
-  const log = (...rows: RadioRow[]) => mount(PacketsLog, { props: { packets }, global: withDaemon(fakeDaemon({ radios: radiosTopic(...rows) })) });
+  const log = (...rows: RadioRow[]) =>
+    mount(PacketsLog, { props: { packets }, global: withDaemon(fakeDaemon({ radios: radiosTopic(...rows) })) });
   const via = (wrapper: ReturnType<typeof log>) =>
     wrapper.findAll("td.via").map((cell) => [cell.text(), cell.find(".tag").classes()[1], cell.attributes("title")]);
   const NET = ["Internet", "tag-info", "Received over the internet (APRS-IS), not on the radio"];
-  const gate = (name: string) => ["iGate", "tag-neutral", `Heard on the radio from an iGate, which took it from the internet; Heard on radio ${name}`];
+  const gate = (name: string) => [
+    "iGate",
+    "tag-neutral",
+    `Heard on the radio from an iGate, which took it from the internet; Heard on radio ${name}`,
+  ];
 
   it("names an FM radio with no name of its own FM, a packet of ours as the one heard (its title: sent on it)", () => {
     expect(via(log(radioRow(1, "kenwood-tnc2")))).toEqual([

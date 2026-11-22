@@ -10,11 +10,17 @@ import type { HopChoice } from "@/lib/pathbuilder";
 const props = defineProps<{ choices: HopChoice[]; after: string | null; now: number }>();
 const emit = defineEmits<{ pick: [call: string] }>();
 
-const heading = computed(() => (props.after === null ? t("pathbuilder.heard") : t("pathbuilder.next_to", { call: props.after })));
+const heading = computed(() =>
+  props.after === null ? t("pathbuilder.heard") : t("pathbuilder.next_to", { call: props.after }),
+);
 const countTitle = (choice: HopChoice): string =>
-  props.after === null ? t("nearby.repeated", { n: choice.count }) : t("pathbuilder.seen_next", { n: choice.count, call: props.after ?? "" });
+  props.after === null
+    ? t("nearby.repeated", { n: choice.count })
+    : t("pathbuilder.seen_next", { n: choice.count, call: props.after ?? "" });
 const atTitle = (choice: HopChoice): string | undefined =>
-  choice.at === null ? undefined : t("nearby.direct_last", { when: t("time.ago", { span: ageText(choice.at, props.now) }) });
+  choice.at === null
+    ? undefined
+    : t("nearby.direct_last", { when: t("time.ago", { span: ageText(choice.at, props.now) }) });
 </script>
 
 <template>
@@ -22,11 +28,20 @@ const atTitle = (choice: HopChoice): string | undefined =>
     <h3 class="pathbuild-heading">{{ heading }}</h3>
     <ul class="pathbuild-list" :aria-label="heading">
       <li v-for="choice in choices" :key="choice.call">
-        <button type="button" class="pathbuild-choice" :title="t('pathbuilder.add_hop', { call: choice.call })" @click="emit('pick', choice.call)">
+        <button
+          type="button"
+          class="pathbuild-choice"
+          :title="t('pathbuilder.add_hop', { call: choice.call })"
+          @click="emit('pick', choice.call)"
+        >
           <span class="mono pathbuild-call">{{ choice.call }}</span>
           <span class="pathbuild-num" :title="countTitle(choice)">{{ choice.count }}</span>
-          <span class="pathbuild-num" :title="atTitle(choice)">{{ choice.at === null ? NONE : ageText(choice.at, now) }}</span>
-          <span class="pathbuild-num">{{ choice.km === null ? NONE : t("stats.km", { km: distanceText(choice.km) }) }}</span>
+          <span class="pathbuild-num" :title="atTitle(choice)">{{
+            choice.at === null ? NONE : ageText(choice.at, now)
+          }}</span>
+          <span class="pathbuild-num">{{
+            choice.km === null ? NONE : t("stats.km", { km: distanceText(choice.km) })
+          }}</span>
         </button>
       </li>
       <li v-if="choices.length === 0" class="pathbuild-none muted">{{ NONE }}</li>

@@ -6,5 +6,7 @@ import { t } from "@/i18n";
 </script>
 
 <template>
-  <span class="direct-mark" role="img" :aria-label="t('station.direct.title')" :title="t('station.direct.title')">&#10003;</span>
+  <span class="direct-mark" role="img" :aria-label="t('station.direct.title')" :title="t('station.direct.title')"
+    >&#10003;</span
+  >
 </template>

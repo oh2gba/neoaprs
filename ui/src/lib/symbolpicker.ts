@@ -69,7 +69,9 @@ export const ALL_SYMBOLS: readonly PickSymbol[] = ["/", "\\"].flatMap((table) =>
 export function symbolName(table: string, code: string): string {
   const index = code.length === 1 ? code.charCodeAt(0) - FIRST_CODE : -1;
   const kind = table === "/" ? "/" : "\\";
-  return index >= 0 && index < tableList(kind).length && !NOT_LISTED.includes(tableList(kind)[index] ?? "") ? nameOf(kind, index) : "";
+  return index >= 0 && index < tableList(kind).length && !NOT_LISTED.includes(tableList(kind)[index] ?? "")
+    ? nameOf(kind, index)
+    : "";
 }
 
 /** Whether a letter or digit can go over the symbol: the symbols made for it, and any that has one
@@ -96,6 +98,8 @@ export function filterSymbols(symbols: readonly PickSymbol[], query: string): Pi
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [...symbols];
   return symbols.filter(
-    (s) => `${s.table}${s.code}` === query.trim() || words.every((w) => s.name.toLowerCase().includes(SYNONYMS[w] ?? w) || s.name.toLowerCase().includes(w)),
+    (s) =>
+      `${s.table}${s.code}` === query.trim() ||
+      words.every((w) => s.name.toLowerCase().includes(SYNONYMS[w] ?? w) || s.name.toLowerCase().includes(w)),
   );
 }

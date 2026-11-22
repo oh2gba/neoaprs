@@ -21,7 +21,9 @@ function destination(from: Home, km: number, bearing: number): LonLat {
   const lon = (from.lon * Math.PI) / 180;
   const angle = km / EARTH_RADIUS_KM;
   const toLat = Math.asin(Math.sin(lat) * Math.cos(angle) + Math.cos(lat) * Math.sin(angle) * Math.cos(bearing));
-  const toLon = lon + Math.atan2(Math.sin(bearing) * Math.sin(angle) * Math.cos(lat), Math.cos(angle) - Math.sin(lat) * Math.sin(toLat));
+  const toLon =
+    lon +
+    Math.atan2(Math.sin(bearing) * Math.sin(angle) * Math.cos(lat), Math.cos(angle) - Math.sin(lat) * Math.sin(toLat));
   return [(toLon * 180) / Math.PI, (toLat * 180) / Math.PI];
 }
 

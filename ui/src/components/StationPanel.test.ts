@@ -18,7 +18,13 @@ let book: Map<string, StationPref>;
 const make = (row: StationRow, over: Given = {}) => {
   send = vi.fn((_command: Command) => true);
   book = shallowReactive(new Map<string, StationPref>());
-  const daemon = fakeDaemon({ send, home: { lat: 60.17, lon: 24.94 }, fallbackPath: "WIDE1-1,WIDE2-1", prefs: useStationPrefs(book, send), ...over });
+  const daemon = fakeDaemon({
+    send,
+    home: { lat: 60.17, lon: 24.94 },
+    fallbackPath: "WIDE1-1,WIDE2-1",
+    prefs: useStationPrefs(book, send),
+    ...over,
+  });
   wrapper = mount(StationPanel, { props: { row, armed: false }, attachTo: document.body, global: withDaemon(daemon) });
   return wrapper;
 };
@@ -36,7 +42,17 @@ afterEach(() => {
 describe("what the panel holds", () => {
   it("for a station heard: Message, the queries, its own query, Show, Copy, QRZ, Forget, its traffic, the route and the alert, and no note under the queries", () => {
     make(station("OH2RDG"));
-    expect(items()).toEqual(["message", "ask_position", "ask_status", "ask_heard", "ask_trace", "show", "copy", "qrz", "forget"]);
+    expect(items()).toEqual([
+      "message",
+      "ask_position",
+      "ask_status",
+      "ask_heard",
+      "ask_trace",
+      "show",
+      "copy",
+      "qrz",
+      "forget",
+    ]);
     expect(query().exists()).toBe(true);
     expect(wrapper.text()).not.toContain("don't answer");
     expect(wrapper.find("[data-item='qrz']").attributes("href")).toContain("OH2RDG");
@@ -46,7 +62,14 @@ describe("what the panel holds", () => {
 
   it("for a weather station: Ask for weather after the other queries, its title saying that many do not answer it; none for any other station", () => {
     make(station("OH2MUI", { symbol_code: "_" }));
-    expect(items().slice(0, 6)).toEqual(["message", "ask_position", "ask_status", "ask_heard", "ask_trace", "ask_weather"]);
+    expect(items().slice(0, 6)).toEqual([
+      "message",
+      "ask_position",
+      "ask_status",
+      "ask_heard",
+      "ask_trace",
+      "ask_weather",
+    ]);
     const wx = wrapper.find("[data-item='ask_weather']");
     expect(wx.text()).toBe("Ask for weather");
     expect(wx.attributes("title")).toContain("many stations don't answer it");
@@ -150,9 +173,21 @@ describe("the settings in the panel", () => {
     make(station("OH2RDG"));
     expect(wrapper.text()).not.toMatch(/1 to 1000/);
     await tick("on_air").setValue(true);
-    expect(send).toHaveBeenLastCalledWith({ cmd: "set_station_alert", call: "OH2RDG", on_air: true, within_km: null, direct: false });
+    expect(send).toHaveBeenLastCalledWith({
+      cmd: "set_station_alert",
+      call: "OH2RDG",
+      on_air: true,
+      within_km: null,
+      direct: false,
+    });
     await tick("within").setValue(true);
-    expect(send).toHaveBeenLastCalledWith({ cmd: "set_station_alert", call: "OH2RDG", on_air: true, within_km: 10, direct: false });
+    expect(send).toHaveBeenLastCalledWith({
+      cmd: "set_station_alert",
+      call: "OH2RDG",
+      on_air: true,
+      within_km: 10,
+      direct: false,
+    });
     const km = wrapper.find("input[type='number']");
     send.mockClear();
     for (const bad of [0, 1001, 2.5]) {
@@ -166,7 +201,13 @@ describe("the settings in the panel", () => {
     await km.setValue(25);
     await km.trigger("change");
     expect(km.classes()).not.toContain("invalid");
-    expect(send).toHaveBeenLastCalledWith({ cmd: "set_station_alert", call: "OH2RDG", on_air: true, within_km: 25, direct: false });
+    expect(send).toHaveBeenLastCalledWith({
+      cmd: "set_station_alert",
+      call: "OH2RDG",
+      on_air: true,
+      within_km: 25,
+      direct: false,
+    });
   });
 
   it("grey the distance's tickbox while our position is missing, with that as its title, and no line says it", () => {
@@ -181,7 +222,9 @@ describe("the settings in the panel", () => {
     expect((tick("on_air").element as HTMLInputElement).checked).toBe(false);
     book.set("OH2RDG", { path: null, rf_only: false, alert: { on_air: false, within_km: 5, direct: true } });
     await nextTick();
-    expect([tick("on_air"), tick("within"), tick("direct")].map((t) => (t.element as HTMLInputElement).checked)).toEqual([false, true, true]);
+    expect(
+      [tick("on_air"), tick("within"), tick("direct")].map((t) => (t.element as HTMLInputElement).checked),
+    ).toEqual([false, true, true]);
     expect((wrapper.find("input[type='number']").element as HTMLInputElement).value).toBe("5");
   });
 });

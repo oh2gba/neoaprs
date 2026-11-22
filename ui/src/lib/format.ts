@@ -37,7 +37,9 @@ export function ageText(iso: string | null, nowMs: number): string {
  */
 export function processText(cpuPercent: number, rssMb: number | null, uptimeSec: number): string {
   const values = { cpu: formatNumber(cpuPercent, 1), span: spanText(Math.max(0, uptimeSec) * SECOND) };
-  return rssMb === null ? t("footer.cost_no_memory", values) : t("footer.cost", { ...values, mb: formatNumber(Math.round(rssMb), 0) });
+  return rssMb === null
+    ? t("footer.cost_no_memory", values)
+    : t("footer.cost", { ...values, mb: formatNumber(Math.round(rssMb), 0) });
 }
 
 /** How long until ("in 12 s"); "now" once the time has come. */
@@ -74,14 +76,18 @@ export function hourMinuteText(iso: string): string {
 
 /** "nothing heard since 02:43 (5 h)": the time of the latest byte and how long ago. */
 export function silentText(since: string | null, nowMs: number): string {
-  return since === null ? t("time.nothing_heard") : t("time.nothing_heard_since", { time: hourMinuteText(since), span: ageText(since, nowMs) });
+  return since === null
+    ? t("time.nothing_heard")
+    : t("time.nothing_heard_since", { time: hourMinuteText(since), span: ageText(since, nowMs) });
 }
 
 /** YYYY-MM-DD HH:MM:SS in the viewer's time. */
 export function dateTimeText(iso: string | null): string {
   if (iso === null) return NONE;
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? NONE : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${clockText(iso)}`;
+  return Number.isNaN(d.getTime())
+    ? NONE
+    : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${clockText(iso)}`;
 }
 
 /** "2 min ago"; a dash for none. The full time belongs in a hover title (`dateTimeText`). */

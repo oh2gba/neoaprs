@@ -4,11 +4,19 @@ import { incoming, message } from "@/test/fixtures";
 
 describe("isLoopbackHost", () => {
   it("is true for the machine itself, in every spelling", () => {
-    for (const host of ["localhost", "LOCALHOST", "127.0.0.1", "127.1.2.3", "[::1]", "::1", "neoaprs.localhost"]) expect(isLoopbackHost(host)).toBe(true);
+    for (const host of ["localhost", "LOCALHOST", "127.0.0.1", "127.1.2.3", "[::1]", "::1", "neoaprs.localhost"])
+      expect(isLoopbackHost(host)).toBe(true);
   });
 
   it("is false for another device's view of the daemon", () => {
-    for (const host of ["192.168.1.20", "raspberrypi.local", "pi.example.org", "127.0.0.1.example.org", "10.0.0.127", ""])
+    for (const host of [
+      "192.168.1.20",
+      "raspberrypi.local",
+      "pi.example.org",
+      "127.0.0.1.example.org",
+      "10.0.0.127",
+      "",
+    ])
       expect(isLoopbackHost(host)).toBe(false);
   });
 });

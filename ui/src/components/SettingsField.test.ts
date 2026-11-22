@@ -40,7 +40,9 @@ describe("SettingsField with a limit", () => {
     expect(counter().text()).toBe("36 left");
     expect(counter().attributes("title")).toBe("36 of 43 characters left");
     expect(
-      [...wrapper.find(".field-control").element.children].map((c) => c.tagName.toLowerCase() + (c.className ? `.${c.className.split(" ")[0]}` : "")),
+      [...wrapper.find(".field-control").element.children].map(
+        (c) => c.tagName.toLowerCase() + (c.className ? `.${c.className.split(" ")[0]}` : ""),
+      ),
     ).toEqual(["input.input", "span.compose-left", "span.infotip"]);
     wrapper.unmount();
   });

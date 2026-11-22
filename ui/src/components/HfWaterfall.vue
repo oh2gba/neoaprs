@@ -24,7 +24,8 @@ let painter: Waterfall | null = null;
 let stop: (() => void) | null = null;
 
 /** The text for a heard station: its call and the modem's SNR, or the call alone without one. */
-const text = (heard: Heard): string => (heard.snr === null ? heard.call : t("settings.scope.heard", { call: heard.call, db: snrText(heard.snr) }));
+const text = (heard: Heard): string =>
+  heard.snr === null ? heard.call : t("settings.scope.heard", { call: heard.call, db: snrText(heard.snr) });
 /** The radio shown, and what the page keeps of it. */
 const NOTHING = new ScopeMemory();
 const memoryOf = (radio: RadioId | null): ScopeMemory => (radio === null ? NOTHING : scopeOf(radio));

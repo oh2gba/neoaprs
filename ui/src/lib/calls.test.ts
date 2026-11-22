@@ -17,14 +17,18 @@ import {
 
 describe("calls", () => {
   it("takes calls with an SSID up to 15, in any case", () => {
-    for (const ok of ["OH2RDG", "oh2rdg", " oh2rdg-7 ", "OH2RDG-0", "OH2RDG-15", "A", "WIDE1-1"]) expect(validCall(ok), ok).toBe(true);
-    for (const bad of ["", " ", "OH2RDG-16", "OH2RDG-", "TOOLONGCALL", "OH2 RDG", "OH2RDG-1-2", "ÅÄÖ"]) expect(validCall(bad), bad).toBe(false);
+    for (const ok of ["OH2RDG", "oh2rdg", " oh2rdg-7 ", "OH2RDG-0", "OH2RDG-15", "A", "WIDE1-1"])
+      expect(validCall(ok), ok).toBe(true);
+    for (const bad of ["", " ", "OH2RDG-16", "OH2RDG-", "TOOLONGCALL", "OH2 RDG", "OH2RDG-1-2", "ÅÄÖ"])
+      expect(validCall(bad), bad).toBe(false);
     expect(normalizeCall(" oh2rdg-7 ")).toBe("OH2RDG-7");
   });
 
   it("takes the name of a station on APRS-IS for a message: a call, or 1 to 9 letters, digits and hyphens", () => {
-    for (const ok of ["OH2RDG-7", "WINLINK", "oh2xyz-l", "OH2XYZ-20", "ABCDEFGHI"]) expect(validName(ok), ok).toBe(true);
-    for (const bad of ["", " ", "-A", "ABCDEFGHIJ", "OH2 RDG", "OH2RDG/P", "ÅÄÖ", "ß1A"]) expect(validName(bad), bad).toBe(false);
+    for (const ok of ["OH2RDG-7", "WINLINK", "oh2xyz-l", "OH2XYZ-20", "ABCDEFGHI"])
+      expect(validName(ok), ok).toBe(true);
+    for (const bad of ["", " ", "-A", "ABCDEFGHIJ", "OH2 RDG", "OH2RDG/P", "ÅÄÖ", "ß1A"])
+      expect(validName(bad), bad).toBe(false);
   });
 
   it("takes the SSID with a leading zero and nothing but ASCII, as the daemon does", () => {
@@ -34,7 +38,8 @@ describe("calls", () => {
 
   it("tells the calls a station may transmit under from the ones that merely parse", () => {
     for (const ok of ["OH2RDG", "oh2rdg-7", "A1B", "W1AW"]) expect(mayTransmitAs(ok), ok).toBe(true);
-    for (const bad of ["N0CALL", "nocall-5", "MYCALL", "AB", "ABC", "123", "WIDE1-1X", "OH2RDG-16", ""]) expect(mayTransmitAs(bad), bad).toBe(false);
+    for (const bad of ["N0CALL", "nocall-5", "MYCALL", "AB", "ABC", "123", "WIDE1-1X", "OH2RDG-16", ""])
+      expect(mayTransmitAs(bad), bad).toBe(false);
     expect(placeholderCall("n0call-9")).toBe(true);
     expect(placeholderCall("OH2RDG")).toBe(false);
     expect(validCall("WIDE1-1") && !mayTransmitAs("TCPIP")).toBe(true);

@@ -41,7 +41,13 @@ const sections = computed(() => [
     tip: { label: t("nearby.digipeaters_tip_label"), text: t("nearby.digipeaters_tip"), picture: "range" as const },
     items: digis.value.map((d: Digipeater): NearbyItem => ({ call: d.call, row: d.row, lines: digipeaterLines(d) })),
   },
-  { id: "voice", title: t("nearby.voice"), help: t("nearby.voice_help"), tip: null, items: itemsOf(voiceRows(rows.value), voiceLines) },
+  {
+    id: "voice",
+    title: t("nearby.voice"),
+    help: t("nearby.voice_help"),
+    tip: null,
+    items: itemsOf(voiceRows(rows.value), voiceLines),
+  },
   {
     id: "igates",
     title: t("nearby.igates"),
@@ -65,7 +71,9 @@ const sections = computed(() => [
     <fieldset v-for="section in sections" :key="section.id" class="nearby-section">
       <legend class="nearby-head">
         {{ section.title }} <span class="muted">{{ section.items.length }}</span>
-        <InfoTip v-if="section.tip" :label="section.tip.label" :picture="section.tip.picture">{{ section.tip.text }}</InfoTip>
+        <InfoTip v-if="section.tip" :label="section.tip.label" :picture="section.tip.picture">{{
+          section.tip.text
+        }}</InfoTip>
       </legend>
       <p class="muted nearby-help">{{ section.help }}</p>
       <p v-if="section.items.length === 0" class="empty nearby-empty">{{ t("nearby.none_yet") }}</p>

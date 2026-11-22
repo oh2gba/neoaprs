@@ -37,7 +37,8 @@ export function growTrails(trails: Trails, tables: Iterable<LayerThingsMessage>,
       const at = Date.parse(thing.at);
       const points = trails.get(key) ?? [];
       const last = points.at(-1);
-      if (!last || last[0] !== thing.lon || last[1] !== thing.lat) points.push([thing.lon, thing.lat, Number.isNaN(at) ? nowMs : at]);
+      if (!last || last[0] !== thing.lon || last[1] !== thing.lat)
+        points.push([thing.lon, thing.lat, Number.isNaN(at) ? nowMs : at]);
       // Pruned in place from the old end, and only when something is too old or too many.
       let drop = 0;
       while (drop < points.length && (nowMs - points[drop][2]) / 1000 > TRAIL_MAX_AGE_SEC) drop++;

@@ -18,7 +18,8 @@ let wrapper: VueWrapper;
 let daemon: FakeDaemon;
 let packets: Map<string, PacketRow>;
 let width: ReturnType<typeof stubWidth> | undefined;
-const answered = (rows: PacketRow[]) => new Map<string, StationTrafficMessage>([["OH2RDG", { type: "station_traffic", call: "OH2RDG", packets: rows }]]);
+const answered = (rows: PacketRow[]) =>
+  new Map<string, StationTrafficMessage>([["OH2RDG", { type: "station_traffic", call: "OH2RDG", packets: rows }]]);
 const position = (id: number, seconds: number, extra: Partial<PacketRow> = {}) =>
   packet(id, { heard_at: packetAt(seconds), tnc2: `OH2RDG>APRS:!${seconds}`, ...extra });
 const make = (logged: PacketRow[] = [], internet = false) => {
@@ -125,7 +126,8 @@ describe("a query of ours in the traffic", () => {
 
   it("says answered when the answer it asks for comes from the station, and keeps one width: the three words are always there, two hidden", async () => {
     make([sentMessage(1, "OH2GBA", "OH2RDG", "?APRSS", 0)]);
-    const words = () => wrapper.findAll(".querystate > span").map((s) => [s.text(), s.classes().includes("twowords-off")]);
+    const words = () =>
+      wrapper.findAll(".querystate > span").map((s) => [s.text(), s.classes().includes("twowords-off")]);
     expect(words()).toEqual([
       ["waiting…", false],
       ["answered", true],

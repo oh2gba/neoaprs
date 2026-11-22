@@ -28,9 +28,23 @@ const voice: FrequencyValues = {
 const rows = table(
   station("OH2GBA", { is_me: true, distance_km: null, bearing_deg: null, heard_via: [] }),
   station("OH2AAA", { distance_km: 8, heard_via: [["OH2RCH-2", 30]], heard_direct: 3, last_direct_at: ago(120) }),
-  station("OH2RCH-2", { symbol_code: "#", distance_km: 12, bearing_deg: 90, heard_via: [], extensions, frequency: voice }),
+  station("OH2RCH-2", {
+    symbol_code: "#",
+    distance_km: 12,
+    bearing_deg: 90,
+    heard_via: [],
+    extensions,
+    frequency: voice,
+  }),
   station("OH7JHF-1", { distance_km: 30, heard_via: [], gated: 12, igate: true }),
-  station("R-HELSINKI", { kind: "object", reported_by: "OH2XYZ", distance_km: 20, heard_via: [], frequency: voice, can_message: false }),
+  station("R-HELSINKI", {
+    kind: "object",
+    reported_by: "OH2XYZ",
+    distance_km: 20,
+    heard_via: [],
+    frequency: voice,
+    can_message: false,
+  }),
 );
 
 function make(stations = rows, props: Record<string, unknown> = {}) {
@@ -38,7 +52,8 @@ function make(stations = rows, props: Record<string, unknown> = {}) {
   const wrapper = mount(NearbyPane, { props: { selected: null, ...props }, global: withDaemon(daemon) });
   return { wrapper, daemon };
 }
-const section = (wrapper: ReturnType<typeof mount>, name: string) => wrapper.findAll("fieldset").find((s) => s.find("legend").text().startsWith(name));
+const section = (wrapper: ReturnType<typeof mount>, name: string) =>
+  wrapper.findAll("fieldset").find((s) => s.find("legend").text().startsWith(name));
 const callsIn = (wrapper: ReturnType<typeof mount>, name: string) =>
   section(wrapper, name)
     ?.findAll("td.call")
@@ -137,7 +152,11 @@ describe("NearbyPane", () => {
 
   it("marks the rows of the stations whose cards are open", () => {
     const { wrapper } = make(rows, { selected: "OH2RCH-2", others: ["R-HELSINKI"] });
-    expect(wrapper.findAll("tr.selected").map((r) => r.attributes("data-call"))).toEqual(["OH2RCH-2", "OH2RCH-2", "R-HELSINKI"]);
+    expect(wrapper.findAll("tr.selected").map((r) => r.attributes("data-call"))).toEqual([
+      "OH2RCH-2",
+      "OH2RCH-2",
+      "R-HELSINKI",
+    ]);
   });
 
   it("lists a call that only repeated packets without a row to open: it is not a button", async () => {
@@ -150,7 +169,9 @@ describe("NearbyPane", () => {
   });
 
   it("dims the row of a station past its timeout", () => {
-    const old = table(station("OH7JHF-1", { gated: 1, last_position_at: ago(5 * 3600), last_heard: ago(5 * 3600), heard_via: [] }));
+    const old = table(
+      station("OH7JHF-1", { gated: 1, last_position_at: ago(5 * 3600), last_heard: ago(5 * 3600), heard_via: [] }),
+    );
     const daemon = fakeDaemon({ stations: old, aging: { defaultMin: 180 } });
     const wrapper = mount(NearbyPane, { props: { selected: null }, global: withDaemon(daemon) });
     expect(wrapper.find("tr.timedout").exists()).toBe(true);

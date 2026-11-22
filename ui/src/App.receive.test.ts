@@ -69,7 +69,9 @@ describe("App: RX only", () => {
     for (const [mark, control, legend] of marks) {
       scrolled.mockClear();
       await wrapper.find(`.appheader ${mark}`).trigger("click");
-      await vi.waitFor(() => expect(document.getElementById(control)?.closest("fieldset")?.classList.contains("attend"), mark).toBe(true));
+      await vi.waitFor(() =>
+        expect(document.getElementById(control)?.closest("fieldset")?.classList.contains("attend"), mark).toBe(true),
+      );
       const group = document.getElementById(control)?.closest("fieldset");
       expect(group?.querySelector("legend")?.textContent?.replace(/\s*i$/, "").trim(), mark).toBe(legend);
       expect(scrolled.mock.contexts, mark).toContain(group);
@@ -118,10 +120,20 @@ describe("App: RX only", () => {
 
   it("says the beacon is off in the toast when the daemon refuses Beacon now for that, and the daemon's RX only refusal in the page's words", async () => {
     const { wrapper, socket } = await open();
-    socket.say({ type: "error", text: "beacon_now: nothing was sent: the beacon is off", code: "beacon.not_sent", params: { reason: "the beacon is off" } });
+    socket.say({
+      type: "error",
+      text: "beacon_now: nothing was sent: the beacon is off",
+      code: "beacon.not_sent",
+      params: { reason: "the beacon is off" },
+    });
     await flushPromises();
     expect(wrapper.text()).toContain("nothing was sent: the beacon is off");
-    socket.say({ type: "error", text: "beacon_now: receive only: transmitting is switched off", code: "transmit.off", params: {} });
+    socket.say({
+      type: "error",
+      text: "beacon_now: receive only: transmitting is switched off",
+      code: "transmit.off",
+      params: {},
+    });
     await flushPromises();
     expect(wrapper.text()).toContain("RX only: nothing is sent");
   });

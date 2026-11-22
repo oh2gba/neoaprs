@@ -13,7 +13,11 @@ import type { RadioId } from "@/lib/radios";
 import { degreesText, roundPlace, wrapLongitude } from "@/lib/setup";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 
-export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (command: Command) => boolean, panel: Panel) {
+export function useOwnObjects(
+  rows: ReadonlyMap<string, OwnObjectRow>,
+  send: (command: Command) => boolean,
+  panel: Panel,
+) {
   const editing = ref<string | null>(null);
   const placing = ref(false);
   const draft = reactive<ObjectDraft>(emptyDraft());
@@ -94,7 +98,21 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (co
     placing.value = !placing.value;
   }
 
-  return reactive({ editing, placing, draft, dirty, picking, pin, edit, cancel, place, togglePlacing, save, kill, move });
+  return reactive({
+    editing,
+    placing,
+    draft,
+    dirty,
+    picking,
+    pin,
+    edit,
+    cancel,
+    place,
+    togglePlacing,
+    save,
+    kill,
+    move,
+  });
 }
 
 export type OwnObjectsView = ReturnType<typeof useOwnObjects>;

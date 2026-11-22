@@ -23,7 +23,9 @@ const props = withDefaults(
   }>(),
   { radios: () => [], receiveOnly: false },
 );
-const block = computed(() => beaconBlock(props.status, props.gps, props.values, props.now, props.radios, props.receiveOnly));
+const block = computed(() =>
+  beaconBlock(props.status, props.gps, props.values, props.now, props.radios, props.receiveOnly),
+);
 </script>
 
 <template>

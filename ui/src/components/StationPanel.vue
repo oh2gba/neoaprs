@@ -93,11 +93,20 @@ function onEsc(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <section class="composebar boxed stationpanel" :aria-label="t('station.row.label', { call: row.call })" @keydown.esc="onEsc">
+  <section
+    class="composebar boxed stationpanel"
+    :aria-label="t('station.row.label', { call: row.call })"
+    @keydown.esc="onEsc"
+  >
     <fieldset class="composebox stationpanel-box">
       <legend class="stationpanel-legend">
         <span class="mono">{{ row.call }}</span>
-        <IconButton kind="close" :label="t('station.panel.close')" :title="t('station.panel.close')" @click="emit('close')" />
+        <IconButton
+          kind="close"
+          :label="t('station.panel.close')"
+          :title="t('station.panel.close')"
+          @click="emit('close')"
+        />
       </legend>
       <div class="stationpanel-body">
         <div v-if="talk.length > 0" class="stationpanel-line">
@@ -115,10 +124,23 @@ function onEsc(event: KeyboardEvent): void {
             <MessageGlyph v-if="item === 'message'" :size="14" />{{ itemLabel(item, row, false) }}
           </button>
         </div>
-        <StationQuery v-if="canMessage(row)" :call="row.call" :offline="offline" @ask="(text) => emit('ask', row.call, 'custom', text)" />
+        <StationQuery
+          v-if="canMessage(row)"
+          :call="row.call"
+          :offline="offline"
+          @ask="(text) => emit('ask', row.call, 'custom', text)"
+        />
         <div class="stationpanel-line">
           <template v-for="item in rest" :key="item">
-            <a v-if="item === 'qrz'" class="btn" :href="qrz" target="_blank" rel="noopener noreferrer" :data-item="item">{{ itemLabel(item, row, false) }}</a>
+            <a
+              v-if="item === 'qrz'"
+              class="btn"
+              :href="qrz"
+              target="_blank"
+              rel="noopener noreferrer"
+              :data-item="item"
+              >{{ itemLabel(item, row, false) }}</a
+            >
             <button
               v-else-if="item === 'forget'"
               type="button"
@@ -133,7 +155,9 @@ function onEsc(event: KeyboardEvent): void {
                 <template #second>{{ itemLabel(item, row, true) }}</template>
               </TwoWords>
             </button>
-            <button v-else type="button" class="btn" :data-item="item" @click="choose(item)">{{ itemLabel(item, row, false) }}</button>
+            <button v-else type="button" class="btn" :data-item="item" @click="choose(item)">
+              {{ itemLabel(item, row, false) }}
+            </button>
           </template>
         </div>
         <fieldset v-if="row.kind === 'station'" class="stationpanel-traffic">

@@ -6,7 +6,10 @@ import { rangeCircleOf } from "@/lib/nearby";
 import { rangeFeatures } from "@/lib/rangecircles";
 import { RANGE_SOURCE, addRangeLayers } from "@/lib/rangelayers";
 
-export function useRangeCircles(map: () => MapLibreMap | null, selected: () => string | null): { add: (on: MapLibreMap) => void } {
+export function useRangeCircles(
+  map: () => MapLibreMap | null,
+  selected: () => string | null,
+): { add: (on: MapLibreMap) => void } {
   const page = useDaemonContext();
   const circle = () => rangeCircleOf(page.stations.value.values(), selected());
   const features = () => {

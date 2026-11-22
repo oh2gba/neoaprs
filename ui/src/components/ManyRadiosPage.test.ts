@@ -69,7 +69,11 @@ function sixSettings(values: Record<string, string> = {}, more: Record<string, s
     "radio/6/beacon": "true",
     ...more,
   };
-  return { ...config, radio_values: { ...config.radio_values, ...own }, radio_defaults: { ...config.radio_defaults, ...own, "radio/3/baud": "9600" } };
+  return {
+    ...config,
+    radio_values: { ...config.radio_values, ...own },
+    radio_defaults: { ...config.radio_defaults, ...own, "radio/3/baud": "9600" },
+  };
 }
 
 function make(more: Given = {}, values: Record<string, string> = {}) {
@@ -80,7 +84,11 @@ function make(more: Given = {}, values: Record<string, string> = {}) {
     status: status({ unheard_radio: 1 }),
     ...more,
   });
-  const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(SettingsForm, {
+    props: { scope: "settings" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   const group = () => {
     const found = wrapper.findAll("form > fieldset").find((f) => f.find("legend").text() === "Radio");
     if (!found) throw new Error("no Radio group");
@@ -113,7 +121,11 @@ describe("the Radio group of a station of six radios", () => {
     const { group } = make();
     const rows = [...group().element.querySelector(".group-body")!.children];
     expect(rows[0]?.querySelector("label")?.textContent).toBe("RX only");
-    expect(rows.slice(1, -1).map((row) => (row.matches("fieldset.subbox") ? row.querySelector("legend")?.textContent : "")?.trim())).toEqual(LEGENDS);
+    expect(
+      rows
+        .slice(1, -1)
+        .map((row) => (row.matches("fieldset.subbox") ? row.querySelector("legend")?.textContent : "")?.trim()),
+    ).toEqual(LEGENDS);
     expect(rows.at(-1)?.querySelector("label")?.textContent).toBe("Add radio");
     expect(rows.at(-2)?.matches("fieldset.subbox")).toBe(true);
   });
@@ -155,7 +167,14 @@ describe("the Radio group of a station of six radios", () => {
       .findAll("[id]")
       .map((e) => e.attributes("id") ?? "");
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
-    for (const id of ["set-radio-3-enabled", "set-radio-3-type", "set-radio-3-port", "set-radio-3-baud", "set-radio-3-find", "settings-box-radio-3"])
+    for (const id of [
+      "set-radio-3-enabled",
+      "set-radio-3-type",
+      "set-radio-3-port",
+      "set-radio-3-baud",
+      "set-radio-3-find",
+      "settings-box-radio-3",
+    ])
       expect(ids, id).toContain(id);
     for (const id of [
       "set-radio-5-tcp_host",
@@ -232,8 +251,15 @@ describe("a radio other than those of before, in its box", () => {
     const name = box("Mobile").find<HTMLInputElement>("#set-radio-3-name");
     await name.setValue("Car");
     await name.trigger("keydown", { key: "Enter" });
-    await tell(daemon, { lastError: toastOf("radio_change: the name 'Car' is another radio's already", "radio.name_taken", { name: "Car", radio: 3 }) });
-    expect(box("Mobile").find("#set-radio-3-name-error").text()).toBe("the name 'Car' is another radio's already: give this one another");
+    await tell(daemon, {
+      lastError: toastOf("radio_change: the name 'Car' is another radio's already", "radio.name_taken", {
+        name: "Car",
+        radio: 3,
+      }),
+    });
+    expect(box("Mobile").find("#set-radio-3-name-error").text()).toBe(
+      "the name 'Car' is another radio's already: give this one another",
+    );
     expect(refusedAtField(daemon.lastError.value)).toBe(true);
   });
 
@@ -247,8 +273,15 @@ describe("a radio other than those of before, in its box", () => {
       await name.setValue(text);
       await name.trigger("keydown", { key: "Enter" });
     }
-    await tell(daemon, { lastError: toastOf("radio_change: the name 'Bike' is another radio's already", "radio.name_taken", { name: "Bike", radio: 4 }) });
-    expect(box("FM radio 3").find("#set-radio-5-name-error").text()).toBe("the name 'Bike' is another radio's already: give this one another");
+    await tell(daemon, {
+      lastError: toastOf("radio_change: the name 'Bike' is another radio's already", "radio.name_taken", {
+        name: "Bike",
+        radio: 4,
+      }),
+    });
+    expect(box("FM radio 3").find("#set-radio-5-name-error").text()).toBe(
+      "the name 'Bike' is another radio's already: give this one another",
+    );
     expect(box("Mobile").find("#set-radio-3-name-error").exists()).toBe(false);
   });
 
@@ -258,7 +291,9 @@ describe("a radio other than those of before, in its box", () => {
     for (const text of ["FM", "fm 3", "20 M", "mercury"]) {
       await name.setValue(text);
       await name.trigger("keydown", { key: "Enter" });
-      expect(box("Mobile").find("#set-radio-3-name-error").text(), text).toBe(`the name '${text}' is another radio's already: give this one another`);
+      expect(box("Mobile").find("#set-radio-3-name-error").text(), text).toBe(
+        `the name '${text}' is another radio's already: give this one another`,
+      );
     }
     for (const text of ["FM 2", "LoRa 2", "LoRa"]) {
       await name.setValue(text);
@@ -304,7 +339,10 @@ describe("a radio other than those of before, in its box", () => {
     expect(type().element.value).toBe("kiss-tcp");
     expect(box("Mobile").find("#set-radio-3-tcp_host").exists()).toBe(true);
     await tell(daemon, {
-      lastError: toastOf("radio_change: that device is in use by Mercury", "radio.resource_held", { resource: "serial", holder: "Mercury" }),
+      lastError: toastOf("radio_change: that device is in use by Mercury", "radio.resource_held", {
+        resource: "serial",
+        holder: "Mercury",
+      }),
     });
     expect(box("Mobile").find("#set-radio-3-type-error").text()).not.toBe("");
     expect(refusedAtField(daemon.lastError.value)).toBe(true);
@@ -324,12 +362,16 @@ describe("a radio other than those of before, in its box", () => {
     const { box, daemon } = make();
     expect(box("Mobile").find(".box-body").attributes("style")).toContain("display: none");
     await box("Mobile").find<HTMLSelectElement>("#set-radio-3-type").setValue("kantronics");
-    await tell(daemon, { lastError: toastOf("radio_change: the radio could not be stored; nothing changed", "setting.not_stored") });
+    await tell(daemon, {
+      lastError: toastOf("radio_change: the radio could not be stored; nothing changed", "setting.not_stored"),
+    });
     expect(box("Mobile").find(".box-body").attributes("style") ?? "").not.toContain("display: none");
   });
 
   it("does not say radio 1's found port beside another radio's automatic port", () => {
-    const { box } = make({ config: sixSettings({ "serial/port": "", "serial/last_port": "/dev/ttyUSB0" }, { "radio/3/port": "" }) });
+    const { box } = make({
+      config: sixSettings({ "serial/port": "", "serial/last_port": "/dev/ttyUSB0" }, { "radio/3/port": "" }),
+    });
     expect(box("FM radio").find(".port-found").exists()).toBe(true);
     expect(box("Mobile").find("#set-radio-3-port").exists()).toBe(true);
     expect(box("Mobile").find(".port-found").exists()).toBe(false);
@@ -362,13 +404,32 @@ describe("a radio other than those of before, in its box", () => {
 
   it("asks for its own ports, finds itself, and tunes and keys its own modem", async () => {
     const searches = shallowRef<RadioSearchMessage | null>(null);
-    const daemon = fakeDaemon({ config: sixSettings(), radios: sixRadios(), ports, status: status({ unheard_radio: 1 }) });
-    const find = useFindRadio(searches, daemon.lastError, shallowRef("open"), daemon.send, daemon.settings, daemon.config, daemon.say);
-    const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon({ ...daemon, findRadio: find }), attachTo: document.body });
+    const daemon = fakeDaemon({
+      config: sixSettings(),
+      radios: sixRadios(),
+      ports,
+      status: status({ unheard_radio: 1 }),
+    });
+    const find = useFindRadio(
+      searches,
+      daemon.lastError,
+      shallowRef("open"),
+      daemon.send,
+      daemon.settings,
+      daemon.config,
+      daemon.say,
+    );
+    const wrapper = mount(SettingsForm, {
+      props: { scope: "settings" },
+      global: withDaemon({ ...daemon, findRadio: find }),
+      attachTo: document.body,
+    });
     await wrapper.find("#set-radio-6-txlevel-up").trigger("click");
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/6/tx_gain_db": "-2" } });
     await tell(daemon, { config: sixSettings({}, { "radio/6/tx_gain_db": "-2" }) });
-    const refresh = wrapper.findAll("button").find((b) => b.text() === "Refresh" && b.element.closest(".field")?.querySelector("#set-radio-3-port"));
+    const refresh = wrapper
+      .findAll("button")
+      .find((b) => b.text() === "Refresh" && b.element.closest(".field")?.querySelector("#set-radio-3-port"));
     await refresh?.trigger("click");
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "list_ports", radio: 3 });
     await wrapper.find("#set-radio-3-find").trigger("click");
@@ -387,7 +448,10 @@ describe("a radio other than those of before, in its box", () => {
       radio_type: "kiss",
     };
     await flushPromises();
-    expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/3/port": "/dev/ttyUSB0", "radio/3/baud": "9600" } });
+    expect(daemon.send).toHaveBeenLastCalledWith({
+      cmd: "set_config",
+      values: { "radio/3/port": "/dev/ttyUSB0", "radio/3/baud": "9600" },
+    });
     await wrapper.find("#set-radio-6-tune").trigger("click");
     expect(daemon.send).toHaveBeenLastCalledWith({ cmd: "radio_tune", radio: 6, on: true });
     await wrapper.find("#set-radio-6-keying-test").trigger("click");
@@ -406,7 +470,9 @@ describe("a radio other than those of before, in its box", () => {
     expect(box("FM radio 3").find(".tncstatus").text()).toBe("Not connected");
     expect(box("FM radio 3").find<HTMLDetailsElement>("details.radiostatus").element.open).toBe(true);
     expect(box("20 m").find(".statetext").text()).toBe("Dummy");
-    expect(box("20 m").find(".tncstatus").text()).toBe("Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
+    expect(box("20 m").find(".tncstatus").text()).toBe(
+      "Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air",
+    );
   });
 });
 
@@ -470,7 +536,12 @@ describe("a radio that is off, removed or the only one on", () => {
 
   it("stores no sound card from another radio's answer, never the same refused proposal again, and keeps its cards when an FM radio's ports come", async () => {
     const CODEC = "plughw:CARD=CODEC,DEV=0";
-    const forRadio = (radio: number, cards: ReturnType<typeof soundCard>[], keying = "vox"): PortsMessage => ({ ...ports, radio, keying, sound_cards: cards });
+    const forRadio = (radio: number, cards: ReturnType<typeof soundCard>[], keying = "vox"): PortsMessage => ({
+      ...ports,
+      radio,
+      keying,
+      sound_cards: cards,
+    });
     const sets = (send: ReturnType<typeof make>["send"]) =>
       send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
     // radio 2 holds the one card; radio 6 has none: radio 2's answer proposes radio 2's own card,
@@ -480,13 +551,19 @@ describe("a radio that is off, removed or the only one on", () => {
     await tell(a.daemon, { config: sixSettings({}, { "radio/6/sound_card": "", "radio/6/keying": "" }) });
     await flushPromises();
     expect(sets(a.send)).toEqual([]);
-    expect([...a.box("WWWWWWWW").find<HTMLSelectElement>("#set-radio-6-sound_card").element.options].map((o) => o.value)).toEqual([]);
+    expect(
+      [...a.box("WWWWWWWW").find<HTMLSelectElement>("#set-radio-6-sound_card").element.options].map((o) => o.value),
+    ).toEqual([]);
     a.wrapper.unmount();
     // radio 6's own answer proposes a card the daemon then refuses (another radio took it
     // meanwhile): stored once, not again on every refusal
     const sixth = forRadio(6, [soundCard(CODEC, "USB Audio CODEC", { pick: true })]);
     const byRadio = new Map([[6, sixth]]);
-    const b = make({ ports: sixth, portsByRadio: byRadio, config: sixSettings({}, { "radio/6/sound_card": "", "radio/6/keying": "" }) });
+    const b = make({
+      ports: sixth,
+      portsByRadio: byRadio,
+      config: sixSettings({}, { "radio/6/sound_card": "", "radio/6/keying": "" }),
+    });
     await flushPromises();
     expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }]);
     for (let i = 0; i < 3; i++) {
@@ -503,7 +580,9 @@ describe("a radio that is off, removed or the only one on", () => {
     expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }]);
     expect(b.box("WWWWWWWW").find("#set-radio-6-sound_card-error").text()).toContain("in use by radio Mobile");
     // a new answer for radio 6 (Refresh) may propose again
-    await tell(b.daemon, { portsByRadio: new Map([[6, forRadio(6, [soundCard("plughw:CARD=B,DEV=0", "B", { pick: true })])]]) });
+    await tell(b.daemon, {
+      portsByRadio: new Map([[6, forRadio(6, [soundCard("plughw:CARD=B,DEV=0", "B", { pick: true })])]]),
+    });
     await flushPromises();
     expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }, { "radio/6/sound_card": "plughw:CARD=B,DEV=0" }]);
     b.wrapper.unmount();
@@ -516,16 +595,33 @@ describe("a radio that is off, removed or the only one on", () => {
         [1, forRadio(1, [], "")],
       ]),
     });
-    expect([...c.box("Mercury radio").find<HTMLSelectElement>("#set-radio-2-sound_card").element.options].map((o) => o.value)).toContain(CODEC);
+    expect(
+      [...c.box("Mercury radio").find<HTMLSelectElement>("#set-radio-2-sound_card").element.options].map(
+        (o) => o.value,
+      ),
+    ).toContain(CODEC);
   });
 
   it("stores a refused proposal once while the setup guide's copy of the box is mounted beside the Settings tab's", async () => {
     const CODEC = "plughw:CARD=CODEC,DEV=0";
-    const sixth: PortsMessage = { ...ports, radio: 6, keying: "vox", sound_cards: [soundCard(CODEC, "USB Audio CODEC", { pick: true })] };
+    const sixth: PortsMessage = {
+      ...ports,
+      radio: 6,
+      keying: "vox",
+      sound_cards: [soundCard(CODEC, "USB Audio CODEC", { pick: true })],
+    };
     const sets = (send: ReturnType<typeof make>["send"]) =>
       send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
-    const b = make({ ports: sixth, portsByRadio: new Map([[6, sixth]]), config: sixSettings({}, { "radio/6/sound_card": "", "radio/6/keying": "" }) });
-    const other = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(b.daemon), attachTo: document.body });
+    const b = make({
+      ports: sixth,
+      portsByRadio: new Map([[6, sixth]]),
+      config: sixSettings({}, { "radio/6/sound_card": "", "radio/6/keying": "" }),
+    });
+    const other = mount(SettingsForm, {
+      props: { scope: "settings" },
+      global: withDaemon(b.daemon),
+      attachTo: document.body,
+    });
     await flushPromises();
     expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }]);
     for (let i = 0; i < 3; i++) {
@@ -546,8 +642,10 @@ describe("a radio that is off, removed or the only one on", () => {
   it("shows the daemon's tick again when the tick could not be sent, or the connection was lost before its answer", async () => {
     const off = { enabled: false, state: "stopped" } as const;
     const alone = sixRadios({ 2: off, 3: off, 4: off, 5: off, 6: off });
-    const ticked = (w: ReturnType<typeof make>) => w.box("Mobile").find<HTMLInputElement>("#set-radio-3-enabled").element.checked;
-    const onlyOne = (w: ReturnType<typeof make>) => w.box("FM radio").find<HTMLInputElement>("#set-radio-1-enabled").element.disabled;
+    const ticked = (w: ReturnType<typeof make>) =>
+      w.box("Mobile").find<HTMLInputElement>("#set-radio-3-enabled").element.checked;
+    const onlyOne = (w: ReturnType<typeof make>) =>
+      w.box("FM radio").find<HTMLInputElement>("#set-radio-1-enabled").element.disabled;
     const unsent = make({ radios: alone, send: vi.fn(() => false) });
     await unsent.box("Mobile").find("#set-radio-3-enabled").setValue(true);
     expect(unsent.send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, enabled: true });
@@ -624,18 +722,32 @@ describe("Add radio", () => {
     expect(row.querySelector(".info-toggle")?.getAttribute("aria-label")).toBe(t("settings.profile.tip_label"));
     (row.querySelector(".info-toggle") as HTMLElement).click();
     await flushPromises();
-    expect([...row.querySelectorAll(".info-line")].map((l) => l.textContent)).toEqual([t("settings.profile.tip1"), t("settings.profile.tip2")]);
+    expect([...row.querySelectorAll(".info-line")].map((l) => l.textContent)).toEqual([
+      t("settings.profile.tip1"),
+      t("settings.profile.tip2"),
+    ]);
   });
 
   it("gives the Radio type of every box, FM or Mercury, the same one (i) as Add radio's, of the whole list, with no file of the documents in it (plan section 6: one (i) for the one list)", async () => {
     const { group } = make();
     const tips: string[][] = [];
-    for (const id of ["set-radio-1-type", "set-radio-2-type", "set-radio-3-type", "set-radio-4-type", "set-radio-6-type", "set-radio-add"]) {
+    for (const id of [
+      "set-radio-1-type",
+      "set-radio-2-type",
+      "set-radio-3-type",
+      "set-radio-4-type",
+      "set-radio-6-type",
+      "set-radio-add",
+    ]) {
       const row = group().find(`#${id}`).element.closest(".field")!;
       const toggle = row.querySelector<HTMLElement>(".info-toggle")!;
       toggle.click();
       await flushPromises();
-      tips.push([id, toggle.getAttribute("aria-label") ?? "", ...[...row.querySelectorAll(".info-line")].map((l) => l.textContent ?? "")]);
+      tips.push([
+        id,
+        toggle.getAttribute("aria-label") ?? "",
+        ...[...row.querySelectorAll(".info-line")].map((l) => l.textContent ?? ""),
+      ]);
     }
     const one = [t("settings.profile.tip_label"), t("settings.profile.tip1"), t("settings.profile.tip2")];
     expect(tips.map(([, ...tip]) => tip)).toEqual(tips.map(() => one));
@@ -662,19 +774,31 @@ describe("Add radio", () => {
     await box("Mercury radio 3").find("legend button.groupfold").trigger("click");
     await tell(daemon, { radios: topic({ stats: lineStats({ packets: 3 }) }) });
     expect(body()).toContain("display: none"); // (the operator folded it: a new row does not open it again)
-    await tell(daemon, { radios: topic({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "Mercury 3" } } }) });
+    await tell(daemon, {
+      radios: topic({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "Mercury 3" } } }),
+    });
     expect(body()).not.toContain("display: none");
   });
 });
 
 describe("the Digipeater group of a station of several radios that may repeat", () => {
-  const digi = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll("form > fieldset").find((f) => f.find("legend").text() === "Digipeater");
+  const digi = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+    wrapper.findAll("form > fieldset").find((f) => f.find("legend").text() === "Digipeater");
 
   it("has an Enable for each radio that may repeat and is on, each in a box with the radio's legend, with its own counts", () => {
-    const counted = { stats: lineStats({ digipeated: 4, digipeated_at: new Date(Date.parse("2026-10-21T12:00:00Z") - 120_000).toISOString() }) };
+    const counted = {
+      stats: lineStats({
+        digipeated: 4,
+        digipeated_at: new Date(Date.parse("2026-10-21T12:00:00Z") - 120_000).toISOString(),
+      }),
+    };
     const { wrapper } = make({ radios: sixRadios({ 5: counted }) });
     const group = digi(wrapper);
-    expect(group?.findAll("fieldset.subbox > legend").map((l) => l.text())).toEqual(["FM radio", "Mobile", "FM radio 3"]);
+    expect(group?.findAll("fieldset.subbox > legend").map((l) => l.text())).toEqual([
+      "FM radio",
+      "Mobile",
+      "FM radio 3",
+    ]);
     expect(group?.findAll("input[type=checkbox]").map((i) => i.attributes("id"))).toEqual([
       "set-radio-1-digipeat",
       "set-radio-3-digipeat",
@@ -813,7 +937,9 @@ describe("ticking a radio moves nothing under the pointer", () => {
 
   it("lets a radio that is off beside the one radio on be renamed and removed without ticking it", async () => {
     const off = { enabled: false, state: "stopped" } as const;
-    const { box, send } = make({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(3, "kiss", { name: "Mobile", number: 2, ...off })) });
+    const { box, send } = make({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(3, "kiss", { name: "Mobile", number: 2, ...off })),
+    });
     const remove = box("Mobile").find<HTMLButtonElement>("#set-radio-3-remove");
     expect(remove.element.disabled).toBe(false);
     await remove.trigger("click");
@@ -826,7 +952,11 @@ describe("ticking a radio moves nothing under the pointer", () => {
 
 describe("a station whose database has radio 1 alone", () => {
   const one = (row: Partial<RadioRow> = {}) =>
-    make({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", row)), config: configValues(), status: status({ unheard_radio: 1 }) });
+    make({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2", row)),
+      config: configValues(),
+      status: status({ unheard_radio: 1 }),
+    });
 
   it("sees today's box of its one radio and Add radio, and no Mercury box, no Name", () => {
     const { group } = one();
@@ -838,7 +968,8 @@ describe("a station whose database has radio 1 alone", () => {
         .map((l) => l.text()),
     ).toEqual(["FM radio"]);
     expect(rows.at(-1)?.querySelector("label")?.textContent).toBe("Add radio");
-    for (const id of ["#set-radio-1-name", "#set-radio-1-remove", "#set-radio-2-enabled"]) expect(group().find(id).exists(), id).toBe(false);
+    for (const id of ["#set-radio-1-name", "#set-radio-1-remove", "#set-radio-2-enabled"])
+      expect(group().find(id).exists(), id).toBe(false);
     expect(group().find<HTMLInputElement>("#set-radio-1-enabled").element.disabled).toBe(true);
     expect(group().find("#set-radio-1-type").exists()).toBe(true);
   });

@@ -18,7 +18,12 @@ useAppHarness();
 /** The page was sent these radios; the context its panes read. */
 async function shellWith(rows: RadioRow[]): Promise<DaemonContext> {
   const { wrapper, socket } = await open();
-  socket.say({ type: "state", topic: "radios", rev: 1, value: Object.fromEntries(rows.map((row) => [String(row.id), row])) });
+  socket.say({
+    type: "state",
+    topic: "radios",
+    rev: 1,
+    value: Object.fromEntries(rows.map((row) => [String(row.id), row])),
+  });
   await flushPromises();
   const pane = wrapper.findComponent(SidePanel);
   return (pane.vm.$ as unknown as { provides: Record<symbol, DaemonContext> }).provides[DAEMON_KEY as symbol];

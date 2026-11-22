@@ -46,7 +46,8 @@ export function useSettingsAnswers(
     (now, before) => {
       if (!now) return;
       const request = queue.release();
-      const changed = (r: Request): boolean => r.keys.some((key) => (now.values[key] ?? "") !== (before?.values[key] ?? ""));
+      const changed = (r: Request): boolean =>
+        r.keys.some((key) => (now.values[key] ?? "") !== (before?.values[key] ?? ""));
       if (request !== null) unsure = changed(request) ? null : request;
       else if (unsure !== null && changed(unsure)) unsure = null;
       for (const [key, text] of Object.entries(now.values)) {
@@ -65,7 +66,12 @@ export function useSettingsAnswers(
     const request = queue.inflight.value;
     const earlier = unsure;
     // A refusal naming a key of that request and none of the one in flight goes to its field.
-    if (earlier !== null && toast.key !== null && earlier.keys.includes(toast.key) && !request?.keys.includes(toast.key)) {
+    if (
+      earlier !== null &&
+      toast.key !== null &&
+      earlier.keys.includes(toast.key) &&
+      !request?.keys.includes(toast.key)
+    ) {
       unsure = null;
       refuse(earlier, refusalFor(toast, earlier.keys, radios).reason, toast.key);
       return;

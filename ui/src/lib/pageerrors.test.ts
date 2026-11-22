@@ -1,6 +1,13 @@
 import { createApp, defineComponent, h } from "vue";
 import { describe, expect, it, vi } from "vitest";
-import { PageErrors, QUEUE_SIZE, RING_SIZE, SAME_MESSAGE_MS, SENDS_PER_MINUTE, installErrorCapture } from "@/lib/pageerrors";
+import {
+  PageErrors,
+  QUEUE_SIZE,
+  RING_SIZE,
+  SAME_MESSAGE_MS,
+  SENDS_PER_MINUTE,
+  installErrorCapture,
+} from "@/lib/pageerrors";
 import type { PageErrorCommand } from "@/protocol/protocol";
 
 const T0 = Date.parse("2026-10-21T12:00:00Z");
@@ -98,7 +105,11 @@ describe("the limits on the page's side", () => {
     errors.record(new Error("boom"), "window");
     expect(sent).toHaveLength(1);
     expect(errors.entries()).toHaveLength(1);
-    expect(errors.entries()[0]).toMatchObject({ count: 2, at: "2026-10-21T12:00:00.000Z", last: "2026-10-21T12:00:30.000Z" });
+    expect(errors.entries()[0]).toMatchObject({
+      count: 2,
+      at: "2026-10-21T12:00:00.000Z",
+      last: "2026-10-21T12:00:30.000Z",
+    });
     clock.now += SAME_MESSAGE_MS; // A minute after the first
     errors.record(new Error("boom"), "window");
     expect(sent).toHaveLength(2);
@@ -191,11 +202,21 @@ describe("installErrorCapture", () => {
     const { errors } = make();
     const off = installErrorCapture(createApp({}), window, errors);
     window.dispatchEvent(new ErrorEvent("error", { error: new Error("from window"), message: "from window" }));
-    window.dispatchEvent(new ErrorEvent("error", { message: "Script error.", filename: "https://cdn.example/x.js", lineno: 3, colno: 9 }));
+    window.dispatchEvent(
+      new ErrorEvent("error", { message: "Script error.", filename: "https://cdn.example/x.js", lineno: 3, colno: 9 }),
+    );
     const rejection = new Event("unhandledrejection");
     Object.assign(rejection, { reason: new Error("not handled") });
     window.dispatchEvent(rejection);
-    expect(errors.entries().map((e) => [e.source, e.message, e.stack.startsWith("at https://cdn.example/x.js:3:9") || e.stack.includes("Error")])).toEqual([
+    expect(
+      errors
+        .entries()
+        .map((e) => [
+          e.source,
+          e.message,
+          e.stack.startsWith("at https://cdn.example/x.js:3:9") || e.stack.includes("Error"),
+        ]),
+    ).toEqual([
       ["window", "from window", true],
       ["window", "Script error.", true],
       ["promise", "not handled", true],

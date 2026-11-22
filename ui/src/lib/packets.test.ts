@@ -5,7 +5,11 @@ import { packet } from "@/test/fixtures";
 describe("packets", () => {
   const rows = [
     packet(1, { source: "OH2RDG" }),
-    packet(3, { source: "OH2PU-9", kind: "status", decoded: { type: "status", text: "status text", timestamp: null, locator: null, frequency: null } }),
+    packet(3, {
+      source: "OH2PU-9",
+      kind: "status",
+      decoded: { type: "status", text: "status text", timestamp: null, locator: null, frequency: null },
+    }),
     packet(2, { direction: "out", source: "OH2GBA" }),
   ];
 

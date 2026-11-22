@@ -77,7 +77,8 @@ export interface FieldInfo {
  * address).
  */
 type Say = MessageId | readonly [MessageId, Params] | (() => string);
-const said = (say: Say): string => (typeof say === "function" ? say() : typeof say === "string" ? t(say) : t(say[0], say[1]));
+const said = (say: Say): string =>
+  typeof say === "function" ? say() : typeof say === "string" ? t(say) : t(say[0], say[1]);
 /** Words that are the same in every language. */
 const plain =
   (text: string): Say =>
@@ -142,12 +143,20 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.transmit.tip1"],
     picture: "transmit",
   },
-  "station/call": { label: "settings.call.label", kind: "call", tip: ["settings.call.tip1", "settings.call.tip2"], picture: "ssid" },
+  "station/call": {
+    label: "settings.call.label",
+    kind: "call",
+    tip: ["settings.call.tip1", "settings.call.tip2"],
+    picture: "ssid",
+  },
   "station/lat": { label: "settings.lat.label", unit: "°" },
   "station/lon": { label: "settings.lon.label", unit: "°" },
   "station/symbol_table": { name: "settings.symbol.label", label: "settings.symbol.label" },
   "station/symbol_code": { name: "settings.symbol.label", label: "settings.symbol_code.label" },
-  "station/comment": { label: "settings.comment.label", tip: [["settings.comment.tip1", { max: LIMITS.comment.max }], "settings.comment.tip2"] },
+  "station/comment": {
+    label: "settings.comment.label",
+    tip: [["settings.comment.tip1", { max: LIMITS.comment.max }], "settings.comment.tip2"],
+  },
   "station/status": {
     name: "settings.station_status.name",
     label: "settings.station_status.label",
@@ -199,7 +208,10 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.lora_enabled.tip_label",
     tip: ["settings.lora_enabled.tip1", "settings.fm_enabled.tip2"],
   },
-  "tnc/profile": { ...RADIO_TYPE, choices: () => typeChoices("fm").filter((choice) => TNC_PROFILES.some((p) => p.key === choice.value)) },
+  "tnc/profile": {
+    ...RADIO_TYPE,
+    choices: () => typeChoices("fm").filter((choice) => TNC_PROFILES.some((p) => p.key === choice.value)),
+  },
   "hf/profile": { ...RADIO_TYPE, choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })) },
   "serial/port": {
     name: "settings.port.name",
@@ -233,7 +245,11 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.keying.tip1", "settings.keying.tip2"],
     picture: "mercury",
   },
-  "mercury/tx_gain_db": { label: "settings.txlevel.label", tipLabel: "settings.txlevel.tip_label", tip: ["settings.txlevel.tip1", "settings.txlevel.tip2"] },
+  "mercury/tx_gain_db": {
+    label: "settings.txlevel.label",
+    tipLabel: "settings.txlevel.tip_label",
+    tip: ["settings.txlevel.tip1", "settings.txlevel.tip2"],
+  },
   "serial/last_port": { label: "settings.last_port.label", kind: "readonly", empty: plain("-") },
   "web/network": {
     name: "settings.network.name",
@@ -265,7 +281,12 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.radius.tip1", "settings.radius.tip2"],
     picture: "radius",
   },
-  [STATION_HOURS_KEY]: { name: "settings.station_hours.name", label: "station.table.on_map", kind: "choice", choices: stationHoursChoices },
+  [STATION_HOURS_KEY]: {
+    name: "settings.station_hours.name",
+    label: "station.table.on_map",
+    kind: "choice",
+    choices: stationHoursChoices,
+  },
   ...LAYER_SPECS,
   "digi/enabled": {
     name: "settings.digipeater.name",
@@ -283,8 +304,17 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.igate.tip1"],
     picture: "internet",
   },
-  "messages/alert": { name: "settings.browser.mode", label: "settings.browser.mode", kind: "bool", tip: ["settings.alert.tip1"] },
-  "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label", tip: ["settings.alert_command.tip1"] },
+  "messages/alert": {
+    name: "settings.browser.mode",
+    label: "settings.browser.mode",
+    kind: "bool",
+    tip: ["settings.alert.tip1"],
+  },
+  "messages/alert_command": {
+    name: "settings.alert_command.name",
+    label: "settings.alert_command.label",
+    tip: ["settings.alert_command.tip1"],
+  },
   "status/source": {
     label: "settings.status_source.label",
     kind: "choice",
@@ -319,7 +349,12 @@ const SPECS: Record<string, FieldSpec> = {
     tip: [["settings.beacon_interval.tip1", { min: LIMITS.interval.beaconMinMin }], "settings.beacon_interval.tip2"],
     picture: "beaconoff",
   },
-  "beacon/path": { name: "settings.path.name", label: "settings.path.label", tip: ["settings.path.tip1", "settings.path.tip2"], picture: "path" },
+  "beacon/path": {
+    name: "settings.path.name",
+    label: "settings.path.label",
+    tip: ["settings.path.tip1", "settings.path.tip2"],
+    picture: "path",
+  },
   "gps/source": {
     name: "settings.position.name",
     label: "settings.position.label",
@@ -329,9 +364,18 @@ const SPECS: Record<string, FieldSpec> = {
     picture: "position",
   },
   "gps/host": { label: "settings.gps_host.label", tip: ["settings.gps_host.tip1"] },
-  "gps/device": { label: "settings.gps_device.label", empty: plain("/dev/ttyUSB1"), tip: ["settings.gps_device.tip1", "settings.gps_device.tip2"] },
+  "gps/device": {
+    label: "settings.gps_device.label",
+    empty: plain("/dev/ttyUSB1"),
+    tip: ["settings.gps_device.tip1", "settings.gps_device.tip2"],
+  },
   "gps/baud": { label: "settings.gps_baud.label", unit: "baud", tip: ["settings.gps_baud.tip1"] },
-  "beacon/travel": { label: "settings.travel.label", kind: "choice", choices: travelChoices, tip: ["settings.travel.tip1"] },
+  "beacon/travel": {
+    label: "settings.travel.label",
+    kind: "choice",
+    choices: travelChoices,
+    tip: ["settings.travel.tip1"],
+  },
 };
 
 /**
@@ -346,7 +390,9 @@ const MOVING_BEACON = field({
 });
 
 /** What each setting says of itself, in the page's language when read; none for an unknown key. */
-export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entries(SPECS).map(([key, spec]) => [key, field(spec)]));
+export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(
+  Object.entries(SPECS).map(([key, spec]) => [key, field(spec)]),
+);
 
 /**
  * The daemon's own alert settings, which the Notifications group shows beside the browser's alert.
@@ -368,14 +414,27 @@ const shownBySwitch = (key: string, values: Readonly<Record<string, string>>): b
 /** The legend of the box that starts at a key inside its group (components/SettingsBox.vue). */
 export const SUBGROUPS: Record<
   string,
-  { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[]; readonly picture?: PictureName }
-> = { "messages/alert": alertLegend, "map/aircraft": lazyText({ title: "", tipLabel: "", tip: [] }, { text: () => t("settings.map.layers") }) };
+  {
+    readonly text: string;
+    readonly title: string;
+    readonly tipLabel: string;
+    readonly tip: readonly string[];
+    readonly picture?: PictureName;
+  }
+> = {
+  "messages/alert": alertLegend,
+  "map/aircraft": lazyText({ title: "", tipLabel: "", tip: [] }, { text: () => t("settings.map.layers") }),
+};
 
 /**
  * What the My station tab keeps behind a closed heading in the Beacon group: the antenna (PHG) and
  * the path.
  */
-export const BEACON_FOLDS: readonly { readonly group: string; readonly title: string; readonly keys: readonly string[] }[] = [
+export const BEACON_FOLDS: readonly {
+  readonly group: string;
+  readonly title: string;
+  readonly keys: readonly string[];
+}[] = [
   lazyText({ group: "beacon", keys: ANTENNA }, { title: () => t("settings.fold.antenna") }),
   lazyText({ group: "beacon", keys: ["beacon/path"] }, { title: () => t("settings.fold.advanced") }),
 ];
@@ -387,7 +446,12 @@ interface Group {
 }
 
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
-  { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment", "station/transmit"] },
+  {
+    id: "station",
+    title: "settings.group.station",
+    prefixes: ["station/", "gps/"],
+    except: ["station/status", "station/comment", "station/transmit"],
+  },
   { id: "serial", title: "settings.group.tnc", prefixes: ["serial/"], also: ["station/transmit"] },
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
@@ -441,11 +505,15 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
     const at = (CONFIG_KEYS as readonly string[]).indexOf(key);
     return at < 0 ? CONFIG_KEYS.length : at;
   };
-  const sorted = keys.filter((k) => !NOT_ON_THE_PAGE.includes(k) && !IN_ANOTHER_TAB.includes(k) && !isRadioKey(k)).sort((a, b) => order(a) - order(b));
+  const sorted = keys
+    .filter((k) => !NOT_ON_THE_PAGE.includes(k) && !IN_ANOTHER_TAB.includes(k) && !isRadioKey(k))
+    .sort((a, b) => order(a) - order(b));
   const groups: Group[] = GROUPS.map((g) => ({
     id: g.id,
     title: t(g.title),
-    keys: sorted.filter((k) => (g.also?.includes(k) ?? false) || (g.prefixes.some((p) => k.startsWith(p)) && !g.except?.includes(k))),
+    keys: sorted.filter(
+      (k) => (g.also?.includes(k) ?? false) || (g.prefixes.some((p) => k.startsWith(p)) && !g.except?.includes(k)),
+    ),
   }));
   for (const group of groups) {
     const order = GROUP_ORDER[group.id];
@@ -471,7 +539,11 @@ export const reasonOf = (error: Failure, radios?: RadioNames): string => errorRe
  * or its kind's (`kind`). A pair's setting (`pair/1/2/ssid`) uses lib/settingspair.ts. An unknown
  * key is its own label.
  */
-export function fieldFor(key: string, values: Readonly<Record<string, string>> = {}, kind?: PageRadio["kind"]): FieldInfo {
+export function fieldFor(
+  key: string,
+  values: Readonly<Record<string, string>> = {},
+  kind?: PageRadio["kind"],
+): FieldInfo {
   const flat = flatKeyOf(radioFieldOf(key)?.field ?? "", kind);
   return key === "beacon/interval_min" && isMoving(values)
     ? MOVING_BEACON
@@ -510,7 +582,8 @@ export function storedFor(key: string, values: Readonly<Record<string, string>>,
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
   if (!shownBySwitch(key, values)) return false;
   if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));
-  if (ANTENNA.includes(key)) return !isMoving(values) && (key === "beacon/power_w" || (values["beacon/power_w"] ?? "").trim() !== "");
+  if (ANTENNA.includes(key))
+    return !isMoving(values) && (key === "beacon/power_w" || (values["beacon/power_w"] ?? "").trim() !== "");
   if (key === "station/lat" || key === "station/lon") return !isMoving(values);
   if (key === "gps/host") return values["gps/source"] === "gpsd";
   if (key === "gps/device" || key === "gps/baud") return values["gps/source"] === "serial";

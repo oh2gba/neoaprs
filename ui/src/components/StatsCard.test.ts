@@ -34,7 +34,9 @@ describe("StatsCard", () => {
       "Sent by us, the last 24 hours",
       "Since NeoAPRS started",
     ]);
-    const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
+    const rows = Object.fromEntries(
+      wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]),
+    );
     expect(rows["Heard"]).toBe("2");
     expect(rows["Farthest direct"]).toBe("OH2PU-9, 16 km");
     expect(rows["In the database"]).toBe("321");
@@ -51,9 +53,15 @@ describe("StatsCard", () => {
       radioRow(3, "kiss", { name: "Shack", number: 2, stats: stats(3) }),
     );
     const daemon = fakeDaemon({ stations: stations(), radios });
-    const packets = new Map([packet(1, { radio_id: 1 }), packet(2, { radio_id: 2 }), packet(3, { radio_id: 3 })].map((row) => [String(row.id), row] as const));
+    const packets = new Map(
+      [packet(1, { radio_id: 1 }), packet(2, { radio_id: 2 }), packet(3, { radio_id: 3 })].map(
+        (row) => [String(row.id), row] as const,
+      ),
+    );
     const wrapper = mount(StatsCard, { props: { packets }, global: withDaemon(daemon) });
-    const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
+    const rows = Object.fromEntries(
+      wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]),
+    );
     expect(rows["By channel"]).toBe("1 FM · 1 Mercury · 1 Shack");
     expect(rows["Frames from the radios"]).toMatch(/^123\b/);
   });
@@ -62,7 +70,8 @@ describe("StatsCard", () => {
     const rows = shallowRef(stations());
     const daemon = fakeDaemon({ stations: rows });
     const wrapper = mount(StatsCard, { props: { packets: new Map() }, global: withDaemon(daemon) });
-    const heard = () => wrapper.findAll("dt").find((dt) => dt.text() === "Heard")?.element.nextElementSibling?.textContent;
+    const heard = () =>
+      wrapper.findAll("dt").find((dt) => dt.text() === "Heard")?.element.nextElementSibling?.textContent;
     expect(heard()).toBe("2");
     rows.value = table(...rows.value.values(), station("OH2NEW", { lat: 60.3, lon: 25.0 }));
     await wrapper.vm.$nextTick();
@@ -95,7 +104,9 @@ describe("StatsCard", () => {
     expect(wrapper.findAll(".stats-chart .trend-bar.series-0")).toHaveLength(24);
     expect(wrapper.findAll(".stats-chart .trend-bar.series-net")).toHaveLength(24);
     expect(wrapper.find(".stats-chart .trend-read").text()).toMatch(/^27 packets\s+\d\d:\d\d:\d\d$/);
-    const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
+    const rows = Object.fromEntries(
+      wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]),
+    );
     expect(rows["FM"]).toBe("300 heard · 8 sent");
     expect(rows["Internet"]).toBe("72 heard");
     expect(rows["Beacons"]).toBe("5");
@@ -110,16 +121,24 @@ describe("StatsCard", () => {
 
   it("folds a section when its heading is closed, and remembers it in this browser", async () => {
     const mounted = () =>
-      mount(StatsCard, { props: { packets: new Map() }, global: withDaemon(fakeDaemon({ stations: stations() })), attachTo: document.body });
+      mount(StatsCard, {
+        props: { packets: new Map() },
+        global: withDaemon(fakeDaemon({ stations: stations() })),
+        attachTo: document.body,
+      });
     const first = mounted();
-    const reach = () => first.findAll("details.stats-fold").find((d) => d.find("summary").text() === "Reach")?.element as HTMLDetailsElement;
+    const reach = () =>
+      first.findAll("details.stats-fold").find((d) => d.find("summary").text() === "Reach")
+        ?.element as HTMLDetailsElement;
     expect(reach().open).toBe(true);
     reach().open = false;
     reach().dispatchEvent(new Event("toggle"));
     await first.vm.$nextTick();
     first.unmount();
     const again = mounted();
-    const folded = again.findAll("details.stats-fold").map((d) => [d.find("summary").text(), (d.element as HTMLDetailsElement).open]);
+    const folded = again
+      .findAll("details.stats-fold")
+      .map((d) => [d.find("summary").text(), (d.element as HTMLDetailsElement).open]);
     expect(folded).toContainEqual(["Reach", false]);
     expect(folded).toContainEqual(["Stations", true]);
     again.unmount();
@@ -131,12 +150,18 @@ describe("StatsCard", () => {
       ({ x, y, left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, toJSON: () => ({}) }) as DOMRect;
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
       if (!this.classList.contains("statscard")) return rect(0, 0, 1200, 800);
-      return this.classList.contains("moved") ? rect(parseFloat(this.style.left), parseFloat(this.style.top), 340, 300) : rect(860, 500, 340, 300);
+      return this.classList.contains("moved")
+        ? rect(parseFloat(this.style.left), parseFloat(this.style.top), 340, 300)
+        : rect(860, 500, 340, 300);
     });
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(800);
     const mounted = (movable: boolean) =>
-      mount(StatsCard, { props: { packets: new Map(), movable }, global: withDaemon(fakeDaemon({ stations: stations() })), attachTo: document.body });
+      mount(StatsCard, {
+        props: { packets: new Map(), movable },
+        global: withDaemon(fakeDaemon({ stations: stations() })),
+        attachTo: document.body,
+      });
     const wrapper = mounted(true);
     const el = wrapper.find(".statscard").element as HTMLElement;
     const head = wrapper.find(".card-head strong").element;

@@ -3,7 +3,15 @@
 // while the radio transmits, when the level shown is the last one received. Feeds:
 // HfLevelBar.vue (dBFS) and SoundCardLevel.vue (Direwolf's scale). The feed's (i) goes in the
 // slot, and the capture-level slider (or its empty room) in the slot `control` before the bar.
-defineProps<{ id: string; label: string; percent: number; zone: string; good: readonly [number, number]; held: boolean; value: string }>();
+defineProps<{
+  id: string;
+  label: string;
+  percent: number;
+  zone: string;
+  good: readonly [number, number];
+  held: boolean;
+  value: string;
+}>();
 </script>
 
 <template>

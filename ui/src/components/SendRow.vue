@@ -4,7 +4,16 @@
 import ActionRow from "@/components/ActionRow.vue";
 import SendButton from "@/components/SendButton.vue";
 
-defineProps<{ id: string; label: string; tipLabel: string; tip: string; button: string; armed: boolean; disabled: boolean; why?: string }>();
+defineProps<{
+  id: string;
+  label: string;
+  tipLabel: string;
+  tip: string;
+  button: string;
+  armed: boolean;
+  disabled: boolean;
+  why?: string;
+}>();
 const emit = defineEmits<{ press: [] }>();
 </script>
 

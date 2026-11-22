@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
-import { SPRITE_COLUMNS, SPRITE_PX, cellOf, isMobileSymbol, layerStyle, recommendedPath, symbolLayers, symbolText } from "@/lib/symbols";
+import {
+  SPRITE_COLUMNS,
+  SPRITE_PX,
+  cellOf,
+  isMobileSymbol,
+  layerStyle,
+  recommendedPath,
+  symbolLayers,
+  symbolText,
+} from "@/lib/symbols";
 import { MOBILE_SYMBOLS, SYMBOL_NAMES } from "@/protocol/lists";
 
 describe("cellOf", () => {
@@ -64,7 +73,12 @@ describe("layerStyle", () => {
 
 describe("symbolText", () => {
   it("names the symbol of a table and a code, an overlay table being the alternate one", () => {
-    expect([symbolText("/", ">"), symbolText("\\", ">"), symbolText("S", "#"), symbolText("/", "_")]).toEqual(["Car", "Car", "Digipeater", "Weather station"]);
+    expect([symbolText("/", ">"), symbolText("\\", ">"), symbolText("S", "#"), symbolText("/", "_")]).toEqual([
+      "Car",
+      "Car",
+      "Digipeater",
+      "Weather station",
+    ]);
   });
   it("has the name of every code of the daemon's lists", () => {
     for (const [table, names] of [
@@ -74,7 +88,13 @@ describe("symbolText", () => {
       names.forEach((name, index) => expect(symbolText(table, String.fromCharCode(33 + index))).toBe(name));
   });
   it("says unknown for a symbol that is none", () => {
-    expect([symbolText("", ""), symbolText("/", ""), symbolText("?", ">"), symbolText("/", " "), symbolText("/", "\u007f")]).toEqual(Array(5).fill("unknown"));
+    expect([
+      symbolText("", ""),
+      symbolText("/", ""),
+      symbolText("?", ">"),
+      symbolText("/", " "),
+      symbolText("/", "\u007f"),
+    ]).toEqual(Array(5).fill("unknown"));
   });
   it("is in the language of the page", () => {
     setLocale("en-XA");
@@ -131,7 +151,12 @@ describe("the type of a station from its symbol", () => {
   });
   it("sees through an overlay, and takes anything that is no symbol for a fixed station", () => {
     expect([isMobileSymbol("E", ">"), isMobileSymbol("4", "s"), isMobileSymbol("S", "#")]).toEqual([true, true, false]);
-    expect([isMobileSymbol("", ">"), isMobileSymbol("?", ">"), isMobileSymbol("/", ""), isMobileSymbol("/", ">>")]).toEqual([false, false, false, false]);
+    expect([
+      isMobileSymbol("", ">"),
+      isMobileSymbol("?", ">"),
+      isMobileSymbol("/", ""),
+      isMobileSymbol("/", ">>"),
+    ]).toEqual([false, false, false, false]);
   });
   it("is the daemon's list, and every code of it is a symbol that has a name", () => {
     for (const [table, codes] of [

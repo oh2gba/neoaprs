@@ -6,7 +6,8 @@ export const errors = {
   "error.bulletin.group": "'{value}': a group bulletin is BLN, a digit and the group",
   "error.bulletin.not_on_board": "there is no entry {sender}/{slot} on the board",
   "error.bulletin.not_posted": "there is no bulletin {slot} of ours",
-  "error.bulletin.slot": "'{value}' is not BLN0 to BLN9, BLNA to BLNZ or BLN, a digit and a group of at most {group_max} characters",
+  "error.bulletin.slot":
+    "'{value}' is not BLN0 to BLN9, BLNA to BLNZ or BLN, a digit and a group of at most {group_max} characters",
   "error.call.characters": "call '{value}' has characters other than A-Z, 0-9 and a '-SSID'",
   "error.call.shape": "call '{value}' is not 1 to 6 characters of A-Z and 0-9 with an optional '-SSID'",
   "error.call.ssid": "call '{value}' has an SSID above {max}",
@@ -27,7 +28,8 @@ export const errors = {
   "error.not_connected": "Not sent: there is no connection to NeoAPRS",
   "error.map.no_job": "no map job is running",
   "error.update.unsupported": "this copy of NeoAPRS cannot update itself; the page has the steps",
-  "error.update.blocked": "NeoAPRS cannot update itself here: the folder of the AppImage cannot be written by this user",
+  "error.update.blocked":
+    "NeoAPRS cannot update itself here: the folder of the AppImage cannot be written by this user",
   "error.update.not_announced": "{version} is not the version the update check announced",
   "error.update.no_file": "the release {version} has no file for this copy of NeoAPRS",
   "error.update.busy": "an update is running already",
@@ -41,7 +43,8 @@ export const errors = {
   "error.radio.last_enabled": "at least one radio stays on: turn another radio on first",
   "error.radio.name_form":
     "the name '{name}' cannot be a radio's: a name is at most {max} printable ASCII characters (letters, digits and the signs of the keyboard)",
-  "error.radio.name_label": "the name '{name}' is how a radio without a name of its own is called: give this one another",
+  "error.radio.name_label":
+    "the name '{name}' is how a radio without a name of its own is called: give this one another",
   "error.radio.name_taken": "the name '{name}' is another radio's already: give this one another",
   "error.radio.no_line": "radio {name} has no serial line to look for",
   "error.radio.no_modem": "radio {name} has no modem running",
@@ -61,7 +64,8 @@ export const errors = {
   "error.radio.unknown_type": "'{type}' is not a type of radio (the types are those of the list)",
   "error.radio.failed": "the search for the radio failed",
   "error.radio.no_ports": "there is no port to try: none is listed that the search looks at",
-  "error.radio.not_found": "no radio answered on the ports tried (a KISS TNC says nothing until it hears a packet: try again when the channel is busy)",
+  "error.radio.not_found":
+    "no radio answered on the ports tried (a KISS TNC says nothing until it hears a packet: try again when the channel is busy)",
   "error.radio.not_running": "no search for the radio is running",
   "error.alert.km_range": "the distance of an alert is {min} to {max} km, not {km}",
   "error.alert.own": "{call} is our own: an alert is for another station",
@@ -73,7 +77,8 @@ export const errors = {
     "": "the text has a character that is not printable ASCII: a message carries printable ASCII only",
     other: "the text has {chars} that is not printable ASCII: a message carries printable ASCII only",
   },
-  "error.message.too_long_for_radio": "the message is {length} bytes on the air, the radio carries {max}: shorten it by {cut} characters",
+  "error.message.too_long_for_radio":
+    "the message is {length} bytes on the air, the radio carries {max}: shorten it by {cut} characters",
   "error.message.too_long": "the text is {length} characters, at most {max} fit in a message",
   "error.no_command": 'a command has a "cmd"',
   "error.not_object": 'A command is a JSON object with a "cmd"',
@@ -84,7 +89,8 @@ export const errors = {
   },
   "error.object.course": "the course {value} is not between 0 and {max} degrees",
   "error.object.kind": "'{value}' is not an object or an item",
-  "error.object.name_chars": "the name '{name}' has a blank at an end or a character that cannot be in it ({name_forbidden} and anything but printable ASCII)",
+  "error.object.name_chars":
+    "the name '{name}' has a blank at an end or a character that cannot be in it ({name_forbidden} and anything but printable ASCII)",
   "error.object.name_length": {
     select: "kind",
     object: "the name of an object is {min} to {max} characters, not {length}",
@@ -100,7 +106,8 @@ export const errors = {
   "error.pair.call_taken": "{call} is the call of another pair",
   "error.pair.no_free_call": "every SSID from 1 to 15 is taken",
   "error.path.too_long": "{count} digipeaters is more than the {max} a path may have",
-  "error.path.too_long_rf_only": "path too long for RF only: {count} digipeaters and RFONLY make more than the {max} a path may have",
+  "error.path.too_long_rf_only":
+    "path too long for RF only: {count} digipeaters and RFONLY make more than the {max} a path may have",
   "error.query.not_capable": "{call} does not take messages: there is nobody to ask",
   "error.transmit.call": "nothing is sent: {reason}",
   "error.transmit.off": "RX only: nothing is sent",
@@ -108,10 +115,12 @@ export const errors = {
   "error.query.form": "a query begins with ? and says what it asks after it",
   "error.qru.too_soon": "too soon for another request for local info: wait {seconds} s",
   "error.path.direct_alone": "{word} is no digipeater: written alone it means no digipeaters at all",
-  "error.setting.comment_too_long": "{length} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)",
+  "error.setting.comment_too_long":
+    "{length} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)",
   "error.setting.call_of_pair": "{call} is the call of a pair of your radios",
   "error.setting.local_only": "only a page on the computer NeoAPRS runs on can do this",
-  "error.setting.not_access_key": "it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)",
+  "error.setting.not_access_key":
+    "it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "it has characters that are not printable ASCII",
   "error.setting.not_boolean": "'{value}' is not true or false",
   "error.setting.not_keying": "'{value}' is not a way of keying the radio: vox, cm108, rts:PORT or dtr:PORT",
@@ -135,7 +144,8 @@ export const errors = {
   "error.setting.not_web_address": "'{value}' is not an http or https address",
   "error.setting.not_whole": "'{value}' is not a whole number",
   "error.setting.off_or_range": "{value} is not 0 (off) or between {min} and {max}",
-  "error.setting.profile_port": "{profile} connects over TCP (tcp/host and tcp/port), not to the serial port {port}: clear serial/port, or choose a serial TNC",
+  "error.setting.profile_port":
+    "{profile} connects over TCP (tcp/host and tcp/port), not to the serial port {port}: clear serial/port, or choose a serial TNC",
   "error.setting.range": "{value} is not between {min} and {max}",
   "error.setting.status_needs_rigctld": "the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)",
   "error.setting.status_source": "'{value}' is not off, text or rig (empty: as status/rigctld and station/status say)",
@@ -165,7 +175,8 @@ export const errors = {
   "error.radio.command_mode": "the TNC is in command mode (KISS ON is sent again)",
   "error.radio.checking": "the TNC is checking that the radio is there",
   "error.radio.channel_busy": "the channel is busy",
-  "error.qru.form": "'{request}' is no request to QRU: INFO, NEXT or a group of up to {max} letters and digits, and a distance of 1 to {km}",
+  "error.qru.form":
+    "'{request}' is no request to QRU: INFO, NEXT or a group of up to {max} letters and digits, and a distance of 1 to {km}",
   "error.object.unknown": "there is no object or item '{name}' of ours",
   "error.object.own_call": "{name} is our own call",
   "error.object.is_station": "{name} is a station, not the name of an object",

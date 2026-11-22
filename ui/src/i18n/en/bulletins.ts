@@ -22,7 +22,10 @@ export const bulletins = {
   "bulletins.kind": "Kind",
   "bulletins.kind.bulletin": { one: "Bulletin (sent for {n} hour)", other: "Bulletin (sent for {n} hours)" },
   "bulletins.kind.announcement": { one: "Announcement (sent for {n} day)", other: "Announcement (sent for {n} days)" },
-  "bulletins.kind.group": { one: "Group bulletin (to one group, sent for {n} hour)", other: "Group bulletin (to one group, sent for {n} hours)" },
+  "bulletins.kind.group": {
+    one: "Group bulletin (to one group, sent for {n} hour)",
+    other: "Group bulletin (to one group, sent for {n} hours)",
+  },
   "bulletins.letter": "Letter",
   "bulletins.number": "Number",
   "bulletins.group": "Group",
@@ -32,7 +35,8 @@ export const bulletins = {
   "bulletins.tip.days": { one: "{n} day", other: "{n} days" },
   "bulletins.tip.kind1":
     "A bulletin and an announcement are shown by every station that hears them. A bulletin is for what matters now and is sent for {hours}; an announcement is for what stays true and is sent for {days}.",
-  "bulletins.tip.kind2": "A group bulletin is sent for {hours}; every station shows it unless its operator picked other groups to show.",
+  "bulletins.tip.kind2":
+    "A group bulletin is sent for {hours}; every station shows it unless its operator picked other groups to show.",
   "bulletins.tip.id1": "The number names the post, a letter for an announcement; a new post under it replaces it.",
   "bulletins.tip.id2": "Posting again under the same number or letter sends the new text from the start.",
   "bulletins.tip.group1":

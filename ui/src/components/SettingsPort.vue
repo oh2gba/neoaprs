@@ -27,7 +27,13 @@ const props = defineProps<{
   error: string;
   changed: boolean;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: []; refresh: [] }>();
+const emit = defineEmits<{
+  "update:modelValue": [value: string];
+  choose: [value: string];
+  commit: [next: EventTarget | null];
+  cancel: [];
+  refresh: [];
+}>();
 
 const typing = ref(false);
 const options = computed(() => portOptions(props.ports, props.modelValue, props.found, props.unset, props.holder));
@@ -57,7 +63,13 @@ function escape(event: KeyboardEvent): void {
 watch(
   () => props.error,
   (now) => {
-    if (now !== "" && props.changed && props.modelValue !== "" && !props.ports?.ports.some((p) => p.device === props.modelValue)) typing.value = true;
+    if (
+      now !== "" &&
+      props.changed &&
+      props.modelValue !== "" &&
+      !props.ports?.ports.some((p) => p.device === props.modelValue)
+    )
+      typing.value = true;
   },
 );
 </script>
@@ -88,7 +100,9 @@ watch(
         @keydown.enter.prevent="emit('commit', null)"
         @keydown.esc="escape"
       />
-      <span v-else-if="modelValue === '' && found !== ''" class="muted port-found">{{ t("settings.port.found", { port: found }) }}</span>
+      <span v-else-if="modelValue === '' && found !== ''" class="muted port-found">{{
+        t("settings.port.found", { port: found })
+      }}</span>
       <button type="button" class="btn" @click="emit('refresh')">{{ t("settings.port.refresh") }}</button>
     </template>
   </SettingsField>

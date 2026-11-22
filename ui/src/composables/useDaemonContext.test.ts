@@ -83,7 +83,12 @@ describe("useDaemonContext", () => {
     socket.say({ type: "radio_added", id: 4 });
     await nextTick();
     expect(made).toBeUndefined();
-    socket.say({ type: "patch", topic: "radios", rev: 1, ops: [{ op: "set", key: "4", value: radioRow(4, "dummy-hf", { number: 2, position: 4 }) }] });
+    socket.say({
+      type: "patch",
+      topic: "radios",
+      rev: 1,
+      ops: [{ op: "set", key: "4", value: radioRow(4, "dummy-hf", { number: 2, position: 4 }) }],
+    });
     await nextTick();
     expect([ids, made]).toEqual([[2, 1, 3, 4], 4]);
   });

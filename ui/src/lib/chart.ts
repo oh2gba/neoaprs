@@ -25,7 +25,10 @@ interface TimeTick {
 
 /** The function that maps a value of `domain` to a place in `range` (the range may run backwards,
  * as a screen's y axis); a domain of no width maps everything to the middle. */
-export function linearScale(domain: readonly [number, number], range: readonly [number, number]): (v: number) => number {
+export function linearScale(
+  domain: readonly [number, number],
+  range: readonly [number, number],
+): (v: number) => number {
   const [d0, d1] = domain;
   const [r0, r1] = range;
   return (v) => (d1 === d0 ? (r0 + r1) / 2 : r0 + ((v - d0) / (d1 - d0)) * (r1 - r0));
@@ -71,7 +74,11 @@ export function timeTicks(from: number, to: number): TimeTick[] {
   d.setHours(stepHours >= 24 ? 0 : Math.floor(d.getHours() / stepHours) * stepHours);
   const ticks: TimeTick[] = [];
   for (let guard = 0; d.getTime() <= to && guard < 400; guard++) {
-    if (d.getTime() >= from) ticks.push({ at: d.getTime(), label: stepHours >= 24 ? `${weekdayShort(d)} ${d.getDate()}` : `${pad2(d.getHours())}:00` });
+    if (d.getTime() >= from)
+      ticks.push({
+        at: d.getTime(),
+        label: stepHours >= 24 ? `${weekdayShort(d)} ${d.getDate()}` : `${pad2(d.getHours())}:00`,
+      });
     d.setHours(d.getHours() + stepHours);
   }
   return ticks;
@@ -148,7 +155,12 @@ function heightAt(c: Curve, at: number): number {
   const h = x1 - x0;
   const s = (at - x0) / h;
   const [m0, m1] = [(c.slopes[i] ?? 0) * h, (c.slopes[i + 1] ?? 0) * h];
-  return (2 * s ** 3 - 3 * s ** 2 + 1) * y0 + (s ** 3 - 2 * s ** 2 + s) * m0 + (-2 * s ** 3 + 3 * s ** 2) * y1 + (s ** 3 - s ** 2) * m1;
+  return (
+    (2 * s ** 3 - 3 * s ** 2 + 1) * y0 +
+    (s ** 3 - 2 * s ** 2 + s) * m0 +
+    (-2 * s ** 3 + 3 * s ** 2) * y1 +
+    (s ** 3 - s ** 2) * m1
+  );
 }
 
 /** The path of one smooth curve through the readings that have a value, across gaps and from the
@@ -175,14 +187,21 @@ export function linePath(points: readonly Point[], x: (t: number) => number, y: 
  * path from the later of their first readings to the earlier of their last, with the edge taken in
  * small steps so that it stays between them where they cross. Nothing for a series with fewer than
  * two readings or no time in common. */
-export function bandPath(lower: readonly Point[], upper: readonly Point[], x: (t: number) => number, y: (v: number) => number): string {
+export function bandPath(
+  lower: readonly Point[],
+  upper: readonly Point[],
+  x: (t: number) => number,
+  y: (v: number) => number,
+): string {
   const [low, high] = [curveOf(lower, x, y), curveOf(upper, x, y)];
   const [from, to] = [
     Math.max(low.xs[0] ?? Infinity, high.xs[0] ?? Infinity),
     Math.min(low.xs[low.xs.length - 1] ?? -Infinity, high.xs[high.xs.length - 1] ?? -Infinity),
   ];
   if (!(to > from)) return "";
-  const places = [...new Set([from, to, ...[...low.xs, ...high.xs].filter((v) => v > from && v < to)])].sort((a, b) => a - b);
+  const places = [...new Set([from, to, ...[...low.xs, ...high.xs].filter((v) => v > from && v < to)])].sort(
+    (a, b) => a - b,
+  );
   const steps = places.flatMap((v, i) => {
     const next = places[i + 1];
     if (next === undefined) return [v];
@@ -211,7 +230,13 @@ interface Bar {
 
 /** The bars of a series standing on `baseline`, each `width` wide and centred on its time; a value
  * of 0 is a bar of no height and is left out. */
-export function bars(points: readonly Point[], x: (t: number) => number, y: (v: number) => number, baseline: number, width: number): Bar[] {
+export function bars(
+  points: readonly Point[],
+  x: (t: number) => number,
+  y: (v: number) => number,
+  baseline: number,
+  width: number,
+): Bar[] {
   const floor = y(baseline);
   return points.flatMap((p) => {
     if (p.v === null || p.v === baseline) return [];

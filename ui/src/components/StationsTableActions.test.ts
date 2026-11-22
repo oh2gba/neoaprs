@@ -14,10 +14,17 @@ const rows = table(
   station("OH2OBJ", { kind: "object", can_message: false, reported_by: "OH2GBA", own: true, last_heard: ago(50) }),
   station("FOREIGN", { kind: "object", can_message: true, reported_by: "OH2RDG", last_heard: ago(60) }),
 );
-const make = () => mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations: rows, aging: { defaultMin: 0 } })) });
-const row = (wrapper: ReturnType<typeof make>, call: string) => wrapper.findAll("tbody tr").find((r) => r.find("td.call .callname").text() === call)!;
-const message = (wrapper: ReturnType<typeof make>, call: string) => row(wrapper, call).find("td.actions button[aria-label^='Message']");
-const forget = (wrapper: ReturnType<typeof make>, call: string) => row(wrapper, call).find("td.actions button.forgetbtn");
+const make = () =>
+  mount(StationsTable, {
+    props: { selected: null },
+    global: withDaemon(fakeDaemon({ stations: rows, aging: { defaultMin: 0 } })),
+  });
+const row = (wrapper: ReturnType<typeof make>, call: string) =>
+  wrapper.findAll("tbody tr").find((r) => r.find("td.call .callname").text() === call)!;
+const message = (wrapper: ReturnType<typeof make>, call: string) =>
+  row(wrapper, call).find("td.actions button[aria-label^='Message']");
+const forget = (wrapper: ReturnType<typeof make>, call: string) =>
+  row(wrapper, call).find("td.actions button.forgetbtn");
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.useRealTimers());
@@ -27,8 +34,10 @@ describe("the buttons at the end of a row of the Stations table", () => {
     const wrapper = make();
     expect(message(wrapper, "OH2RDG").exists()).toBe(true);
     expect(message(wrapper, "OH2PU-9").exists()).toBe(true);
-    for (const call of ["OH2GBA", "EMAIL-2", "OH2OBJ", "FOREIGN"]) expect(message(wrapper, call).exists(), call).toBe(false);
-    for (const call of ["OH2RDG", "OH2PU-9", "EMAIL-2", "FOREIGN"]) expect(forget(wrapper, call).exists(), call).toBe(true);
+    for (const call of ["OH2GBA", "EMAIL-2", "OH2OBJ", "FOREIGN"])
+      expect(message(wrapper, call).exists(), call).toBe(false);
+    for (const call of ["OH2RDG", "OH2PU-9", "EMAIL-2", "FOREIGN"])
+      expect(forget(wrapper, call).exists(), call).toBe(true);
     for (const call of ["OH2GBA", "OH2OBJ"]) expect(forget(wrapper, call).exists(), call).toBe(false);
   });
 

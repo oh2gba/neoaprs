@@ -44,7 +44,9 @@ describe("the network access", () => {
     expect(make({ "web/network": "true" }).wrapper.find("#set-web-key").exists()).toBe(false);
     expect(make({ "web/key": "k7m2-x9pq-4hrt" }).wrapper.find("#set-web-key").exists()).toBe(false);
     expect(make({}, ["http://192.168.1.20:7303/"]).wrapper.find(".phonecode").exists()).toBe(false);
-    expect(make({ "web/network": "true" }, ["http://192.168.1.20:7303/"]).wrapper.find(".phonecode").exists()).toBe(false);
+    expect(make({ "web/network": "true" }, ["http://192.168.1.20:7303/"]).wrapper.find(".phonecode").exists()).toBe(
+      false,
+    );
   });
 
   it("does not show the key of a switch that is only turned on in the form, until the daemon has made one", async () => {
@@ -71,7 +73,8 @@ describe("the network access", () => {
     const { wrapper } = make(ON, ["http://192.168.1.20:7303/", "http://raspberrypi.local:7303/"]);
     const row = codeRow(wrapper);
     expect(row.find("path").attributes("d")).toBe(qrPath(qrMatrix("http://192.168.1.20:7303/#key=k7m2-x9pq-4hrt")).d);
-    for (const inside of ["192.168", ".local", ":7303", "k7m2", "x9pq", "4hrt", "#key"]) expect(row.html()).not.toContain(inside);
+    for (const inside of ["192.168", ".local", ":7303", "k7m2", "x9pq", "4hrt", "#key"])
+      expect(row.html()).not.toContain(inside);
     expect(row.findAll("input")).toHaveLength(0);
   });
 
@@ -125,7 +128,8 @@ describe("the network access", () => {
 
 describe("turning the network access off", () => {
   const off = async (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find("#set-web-network").setValue(false);
-  const buttons = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.findAll(".confirm-row button").map((b) => b.text());
+  const buttons = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+    wrapper.findAll(".confirm-row button").map((b) => b.text());
 
   it("just happens on the computer NeoAPRS runs on (a loopback address): nothing asks", async () => {
     for (const host of ["127.0.0.1", "localhost"]) {

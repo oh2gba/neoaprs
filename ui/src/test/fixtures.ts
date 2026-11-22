@@ -53,7 +53,10 @@ export function toastOf(text: string, code = "other", params: Record<string, str
   return { cmd, key, code, params, text, n };
 }
 
-type StationRadios = Pick<StationRow, "heard" | "last_path_radio" | "last_direct_any_at" | "radio_choice" | "radio_now" | "paths" | "replies">;
+type StationRadios = Pick<
+  StationRow,
+  "heard" | "last_path_radio" | "last_direct_any_at" | "radio_choice" | "radio_now" | "paths" | "replies"
+>;
 
 const latest = (a: string | null, b: string | null): string | null => (a === null ? b : b === null || a >= b ? a : b);
 
@@ -64,7 +67,8 @@ const HF_RADIO = "2";
  * message goes on.
  */
 function stationRadios(row: Omit<StationRow, keyof StationRadios>, extra: Partial<StationRow>): StationRadios {
-  const heard: StationRow["heard"] = extra.heard ?? (row.heard_rf > 0 ? { "1": { count: row.heard_rf, last_at: row.last_rf_at } } : {});
+  const heard: StationRow["heard"] =
+    extra.heard ?? (row.heard_rf > 0 ? { "1": { count: row.heard_rf, last_at: row.last_rf_at } } : {});
   const ids = Object.keys(heard);
   const lastOf = (id: string): string => heard[id]?.last_at ?? "";
   const last = ids.length === 0 ? null : ids.reduce((best, id) => (lastOf(id) > lastOf(best) ? id : best));
@@ -86,7 +90,9 @@ function stationRadios(row: Omit<StationRow, keyof StationRadios>, extra: Partia
  */
 export function heardBy(...entries: readonly (readonly [number, number, (string | null)?])[]): StationRow["heard"] {
   return Object.fromEntries(
-    entries.filter(([, count]) => count > 0).map(([id, count, at]) => [String(id), { count, last_at: at === undefined ? ago(60) : at }]),
+    entries
+      .filter(([, count]) => count > 0)
+      .map(([id, count, at]) => [String(id), { count, last_at: at === undefined ? ago(60) : at }]),
   );
 }
 
@@ -150,7 +156,8 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     sign: null,
     track: [],
     ...extra,
-    last_rf_at: extra.last_rf_at !== undefined ? extra.last_rf_at : extra.heard_rf === 0 ? null : (extra.last_heard ?? ago(60)),
+    last_rf_at:
+      extra.last_rf_at !== undefined ? extra.last_rf_at : extra.heard_rf === 0 ? null : (extra.last_heard ?? ago(60)),
   };
   return { ...stationRadios(row, extra), ...row };
 }
@@ -193,7 +200,14 @@ export function packetAt(seconds: number): string {
 }
 
 /** A message packet `from` sent to `to`, `seconds` from NOW, with no message id. */
-export function sentMessage(id: number, from: string, to: string, text: string, seconds: number, extra: Partial<PacketRow> = {}): PacketRow {
+export function sentMessage(
+  id: number,
+  from: string,
+  to: string,
+  text: string,
+  seconds: number,
+  extra: Partial<PacketRow> = {},
+): PacketRow {
   return packet(id, {
     source: from,
     direction: from === "OH2GBA" ? "out" : "in",
@@ -460,7 +474,11 @@ export function igateState(extra: Partial<IgateState> = {}): IgateState {
 }
 
 /** The topic `qru`: a request for INFO answered by the server DF8LS-10 with two groups. */
-export const qruAsked = (text: string, at: string, ...radios: number[]): QruAsked => ({ text, at, radios: radios.length > 0 ? radios : [1] });
+export const qruAsked = (text: string, at: string, ...radios: number[]): QruAsked => ({
+  text,
+  at,
+  radios: radios.length > 0 ? radios : [1],
+});
 
 export function qruState(extra: Partial<QruState> = {}): QruState {
   return {
@@ -689,14 +707,16 @@ export function radioSearch(extra: Partial<RadioSearchMessage> = {}): RadioSearc
   };
 }
 
-export const radiosValue = (...rows: RadioRow[]): Record<string, RadioRow> => Object.fromEntries(rows.map((row) => [String(row.id), row]));
+export const radiosValue = (...rows: RadioRow[]): Record<string, RadioRow> =>
+  Object.fromEntries(rows.map((row) => [String(row.id), row]));
 
 export const fmRow = (extra: Partial<RadioRow> = {}): RadioRow => radioRow(1, "kenwood-tnc2", extra);
 
 export const hfRow = (extra: Partial<RadioRow> = {}, modem: Partial<ModemState> = {}): RadioRow =>
   radioRow(2, "mercury", { modem: modemState(modem), ...extra });
 
-export const radiosTopic = (...rows: RadioRow[]): Map<string, RadioRow> => new Map(rows.map((row) => [String(row.id), row]));
+export const radiosTopic = (...rows: RadioRow[]): Map<string, RadioRow> =>
+  new Map(rows.map((row) => [String(row.id), row]));
 
 export function radiosOf(connected = true): Map<string, RadioRow> {
   return radiosTopic(radioRow(1, "kenwood-tnc2", { state: connected ? "connected" : "waiting" }));
@@ -759,7 +779,8 @@ export function radioRow(id: number, type: string, extra: Partial<RadioRow> = {}
     },
     beacon: { last_sent: null, next_due: null, interval_min: 30, problem: null },
     status: { last_sent: null, next_due: null, interval_min: 0 },
-    modem: type === "direwolf" ? soundCardModem() : known.kind === "hf" && !type.startsWith("dummy") ? modemState() : null,
+    modem:
+      type === "direwolf" ? soundCardModem() : known.kind === "hf" && !type.startsWith("dummy") ? modemState() : null,
     card: { tx: null, rx: null, read: true },
     holds: [],
     ...extra,

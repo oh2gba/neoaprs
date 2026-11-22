@@ -22,14 +22,18 @@ export const settings = {
   "settings.group.lora_radio": "LoRa radio",
   "settings.fm_enabled.name": "FM radio",
   "settings.fm_enabled.tip_label": "About the FM radio",
-  "settings.fm_enabled.tip1": "Your FM radio with its TNC or sound card: the local network, with digipeaters, paths and a beacon that follows a GPS.",
+  "settings.fm_enabled.tip1":
+    "Your FM radio with its TNC or sound card: the local network, with digipeaters, paths and a beacon that follows a GPS.",
   "settings.fm_enabled.tip2": "Untick it to keep this radio off; its settings are kept.",
   "settings.hf_enabled.name": "Mercury radio",
   "settings.hf_enabled.tip_label": "About the Mercury radio",
-  "settings.hf_enabled.tip1": "A radio on a sound card with the Mercury modem inside NeoAPRS: only stations with Mercury hear it; every frame goes direct.",
-  "settings.hf_enabled.tip2": "Several radios can be on: every station any of them hears is on the map, and Route says which radio its messages go on.",
+  "settings.hf_enabled.tip1":
+    "A radio on a sound card with the Mercury modem inside NeoAPRS: only stations with Mercury hear it; every frame goes direct.",
+  "settings.hf_enabled.tip2":
+    "Several radios can be on: every station any of them hears is on the map, and Route says which radio its messages go on.",
   "settings.lora_enabled.tip_label": "About the LoRa radio",
-  "settings.lora_enabled.tip1": "A LoRa APRS board: on your network, on USB or on Bluetooth. Its frequency is set on the board.",
+  "settings.lora_enabled.tip1":
+    "A LoRa APRS board: on your network, on USB or on Bluetooth. Its frequency is set on the board.",
   "settings.rx_enabled.tip1": "It only listens: what it hears comes in, and nothing is ever sent on it.",
   "settings.enable.only_radio_title": "The station's only radio that is on",
   "settings.group.web": "Web page",
@@ -75,29 +79,35 @@ export const settings = {
   "settings.symbol.overlay": "Letter or digit on it",
 
   "settings.comment.label": "Comment",
-  "settings.comment.tip1": "A short text sent with every beacon, shown beside your name on the map. Up to {max} characters.",
+  "settings.comment.tip1":
+    "A short text sent with every beacon, shown beside your name on the map. Up to {max} characters.",
   "settings.comment.tip2": "Example: Home station, 2 m FM",
 
   "settings.station_status.name": "Status text",
   "settings.station_status.label": "Text",
-  "settings.station_status.tip1": "Start with the voice frequency you listen on, as 145.500MHz, so radios can tune to it.",
+  "settings.station_status.tip1":
+    "Start with the voice frequency you listen on, as 145.500MHz, so radios can tune to it.",
   "settings.station_status.tip2": "Up to {max} characters, e.g. 145.500MHz T088 QRV",
 
   "settings.power.label": "Power",
-  "settings.power.tip1": "Transmitter power in watts. With the antenna fields it sends a PHG code: how far you can be heard.",
+  "settings.power.tip1":
+    "Transmitter power in watts. With the antenna fields it sends a PHG code: how far you can be heard.",
   "settings.power.tip2": "Example: 5",
 
   "settings.antenna_height.label": "Antenna height",
-  "settings.antenna_height.tip1": "Height of the antenna above the ground around it, not above the sea. Used only for PHG.",
+  "settings.antenna_height.tip1":
+    "Height of the antenna above the ground around it, not above the sea. Used only for PHG.",
   "settings.antenna_height.tip2": "Example: 10 for a mast on a house on level ground",
 
   "settings.antenna_gain.label": "Antenna gain",
-  "settings.antenna_gain.tip1": "How much the antenna concentrates the signal, {min} to {max} dBi; 0 if unsure. Used only for PHG.",
+  "settings.antenna_gain.tip1":
+    "How much the antenna concentrates the signal, {min} to {max} dBi; 0 if unsure. Used only for PHG.",
   "settings.antenna_gain.tip2": "Example: 3",
 
   "settings.antenna_direction.label": "Antenna direction",
   "settings.antenna_direction.omni": "omni",
-  "settings.antenna_direction.tip1": "omni if it works the same in every direction, or the compass point a beam antenna points to.",
+  "settings.antenna_direction.tip1":
+    "omni if it works the same in every direction, or the compass point a beam antenna points to.",
 
   "settings.transmit.name": "RX only",
   "settings.transmit.label": "RX only",
@@ -106,13 +116,16 @@ export const settings = {
 
   "settings.profile.label": "Radio type",
   "settings.profile.tip_label": "Which radio type to pick",
-  "settings.profile.tip1": "An FM radio on a Digirig, a SignaLink, an AIOC or its own USB audio is Sound card. Most TNCs are KISS TNC.",
-  "settings.profile.tip2": "Mercury modem is heard only by stations with Mercury, on any band, SSB or FM. No radio? Pick a Dummy.",
+  "settings.profile.tip1":
+    "An FM radio on a Digirig, a SignaLink, an AIOC or its own USB audio is Sound card. Most TNCs are KISS TNC.",
+  "settings.profile.tip2":
+    "Mercury modem is heard only by stations with Mercury, on any band, SSB or FM. No radio? Pick a Dummy.",
 
   "settings.port.name": "Port",
   "settings.port.label": "Port",
   "settings.port.tip_label": "About the port",
-  "settings.port.tip1": "The connection to the radio. Find automatically looks for it on the USB ports and remembers it.",
+  "settings.port.tip1":
+    "The connection to the radio. Find automatically looks for it on the USB ports and remembers it.",
   "settings.port.tip2": "A USB radio is /dev/ttyUSB0 on Linux, COM3 on Windows. Refresh reads the list again.",
   "settings.port.auto": "find automatically",
   "settings.port.none": "not set",
@@ -140,11 +153,14 @@ export const settings = {
   "settings.board_port.label": "Port",
   "settings.sound_card.label": "Sound card",
   "settings.sound_card.tip_label": "About the sound card",
-  "settings.sound_card.tip1": "The sound card the radio's audio goes through: a USB codec, a Digirig, or the radio's own USB audio.",
-  "settings.sound_card.tip2": "The radio's own card usually calls itself a USB codec. Tune makes the chosen card audible; Refresh reads the list again.",
+  "settings.sound_card.tip1":
+    "The sound card the radio's audio goes through: a USB codec, a Digirig, or the radio's own USB audio.",
+  "settings.sound_card.tip2":
+    "The radio's own card usually calls itself a USB codec. Tune makes the chosen card audible; Refresh reads the list again.",
   "settings.keying.label": "Keying",
   "settings.keying.tip_label": "About keying",
-  "settings.keying.tip1": "How the radio is switched to transmit: by itself (VOX or its data mode), a CM108 sound chip, or a line of a serial port.",
+  "settings.keying.tip1":
+    "How the radio is switched to transmit: by itself (VOX or its data mode), a CM108 sound chip, or a line of a serial port.",
   "settings.keying.tip2": "A Digirig keys on RTS of its serial port.",
   "settings.keying.vox": "The radio keys itself (VOX)",
   "settings.keying.cm108": "CM108 sound chip",
@@ -159,7 +175,8 @@ export const settings = {
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "About the receive level",
   "settings.scope.tip1": "The bar is the level of the radio's audio, the green part the good range.",
-  "settings.scope.tip2": "Too low: raise the radio's audio output or the sound card's input. Red: lower it, the sound card clips.",
+  "settings.scope.tip2":
+    "Too low: raise the radio's audio output or the sound card's input. Red: lower it, the sound card clips.",
   "settings.scope.heard": "{call} {db} dB",
   "settings.txlevel.label": "Transmit level",
   "settings.txlevel.lower": "Lower the transmit level",
@@ -167,22 +184,26 @@ export const settings = {
   "settings.txlevel.value": "{value} dB",
   "settings.txlevel.peak": "Peak {value} dBFS",
   "settings.txlevel.tip_label": "About the transmit level",
-  "settings.txlevel.tip1": "How strong the modem's audio is to the radio, in dB. Press Tune and set it on the radio's meter.",
+  "settings.txlevel.tip1":
+    "How strong the modem's audio is to the radio, in dB. Press Tune and set it on the radio's meter.",
   "settings.txlevel.tip2": "The peak turns orange at 0 dBFS, where the sound card clips.",
-  "settings.txlevel.card_tip1": "How strong the sound card's audio is to the radio. Press Tune and set it on the radio's meter.",
+  "settings.txlevel.card_tip1":
+    "How strong the sound card's audio is to the radio. Press Tune and set it on the radio's meter.",
   "settings.cardlevel.value": "{value} %",
   "settings.cardlevel.rx_label": "Sound card input level",
   "settings.tune": "Tune",
   "settings.tune_stop": "Stop",
   "settings.tune.label": "Tuning tone",
   "settings.tune.tip_label": "About the tuning tone",
-  "settings.tune.tip1": "Keys the radio and sends a tone for ten seconds, to tune the antenna, set the audio level or find the radio's sound card.",
+  "settings.tune.tip1":
+    "Keys the radio and sends a tone for ten seconds, to tune the antenna, set the audio level or find the radio's sound card.",
   "settings.last_port.label": "Last port found",
 
   "settings.network.name": "Network access",
   "settings.network.label": "Allow access from the network",
   "settings.network.tip_label": "About network access",
-  "settings.network.tip1": "Lets a phone, a tablet or a laptop on your network open this page. Without it, only this computer can.",
+  "settings.network.tip1":
+    "Lets a phone, a tablet or a laptop on your network open this page. Without it, only this computer can.",
 
   "settings.access_key.label": "Access key",
   "settings.access_key.tip_label": "About the access key",
@@ -210,12 +231,14 @@ export const settings = {
   "settings.station_hours.name": "Time on the map",
   "settings.radius.label": "Radius",
   "settings.radius.tip_label": "About the radius",
-  "settings.radius.tip1": "How far from your station the detailed map, with streets and names, reaches. The world map is always there.",
+  "settings.radius.tip1":
+    "How far from your station the detailed map, with streets and names, reaches. The world map is always there.",
   "settings.radius.tip2": "A bigger radius is a bigger download: 150 km is a region, 300 km a large region.",
 
   "settings.digipeater.name": "Digipeater",
   "settings.digipeater.tip_label": "What the digipeater does",
-  "settings.digipeater.tip1": "Repeats packets of nearby stations that cannot reach a digipeater: WIDE1-1, or sent through your call.",
+  "settings.digipeater.tip1":
+    "Repeats packets of nearby stations that cannot reach a digipeater: WIDE1-1, or sent through your call.",
   "settings.digipeater.tip2": "Leave it off unless you are in a spot with poor coverage.",
 
   "settings.igate.name": "Internet stations",
@@ -243,7 +266,8 @@ export const settings = {
   "settings.alert.tip1": "With Notify me on, the Command is run when a message arrives.",
   "settings.alert_command.name": "Alert command",
   "settings.alert_command.label": "Command",
-  "settings.alert_command.tip1": "Run for each new message and station alert; NEOAPRS_TITLE and NEOAPRS_TEXT hold the title and the text.",
+  "settings.alert_command.tip1":
+    "Run for each new message and station alert; NEOAPRS_TITLE and NEOAPRS_TEXT hold the title and the text.",
   "settings.alert_test": "Test",
   "settings.alert_test.ran": "The alert command ran",
   "settings.alert_test.exit": "The alert command ended with exit code {status}",
@@ -255,13 +279,16 @@ export const settings = {
   "settings.alerts.title": "NeoAPRS's own alert: the command run on the NeoAPRS computer",
   "settings.alerts.title_app": "NeoAPRS's own alert: the command run on this computer",
   "settings.alerts.tip_label": "About notifications",
-  "settings.alerts.tip1": "The alert of the NeoAPRS computer: it runs the Command for each new message, by default a sound and a notification.",
-  "settings.alerts.tip1_app": "The alert of this computer: it runs the Command for each new message, by default a sound and a notification.",
+  "settings.alerts.tip1":
+    "The alert of the NeoAPRS computer: it runs the Command for each new message, by default a sound and a notification.",
+  "settings.alerts.tip1_app":
+    "The alert of this computer: it runs the Command for each new message, by default a sound and a notification.",
   "settings.alerts.tip2": "The next group is this browser. Use one of the two, or both to be told twice.",
   "settings.alerts.tip2_app": "The next group is this window. Use one of the two, or both to be told twice.",
 
   "settings.encrypt.tip_label": "About encrypted messages",
-  "settings.encrypt.tip1": "A message to a station whose key you have can be locked: only that station reads it. Nothing is encrypted or sent by itself.",
+  "settings.encrypt.tip1":
+    "A message to a station whose key you have can be locked: only that station reads it. Nothing is encrypted or sent by itself.",
   "settings.encrypt.tip2":
     "Amateur regulations forbid hiding what is said: for the circumstances that allow it, and only when NeoAPRS is started with --encryption.",
   "settings.encrypt.key_label": "Your key",
@@ -269,8 +296,10 @@ export const settings = {
   "settings.browser.heading": "In this browser",
   "settings.browser.heading_app": "In this window",
   "settings.browser.mode": "Notify me",
-  "settings.browser.mode_tip": "Tells you of a new message in this browser, with a sound or a notification. Each device chooses for itself.",
-  "settings.browser.mode_tip_app": "Tells you of a new message in this window, with a sound. Each device chooses for itself.",
+  "settings.browser.mode_tip":
+    "Tells you of a new message in this browser, with a sound or a notification. Each device chooses for itself.",
+  "settings.browser.mode_tip_app":
+    "Tells you of a new message in this window, with a sound. Each device chooses for itself.",
   "settings.browser.enable_popups": "Enable notifications…",
   "settings.browser.sound": "Sound",
   "settings.browser.test_sound": "Test sound",
@@ -293,24 +322,29 @@ export const settings = {
   "settings.status_source.off": "off",
   "settings.status_source.text": "a text of my own",
   "settings.status_source.rig": "the frequency from my radio (rigctld)",
-  "settings.status_source.tip1": "A line other stations see after your call: none, a text of your own, or your radio's frequency (rigctld).",
+  "settings.status_source.tip1":
+    "A line other stations see after your call: none, a text of your own, or your radio's frequency (rigctld).",
   "settings.status_rigctld.label": "Rigctld",
-  "settings.status_rigctld.tip1": "rigctld, a Hamlib program, tells NeoAPRS what the radio is tuned to. Start it first, then type address:port.",
+  "settings.status_rigctld.tip1":
+    "rigctld, a Hamlib program, tells NeoAPRS what the radio is tuned to. Start it first, then type address:port.",
   "settings.status_rigctld.tip2": "Example: 127.0.0.1:4532",
   "settings.status_interval.name": "Status interval",
   "settings.status_interval.label": "Every",
   "settings.status_interval.tip1": "The time between two statuses.",
   "settings.status_template.name": "Status template",
   "settings.status_template.label": "Text",
-  "settings.status_template.tip1": "{{freq}} becomes the radio's frequency and {{mode}} its mode. Up to {max} characters once filled in.",
+  "settings.status_template.tip1":
+    "{{freq}} becomes the radio's frequency and {{mode}} its mode. Up to {max} characters once filled in.",
   "settings.status_template.tip2": "Example: QRV {{freq}} {{mode}} gives QRV 14.074 MHz USB",
 
   "settings.beacon_interval.name": "Beacon interval",
   "settings.beacon_interval.label": "Beacon",
   "settings.beacon_interval.off": "Off",
-  "settings.beacon_interval.tip1": "How often your position goes out: not more often than every {min} min. Off: no automatic beacon; Beacon now still sends.",
+  "settings.beacon_interval.tip1":
+    "How often your position goes out: not more often than every {min} min. Off: no automatic beacon; Beacon now still sends.",
   "settings.beacon_interval.tip2": "30 minutes suits a station that stays where it is.",
-  "settings.beacon_interval.tip_moving": "On: SmartBeaconing sends the GPS position, more often the faster you go and at every turn. Off: no automatic beacon.",
+  "settings.beacon_interval.tip_moving":
+    "On: SmartBeaconing sends the GPS position, more often the faster you go and at every turn. Off: no automatic beacon.",
   "settings.path.name": "Beacon path",
   "settings.path.label": "Path",
   "settings.path.on_radio": "{name}: path",
@@ -318,7 +352,8 @@ export const settings = {
   "settings.path.direct": "Direct only (no digipeaters)",
   "settings.path.custom": "Custom…",
   "settings.path.custom_label": "Digipeaters",
-  "settings.path.tip1": "Recommended is WIDE1-1,WIDE2-1 for a moving station and WIDE2-2 for a fixed one, by your symbol.",
+  "settings.path.tip1":
+    "Recommended is WIDE1-1,WIDE2-1 for a moving station and WIDE2-2 for a fixed one, by your symbol.",
   "settings.path.tip2": "Direct only if everyone you talk to hears you directly.",
 
   "settings.confirm.label": "Confirm",
@@ -373,16 +408,23 @@ export const settings = {
   "settings.tnc.keyed": "Keyed",
   "settings.tnc.listening": "Listening",
   "settings.tnc.snr": "SNR {db} dB",
-  "settings.tnc.dummy_hf": "Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air",
+  "settings.tnc.dummy_hf":
+    "Dummy Mercury radio: made-up distant stations, your frames on the speakers, nothing goes on the air",
   "settings.tnc.no_packet": "No packet yet",
   "settings.tnc.last_packet": "Last packet {span} ago",
   "settings.digi.on": "on",
   "settings.digi.off": "off",
   "settings.digi.line.none": "None repeated yet",
-  "settings.digi.line.count": { one: "{n} packet repeated · last {span} ago", other: "{n} packets repeated · last {span} ago" },
+  "settings.digi.line.count": {
+    one: "{n} packet repeated · last {span} ago",
+    other: "{n} packets repeated · last {span} ago",
+  },
   "settings.digi.line.rx_only": "RX only: nothing is repeated",
   "settings.digi.fold.since": "Counted since {when}",
-  "settings.digi.fold.held": { one: "{n} frame held back: too many in a burst", other: "{n} frames held back: too many in a burst" },
+  "settings.digi.fold.held": {
+    one: "{n} frame held back: too many in a burst",
+    other: "{n} frames held back: too many in a burst",
+  },
   "settings.pair.legend": "{first} and {second}",
   "settings.pair.name": "Pair of radios",
   "settings.pair.call": "Call",
@@ -391,7 +433,10 @@ export const settings = {
     "A packet heard on one of the two radios goes out once on the other when its path names this call. Give the call to stations that want to cross.",
   "settings.pair.tip2": "A WIDE path alone never goes across.",
   "settings.pair.fold.each_way": "{n} to {first} · {m} to {second}",
-  "settings.pair.fold.held": { one: "{n} frame held back: too many for {radio}", other: "{n} frames held back: too many for {radio}" },
+  "settings.pair.fold.held": {
+    one: "{n} frame held back: too many for {radio}",
+    other: "{n} frames held back: too many for {radio}",
+  },
   "settings.pair.fold.too_long": { one: "{n} frame too long for {radio}", other: "{n} frames too long for {radio}" },
   "settings.tnc.searching": "Searching for the radio…",
   "settings.tnc.connecting": "Connecting…",
@@ -430,11 +475,13 @@ export const settings = {
   "settings.map.step_percent": "{step} {percent}%",
   "settings.map.downloaded": "Map downloaded",
   "settings.map.downloaded_on": "Map downloaded {day} {month}",
-  "settings.map.problem.no_position": "the station has no position yet: set Latitude and Longitude (the map is cut round them)",
+  "settings.map.problem.no_position":
+    "the station has no position yet: set Latitude and Longitude (the map is cut round them)",
   "settings.map.problem.busy": "a map job is running",
   "settings.map.problem.slow": "the map server is too slow now; try again later",
   "settings.map.problem.unreachable": "the map server could not be reached; is there a connection?",
-  "settings.map.problem.no_build": "no daily build of the map was found in the last {days} days (is there a connection?)",
+  "settings.map.problem.no_build":
+    "no daily build of the map was found in the last {days} days (is there a connection?)",
   "settings.map.problem.too_big": "the map would be {size} MB, more than the {max} MB it may be",
   "settings.map.problem.no_space": "the map could not be made: the disk is full",
   "settings.map.problem.failed": "the map could not be made; the log says why",
@@ -454,8 +501,10 @@ export const settings = {
   "settings.position.fixed": "Fixed",
   "settings.position.gpsd": "A GPS via gpsd",
   "settings.position.serial": "A GPS on a serial port",
-  "settings.position.tip1": "Fixed: the station stays at the location below. A GPS: position, course and speed come from the receiver.",
-  "settings.position.tip2": "gpsd is the GPS service of Linux. With no fresh fix nothing is sent, never the home position.",
+  "settings.position.tip1":
+    "Fixed: the station stays at the location below. A GPS: position, course and speed come from the receiver.",
+  "settings.position.tip2":
+    "gpsd is the GPS service of Linux. With no fresh fix nothing is sent, never the home position.",
   "settings.gps_host.label": "gpsd address",
   "settings.gps_host.tip1": "Where gpsd listens, as host:port; leave it as it is when gpsd runs on this computer.",
   "settings.gps_device.label": "GPS port",
@@ -469,7 +518,8 @@ export const settings = {
   "settings.travel.bicycle": "By bicycle",
   "settings.travel.foot": "On foot",
   "settings.travel.boat": "By boat",
-  "settings.travel.tip1": "Sets how often the beacon goes and at which turns: a car beacons more often at speed than a walker.",
+  "settings.travel.tip1":
+    "Sets how often the beacon goes and at which turns: a car beacons more often at speed than a walker.",
 
   "settings.update.group": "Update check",
   "settings.update.label": "New version",
@@ -492,7 +542,8 @@ export const settings = {
   "settings.help.send": "Send feedback / logs",
   "settings.help.sending": "Sending…",
   "settings.help.tip_label": "About the logs",
-  "settings.help.tip": "The log, the settings, the packets heard and sent. They can be saved as a file or sent to the project.",
+  "settings.help.tip":
+    "The log, the settings, the packets heard and sent. They can be saved as a file or sent to the project.",
   "settings.help.saved": "Saved {file}.",
   "settings.help.sent": "Sent. Reference {ref}.",
   "settings.help.problem.access": "No access: reload the page, enter the access key and try again.",
@@ -512,7 +563,8 @@ export const settings = {
   "settings.help.dialog.send": "Send",
   "settings.help.dialog.cancel": "Cancel",
   "settings.about.group": "About",
-  "settings.about.intro": "NeoAPRS {version}, an APRS client for your radios: FM, Mercury and LoRa. Made by {call}, {year}.",
+  "settings.about.intro":
+    "NeoAPRS {version}, an APRS client for your radios: FM, Mercury and LoRa. Made by {call}, {year}.",
   "settings.about.license": "Free software under the {license}, version 3 or later.",
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Source code",

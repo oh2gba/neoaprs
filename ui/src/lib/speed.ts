@@ -70,7 +70,14 @@ export function tripHours(row: StationRow, now: number): number {
  * hours, so it may go back further), over the trip to now; no points until the answer came, so
  * the frame keeps its place.
  */
-export function speedPoints(series: SpeedSeriesMessage | null, from: number, now: number): { from: number; to: number; points: Point[] } {
-  const points = series === null ? [] : series.points.map(([at, kmh]) => ({ t: Date.parse(at), v: kmh })).filter((point) => point.t >= from);
+export function speedPoints(
+  series: SpeedSeriesMessage | null,
+  from: number,
+  now: number,
+): { from: number; to: number; points: Point[] } {
+  const points =
+    series === null
+      ? []
+      : series.points.map(([at, kmh]) => ({ t: Date.parse(at), v: kmh })).filter((point) => point.t >= from);
   return { from, to: now, points };
 }

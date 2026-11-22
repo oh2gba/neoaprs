@@ -98,4 +98,5 @@ const SSID_LABELS = [
 ] as const;
 
 /** The call's SSID dropdown: none first (empty text), then 1 to 15; the value is the number. */
-export const ssidChoices = (): readonly Choice[] => SSID_LABELS.map((id, n) => ({ value: n === 0 ? "" : String(n), label: t(id) }));
+export const ssidChoices = (): readonly Choice[] =>
+  SSID_LABELS.map((id, n) => ({ value: n === 0 ? "" : String(n), label: t(id) }));

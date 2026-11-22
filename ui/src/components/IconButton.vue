@@ -8,7 +8,13 @@ import TwoWords from "@/components/TwoWords.vue";
 import { t } from "@/i18n";
 
 withDefaults(
-  defineProps<{ kind: "delete" | "close" | "message" | "pin" | "path" | "lock"; label: string; title?: string; armed?: boolean; pressed?: boolean }>(),
+  defineProps<{
+    kind: "delete" | "close" | "message" | "pin" | "path" | "lock";
+    label: string;
+    title?: string;
+    armed?: boolean;
+    pressed?: boolean;
+  }>(),
   {
     title: undefined,
     armed: false,

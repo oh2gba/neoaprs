@@ -41,14 +41,19 @@ export function useTabsFit(
     const free = outer.clientWidth - inset(outer) - taken() - SLACK;
     // Hidden: the last answer stays.
     if (free <= 0) return;
-    const tabs = Object.fromEntries(TAB_IDS.map((id) => [id, widthOf(copy, `[data-tab="${id}"]`)])) as Record<TabId, number>;
+    const tabs = Object.fromEntries(TAB_IDS.map((id) => [id, widthOf(copy, `[data-tab="${id}"]`)])) as Record<
+      TabId,
+      number
+    >;
     const more = widthOf(copy, "[data-more]");
     sizes.value = { tabs, more, moreCount: Math.max(0, widthOf(copy, "[data-more-count]") - more) };
     room.value = free;
   }
 
   const split = computed<TabSplit>(() =>
-    sizes.value === null ? { shown: [...offered()], hidden: [] } : splitTabs(sizes.value, room.value, open(), counts(), offered()),
+    sizes.value === null
+      ? { shown: [...offered()], hidden: [] }
+      : splitTabs(sizes.value, room.value, open(), counts(), offered()),
   );
 
   watch(

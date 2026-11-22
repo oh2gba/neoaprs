@@ -37,7 +37,12 @@ export function useMonitorMenu(picture: () => HTMLElement | null) {
   const press = useLongPress((x, y) => open(x, y));
 
   const on = { contextmenu: onContextMenu };
-  const pressOn = { pointerdown: press.down, pointermove: press.move, pointerup: press.up, pointercancel: press.cancel };
+  const pressOn = {
+    pointerdown: press.down,
+    pointermove: press.move,
+    pointerup: press.up,
+    pointercancel: press.cancel,
+  };
 
   return { menu, key, on, pressOn, close };
 }

@@ -24,7 +24,18 @@ import { leftTitle } from "@/lib/compose";
 import { LIMITS } from "@/protocol/lists";
 import type { OwnBulletinRow } from "@/protocol/protocol";
 import { leftOf, type TextLimit, trimmedCharacters, typedInto } from "@/lib/textlimit";
-import { GROUP_MAX, POST_KINDS, canPost, groupOf, groupOk, idsOf, kindTitle, postCommand, slotOf, type PostDraft } from "@/lib/bulletins";
+import {
+  GROUP_MAX,
+  POST_KINDS,
+  canPost,
+  groupOf,
+  groupOk,
+  idsOf,
+  kindTitle,
+  postCommand,
+  slotOf,
+  type PostDraft,
+} from "@/lib/bulletins";
 
 const props = defineProps<{ ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
 const emit = defineEmits<{ post: [slot: string, text: string, radios?: RadioId[]] }>();
@@ -46,7 +57,10 @@ const { told, named, severalSenders: several, all } = radios;
  * post. */
 const chosen = ref<RadioId[] | null>(null);
 const own = (): readonly RadioId[] =>
-  chosen.value ?? (page?.status.value?.new_bulletin_radios ?? []).filter((id) => all.value.some((radio) => radio.id === id && !radio.removed));
+  chosen.value ??
+  (page?.status.value?.new_bulletin_radios ?? []).filter((id) =>
+    all.value.some((radio) => radio.id === id && !radio.removed),
+  );
 /** Send on, bound to the draft. */
 const { ticks, radios: on, tick } = useDraftSendOn(own, (ids) => (chosen.value = ids), "post", radios);
 /** No ticked radio is on: Post is off until one is. */

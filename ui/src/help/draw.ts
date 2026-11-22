@@ -5,7 +5,8 @@ const round = (n: number): number => Math.round(n * 10) / 10;
 /** A line from (x1, y1) to (x2, y2) with an open arrow head of `head` px at the end. */
 export function arrow(x1: number, y1: number, x2: number, y2: number, head = 5): string {
   const angle = Math.atan2(y2 - y1, x2 - x1);
-  const wing = (turn: number): string => `${round(x2 - head * Math.cos(angle + turn))} ${round(y2 - head * Math.sin(angle + turn))}`;
+  const wing = (turn: number): string =>
+    `${round(x2 - head * Math.cos(angle + turn))} ${round(y2 - head * Math.sin(angle + turn))}`;
   return `M${x1} ${y1}L${x2} ${y2}M${wing(0.5)}L${x2} ${y2}L${wing(-0.5)}`;
 }
 

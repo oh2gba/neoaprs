@@ -12,7 +12,8 @@ export const email = {
   "email.check": "Check email",
   "email.checking": "Already checking",
   "email.about": "About email",
-  "email.about_gateway": "Mail goes through the internet gateway EMAIL-2, so a mail can show {unconfirmed} although it arrived.",
+  "email.about_gateway":
+    "Mail goes through the internet gateway EMAIL-2, so a mail can show {unconfirmed} although it arrived.",
   "email.about_check": "{check} asks the gateway for the mail it kept for you (24 hours).",
 
   "email.field.to": "To",
@@ -31,7 +32,8 @@ export const email = {
   "email.state.cancelled": "Cancelled",
   "email.state.unconfirmed": "Not confirmed",
   "email.state.too_long_for_radio": "Too long for the radio",
-  "email.not_confirmed": "sent, not confirmed: the gateway's ack reaches you only through an iGate, so the mail may well have gone through",
+  "email.not_confirmed":
+    "sent, not confirmed: the gateway's ack reaches you only through an iGate, so the mail may well have gone through",
 
   "email.date_time": "{day} {month} {time}",
 } as const;

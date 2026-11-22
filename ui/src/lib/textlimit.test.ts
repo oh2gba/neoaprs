@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { bytes, characters, commentLimit, fitted, leftOf, settingLimit, templateLength, type TextLimit, trimmedCharacters, typedInto } from "@/lib/textlimit";
+import {
+  bytes,
+  characters,
+  commentLimit,
+  fitted,
+  leftOf,
+  settingLimit,
+  templateLength,
+  type TextLimit,
+  trimmedCharacters,
+  typedInto,
+} from "@/lib/textlimit";
 import vectors from "@/protocol/vectors.json";
 
 const chars = (max: number): TextLimit => ({ max, measure: characters, kind: "characters" });
@@ -105,7 +116,8 @@ describe("fitted", () => {
 
 describe("templateLength", () => {
   it("counts a status template as the daemon checks it, each field it names as its widest value", () => {
-    for (const { template, length } of vectors.status_templates) expect(templateLength(template), template).toBe(length);
+    for (const { template, length } of vectors.status_templates)
+      expect(templateLength(template), template).toBe(length);
   });
 
   it("holds a template to what the daemon takes for its length (what else it refuses is the daemon's to say)", () => {

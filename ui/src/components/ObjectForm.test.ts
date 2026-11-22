@@ -20,22 +20,35 @@ function form(rows: OwnObjectRow[] = [], placed = true) {
     tab: ref("objects"),
   } as unknown as Panel);
   if (placed) view.place(60.17, 24.94);
-  const wrapper = mount(ObjectForm, { props: { form: view }, global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })) });
-  const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === label);
+  const wrapper = mount(ObjectForm, {
+    props: { form: view },
+    global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })),
+  });
+  const field = (label: string) =>
+    wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === label);
   const input = (label: string) => field(label)?.find<HTMLInputElement>("input");
   /** The entry under the place (latitude, longitude, locator), opened by a click on the place. */
   const entry = async () => {
     if (!wrapper.find(".location-entry").exists()) await wrapper.find(".location-place").trigger("click");
     return wrapper.find(".location-entry");
   };
-  const coordinate = async (label: "Latitude" | "Longitude" | "Locator") => (await entry()).findAll(".field").find((f) => f.find("label").text() === label);
+  const coordinate = async (label: "Latitude" | "Longitude" | "Locator") =>
+    (await entry()).findAll(".field").find((f) => f.find("label").text() === label);
   return { wrapper, view, sent, field, input, table, entry, coordinate };
 }
 
 describe("ObjectForm", () => {
   it("has the fields a label each and no sentence of help", () => {
     const { wrapper } = form();
-    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Name", "Symbol", "Comment", "Course", "Speed", "Path", "Category"]);
+    expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual([
+      "Name",
+      "Symbol",
+      "Comment",
+      "Course",
+      "Speed",
+      "Path",
+      "Category",
+    ]);
     expect(wrapper.find("p").exists()).toBe(false);
   });
 
@@ -94,7 +107,10 @@ describe("ObjectForm", () => {
   });
 
   it("drops the unsaved changes of an object being changed with Cancel, and leaves the form as a new one", async () => {
-    const { wrapper, input, view, sent } = form([ownObject("LEADER", { comment: "Rescue 1", path: "WIDE2-1", qru_group: "NET" })], false);
+    const { wrapper, input, view, sent } = form(
+      [ownObject("LEADER", { comment: "Rescue 1", path: "WIDE2-1", qru_group: "NET" })],
+      false,
+    );
     const cancel = () => wrapper.findAll("button").find((b) => b.text() === "Cancel");
     view.edit("LEADER");
     await wrapper.vm.$nextTick();
@@ -112,7 +128,10 @@ describe("ObjectForm", () => {
 
   it("says direct in the path when its radio goes direct", () => {
     const view = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-    const wrapper = mount(ObjectForm, { props: { form: view }, global: withDaemon(fakeDaemon({ config: configValues({}, { "radio/1/path": "DIRECT" }) })) });
+    const wrapper = mount(ObjectForm, {
+      props: { form: view },
+      global: withDaemon(fakeDaemon({ config: configValues({}, { "radio/1/path": "DIRECT" }) })),
+    });
     expect(wrapper.find("input[placeholder='direct']").exists()).toBe(true);
   });
 
@@ -222,7 +241,10 @@ describe("ObjectForm", () => {
     expect(row.element.nextElementSibling?.querySelector("label")?.textContent).toBe("Comment");
     expect([...row.element.children].map((c) => c.className.split(" ")[0])).toEqual(["field-label", "field-control"]);
     expect(row.find(".field-label").text()).toBe("Location");
-    expect([...row.find(".field-control").element.children].map((c) => c.className.split(" ")[0])).toEqual(["btn", "location-place"]);
+    expect([...row.find(".field-control").element.children].map((c) => c.className.split(" ")[0])).toEqual([
+      "btn",
+      "location-place",
+    ]);
     expect(row.find(".btn").classes()).not.toContain("primary");
     expect(row.find(".location-place").text()).toBe("60.17 N, 24.94 E · KP20le");
     expect(row.find(".location-entry").exists()).toBe(false);
@@ -327,7 +349,12 @@ describe("ObjectForm", () => {
     const { wrapper, field, sent } = form();
     const select = () => field("Category")?.find<HTMLSelectElement>("select");
     const options = select()?.findAll("option");
-    expect(options?.map((o) => o.text()).slice(0, 4)).toEqual(["None", "2 m repeater", "70 cm repeater", "6 m repeater"]);
+    expect(options?.map((o) => o.text()).slice(0, 4)).toEqual([
+      "None",
+      "2 m repeater",
+      "70 cm repeater",
+      "6 m repeater",
+    ]);
     expect(options?.at(-1)?.text()).toBe("Other…");
     expect(options?.map((o) => o.element.value).slice(0, 3)).toEqual(["", "RP2M", "RP70"]);
     expect(select()?.element.value).toBe("");
@@ -386,7 +413,10 @@ describe("ObjectForm", () => {
   });
 
   it("opens an object being changed with its category and its choice, and one with a code of our own as Other… with the code", async () => {
-    const { view, input, field, wrapper } = form([ownObject("PUB", { qru_group: "FOOD", on_request: true }), ownObject("NET", { qru_group: "MYNET" })]);
+    const { view, input, field, wrapper } = form([
+      ownObject("PUB", { qru_group: "FOOD", on_request: true }),
+      ownObject("NET", { qru_group: "MYNET" }),
+    ]);
     view.edit("PUB");
     await wrapper.vm.$nextTick();
     expect(field("Category")?.find<HTMLSelectElement>("select").element.value).toBe("FOOD");
@@ -427,7 +457,8 @@ describe("ObjectForm", () => {
       ownObject("GROUP", { qru_group: "FOOD" }),
       ownObject("ASKED", { on_request: true }),
     ]);
-    const open = () => wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Advanced")?.element.open;
+    const open = () =>
+      wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Advanced")?.element.open;
     for (const [name, expected] of [
       ["PLAIN", false],
       ["ROUTED", true],
@@ -451,9 +482,13 @@ describe("ObjectForm", () => {
       await tip?.trigger("click");
       expect(wrapper.findAll(".info-text .info-line"), label).toHaveLength(1);
       if (label === "Category")
-        expect(wrapper.find(".info-text .info-line").text()).toBe("Give an object a category to offer it to stations that ask for local info.");
+        expect(wrapper.find(".info-text .info-line").text()).toBe(
+          "Give an object a category to offer it to stations that ask for local info.",
+        );
       if (label === "Send only when asked")
-        expect(wrapper.find(".info-text .info-line").text()).toBe("Not beaconed; sent only to a station that asks with ?APRSO or QRU.");
+        expect(wrapper.find(".info-text .info-line").text()).toBe(
+          "Not beaconed; sent only to a station that asks with ?APRSO or QRU.",
+        );
       await tip?.trigger("click");
     }
   });
@@ -464,7 +499,8 @@ describe("ObjectForm", () => {
       ownObject("FAST", { course_deg: null, speed_kmh: 40 }),
       ownObject("MEET"),
     ]);
-    const open = () => wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Moving")?.element.open;
+    const open = () =>
+      wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Moving")?.element.open;
     view.edit("MEET");
     await wrapper.vm.$nextTick();
     expect(open()).toBe(false);
@@ -484,7 +520,13 @@ describe("ObjectForm", () => {
     await input("Comment")?.setValue("Rescue 1");
     await wrapper.find("form").trigger("submit");
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ cmd: "object_set", name: "LEADER", comment: "Rescue 1", course_deg: 88, speed_kmh: 40 });
+    expect(sent[0]).toMatchObject({
+      cmd: "object_set",
+      name: "LEADER",
+      comment: "Rescue 1",
+      course_deg: 88,
+      speed_kmh: 40,
+    });
   });
 
   it("keeps the name of an object that is being changed", () => {
@@ -540,12 +582,21 @@ describe("Send on, the radios of an object", () => {
   const withRadios = (station: Given, rows: OwnObjectRow[] = [], given: Given = {}) => {
     const table = new Map(rows.map((r) => [r.name, r]));
     const sent: Command[] = [];
-    const view = useOwnObjects(table, (command) => (sent.push(command), true), { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+    const view = useOwnObjects(table, (command) => (sent.push(command), true), {
+      show: vi.fn(),
+      tab: ref("objects"),
+    } as unknown as Panel);
     view.place(60.17, 24.94);
     view.draft.name = "MARK";
-    const daemon = fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1", status: status({ new_object_radios: [1] }), ...station, ...given });
+    const daemon = fakeDaemon({
+      fallbackPath: "WIDE1-1,WIDE2-1",
+      status: status({ new_object_radios: [1] }),
+      ...station,
+      ...given,
+    });
     const wrapper = mount(ObjectForm, { props: { form: view }, global: withDaemon(daemon) });
-    const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label, .field-label").text() === label);
+    const field = (label: string) =>
+      wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label, .field-label").text() === label);
     const sendOn = () => wrapper.find(".field.send-on");
     const ticks = () =>
       sendOn()
@@ -560,7 +611,8 @@ describe("Send on, the radios of an object", () => {
         .find((t) => t.text() === name)
         ?.find("input")
         .trigger("change");
-    const advanced = () => wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Advanced");
+    const advanced = () =>
+      wrapper.findAll<HTMLDetailsElement>("details").find((d) => d.find("summary").text() === "Advanced");
     return { wrapper, view, sent, field, sendOn, ticks, tick, advanced, daemon };
   };
   const FM = radioRow(1, "kenwood-tnc2");
@@ -580,7 +632,11 @@ describe("Send on, the radios of an object", () => {
       expect(sendOn().exists()).toBe(false);
       expect(wrapper.text()).not.toContain("Send on");
       await wrapper.find("form").trigger("submit");
-      expect(sent.at(-1)).toMatchObject({ cmd: "object_set", name: "MARK", radios: [rows[0]?.enabled === true ? 1 : 2] });
+      expect(sent.at(-1)).toMatchObject({
+        cmd: "object_set",
+        name: "MARK",
+        radios: [rows[0]?.enabled === true ? 1 : 2],
+      });
     }
   });
 
@@ -598,7 +654,9 @@ describe("Send on, the radios of an object", () => {
         .map((f) => f.find("label, .field-label").text()),
     ).toEqual(["Send on", "Path", "Category"]);
     expect(advanced()?.element.open).toBe(false); // (the ticks a new object has)
-    expect(sendOn().find(".info-toggle").exists(), "the row of the Beacon group's Send on: no (i) of its own").toBe(false);
+    expect(sendOn().find(".info-toggle").exists(), "the row of the Beacon group's Send on: no (i) of its own").toBe(
+      false,
+    );
   });
 
   it("sends nothing while the station has no radio, though the daemon names a radio for a new object", async () => {
@@ -637,9 +695,10 @@ describe("Send on, the radios of an object", () => {
     expect(field("Path")?.find<HTMLInputElement>("input").element.value).toBe("WIDE1-1");
     expect(field("Path")?.find<HTMLButtonElement>("button.pathbuild-open").element.disabled).toBe(true);
     expect(field("Path")?.attributes("title"), "the reason, as Route's greyed Path has it").toBe("Mercury: no path");
-    expect(field("Path")?.find("button.pathbuild-open").attributes("title"), "the path builder's button says why it is off, as its row does").toBe(
-      "Mercury: no path",
-    );
+    expect(
+      field("Path")?.find("button.pathbuild-open").attributes("title"),
+      "the path builder's button says why it is off, as its row does",
+    ).toBe("Mercury: no path");
     expect(field("Path")?.element.previousElementSibling).toBe(wrapper.find(".field.send-on").element);
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ cmd: "object_set", name: "MARK", radios: [2], path: "WIDE1-1" });
@@ -683,8 +742,15 @@ describe("Send on, the radios of an object", () => {
   });
 
   it("opens Advanced for an object being changed whose radios differ from those a new object has, with its ticks; a radio of its own that is off is kept and not shown", async () => {
-    const rows = [ownObject("FAR", { radios: [2] }), ownObject("NEAR", { radios: [1] }), ownObject("WIDE", { radios: [1, 3] })];
-    const { wrapper, view, ticks, advanced, tick, sent } = withRadios(ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })), rows);
+    const rows = [
+      ownObject("FAR", { radios: [2] }),
+      ownObject("NEAR", { radios: [1] }),
+      ownObject("WIDE", { radios: [1, 3] }),
+    ];
+    const { wrapper, view, ticks, advanced, tick, sent } = withRadios(
+      ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })),
+      rows,
+    );
     view.edit("FAR");
     await wrapper.vm.$nextTick();
     expect(ticks()).toEqual([
@@ -708,7 +774,9 @@ describe("Send on, the radios of an object", () => {
 
   it("opens Advanced by itself for an object being changed whose ticks differ from those of the object saved last, also where that one had two", async () => {
     const rows = [ownObject("BOTH", { radios: [1, 2] }), ownObject("ONE", { radios: [2] })];
-    const { wrapper, view, advanced } = withRadios(ofRadios(FM, HF), rows, { status: status({ new_object_radios: [1, 2] }) });
+    const { wrapper, view, advanced } = withRadios(ofRadios(FM, HF), rows, {
+      status: status({ new_object_radios: [1, 2] }),
+    });
     expect(advanced()?.element.open).toBe(false);
     view.edit("BOTH");
     await wrapper.vm.$nextTick();
@@ -720,7 +788,10 @@ describe("Send on, the radios of an object", () => {
 
   it("shows no tick ticked and none greyed for an object none of whose radios is on, keeps it as it is on Save, and sends the radio ticked once one is", async () => {
     const rows = [ownObject("GONE", { radios: [3] })];
-    const { wrapper, view, ticks, tick, advanced, sent, field } = withRadios(ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })), rows);
+    const { wrapper, view, ticks, tick, advanced, sent, field } = withRadios(
+      ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })),
+      rows,
+    );
     view.edit("GONE");
     await wrapper.vm.$nextTick();
     expect(ticks()).toEqual([
@@ -728,7 +799,10 @@ describe("Send on, the radios of an object", () => {
       ["Mercury", false, false],
     ]);
     expect(advanced()?.element.open).toBe(true);
-    expect(field("Path")?.classes(), "ticked nowhere: the path waits for a tick, not greyed with a reason that names no radio").not.toContain("disabled");
+    expect(
+      field("Path")?.classes(),
+      "ticked nowhere: the path waits for a tick, not greyed with a reason that names no radio",
+    ).not.toContain("disabled");
     expect(field("Path")?.attributes("title")).toBeUndefined();
     expect(field("Path")?.find("input").attributes("placeholder")).toBe("(default)");
     await tick("Mercury");
@@ -774,7 +848,10 @@ describe("Send on, the radios of an object", () => {
     await tick("40m");
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ radios: [1, 5, 6] });
-    expect(sendOn().find(".field-control").classes(), "the row of ticks of the Beacon group's Send on, one pattern").toContain("toolbar-checks");
+    expect(
+      sendOn().find(".field-control").classes(),
+      "the row of ticks of the Beacon group's Send on, one pattern",
+    ).toContain("toolbar-checks");
     expect(cssRule(".toolbar-checks")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".field-control")).toMatch(/min-width:\s*0/);
     expect(cssRule(".check")).toMatch(/white-space:\s*nowrap/);

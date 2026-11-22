@@ -2,10 +2,12 @@
 export const layersettings = {
   "layers.settings.none": "None",
   "layers.settings.aircraft_tip_label": "About aircraft",
-  "layers.settings.aircraft_tip1": "Where the aircraft come from: a service on the internet, or a receiver of your own.",
+  "layers.settings.aircraft_tip1":
+    "Where the aircraft come from: a service on the internet, or a receiver of your own.",
   "layers.settings.aircraft_tip2": "Aircraft show on the map when Aircraft is ticked in the Layers box.",
   "layers.settings.ships_tip_label": "About ships",
-  "layers.settings.ships_tip1": "Fintraffic covers the waters of Finland and is listed only where your map reaches them. Or use a receiver of your own.",
+  "layers.settings.ships_tip1":
+    "Fintraffic covers the waters of Finland and is listed only where your map reaches them. Or use a receiver of your own.",
   "layers.settings.ships_tip2": "Ships show on the map when Ships is ticked in the Layers box.",
   "layers.receiver.own": "My own receiver",
   "layers.receiver.address": "Receiver's address",
@@ -23,7 +25,10 @@ export const layersettings = {
   "layers.receiver.state.no_answer": "no answer",
   "layers.receiver.line.looking": "Looking for the receiver",
   "layers.receiver.line.no_answer": "No answer from the receiver",
-  "layers.receiver.line.aircraft": { one: "Receiving: {n} aircraft, {span} ago", other: "Receiving: {n} aircraft, {span} ago" },
+  "layers.receiver.line.aircraft": {
+    one: "Receiving: {n} aircraft, {span} ago",
+    other: "Receiving: {n} aircraft, {span} ago",
+  },
   "layers.receiver.line.aircraft_none": "Receiving, no aircraft yet",
   "layers.receiver.line.ships": { one: "Receiving: {n} ship, {span} ago", other: "Receiving: {n} ships, {span} ago" },
   "layers.receiver.line.ships_none": "Connected, no ship heard yet",

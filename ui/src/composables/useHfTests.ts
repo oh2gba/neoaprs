@@ -20,7 +20,9 @@ export function useHfTests(radio: () => PageRadio | null = () => null) {
    * The radio is keyed or the channel is busy: the daemon would refuse, so the buttons wait (Tune's
    * Stop stays).
    */
-  const held = computed(() => modem.value !== null && modem.value.test === "" && (modem.value.keyed || modem.value.busy));
+  const held = computed(
+    () => modem.value !== null && modem.value.test === "" && (modem.value.keyed || modem.value.busy),
+  );
   const tuneOff = computed(() => receiveOnly.value || !running.value || keying.value || held.value);
   const testOff = computed(() => receiveOnly.value || !running.value || tuning.value || keying.value || held.value);
 

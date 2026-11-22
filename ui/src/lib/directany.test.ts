@@ -38,7 +38,11 @@ describe("a station heard direct on any radio", () => {
   });
 
   it("is kept by the filter direct only, a Mercury station too", () => {
-    const kept = listStations([hfDirect, fmDirect, never], { filter: "", directOnly: true, sort: { key: "call", dir: 1 } });
+    const kept = listStations([hfDirect, fmDirect, never], {
+      filter: "",
+      directOnly: true,
+      sort: { key: "call", dir: 1 },
+    });
     expect(kept.map((row) => row.call)).toEqual(["OH2FM", "OH2HF"]);
   });
 });

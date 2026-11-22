@@ -49,7 +49,12 @@ export function fitted(before: string, after: string, limit: TextLimit): { text:
   let head = 0;
   while (head < old.length && head < now.length && old[head] === now[head]) head++;
   let tail = 0;
-  while (tail < old.length - head && tail < now.length - head && old[old.length - 1 - tail] === now[now.length - 1 - tail]) tail++;
+  while (
+    tail < old.length - head &&
+    tail < now.length - head &&
+    old[old.length - 1 - tail] === now[now.length - 1 - tail]
+  )
+    tail++;
   const start = now.slice(0, head).join("");
   const end = now.slice(now.length - tail).join("");
   const typed = now.slice(head, now.length - tail);
@@ -94,7 +99,8 @@ export function typedInto(event: Event, before: string, limit: TextLimit): strin
  */
 const BRACES = /\{([^{}]*)\}/g;
 const WIDEST: Readonly<Record<string, string>> = LIMITS.status.widest;
-export const templateLength: Measure = (text) => characters(text.replace(BRACES, (whole, name: string) => WIDEST[name] ?? whole));
+export const templateLength: Measure = (text) =>
+  characters(text.replace(BRACES, (whole, name: string) => WIDEST[name] ?? whole));
 
 /**
  * The beacon comment limit: 43 characters, 36 when the PHG extension is sent (a power is set); the

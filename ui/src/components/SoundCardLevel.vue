@@ -28,7 +28,10 @@ lookers.look(
 const modem = computed(() => props.radio.row.modem);
 /** The level ten times a second while asked for and received; else the row's. */
 const level = computed(
-  () => (lookers.asked.value.includes(props.radio.id) ? radioLevels.value.get(props.radio.id) : undefined) ?? modem.value?.rx_level ?? null,
+  () =>
+    (lookers.asked.value.includes(props.radio.id) ? radioLevels.value.get(props.radio.id) : undefined) ??
+    modem.value?.rx_level ??
+    null,
 );
 const zone = computed(() => (level.value === null ? "low" : levelZone(level.value)));
 const fill = computed(() => (level.value === null ? 0 : levelPercent(level.value)));
@@ -37,8 +40,21 @@ const held = computed(() => modem.value !== null && (modem.value.keyed || modem.
 </script>
 
 <template>
-  <LevelBar :id="id" ref="bar" :label="t('settings.scope.level')" :percent="fill" :zone="zone" :good="GOOD_PERCENT" :held="held" :value="levelText(level)"
-    ><template #control><CardSlider :label="t('settings.cardlevel.rx_label')" :setting-key="`radio/${radio.id}/rx_card`" :level="card" :form="form" /></template
+  <LevelBar
+    :id="id"
+    ref="bar"
+    :label="t('settings.scope.level')"
+    :percent="fill"
+    :zone="zone"
+    :good="GOOD_PERCENT"
+    :held="held"
+    :value="levelText(level)"
+    ><template #control
+      ><CardSlider
+        :label="t('settings.cardlevel.rx_label')"
+        :setting-key="`radio/${radio.id}/rx_card`"
+        :level="card"
+        :form="form" /></template
     ><InfoTip :label="t('settings.scope.tip_label')"
       ><span class="info-line">{{ t("settings.scope.tip1") }}</span
       ><span class="info-line">{{ t("settings.scope.tip2") }}</span></InfoTip

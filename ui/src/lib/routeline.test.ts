@@ -33,9 +33,12 @@ const stations = (marks: Mark[] = [rf("OH2RCH-1", "OH2RCH-3")], extra: Partial<S
     station("OH2GW-10", { lat: 60.05, lon: 24.3 }),
     station("OH2NOPOS", { lat: null, lon: null }),
   );
-const features = (book: ReturnType<typeof stations>, call = "OH2PU-9") => routeFeatures(book.get(call), book, US).features;
+const features = (book: ReturnType<typeof stations>, call = "OH2PU-9") =>
+  routeFeatures(book.get(call), book, US).features;
 const lines = (book: ReturnType<typeof stations>, call = "OH2PU-9") =>
-  features(book, call).flatMap((f) => (f.geometry.type === "LineString" ? [{ previous: f.properties.previous, at: f.geometry.coordinates }] : []));
+  features(book, call).flatMap((f) =>
+    f.geometry.type === "LineString" ? [{ previous: f.properties.previous, at: f.geometry.coordinates }] : [],
+  );
 const dots = (book: ReturnType<typeof stations>, call = "OH2PU-9") =>
   features(book, call).flatMap((f) => (f.geometry.type === "Point" ? [f.properties.call] : []));
 
@@ -160,7 +163,10 @@ describe("routeFeatures: the latest route and the one before it, and no others",
       [25.1, 60.4],
       [24.2, 60.01],
     ]);
-    book.set("OH2PU-9", { ...book.get("OH2PU-9")!, route_marks: [{ ...rf("OH2RCH-1"), lat: 60.4, lon: 25.1 }, rf("OH2RCH-2")] });
+    book.set("OH2PU-9", {
+      ...book.get("OH2PU-9")!,
+      route_marks: [{ ...rf("OH2RCH-1"), lat: 60.4, lon: 25.1 }, rf("OH2RCH-2")],
+    });
     expect(lines(book).map((l) => l.at[0])).toEqual([
       [25.1, 60.4],
       [24.65, 60.2],
@@ -240,7 +246,10 @@ describe("routeFeatures: a packet an iGate heard on the radio and put on the int
 
 describe("a route over the date line", () => {
   it("is one short line", () => {
-    const book = table(station("FJ1AAA", { lat: -17, lon: 179.9, route_marks: [rf("FJ1RPT")] }), station("FJ1RPT", { lat: -17, lon: -179.9 }));
+    const book = table(
+      station("FJ1AAA", { lat: -17, lon: 179.9, route_marks: [rf("FJ1RPT")] }),
+      station("FJ1RPT", { lat: -17, lon: -179.9 }),
+    );
     const found = routeFeatures(book.get("FJ1AAA"), book, { lat: -17, lon: -179.8 }).features.flatMap((f) =>
       f.geometry.type === "LineString" ? [f.geometry.coordinates] : [],
     );

@@ -178,9 +178,19 @@ describe("useLayerThings: the card of a thing", () => {
 });
 
 describe("useLayerThings: the trail of the thing whose card is open", () => {
-  const seen = (page: ReturnType<typeof make>, id: string, lat: number, at: string, layer: "aircraft" | "ships" = "aircraft") =>
+  const seen = (
+    page: ReturnType<typeof make>,
+    id: string,
+    lat: number,
+    at: string,
+    layer: "aircraft" | "ships" = "aircraft",
+  ) =>
     page.store.handlers.layerThings(
-      layerThings(layer, [layer === "aircraft" ? aircraft({ id, lat, at }) : ship({ id, lat, at })], layer === "ships" ? { source: "fintraffic" } : {}),
+      layerThings(
+        layer,
+        [layer === "aircraft" ? aircraft({ id, lat, at }) : ship({ id, lat, at })],
+        layer === "ships" ? { source: "fintraffic" } : {},
+      ),
     );
 
   it("has none without a card, and the places the open thing was seen at with one, beginning when the card's thing was first in a table", () => {

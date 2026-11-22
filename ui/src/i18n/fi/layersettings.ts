@@ -8,7 +8,8 @@ export const layersettings: Record<keyof typeof source, Message> = {
   "layers.settings.aircraft_tip1": "Mistä ilma-alukset tulevat: internetin palvelusta tai omasta vastaanottimesta.",
   "layers.settings.aircraft_tip2": "Ilma-alukset näkyvät kartalla, kun Ilma-alukset on valittu Tasot-ruudussa.",
   "layers.settings.ships_tip_label": "Tietoa aluksista",
-  "layers.settings.ships_tip1": "Fintraffic kattaa Suomen vesialueet ja on valittavissa vain, kun karttasi yltää niille. Tai käytä omaa vastaanotinta.",
+  "layers.settings.ships_tip1":
+    "Fintraffic kattaa Suomen vesialueet ja on valittavissa vain, kun karttasi yltää niille. Tai käytä omaa vastaanotinta.",
   "layers.settings.ships_tip2": "Alukset näkyvät kartalla, kun Alukset on valittu Tasot-ruudussa.",
   "layers.receiver.own": "Oma vastaanotin",
   "layers.receiver.address": "Vastaanottimen osoite",

@@ -35,7 +35,9 @@ defineProps<{ kind: "you" | "wide" | "any" | "none" | "air" }>();
     </template>
     <template v-else>
       <circle cx="8" cy="8" r="1" />
-      <path d="M5.4 5.4a3.7 3.7 0 0 0 0 5.2M10.6 5.4a3.7 3.7 0 0 1 0 5.2M3.2 3.2a6.8 6.8 0 0 0 0 9.6M12.8 3.2a6.8 6.8 0 0 1 0 9.6" />
+      <path
+        d="M5.4 5.4a3.7 3.7 0 0 0 0 5.2M10.6 5.4a3.7 3.7 0 0 1 0 5.2M3.2 3.2a6.8 6.8 0 0 0 0 9.6M12.8 3.2a6.8 6.8 0 0 1 0 9.6"
+      />
     </template>
   </svg>
 </template>

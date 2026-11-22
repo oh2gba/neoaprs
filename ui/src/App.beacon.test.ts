@@ -10,10 +10,18 @@ useAppHarness();
 describe("App: the My station tab", () => {
   it("sends a beacon from the My station tab after two clicks, and shows when the last one went out", async () => {
     const { wrapper, socket } = await open();
-    socket.say(status({ beacon_interval_min: 15, beacon_last_sent: ago(60), beacon_next_due: new Date(Date.now() + 840_000).toISOString() }));
+    socket.say(
+      status({
+        beacon_interval_min: 15,
+        beacon_last_sent: ago(60),
+        beacon_next_due: new Date(Date.now() + 840_000).toISOString(),
+      }),
+    );
     await flushPromises();
     await tabButton(wrapper, "My station")?.trigger("click");
-    expect(wrapper.find("#pane-beacon .beaconstatus .tncstatus").text()).toBe("Last beacon 1 min ago · next in 14 min (every 15 min)");
+    expect(wrapper.find("#pane-beacon .beaconstatus .tncstatus").text()).toBe(
+      "Last beacon 1 min ago · next in 14 min (every 15 min)",
+    );
     await wrapper.find("#pane-beacon #beacon-now").trigger("click");
     expect(socket.sent).not.toContainEqual({ cmd: "beacon_now" });
     await wrapper.find("#pane-beacon #beacon-now").trigger("click");
@@ -23,7 +31,9 @@ describe("App: the My station tab", () => {
   it("sends the status from the My station tab after two clicks once there is a status, and not before", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "My station")?.trigger("click");
-    expect(wrapper.findAll("#pane-beacon #beacon-now, #pane-beacon #status-now").map((b) => shown(b))).toEqual(["Beacon now"]);
+    expect(wrapper.findAll("#pane-beacon #beacon-now, #pane-beacon #status-now").map((b) => shown(b))).toEqual([
+      "Beacon now",
+    ]);
     socket.say({
       type: "state",
       topic: "config",
@@ -31,7 +41,10 @@ describe("App: the My station tab", () => {
       value: configValues({ "status/source": "text", "station/status": "QRV 145.500" }),
     });
     await flushPromises();
-    expect(wrapper.findAll("#pane-beacon #beacon-now, #pane-beacon #status-now").map((b) => shown(b))).toEqual(["Beacon now", "Send status now"]);
+    expect(wrapper.findAll("#pane-beacon #beacon-now, #pane-beacon #status-now").map((b) => shown(b))).toEqual([
+      "Beacon now",
+      "Send status now",
+    ]);
     await wrapper.find("#pane-beacon #status-now").trigger("click");
     expect(socket.sent).not.toContainEqual({ cmd: "status_now" });
     await wrapper.find("#pane-beacon #status-now").trigger("click");

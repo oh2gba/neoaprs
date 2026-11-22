@@ -11,7 +11,17 @@ import TrendChart from "@/components/TrendChart.vue";
 import { useWxSpan } from "@/composables/useWxSpan";
 import { t } from "@/i18n";
 import { agoWords, bearingText, dateTimeText } from "@/lib/format";
-import { arrowAngle, columnOf, hasValues, humidityText, pressureText, rainText, tempText, windSpeedText, type Ranges } from "@/lib/weather";
+import {
+  arrowAngle,
+  columnOf,
+  hasValues,
+  humidityText,
+  pressureText,
+  rainText,
+  tempText,
+  windSpeedText,
+  type Ranges,
+} from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 const props = defineProps<{ row: StationRow; series: WeatherSeriesMessage | null; now: number; ranges?: Ranges }>();
@@ -35,7 +45,11 @@ watch(
 const wx = computed(() => props.row.weather);
 const angle = computed(() => arrowAngle(wx.value?.wind_dir ?? null));
 // The series the card asked for; answers for another station or span are ignored.
-const mine = computed(() => (props.series !== null && props.series.call === props.row.call && props.series.hours === hours.value ? props.series : null));
+const mine = computed(() =>
+  props.series !== null && props.series.call === props.row.call && props.series.hours === hours.value
+    ? props.series
+    : null,
+);
 const to = computed(() => Math.floor(props.now / 60_000) * 60_000);
 const from = computed(() => to.value - hours.value * 3_600_000);
 const charts = computed(() => ({

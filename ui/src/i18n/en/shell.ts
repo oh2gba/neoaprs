@@ -76,7 +76,8 @@ export const shell = {
   "footer.cost": "NeoAPRS uses {cpu} % of one processor core and {mb} MB of memory, running for {span}",
   "footer.cost_no_memory": "NeoAPRS uses {cpu} % of one processor core, running for {span}",
 
-  "mismatch.notice": "This page and NeoAPRS do not match (page {page}, NeoAPRS {neoaprs}). Reload the page; if this stays, restart NeoAPRS.",
+  "mismatch.notice":
+    "This page and NeoAPRS do not match (page {page}, NeoAPRS {neoaprs}). Reload the page; if this stays, restart NeoAPRS.",
   "mismatch.reload": "Reload",
 
   "copy.menu_label": "Copy",

@@ -19,7 +19,13 @@ function seen(event: FocusEvent): void {
 </script>
 
 <template>
-  <form class="composebar" :class="{ boxed: !inline }" :aria-label="label" @submit.prevent="emit('submit')" @focusin="seen">
+  <form
+    class="composebar"
+    :class="{ boxed: !inline }"
+    :aria-label="label"
+    @submit.prevent="emit('submit')"
+    @focusin="seen"
+  >
     <component :is="inline ? 'div' : 'fieldset'" class="composebox">
       <legend v-if="!inline">{{ label }}</legend>
       <div class="composebar-fields" :class="{ grow: inline }"><slot /></div>

@@ -55,12 +55,25 @@ export function igateLook(igate: IgateState, values: Readonly<Record<string, str
   const setting = (values["igate/server"] ?? "").trim();
   const km = values["map/radius_km"] ?? "";
   const server =
-    igate.server && igate.server !== hostOf(setting) ? t("settings.igate.fold.named", { name: igate.server, server: setting }) : setting || igate.server;
-  const behind = { server: t("settings.igate.fold.server", { server }), filter: t("settings.igate.fold.filter", { km }) };
-  if (igate.state === "off") return { state: t("settings.tnc.state.stopped"), tone: "tnc-stopped", line: t("settings.igate.line.off"), ...behind };
+    igate.server && igate.server !== hostOf(setting)
+      ? t("settings.igate.fold.named", { name: igate.server, server: setting })
+      : setting || igate.server;
+  const behind = {
+    server: t("settings.igate.fold.server", { server }),
+    filter: t("settings.igate.fold.filter", { km }),
+  };
+  if (igate.state === "off")
+    return {
+      state: t("settings.tnc.state.stopped"),
+      tone: "tnc-stopped",
+      line: t("settings.igate.line.off"),
+      ...behind,
+    };
   if (igate.state === "connecting") {
     const waiting = igate.reason !== "";
-    const line = waiting ? reasonLine(igate.reason) : t("settings.igate.line.connecting", { server: igate.server || setting });
+    const line = waiting
+      ? reasonLine(igate.reason)
+      : t("settings.igate.line.connecting", { server: igate.server || setting });
     return waiting
       ? { state: t("settings.tnc.state.waiting"), tone: "tnc-waiting", line, ...behind }
       : { state: t("settings.tnc.state.connecting"), tone: "tnc-connecting", line, ...behind };

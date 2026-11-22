@@ -13,7 +13,14 @@ const emit = defineEmits<{ close: []; speed: [speed: Speed] }>();
 
 const list = ref<HTMLElement | null>(null);
 const buttons = ref<HTMLElement[]>([]);
-const menu = useContextMenu({ x: () => props.x, y: () => props.y, trigger: () => props.trigger, list, buttons, close: () => emit("close") });
+const menu = useContextMenu({
+  x: () => props.x,
+  y: () => props.y,
+  trigger: () => props.trigger,
+  list,
+  buttons,
+  close: () => emit("close"),
+});
 
 function label(speed: Speed): string {
   switch (speed) {

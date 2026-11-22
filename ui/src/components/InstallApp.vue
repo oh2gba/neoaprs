@@ -11,7 +11,9 @@ const { canInstall, install } = useInstall();
   <div v-if="canInstall" class="field">
     <label for="install-app">{{ t("help.install.label") }}</label>
     <div class="field-control">
-      <button id="install-app" class="btn" type="button" :title="t('help.install.title')" @click="install">{{ t("help.install.button") }}</button>
+      <button id="install-app" class="btn" type="button" :title="t('help.install.title')" @click="install">
+        {{ t("help.install.button") }}
+      </button>
     </div>
   </div>
 </template>

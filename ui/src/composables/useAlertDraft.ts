@@ -6,7 +6,8 @@ import { computed, ref, watch } from "vue";
 import { ALERT_KM_DEFAULT, ALERT_KM_MAX, ALERT_KM_MIN } from "@/lib/stationalert";
 import type { AlertWhen } from "@/protocol/protocol";
 
-const same = (a: AlertWhen | null, b: AlertWhen | null): boolean => a?.on_air === b?.on_air && a?.within_km === b?.within_km && a?.direct === b?.direct;
+const same = (a: AlertWhen | null, b: AlertWhen | null): boolean =>
+  a?.on_air === b?.on_air && a?.within_km === b?.within_km && a?.direct === b?.direct;
 
 export function useAlertDraft(stored: () => AlertWhen | null) {
   const onAir = ref(false);
@@ -23,11 +24,21 @@ export function useAlertDraft(stored: () => AlertWhen | null) {
   take(stored());
   watch(stored, (now, before) => same(now, before) || take(now));
 
-  const kmOk = computed(() => typeof km.value === "number" && Number.isInteger(km.value) && km.value >= ALERT_KM_MIN && km.value <= ALERT_KM_MAX);
+  const kmOk = computed(
+    () =>
+      typeof km.value === "number" &&
+      Number.isInteger(km.value) &&
+      km.value >= ALERT_KM_MIN &&
+      km.value <= ALERT_KM_MAX,
+  );
 
   function alert(): AlertWhen | null {
     if (near.value && !kmOk.value) return null;
-    return { on_air: onAir.value, within_km: near.value && typeof km.value === "number" ? km.value : null, direct: direct.value };
+    return {
+      on_air: onAir.value,
+      within_km: near.value && typeof km.value === "number" ? km.value : null,
+      direct: direct.value,
+    };
   }
 
   return { onAir, near, km, direct, kmOk, alert };

@@ -23,12 +23,16 @@ for (const file of components(SRC)) {
   if (process.env["I18N_REPORT"]) for (const l of literals) process.stdout.write(`${name}:${l.line}  ${l.text}\n`);
 }
 const listed = JSON.parse(readFileSync(LIST, "utf-8")) as Record<string, number>;
-if (process.env["I18N_UPDATE"]) writeFileSync(LIST, JSON.stringify(Object.fromEntries(Object.entries(found).sort()), null, 2) + "\n");
+if (process.env["I18N_UPDATE"])
+  writeFileSync(LIST, JSON.stringify(Object.fromEntries(Object.entries(found).sort()), null, 2) + "\n");
 
 describe("the words of the templates", () => {
   it("come from the catalogue: a component that is not in unconverted.json has no literal text", () => {
     const strict = Object.entries(found).filter(([file]) => !(file in listed));
-    expect(strict, "write the words into src/i18n/en/ and use t(); `I18N_REPORT=1 npx vitest run src/i18n/literals.test.ts` lists them").toEqual([]);
+    expect(
+      strict,
+      "write the words into src/i18n/en/ and use t(); `I18N_REPORT=1 npx vitest run src/i18n/literals.test.ts` lists them",
+    ).toEqual([]);
   });
 
   it("are no more than unconverted.json says, and a file that has none is not in it", () => {
@@ -41,7 +45,8 @@ describe("the words of the templates", () => {
 
   it("are counted", () => {
     const total = Object.values(found).reduce((sum, n) => sum + n, 0);
-    if (process.env["I18N_REPORT"]) process.stdout.write(`unconverted: ${total} literals in ${Object.keys(found).length} components\n`);
+    if (process.env["I18N_REPORT"])
+      process.stdout.write(`unconverted: ${total} literals in ${Object.keys(found).length} components\n`);
     expect(total).toBe(Object.values(listed).reduce((sum, n) => sum + n, 0));
   });
 });

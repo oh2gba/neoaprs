@@ -22,8 +22,14 @@ export const bulletins: Readonly<Record<keyof typeof en, Message>> = {
 
   "bulletins.post_label": "Publicar un boletín",
   "bulletins.kind": "Tipo",
-  "bulletins.kind.bulletin": { one: "Boletín (se envía durante {n} hora)", other: "Boletín (se envía durante {n} horas)" },
-  "bulletins.kind.announcement": { one: "Anuncio (se envía durante {n} día)", other: "Anuncio (se envía durante {n} días)" },
+  "bulletins.kind.bulletin": {
+    one: "Boletín (se envía durante {n} hora)",
+    other: "Boletín (se envía durante {n} horas)",
+  },
+  "bulletins.kind.announcement": {
+    one: "Anuncio (se envía durante {n} día)",
+    other: "Anuncio (se envía durante {n} días)",
+  },
   "bulletins.kind.group": {
     one: "Boletín de grupo (para un grupo, se envía durante {n} hora)",
     other: "Boletín de grupo (para un grupo, se envía durante {n} horas)",
@@ -37,8 +43,10 @@ export const bulletins: Readonly<Record<keyof typeof en, Message>> = {
   "bulletins.tip.days": { one: "{n} día", other: "{n} días" },
   "bulletins.tip.kind1":
     "Un boletín y un anuncio los muestra cada estación que los escucha. Un boletín es para lo que importa ahora y se envía durante {hours}; un anuncio es para lo que sigue siendo cierto y se envía durante {days}.",
-  "bulletins.tip.kind2": "Un boletín de grupo se envía durante {hours}; cada estación lo muestra, salvo que su operador haya elegido otros grupos.",
-  "bulletins.tip.id1": "El número da nombre a la publicación, una letra si es un anuncio; una publicación nueva con él la sustituye.",
+  "bulletins.tip.kind2":
+    "Un boletín de grupo se envía durante {hours}; cada estación lo muestra, salvo que su operador haya elegido otros grupos.",
+  "bulletins.tip.id1":
+    "El número da nombre a la publicación, una letra si es un anuncio; una publicación nueva con él la sustituye.",
   "bulletins.tip.id2": "Publicar de nuevo con el mismo número o letra envía el texto nuevo desde el principio.",
   "bulletins.tip.group1":
     "El nombre forma parte de la dirección, como en BLN3HAMS, así que cada estación escucha el boletín y lo muestra, salvo que su operador haya elegido otros grupos.",

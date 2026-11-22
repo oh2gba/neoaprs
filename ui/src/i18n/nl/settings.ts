@@ -24,7 +24,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.group.lora_radio": "LoRa-radio",
   "settings.fm_enabled.name": "FM-radio",
   "settings.fm_enabled.tip_label": "Over de FM-radio",
-  "settings.fm_enabled.tip1": "Je FM-radio met zijn TNC of geluidskaart: het lokale netwerk, met digipeaters, paden en een baken dat een GPS volgt.",
+  "settings.fm_enabled.tip1":
+    "Je FM-radio met zijn TNC of geluidskaart: het lokale netwerk, met digipeaters, paden en een baken dat een GPS volgt.",
   "settings.fm_enabled.tip2": "Vink dit uit om deze radio uit te zetten; de instellingen blijven bewaard.",
   "settings.hf_enabled.name": "Mercury-radio",
   "settings.hf_enabled.tip_label": "Over de Mercury-radio",
@@ -33,8 +34,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.hf_enabled.tip2":
     "Meerdere radio's kunnen aanstaan: elk station dat op een ervan gehoord is, staat op de kaart, en Route toont via welke radio zijn berichten gaan.",
   "settings.lora_enabled.tip_label": "Over de LoRa-radio",
-  "settings.lora_enabled.tip1": "Een LoRa APRS-board: op je netwerk, via USB of via Bluetooth. De frequentie stel je op het board in.",
-  "settings.rx_enabled.tip1": "De radio luistert alleen: wat hij hoort komt binnen, en er wordt nooit iets mee verzonden.",
+  "settings.lora_enabled.tip1":
+    "Een LoRa APRS-board: op je netwerk, via USB of via Bluetooth. De frequentie stel je op het board in.",
+  "settings.rx_enabled.tip1":
+    "De radio luistert alleen: wat hij hoort komt binnen, en er wordt nooit iets mee verzonden.",
   "settings.enable.only_radio_title": "De enige radio van het station die aanstaat",
   "settings.group.web": "Webpagina",
   "settings.group.notifications": "Meldingen",
@@ -71,7 +74,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.lat.label": "Breedtegraad",
   "settings.lon.label": "Lengtegraad",
   "settings.symbol.label": "Symbool",
-  "settings.symbol.tip1": "Het pictogram dat andere stations op de kaart zien. Kies er een dat past: huis, auto, fiets, boot.",
+  "settings.symbol.tip1":
+    "Het pictogram dat andere stations op de kaart zien. Kies er een dat past: huis, auto, fiets, boot.",
   "settings.symbol_code.label": "Symboolcode",
   "settings.symbol.none": "Geen symbool",
   "settings.symbol.change": "Symbool wijzigen",
@@ -79,29 +83,35 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.symbol.overlay": "Letter of cijfer erop",
 
   "settings.comment.label": "Commentaar",
-  "settings.comment.tip1": "Een korte tekst die met elk baken meegaat en op de kaart naast je naam staat. Maximaal {max} tekens.",
+  "settings.comment.tip1":
+    "Een korte tekst die met elk baken meegaat en op de kaart naast je naam staat. Maximaal {max} tekens.",
   "settings.comment.tip2": "Voorbeeld: Thuisstation, 2 m FM",
 
   "settings.station_status.name": "Statustekst",
   "settings.station_status.label": "Tekst",
-  "settings.station_status.tip1": "Begin met de spraakfrequentie waarop je luistert, zoals 145.500MHz, zodat radio's erop kunnen afstemmen.",
+  "settings.station_status.tip1":
+    "Begin met de spraakfrequentie waarop je luistert, zoals 145.500MHz, zodat radio's erop kunnen afstemmen.",
   "settings.station_status.tip2": "Maximaal {max} tekens, bijv. 145.500MHz T088 QRV",
 
   "settings.power.label": "Vermogen",
-  "settings.power.tip1": "Zendvermogen in watt. Samen met de antennevelden gaat er een PHG-code mee: hoe ver je te horen bent.",
+  "settings.power.tip1":
+    "Zendvermogen in watt. Samen met de antennevelden gaat er een PHG-code mee: hoe ver je te horen bent.",
   "settings.power.tip2": "Voorbeeld: 5",
 
   "settings.antenna_height.label": "Antennehoogte",
-  "settings.antenna_height.tip1": "Hoogte van de antenne boven het terrein eromheen, niet boven zeeniveau. Wordt alleen voor PHG gebruikt.",
+  "settings.antenna_height.tip1":
+    "Hoogte van de antenne boven het terrein eromheen, niet boven zeeniveau. Wordt alleen voor PHG gebruikt.",
   "settings.antenna_height.tip2": "Voorbeeld: 10 voor een mast op een huis in vlak land",
 
   "settings.antenna_gain.label": "Antennewinst",
-  "settings.antenna_gain.tip1": "Hoeveel de antenne het signaal bundelt, {min} tot {max} dBi; 0 als je het niet weet. Wordt alleen voor PHG gebruikt.",
+  "settings.antenna_gain.tip1":
+    "Hoeveel de antenne het signaal bundelt, {min} tot {max} dBi; 0 als je het niet weet. Wordt alleen voor PHG gebruikt.",
   "settings.antenna_gain.tip2": "Voorbeeld: 3",
 
   "settings.antenna_direction.label": "Antennerichting",
   "settings.antenna_direction.omni": "omni",
-  "settings.antenna_direction.tip1": "omni als de antenne in elke richting even goed werkt, of de windrichting waar een richtantenne naar wijst.",
+  "settings.antenna_direction.tip1":
+    "omni als de antenne in elke richting even goed werkt, of de windrichting waar een richtantenne naar wijst.",
 
   "settings.transmit.name": "Alleen RX",
   "settings.transmit.label": "Alleen RX",
@@ -110,14 +120,18 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "Radiotype",
   "settings.profile.tip_label": "Welk radiotype kiezen",
-  "settings.profile.tip1": "Een FM-radio op een Digirig, een SignaLink, een AIOC of zijn eigen USB-audio is Geluidskaart. De meeste TNC's zijn KISS TNC.",
-  "settings.profile.tip2": "Mercury-modem wordt alleen gehoord door stations met Mercury, op elke band, in SSB of FM. Geen radio? Kies een Dummy.",
+  "settings.profile.tip1":
+    "Een FM-radio op een Digirig, een SignaLink, een AIOC of zijn eigen USB-audio is Geluidskaart. De meeste TNC's zijn KISS TNC.",
+  "settings.profile.tip2":
+    "Mercury-modem wordt alleen gehoord door stations met Mercury, op elke band, in SSB of FM. Geen radio? Kies een Dummy.",
 
   "settings.port.name": "Poort",
   "settings.port.label": "Poort",
   "settings.port.tip_label": "Over de poort",
-  "settings.port.tip1": "De verbinding met de radio. Automatisch zoeken vindt hem op de USB-poorten en onthoudt de poort.",
-  "settings.port.tip2": "Een radio via USB heet /dev/ttyUSB0 op Linux en COM3 op Windows. Vernieuwen leest de lijst opnieuw.",
+  "settings.port.tip1":
+    "De verbinding met de radio. Automatisch zoeken vindt hem op de USB-poorten en onthoudt de poort.",
+  "settings.port.tip2":
+    "Een radio via USB heet /dev/ttyUSB0 op Linux en COM3 op Windows. Vernieuwen leest de lijst opnieuw.",
   "settings.port.auto": "automatisch zoeken",
   "settings.port.none": "niet ingesteld",
   "settings.port.unset": "niet ingesteld",
@@ -130,8 +144,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.baud.name": "Snelheid",
   "settings.baud.label": "Snelheid",
   "settings.baud.tip_label": "Over de snelheid",
-  "settings.baud.tip1": "Laat dit leeg: NeoAPRS gebruikt dan de snelheid van het gekozen radiotype, bij de meeste 9600.",
-  "settings.baud.tip2": "Vul het alleen in als de handleiding van de TNC dat zegt, bijvoorbeeld 57600 voor een NinoTNC.",
+  "settings.baud.tip1":
+    "Laat dit leeg: NeoAPRS gebruikt dan de snelheid van het gekozen radiotype, bij de meeste 9600.",
+  "settings.baud.tip2":
+    "Vul het alleen in als de handleiding van de TNC dat zegt, bijvoorbeeld 57600 voor een NinoTNC.",
 
   "settings.tcp_host.label": "Adres",
   "settings.tcp_host.tip1": "De computer waarop je Direwolf of soundmodem draait: 127.0.0.1 is deze computer.",
@@ -144,12 +160,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.board_port.label": "Poort",
   "settings.sound_card.label": "Geluidskaart",
   "settings.sound_card.tip_label": "Over de geluidskaart",
-  "settings.sound_card.tip1": "De geluidskaart waar het geluid van de radio doorheen gaat: een USB-codec, een Digirig of zijn eigen USB-audio.",
+  "settings.sound_card.tip1":
+    "De geluidskaart waar het geluid van de radio doorheen gaat: een USB-codec, een Digirig of zijn eigen USB-audio.",
   "settings.sound_card.tip2":
     "De eigen kaart van de radio heet meestal USB-codec. Afstemmen maakt de gekozen kaart hoorbaar; Vernieuwen leest de lijst opnieuw.",
   "settings.keying.label": "PTT",
   "settings.keying.tip_label": "Over de PTT",
-  "settings.keying.tip1": "Hoe de radio op zenden schakelt: vanzelf (VOX of de datamodus), via een CM108-geluidschip of via een lijn van een seriële poort.",
+  "settings.keying.tip1":
+    "Hoe de radio op zenden schakelt: vanzelf (VOX of de datamodus), via een CM108-geluidschip of via een lijn van een seriële poort.",
   "settings.keying.tip2": "Een Digirig bedient de PTT via RTS van zijn seriële poort.",
   "settings.keying.vox": "De radio schakelt zelf (VOX)",
   "settings.keying.cm108": "CM108-geluidschip",
@@ -173,9 +191,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.txlevel.value": "{value} dB",
   "settings.txlevel.peak": "Piek {value} dBFS",
   "settings.txlevel.tip_label": "Over het zendniveau",
-  "settings.txlevel.tip1": "Hoe sterk het geluid van het modem naar de radio gaat, in dB. Druk op Afstemmen en stel het in op de meter van de radio.",
+  "settings.txlevel.tip1":
+    "Hoe sterk het geluid van het modem naar de radio gaat, in dB. Druk op Afstemmen en stel het in op de meter van de radio.",
   "settings.txlevel.tip2": "De piek wordt oranje bij 0 dBFS, waar de geluidskaart overstuurd wordt.",
-  "settings.txlevel.card_tip1": "Hoe sterk het geluid van de geluidskaart naar de radio gaat. Druk op Afstemmen en stel het in op de meter van de radio.",
+  "settings.txlevel.card_tip1":
+    "Hoe sterk het geluid van de geluidskaart naar de radio gaat. Druk op Afstemmen en stel het in op de meter van de radio.",
   "settings.cardlevel.value": "{value} %",
   "settings.cardlevel.rx_label": "Ingangsniveau van de geluidskaart",
   "settings.tune": "Afstemmen",
@@ -189,11 +209,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.network.name": "Netwerktoegang",
   "settings.network.label": "Toegang via het netwerk toestaan",
   "settings.network.tip_label": "Over netwerktoegang",
-  "settings.network.tip1": "Hiermee kan een telefoon, tablet of laptop op je netwerk deze pagina openen. Staat dit uit, dan kan alleen deze computer dat.",
+  "settings.network.tip1":
+    "Hiermee kan een telefoon, tablet of laptop op je netwerk deze pagina openen. Staat dit uit, dan kan alleen deze computer dat.",
 
   "settings.access_key.label": "Toegangssleutel",
   "settings.access_key.tip_label": "Over de toegangssleutel",
-  "settings.access_key.tip1": "Het wachtwoord voor de andere apparaten: typ het één keer op elk apparaat, daarna blijft dat apparaat ingelogd.",
+  "settings.access_key.tip1":
+    "Het wachtwoord voor de andere apparaten: typ het één keer op elk apparaat, daarna blijft dat apparaat ingelogd.",
   "settings.access_key.tip2": "Een nieuwe sleutel meldt elk ander apparaat af.",
   "settings.new_key": "Nieuwe sleutel",
   "settings.new_key_sure": "zeker?",
@@ -209,20 +231,24 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.https.tip1": "Nodig voor meldingen op telefoons en om NeoAPRS als app te installeren.",
   "settings.https.tip2": "De browser waarschuwt de eerste keer voor het certificaat: je kunt gewoon doorgaan.",
   "settings.https.reason.no_library": "de beveiligde verbinding is in deze installatie niet mogelijk",
-  "settings.https.reason.clock": "de klok van deze computer staat niet goed; de beveiligde verbinding start zodra hij goed staat",
-  "settings.https.reason.certificates": "de certificaten van de beveiligde verbinding konden niet worden gemaakt of gelezen",
+  "settings.https.reason.clock":
+    "de klok van deze computer staat niet goed; de beveiligde verbinding start zodra hij goed staat",
+  "settings.https.reason.certificates":
+    "de certificaten van de beveiligde verbinding konden niet worden gemaakt of gelezen",
   "settings.https.reason.no_port": "de beveiligde pagina kan op geen poort luisteren: er is er geen vrij",
 
   "settings.radius.name": "Kaartstraal",
   "settings.station_hours.name": "Tijd op de kaart",
   "settings.radius.label": "Straal",
   "settings.radius.tip_label": "Over de straal",
-  "settings.radius.tip1": "Hoe ver de detailkaart, met straten en namen, rond je station reikt. De wereldkaart is er altijd.",
+  "settings.radius.tip1":
+    "Hoe ver de detailkaart, met straten en namen, rond je station reikt. De wereldkaart is er altijd.",
   "settings.radius.tip2": "Een grotere straal is een grotere download: 150 km is een regio, 300 km een grote regio.",
 
   "settings.digipeater.name": "Digipeater",
   "settings.digipeater.tip_label": "Wat de digipeater doet",
-  "settings.digipeater.tip1": "Herhaalt pakketten van stations in de buurt die geen digipeater halen: WIDE1-1, of via je roepnaam verzonden.",
+  "settings.digipeater.tip1":
+    "Herhaalt pakketten van stations in de buurt die geen digipeater halen: WIDE1-1, of via je roepnaam verzonden.",
   "settings.digipeater.tip2": "Laat dit uit, tenzij je op een plek met slechte dekking zit.",
 
   "settings.igate.name": "Internetstations",
@@ -250,7 +276,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "Is Meld mij aangevinkt, dan wordt de Opdracht uitgevoerd als er een bericht binnenkomt.",
   "settings.alert_command.name": "Meldingsopdracht",
   "settings.alert_command.label": "Opdracht",
-  "settings.alert_command.tip1": "Wordt uitgevoerd bij elk nieuw bericht en elke stationsmelding; NEOAPRS_TITLE en NEOAPRS_TEXT bevatten de titel en de tekst.",
+  "settings.alert_command.tip1":
+    "Wordt uitgevoerd bij elk nieuw bericht en elke stationsmelding; NEOAPRS_TITLE en NEOAPRS_TEXT bevatten de titel en de tekst.",
   "settings.alert_test": "Testen",
   "settings.alert_test.ran": "De meldingsopdracht is uitgevoerd",
   "settings.alert_test.exit": "De meldingsopdracht eindigde met afsluitcode {status}",
@@ -264,9 +291,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alerts.tip_label": "Over meldingen",
   "settings.alerts.tip1":
     "De melding op de NeoAPRS-computer: bij elk nieuw bericht wordt de Opdracht uitgevoerd, standaard een geluid en een bureaubladmelding.",
-  "settings.alerts.tip1_app": "De melding op deze computer: bij elk nieuw bericht wordt de Opdracht uitgevoerd, standaard een geluid en een bureaubladmelding.",
-  "settings.alerts.tip2": "De volgende groep is deze browser. Gebruik een van beide, of allebei: dan krijg je elke melding twee keer.",
-  "settings.alerts.tip2_app": "De volgende groep is dit venster. Gebruik een van beide, of allebei: dan krijg je elke melding twee keer.",
+  "settings.alerts.tip1_app":
+    "De melding op deze computer: bij elk nieuw bericht wordt de Opdracht uitgevoerd, standaard een geluid en een bureaubladmelding.",
+  "settings.alerts.tip2":
+    "De volgende groep is deze browser. Gebruik een van beide, of allebei: dan krijg je elke melding twee keer.",
+  "settings.alerts.tip2_app":
+    "De volgende groep is dit venster. Gebruik een van beide, of allebei: dan krijg je elke melding twee keer.",
 
   "settings.encrypt.tip_label": "Over versleutelde berichten",
   "settings.encrypt.tip1":
@@ -278,8 +308,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.browser.heading": "In deze browser",
   "settings.browser.heading_app": "In dit venster",
   "settings.browser.mode": "Meld mij",
-  "settings.browser.mode_tip": "Meldt een nieuw bericht in deze browser, met een geluid of een melding. Elk apparaat kiest dat zelf.",
-  "settings.browser.mode_tip_app": "Meldt een nieuw bericht in dit venster, met een geluid. Elk apparaat kiest dat zelf.",
+  "settings.browser.mode_tip":
+    "Meldt een nieuw bericht in deze browser, met een geluid of een melding. Elk apparaat kiest dat zelf.",
+  "settings.browser.mode_tip_app":
+    "Meldt een nieuw bericht in dit venster, met een geluid. Elk apparaat kiest dat zelf.",
   "settings.browser.enable_popups": "Meldingen inschakelen…",
   "settings.browser.sound": "Geluid",
   "settings.browser.test_sound": "Geluid testen",
@@ -302,22 +334,26 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.status_source.off": "uit",
   "settings.status_source.text": "een eigen tekst",
   "settings.status_source.rig": "de frequentie van mijn radio (rigctld)",
-  "settings.status_source.tip1": "Een regel die andere stations achter je roepnaam zien: niets, een eigen tekst of de frequentie van je radio (rigctld).",
+  "settings.status_source.tip1":
+    "Een regel die andere stations achter je roepnaam zien: niets, een eigen tekst of de frequentie van je radio (rigctld).",
   "settings.status_rigctld.label": "Rigctld",
-  "settings.status_rigctld.tip1": "rigctld, een programma van Hamlib, vertelt NeoAPRS waarop de radio is afgestemd. Start het eerst en typ dan adres:poort.",
+  "settings.status_rigctld.tip1":
+    "rigctld, een programma van Hamlib, vertelt NeoAPRS waarop de radio is afgestemd. Start het eerst en typ dan adres:poort.",
   "settings.status_rigctld.tip2": "Voorbeeld: 127.0.0.1:4532",
   "settings.status_interval.name": "Statusinterval",
   "settings.status_interval.label": "Elke",
   "settings.status_interval.tip1": "De tijd tussen twee statusrapporten.",
   "settings.status_template.name": "Statussjabloon",
   "settings.status_template.label": "Tekst",
-  "settings.status_template.tip1": "{{freq}} wordt de frequentie van de radio en {{mode}} de mode. Ingevuld maximaal {max} tekens.",
+  "settings.status_template.tip1":
+    "{{freq}} wordt de frequentie van de radio en {{mode}} de mode. Ingevuld maximaal {max} tekens.",
   "settings.status_template.tip2": "Voorbeeld: QRV {{freq}} {{mode}} geeft QRV 14.074 MHz USB",
 
   "settings.beacon_interval.name": "Bakeninterval",
   "settings.beacon_interval.label": "Baken",
   "settings.beacon_interval.off": "Uit",
-  "settings.beacon_interval.tip1": "Hoe vaak je positie de lucht in gaat: niet vaker dan elke {min} min. Uit: geen automatisch baken; Baken nu verzendt wel.",
+  "settings.beacon_interval.tip1":
+    "Hoe vaak je positie de lucht in gaat: niet vaker dan elke {min} min. Uit: geen automatisch baken; Baken nu verzendt wel.",
   "settings.beacon_interval.tip2": "30 minuten past bij een station dat op zijn plek blijft.",
   "settings.beacon_interval.tip_moving":
     "Aan: SmartBeaconing verzendt de GPS-positie, vaker naarmate je sneller gaat, en in elke bocht. Uit: geen automatisch baken.",
@@ -328,7 +364,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.path.direct": "Alleen direct (geen digipeaters)",
   "settings.path.custom": "Eigen…",
   "settings.path.custom_label": "Digipeaters",
-  "settings.path.tip1": "Aanbevolen is WIDE1-1,WIDE2-1 voor een mobiel station en WIDE2-2 voor een vast station, afhankelijk van je symbool.",
+  "settings.path.tip1":
+    "Aanbevolen is WIDE1-1,WIDE2-1 voor een mobiel station en WIDE2-2 voor een vast station, afhankelijk van je symbool.",
   "settings.path.tip2": "Alleen direct past als iedereen met wie je praat je direct hoort.",
 
   "settings.confirm.label": "Bevestigen",
@@ -383,16 +420,23 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.keyed": "PTT aan",
   "settings.tnc.listening": "Luistert",
   "settings.tnc.snr": "SNR {db} dB",
-  "settings.tnc.dummy_hf": "Dummy-Mercury-radio: verzonnen verre stations, je frames uit de luidsprekers, er gaat niets de lucht in",
+  "settings.tnc.dummy_hf":
+    "Dummy-Mercury-radio: verzonnen verre stations, je frames uit de luidsprekers, er gaat niets de lucht in",
   "settings.tnc.no_packet": "Nog geen pakketten",
   "settings.tnc.last_packet": "Laatste pakket {span} geleden",
   "settings.digi.on": "aan",
   "settings.digi.off": "uit",
   "settings.digi.line.none": "Nog niets herhaald",
-  "settings.digi.line.count": { one: "{n} pakket herhaald · laatste {span} geleden", other: "{n} pakketten herhaald · laatste {span} geleden" },
+  "settings.digi.line.count": {
+    one: "{n} pakket herhaald · laatste {span} geleden",
+    other: "{n} pakketten herhaald · laatste {span} geleden",
+  },
   "settings.digi.line.rx_only": "Alleen RX: er wordt niets herhaald",
   "settings.digi.fold.since": "Geteld sinds {when}",
-  "settings.digi.fold.held": { one: "{n} frame tegengehouden: te veel kort na elkaar", other: "{n} frames tegengehouden: te veel kort na elkaar" },
+  "settings.digi.fold.held": {
+    one: "{n} frame tegengehouden: te veel kort na elkaar",
+    other: "{n} frames tegengehouden: te veel kort na elkaar",
+  },
   "settings.pair.legend": "{first} en {second}",
   "settings.pair.name": "Radiopaar",
   "settings.pair.call": "Roepnaam",
@@ -401,7 +445,10 @@ export const settings: Record<keyof typeof source, Message> = {
     "Zendt een pakket van de ene radio één keer uit op de andere, als het pad deze roepnaam noemt. Geef de roepnaam aan wie de andere radio zoekt.",
   "settings.pair.tip2": "Een WIDE-pad alleen gaat nooit over.",
   "settings.pair.fold.each_way": "{n} naar {first} · {m} naar {second}",
-  "settings.pair.fold.held": { one: "{n} frame tegengehouden: te veel voor {radio}", other: "{n} frames tegengehouden: te veel voor {radio}" },
+  "settings.pair.fold.held": {
+    one: "{n} frame tegengehouden: te veel voor {radio}",
+    other: "{n} frames tegengehouden: te veel voor {radio}",
+  },
   "settings.pair.fold.too_long": { one: "{n} frame te lang voor {radio}", other: "{n} frames te lang voor {radio}" },
   "settings.tnc.searching": "Radio zoeken…",
   "settings.tnc.connecting": "Verbinden…",
@@ -415,7 +462,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.hf.no_port": "Draait niet: geen vrije poort",
   "settings.tnc.hf.not_started": "Het modem kon niet worden gestart",
   "settings.tnc.hf.sound_card": "Geluidskaart kon niet worden geopend: kies een andere",
-  "settings.tnc.hf.keying": "Het toestel voor de PTT kon niet worden geopend: kies een andere manier om de PTT te bedienen",
+  "settings.tnc.hf.keying":
+    "Het toestel voor de PTT kon niet worden geopend: kies een andere manier om de PTT te bedienen",
   "settings.tnc.counts": {
     one: "{n} pakket gehoord, {bytes_in} ontvangen, {bytes_out} verzonden, {digipeated} herhaald",
     other: "{n} pakketten gehoord, {bytes_in} ontvangen, {bytes_out} verzonden, {digipeated} herhaald",
@@ -440,11 +488,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.step_percent": "{step} {percent}%",
   "settings.map.downloaded": "Kaart gedownload",
   "settings.map.downloaded_on": "Kaart gedownload op {day} {month}",
-  "settings.map.problem.no_position": "het station heeft nog geen positie: stel Breedtegraad en Lengtegraad in (de kaart wordt eromheen uitgesneden)",
+  "settings.map.problem.no_position":
+    "het station heeft nog geen positie: stel Breedtegraad en Lengtegraad in (de kaart wordt eromheen uitgesneden)",
   "settings.map.problem.busy": "er wordt een kaart gedownload",
   "settings.map.problem.slow": "de kaartserver is nu te traag; probeer het later opnieuw",
   "settings.map.problem.unreachable": "de kaartserver was niet bereikbaar; is er een verbinding?",
-  "settings.map.problem.no_build": "er is de afgelopen {days} dagen geen dagelijkse versie van de kaart gevonden (is er een verbinding?)",
+  "settings.map.problem.no_build":
+    "er is de afgelopen {days} dagen geen dagelijkse versie van de kaart gevonden (is er een verbinding?)",
   "settings.map.problem.too_big": "de kaart zou {size} MB worden, meer dan de {max} MB die mag",
   "settings.map.problem.no_space": "de kaart kon niet worden gemaakt: de schijf is vol",
   "settings.map.problem.failed": "de kaart kon niet worden gemaakt; de logs zeggen waarom",
@@ -457,35 +507,42 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.cancel": "Annuleren",
   "settings.map.detail_label": "Detailkaart",
   "settings.map.tip_label": "Over de kaartdownload",
-  "settings.map.tip1": "Downloadt één keer de straten en namen voor de straal hierboven. De kaart blijft op deze computer.",
+  "settings.map.tip1":
+    "Downloadt één keer de straten en namen voor de straal hierboven. De kaart blijft op deze computer.",
 
   "settings.position.name": "Positiebron",
   "settings.position.label": "Positie",
   "settings.position.fixed": "Vast",
   "settings.position.gpsd": "Een GPS via gpsd",
   "settings.position.serial": "Een GPS op een seriële poort",
-  "settings.position.tip1": "Vast: het station blijft op de locatie hieronder. Een GPS: positie, koers en snelheid komen van de ontvanger.",
-  "settings.position.tip2": "gpsd is de GPS-dienst van Linux. Zonder verse fix wordt er niets verzonden, nooit de thuispositie.",
+  "settings.position.tip1":
+    "Vast: het station blijft op de locatie hieronder. Een GPS: positie, koers en snelheid komen van de ontvanger.",
+  "settings.position.tip2":
+    "gpsd is de GPS-dienst van Linux. Zonder verse fix wordt er niets verzonden, nooit de thuispositie.",
   "settings.gps_host.label": "gpsd-adres",
-  "settings.gps_host.tip1": "Waar gpsd luistert, als host:poort; laat het zoals het is als gpsd op deze computer draait.",
+  "settings.gps_host.tip1":
+    "Waar gpsd luistert, als host:poort; laat het zoals het is als gpsd op deze computer draait.",
   "settings.gps_device.label": "GPS-poort",
   "settings.gps_device.tip1": "De poort van de GPS-ontvanger: /dev/ttyUSB1 op Linux, COM4 op Windows.",
   "settings.gps_device.tip2": "Kies een andere poort dan die van de radio: één apparaat kan niet beide zijn.",
   "settings.gps_baud.label": "GPS-snelheid",
-  "settings.gps_baud.tip1": "De snelheid van de ontvanger: bij de meeste 4800 of 9600. Een verkeerde snelheid geeft geen fix.",
+  "settings.gps_baud.tip1":
+    "De snelheid van de ontvanger: bij de meeste 4800 of 9600. Een verkeerde snelheid geeft geen fix.",
 
   "settings.travel.label": "Onderweg",
   "settings.travel.car": "Met de auto",
   "settings.travel.bicycle": "Met de fiets",
   "settings.travel.foot": "Te voet",
   "settings.travel.boat": "Met de boot",
-  "settings.travel.tip1": "Bepaalt hoe vaak er een baken uitgaat en in welke bochten: een auto op snelheid zendt vaker een baken dan een wandelaar.",
+  "settings.travel.tip1":
+    "Bepaalt hoe vaak er een baken uitgaat en in welke bochten: een auto op snelheid zendt vaker een baken dan een wandelaar.",
 
   "settings.update.group": "Zoeken naar updates",
   "settings.update.label": "Nieuwe versie",
   "settings.update.check": "Nu controleren",
   "settings.update.tip_label": "Over het zoeken naar updates",
-  "settings.update.tip": "Eén keer per dag vraagt NeoAPRS of er een nieuwere versie is; zo ja, dan staat bovenaan Update.",
+  "settings.update.tip":
+    "Eén keer per dag vraagt NeoAPRS of er een nieuwere versie is; zo ja, dan staat bovenaan Update.",
   "settings.update.available": "{version} beschikbaar",
   "settings.update.current": "bijgewerkt",
   "settings.update.checking": "controleren…",
@@ -502,10 +559,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.send": "Feedback / logs verzenden",
   "settings.help.sending": "Verzenden…",
   "settings.help.tip_label": "Over de logs",
-  "settings.help.tip": "Het log, de instellingen, gehoorde en verzonden pakketten. Je kunt ze als bestand opslaan of naar het project verzenden.",
+  "settings.help.tip":
+    "Het log, de instellingen, gehoorde en verzonden pakketten. Je kunt ze als bestand opslaan of naar het project verzenden.",
   "settings.help.saved": "{file} opgeslagen.",
   "settings.help.sent": "Verzonden. Referentie {ref}.",
-  "settings.help.problem.access": "Geen toegang: laad de pagina opnieuw, voer de toegangssleutel in en probeer het nog eens.",
+  "settings.help.problem.access":
+    "Geen toegang: laad de pagina opnieuw, voer de toegangssleutel in en probeer het nog eens.",
   "settings.help.problem.busy": "Er wordt al een ander bestand gemaakt. Probeer het over een minuut opnieuw.",
   "settings.help.problem.unreachable": "NeoAPRS was niet bereikbaar.",
   "settings.help.problem.failed": "Het bestand kon niet worden gemaakt (fout {status}).",
@@ -522,7 +581,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.dialog.send": "Verzenden",
   "settings.help.dialog.cancel": "Annuleren",
   "settings.about.group": "Over NeoAPRS",
-  "settings.about.intro": "NeoAPRS {version}, een APRS-programma voor je radio's: FM, Mercury en LoRa. Gemaakt door {call}, {year}.",
+  "settings.about.intro":
+    "NeoAPRS {version}, een APRS-programma voor je radio's: FM, Mercury en LoRa. Gemaakt door {call}, {year}.",
   "settings.about.license": "Vrije software onder de {license}, versie 3 of later.",
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Broncode",

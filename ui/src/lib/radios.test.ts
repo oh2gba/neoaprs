@@ -41,7 +41,10 @@ describe("the radios of the topic", () => {
   });
 
   it("carry a path where their type allows one", () => {
-    const radios = pageRadios(topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "dummy-hf", { number: 2 })), null);
+    const radios = pageRadios(
+      topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "dummy-hf", { number: 2 })),
+      null,
+    );
     expect(radios.map((radio) => radio.carriesPath)).toEqual([true, false, false]);
   });
 
@@ -50,7 +53,12 @@ describe("the radios of the topic", () => {
   });
 
   it("each have their own settings of `radio_values`, by the key of the field", () => {
-    const radio2 = { "radio/2/beacon": "true", "radio/2/sound_card": "plughw:1,0", "radio/2/keying": "vox", "radio/2/tx_gain_db": "0" };
+    const radio2 = {
+      "radio/2/beacon": "true",
+      "radio/2/sound_card": "plughw:1,0",
+      "radio/2/keying": "vox",
+      "radio/2/tx_gain_db": "0",
+    };
     const config = configValues({}, { "radio/1/port": "/dev/ttyUSB0", ...radio2 });
     const [fm, hf] = pageRadios(topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")), config);
     expect(fm?.settings).toMatchObject({ port: "/dev/ttyUSB0", baud: "9600", beacon: "true" });
@@ -89,7 +97,12 @@ describe("the radios of the topic", () => {
   it("are the same radio while only their row's counts, lines or beacon changed", () => {
     const row = radioRow(1, "kenwood-tnc2");
     const was = pageRadio(row);
-    expect(sameRadio(was, pageRadio({ ...row, stats: { ...row.stats, packets: 9 }, lines: [{ at: "2026-10-21T12:00:00Z", text: "x" }] }))).toBe(true);
+    expect(
+      sameRadio(
+        was,
+        pageRadio({ ...row, stats: { ...row.stats, packets: 9 }, lines: [{ at: "2026-10-21T12:00:00Z", text: "x" }] }),
+      ),
+    ).toBe(true);
     const changed = [
       { ...row, name: "Shack" },
       { ...row, enabled: false },
@@ -114,7 +127,11 @@ describe("what the page calls a radio", () => {
   });
 
   it("makes an element's id of a setting's key", () => {
-    expect([fieldId("radio/3/port"), fieldId("email/radio"), fieldId("plain")]).toEqual(["radio-3-port", "email-radio", "plain"]);
+    expect([fieldId("radio/3/port"), fieldId("email/radio"), fieldId("plain")]).toEqual([
+      "radio-3-port",
+      "email-radio",
+      "plain",
+    ]);
   });
 
   it("has its type as the daemon describes it", () => {
@@ -127,7 +144,11 @@ describe("what the page calls a radio", () => {
           ?.fields.map((field) => field.key)
           .sort(),
       ],
-    ).toEqual(["hf", true, ["ask", "beacon", "keying", "local_info", "rx_card", "sound_card", "status", "tx_card", "tx_gain_db"]]);
+    ).toEqual([
+      "hf",
+      true,
+      ["ask", "beacon", "keying", "local_info", "rx_card", "sound_card", "status", "tx_card", "tx_gain_db"],
+    ]);
     expect(typeOf({ type: "nonesuch" })).toBeUndefined();
   });
 });
@@ -136,11 +157,11 @@ describe("what a radio's problem says", () => {
   const said = (code: RadioProblem["code"], params: RadioProblem["params"] = {}) => problemText({ code, params });
 
   it("is the words of its line's state as the Radio group says them", () => {
-    expect([said("radio.not_connected", { name: "FM" }), said("radio.searching"), said("radio.silent", { since: "2026-10-21T12:00:00Z" })]).toEqual([
-      "Not connected",
-      "Searching for the radio…",
-      "silent",
-    ]);
+    expect([
+      said("radio.not_connected", { name: "FM" }),
+      said("radio.searching"),
+      said("radio.silent", { since: "2026-10-21T12:00:00Z" }),
+    ]).toEqual(["Not connected", "Searching for the radio…", "silent"]);
   });
 
   it("is what the modem says of itself for each reason it is not running", () => {
@@ -162,7 +183,10 @@ describe("what a radio's problem says", () => {
   });
 
   it("is the sentence of the refusal for RX only and a beacon not sent, with its reason", () => {
-    expect([said("transmit.off"), said("beacon.not_sent", { reason: "no position" })]).toEqual(["RX only: nothing is sent", "nothing was sent: no position"]);
+    expect([said("transmit.off"), said("beacon.not_sent", { reason: "no position" })]).toEqual([
+      "RX only: nothing is sent",
+      "nothing was sent: no position",
+    ]);
   });
 
   it("is the sentence of a device another holds where the catalogue has it, else not connected", () => {
@@ -174,24 +198,49 @@ describe("what a radio's problem says", () => {
 describe("the email radio", () => {
   it("is the one the status names, and none where it says none", () => {
     const radios = pageRadios(topic(radioRow(1, "kenwood-tnc2"), radioRow(3, "kiss", { number: 2 })), null);
-    expect([emailRadio(radios, status({ email_radio: 3 }))?.id, emailRadio(radios, status({ email_radio: null }))]).toEqual([3, null]);
+    expect([
+      emailRadio(radios, status({ email_radio: 3 }))?.id,
+      emailRadio(radios, status({ email_radio: null })),
+    ]).toEqual([3, null]);
   });
 
   it("is any radio the status names that is on and can send: a Mercury radio too", () => {
-    const radios = pageRadios(topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(4, "dummy-lora")), null);
+    const radios = pageRadios(
+      topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(4, "dummy-lora")),
+      null,
+    );
     expect([2, 4, 1].map((id) => emailRadio(radios, status({ email_radio: id }))?.id)).toEqual([2, 4, 1]);
   });
 
   it("is, before the status has come, the first radio that can send in the order of the boxes, of any kind; never one that only listens", () => {
     const radios = pageRadios(
-      topic(radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }), radioRow(2, "mercury", { position: 0 }), radioRow(3, "kiss", { number: 1 })),
+      topic(
+        radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }),
+        radioRow(2, "mercury", { position: 0 }),
+        radioRow(3, "kiss", { number: 1 }),
+      ),
       null,
     );
     expect([emailRadio(radios, null)?.id, emailRadio(radios, status({ email_radio: 1 }))?.id]).toEqual([2, 2]);
-    expect(emailRadio(pageRadios(topic(radioRow(1, "mercury", { position: 1 }), radioRow(2, "kiss", { position: 2 })), null), null)?.id).toBe(1);
+    expect(
+      emailRadio(
+        pageRadios(topic(radioRow(1, "mercury", { position: 1 }), radioRow(2, "kiss", { position: 2 })), null),
+        null,
+      )?.id,
+    ).toBe(1);
     expect(emailRadio(pageRadios(topic(radioRow(2, "mercury")), null), null)?.id).toBe(2);
     expect(
-      emailRadio(pageRadios(topic(radioRow(5, "tnc-text", { position: 0 }), radioRow(2, "mercury"), radioRow(6, "dummy-hf", { number: 2 })), null), null)?.id,
+      emailRadio(
+        pageRadios(
+          topic(
+            radioRow(5, "tnc-text", { position: 0 }),
+            radioRow(2, "mercury"),
+            radioRow(6, "dummy-hf", { number: 2 }),
+          ),
+          null,
+        ),
+        null,
+      )?.id,
     ).toBe(2);
     expect(emailRadio(pageRadios(topic(radioRow(5, "tnc-text")), null), null)).toBeNull();
   });
@@ -209,7 +258,10 @@ describe("the radio of a call no radio heard", () => {
   );
 
   it("is the one the status names, and none where it says none", () => {
-    expect([unheardRadio(boxes, status({ unheard_radio: 1 }))?.id, unheardRadio(boxes, status({ unheard_radio: null }))]).toEqual([1, null]);
+    expect([
+      unheardRadio(boxes, status({ unheard_radio: 1 }))?.id,
+      unheardRadio(boxes, status({ unheard_radio: null })),
+    ]).toEqual([1, null]);
   });
 
   it("is, before the status has come, the first radio that is on and can send, in the order of the boxes: never one that only listens, is off or is not there", () => {
@@ -222,14 +274,22 @@ describe("the radio of a call no radio heard", () => {
   });
 
   it("is the radio a message to a call the book does not hold goes on", () => {
-    expect([sendingRadio(null, [], 2), sendingRadio(null, [{ state: "sending", radio_now: 1 }], 2), sendingRadio(null)]).toEqual([2, 1, null]);
+    expect([
+      sendingRadio(null, [], 2),
+      sendingRadio(null, [{ state: "sending", radio_now: 1 }], 2),
+      sendingRadio(null),
+    ]).toEqual([2, 1, null]);
   });
 });
 
 describe("whether a radio is named", () => {
   it("is so where more than one radio is on, and always for a radio that is not on", () => {
     const one = pageRadios(
-      topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false }), radioRow(3, "kiss", { removed: true, enabled: false })),
+      topic(
+        radioRow(1, "kenwood-tnc2"),
+        radioRow(2, "mercury", { enabled: false }),
+        radioRow(3, "kiss", { removed: true, enabled: false }),
+      ),
       null,
     );
     expect([isNamed(one, 1), isNamed(one, 2), isNamed(one, 3), isNamed(one, 9)]).toEqual([false, true, true, true]);
@@ -243,19 +303,35 @@ describe("the radio a message to a station goes on", () => {
   const row = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_now: 1 });
 
   it("is the station's radio now, any radio by its id", () => {
-    expect([sendingRadio(row), sendingRadio({ ...row, radio_now: 3 }), sendingRadio({ ...row, radio_now: null })]).toEqual([1, 3, null]);
+    expect([
+      sendingRadio(row),
+      sendingRadio({ ...row, radio_now: 3 }),
+      sendingRadio({ ...row, radio_now: null }),
+    ]).toEqual([1, 3, null]);
   });
 
   it("is that of a message of ours on its way to it, the one being sent before one that waits its turn", () => {
-    expect(sendingRadio(row, [message(7, { state: "queued", radio_now: 3 }), message(8, { state: "sending", radio_now: 2 })])).toBe(2);
+    expect(
+      sendingRadio(row, [
+        message(7, { state: "queued", radio_now: 3 }),
+        message(8, { state: "sending", radio_now: 2 }),
+      ]),
+    ).toBe(2);
     expect(sendingRadio(row, [message(7, { state: "queued", radio_now: 3 })])).toBe(3);
-    expect(sendingRadio(row, [message(7, { state: "acked" }), message(8, { direction: "in", state: "received", radio_now: 2 })])).toBe(1);
+    expect(
+      sendingRadio(row, [
+        message(7, { state: "acked" }),
+        message(8, { direction: "in", state: "received", radio_now: 2 }),
+      ]),
+    ).toBe(1);
   });
 
   it("is the operator's choice while it is in force, also over a message on its way, which takes it from its next attempt", () => {
     const chosen = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_choice: 1, radio_now: 1 });
     expect(sendingRadio(chosen, [message(8, { state: "sending", radio_now: 2 })])).toBe(1);
-    expect(sendingRadio({ ...chosen, radio_choice: 3, radio_now: 3 }, [message(8, { state: "queued", radio_now: 1 })])).toBe(3);
+    expect(
+      sendingRadio({ ...chosen, radio_choice: 3, radio_now: 3 }, [message(8, { state: "queued", radio_now: 1 })]),
+    ).toBe(3);
   });
 
   it("is the radio of a call no radio heard for a call the book does not hold, and none where there is none", () => {

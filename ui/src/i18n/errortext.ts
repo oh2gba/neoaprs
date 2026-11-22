@@ -50,7 +50,8 @@ const LISTS: Params = {
  * the GPS receiver (0), a radio the page does not know and a page that gives no radios keep the daemon's words. */
 function radioParams(error: Failure, radios: RadioNames | undefined): Params {
   const params = error.params ?? {};
-  const find = (id: string | number | undefined) => (radios !== undefined && typeof id === "number" && id > 0 ? radios.byId(id) : undefined);
+  const find = (id: string | number | undefined) =>
+    radios !== undefined && typeof id === "number" && id > 0 ? radios.byId(id) : undefined;
   const radio = NAMES_A_RADIO.has(error.code ?? "") ? find(params.radio) : undefined;
   const holder = error.code === "radio.resource_held" ? find(params.held_by) : undefined;
   return {

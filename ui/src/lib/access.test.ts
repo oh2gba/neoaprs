@@ -38,7 +38,9 @@ describe("renewKey", () => {
   it("posts to access/new and is empty when the key was made", async () => {
     const daemon = new FakeFetch(204);
     expect(await renewKey(daemon.fetch)).toBe("");
-    expect(daemon.calls).toEqual([{ url: "http://127.0.0.1:7303/access/new", method: "POST", body: "", cache: "no-store" }]);
+    expect(daemon.calls).toEqual([
+      { url: "http://127.0.0.1:7303/access/new", method: "POST", body: "", cache: "no-store" },
+    ]);
     expect(await renewKey(new FakeFetch(401).fetch)).toBe("No answer from NeoAPRS.");
   });
 });
@@ -58,7 +60,10 @@ describe("takeKey", () => {
   }
 
   it("gives the key of #key= and takes the fragment out of the history entry, keeping its path, query and state", () => {
-    expect(at("http://192.168.1.20:7303/sub/?lang=fi#key=k7m2-x9pq-4hrt")).toEqual({ key: "k7m2-x9pq-4hrt", replaced: ['{"kept":1} /sub/?lang=fi'] });
+    expect(at("http://192.168.1.20:7303/sub/?lang=fi#key=k7m2-x9pq-4hrt")).toEqual({
+      key: "k7m2-x9pq-4hrt",
+      replaced: ['{"kept":1} /sub/?lang=fi'],
+    });
   });
 
   it("decodes an escaped key, and keeps a key with a stray % as it is", () => {
@@ -67,7 +72,8 @@ describe("takeKey", () => {
   });
 
   it("gives nothing and leaves the address alone for any other fragment, or none", () => {
-    for (const href of ["http://h/#app", "http://h/", "http://h/#keys=abc", "http://h/#Key=abc"]) expect(at(href)).toEqual({ key: "", replaced: [] });
+    for (const href of ["http://h/#app", "http://h/", "http://h/#keys=abc", "http://h/#Key=abc"])
+      expect(at(href)).toEqual({ key: "", replaced: [] });
   });
 
   it("takes an empty key out of the address too", () => {

@@ -2,7 +2,20 @@ import { describe, expect, it } from "vitest";
 import { historyPoints, mapStats, type StatSection } from "@/lib/stats";
 import { pageRadios } from "@/lib/radios";
 import type { RadioRow } from "@/protocol/protocol";
-import { NOW, ago, igateState, lineStats, mapState, packet, radioRow, radiosTopic, station, status, table, weatherStation } from "@/test/fixtures";
+import {
+  NOW,
+  ago,
+  igateState,
+  lineStats,
+  mapState,
+  packet,
+  radioRow,
+  radiosTopic,
+  station,
+  status,
+  table,
+  weatherStation,
+} from "@/test/fixtures";
 
 const AGING = { defaultMin: 180 };
 
@@ -61,9 +74,33 @@ const stations = () =>
       device: "APRSdroid",
       heard_via: [],
     }),
-    station("OH2OLD", { lat: 60.4, lon: 25.2, distance_km: 30, last_position_at: ago(5 * 3600), heard_rf: 1, packets_hour: 0, heard_via: [] }),
-    station("CLUB", { kind: "object", reported_by: "OH2RDG", lat: 60.1, lon: 24.5, distance_km: 20, packets_hour: 1, heard_via: [] }),
-    station("OH2GW-10", { lat: 60.05, lon: 24.3, distance_km: 40, gated: 7, heard_rf: 7, packets_hour: 0, heard_via: [] }),
+    station("OH2OLD", {
+      lat: 60.4,
+      lon: 25.2,
+      distance_km: 30,
+      last_position_at: ago(5 * 3600),
+      heard_rf: 1,
+      packets_hour: 0,
+      heard_via: [],
+    }),
+    station("CLUB", {
+      kind: "object",
+      reported_by: "OH2RDG",
+      lat: 60.1,
+      lon: 24.5,
+      distance_km: 20,
+      packets_hour: 1,
+      heard_via: [],
+    }),
+    station("OH2GW-10", {
+      lat: 60.05,
+      lon: 24.3,
+      distance_km: 40,
+      gated: 7,
+      heard_rf: 7,
+      packets_hour: 0,
+      heard_via: [],
+    }),
     weatherStation("OH2MUI", { distance_km: 9, heard_rf: 6, packets_hour: 6, heard_via: [] }),
   );
 
@@ -119,8 +156,12 @@ describe("the statistics of the map", () => {
         { radio: 3, km: 12 },
       ],
     });
-    expect(lines(mapStats(input({ radios: two, map })), "stats.section.reach")[0]).toBe("stats.aloha=FM: 37 km · FM 2: 12 km");
-    expect(lines(mapStats(input({ map: mapState({ aloha: [] }) })), "stats.section.reach")[0]).not.toMatch(/^stats\.aloha/);
+    expect(lines(mapStats(input({ radios: two, map })), "stats.section.reach")[0]).toBe(
+      "stats.aloha=FM: 37 km · FM 2: 12 km",
+    );
+    expect(lines(mapStats(input({ map: mapState({ aloha: [] }) })), "stats.section.reach")[0]).not.toMatch(
+      /^stats\.aloha/,
+    );
   });
 
   it("says how far we reach: the farthest direct, the farthest on the radio, and the digipeaters most used", () => {
@@ -154,7 +195,11 @@ describe("the statistics of the map", () => {
   it("says what the radio did since the daemon started, and what went through us since then", () => {
     const stats = lineStats({ frames_in: 2500, rejected: 12, bytes_in: 300_000, bytes_out: 2048, digipeated: 9 });
     const sections = mapStats(input({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { stats })) }));
-    expect(lines(sections, "stats.section.radio")).toEqual(["stats.running=3 h", "stats.frames=2500, 12 unreadable", "stats.bytes=300 kB · 2.0 kB"]);
+    expect(lines(sections, "stats.section.radio")).toEqual([
+      "stats.running=3 h",
+      "stats.frames=2500, 12 unreadable",
+      "stats.bytes=300 kB · 2.0 kB",
+    ]);
     expect(lines(sections, "stats.section.through")).toEqual([
       "stats.digipeated=– in the last hour · 9 since the start",
       "stats.gated=– in the last hour · 42 since the start",
@@ -163,18 +208,27 @@ describe("the statistics of the map", () => {
 
   it("adds up the radios that are on, and counts the Mercury radio alone when the FM radio is off", () => {
     const fm = (extra = {}) =>
-      radioRow(1, "kenwood-tnc2", { stats: lineStats({ frames_in: 100, rejected: 0, bytes_in: 1024, bytes_out: 1024, digipeated: 2 }), ...extra });
-    const hf = radioRow(2, "mercury", { stats: lineStats({ frames_in: 20, rejected: 3, bytes_in: 1024, bytes_out: 0, digipeated: 1 }) });
+      radioRow(1, "kenwood-tnc2", {
+        stats: lineStats({ frames_in: 100, rejected: 0, bytes_in: 1024, bytes_out: 1024, digipeated: 2 }),
+        ...extra,
+      });
+    const hf = radioRow(2, "mercury", {
+      stats: lineStats({ frames_in: 20, rejected: 3, bytes_in: 1024, bytes_out: 0, digipeated: 1 }),
+    });
     expect(lines(mapStats(input({ radios: radiosOf(fm(), hf) })), "stats.section.radio")).toEqual([
       "stats.running=3 h",
       "stats.frames=120, 3 unreadable",
       "stats.bytes=2.0 kB · 1.0 kB",
     ]);
-    expect(lines(mapStats(input({ radios: radiosOf(fm(), hf) })), "stats.section.through")[0]).toBe("stats.digipeated=– in the last hour · 3 since the start");
-    expect(lines(mapStats(input({ radios: radiosOf(fm({ enabled: false, state: "stopped" }), hf) })), "stats.section.radio").slice(0, 2)).toEqual([
-      "stats.running=3 h",
-      "stats.frames=20, 3 unreadable",
-    ]);
+    expect(lines(mapStats(input({ radios: radiosOf(fm(), hf) })), "stats.section.through")[0]).toBe(
+      "stats.digipeated=– in the last hour · 3 since the start",
+    );
+    expect(
+      lines(
+        mapStats(input({ radios: radiosOf(fm({ enabled: false, state: "stopped" }), hf) })),
+        "stats.section.radio",
+      ).slice(0, 2),
+    ).toEqual(["stats.running=3 h", "stats.frames=20, 3 unreadable"]);
   });
 
   it("leaves out a line that cannot apply and a section with no line, and keeps the lines of the daemon's counts, a dash before its answer", () => {
@@ -189,8 +243,18 @@ describe("the statistics of the map", () => {
       now: NOW,
       packetStats: null,
     });
-    expect(sections.map((s) => s.title)).toEqual(["stats.section.stations", "stats.section.packets", "stats.section.day", "stats.section.own"]);
-    expect(lines(sections, "stats.section.packets")).toEqual(["stats.packets_hour=0", "stats.busiest=–", "stats.busiest_hour=–", "stats.quietest_hour=–"]);
+    expect(sections.map((s) => s.title)).toEqual([
+      "stats.section.stations",
+      "stats.section.packets",
+      "stats.section.day",
+      "stats.section.own",
+    ]);
+    expect(lines(sections, "stats.section.packets")).toEqual([
+      "stats.packets_hour=0",
+      "stats.busiest=–",
+      "stats.busiest_hour=–",
+      "stats.quietest_hour=–",
+    ]);
     expect(lines(sections, "stats.section.day")).toEqual(["stats.copies=–"]);
     expect(lines(sections, "stats.section.stations")).toEqual([
       "stats.stations=0",
@@ -199,7 +263,9 @@ describe("the statistics of the map", () => {
       "stats.digipeaters=0",
       "stats.igates=0",
     ]);
-    const quiet = mapStats(input({ igate: igateState({ enabled: false }), packets: new Map([["6", packet(6, { direction: "out" })]]) }));
+    const quiet = mapStats(
+      input({ igate: igateState({ enabled: false }), packets: new Map([["6", packet(6, { direction: "out" })]]) }),
+    );
     expect(lines(quiet, "stats.section.through").some((l) => l.startsWith("stats.gated"))).toBe(false);
     expect(lines(quiet, "stats.section.packets")).toHaveLength(5);
   });
@@ -220,16 +286,22 @@ describe("the statistics of the map", () => {
 
   it("counts the Mercury radio's packets as Mercury, apart from the FM radio's (plan section 9: they were counted together), also for the Mercury radio alone", () => {
     const heard = new Map(
-      [packet(1, { radio_id: 1, heard_at: ago(60) }), packet(2, { radio_id: 2, heard_at: ago(30) }), packet(3, { radio_id: 2, heard_at: ago(0) })].map(
-        (row) => [String(row.id), row] as const,
-      ),
+      [
+        packet(1, { radio_id: 1, heard_at: ago(60) }),
+        packet(2, { radio_id: 2, heard_at: ago(30) }),
+        packet(3, { radio_id: 2, heard_at: ago(0) }),
+      ].map((row) => [String(row.id), row] as const),
     );
     const byChannel = (extra: object) =>
-      lines(mapStats(input({ packets: heard, ...extra })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+      lines(mapStats(input({ packets: heard, ...extra })), "stats.section.packets").find((l) =>
+        l.startsWith("stats.by_channel"),
+      );
     expect(byChannel({})).toBe("stats.by_channel=1 FM · 2 Mercury");
-    expect(byChannel({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")) })).toBe(
-      "stats.by_channel=1 FM · 2 Mercury",
-    );
+    expect(
+      byChannel({
+        radios: radiosOf(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")),
+      }),
+    ).toBe("stats.by_channel=1 FM · 2 Mercury");
   });
 });
 
@@ -241,7 +313,13 @@ describe("the statistics of the map with several radios", () => {
     radioRow(2, "mercury", { stats: counted(20, 3, 0) }),
     radioRow(3, "kiss", { name: "Shack", number: 2, stats: counted(5, 0, 1) }),
     radioRow(4, "dummy-hf", { name: "20 m", number: 2, stats: counted(1, 0, 0) }),
-    radioRow(5, "kantronics", { name: "Portable", number: 3, stats: counted(1000, 0, 0), enabled: false, state: "stopped" }),
+    radioRow(5, "kantronics", {
+      name: "Portable",
+      number: 3,
+      stats: counted(1000, 0, 0),
+      enabled: false,
+      state: "stopped",
+    }),
     radioRow(6, "dummy", { name: "Bench", number: 4, stats: counted(4, 1, 0) }),
   );
   const heard = new Map(
@@ -257,7 +335,9 @@ describe("the statistics of the map with several radios", () => {
   );
 
   it("counts the latest packets by radio, by the radios' names, and the internet apart", () => {
-    const found = lines(mapStats(input({ packets: heard, radios: SIX })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+    const found = lines(mapStats(input({ packets: heard, radios: SIX })), "stats.section.packets").find((l) =>
+      l.startsWith("stats.by_channel"),
+    );
     expect(found).toBe("stats.by_channel=1 FM · 1 Mercury · 2 Shack · 1 20 m · 1 Portable · 1 Internet");
   });
 
@@ -266,7 +346,9 @@ describe("the statistics of the map with several radios", () => {
       "stats.frames=130, 4 unreadable",
       "stats.bytes=5.1 kB · 5.1 kB",
     ]);
-    expect(lines(mapStats(input({ radios: SIX })), "stats.section.through")[0]).toBe("stats.digipeated=– in the last hour · 3 since the start");
+    expect(lines(mapStats(input({ radios: SIX })), "stats.section.through")[0]).toBe(
+      "stats.digipeated=– in the last hour · 3 since the start",
+    );
   });
 
   it("never adds two radios together, even where they are said by the same word (a removed radio beside the live one that took its place)", () => {
@@ -276,24 +358,38 @@ describe("the statistics of the map with several radios", () => {
       radioRow(3, "kiss"),
       radioRow(4, "mercury"),
     );
-    const two = new Map([packet(1, { radio_id: 1 }), packet(2, { radio_id: 3 })].map((row) => [String(row.id), row] as const));
-    const found = lines(mapStats(input({ packets: two, radios: replaced })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+    const two = new Map(
+      [packet(1, { radio_id: 1 }), packet(2, { radio_id: 3 })].map((row) => [String(row.id), row] as const),
+    );
+    const found = lines(mapStats(input({ packets: two, radios: replaced })), "stats.section.packets").find((l) =>
+      l.startsWith("stats.by_channel"),
+    );
     expect(found).toBe("stats.by_channel=1 FM · 1 FM");
   });
 
   it("counts the one radio of a station with one radio by its name too, as its tag says it, and leaves out a radio the page does not know (it has no tag)", () => {
     const one = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
     const byChannel = (radios: typeof one) =>
-      lines(mapStats(input({ packets: packets(), radios })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+      lines(mapStats(input({ packets: packets(), radios })), "stats.section.packets").find((l) =>
+        l.startsWith("stats.by_channel"),
+      );
     expect(byChannel(one)).toBe("stats.by_channel=4 FM · 1 Internet");
-    expect(byChannel(radiosOf(radioRow(1, "lora-tcp", { name: "70 cm" })))).toBe("stats.by_channel=4 70 cm · 1 Internet");
+    expect(byChannel(radiosOf(radioRow(1, "lora-tcp", { name: "70 cm" })))).toBe(
+      "stats.by_channel=4 70 cm · 1 Internet",
+    );
     expect(byChannel([])).toBe("stats.by_channel=1 Internet");
   });
 });
 
 describe("the graph of the statistics", () => {
   it("makes the bars of the packets by the hour: a point in the middle of each hour from the start, the axis over the whole hours", () => {
-    const bars = historyPoints({ type: "packet_history", hours: 3, call: null, start: "2026-10-21T10:00:00Z", counts: [41, 0, 12] });
+    const bars = historyPoints({
+      type: "packet_history",
+      hours: 3,
+      call: null,
+      start: "2026-10-21T10:00:00Z",
+      counts: [41, 0, 12],
+    });
     const start = Date.parse("2026-10-21T10:00:00Z");
     expect(bars.from).toBe(start);
     expect(bars.to).toBe(start + 3 * 3_600_000);

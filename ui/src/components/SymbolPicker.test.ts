@@ -44,7 +44,9 @@ describe("SymbolPicker", () => {
     wrapper.unmount();
     const alternate = picker("S", "#");
     expect(alternate.findAll(".sympick-symbol[aria-pressed='true']").map((b) => b.text())).toEqual(["Digipeater"]);
-    expect(alternate.find(".sympick-symbol[aria-pressed='true']").element.closest("[aria-label='All symbols']")).not.toBeNull();
+    expect(
+      alternate.find(".sympick-symbol[aria-pressed='true']").element.closest("[aria-label='All symbols']"),
+    ).not.toBeNull();
     alternate.unmount();
   });
 

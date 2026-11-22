@@ -81,7 +81,10 @@ const locatorError = computed(() => (typed.value === null ? "" : locatorProblem(
 /** Whether the locator holds an unapplied change: typed differently from the coordinates, or
  * rewritten from them. */
 const locatorChanged = computed(
-  () => !!props.changed.lat || !!props.changed.lon || (typed.value !== null && typed.value.trim().toUpperCase() !== derived.value.toUpperCase()),
+  () =>
+    !!props.changed.lat ||
+    !!props.changed.lon ||
+    (typed.value !== null && typed.value.trim().toUpperCase() !== derived.value.toUpperCase()),
 );
 
 function typeLocator(text: string): void {
@@ -93,7 +96,8 @@ function typeLocator(text: string): void {
 }
 
 function commitLocator(next: EventTarget | null): void {
-  if (typed.value !== null && (typed.value.trim() === "" || locatorToPosition(typed.value) !== null)) typed.value = null;
+  if (typed.value !== null && (typed.value.trim() === "" || locatorToPosition(typed.value) !== null))
+    typed.value = null;
   emit("commit", "locator", next);
 }
 
@@ -116,10 +120,18 @@ async function toggle(): Promise<void> {
   <div ref="root" class="field location-field" role="group" :aria-labelledby="label">
     <span :id="label" class="field-label">{{ t("settings.location.heading") }}</span>
     <div class="field-control location-control">
-      <button class="btn location-pick" type="button" :class="{ active: picking }" :aria-pressed="picking" @click="emit('pick')">
+      <button
+        class="btn location-pick"
+        type="button"
+        :class="{ active: picking }"
+        :aria-pressed="picking"
+        @click="emit('pick')"
+      >
         {{ picking ? t("settings.location.cancel") : t("settings.location.pick") }}
       </button>
-      <span v-if="alwaysOpen" :id="`${id}-place`" class="location-shown" :class="{ muted: place === null }">{{ place ?? t("settings.location.not_set") }}</span>
+      <span v-if="alwaysOpen" :id="`${id}-place`" class="location-shown" :class="{ muted: place === null }">{{
+        place ?? t("settings.location.not_set")
+      }}</span>
       <button
         v-else
         :id="`${id}-place`"

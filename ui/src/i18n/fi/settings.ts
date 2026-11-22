@@ -24,15 +24,18 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.group.lora_radio": "LoRa-radio",
   "settings.fm_enabled.name": "FM-radio",
   "settings.fm_enabled.tip_label": "Tietoa: FM-radio",
-  "settings.fm_enabled.tip1": "FM-radiosi ja sen TNC tai äänikortti: paikallinen verkko digipeatereineen ja poluineen sekä GPS:ää seuraava majakka.",
+  "settings.fm_enabled.tip1":
+    "FM-radiosi ja sen TNC tai äänikortti: paikallinen verkko digipeatereineen ja poluineen sekä GPS:ää seuraava majakka.",
   "settings.fm_enabled.tip2": "Poista valinta, niin radio on pois käytöstä; sen asetukset säilyvät.",
   "settings.hf_enabled.name": "Mercury-radio",
   "settings.hf_enabled.tip_label": "Tietoa: Mercury-radio",
-  "settings.hf_enabled.tip1": "Radio äänikortilla ja NeoAPRS:n Mercury-modeemi: vain Mercury-asemat kuulevat sen, ja jokainen kehys lähtee suoraan.",
+  "settings.hf_enabled.tip1":
+    "Radio äänikortilla ja NeoAPRS:n Mercury-modeemi: vain Mercury-asemat kuulevat sen, ja jokainen kehys lähtee suoraan.",
   "settings.hf_enabled.tip2":
     "Useita radioita voi olla käytössä: kaikki niiden kuulemat asemat näkyvät kartalla, ja Reitti kertoo, millä radiolla viestit lähtevät.",
   "settings.lora_enabled.tip_label": "Tietoa: LoRa-radio",
-  "settings.lora_enabled.tip1": "LoRa APRS -kortti: verkossasi, USB:llä tai Bluetoothilla. Sen taajuus asetetaan kortilla.",
+  "settings.lora_enabled.tip1":
+    "LoRa APRS -kortti: verkossasi, USB:llä tai Bluetoothilla. Sen taajuus asetetaan kortilla.",
   "settings.rx_enabled.tip1": "Se vain kuuntelee: kuulemansa tulee sisään, eikä sillä lähetetä koskaan mitään.",
   "settings.enable.only_radio_title": "Aseman ainoa käytössä oleva radio",
   "settings.group.web": "Verkkosivu",
@@ -78,16 +81,19 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.symbol.overlay": "Kirjain tai numero päällä",
 
   "settings.comment.label": "Kommentti",
-  "settings.comment.tip1": "Lyhyt teksti, joka lähtee jokaisen majakan mukana ja näkyy nimesi vieressä kartalla. Enintään {max} merkkiä.",
+  "settings.comment.tip1":
+    "Lyhyt teksti, joka lähtee jokaisen majakan mukana ja näkyy nimesi vieressä kartalla. Enintään {max} merkkiä.",
   "settings.comment.tip2": "Esimerkki: Kotiasema, 2 m FM",
 
   "settings.station_status.name": "Tilaviesti",
   "settings.station_status.label": "Teksti",
-  "settings.station_status.tip1": "Aloita puhetaajuudella, jota kuuntelet, muodossa 145.500MHz, jotta radiot voivat virittyä siihen.",
+  "settings.station_status.tip1":
+    "Aloita puhetaajuudella, jota kuuntelet, muodossa 145.500MHz, jotta radiot voivat virittyä siihen.",
   "settings.station_status.tip2": "Enintään {max} merkkiä, esim. 145.500MHz T088 QRV",
 
   "settings.power.label": "Teho",
-  "settings.power.tip1": "Lähettimen teho watteina. Antennikenttien kanssa siitä tulee PHG-koodi: kuinka kauas sinut kuullaan.",
+  "settings.power.tip1":
+    "Lähettimen teho watteina. Antennikenttien kanssa siitä tulee PHG-koodi: kuinka kauas sinut kuullaan.",
   "settings.power.tip2": "Esimerkki: 5",
 
   "settings.antenna_height.label": "Antennin korkeus",
@@ -95,12 +101,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.antenna_height.tip2": "Esimerkki: 10 talon katolla olevalle mastolle tasaisessa maastossa",
 
   "settings.antenna_gain.label": "Antennin vahvistus",
-  "settings.antenna_gain.tip1": "Kuinka paljon antenni keskittää signaalia, {min}–{max} dBi; 0, jos et tiedä. Käytetään vain PHG:ssä.",
+  "settings.antenna_gain.tip1":
+    "Kuinka paljon antenni keskittää signaalia, {min}–{max} dBi; 0, jos et tiedä. Käytetään vain PHG:ssä.",
   "settings.antenna_gain.tip2": "Esimerkki: 3",
 
   "settings.antenna_direction.label": "Antennin suunta",
   "settings.antenna_direction.omni": "kaikkisuuntainen",
-  "settings.antenna_direction.tip1": "Kaikkisuuntainen, jos antenni toimii joka suuntaan samoin, tai ilmansuunta, johon keilaava antenni osoittaa.",
+  "settings.antenna_direction.tip1":
+    "Kaikkisuuntainen, jos antenni toimii joka suuntaan samoin, tai ilmansuunta, johon keilaava antenni osoittaa.",
 
   "settings.transmit.name": "Vain RX",
   "settings.transmit.label": "Vain RX",
@@ -109,8 +117,10 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "Radion tyyppi",
   "settings.profile.tip_label": "Minkä radiotyypin valitsen",
-  "settings.profile.tip1": "FM-radio Digirigillä, SignaLinkillä, AIOC:lla tai omalla USB-äänellään on Äänikortti. Useimmat TNC:t ovat KISS TNC.",
-  "settings.profile.tip2": "Mercury-modeemin kuulevat vain Mercury-asemat, millä tahansa taajuusalueella, SSB:llä tai FM:llä. Ei radiota? Valitse simuloitu.",
+  "settings.profile.tip1":
+    "FM-radio Digirigillä, SignaLinkillä, AIOC:lla tai omalla USB-äänellään on Äänikortti. Useimmat TNC:t ovat KISS TNC.",
+  "settings.profile.tip2":
+    "Mercury-modeemin kuulevat vain Mercury-asemat, millä tahansa taajuusalueella, SSB:llä tai FM:llä. Ei radiota? Valitse simuloitu.",
 
   "settings.port.name": "Portti",
   "settings.port.label": "Portti",
@@ -143,12 +153,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.board_port.label": "Portti",
   "settings.sound_card.label": "Äänikortti",
   "settings.sound_card.tip_label": "Tietoa äänikortista",
-  "settings.sound_card.tip1": "Äänikortti, jonka kautta radion ääni kulkee: USB-koodekki, Digirig tai radion oma USB-ääni.",
+  "settings.sound_card.tip1":
+    "Äänikortti, jonka kautta radion ääni kulkee: USB-koodekki, Digirig tai radion oma USB-ääni.",
   "settings.sound_card.tip2":
     "Radion oma kortti kutsuu itseään yleensä USB-koodekiksi. Viritä tekee valitusta kortista kuuluvan; Päivitä lukee luettelon uudelleen.",
   "settings.keying.label": "Avainnus",
   "settings.keying.tip_label": "Tietoa avainnuksesta",
-  "settings.keying.tip1": "Miten radio kytketään lähetykselle: itsestään (VOX tai sen datatila), CM108-äänipiirillä tai sarjaportin linjalla.",
+  "settings.keying.tip1":
+    "Miten radio kytketään lähetykselle: itsestään (VOX tai sen datatila), CM108-äänipiirillä tai sarjaportin linjalla.",
   "settings.keying.tip2": "Digirig avaintaa sarjaporttinsa RTS-linjalla.",
   "settings.keying.vox": "Radio avaintaa itse (VOX)",
   "settings.keying.cm108": "CM108-äänipiiri",
@@ -157,12 +169,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "Testaa",
   "settings.hf_frequencies.label": "Ehdotetut taajuudet",
   "settings.scope.title": "Spektri",
-  "settings.scope.aria": "Radion ääni 300–2700 Hz vesiputouksena, uusin ylimpänä, kuullut asemat merkittyinä signaalinsa kohdalle, ja alla sen spektri.",
+  "settings.scope.aria":
+    "Radion ääni 300–2700 Hz vesiputouksena, uusin ylimpänä, kuullut asemat merkittyinä signaalinsa kohdalle, ja alla sen spektri.",
   "settings.scope.level": "Vastaanottotaso",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "Tietoa vastaanottotasosta",
   "settings.scope.tip1": "Palkki on radion äänen taso, vihreä osa hyvä alue.",
-  "settings.scope.tip2": "Liian matala: nosta radion äänilähtöä tai äänikortin tuloa. Punainen: laske sitä, äänikortti leikkaa.",
+  "settings.scope.tip2":
+    "Liian matala: nosta radion äänilähtöä tai äänikortin tuloa. Punainen: laske sitä, äänikortti leikkaa.",
   "settings.scope.heard": "{call} {db} dB",
   "settings.txlevel.label": "Lähetystaso",
   "settings.txlevel.lower": "Laske lähetystasoa",
@@ -170,9 +184,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.txlevel.value": "{value} dB",
   "settings.txlevel.peak": "Huippu {value} dBFS",
   "settings.txlevel.tip_label": "Tietoa lähetystasosta",
-  "settings.txlevel.tip1": "Kuinka voimakkaana modeemin ääni menee radiolle, dB:nä. Paina Viritä ja säädä se radion mittarin mukaan.",
+  "settings.txlevel.tip1":
+    "Kuinka voimakkaana modeemin ääni menee radiolle, dB:nä. Paina Viritä ja säädä se radion mittarin mukaan.",
   "settings.txlevel.tip2": "Huippu muuttuu oranssiksi arvossa 0 dBFS, jossa äänikortti leikkaa.",
-  "settings.txlevel.card_tip1": "Kuinka voimakkaana äänikortin ääni menee radiolle. Paina Viritä ja säädä se radion mittarin mukaan.",
+  "settings.txlevel.card_tip1":
+    "Kuinka voimakkaana äänikortin ääni menee radiolle. Paina Viritä ja säädä se radion mittarin mukaan.",
   "settings.cardlevel.value": "{value} %",
   "settings.cardlevel.rx_label": "Äänikortin tulotaso",
   "settings.tune": "Viritä",
@@ -186,7 +202,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.network.name": "Verkkoyhteys",
   "settings.network.label": "Salli pääsy verkosta",
   "settings.network.tip_label": "Tietoa: pääsy verkosta",
-  "settings.network.tip1": "Antaa puhelimen, tabletin tai kannettavan samassa verkossa avata tämän sivun. Ilman sitä vain tämä tietokone voi.",
+  "settings.network.tip1":
+    "Antaa puhelimen, tabletin tai kannettavan samassa verkossa avata tämän sivun. Ilman sitä vain tämä tietokone voi.",
 
   "settings.access_key.label": "Pääsyavain",
   "settings.access_key.tip_label": "Tietoa: pääsyavain",
@@ -214,12 +231,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.station_hours.name": "Aika kartalla",
   "settings.radius.label": "Säde",
   "settings.radius.tip_label": "Tietoa: säde",
-  "settings.radius.tip1": "Kuinka kauas asemastasi tarkka kartta katuineen ja nimineen ulottuu. Maailmankartta on aina mukana.",
+  "settings.radius.tip1":
+    "Kuinka kauas asemastasi tarkka kartta katuineen ja nimineen ulottuu. Maailmankartta on aina mukana.",
   "settings.radius.tip2": "Suurempi säde on suurempi lataus: 150 km on alue, 300 km suuri alue.",
 
   "settings.digipeater.name": "Digipeateri",
   "settings.digipeater.tip_label": "Mitä digipeateri tekee",
-  "settings.digipeater.tip1": "Toistaa lähiasemien paketit, jotka eivät yllä digipeaterille: WIDE1-1 tai kutsusi kautta lähetetyt.",
+  "settings.digipeater.tip1":
+    "Toistaa lähiasemien paketit, jotka eivät yllä digipeaterille: WIDE1-1 tai kutsusi kautta lähetetyt.",
   "settings.digipeater.tip2": "Pidä pois päältä, ellet ole paikassa, jossa kuuluvuus on heikko.",
 
   "settings.igate.name": "Internet-asemat",
@@ -247,7 +266,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "Kun Ilmoita minulle on päällä, komento suoritetaan viestin saapuessa.",
   "settings.alert_command.name": "Hälytyskomento",
   "settings.alert_command.label": "Komento",
-  "settings.alert_command.tip1": "Suoritetaan jokaisesta uudesta viestistä ja asemahälytyksestä; NEOAPRS_TITLE ja NEOAPRS_TEXT sisältävät otsikon ja tekstin.",
+  "settings.alert_command.tip1":
+    "Suoritetaan jokaisesta uudesta viestistä ja asemahälytyksestä; NEOAPRS_TITLE ja NEOAPRS_TEXT sisältävät otsikon ja tekstin.",
   "settings.alert_test": "Testaa",
   "settings.alert_test.ran": "Hälytyskomento suoritettiin",
   "settings.alert_test.exit": "Hälytyskomento päättyi paluukoodiin {status}",
@@ -259,13 +279,16 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alerts.title": "NeoAPRS:n oma hälytys: komento, joka suoritetaan NeoAPRS-tietokoneella",
   "settings.alerts.title_app": "NeoAPRS:n oma hälytys: komento, joka suoritetaan tällä tietokoneella",
   "settings.alerts.tip_label": "Tietoa: ilmoitukset",
-  "settings.alerts.tip1": "NeoAPRS-tietokoneen hälytys: se suorittaa komennon jokaisesta uudesta viestistä, oletuksena ääni ja ilmoitus.",
-  "settings.alerts.tip1_app": "Tämän tietokoneen hälytys: se suorittaa komennon jokaisesta uudesta viestistä, oletuksena ääni ja ilmoitus.",
+  "settings.alerts.tip1":
+    "NeoAPRS-tietokoneen hälytys: se suorittaa komennon jokaisesta uudesta viestistä, oletuksena ääni ja ilmoitus.",
+  "settings.alerts.tip1_app":
+    "Tämän tietokoneen hälytys: se suorittaa komennon jokaisesta uudesta viestistä, oletuksena ääni ja ilmoitus.",
   "settings.alerts.tip2": "Seuraava ryhmä on tämä selain. Käytä toista tai molempia, jos haluat tiedon kahdesti.",
   "settings.alerts.tip2_app": "Seuraava ryhmä on tämä ikkuna. Käytä toista tai molempia, jos haluat tiedon kahdesti.",
 
   "settings.encrypt.tip_label": "Tietoa: salatut viestit",
-  "settings.encrypt.tip1": "Viestin asemalle, jonka avain sinulla on, voi lukita: vain se asema lukee sen. Mitään ei salata eikä lähetetä itsestään.",
+  "settings.encrypt.tip1":
+    "Viestin asemalle, jonka avain sinulla on, voi lukita: vain se asema lukee sen. Mitään ei salata eikä lähetetä itsestään.",
   "settings.encrypt.tip2":
     "Määräykset kieltävät sanoman salaamisen: vain olosuhteissa, jotka sen sallivat, ja vain --encryption-valitsimella käynnistetyssä NeoAPRS:ssä.",
   "settings.encrypt.key_label": "Sinun avaimesi",
@@ -273,7 +296,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.browser.heading": "Tässä selaimessa",
   "settings.browser.heading_app": "Tässä ikkunassa",
   "settings.browser.mode": "Ilmoita minulle",
-  "settings.browser.mode_tip": "Kertoo uudesta viestistä tässä selaimessa äänellä tai ilmoituksella. Jokainen laite valitsee itse.",
+  "settings.browser.mode_tip":
+    "Kertoo uudesta viestistä tässä selaimessa äänellä tai ilmoituksella. Jokainen laite valitsee itse.",
   "settings.browser.mode_tip_app": "Kertoo uudesta viestistä tässä ikkunassa äänellä. Jokainen laite valitsee itse.",
   "settings.browser.enable_popups": "Ota ilmoitukset käyttöön…",
   "settings.browser.sound": "Ääni",
@@ -297,16 +321,19 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.status_source.off": "pois",
   "settings.status_source.text": "oma teksti",
   "settings.status_source.rig": "radioni taajuus (rigctld)",
-  "settings.status_source.tip1": "Rivi, jonka muut asemat näkevät kutsusi jälkeen: ei mitään, oma teksti tai radiosi taajuus (rigctld).",
+  "settings.status_source.tip1":
+    "Rivi, jonka muut asemat näkevät kutsusi jälkeen: ei mitään, oma teksti tai radiosi taajuus (rigctld).",
   "settings.status_rigctld.label": "Rigctld",
-  "settings.status_rigctld.tip1": "rigctld, Hamlib-ohjelma, kertoo NeoAPRS:lle radion taajuuden. Käynnistä se ensin ja kirjoita osoite:portti.",
+  "settings.status_rigctld.tip1":
+    "rigctld, Hamlib-ohjelma, kertoo NeoAPRS:lle radion taajuuden. Käynnistä se ensin ja kirjoita osoite:portti.",
   "settings.status_rigctld.tip2": "Esimerkki: 127.0.0.1:4532",
   "settings.status_interval.name": "Tilaviestin väli",
   "settings.status_interval.label": "Välein",
   "settings.status_interval.tip1": "Aika kahden tilaviestin välillä.",
   "settings.status_template.name": "Tilaviestin malli",
   "settings.status_template.label": "Teksti",
-  "settings.status_template.tip1": "{{freq}} muuttuu radion taajuudeksi ja {{mode}} sen modulaatioksi. Täytettynä enintään {max} merkkiä.",
+  "settings.status_template.tip1":
+    "{{freq}} muuttuu radion taajuudeksi ja {{mode}} sen modulaatioksi. Täytettynä enintään {max} merkkiä.",
   "settings.status_template.tip2": "Esimerkki: QRV {{freq}} {{mode}} antaa QRV 14.074 MHz USB",
 
   "settings.beacon_interval.name": "Majakkaväli",
@@ -379,16 +406,23 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.keyed": "Avainnettu",
   "settings.tnc.listening": "Kuuntelee",
   "settings.tnc.snr": "SNR {db} dB",
-  "settings.tnc.dummy_hf": "Simuloitu Mercury-radio: keksittyjä kaukaisia asemia, kehyksesi kaiuttimissa, mitään ei lähde ilmaan",
+  "settings.tnc.dummy_hf":
+    "Simuloitu Mercury-radio: keksittyjä kaukaisia asemia, kehyksesi kaiuttimissa, mitään ei lähde ilmaan",
   "settings.tnc.no_packet": "Ei vielä pakettia",
   "settings.tnc.last_packet": "Viimeisin paketti {span} sitten",
   "settings.digi.on": "päällä",
   "settings.digi.off": "pois",
   "settings.digi.line.none": "Ei vielä toistettuja",
-  "settings.digi.line.count": { one: "{n} paketti toistettu · viimeisin {span} sitten", other: "{n} pakettia toistettu · viimeisin {span} sitten" },
+  "settings.digi.line.count": {
+    one: "{n} paketti toistettu · viimeisin {span} sitten",
+    other: "{n} pakettia toistettu · viimeisin {span} sitten",
+  },
   "settings.digi.line.rx_only": "Vain RX: mitään ei toisteta",
   "settings.digi.fold.since": "Laskettu alkaen {when}",
-  "settings.digi.fold.held": { one: "{n} kehys pidätetty: liian monta kerralla", other: "{n} kehystä pidätetty: liian monta kerralla" },
+  "settings.digi.fold.held": {
+    one: "{n} kehys pidätetty: liian monta kerralla",
+    other: "{n} kehystä pidätetty: liian monta kerralla",
+  },
   "settings.pair.legend": "{first} ja {second}",
   "settings.pair.name": "Radioparin toisto",
   "settings.pair.call": "Kutsu",
@@ -397,8 +431,14 @@ export const settings: Record<keyof typeof source, Message> = {
     "Lähettää toisella radiolla kuullun paketin kerran toisella, kun sen polussa on tämä kutsu. Anna kutsu asemille, jotka haluavat toiselle radiolle.",
   "settings.pair.tip2": "Pelkkä WIDE-polku ei koskaan mene yli.",
   "settings.pair.fold.each_way": "{n} radiolle {first} · {m} radiolle {second}",
-  "settings.pair.fold.held": { one: "{n} kehys pidätetty: liian monta radiolle {radio}", other: "{n} kehystä pidätetty: liian monta radiolle {radio}" },
-  "settings.pair.fold.too_long": { one: "{n} kehys liian pitkä radiolle {radio}", other: "{n} kehystä liian pitkiä radiolle {radio}" },
+  "settings.pair.fold.held": {
+    one: "{n} kehys pidätetty: liian monta radiolle {radio}",
+    other: "{n} kehystä pidätetty: liian monta radiolle {radio}",
+  },
+  "settings.pair.fold.too_long": {
+    one: "{n} kehys liian pitkä radiolle {radio}",
+    other: "{n} kehystä liian pitkiä radiolle {radio}",
+  },
   "settings.tnc.searching": "Etsitään radiota…",
   "settings.tnc.connecting": "Yhdistetään…",
   "settings.tnc.connecting_to": "Yhdistetään: {path}…",
@@ -436,11 +476,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.step_percent": "{step} {percent} %",
   "settings.map.downloaded": "Kartta ladattu",
   "settings.map.downloaded_on": "Kartta ladattu {day}. {month}",
-  "settings.map.problem.no_position": "asemalla ei ole vielä sijaintia: aseta Leveysaste ja Pituusaste (kartta rajataan niiden ympäriltä)",
+  "settings.map.problem.no_position":
+    "asemalla ei ole vielä sijaintia: aseta Leveysaste ja Pituusaste (kartta rajataan niiden ympäriltä)",
   "settings.map.problem.busy": "karttatyö on käynnissä",
   "settings.map.problem.slow": "karttapalvelin on nyt liian hidas; yritä myöhemmin uudelleen",
   "settings.map.problem.unreachable": "karttapalvelimeen ei saatu yhteyttä; onko yhteys päällä?",
-  "settings.map.problem.no_build": "kartan päivittäistä versiota ei löytynyt viimeisen {days} päivän ajalta (onko yhteys päällä?)",
+  "settings.map.problem.no_build":
+    "kartan päivittäistä versiota ei löytynyt viimeisen {days} päivän ajalta (onko yhteys päällä?)",
   "settings.map.problem.too_big": "kartta olisi {size} MB, enemmän kuin sallitut {max} MB",
   "settings.map.problem.no_space": "karttaa ei voitu tehdä: levy on täynnä",
   "settings.map.problem.failed": "karttaa ei voitu tehdä; loki kertoo syyn",
@@ -460,28 +502,34 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.position.fixed": "Kiinteä",
   "settings.position.gpsd": "GPS gpsd:n kautta",
   "settings.position.serial": "GPS sarjaportissa",
-  "settings.position.tip1": "Kiinteä: asema pysyy alla olevassa sijainnissa. GPS: sijainti, suunta ja nopeus tulevat vastaanottimelta.",
-  "settings.position.tip2": "gpsd on Linuxin GPS-palvelu. Ilman tuoretta paikannusta ei lähetetä mitään, ei koskaan kotisijaintia.",
+  "settings.position.tip1":
+    "Kiinteä: asema pysyy alla olevassa sijainnissa. GPS: sijainti, suunta ja nopeus tulevat vastaanottimelta.",
+  "settings.position.tip2":
+    "gpsd on Linuxin GPS-palvelu. Ilman tuoretta paikannusta ei lähetetä mitään, ei koskaan kotisijaintia.",
   "settings.gps_host.label": "gpsd:n osoite",
-  "settings.gps_host.tip1": "Missä gpsd kuuntelee, muodossa isäntä:portti; jätä ennalleen, kun gpsd toimii tällä tietokoneella.",
+  "settings.gps_host.tip1":
+    "Missä gpsd kuuntelee, muodossa isäntä:portti; jätä ennalleen, kun gpsd toimii tällä tietokoneella.",
   "settings.gps_device.label": "GPS-portti",
   "settings.gps_device.tip1": "GPS-vastaanottimen portti: /dev/ttyUSB1 Linuxissa, COM4 Windowsissa.",
   "settings.gps_device.tip2": "Pidä se eri kuin radion portti: yksi laite ei voi olla molempia.",
   "settings.gps_baud.label": "GPS:n nopeus",
-  "settings.gps_baud.tip1": "Vastaanottimen nopeus: useimmilla 4800 tai 9600. Väärä nopeus näkyy puuttuvana paikannuksena.",
+  "settings.gps_baud.tip1":
+    "Vastaanottimen nopeus: useimmilla 4800 tai 9600. Väärä nopeus näkyy puuttuvana paikannuksena.",
 
   "settings.travel.label": "Liikkuminen",
   "settings.travel.car": "Autolla",
   "settings.travel.bicycle": "Polkupyörällä",
   "settings.travel.foot": "Jalan",
   "settings.travel.boat": "Veneellä",
-  "settings.travel.tip1": "Määrää, kuinka usein majakka lähtee ja missä käänteissä: auto lähettää vauhdissa useammin kuin kävelijä.",
+  "settings.travel.tip1":
+    "Määrää, kuinka usein majakka lähtee ja missä käänteissä: auto lähettää vauhdissa useammin kuin kävelijä.",
 
   "settings.update.group": "Päivitysten tarkistus",
   "settings.update.label": "Uusi versio",
   "settings.update.check": "Tarkista nyt",
   "settings.update.tip_label": "Tietoa: päivitysten tarkistus",
-  "settings.update.tip": "NeoAPRS kysyy kerran päivässä, onko uudempi versio ilmestynyt, ja näyttää ylhäällä Päivitys-merkin.",
+  "settings.update.tip":
+    "NeoAPRS kysyy kerran päivässä, onko uudempi versio ilmestynyt, ja näyttää ylhäällä Päivitys-merkin.",
   "settings.update.available": "{version} saatavilla",
   "settings.update.current": "ajan tasalla",
   "settings.update.checking": "tarkistetaan…",
@@ -498,7 +546,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.send": "Lähetä palaute / lokit",
   "settings.help.sending": "Lähetetään…",
   "settings.help.tip_label": "Tietoa: lokit",
-  "settings.help.tip": "Loki, asetukset sekä kuullut ja lähetetyt paketit. Ne voi tallentaa tiedostoon tai lähettää projektille.",
+  "settings.help.tip":
+    "Loki, asetukset sekä kuullut ja lähetetyt paketit. Ne voi tallentaa tiedostoon tai lähettää projektille.",
   "settings.help.saved": "Tallennettu: {file}.",
   "settings.help.sent": "Lähetetty. Viite {ref}.",
   "settings.help.problem.access": "Ei pääsyä: lataa sivu uudelleen, anna pääsyavain ja yritä uudelleen.",

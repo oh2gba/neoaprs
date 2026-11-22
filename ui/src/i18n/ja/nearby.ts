@@ -42,11 +42,15 @@ export const nearby = {
   "nearby.ask_sent_own.aprs": "{time}に周囲の局に問い合わせました。応答は地図と局タブに届きます",
   "nearby.ask_sent_own.igate": "{time}にiGateに問い合わせました。応答は地図と局タブに届きます",
   "nearby.ask_sent_own.wx": "{time}に気象局に問い合わせました。応答は地図と局タブに届きます",
-  "nearby.ask_new_counting": { "=0": "直前{min}分間に受信のなかった局を待っています…", other: "直前{min}分間に受信のなかった局{n}局がその後送信しました…" },
+  "nearby.ask_new_counting": {
+    "=0": "直前{min}分間に受信のなかった局を待っています…",
+    other: "直前{min}分間に受信のなかった局{n}局がその後送信しました…",
+  },
   "nearby.ask_new": {
     "=0": "直前{min}分間に受信のなかった局は、その後{after}分間に送信しませんでした",
     other: "直前{min}分間に受信のなかった局{n}局が、その後{after}分間に送信しました",
   },
   "nearby.ask_new_title": "{calls}。多くは応答と思われますが、その間に自局のビーコンを送った局も数えています。",
-  "nearby.ask_new_note": "問い合わせの後に無線で受信し、直前{min}分間は受信のなかった局です。多くは応答と思われますが、その間のビーコンも数えています。",
+  "nearby.ask_new_note":
+    "問い合わせの後に無線で受信し、直前{min}分間は受信のなかった局です。多くは応答と思われますが、その間のビーコンも数えています。",
 };

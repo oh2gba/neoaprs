@@ -74,9 +74,12 @@ export function paintMarker(dom: MarkerDom, row: StationRow, state: MarkerState)
   if (dom.sign.textContent !== sign) dom.sign.textContent = sign;
   dom.root.classList.toggle("stn--sign", sign !== "");
   const net = internetOnly(row);
-  const details = [symbolLabel(row), markerWeather(row), state.direct ? t("station.heard_direct") : "", net ? t("station.marker.internet") : ""].filter(
-    (part) => part !== "",
-  );
+  const details = [
+    symbolLabel(row),
+    markerWeather(row),
+    state.direct ? t("station.heard_direct") : "",
+    net ? t("station.marker.internet") : "",
+  ].filter((part) => part !== "");
   dom.root.setAttribute("aria-label", t("station.marker_label", { call: row.call, details: details.join(", ") }));
   dom.root.classList.toggle("stn--me", row.is_me);
   dom.root.classList.toggle("stn--own", row.own);

@@ -3,11 +3,13 @@ export const nearby = {
   "nearby.digipeaters": "Digipeaters",
   "nearby.digipeaters_help": "Stations that repeated packets we heard, and stations with a digipeater symbol.",
   "nearby.digipeaters_tip_label": "About the range",
-  "nearby.digipeaters_tip": "A digipeater repeats what it hears. Stations inside its circle reach it; stations outside do not.",
+  "nearby.digipeaters_tip":
+    "A digipeater repeats what it hears. Stations inside its circle reach it; stations outside do not.",
   "nearby.voice": "Voice frequencies",
   "nearby.voice_help": "Stations, objects and items that gave a frequency to call on.",
   "nearby.igates": "iGates",
-  "nearby.igates_help": "Stations that put packets from the internet on the air, said they are an iGate, or have the iGate symbol.",
+  "nearby.igates_help":
+    "Stations that put packets from the internet on the air, said they are an iGate, or have the iGate symbol.",
   "nearby.igates_tip_label": "About iGates",
   "nearby.igates_tip": "An iGate passes packets between the radio and the internet, so that far away stations see you.",
   "nearby.direct": "Heard direct",
@@ -26,7 +28,8 @@ export const nearby = {
   "nearby.direct_last": "last heard direct {when}",
   "nearby.ask": "Ask around",
   "nearby.ask_tip_label": "About asking around",
-  "nearby.ask_tip": "Sends one query by radio. Stations answer with their position, iGates with what they do, weather stations with their weather.",
+  "nearby.ask_tip":
+    "Sends one query by radio. Stations answer with their position, iGates with what they do, weather stations with their weather.",
   "nearby.ask_kind_label": "What to ask",
   "nearby.ask_kind.aprs": "Who is around",
   "nearby.ask_kind.igate": "iGates",
@@ -52,7 +55,8 @@ export const nearby = {
     one: "{n} station quiet in the {min} minutes before spoke in the {after} minutes after",
     other: "{n} stations quiet in the {min} minutes before spoke in the {after} minutes after",
   },
-  "nearby.ask_new_title": "{calls}. Most are likely answers; a station whose own beacon fell in those minutes counts too.",
+  "nearby.ask_new_title":
+    "{calls}. Most are likely answers; a station whose own beacon fell in those minutes counts too.",
   "nearby.ask_new_note":
     "Stations heard on the radio after the query that had not been heard in the {min} minutes before. Most are likely answers; a beacon that fell then counts too.",
 } as const;

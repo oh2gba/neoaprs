@@ -9,9 +9,19 @@ useAppHarness();
 
 describe("App: the Email tab", () => {
   describe("the Email tab", () => {
-    const gateway = (id: number, extra = {}) => incoming(id, "EMAIL-2", { text: "Msg sent to jane@example.com", ...extra });
-    const say = async (socket: ReturnType<typeof FakeSocket.last>, rev: number, ...rows: ReturnType<typeof incoming>[]) => {
-      socket.say({ type: "patch", topic: "messages", rev, ops: rows.map((r) => ({ op: "set", key: String(r.id), value: r })) });
+    const gateway = (id: number, extra = {}) =>
+      incoming(id, "EMAIL-2", { text: "Msg sent to jane@example.com", ...extra });
+    const say = async (
+      socket: ReturnType<typeof FakeSocket.last>,
+      rev: number,
+      ...rows: ReturnType<typeof incoming>[]
+    ) => {
+      socket.say({
+        type: "patch",
+        topic: "messages",
+        rev,
+        ops: rows.map((r) => ({ op: "set", key: String(r.id), value: r })),
+      });
       await flushPromises();
     };
     const badge = (wrapper: VueWrapper) => tabButton(wrapper, "Email")?.find(".badge");
@@ -58,7 +68,10 @@ describe("App: the Email tab", () => {
     it("shows the thread with the gateway there and leaves it out of the Messages tab and its count", async () => {
       const { wrapper, socket } = await open();
       await say(socket, 1, message(10, { to_call: "EMAIL-2", text: "me hello" }), gateway(11));
-      expect(wrapper.findAll("#pane-email .mail").map((m) => m.find(".mail-title").text())).toEqual(["To me", "From EMAIL-2"]);
+      expect(wrapper.findAll("#pane-email .mail").map((m) => m.find(".mail-title").text())).toEqual([
+        "To me",
+        "From EMAIL-2",
+      ]);
       expect(wrapper.findAll("#pane-messages .conv-call").map((c) => c.text())).toEqual(["OH2PU-9", "OH2RDG"]);
       expect(tabButton(wrapper, "Messages")?.find(".badge").text()).toBe("2");
       // The messages not seen, the gateway's one included: the count of the title and of the folded
@@ -132,7 +145,12 @@ describe("App: the Email tab", () => {
 
     it("is opened by the Message button of the gateway's station card", async () => {
       const { wrapper, socket } = await open();
-      socket.say({ type: "patch", topic: "stations", rev: 1, ops: [{ op: "set", key: "EMAIL-2", value: station("EMAIL-2", { lat: null, lon: null }) }] });
+      socket.say({
+        type: "patch",
+        topic: "stations",
+        rev: 1,
+        ops: [{ op: "set", key: "EMAIL-2", value: station("EMAIL-2", { lat: null, lon: null }) }],
+      });
       await flushPromises();
       await wrapper
         .findAll("#pane-stations tbody tr")

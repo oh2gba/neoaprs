@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
-import { bestText, heardDirect, heardDirectRecently, heardText, internetText, reachedText, routeWords, viaName } from "@/lib/routes";
+import {
+  bestText,
+  heardDirect,
+  heardDirectRecently,
+  heardText,
+  internetText,
+  reachedText,
+  routeWords,
+  viaName,
+} from "@/lib/routes";
 import { NOW, ago, station } from "@/test/fixtures";
 
 describe("heardText", () => {
@@ -17,7 +26,9 @@ describe("heardText", () => {
   });
 
   it("leaves out what is zero, names an unnamed repeater and counts the packets from the internet", () => {
-    expect(heardText(station("A", { heard_direct: 0, heard_via: [["?", 3]], heard_rf_gated: 2 }))).toBe("3 via an unnamed repeater, 2 via an iGate");
+    expect(heardText(station("A", { heard_direct: 0, heard_via: [["?", 3]], heard_rf_gated: 2 }))).toBe(
+      "3 via an unnamed repeater, 2 via an iGate",
+    );
     expect(heardText(station("A", { heard_direct: 1, heard_via: [], heard_rf_gated: 0 }))).toBe("1 direct");
   });
 
@@ -29,12 +40,16 @@ describe("heardText", () => {
 describe("bestText", () => {
   it("says the route and the path to send by", () => {
     expect(bestText({ best_route: "via OH2RCH-2", suggested_path: "OH2RCH-2" })).toBe("via OH2RCH-2; send by OH2RCH-2");
-    expect(bestText({ best_route: "via OH2RCH-1 → OH2RCH-3", suggested_path: "OH2RCH-3,OH2RCH-1" })).toBe("via OH2RCH-1 → OH2RCH-3; send by OH2RCH-3,OH2RCH-1");
+    expect(bestText({ best_route: "via OH2RCH-1 → OH2RCH-3", suggested_path: "OH2RCH-3,OH2RCH-1" })).toBe(
+      "via OH2RCH-1 → OH2RCH-3; send by OH2RCH-3,OH2RCH-1",
+    );
     expect(bestText({ best_route: "direct", suggested_path: "" })).toBe("direct; send direct");
   });
 
   it("says when a repeater gave no call, and when there is nothing to say", () => {
-    expect(bestText({ best_route: "via ? → OH2RCH-2", suggested_path: "WIDE1-1,WIDE2-1" })).toBe("via ? → OH2RCH-2; unknown repeater, send by WIDE1-1,WIDE2-1");
+    expect(bestText({ best_route: "via ? → OH2RCH-2", suggested_path: "WIDE1-1,WIDE2-1" })).toBe(
+      "via ? → OH2RCH-2; unknown repeater, send by WIDE1-1,WIDE2-1",
+    );
     expect(bestText({ best_route: "", suggested_path: null })).toBe("-");
   });
 });
@@ -113,21 +128,35 @@ describe("internetText", () => {
 
   it("names the iGate that heard it and the digipeaters before it, or says it heard it direct", () => {
     expect(internetText(reach("OH2GW-10", ["OH2RCH-2"]), book)).toBe("Heard by iGate OH2GW-10 via OH2RCH-2");
-    expect(internetText(reach("OH2GW-10", ["OH2RCH-1", "OH2RCH-3"]), book)).toBe("Heard by iGate OH2GW-10 via OH2RCH-1 → OH2RCH-3");
-    expect(internetText(reach("OH2GW-10", ["?", "OH2RCH-2"]), book)).toBe("Heard by iGate OH2GW-10 via a repeater → OH2RCH-2");
+    expect(internetText(reach("OH2GW-10", ["OH2RCH-1", "OH2RCH-3"]), book)).toBe(
+      "Heard by iGate OH2GW-10 via OH2RCH-1 → OH2RCH-3",
+    );
+    expect(internetText(reach("OH2GW-10", ["?", "OH2RCH-2"]), book)).toBe(
+      "Heard by iGate OH2GW-10 via a repeater → OH2RCH-2",
+    );
     expect(internetText(reach("OH2GW-10", []), book)).toBe("Heard by iGate OH2GW-10 directly");
   });
 
   it("says that the iGate's position is not known, for an iGate not in the book and one with no position", () => {
-    expect(internetText(reach("OH2NOPOS", ["OH2RCH-2"]), book)).toBe("Heard by iGate OH2NOPOS via OH2RCH-2 (iGate position unknown)");
-    expect(internetText(reach("OH2UNKNOWN", []), book)).toBe("Heard by iGate OH2UNKNOWN directly (iGate position unknown)");
+    expect(internetText(reach("OH2NOPOS", ["OH2RCH-2"]), book)).toBe(
+      "Heard by iGate OH2NOPOS via OH2RCH-2 (iGate position unknown)",
+    );
+    expect(internetText(reach("OH2UNKNOWN", []), book)).toBe(
+      "Heard by iGate OH2UNKNOWN directly (iGate position unknown)",
+    );
   });
 
   it("says that a packet from an app never was on the air, and nothing when the way is not known", () => {
-    expect(internetText({ internet_reach: { kind: "app", igate: "", hops: [] } }, book)).toBe("Sent over the internet, not heard on the air");
+    expect(internetText({ internet_reach: { kind: "app", igate: "", hops: [] } }, book)).toBe(
+      "Sent over the internet, not heard on the air",
+    );
     expect(internetText({ internet_reach: null }, book)).toBeNull();
     const app = { internet_reach: { kind: "app" as const, igate: "", hops: [] } };
-    expect(internetText({ ...app, kind: "object", reported_by: "OH2HCY" }, book)).toBe("Sent over the internet by OH2HCY, not heard on the air");
-    expect(internetText({ ...app, kind: "item", reported_by: "" }, book)).toBe("Sent over the internet, not heard on the air");
+    expect(internetText({ ...app, kind: "object", reported_by: "OH2HCY" }, book)).toBe(
+      "Sent over the internet by OH2HCY, not heard on the air",
+    );
+    expect(internetText({ ...app, kind: "item", reported_by: "" }, book)).toBe(
+      "Sent over the internet, not heard on the air",
+    );
   });
 });

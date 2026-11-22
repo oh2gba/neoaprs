@@ -58,8 +58,21 @@ describe("an aircraft's kind", () => {
 
 describe("the aircraft's shapes", () => {
   it("are drawn at one and a half times the sizes tar1090's proportions gave them at 11 to 20 px, rounded, so that the proportions between the kinds stay and the largest is 30", () => {
-    const before = { airliner: 17, heavy: 19, heavy4: 20, bizjet: 14, twin: 14, light: 14, helicopter: 16, glider: 18, balloon: 11, drone: 15, unknown: 14 };
-    for (const [name, size] of Object.entries(before)) expect(AIRCRAFT_SHAPES[name as keyof typeof before].size, name).toBe(Math.round(size * 1.5));
+    const before = {
+      airliner: 17,
+      heavy: 19,
+      heavy4: 20,
+      bizjet: 14,
+      twin: 14,
+      light: 14,
+      helicopter: 16,
+      glider: 18,
+      balloon: 11,
+      drone: 15,
+      unknown: 14,
+    };
+    for (const [name, size] of Object.entries(before))
+      expect(AIRCRAFT_SHAPES[name as keyof typeof before].size, name).toBe(Math.round(size * 1.5));
     expect(Math.max(...Object.values(AIRCRAFT_SHAPES).map((shape) => shape.size))).toBe(30);
   });
 

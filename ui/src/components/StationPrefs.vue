@@ -67,7 +67,13 @@ function picked(event: Event, call: string, choice: RadioId | null): void {
   <div class="prefs">
     <div v-if="radios.length > 1" class="pathbox route-radio" :class="{ disabled: fixed }">
       <label :for="id" class="path-label">{{ t("radio.choice") }}</label>
-      <select :id="id" class="input route-radio-pick" :value="choice === null ? '' : String(choice)" :disabled="fixed" @change="picked($event, call, choice)">
+      <select
+        :id="id"
+        class="input route-radio-pick"
+        :value="choice === null ? '' : String(choice)"
+        :disabled="fixed"
+        @change="picked($event, call, choice)"
+      >
         <option value="">{{ auto === null ? t("radio.automatic") : t("route.radio_auto", { name: auto }) }}</option>
         <option v-for="radio in radios" :key="radio.id" :value="String(radio.id)">{{ radio.name }}</option>
       </select>
@@ -83,7 +89,12 @@ function picked(event: Event, call: string, choice: RadioId | null): void {
       @set="(c, p) => emit('path', c, p)"
       @clear="emit('clearPath', $event)"
     >
-      <StationRfOnly :call="call" :rf-only="rfOnly" :pathless="reply === '' ? pathless : undefined" @set="(c, on) => emit('setRfOnly', c, on)" />
+      <StationRfOnly
+        :call="call"
+        :rf-only="rfOnly"
+        :pathless="reply === '' ? pathless : undefined"
+        @set="(c, on) => emit('setRfOnly', c, on)"
+      />
     </StationPath>
   </div>
 </template>

@@ -15,9 +15,16 @@ import type { MapLayer } from "@/protocol/protocol";
 let place: HTMLElement;
 let wrapper: VueWrapper | null = null;
 
-function mounted(layers: MapLayer[] = [mapLayer("aircraft"), mapLayer("ships")], counts?: Record<string, number | null>): { daemon: FakeDaemon } {
+function mounted(
+  layers: MapLayer[] = [mapLayer("aircraft"), mapLayer("ships")],
+  counts?: Record<string, number | null>,
+): { daemon: FakeDaemon } {
   const daemon = fakeDaemon({ map: mapState({ layers }) });
-  wrapper = mount(MapLayers, { props: { place, ...(counts ? { counts } : {}) }, global: withDaemon(daemon), attachTo: document.body });
+  wrapper = mount(MapLayers, {
+    props: { place, ...(counts ? { counts } : {}) },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   return { daemon };
 }
 
@@ -107,7 +114,11 @@ describe("the rows of the box", () => {
     mounted();
     await openBox();
     expect(rowIds()).toEqual(["tracks", "aloha", "grid"]);
-    expect([...place.querySelectorAll(".layers-name")].map((name) => name.textContent)).toEqual(["Tracks", "ALOHA circle", "Locator grid"]);
+    expect([...place.querySelectorAll(".layers-name")].map((name) => name.textContent)).toEqual([
+      "Tracks",
+      "ALOHA circle",
+      "Locator grid",
+    ]);
     expect(row("tracks")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.track.d);
     expect(row("aloha")?.querySelector(".layermark path")?.getAttribute("stroke-dasharray")).toBe(MARKS.circle.dash);
     expect(row("grid")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.grid.d);
@@ -130,21 +141,23 @@ describe("the rows of the box", () => {
   });
 
   it("give a Radarcape's aircraft no source word, as any own receiver", () => {
-    expect(layerRows([mapLayer("aircraft", { source: "radarcape" }), mapLayer("ships")]).map((one) => one.source)).toEqual([null, null, null, null]);
+    expect(
+      layerRows([mapLayer("aircraft", { source: "radarcape" }), mapLayer("ships")]).map((one) => one.source),
+    ).toEqual([null, null, null, null]);
   });
 
   it("name adsb.lol and Fintraffic by their own names", () => {
-    expect(layerRows([mapLayer("aircraft", { source: "adsblol" }), mapLayer("ships", { source: "fintraffic" })]).map((one) => one.source)).toEqual([
-      null,
-      null,
-      null,
-      "adsb.lol",
-      "Fintraffic",
-    ]);
+    expect(
+      layerRows([mapLayer("aircraft", { source: "adsblol" }), mapLayer("ships", { source: "fintraffic" })]).map(
+        (one) => one.source,
+      ),
+    ).toEqual([null, null, null, "adsb.lol", "Fintraffic"]);
   });
 
   it("have no Aircraft row with the source none, and no row of things from a daemon that tells no layers", () => {
-    expect(layerRows([mapLayer("aircraft"), mapLayer("ships", { source: "fintraffic" })]).map((one) => one.id)).toEqual(["tracks", "aloha", "grid", "ships"]);
+    expect(layerRows([mapLayer("aircraft"), mapLayer("ships", { source: "fintraffic" })]).map((one) => one.id)).toEqual(
+      ["tracks", "aloha", "grid", "ships"],
+    );
     expect(layerRows([]).map((one) => one.id)).toEqual(["tracks", "aloha", "grid"]);
     expect(layerRows(undefined).map((one) => one.id)).toEqual(["tracks", "aloha", "grid"]);
   });
@@ -152,7 +165,9 @@ describe("the rows of the box", () => {
   it("do not come and go while the box is open: they follow the station when it opens again", async () => {
     const { daemon } = mounted();
     await openBox();
-    await tell(daemon, { map: mapState({ layers: [mapLayer("aircraft", { source: "receiver" }), mapLayer("ships")] }) });
+    await tell(daemon, {
+      map: mapState({ layers: [mapLayer("aircraft", { source: "receiver" }), mapLayer("ships")] }),
+    });
     expect(rowIds()).toEqual(["tracks", "aloha", "grid"]);
     button()?.click();
     await nextTick();
@@ -161,7 +176,9 @@ describe("the rows of the box", () => {
   });
 
   it("keep the room of a count at one width in tabular figures on every row of things: a number, a dash while away, nothing while off", async () => {
-    mounted([mapLayer("aircraft", { source: "adsbfi" }), mapLayer("ships", { source: "fintraffic" })], { aircraft: 1043 });
+    mounted([mapLayer("aircraft", { source: "adsbfi" }), mapLayer("ships", { source: "fintraffic" })], {
+      aircraft: 1043,
+    });
     await openBox();
     expect(row("aircraft")?.querySelector(".layers-count")?.textContent).toBe("1043");
     expect(row("ships")?.querySelector(".layers-count")?.textContent).toBe("");
@@ -191,7 +208,13 @@ describe("the ticks", () => {
   it("are Tracks and ALOHA circle on out of the box, the rest off", async () => {
     mounted([mapLayer("aircraft", { source: "receiver" }), mapLayer("ships", { source: "receiver" })]);
     await openBox();
-    expect(["tracks", "aloha", "grid", "aircraft", "ships"].map((id) => tick(id)?.checked)).toEqual([true, true, false, false, false]);
+    expect(["tracks", "aloha", "grid", "aircraft", "ships"].map((id) => tick(id)?.checked)).toEqual([
+      true,
+      true,
+      false,
+      false,
+      false,
+    ]);
   });
 
   it("are this browser's, and there again after a reload", async () => {

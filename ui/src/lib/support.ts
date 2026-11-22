@@ -101,7 +101,8 @@ export function pageInfo(given: InfoGiven, host: InfoHost = window, now: number 
  */
 export function bodyOf(info: PageInfo, note?: string, file: SentFile = true): string {
   const size = (text: string): number => new TextEncoder().encode(text).length;
-  const body = (page: PageInfo): string => JSON.stringify(note === undefined ? { page } : file === true ? { page, note } : { page, note, file });
+  const body = (page: PageInfo): string =>
+    JSON.stringify(note === undefined ? { page } : file === true ? { page, note } : { page, note, file });
   let text = body(info);
   if (size(text) <= BODY_MAX_BYTES) return text;
   let errors = info.errors.map((entry) => ({ ...entry, stack: entry.stack.slice(0, 500) }));
@@ -144,7 +145,12 @@ export function filenameOf(disposition: string | null): string | null {
  * Ask the daemon for the support file. Its 401 and 403 mean no access, 429 another file is
  * being made; no answer is an unreachable daemon.
  */
-export async function requestBundle(info: PageInfo, call: string | null, fetcher: typeof fetch = fetch, now: number = Date.now()): Promise<Bundle> {
+export async function requestBundle(
+  info: PageInfo,
+  call: string | null,
+  fetcher: typeof fetch = fetch,
+  now: number = Date.now(),
+): Promise<Bundle> {
   let response: Response;
   try {
     response = await fetcher(endpoint("support/bundle"), {
@@ -157,7 +163,8 @@ export async function requestBundle(info: PageInfo, call: string | null, fetcher
   } catch {
     return { ok: false, problem: "unreachable", status: 0 };
   }
-  if (response.status === 401 || response.status === 403) return { ok: false, problem: "access", status: response.status };
+  if (response.status === 401 || response.status === 403)
+    return { ok: false, problem: "access", status: response.status };
   if (response.status === 429) return { ok: false, problem: "busy", status: 429 };
   if (!response.ok) return { ok: false, problem: "failed", status: response.status };
   try {
@@ -180,7 +187,12 @@ const SERVER_REASONS: ReadonlySet<string> = new Set(["offline", "rate", "too_lar
  * connection, too many sends, too large, refused); 401 and 403 mean no access, 429 another file
  * is being made.
  */
-export async function requestSend(info: PageInfo, note: string, file: SentFile, fetcher: typeof fetch = fetch): Promise<Sent> {
+export async function requestSend(
+  info: PageInfo,
+  note: string,
+  file: SentFile,
+  fetcher: typeof fetch = fetch,
+): Promise<Sent> {
   let response: Response;
   try {
     response = await fetcher(endpoint("support/send"), {
@@ -193,14 +205,19 @@ export async function requestSend(info: PageInfo, note: string, file: SentFile, 
   } catch {
     return { ok: false, problem: "unreachable", status: 0 };
   }
-  if (response.status === 401 || response.status === 403) return { ok: false, problem: "access", status: response.status };
+  if (response.status === 401 || response.status === 403)
+    return { ok: false, problem: "access", status: response.status };
   if (response.status === 429) return { ok: false, problem: "busy", status: 429 };
   if (!response.ok) return { ok: false, problem: "failed", status: response.status };
   try {
     const said: unknown = await response.json();
-    const answer = typeof said === "object" && said !== null ? (said as { ok?: unknown; ref?: unknown; reason?: unknown }) : {};
+    const answer =
+      typeof said === "object" && said !== null ? (said as { ok?: unknown; ref?: unknown; reason?: unknown }) : {};
     if (answer.ok === true && typeof answer.ref === "string" && answer.ref !== "") return { ok: true, ref: answer.ref };
-    const reason = typeof answer.reason === "string" && SERVER_REASONS.has(answer.reason) ? (answer.reason as SendProblem) : "refused";
+    const reason =
+      typeof answer.reason === "string" && SERVER_REASONS.has(answer.reason)
+        ? (answer.reason as SendProblem)
+        : "refused";
     return { ok: false, problem: reason, status: 200 };
   } catch {
     return { ok: false, problem: "failed", status: 200 };
@@ -211,7 +228,12 @@ export async function requestSend(info: PageInfo, note: string, file: SentFile, 
  * Save a file the way a link would: an object URL, a click on a downloading link, the URL
  * revoked a moment later.
  */
-export function saveFile(blob: Blob, filename: string, doc: Document = document, urls: Pick<typeof URL, "createObjectURL" | "revokeObjectURL"> = URL): void {
+export function saveFile(
+  blob: Blob,
+  filename: string,
+  doc: Document = document,
+  urls: Pick<typeof URL, "createObjectURL" | "revokeObjectURL"> = URL,
+): void {
   const url = urls.createObjectURL(blob);
   const link = doc.createElement("a");
   link.href = url;

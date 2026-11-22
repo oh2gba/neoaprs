@@ -31,7 +31,13 @@ const fresh = () =>
     "serial/baud": "",
     "serial/port": "",
   }).values;
-const answered = (extra: Partial<SetupFields> = {}): SetupFields => ({ ...fieldsFrom(fresh()), call: "oh2abc", lat: "60.17", lon: "24.94", ...extra });
+const answered = (extra: Partial<SetupFields> = {}): SetupFields => ({
+  ...fieldsFrom(fresh()),
+  call: "oh2abc",
+  lat: "60.17",
+  lon: "24.94",
+  ...extra,
+});
 
 describe("the call step", () => {
   it("takes a call with an optional SSID in any case, as lib/calls.ts does", () => {
@@ -43,7 +49,8 @@ describe("the call step", () => {
   });
 
   it("refuses what the daemon would not transmit under: NOCALL and MYCALL, and a call that has no digit or no letter or is 1 or 2 characters", () => {
-    for (const bad of ["NOCALL", "mycall-3"]) expect(callProblem(bad), bad).toBe(`${bad.split("-")[0]?.toUpperCase()} is not a call`);
+    for (const bad of ["NOCALL", "mycall-3"])
+      expect(callProblem(bad), bad).toBe(`${bad.split("-")[0]?.toUpperCase()} is not a call`);
     for (const bad of ["AB", "A1", "ABC", "123", "1234"]) {
       expect(callOk(bad), bad).toBe(false);
       expect(callProblem(bad), bad).toBe("Not a call");
@@ -79,7 +86,10 @@ describe("the position step", () => {
   it("needs both, and says which is wrong", () => {
     expect(stepOk(1, answered())).toBe(true);
     expect(stepOk(1, answered({ lon: "" }))).toBe(false);
-    expect(stepProblems(1, answered({ lat: "95", lon: "x" }))).toEqual({ lat: "Between -90 and 90", lon: "Not a number" });
+    expect(stepProblems(1, answered({ lat: "95", lon: "x" }))).toEqual({
+      lat: "Between -90 and 90",
+      lon: "Not a number",
+    });
     expect(stepOk(1, answered({ lat: "95" }))).toBe(false);
   });
 
@@ -136,11 +146,23 @@ describe("the radio step", () => {
    * Mercury modem, off), with what is being changed, the complaints, and whether the daemon
    * searches the ports.
    */
-  function ready(extra: Record<string, string> = {}, more: Partial<RadioStep> = {}, rows: RadioRow[] | null = null): boolean {
+  function ready(
+    extra: Record<string, string> = {},
+    more: Partial<RadioStep> = {},
+    rows: RadioRow[] | null = null,
+  ): boolean {
     const config = configValues();
     const values = { ...config.values, ...config.radio_values, ...extra };
-    const step: RadioStep = { values, draft: { ...values, ...more.draft }, errors: more.errors ?? {}, search: more.search ?? true };
-    const radios = pageRadios(radiosTopic(...(rows ?? [radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false })])), null);
+    const step: RadioStep = {
+      values,
+      draft: { ...values, ...more.draft },
+      errors: more.errors ?? {},
+      search: more.search ?? true,
+    };
+    const radios = pageRadios(
+      radiosTopic(...(rows ?? [radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false })])),
+      null,
+    );
     return radioReady(radios, step);
   }
 
@@ -180,11 +202,17 @@ describe("the radio step", () => {
   it("needs one radio on that is right: another on with a complaint, one that is off or removed with one, or none at all do not stop it, and only one that is right lets it go", () => {
     const hf = [radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")];
     expect(ready({}, { errors: { "radio/1/baud": "300 to 921600" } }, hf)).toBe(true); // the HF radio is right
-    expect(ready({}, { errors: { "radio/1/baud": "300 to 921600", "radio/2/keying": "no such port" } }, hf)).toBe(false);
+    expect(ready({}, { errors: { "radio/1/baud": "300 to 921600", "radio/2/keying": "no such port" } }, hf)).toBe(
+      false,
+    );
     // the HF radio alone needs no serial port
-    expect(ready({}, { search: false }, [radioRow(1, "kenwood-tnc2", { enabled: false }), radioRow(2, "mercury")])).toBe(true);
+    expect(
+      ready({}, { search: false }, [radioRow(1, "kenwood-tnc2", { enabled: false }), radioRow(2, "mercury")]),
+    ).toBe(true);
     // no radio on
-    expect(ready({}, {}, [radioRow(1, "kenwood-tnc2", { enabled: false }), radioRow(2, "mercury", { enabled: false })])).toBe(false);
+    expect(
+      ready({}, {}, [radioRow(1, "kenwood-tnc2", { enabled: false }), radioRow(2, "mercury", { enabled: false })]),
+    ).toBe(false);
     expect(ready({}, {}, [])).toBe(false);
     const own = [
       radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }),
@@ -195,7 +223,9 @@ describe("the radio step", () => {
     expect(ready({ "radio/3/port": "" }, { search: false, draft: { "radio/3/port": "/dev/ttyACM0" } }, own)).toBe(true);
     expect(ready({}, { errors: { "radio/3/baud": "300 to 921600" } }, own)).toBe(false);
     // radio 4 is off, and radio 3 has no TCP port
-    expect(ready({}, { errors: { "radio/4/tcp_port": "1 to 65535", "radio/3/tcp_port": "1 to 65535" } }, own)).toBe(true);
+    expect(ready({}, { errors: { "radio/4/tcp_port": "1 to 65535", "radio/3/tcp_port": "1 to 65535" } }, own)).toBe(
+      true,
+    );
   });
 
   it("has RX only as the group's own row: the radios' fields are their boxes'", () => {
@@ -206,7 +236,9 @@ describe("the radio step", () => {
 
 describe("what the guide starts with", () => {
   it("is the daemon's settings: the call, the place and the symbol (the radios have no answers: the Radio step is live)", () => {
-    const f = fieldsFrom(configValues({ "serial/baud": "9600", "station/symbol_table": "\\", "station/symbol_code": "k" }).values);
+    const f = fieldsFrom(
+      configValues({ "serial/baud": "9600", "station/symbol_table": "\\", "station/symbol_code": "k" }).values,
+    );
     expect(f).toEqual({ call: "OH2GBA", lat: "60.17", lon: "24.94", symbol: "\\k" });
     expect(fieldsFrom({}).symbol).toBe("/-");
   });
@@ -221,8 +253,14 @@ describe("the beacon of a new station", () => {
   });
 
   it("is left alone when the station has a beacon of its own or already has a call (the guide run again never starts one)", () => {
-    expect(setupChanges(answered(), { ...fresh(), "beacon/interval_min": "60" })["beacon/interval_min"]).toBeUndefined();
-    expect(setupChanges(answered(), { ...fresh(), "station/call": "OH2GBA", "beacon/interval_min": "0" })["beacon/interval_min"]).toBeUndefined();
+    expect(
+      setupChanges(answered(), { ...fresh(), "beacon/interval_min": "60" })["beacon/interval_min"],
+    ).toBeUndefined();
+    expect(
+      setupChanges(answered(), { ...fresh(), "station/call": "OH2GBA", "beacon/interval_min": "0" })[
+        "beacon/interval_min"
+      ],
+    ).toBeUndefined();
   });
 });
 
@@ -249,8 +287,19 @@ describe("setupChanges", () => {
   });
 
   it("has nothing of a radio, whatever the settings of the radios are: they were saved as they were changed (plan section 6: the call, the place, the symbol and the beacon still go at Finish)", () => {
-    const values = { ...fresh(), "fm/enabled": "false", "hf/enabled": "true", "tnc/profile": "kiss-tcp", "serial/port": "/dev/ttyUSB0" };
-    expect(Object.keys(setupChanges(answered(), values))).toEqual(["station/call", "station/lat", "station/lon", "beacon/interval_min"]);
+    const values = {
+      ...fresh(),
+      "fm/enabled": "false",
+      "hf/enabled": "true",
+      "tnc/profile": "kiss-tcp",
+      "serial/port": "/dev/ttyUSB0",
+    };
+    expect(Object.keys(setupChanges(answered(), values))).toEqual([
+      "station/call",
+      "station/lat",
+      "station/lon",
+      "beacon/interval_min",
+    ]);
   });
 
   it("brings a longitude of a map that was wrapped round into -180 to 180", () => {

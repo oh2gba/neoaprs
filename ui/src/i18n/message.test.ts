@@ -81,7 +81,10 @@ describe("the pseudo-locale", () => {
   });
 
   it("keeps the form of a plural and the name of a select", () => {
-    expect(pseudoMessage({ one: "{n} message", other: "{n} messages" })).toEqual({ one: pseudoText("{n} message"), other: pseudoText("{n} messages") });
+    expect(pseudoMessage({ one: "{n} message", other: "{n} messages" })).toEqual({
+      one: pseudoText("{n} message"),
+      other: pseudoText("{n} messages"),
+    });
     expect(pseudoMessage({ select: "kind", other: "x" })).toMatchObject({ select: "kind" });
   });
 });

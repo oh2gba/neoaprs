@@ -5,7 +5,12 @@
 // The world layers are drawn first and the detailed map on top, so the world shows where the
 // detailed map has no tile. With no file at all the style is a blank background.
 import { locale } from "@/i18n";
-import type { ExpressionSpecification, LayerSpecification, StyleSpecification, VectorSourceSpecification } from "maplibre-gl";
+import type {
+  ExpressionSpecification,
+  LayerSpecification,
+  StyleSpecification,
+  VectorSourceSpecification,
+} from "maplibre-gl";
 
 /** The files the daemon serves, relative to the page. */
 export const BASEMAP_FILE = "basemap.pmtiles";
@@ -121,7 +126,13 @@ function names(): ExpressionSpecification {
   return ["coalesce", ["get", `name:${language}`], ["get", "name"]];
 }
 
-function fill(id: string, layer: string, filter: ExpressionSpecification | null, color: string, extra: Partial<LayerSpecification> = {}): LayerSpecification {
+function fill(
+  id: string,
+  layer: string,
+  filter: ExpressionSpecification | null,
+  color: string,
+  extra: Partial<LayerSpecification> = {},
+): LayerSpecification {
   return {
     id,
     type: "fill",
@@ -140,7 +151,17 @@ function landLayers(p: Palette): LayerSpecification[] {
     fill(
       "landuse-grass",
       "landuse",
-      kindIn(["grassland", "meadow", "grass", "farmland", "allotments", "recreation_ground", "golf_course", "garden", "scrub"]),
+      kindIn([
+        "grassland",
+        "meadow",
+        "grass",
+        "farmland",
+        "allotments",
+        "recreation_ground",
+        "golf_course",
+        "garden",
+        "scrub",
+      ]),
       p.grass,
     ),
     fill("landuse-wetland", "landuse", kindIn(["wetland"]), p.wetland),
@@ -151,9 +172,19 @@ function landLayers(p: Palette): LayerSpecification[] {
       kindIn(["residential", "commercial", "retail", "hospital", "school", "university", "college", "kindergarten"]),
       p.residential,
     ),
-    fill("landuse-industrial", "landuse", kindIn(["industrial", "railway", "military", "quarry", "aerodrome", "airfield"]), p.industrial),
+    fill(
+      "landuse-industrial",
+      "landuse",
+      kindIn(["industrial", "railway", "military", "quarry", "aerodrome", "airfield"]),
+      p.industrial,
+    ),
     fill("landuse-forest", "landuse", kindIn(["forest", "wood"]), p.forest),
-    fill("landuse-park", "landuse", kindIn(["park", "nature_reserve", "dog_park", "playground", "pitch", "zoo", "cemetery"]), p.park),
+    fill(
+      "landuse-park",
+      "landuse",
+      kindIn(["park", "nature_reserve", "dog_park", "playground", "pitch", "zoo", "cemetery"]),
+      p.park,
+    ),
   ];
 }
 
@@ -183,12 +214,40 @@ interface RoadClass {
 
 // Bottom to top: a path under a minor road under a major road under a highway.
 const ROAD_CLASSES: RoadClass[] = [
-  { id: "minor", kinds: ["minor_road", "medium_road", "other"], minzoom: 12, widths: [0.3, 3, 12], color: (p) => p.minor, casing: (p) => p.minorCasing },
-  { id: "major", kinds: ["major_road"], minzoom: 7, widths: [0.7, 5, 18], color: (p) => p.major, casing: (p) => p.majorCasing },
-  { id: "highway", kinds: ["highway"], minzoom: 4, widths: [1.3, 7, 22], color: (p) => p.highway, casing: (p) => p.highwayCasing },
+  {
+    id: "minor",
+    kinds: ["minor_road", "medium_road", "other"],
+    minzoom: 12,
+    widths: [0.3, 3, 12],
+    color: (p) => p.minor,
+    casing: (p) => p.minorCasing,
+  },
+  {
+    id: "major",
+    kinds: ["major_road"],
+    minzoom: 7,
+    widths: [0.7, 5, 18],
+    color: (p) => p.major,
+    casing: (p) => p.majorCasing,
+  },
+  {
+    id: "highway",
+    kinds: ["highway"],
+    minzoom: 4,
+    widths: [1.3, 7, 22],
+    color: (p) => p.highway,
+    casing: (p) => p.highwayCasing,
+  },
 ];
 
-function roadLine(id: string, kinds: string[], minzoom: number, color: string, widths: [number, number, number], extra: object = {}): LayerSpecification {
+function roadLine(
+  id: string,
+  kinds: string[],
+  minzoom: number,
+  color: string,
+  widths: [number, number, number],
+  extra: object = {},
+): LayerSpecification {
   return {
     id,
     type: "line",
@@ -204,7 +263,11 @@ function roadLine(id: string, kinds: string[], minzoom: number, color: string, w
 function roadLayers(p: Palette): LayerSpecification[] {
   const path = roadLine("road-path", ["path"], 13, p.path, [0.2, 1, 3], { "line-dasharray": [2, 1.5] });
   const casings = ROAD_CLASSES.map((c) =>
-    roadLine(`road-${c.id}-casing`, c.kinds, c.minzoom, c.casing(p), [c.widths[0] + 0.6, c.widths[1] + 1.6, c.widths[2] + 3]),
+    roadLine(`road-${c.id}-casing`, c.kinds, c.minzoom, c.casing(p), [
+      c.widths[0] + 0.6,
+      c.widths[1] + 1.6,
+      c.widths[2] + 3,
+    ]),
   );
   const fills = ROAD_CLASSES.map((c) => roadLine(`road-${c.id}`, c.kinds, c.minzoom, c.color(p), c.widths));
   const rail = roadLine("road-rail", ["rail"], 10, p.rail, [0.3, 1, 2], { "line-dasharray": [4, 2] });
@@ -235,7 +298,15 @@ function boundaryLayers(p: Palette): LayerSpecification[] {
   return [line("boundary-region", "region", p.region, 0.6, 0.7), line("boundary-country", "country", p.border, 1, 0.8)];
 }
 
-function placeLabel(id: string, details: string[], p: Palette, minzoom: number, maxzoom: number, sizes: number[], font: string): LayerSpecification {
+function placeLabel(
+  id: string,
+  details: string[],
+  p: Palette,
+  minzoom: number,
+  maxzoom: number,
+  sizes: number[],
+  font: string,
+): LayerSpecification {
   return {
     id,
     type: "symbol",
@@ -244,7 +315,13 @@ function placeLabel(id: string, details: string[], p: Palette, minzoom: number, 
     minzoom,
     maxzoom,
     filter: ["in", ["get", "kind_detail"], ["literal", details]],
-    layout: { "text-field": names(), "text-font": [font], "text-size": byZoom(sizes, 1.2), "text-max-width": 8, "text-padding": 4 },
+    layout: {
+      "text-field": names(),
+      "text-font": [font],
+      "text-size": byZoom(sizes, 1.2),
+      "text-max-width": 8,
+      "text-padding": 4,
+    },
     paint: { "text-color": p.text, "text-halo-color": p.halo, "text-halo-width": 1.4 },
   };
 }
@@ -323,9 +400,20 @@ function vectorSource(archive: string): VectorSourceSpecification {
 export function basemapStyle(archives: Archives, dark: boolean, glyphs: string): StyleSpecification {
   const p = dark ? DARK : LIGHT;
   const drawn = archives.detail !== null || archives.world !== null;
-  const background: LayerSpecification = { id: "background", type: "background", paint: { "background-color": drawn ? p.sea : p.land } };
+  const background: LayerSpecification = {
+    id: "background",
+    type: "background",
+    paint: { "background-color": drawn ? p.sea : p.land },
+  };
   if (!drawn) return { version: 8, sources: {}, layers: [background] };
-  const layers = [...landLayers(p), ...waterLayers(p), ...boundaryLayers(p), ...roadLayers(p), buildingLayer(p), ...labelLayers(p)];
+  const layers = [
+    ...landLayers(p),
+    ...waterLayers(p),
+    ...boundaryLayers(p),
+    ...roadLayers(p),
+    buildingLayer(p),
+    ...labelLayers(p),
+  ];
   const sources: Record<string, VectorSourceSpecification> = {};
   const stacked: LayerSpecification[] = [background];
   if (archives.world !== null) {

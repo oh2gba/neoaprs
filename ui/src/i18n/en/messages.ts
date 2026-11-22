@@ -51,7 +51,11 @@ export const messages = {
   "messages.state.rejected": "rejected",
   "messages.state.failed": "no answer after {n} attempts",
   "messages.state.too_long_for_radio": "too long for the radio",
-  "messages.state.unconfirmed": { "=1": "sent once, no ack", "=2": "sent twice, no ack", other: "sent {n} times, no ack" },
+  "messages.state.unconfirmed": {
+    "=1": "sent once, no ack",
+    "=2": "sent twice, no ack",
+    other: "sent {n} times, no ack",
+  },
   "messages.state.cancelled": { "=1": "cancelled after {n} attempt", other: "cancelled after {n} attempts" },
 
   "messages.mark.acked": "acked",
@@ -111,21 +115,27 @@ export const messages = {
   "route.own": "Your path: {path}",
   "route.rf_only": "RF only",
   "route.rf_only_title": "iGates do not put these messages on the internet",
-  "route.request_path_tip": "Calls or aliases separated by commas (OH2RDK-7,OH2RCH-2 or WIDE1-1,WIDE2-1), DIRECT for none. Empty is the usual path.",
-  "route.request_rf_only_tip": "Adds RFONLY to the path: iGates keep the request off the internet, and only stations in radio range answer.",
+  "route.request_path_tip":
+    "Calls or aliases separated by commas (OH2RDK-7,OH2RCH-2 or WIDE1-1,WIDE2-1), DIRECT for none. Empty is the usual path.",
+  "route.request_rf_only_tip":
+    "Adds RFONLY to the path: iGates keep the request off the internet, and only stations in radio range answer.",
   "pathbuilder.open": "Build the path",
   "pathbuilder.title": "Path builder",
   "pathbuilder.cancel": "Cancel",
   "pathbuilder.use": "Use",
   "pathbuilder.direct": "Direct",
-  "pathbuilder.tip1": "WIDEn-N: n is how many hops the path asks for, N how many are left. Each digipeater that repeats it takes one off N; at 0 it stops.",
-  "pathbuilder.tip2": "WIDE1-1 is one hop by any digipeater, a home (fill-in) one too. WIDE2-1 is one hop and WIDE2-2 two, by wide-area digipeaters only.",
-  "pathbuilder.tip3": "Two hops in all reach far enough almost everywhere; more only crowd the channel, and many digipeaters cut them.",
+  "pathbuilder.tip1":
+    "WIDEn-N: n is how many hops the path asks for, N how many are left. Each digipeater that repeats it takes one off N; at 0 it stops.",
+  "pathbuilder.tip2":
+    "WIDE1-1 is one hop by any digipeater, a home (fill-in) one too. WIDE2-1 is one hop and WIDE2-2 two, by wide-area digipeaters only.",
+  "pathbuilder.tip3":
+    "Two hops in all reach far enough almost everywhere; more only crowd the channel, and many digipeaters cut them.",
   "pathbuilder.tip4": "A named digipeater (OH2RDK-7) is one hop by exactly that one.",
   "pathbuilder.reach_direct": "No digipeater: only the stations that hear you",
   "pathbuilder.reach_title": { one: "{n} hop in all: {path}", other: "{n} hops in all: {path}" },
   "pathbuilder.home": "Home digis may take the first hop",
-  "pathbuilder.home_title": "On: the first hop is WIDE1-1, which home (fill-in) digipeaters take as well as wide ones. Off: wide-area digipeaters only",
+  "pathbuilder.home_title":
+    "On: the first hop is WIDE1-1, which home (fill-in) digipeaters take as well as wide ones. Off: wide-area digipeaters only",
   "pathbuilder.home_named": "The first hop is {call}",
   "pathbuilder.home_choose": "Choose 1, 2 or 3 hops first",
   "pathbuilder.drawing_label": "The path, hop by hop",
@@ -143,7 +153,8 @@ export const messages = {
   "pathbuilder.many": "{n} hops: more than the {most} that most networks allow",
   "pathbuilder.bad.shape": "{alias} is no path: in WIDEn-N, n and N go from 1 to 7",
   "pathbuilder.bad.used_up": "{alias} has no hops left: no digipeater repeats it",
-  "pathbuilder.bad.more_left": "{alias} is no path: N ({left}) is never more than n ({n}); home digipeaters answer only WIDE1-1",
+  "pathbuilder.bad.more_left":
+    "{alias} is no path: N ({left}) is never more than n ({n}); home digipeaters answer only WIDE1-1",
   "pathbuilder.as_it_comes": "As its packets come",
   "pathbuilder.no_route": "No route of its packets is known",
   "pathbuilder.hops_label": "Hops",
@@ -154,7 +165,10 @@ export const messages = {
   "pathbuilder.add": "Add",
   "pathbuilder.heard": "Digipeaters heard",
   "pathbuilder.next_to": "Next to {call}",
-  "pathbuilder.seen_next": { one: "Next to {call} in the routes of {n} station", other: "Next to {call} in the routes of {n} stations" },
+  "pathbuilder.seen_next": {
+    one: "Next to {call} in the routes of {n} station",
+    other: "Next to {call} in the routes of {n} stations",
+  },
   "pathbuilder.add_hop": "Add {call}",
 
   "compose.tnc_not_connected": "The radio is not connected",

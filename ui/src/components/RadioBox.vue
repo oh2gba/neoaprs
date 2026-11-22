@@ -27,7 +27,16 @@ import { errorReason } from "@/i18n/errortext";
 import { isPrintable } from "@/lib/messages";
 import { KIND_WORDS, typeOf, type PageRadio } from "@/lib/radios";
 import { FIELDS, type FieldInfo } from "@/lib/settings";
-import { askedOn, boxIds, boxKeys, boxTitle, radioElementId, typeChoices, unnamed, type Asked } from "@/lib/settingsradio";
+import {
+  askedOn,
+  boxIds,
+  boxKeys,
+  boxTitle,
+  radioElementId,
+  typeChoices,
+  unnamed,
+  type Asked,
+} from "@/lib/settingsradio";
 import { LIMITS } from "@/protocol/lists";
 import type { RadioChangeCommand } from "@/protocol/protocol";
 
@@ -100,7 +109,8 @@ watch(
 );
 // a change lost with the connection is never confirmed: show the daemon's value again
 watch(connection, (state) => {
-  if (state !== "open") for (const part of ["enabled", "type", "name"] as const) if (pending.value[part] !== undefined) settle(part);
+  if (state !== "open")
+    for (const part of ["enabled", "type", "name"] as const) if (pending.value[part] !== undefined) settle(part);
 });
 watch(
   () => pending.value.enabled,
@@ -111,7 +121,10 @@ const refused = (part: Part): string => (refusal.value?.part === part ? refusal.
 /** The Enable of the radio, with the (i) of its kind; a listen-only type has its own (i). */
 const enableInfo = computed<FieldInfo>(() => {
   const own = FIELDS[`${props.radio.kind}/enabled`] ?? { label: t("settings.enable.label"), kind: "bool" };
-  const kind = typeOf(props.radio)?.can.transmit === false ? { ...own, tip: [t("settings.rx_enabled.tip1"), t("settings.fm_enabled.tip2")] } : own;
+  const kind =
+    typeOf(props.radio)?.can.transmit === false
+      ? { ...own, tip: [t("settings.rx_enabled.tip1"), t("settings.fm_enabled.tip2")] }
+      : own;
   return props.only ? { ...kind, title: t("settings.enable.only_radio_title") } : kind;
 });
 function tick(text: string): void {
@@ -151,7 +164,10 @@ const nameInfo = computed<FieldInfo>(() => ({
 }));
 /** Whether another radio already has this name (or, without one, this label), case folded. */
 const taken = (typed: string): boolean =>
-  typed !== "" && radios.all.value.some((other) => !other.removed && other.id !== props.radio.id && other.name.toLowerCase() === typed.toLowerCase());
+  typed !== "" &&
+  radios.all.value.some(
+    (other) => !other.removed && other.id !== props.radio.id && other.name.toLowerCase() === typed.toLowerCase(),
+  );
 /**
  * Whether a name has the form of an unnamed radio's label (a kind word alone or with a number, case
  * folded). The daemon refuses these too (`radio.name_label`); a band name such as "20 m" is a name.
@@ -163,7 +179,8 @@ const labelLike = (typed: string): boolean => {
 function rename(): void {
   const typed = name.value.trim();
   if (typed === props.radio.row.name || typed === pending.value.name) return void (name.value = typed);
-  if (typed.length > max || !isPrintable(typed)) return void (nameProblem.value = t("error.radio.name_form", { name: typed, max }));
+  if (typed.length > max || !isPrintable(typed))
+    return void (nameProblem.value = t("error.radio.name_form", { name: typed, max }));
   if (taken(typed)) return void (nameProblem.value = t("error.radio.name_taken", { name: typed }));
   if (labelLike(typed)) return void (nameProblem.value = t("error.radio.name_label", { name: typed }));
   nameProblem.value = "";
@@ -269,7 +286,14 @@ const hasGain = computed(() => can.value.tx_gain && gainKey.value in props.setti
       <template v-if="tools">
         <HfTuneRow v-if="can.tune" :id="ids(radioElementId(radio, 'tune'))" :radio="radio" />
         <SoundCardLevel v-if="can.rx_level" :radio="radio" :form="form" />
-        <HfLevelRow v-if="hasGain" :id="ids(radioElementId(radio, 'txlevel'))" :settings="settings" :form="form" :radio="radio" :setting-key="gainKey" />
+        <HfLevelRow
+          v-if="hasGain"
+          :id="ids(radioElementId(radio, 'txlevel'))"
+          :settings="settings"
+          :form="form"
+          :radio="radio"
+          :setting-key="gainKey"
+        />
         <HfScope v-if="can.scope" :radio="radio.id" :card="{ radio, form }" />
       </template>
     </RadioStatus>

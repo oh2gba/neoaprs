@@ -15,18 +15,24 @@ const GLYPH = { any: "any", wide: "wide", named: "wide", none: "none" } as const
 
 function label(part: PathPart, kind: HopKind): string {
   if (kind === "named") return part.text;
-  return t(kind === "any" ? "pathbuilder.kind.any" : kind === "wide" ? "pathbuilder.kind.wide" : "pathbuilder.kind.none");
+  return t(
+    kind === "any" ? "pathbuilder.kind.any" : kind === "wide" ? "pathbuilder.kind.wide" : "pathbuilder.kind.none",
+  );
 }
 
 function title(part: PathPart, kind: HopKind, n: number): string {
   if (kind === "none") return part.problem;
   if (kind === "any") return t("pathbuilder.node.any", { n });
   if (kind === "wide") return t("pathbuilder.node.wide", { n });
-  return isAlias(part.text) ? t("pathbuilder.node.alias", { n, alias: part.text }) : t("pathbuilder.node.call", { n, call: part.text });
+  return isAlias(part.text)
+    ? t("pathbuilder.node.alias", { n, alias: part.text })
+    : t("pathbuilder.node.call", { n, call: part.text });
 }
 
 const textTitle = (part: PathPart): string =>
-  part.wide === null ? part.problem : t("pathbuilder.wide_part", { alias: part.text, n: part.wide.n, left: part.wide.left });
+  part.wide === null
+    ? part.problem
+    : t("pathbuilder.wide_part", { alias: part.text, n: part.wide.n, left: part.wide.left });
 </script>
 
 <template>
@@ -68,7 +74,10 @@ const textTitle = (part: PathPart): string =>
         </span>
       </span>
     </li>
-    <li class="pathbuild-end" :title="t(meaning.parts.length === 0 ? 'pathbuilder.heard_direct' : 'pathbuilder.heard_by')">
+    <li
+      class="pathbuild-end"
+      :title="t(meaning.parts.length === 0 ? 'pathbuilder.heard_direct' : 'pathbuilder.heard_by')"
+    >
       <span class="hop-arrow" aria-hidden="true">→</span>
       <PathGlyph kind="air" />
     </li>

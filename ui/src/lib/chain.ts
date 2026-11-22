@@ -42,26 +42,44 @@ export function isMarker(call: string): boolean {
 function hopChip(hop: HopRow, heardDirect: ReadonlySet<string>): Chip {
   const internet = hop.by_internet ? "yes" : "no";
   if (hop.heard) {
-    const title = hop.heard_at === null ? t("chain.heard", { internet }) : t("chain.heard_at", { internet, time: dateTimeText(hop.heard_at) });
+    const title =
+      hop.heard_at === null
+        ? t("chain.heard", { internet })
+        : t("chain.heard_at", { internet, time: dateTimeText(hop.heard_at) });
     return { kind: "heard", text: hop.call, mark: "✓", title };
   }
   if (hop.by_internet) {
-    const title = hop.heard_at === null ? t("chain.seen_internet") : t("chain.seen_internet_at", { time: clockText(hop.heard_at) });
+    const title =
+      hop.heard_at === null ? t("chain.seen_internet") : t("chain.seen_internet_at", { time: clockText(hop.heard_at) });
     return { kind: "internet", text: hop.call, mark: t("chain.internet"), title };
   }
   const beyond = !isAlias(hop.call) && !heardDirect.has(hop.call);
-  return { kind: "unheard", text: hop.call, mark: "?", title: beyond ? t("chain.not_heard_beyond") : t("chain.not_heard") };
+  return {
+    kind: "unheard",
+    text: hop.call,
+    mark: "?",
+    title: beyond ? t("chain.not_heard_beyond") : t("chain.not_heard"),
+  };
 }
 
 function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean, mail: boolean): Chip {
   const text = row.to_call;
   if (attempt.acked) {
-    const title = row.acked_at === null ? t("messages.mark.acked") : t("messages.mark.acked_at", { time: dateTimeText(row.acked_at) });
+    const title =
+      row.acked_at === null
+        ? t("messages.mark.acked")
+        : t("messages.mark.acked_at", { time: dateTimeText(row.acked_at) });
     return { kind: "acked", text, mark: "✓", title };
   }
-  if (latest && mail && row.state === "failed") return { kind: "waiting", text, mark: "", title: t("chain.mail_unconfirmed") };
+  if (latest && mail && row.state === "failed")
+    return { kind: "waiting", text, mark: "", title: t("chain.mail_unconfirmed") };
   if (latest && (row.state === "failed" || row.state === "rejected")) {
-    return { kind: "failed", text, mark: "✗", title: row.state === "failed" ? failedText(row) : t("messages.state.rejected") };
+    return {
+      kind: "failed",
+      text,
+      mark: "✗",
+      title: row.state === "failed" ? failedText(row) : t("messages.state.rejected"),
+    };
   }
   const waiting = !latest
     ? t("chain.no_ack_after")
@@ -97,7 +115,12 @@ export function chainOf(
   const chips: Chip[] = [youChip(dateTimeText(attempt.sent_at), radio)];
   chips.push(...attempt.hops.filter((hop) => !isMarker(hop.call)).map((hop) => hopChip(hop, heardDirect)));
   if (attempt.internet !== null && !attempt.hops.some((hop) => hop.by_internet)) {
-    chips.push({ kind: "internet", text: t("chain.internet"), mark: "", title: t("chain.copy_back", { by: attempt.internet }) });
+    chips.push({
+      kind: "internet",
+      text: t("chain.internet"),
+      mark: "",
+      title: t("chain.copy_back", { by: attempt.internet }),
+    });
   }
   // A mail gateway's ack may never reach us, so it is not failed.
   chips.push(recipientChip(row, attempt, latest, mail));

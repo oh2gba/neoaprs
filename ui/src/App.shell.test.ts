@@ -51,7 +51,9 @@ describe("App", () => {
       type: "state",
       topic: "radios",
       rev: 1,
-      value: radiosValue(fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } } })),
+      value: radiosValue(
+        fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } } }),
+      ),
     });
     await flushPromises();
     expect([mark().text(), mark().classes().includes("tag-warn"), mark().attributes("title")]).toEqual([
@@ -112,7 +114,12 @@ describe("App", () => {
     const card = [{ resource: "sound_card" as const, value: "plughw:CARD=Device,DEV=0" }];
     socket.say(hello());
     await flushPromises();
-    socket.say({ type: "state", topic: "radios", rev: 0, value: radiosValue(radioRow(1, "direwolf", { holds: card }), radioRow(2, "direwolf")) });
+    socket.say({
+      type: "state",
+      topic: "radios",
+      rev: 0,
+      value: radiosValue(radioRow(1, "direwolf", { holds: card }), radioRow(2, "direwolf")),
+    });
     await flushPromises();
     expect(asks()).toHaveLength(2); // (each radio with sound cards, by its id)
     socket.say({
@@ -123,7 +130,12 @@ describe("App", () => {
     });
     await flushPromises();
     expect(asks()).toHaveLength(2); // (a change that lets go of nothing asks nothing)
-    socket.say({ type: "state", topic: "radios", rev: 2, value: radiosValue(radioRow(1, "dummy"), radioRow(2, "direwolf")) });
+    socket.say({
+      type: "state",
+      topic: "radios",
+      rev: 2,
+      value: radiosValue(radioRow(1, "dummy"), radioRow(2, "direwolf")),
+    });
     await flushPromises();
     expect(asks().slice(2)).toEqual([{ cmd: "list_ports", radio: 2 }]);
     wrapper.unmount();
@@ -148,7 +160,9 @@ describe("App", () => {
     const wide = window.innerWidth;
     localStorage.setItem("NeoAPRS.panelwidth", "1200");
     const { wrapper } = await open();
-    expect(wrapper.find(".panel").attributes("style")).toContain(`--panel-width: ${Math.min(Math.floor(wide * 0.8), wide - 360)}px`);
+    expect(wrapper.find(".panel").attributes("style")).toContain(
+      `--panel-width: ${Math.min(Math.floor(wide * 0.8), wide - 360)}px`,
+    );
     window.innerWidth = 2000;
     window.dispatchEvent(new Event("resize"));
     await flushPromises();

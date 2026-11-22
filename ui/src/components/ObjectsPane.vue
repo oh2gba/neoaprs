@@ -45,14 +45,19 @@ const radioTags = computed(() => {
   );
 });
 const NONE = { shown: [], rest: [] } as const;
-const tagsOf = (row: OwnObjectRow): { readonly shown: readonly PageRadio[]; readonly rest: readonly PageRadio[] } => radioTags.value.get(row.name) ?? NONE;
+const tagsOf = (row: OwnObjectRow): { readonly shown: readonly PageRadio[]; readonly rest: readonly PageRadio[] } =>
+  radioTags.value.get(row.name) ?? NONE;
 /** The hover words of a radio's tag: "Sent on radio 20 m". */
 const sentOn = (radio: PageRadio): string => t("objects.sent_on", { name: radio.name });
 const sure = useSure<string>();
 /** The copy menu of a row: the name of the object. */
-const copy = useCopyMenu((item) => (item.dataset["name"] === undefined ? [] : [{ kind: "name", text: item.dataset["name"] }]));
+const copy = useCopyMenu((item) =>
+  item.dataset["name"] === undefined ? [] : [{ kind: "name", text: item.dataset["name"] }],
+);
 const rows = computed(() =>
-  [...props.objects.values()].sort((a, b) => (a.created_at === b.created_at ? a.name.localeCompare(b.name) : a.created_at < b.created_at ? -1 : 1)),
+  [...props.objects.values()].sort((a, b) =>
+    a.created_at === b.created_at ? a.name.localeCompare(b.name) : a.created_at < b.created_at ? -1 : 1,
+  ),
 );
 const scroller = ref<HTMLElement | null>(null);
 
@@ -70,7 +75,10 @@ function select(event: MouseEvent | KeyboardEvent, row: OwnObjectRow): void {
 watch(
   () => props.form.editing,
   (name) => {
-    if (name !== null) void nextTick(() => scroller.value?.querySelector<HTMLElement>("form.composebar")?.scrollIntoView?.({ block: "nearest" }));
+    if (name !== null)
+      void nextTick(() =>
+        scroller.value?.querySelector<HTMLElement>("form.composebar")?.scrollIntoView?.({ block: "nearest" }),
+      );
   },
 );
 </script>
@@ -93,7 +101,11 @@ watch(
             v-for="row in rows"
             :key="row.name"
             class="bulletin ownobject copysource"
-            :class="{ killing: row.state === 'killing', selectable: row.state === 'live', selected: form.editing === row.name }"
+            :class="{
+              killing: row.state === 'killing',
+              selectable: row.state === 'live',
+              selected: form.editing === row.name,
+            }"
             :tabindex="row.state === 'live' ? 0 : undefined"
             :aria-current="form.editing === row.name ? 'true' : undefined"
             :data-name="row.name"
@@ -122,14 +134,28 @@ watch(
               <p class="bulletin-meta muted">{{ stateText(row, now) }}</p>
             </div>
             <div class="own-tags" :class="{ several }">
-              <TagMark v-if="row.qru_group" tone="neutral" class="own-category" :title="t('objects.in_group', { group: groupName(row.qru_group) })">{{
-                categoryLabel(row.qru_group)
-              }}</TagMark>
-              <TagMark v-for="radio in tagsOf(row).shown" :key="radio.id" :tone="radioTone(radio)" class="own-radio" :title="sentOn(radio)">{{
-                radio.name
-              }}</TagMark>
-              <TagMark v-if="tagsOf(row).rest.length > 0" tone="neutral" class="own-radio" :title="titled(tagsOf(row).rest.map(sentOn))"
-                >{{ t("radio.more", { n: tagsOf(row).rest.length }) }}<span class="sr-only"> {{ titled(tagsOf(row).rest.map(sentOn)) }}</span></TagMark
+              <TagMark
+                v-if="row.qru_group"
+                tone="neutral"
+                class="own-category"
+                :title="t('objects.in_group', { group: groupName(row.qru_group) })"
+                >{{ categoryLabel(row.qru_group) }}</TagMark
+              >
+              <TagMark
+                v-for="radio in tagsOf(row).shown"
+                :key="radio.id"
+                :tone="radioTone(radio)"
+                class="own-radio"
+                :title="sentOn(radio)"
+                >{{ radio.name }}</TagMark
+              >
+              <TagMark
+                v-if="tagsOf(row).rest.length > 0"
+                tone="neutral"
+                class="own-radio"
+                :title="titled(tagsOf(row).rest.map(sentOn))"
+                >{{ t("radio.more", { n: tagsOf(row).rest.length })
+                }}<span class="sr-only"> {{ titled(tagsOf(row).rest.map(sentOn)) }}</span></TagMark
               >
             </div>
           </li>

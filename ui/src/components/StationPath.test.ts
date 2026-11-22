@@ -108,7 +108,13 @@ describe("StationPath", () => {
   describe("on a radio that carries no path", () => {
     const pathless = (reply?: string) =>
       mount(StationPath, {
-        props: { call: "OH2RDG", paths: new Map(), fallback: "WIDE1-1,WIDE2-1", pathless: "Mercury: no path", ...(reply === undefined ? {} : { reply }) },
+        props: {
+          call: "OH2RDG",
+          paths: new Map(),
+          fallback: "WIDE1-1,WIDE2-1",
+          pathless: "Mercury: no path",
+          ...(reply === undefined ? {} : { reply }),
+        },
       });
 
     it("says the reply through a gateway the daemon gives", () => {

@@ -161,7 +161,8 @@ describe("the locator grid", () => {
     const at = (id: string) => layers.indexOf(id);
     expect(at("grid-lines")).toBe(0);
     expect(at("grid-names")).toBe(1);
-    for (const id of ["aloha-halo", "tracks-line", "route-casing", "replay-trails"]) expect(at(id)).toBeGreaterThan(at("grid-names"));
+    for (const id of ["aloha-halo", "tracks-line", "route-casing", "replay-trails"])
+      expect(at(id)).toBeGreaterThan(at("grid-names"));
   });
 
   it("draws nothing out of the box, and its lines and names when ticked, again when the view stops moving, and nothing when off again", async () => {
@@ -170,7 +171,8 @@ describe("the locator grid", () => {
     expect((map.getSource("grid")?.data as Grid).features).toEqual([]);
     map.zoom = 8;
     await setTick("grid", true);
-    const names = () => last<Grid>("grid").features.flatMap((feature) => (feature.properties.name ? [feature.properties.name] : []));
+    const names = () =>
+      last<Grid>("grid").features.flatMap((feature) => (feature.properties.name ? [feature.properties.name] : []));
     expect(names()).toContain(positionToLocator(60.2, 24.7).slice(0, 4));
     expect(last<Grid>("grid").features.some((feature) => feature.geometry.type === "LineString")).toBe(true);
     map.zoom = 12;

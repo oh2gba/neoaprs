@@ -42,6 +42,10 @@ const onMac = (agent: string): boolean => /Macintosh|Mac OS X/.test(agent);
  * on the computer the person is at; the default notification and sound work on Windows and Linux).
  * The Mac command has no program, so there the window keeps its own sound.
  */
-export function daemonTells(hash: string = location.hash, memory: Storage | null = store(), agent: string = navigator.userAgent): boolean {
+export function daemonTells(
+  hash: string = location.hash,
+  memory: Storage | null = store(),
+  agent: string = navigator.userAgent,
+): boolean {
   return inApp(hash, memory) && !onMac(agent);
 }

@@ -35,7 +35,8 @@ describe("what matches", () => {
   it("knows the page's identity from the protocol it was generated with and the main script its document loaded", () => {
     // The head holds module scripts that happy-dom would try to load and fail on: a disabled load
     // counts as success here, since the scripts are only read.
-    const settings = (window as unknown as { happyDOM: { settings: { handleDisabledFileLoadingAsSuccess: boolean } } }).happyDOM.settings;
+    const settings = (window as unknown as { happyDOM: { settings: { handleDisabledFileLoadingAsSuccess: boolean } } })
+      .happyDOM.settings;
     const before = settings.handleDisabledFileLoadingAsSuccess;
     settings.handleDisabledFileLoadingAsSuccess = true;
     onTestFinished(() => {
@@ -50,11 +51,19 @@ describe("what matches", () => {
   });
 
   it("describes both sides for the notice as identifiers: the build and protocol of the page, the version, build and protocol of the daemon", () => {
-    expect(describeMismatch(hello({ version: "0.9.2", protocol: 13, page: "index-BBBB.js" }), { protocol: 12, page: "index-AAAA.js" })).toEqual({
+    expect(
+      describeMismatch(hello({ version: "0.9.2", protocol: 13, page: "index-BBBB.js" }), {
+        protocol: 12,
+        page: "index-AAAA.js",
+      }),
+    ).toEqual({
       page: "index-AAAA.js/12",
       neoaprs: "0.9.2, index-BBBB.js/13",
     });
-    expect(describeMismatch({ protocol: 12, version: "0.9.2" }, { protocol: 12, page: "" })).toEqual({ page: "-/12", neoaprs: "0.9.2, -/12" });
+    expect(describeMismatch({ protocol: 12, version: "0.9.2" }, { protocol: 12, page: "" })).toEqual({
+      page: "-/12",
+      neoaprs: "0.9.2, -/12",
+    });
   });
 });
 

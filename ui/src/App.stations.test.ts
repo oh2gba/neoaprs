@@ -55,7 +55,12 @@ describe("App: stations and the map", () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Packets")?.trigger("click");
     expect(wrapper.find("#pane-packets tbody tr").text()).toContain("OH2SEC");
-    socket.say({ type: "patch", topic: "packets", rev: 1, ops: [{ op: "set", key: "3", value: packet(3, { tnc2: "OH2THR>APRS:!6007.20N/02429.40E-" }) }] });
+    socket.say({
+      type: "patch",
+      topic: "packets",
+      rev: 1,
+      ops: [{ op: "set", key: "3", value: packet(3, { tnc2: "OH2THR>APRS:!6007.20N/02429.40E-" }) }],
+    });
     await flushPromises();
     expect(wrapper.find("#pane-packets tbody tr").text()).toContain("OH2THR");
   });
@@ -85,7 +90,12 @@ describe("App: stations and the map", () => {
     await wrapper.find("#pane-stations .foot button.forgetall").trigger("click");
     await wrapper.find("#pane-stations .foot button.forgetall").trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "forget_all_stations" });
-    socket.say({ type: "patch", topic: "stations", rev: 1, ops: [{ op: "replace", value: { OH2GBA: stations.OH2GBA } }] });
+    socket.say({
+      type: "patch",
+      topic: "stations",
+      rev: 1,
+      ops: [{ op: "replace", value: { OH2GBA: stations.OH2GBA } }],
+    });
     await flushPromises();
     expect(wrapper.findAll("#pane-stations tbody tr")).toHaveLength(1);
     expect(wrapper.find(".card").exists()).toBe(false);
@@ -138,14 +148,24 @@ describe("App: stations and the map", () => {
 
   it("sets the map's style again when the daemon has made the files", async () => {
     const { socket } = await open();
-    socket.say({ type: "state", topic: "map", rev: 0, value: mapState({ state: "downloading", step: "area", percent: 50 }) });
+    socket.say({
+      type: "state",
+      topic: "map",
+      rev: 0,
+      value: mapState({ state: "downloading", step: "area", percent: 50 }),
+    });
     await flushPromises();
     expect(FakeMap.last().styles).toHaveLength(1);
     socket.say({
       type: "patch",
       topic: "map",
       rev: 1,
-      ops: [{ op: "replace", value: mapState({ state: "ready", detail: mapFile(), world: mapFile({ name: "basemap-world.pmtiles" }) }) }],
+      ops: [
+        {
+          op: "replace",
+          value: mapState({ state: "ready", detail: mapFile(), world: mapFile({ name: "basemap-world.pmtiles" }) }),
+        },
+      ],
     });
     await flushPromises();
     expect(FakeMap.last().styles).toHaveLength(2);

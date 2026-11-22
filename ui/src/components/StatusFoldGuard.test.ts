@@ -21,7 +21,11 @@ const later = new Date(NOW + 38 * 60_000).toISOString();
 
 function vueFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-    entry.isDirectory() ? vueFiles(resolve(dir, entry.name)) : entry.name.endsWith(".vue") ? [resolve(dir, entry.name)] : [],
+    entry.isDirectory()
+      ? vueFiles(resolve(dir, entry.name))
+      : entry.name.endsWith(".vue")
+        ? [resolve(dir, entry.name)]
+        : [],
   );
 }
 
@@ -29,15 +33,29 @@ function vueFiles(dir: string): string[] {
  * something) and a row with something. */
 const ROWS: Record<string, { bare: (() => ReturnType<typeof mount>) | null; full: () => ReturnType<typeof mount> }> = {
   BeaconStatus: {
-    bare: () => mount(BeaconStatus, { props: { status: status({ beacon_interval_min: 60, beacon_next_due: later }), gps: null, values: {}, now: NOW } }),
+    bare: () =>
+      mount(BeaconStatus, {
+        props: { status: status({ beacon_interval_min: 60, beacon_next_due: later }), gps: null, values: {}, now: NOW },
+      }),
     full: () =>
       mount(BeaconStatus, {
-        props: { status: status({ beacon_interval_min: 60, beacon_next_due: later, beacon_last_sent: ago(240) }), gps: null, values: {}, now: NOW },
+        props: {
+          status: status({ beacon_interval_min: 60, beacon_next_due: later, beacon_last_sent: ago(240) }),
+          gps: null,
+          values: {},
+          now: NOW,
+        },
       }),
   },
   StatusReportRow: {
-    bare: () => mount(StatusReportRow, { props: { text: "", lastSent: null, minutes: "", rig: "unused", beaconOff: false, rxOnly: false, now: NOW } }),
-    full: () => mount(StatusReportRow, { props: { text: "", lastSent: null, minutes: "30", rig: "unused", beaconOff: false, rxOnly: false, now: NOW } }),
+    bare: () =>
+      mount(StatusReportRow, {
+        props: { text: "", lastSent: null, minutes: "", rig: "unused", beaconOff: false, rxOnly: false, now: NOW },
+      }),
+    full: () =>
+      mount(StatusReportRow, {
+        props: { text: "", lastSent: null, minutes: "30", rig: "unused", beaconOff: false, rxOnly: false, now: NOW },
+      }),
   },
   DigipeaterStatus: {
     bare: () => mount(DigipeaterStatus, { props: { tnc: fmRow(), startedAt: null, now: NOW, rxOnly: false } }),
@@ -46,7 +64,13 @@ const ROWS: Record<string, { bare: (() => ReturnType<typeof mount>) | null; full
   IgateStatus: {
     bare: null,
     full: () =>
-      mount(IgateStatus, { props: { igate: igateState(), values: { "igate/server": "rotate.aprs2.net:14580", "map/radius_km": "50" }, stations: 3 } }),
+      mount(IgateStatus, {
+        props: {
+          igate: igateState(),
+          values: { "igate/server": "rotate.aprs2.net:14580", "map/radius_km": "50" },
+          stations: 3,
+        },
+      }),
   },
   ObjectsQru: {
     bare: null, // (it shows only once something was asked, and then the request is behind it)
@@ -86,10 +110,17 @@ describe("every status row", () => {
   it("is a pair's row of the Digipeater group: a plain row with nothing behind it, the arrow once it counts since a time or sent something", () => {
     const pair = (sent: number) => ({
       first: { id: 1, name: "FM radio", stats: lineStats() },
-      second: { id: 2, name: "Mercury radio", stats: lineStats({ passed: [{ heard_on: 1, sent, sent_at: sent > 0 ? ago(60) : null, held: 0, too_long: 0 }] }) },
+      second: {
+        id: 2,
+        name: "Mercury radio",
+        stats: lineStats({ passed: [{ heard_on: 1, sent, sent_at: sent > 0 ? ago(60) : null, held: 0, too_long: 0 }] }),
+      },
     });
     const bare = mount(DigipeaterStatus, { props: { pair: pair(0), startedAt: null, now: NOW, rxOnly: false } });
-    expect([bare.find("details").exists(), bare.find(".statusfold.statusflat .tncstatus").text()]).toEqual([false, "None repeated yet"]);
+    expect([bare.find("details").exists(), bare.find(".statusfold.statusflat .tncstatus").text()]).toEqual([
+      false,
+      "None repeated yet",
+    ]);
     for (const [startedAt, sent] of [
       [ago(3600), 0],
       [null, 2],

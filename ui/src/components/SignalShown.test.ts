@@ -24,13 +24,22 @@ describe("the signal under a message that came in", () => {
    * that came by it carries.
    */
   const today = () =>
-    withDaemon(fakeDaemon({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) }));
+    withDaemon(
+      fakeDaemon({
+        radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })),
+      }),
+    );
   const line = (extra: Parameters<typeof incoming>[2]) =>
-    mount(ConversationThread, { props: { thread: [incoming(2, "OH2HF", extra)], peer: "OH2HF" }, global: today() }).find(".bubble-route");
+    mount(ConversationThread, {
+      props: { thread: [incoming(2, "OH2HF", extra)], peer: "OH2HF" },
+      global: today(),
+    }).find(".bubble-route");
 
   it("ends the line that says how it came: Mercury direct, SNR -3 dB", () => {
     expect(line({ radio_id: 2, route: "direct", snr: -3 }).text()).toBe(`Mercury direct \u00b7 SNR ${MINUS}3 dB`);
-    expect(line({ radio_id: 1, route: "via OH2RCH-2", snr: 4, rssi: -95 }).text()).toBe(`via OH2RCH-2 \u00b7 SNR 4 dB, RSSI ${MINUS}95 dBm`);
+    expect(line({ radio_id: 1, route: "via OH2RCH-2", snr: 4, rssi: -95 }).text()).toBe(
+      `via OH2RCH-2 \u00b7 SNR 4 dB, RSSI ${MINUS}95 dBm`,
+    );
   });
 
   it("is the whole line when there is no route to say", () => {
@@ -39,21 +48,28 @@ describe("the signal under a message that came in", () => {
 
   it("is not there for a message with no reading, and the line is as it was", () => {
     expect(line({ radio_id: 2, route: "direct", snr: null }).text()).toBe("Mercury direct");
-    const none = mount(ConversationThread, { props: { thread: [incoming(2, "OH2HF", { radio_id: null, route: "", snr: null })], peer: "OH2HF" } });
+    const none = mount(ConversationThread, {
+      props: { thread: [incoming(2, "OH2HF", { radio_id: null, route: "", snr: null })], peer: "OH2HF" },
+    });
     expect(none.find(".bubble-route").exists()).toBe(false);
   });
 
   it("is not under a message of ours: the mark has the ack's", () => {
-    const wrapper = mount(ConversationThread, { props: { thread: [message(1, { state: "acked", route: "", snr: -3 })], peer: "OH2HF" } });
+    const wrapper = mount(ConversationThread, {
+      props: { thread: [message(1, { state: "acked", route: "", snr: -3 })], peer: "OH2HF" },
+    });
     expect(wrapper.find(".bubble-route").exists()).toBe(false);
   });
 });
 
 describe("the SNR of the ack on the mark of our message", () => {
-  const title = (extra: Parameters<typeof message>[1]) => mount(MessageMark, { props: { row: message(1, extra) } }).attributes("title");
+  const title = (extra: Parameters<typeof message>[1]) =>
+    mount(MessageMark, { props: { row: message(1, extra) } }).attributes("title");
 
   it("is added to the mark's title once the ack came", () => {
-    expect(title({ state: "acked", acked_at: "2026-10-22T12:00:05Z", snr: -7 })).toMatch(new RegExp(`^acked .+ \u00b7 SNR ${MINUS}7 dB$`));
+    expect(title({ state: "acked", acked_at: "2026-10-22T12:00:05Z", snr: -7 })).toMatch(
+      new RegExp(`^acked .+ \u00b7 SNR ${MINUS}7 dB$`),
+    );
   });
 
   it("leaves the title as it was when the ack came with no reading, and for a message still being sent", () => {
@@ -94,18 +110,33 @@ describe("the signal of a packet", () => {
 
 describe("the signal in a station's traffic", () => {
   it("follows the summary of each packet the station sent that has a reading, and nothing is added to the others", () => {
-    const rows = [packet(1, { source: "OH2HF", snr: -3 }), packet(2, { source: "OH2HF", snr: null, tnc2: "OH2HF>APRS:!2" })];
+    const rows = [
+      packet(1, { source: "OH2HF", snr: -3 }),
+      packet(2, { source: "OH2HF", snr: null, tnc2: "OH2HF>APRS:!2" }),
+    ];
     const logged = new Map([["OH2HF", { type: "station_traffic" as const, call: "OH2HF", packets: rows }]]);
     const daemon = fakeDaemon({ now: NOW, stationTrafficByCall: shallowRef(logged) });
-    const wrapper = mount(StationTraffic, { props: { call: "OH2HF" }, global: withDaemon(daemon), attachTo: document.body });
-    const notes = wrapper.findAll("tr.packet-row").map((line) => line.find("[data-signal-note]").exists() && line.find("[data-signal-note]").text());
+    const wrapper = mount(StationTraffic, {
+      props: { call: "OH2HF" },
+      global: withDaemon(daemon),
+      attachTo: document.body,
+    });
+    const notes = wrapper
+      .findAll("tr.packet-row")
+      .map((line) => line.find("[data-signal-note]").exists() && line.find("[data-signal-note]").text());
     expect(notes.filter((note) => note !== false)).toEqual([`\u00b7 SNR ${MINUS}3 dB`]);
     expect(notes.filter((note) => note === false)).toHaveLength(1);
   });
 });
 
-const hf = (extra: Partial<StationRow> = {}) => station("OH2HF", { snr: -3, rssi: null, signal_at: ago(300), last_heard: ago(60), ...extra });
-const answer = (points: SignalSeriesMessage["points"]): SignalSeriesMessage => ({ type: "signal_series", call: "OH2HF", hours: 24, points });
+const hf = (extra: Partial<StationRow> = {}) =>
+  station("OH2HF", { snr: -3, rssi: null, signal_at: ago(300), last_heard: ago(60), ...extra });
+const answer = (points: SignalSeriesMessage["points"]): SignalSeriesMessage => ({
+  type: "signal_series",
+  call: "OH2HF",
+  hours: 24,
+  points,
+});
 const readings: SignalSeriesMessage["points"] = [
   [ago(7200), -8, null],
   [ago(3600), -3, null],
@@ -115,7 +146,11 @@ const readings: SignalSeriesMessage["points"] = [
 function make(rows: StationRow[]) {
   const series = shallowRef<ReadonlyMap<string, SignalSeriesMessage>>(new Map());
   const daemon = fakeDaemon({ now: NOW, signalSeriesByCall: series });
-  const wrapper = mount(StationCards, { props: { rows, size: "desktop" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(StationCards, {
+    props: { rows, size: "desktop" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   const asked = () => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "signal_series");
   return { wrapper, series, asked };
 }

@@ -12,7 +12,15 @@ import StatusLine from "@/components/StatusLine.vue";
 import type { SettingLink } from "@/lib/settinglink";
 
 withDefaults(
-  defineProps<{ state: string; tone: string; line: string; hover?: string; open?: boolean; link?: SettingLink; parts?: readonly string[] | null }>(),
+  defineProps<{
+    state: string;
+    tone: string;
+    line: string;
+    hover?: string;
+    open?: boolean;
+    link?: SettingLink;
+    parts?: readonly string[] | null;
+  }>(),
   {
     hover: undefined,
     parts: null,
@@ -40,7 +48,9 @@ function drawn(nodes: readonly VNode[] | undefined): boolean {
     :open="open"
     :summary-class="{ statushead: true, 'statushead-parts': parts !== null }"
   >
-    <template #summary><StatusLine :state="state" :tone="tone" :line="line" :hover="hover" :link="link" :parts="parts" /></template>
+    <template #summary
+      ><StatusLine :state="state" :tone="tone" :line="line" :hover="hover" :link="link" :parts="parts"
+    /></template>
     <slot></slot>
   </DisclosureBox>
   <div v-else class="statusfold statushead statusflat" :class="{ 'statushead-parts': parts !== null }">

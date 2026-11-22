@@ -8,7 +8,8 @@ function bar(props: Record<string, unknown> = {}) {
     slots: {
       default: '<input id="field" />',
       aside: '<button type="button" id="aside">Pick</button>',
-      buttons: '<button type="button" id="cancel">Cancel</button><button type="submit" id="go" class="primary">Go</button>',
+      buttons:
+        '<button type="button" id="cancel">Cancel</button><button type="submit" id="go" class="primary">Go</button>',
     },
     attachTo: document.body,
   });
@@ -32,11 +33,9 @@ describe("ComposeBar", () => {
     const form = wrapper.find("form");
     expect(form.element).toBe(wrapper.element);
     expect(wrapper.attributes("aria-label")).toBe("Write");
-    expect([...wrapper.find("fieldset.composebox").element.children].map((c) => c.className || c.tagName.toLowerCase())).toEqual([
-      "legend",
-      "composebar-fields",
-      "composebar-foot",
-    ]);
+    expect(
+      [...wrapper.find("fieldset.composebox").element.children].map((c) => c.className || c.tagName.toLowerCase()),
+    ).toEqual(["legend", "composebar-fields", "composebar-foot"]);
     expect(wrapper.find("fieldset > legend").text()).toBe("Write");
     expect(wrapper.find(".composebar-fields #field").exists()).toBe(true);
     expect([...wrapper.find(".composebar-foot").element.children].map((c) => c.id || c.className)).toEqual([

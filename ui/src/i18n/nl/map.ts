@@ -16,7 +16,8 @@ export const map: Record<keyof typeof source, Message> = {
   "map.credits.hide": "Bronnen verbergen",
   "map.credits.show": "Bronnen van kaart en symbolen",
   "map.credits.symbols": "APRS-symbolen: de aprs.fi-set van Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
-  "map.credits.devices": "Apparaatnamen: de APRS-apparatenlijst van Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.devices":
+    "Apparaatnamen: de APRS-apparatenlijst van Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
   "map.credits.aircraft": "Vliegtuigvormen: tar1090 van Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 of later",
 
   "map.menu_label": "Kaart",

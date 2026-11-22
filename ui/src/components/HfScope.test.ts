@@ -18,9 +18,19 @@ import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
 import { NOW, configValues, modemState, packet, radioRow, radiosTopic } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
-const HF_ON = { "radio/2/beacon": "true", "radio/2/sound_card": "plughw:1,0", "radio/2/keying": "vox", "radio/2/tx_gain_db": "0" };
+const HF_ON = {
+  "radio/2/beacon": "true",
+  "radio/2/sound_card": "plughw:1,0",
+  "radio/2/keying": "vox",
+  "radio/2/tx_gain_db": "0",
+};
 /** A row as the daemon sends it: every bin at `db` on the modem's scale. */
-const scopeRow = (over: Partial<ScopeRow> = {}, db = -40): ScopeRow => ({ db: new Float32Array(BINS).fill(db), level: -38, tx: false, ...over });
+const scopeRow = (over: Partial<ScopeRow> = {}, db = -40): ScopeRow => ({
+  db: new Float32Array(BINS).fill(db),
+  level: -38,
+  tx: false,
+  ...over,
+});
 const withModem = (modem: Partial<ModemState>): ModemState => modemState(modem);
 const hfBox = (wrapper: ReturnType<typeof mount>) => {
   const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
@@ -29,7 +39,8 @@ const hfBox = (wrapper: ReturnType<typeof mount>) => {
   return box;
 };
 /** The topic `radios`: radio 1 the FM radio, radio 2 the Mercury radio with this modem. */
-const radiosBeside = (modem: ModemState | null) => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { modem }));
+const radiosBeside = (modem: ModemState | null) =>
+  radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { modem }));
 const calls: string[] = [];
 const clock = { now: NOW };
 let packets = shallowReactive(new Map<string, PacketRow>());
@@ -47,7 +58,8 @@ const say = async (...told: ScopeRow[]): Promise<void> => {
 /** The time of a packet heard `ago` milliseconds before now, as the daemon writes it (whole
  * seconds). */
 const heardNow = (ago = 0): string => new Date(clock.now - ago).toISOString().replace(/\.\d+Z$/, "Z");
-const scopeCalls = (daemon: FakeDaemon) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "radio_scope");
+const scopeCalls = (daemon: FakeDaemon) =>
+  daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "radio_scope");
 
 /** Radio 2's modem as its row tells it anew. */
 const tellModem = async (modem: ModemState): Promise<void> => {
@@ -63,7 +75,11 @@ function make(modem: Partial<ModemState> = { scope: true }, config: Record<strin
     scopeOf: rows.of,
     packets,
   });
-  const wrapper = mount(SettingsForm, { props: { scope: "settings" }, attachTo: document.body, global: withDaemon(daemon) });
+  const wrapper = mount(SettingsForm, {
+    props: { scope: "settings" },
+    attachTo: document.body,
+    global: withDaemon(daemon),
+  });
   return { wrapper, daemon, box: hfBox(wrapper) };
 }
 
@@ -265,7 +281,10 @@ describe("the picture and the receive level", () => {
     await flushPromises();
     expect(lines()).toBe(5 + 150);
     const made = rows.of(2).rows.map((kept) => kept.at);
-    const daemon = Array.from({ length: 310 }, (_, i) => ({ row: scopeRow({}, -60), age: clock.now - (NOW + i * 100 + 5) }));
+    const daemon = Array.from({ length: 310 }, (_, i) => ({
+      row: scopeRow({}, -60),
+      age: clock.now - (NOW + i * 100 + 5),
+    }));
     calls.length = 0;
     rows.hfScopeHistory({ rows: daemon, clock: clock.now }, 2);
     await flushPromises();
@@ -309,7 +328,9 @@ describe("the picture and the receive level", () => {
     clock.now += 20_000;
     packets.set("2", packet(2, { source: "OH2LATE", radio_id: 2, heard_at: heardNow(15_000) }));
     await flushPromises();
-    expect(rows.of(2).heard.map((heard) => [heard.call, Math.round((clock.now - heard.at) / 1000), heard.snr])).toEqual([["OH2LATE", 15, null]]);
+    expect(rows.of(2).heard.map((heard) => [heard.call, Math.round((clock.now - heard.at) / 1000), heard.snr])).toEqual(
+      [["OH2LATE", 15, null]],
+    );
   });
 
   it("writes on the rows of the past a station heard while no picture looked, where it was heard", async () => {
@@ -368,7 +389,10 @@ describe("the Transmit level row", () => {
     expect(level(box).find(".txlevel-value").text()).toBe("+3 dB");
     expect(level(box).find(".txlevel-peak").text()).toBe("Peak -6 dBFS");
     expect(level(box).find(".txlevel-peak").classes()).not.toContain("clip");
-    expect(buttons(box).map((b) => b.attributes("aria-label"))).toEqual(["Lower the transmit level", "Raise the transmit level"]);
+    expect(buttons(box).map((b) => b.attributes("aria-label"))).toEqual([
+      "Lower the transmit level",
+      "Raise the transmit level",
+    ]);
   });
 
   it("saves one dB less or more at each press, and stops at Mercury's limits", async () => {
@@ -415,7 +439,8 @@ describe("the Transmit level row", () => {
 });
 
 /** A Mercury radio whose modem has the interface (or has not, `scope` false). */
-const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow => radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
+const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow =>
+  radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
 
 describe("the scope in each radio's box", () => {
   /** The page's context with these radios, its counting of who looks given the topic `radios`
@@ -423,7 +448,8 @@ describe("the scope in each radio's box", () => {
   function station(...radios: RadioRow[]) {
     const daemon = fakeDaemon({ radios: radiosTopic(...radios), scopeOf: rows.of, packets });
     daemon.scope = useScopeLooks(daemon.send, daemon.connection, shallowRef(true), { radios: daemon.radios });
-    const box = (radio: number) => mount(HfScope, { props: { radio }, global: withDaemon(daemon), attachTo: document.body });
+    const box = (radio: number) =>
+      mount(HfScope, { props: { radio }, global: withDaemon(daemon), attachTo: document.body });
     return { daemon, box };
   }
 
@@ -435,7 +461,13 @@ describe("the scope in each radio's box", () => {
       radioRow(6, "dummy-hf"),
       radioRow(1, "kenwood-tnc2"),
     );
-    expect([3, 4, 5, 6, 1].map((radio) => box(radio).find("details.hf-scope").exists())).toEqual([true, false, false, false, false]);
+    expect([3, 4, 5, 6, 1].map((radio) => box(radio).find("details.hf-scope").exists())).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 
   it("asks for its own radio's rows while its fold is open, and its fold is remembered for that radio alone", async () => {

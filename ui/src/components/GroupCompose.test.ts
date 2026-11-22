@@ -3,18 +3,29 @@ import { describe, expect, it } from "vitest";
 import GroupCompose from "@/components/GroupCompose.vue";
 
 function group(extra: Record<string, unknown> = {}) {
-  return mount(GroupCompose, { props: { calls: ["OH2AAA", "OH2BBB", "OH2CCC"], narrow: false, connected: true, ...extra }, attachTo: document.body });
+  return mount(GroupCompose, {
+    props: { calls: ["OH2AAA", "OH2BBB", "OH2CCC"], narrow: false, connected: true, ...extra },
+    attachTo: document.body,
+  });
 }
 
 describe("GroupCompose", () => {
   it("has the recipients as chips in the header, and under them the text box with 67 left and Send to 3, and no To and no Stations", () => {
     const wrapper = group();
-    expect(wrapper.findAll(".convo-head .recipients .chip").map((c) => c.text())).toEqual(["OH2AAA ×", "OH2BBB ×", "OH2CCC ×"]);
+    expect(wrapper.findAll(".convo-head .recipients .chip").map((c) => c.text())).toEqual([
+      "OH2AAA ×",
+      "OH2BBB ×",
+      "OH2CCC ×",
+    ]);
     expect(wrapper.find(".compose-left").text()).toBe("67 left");
     expect(wrapper.find(".compose button[type='submit']").text()).toBe("Send to 3");
     expect(wrapper.find("#msg-to").exists()).toBe(false);
     expect(wrapper.find(".compose").text()).not.toContain("Stations");
-    expect(Array.from((wrapper.element as HTMLElement).children).map((c) => c.className.split(" ")[0])).toEqual(["convo-head", "group-room", "composebar"]);
+    expect(Array.from((wrapper.element as HTMLElement).children).map((c) => c.className.split(" ")[0])).toEqual([
+      "convo-head",
+      "group-room",
+      "composebar",
+    ]);
     wrapper.unmount();
   });
 

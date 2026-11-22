@@ -12,7 +12,15 @@ import { openedAt } from "@/test/fakealert";
 import { ago, configValues, hello, incoming, message, NOW, packet, radiosOf, station, status } from "@/test/fixtures";
 
 export const stations = {
-  OH2GBA: station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_table: "", symbol_code: "", distance_km: null, bearing_deg: null }),
+  OH2GBA: station("OH2GBA", {
+    is_me: true,
+    lat: 60.17,
+    lon: 24.94,
+    symbol_table: "",
+    symbol_code: "",
+    distance_km: null,
+    bearing_deg: null,
+  }),
   "OH2PU-9": station("OH2PU-9", { lat: 60.2, lon: 24.65, distance_km: 16, bearing_deg: 282, last_heard: ago(30) }),
   OH2RDG: station("OH2RDG", { symbol_table: "N", symbol_code: "#", lat: 60.12, lon: 24.49, last_heard: ago(10) }),
   OH2NOPOS: station("OH2NOPOS", { lat: null, lon: null, last_heard: ago(90) }),
@@ -38,17 +46,28 @@ export async function open() {
   const socket = FakeSocket.last();
   socket.say(hello());
   socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
-  socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1), "2": packet(2, { tnc2: "OH2SEC>APRS:!6007.20N/02429.40E-" }) } });
+  socket.say({
+    type: "state",
+    topic: "packets",
+    rev: 0,
+    value: { "1": packet(1), "2": packet(2, { tnc2: "OH2SEC>APRS:!6007.20N/02429.40E-" }) },
+  });
   socket.say({ type: "state", topic: "radios", rev: 0, value: Object.fromEntries(radiosOf()) });
   socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
   socket.say({ type: "state", topic: "messages", rev: 0, value: messages });
-  socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "OH2RCH-2", rf_only: false, alert: null } } });
+  socket.say({
+    type: "state",
+    topic: "station_prefs",
+    rev: 0,
+    value: { OH2RDG: { path: "OH2RCH-2", rf_only: false, alert: null } },
+  });
   socket.say(status());
   await flushPromises();
   return { wrapper, socket };
 }
 
-export const tabButton = (wrapper: VueWrapper, title: string) => wrapper.findAll("[role='tab']").find((t) => t.text().startsWith(title));
+export const tabButton = (wrapper: VueWrapper, title: string) =>
+  wrapper.findAll("[role='tab']").find((t) => t.text().startsWith(title));
 
 /**
  * Around each test of the file: a 720 px wide panel, a desktop window, the fake socket and the

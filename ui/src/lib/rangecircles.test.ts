@@ -7,7 +7,9 @@ function km(a: number[], b: number[]): number {
   const rad = (d: number) => (d * Math.PI) / 180;
   const [lonA = 0, latA = 0] = a;
   const [lonB = 0, latB = 0] = b;
-  const h = Math.sin(rad(latB - latA) / 2) ** 2 + Math.cos(rad(latA)) * Math.cos(rad(latB)) * Math.sin(rad(lonB - lonA) / 2) ** 2;
+  const h =
+    Math.sin(rad(latB - latA) / 2) ** 2 +
+    Math.cos(rad(latA)) * Math.cos(rad(latB)) * Math.sin(rad(lonB - lonA) / 2) ** 2;
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
 

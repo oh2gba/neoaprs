@@ -12,7 +12,11 @@ import { configValues } from "@/test/fixtures";
 
 function beacon(call = "OH2GBA") {
   const daemon = fakeDaemon({ config: configValues({ "station/call": call }) });
-  const wrapper = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(SettingsForm, {
+    props: { scope: "beacon" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   const field = () => wrapper.find<HTMLInputElement>("#set-station-call");
   const ssid = () => wrapper.find<HTMLSelectElement>("#set-station-call-ssid");
   return { wrapper, send: daemon.send, field, ssid };
@@ -47,7 +51,8 @@ describe("the call field of the My station tab", () => {
     expect(options[0]?.text()).toBe("none · main station");
     expect(options[9]?.text()).toBe("-9 · car");
     expect(options[10]?.text()).toBe("-10 · internet, iGate");
-    for (const [i, option] of options.entries()) if (i > 0) expect(option.text().startsWith(`-${i} · `), option.text()).toBe(true);
+    for (const [i, option] of options.entries())
+      if (i > 0) expect(option.text().startsWith(`-${i} · `), option.text()).toBe(true);
   });
 
   it("sends the call and the SSID joined, at once, when an SSID is chosen", async () => {
@@ -137,9 +142,15 @@ describe("the call field of the My station tab", () => {
     const { wrapper, field } = beacon();
     const row = field().element.closest(".field");
     expect(row?.querySelectorAll(".infotip")).toHaveLength(1);
-    wrapper.find<HTMLButtonElement>("#set-station-call").element.closest(".field")?.querySelector<HTMLButtonElement>(".info-toggle")?.click();
+    wrapper
+      .find<HTMLButtonElement>("#set-station-call")
+      .element.closest(".field")
+      ?.querySelector<HTMLButtonElement>(".info-toggle")
+      ?.click();
     await wrapper.vm.$nextTick();
-    expect(wrapper.find(".info-text").text()).toContain("Several stations under one call; the number tells others what kind of station it is.");
+    expect(wrapper.find(".info-text").text()).toContain(
+      "Several stations under one call; the number tells others what kind of station it is.",
+    );
     expect(wrapper.find(".info-text svg").exists()).toBe(true);
   });
 });

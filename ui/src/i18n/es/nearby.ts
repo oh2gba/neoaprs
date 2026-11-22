@@ -1,17 +1,21 @@
 // The Nearby tab: the digipeaters, voice frequencies, iGates and stations heard direct around us.
 export const nearby = {
   "nearby.digipeaters": "Digipeaters",
-  "nearby.digipeaters_help": "Estaciones que repitieron paquetes que escuchamos, y estaciones con símbolo de digipeater.",
+  "nearby.digipeaters_help":
+    "Estaciones que repitieron paquetes que escuchamos, y estaciones con símbolo de digipeater.",
   "nearby.digipeaters_tip_label": "Sobre el alcance",
-  "nearby.digipeaters_tip": "Un digipeater repite lo que oye. Las estaciones dentro de su círculo lo alcanzan; las de fuera no.",
+  "nearby.digipeaters_tip":
+    "Un digipeater repite lo que oye. Las estaciones dentro de su círculo lo alcanzan; las de fuera no.",
   "nearby.voice": "Frecuencias de voz",
   "nearby.voice_help": "Estaciones, objetos e ítems que dieron una frecuencia para llamar.",
   "nearby.igates": "iGates",
-  "nearby.igates_help": "Estaciones que pusieron en el aire paquetes de internet, dijeron ser un iGate o tienen el símbolo de iGate.",
+  "nearby.igates_help":
+    "Estaciones que pusieron en el aire paquetes de internet, dijeron ser un iGate o tienen el símbolo de iGate.",
   "nearby.igates_tip_label": "Sobre los iGates",
   "nearby.igates_tip": "Un iGate pasa paquetes entre la radio e internet, para que te vean estaciones lejanas.",
   "nearby.direct": "Escuchadas en directo",
-  "nearby.direct_help": "Estaciones escuchadas sin ningún digipeater de por medio: las que están al alcance en símplex.",
+  "nearby.direct_help":
+    "Estaciones escuchadas sin ningún digipeater de por medio: las que están al alcance en símplex.",
   "nearby.none_yet": "ninguna todavía",
   "nearby.details": "Detalles",
   "nearby.repeated": { one: "{n} paquete repetido", other: "{n} paquetes repetidos" },
@@ -26,7 +30,8 @@ export const nearby = {
   "nearby.direct_last": "última vez en directo {when}",
   "nearby.ask": "Preguntar alrededor",
   "nearby.ask_tip_label": "Sobre preguntar alrededor",
-  "nearby.ask_tip": "Envía una consulta por radio. Las estaciones responden con su posición, los iGates con lo que hacen, las meteorológicas con su tiempo.",
+  "nearby.ask_tip":
+    "Envía una consulta por radio. Las estaciones responden con su posición, los iGates con lo que hacen, las meteorológicas con su tiempo.",
   "nearby.ask_kind_label": "Qué preguntar",
   "nearby.ask_kind.aprs": "Quién está",
   "nearby.ask_kind.igate": "iGates",
@@ -37,11 +42,14 @@ export const nearby = {
   "nearby.ask_help": "Pide a las estaciones al alcance de radio que se den a conocer.",
   "nearby.ask_refused": "No enviado: {reason}",
   "nearby.ask_sent.aprs": "Preguntado quién está a las {time} por {path}; las respuestas llegan al mapa y a Estaciones",
-  "nearby.ask_sent.igate": "Preguntado a los iGates a las {time} por {path}; las respuestas llegan al mapa y a Estaciones",
-  "nearby.ask_sent.wx": "Preguntado a las estaciones meteorológicas a las {time} por {path}; las respuestas llegan al mapa y a Estaciones",
+  "nearby.ask_sent.igate":
+    "Preguntado a los iGates a las {time} por {path}; las respuestas llegan al mapa y a Estaciones",
+  "nearby.ask_sent.wx":
+    "Preguntado a las estaciones meteorológicas a las {time} por {path}; las respuestas llegan al mapa y a Estaciones",
   "nearby.ask_sent_own.aprs": "Preguntado quién está a las {time}; las respuestas llegan al mapa y a Estaciones",
   "nearby.ask_sent_own.igate": "Preguntado a los iGates a las {time}; las respuestas llegan al mapa y a Estaciones",
-  "nearby.ask_sent_own.wx": "Preguntado a las estaciones meteorológicas a las {time}; las respuestas llegan al mapa y a Estaciones",
+  "nearby.ask_sent_own.wx":
+    "Preguntado a las estaciones meteorológicas a las {time}; las respuestas llegan al mapa y a Estaciones",
   "nearby.ask_new_counting": {
     "=0": "Escuchando estaciones calladas en los {min} minutos anteriores…",
     one: "{n} estación callada en los {min} minutos anteriores ha hablado desde entonces…",
@@ -52,7 +60,8 @@ export const nearby = {
     one: "{n} estación callada en los {min} minutos anteriores habló en los {after} minutos siguientes",
     other: "{n} estaciones calladas en los {min} minutos anteriores hablaron en los {after} minutos siguientes",
   },
-  "nearby.ask_new_title": "{calls}. Seguramente casi todas son respuestas; una estación cuya baliza cayó en esos minutos cuenta también.",
+  "nearby.ask_new_title":
+    "{calls}. Seguramente casi todas son respuestas; una estación cuya baliza cayó en esos minutos cuenta también.",
   "nearby.ask_new_note":
     "Estaciones oídas por radio tras la consulta que no se oyeron en los {min} minutos anteriores. Casi todas serán respuestas; una baliza que cayó entonces cuenta también.",
 };

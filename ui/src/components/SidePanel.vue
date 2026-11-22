@@ -16,11 +16,27 @@ import type { PhoneView } from "@/composables/useLayout";
 import { useRadios } from "@/composables/useRadios";
 import { useTabsFit } from "@/composables/useTabsFit";
 import { t } from "@/i18n";
-import { PANEL_MIN, TAB_IDS, offeredTabs, tabTitle, clampWidth, panelMax, type SizeClass, type TabId } from "@/lib/layout";
+import {
+  PANEL_MIN,
+  TAB_IDS,
+  offeredTabs,
+  tabTitle,
+  clampWidth,
+  panelMax,
+  type SizeClass,
+  type TabId,
+} from "@/lib/layout";
 import { unreadText } from "@/lib/unread";
 
 const props = withDefaults(
-  defineProps<{ tab: TabId; collapsed: boolean; width: number; badges?: Partial<Record<TabId, number>>; size?: SizeClass; view?: PhoneView }>(),
+  defineProps<{
+    tab: TabId;
+    collapsed: boolean;
+    width: number;
+    badges?: Partial<Record<TabId, number>>;
+    size?: SizeClass;
+    view?: PhoneView;
+  }>(),
   { badges: () => ({}), size: "desktop", view: "panel" },
 );
 const emit = defineEmits<{
@@ -101,7 +117,9 @@ const { split, measure } = useTabsFit(
  * What the More button counts, measured with the right number of digits: all offered tabs' badges
  * added.
  */
-const countDigits = computed(() => "8".repeat(String(offered.value.reduce((sum, id) => sum + (props.badges[id] ?? 0), 0)).length));
+const countDigits = computed(() =>
+  "8".repeat(String(offered.value.reduce((sum, id) => sum + (props.badges[id] ?? 0), 0)).length),
+);
 /** The room of the tab names changes with a badge (more digits). */
 watch(
   () => props.badges,
@@ -113,7 +131,8 @@ function drag(event: PointerEvent): void {
   const handle = event.currentTarget;
   if (!(handle instanceof HTMLElement)) return;
   handle.setPointerCapture(event.pointerId);
-  const move = (e: PointerEvent): void => emit("update:width", clampWidth(window.innerWidth - e.clientX, window.innerWidth));
+  const move = (e: PointerEvent): void =>
+    emit("update:width", clampWidth(window.innerWidth - e.clientX, window.innerWidth));
   const stop = (): void => {
     handle.removeEventListener("pointermove", move);
     handle.removeEventListener("pointerup", stop);
@@ -161,9 +180,13 @@ function nudge(event: KeyboardEvent): void {
       @click="emit('update:collapsed', !folded)"
     >
       <span aria-hidden="true">{{ folded ? "‹" : "›" }}</span>
-      <span class="sr-only">{{ folded ? (unseen > 0 ? t("panel.show_unseen", { unseen: unseenTitle }) : t("panel.show")) : t("panel.hide") }}</span>
+      <span class="sr-only">{{
+        folded ? (unseen > 0 ? t("panel.show_unseen", { unseen: unseenTitle }) : t("panel.show")) : t("panel.hide")
+      }}</span>
     </button>
-    <TagMark v-if="folded && unseen > 0" class="badge fold-badge" :title="unseenTitle" aria-hidden="true">{{ unseen }}</TagMark>
+    <TagMark v-if="folded && unseen > 0" class="badge fold-badge" :title="unseenTitle" aria-hidden="true">{{
+      unseen
+    }}</TagMark>
     <template v-if="!folded">
       <div
         v-if="size === 'desktop'"
@@ -220,11 +243,20 @@ function nudge(event: KeyboardEvent): void {
             </span>
             <span class="tab" data-more>{{ t("tab.more") }} <span aria-hidden="true">&#9662;</span></span>
             <span class="tab" data-more-count
-              >{{ t("tab.more") }} <span aria-hidden="true">&#9662;</span> <TagMark class="badge">{{ countDigits }}</TagMark></span
+              >{{ t("tab.more") }} <span aria-hidden="true">&#9662;</span>
+              <TagMark class="badge">{{ countDigits }}</TagMark></span
             >
           </div>
         </div>
-        <div v-for="id in TAB_IDS" v-show="id === tab && paneOn" :id="`pane-${id}`" :key="id" class="pane" role="tabpanel" :aria-labelledby="`tab-${id}`">
+        <div
+          v-for="id in TAB_IDS"
+          v-show="id === tab && paneOn"
+          :id="`pane-${id}`"
+          :key="id"
+          class="pane"
+          role="tabpanel"
+          :aria-labelledby="`tab-${id}`"
+        >
           <slot :name="id"></slot>
         </div>
       </div>

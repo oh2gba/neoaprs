@@ -11,8 +11,12 @@ const rows = table(
   station("OH2ZWC", { distance_km: 13, last_heard: ago(180) }),
 );
 const make = (selected: string | null = null, others: string[] = []) =>
-  mount(StationsTable, { props: { selected, others }, global: withDaemon(fakeDaemon({ stations: rows, aging: { defaultMin: 0 } })) });
-const row = (wrapper: ReturnType<typeof make>, call: string) => wrapper.findAll("tbody tr").find((r) => r.text().includes(call));
+  mount(StationsTable, {
+    props: { selected, others },
+    global: withDaemon(fakeDaemon({ stations: rows, aging: { defaultMin: 0 } })),
+  });
+const row = (wrapper: ReturnType<typeof make>, call: string) =>
+  wrapper.findAll("tbody tr").find((r) => r.text().includes(call));
 
 beforeEach(() => localStorage.clear());
 
@@ -46,7 +50,10 @@ describe("StationsTable with several cards", () => {
       station("OH2OLD", { lat: 60.4, lon: 25.1, last_position_at: ago(5 * 3600), last_heard: ago(5 * 3600) }),
     );
     const aging = { defaultMin: 180 };
-    const wrapper = mount(StationsTable, { props: { selected: null, others: [] }, global: withDaemon(fakeDaemon({ stations: old, aging })) });
+    const wrapper = mount(StationsTable, {
+      props: { selected: null, others: [] },
+      global: withDaemon(fakeDaemon({ stations: old, aging })),
+    });
     expect(wrapper.findAll("tbody td.call .callname").map((td) => td.text())).toEqual(["OH2NEW", "OH2OLD"]);
     expect(row(wrapper, "OH2OLD")?.text()).toContain("timed out");
     await row(wrapper, "OH2OLD")?.trigger("click", { ctrlKey: true });
@@ -61,7 +68,11 @@ describe("StationsTable with several cards", () => {
     const first = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
     box.element.dispatchEvent(first);
     await wrapper.vm.$nextTick();
-    expect([(box.element as HTMLInputElement).value, first.defaultPrevented, wrapper.findAll("tbody tr").length]).toEqual(["", true, 3]);
+    expect([
+      (box.element as HTMLInputElement).value,
+      first.defaultPrevented,
+      wrapper.findAll("tbody tr").length,
+    ]).toEqual(["", true, 3]);
     const second = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
     box.element.dispatchEvent(second);
     expect(second.defaultPrevented).toBe(false);
@@ -144,7 +155,8 @@ describe("StationsTable with several cards", () => {
     });
 
     it("is not there for text that is no call: too long, a bad SSID, a word, an empty filter", async () => {
-      for (const text of ["OH2XYZABC", "OH2XYZ-16", "hello there", "OH2 XYZ", ""]) expect(button(await withFilter(text)).exists(), text).toBe(false);
+      for (const text of ["OH2XYZABC", "OH2XYZ-16", "hello there", "OH2 XYZ", ""])
+        expect(button(await withFilter(text)).exists(), text).toBe(false);
     });
 
     it("is not there when a station matches the filter, even when the text is a whole call", async () => {

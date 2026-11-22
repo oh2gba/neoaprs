@@ -54,13 +54,20 @@ describe("canSendEmail", () => {
 
 describe("isCheck", () => {
   it("is the get of Check email, in any letters and with blanks round it, and no other text", () => {
-    expect([isCheck("get"), isCheck(" GET "), isCheck("get mail"), isCheck("me get"), isCheck("")]).toEqual([true, true, false, false, false]);
+    expect([isCheck("get"), isCheck(" GET "), isCheck("get mail"), isCheck("me get"), isCheck("")]).toEqual([
+      true,
+      true,
+      false,
+      false,
+      false,
+    ]);
     expect(GET_HELD).toBe("get");
   });
 });
 
 describe("checkingMail", () => {
-  const get = (state: "sending" | "unconfirmed" | "acked", extra = {}) => message(1, { to_call: "EMAIL-2", text: GET_HELD, state, ...extra });
+  const get = (state: "sending" | "unconfirmed" | "acked", extra = {}) =>
+    message(1, { to_call: "EMAIL-2", text: GET_HELD, state, ...extra });
   it("is true only while a get of ours is still being sent", () => {
     expect(checkingMail([get("sending")])).toBe(true);
     expect(checkingMail([get("unconfirmed"), get("acked")])).toBe(false);
@@ -107,7 +114,12 @@ describe("a mail that got no ack", () => {
   it("is sent, not confirmed, whether it was given few attempts (unconfirmed) or many (failed)", () => {
     expect(isNotConfirmed(to("unconfirmed", 2))).toBe(true);
     expect(isNotConfirmed(to("failed", 6))).toBe(true);
-    expect([to("acked", 1), to("rejected", 1), to("sending", 1), to("cancelled", 1)].map(isNotConfirmed)).toEqual([false, false, false, false]);
+    expect([to("acked", 1), to("rejected", 1), to("sending", 1), to("cancelled", 1)].map(isNotConfirmed)).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 
   it("has the hollow check, not the cross, and says why", () => {

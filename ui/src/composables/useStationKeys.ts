@@ -6,7 +6,11 @@
 import { computed, type Ref } from "vue";
 import type { Command, StationKey, StatusMessage } from "@/protocol/protocol";
 
-export function useStationKeys(keys: ReadonlyMap<string, StationKey>, status: Readonly<Ref<StatusMessage | null>>, send: (command: Command) => boolean) {
+export function useStationKeys(
+  keys: ReadonlyMap<string, StationKey>,
+  status: Readonly<Ref<StatusMessage | null>>,
+  send: (command: Command) => boolean,
+) {
   const own = computed(() => status.value?.message_key ?? "");
   const on = computed(() => own.value !== "");
   return {

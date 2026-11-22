@@ -4,7 +4,10 @@ import { shallowReactive } from "vue";
 import { fillTable, type Store } from "@/lib/hub";
 import type { StationKey, StationPref } from "@/protocol/protocol";
 
-type StationHandlers = Pick<Store, "replaceStationPrefs" | "replaceStationKeys" | "setStationPref" | "setStationKey" | "delStationPref" | "delStationKey">;
+type StationHandlers = Pick<
+  Store,
+  "replaceStationPrefs" | "replaceStationKeys" | "setStationPref" | "setStationKey" | "delStationPref" | "delStationKey"
+>;
 
 export function useStationTables() {
   const stationPrefs = shallowReactive(new Map<string, StationPref>());

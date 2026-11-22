@@ -17,7 +17,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.card.qrz_title": "QRZ-pagina van deze roepnaam openen",
   "station.card.size_title":
     "Sleep om het kaartje te verplaatsen, de randen om het van maat te veranderen (Alt+pijltjestoetsen verplaatsen het kaartje met de focus, Ctrl+Alt+pijltjestoetsen veranderen de maat)",
-  "station.card.drag_title": "Sleep om het kaartje te verplaatsen (Alt+pijltjestoetsen verplaatsen het kaartje met de focus)",
+  "station.card.drag_title":
+    "Sleep om het kaartje te verplaatsen (Alt+pijltjestoetsen verplaatsen het kaartje met de focus)",
   "station.card.edit": "Bewerken",
   "station.card.kill": "Intrekken",
   "station.card.kill_sure": "Echt intrekken?",
@@ -123,7 +124,13 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.freq.offset": "{khz} kHz",
   "station.freq.range": "bereik {km} km",
   "station.freq.receive": "ontvangst {mhz} MHz",
-  "station.storm.kind": { select: "kind", TS: "Tropische storm", HC: "Orkaan", TD: "Tropische depressie", other: "{kind}" },
+  "station.storm.kind": {
+    select: "kind",
+    TS: "Tropische storm",
+    HC: "Orkaan",
+    TD: "Tropische depressie",
+    other: "{kind}",
+  },
   "station.storm.wind": "wind {speed}",
   "station.storm.gusts": "windstoten {speed}",
   "station.storm.pressure": "luchtdruk {value}",
@@ -137,8 +144,10 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter": "Filter",
   "station.table.filter_title": "Roepnaam, symbool, commentaar, pad",
   "station.table.about_label": "Over de stations",
-  "station.table.about1": "Elk gehoord station, met zijn afstand en richting vanaf jou. Klik op een station om het op de kaart te vinden.",
-  "station.table.about2": "Een vinkje achter een roepnaam betekent dat het station direct is gehoord, zonder digipeater.",
+  "station.table.about1":
+    "Elk gehoord station, met zijn afstand en richting vanaf jou. Klik op een station om het op de kaart te vinden.",
+  "station.table.about2":
+    "Een vinkje achter een roepnaam betekent dat het station direct is gehoord, zonder digipeater.",
   "station.table.filter_label": "Stations filteren",
   "station.table.hide_timed_out": "verlopen verbergen",
   "station.table.direct_only": "alleen direct",
@@ -165,7 +174,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.menu.ask_heard": "Vragen wat hij direct hoort",
   "station.menu.ask_trace": "Route traceren",
   "station.menu.ask_weather": "Weer vragen",
-  "station.menu.ask_weather_title": "?WX? is in de APRS-specificatie geen gerichte query: veel stations geven er geen antwoord op",
+  "station.menu.ask_weather_title":
+    "?WX? is in de APRS-specificatie geen gerichte query: veel stations geven er geen antwoord op",
   "station.menu.show_map": "Op kaart tonen",
   "station.menu.show_card": "Kaartje openen",
   "station.menu.copy": "Roepnaam kopiëren",

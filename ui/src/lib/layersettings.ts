@@ -93,7 +93,8 @@ export function layerShown(key: string, values: Readonly<Record<string, string>>
 }
 
 /** The layer's row of the topic `map`, if the daemon has sent it. */
-export const layerOf = (layers: readonly MapLayer[] | undefined, layer: LayerName): MapLayer | null => layers?.find((row) => row.layer === layer) ?? null;
+export const layerOf = (layers: readonly MapLayer[] | undefined, layer: LayerName): MapLayer | null =>
+  layers?.find((row) => row.layer === layer) ?? null;
 
 /**
  * The address field of a row as its source has it: a Radarcape's (i) says what to type and its box

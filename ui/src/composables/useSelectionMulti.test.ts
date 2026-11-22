@@ -7,7 +7,9 @@ import { station } from "@/test/fixtures";
 const CALLS = ["OH2ZWA", "OH2ZWB", "OH2ZWC", "OH2ZWD", "OH2ZWE", "OH2ZWF", "OH2ZWG"];
 
 function setUp(capacity = 4) {
-  const stations = shallowRef<ReadonlyMap<string, StationRow>>(new Map(CALLS.map((call) => [call, station(call)] as const)));
+  const stations = shallowRef<ReadonlyMap<string, StationRow>>(
+    new Map(CALLS.map((call) => [call, station(call)] as const)),
+  );
   const room = ref(capacity);
   const send = vi.fn((_command: Command) => true);
   return { stations, room, send, picked: useSelection(stations, send, room) };

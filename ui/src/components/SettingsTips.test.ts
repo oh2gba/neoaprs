@@ -22,7 +22,11 @@ const tipOf = (wrapper: ReturnType<typeof make>, id: string) =>
 
 describe("the (i) of the Settings tab", () => {
   const cases: [string, string, RegExp][] = [
-    ["set-web-network", "About network access", /phone, a tablet or a laptop on your network.*access key and a code for a phone appear/s],
+    [
+      "set-web-network",
+      "About network access",
+      /phone, a tablet or a laptop on your network.*access key and a code for a phone appear/s,
+    ],
     ["set-web-key", "About the access key", /type it once on each.*New key logs every other device out/s],
     ["set-web-code-label", "About the code", /^Point the camera of a phone on the same network at it\.$/],
     [
@@ -30,7 +34,11 @@ describe("the (i) of the Settings tab", () => {
       "Which radio type to pick",
       /An FM radio on a Digirig.* is Sound card\..*KISS TNC.*Mercury modem is heard only by stations with Mercury.*Dummy/s,
     ], // (the one (i) of the one list)
-    ["set-radio-1-port", "About the port", /Find automatically looks for it.*\/dev\/ttyUSB0.*COM3.*Refresh reads the list again/s],
+    [
+      "set-radio-1-port",
+      "About the port",
+      /Find automatically looks for it.*\/dev\/ttyUSB0.*COM3.*Refresh reads the list again/s,
+    ],
     ["set-radio-1-baud", "About the speed", /Leave it empty.*57600 for a NinoTNC/s],
     ["set-map-radius_km", "About the radius", /bigger download.*150 km is a region/s],
     ["set-update-now", "About the update check", /Once a day NeoAPRS asks/],
@@ -70,7 +78,8 @@ describe("the (i) of the Settings tab", () => {
 
   it("has a one-line (i) on the alert and its command too, which the group's (i) explains further", async () => {
     const wrapper = make();
-    for (const id of ["set-messages-alert_command", "set-messages-alert"]) expect(tipOf(wrapper, id), id).not.toBeNull();
+    for (const id of ["set-messages-alert_command", "set-messages-alert"])
+      expect(tipOf(wrapper, id), id).not.toBeNull();
     await new DOMWrapper(tipOf(wrapper, "set-messages-alert_command")).trigger("click");
     expect(wrapper.find(".info-text").text()).toContain("NEOAPRS_TITLE and NEOAPRS_TEXT");
   });

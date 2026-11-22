@@ -18,7 +18,8 @@ function make(initial: MessageRow[] = []) {
   return { messages, loaded, announce, fill };
 }
 
-const ids = (announce: ReturnType<typeof vi.fn>): number[][] => announce.mock.calls.map((call) => (call[0] as MessageRow[]).map((m) => m.id));
+const ids = (announce: ReturnType<typeof vi.fn>): number[][] =>
+  announce.mock.calls.map((call) => (call[0] as MessageRow[]).map((m) => m.id));
 
 describe("usePageAlerts", () => {
   it("alerts nothing for the messages the page loaded with", async () => {

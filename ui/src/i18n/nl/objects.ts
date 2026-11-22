@@ -5,8 +5,16 @@ import type { Message } from "@/i18n/message";
 export const objects: Record<keyof typeof source, Message> = {
   "schedule.sent": { "=0": "nog niet verzonden", "=1": "één keer verzonden", other: "{n} keer verzonden" },
   "schedule.ended": { "=1": "één keer verzonden, afgelopen", other: "{n} keer verzonden, afgelopen" },
-  "schedule.next": { "=0": "nog niet verzonden, volgende {when}", "=1": "één keer verzonden, volgende {when}", other: "{n} keer verzonden, volgende {when}" },
-  "schedule.waiting": { "=0": "nog niet verzonden, wacht", "=1": "één keer verzonden, wacht", other: "{n} keer verzonden, wacht" },
+  "schedule.next": {
+    "=0": "nog niet verzonden, volgende {when}",
+    "=1": "één keer verzonden, volgende {when}",
+    other: "{n} keer verzonden, volgende {when}",
+  },
+  "schedule.waiting": {
+    "=0": "nog niet verzonden, wacht",
+    "=1": "één keer verzonden, wacht",
+    other: "{n} keer verzonden, wacht",
+  },
   "schedule.killing": {
     "=0": "wordt ingetrokken, nog niet verzonden",
     "=1": "wordt ingetrokken, één keer verzonden",
@@ -18,11 +26,17 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.list": "Objecten",
   "objects.mine": "Mijn objecten",
   "objects.about_label": "Over objecten",
-  "objects.about1": "Een object is een markering die je op de kaart zet voor iets wat geen station is: een repeater, een verzamelpunt, een evenement.",
+  "objects.about1":
+    "Een object is een markering die je op de kaart zet voor iets wat geen station is: een repeater, een verzamelpunt, een evenement.",
   "objects.about2": "Iedereen bij jou in de buurt ziet het, zolang je het verzendt.",
   "objects.edit_label": "{name} bewerken",
   "objects.delete_title": "Verwijderen (via de radio intrekken)",
-  "objects.delete_label": { select: "kind", object: "Object {name} verwijderen", item: "Item {name} verwijderen", other: "Object {name} verwijderen" },
+  "objects.delete_label": {
+    select: "kind",
+    object: "Object {name} verwijderen",
+    item: "Item {name} verwijderen",
+    other: "Object {name} verwijderen",
+  },
   "objects.kind_word": { select: "kind", object: "object", item: "item", other: "object" },
   "objects.in_group": "Categorie: {group}",
   "objects.category.rp2m": "2m-repeater",
@@ -58,14 +72,19 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.category.other": "Anders…",
   "objects.qru": "Lokale info",
   "objects.qru_tip_label": "Over lokale info",
-  "objects.qru_tip": "Vraagt stations bij jou in de buurt naar hun objecten (APRS QRU): repeaters, evenementen, plekken. Gaat alleen via de radio.",
+  "objects.qru_tip":
+    "Vraagt stations bij jou in de buurt naar hun objecten (APRS QRU): repeaters, evenementen, plekken. Gaat alleen via de radio.",
   "objects.qru_ask": "Vragen",
   "objects.qru_km": "km",
   "objects.qru_km_label": "Afstand in km",
-  "objects.qru_km_tip": "Hoe ver er gezocht wordt; eerst staat hier de kaartstraal. Leeg: wat de servers zelf aanhouden, meestal 50 km.",
+  "objects.qru_km_tip":
+    "Hoe ver er gezocht wordt; eerst staat hier de kaartstraal. Leeg: wat de servers zelf aanhouden, meestal 50 km.",
   "objects.qru_state": "Gevraagd",
   "objects.qru_waiting": "{time} · wacht op antwoorden…",
-  "objects.qru_answered": { one: "{time} · {n} server heeft geantwoord", other: "{time} · {n} servers hebben geantwoord" },
+  "objects.qru_answered": {
+    one: "{time} · {n} server heeft geantwoord",
+    other: "{time} · {n} servers hebben geantwoord",
+  },
   "objects.qru_no_answer": "{time} · geen antwoord",
   "objects.qru_refused": "Niet verzonden",
   "objects.qru_request": "Laatste verzoek: {text}",
@@ -100,7 +119,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.speed": "Hoe snel het beweegt, in km/h. Laat beide leeg voor een object dat stilstaat.",
   "objects.tip.path": "De digipeaters waar zijn pakketten om vragen. Leeg: het pad van je baken.",
   "objects.tip.category": "Geef een object een categorie om het aan te bieden aan stations die om lokale info vragen.",
-  "objects.tip.category_code": "Je eigen categorie: maximaal {max} letters of cijfers, niet INFO of NEXT. Met dit woord vragen stations erom.",
+  "objects.tip.category_code":
+    "Je eigen categorie: maximaal {max} letters of cijfers, niet INFO of NEXT. Met dit woord vragen stations erom.",
   "objects.tip.on_request": "Niet als baken verzonden, alleen naar een station dat om lokale info vraagt.",
   "objects.sent_on": "Verzonden via radio {name}",
 

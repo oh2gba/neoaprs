@@ -31,6 +31,15 @@ watch(
 
 <template>
   <div class="station-speed" data-speed>
-    <TrendChart :title="t('station.speed_chart')" unit="km/h" :from="shown.from" :to="shown.to" :main="shown.points" zero tone="speed" :value-decimals="0" />
+    <TrendChart
+      :title="t('station.speed_chart')"
+      unit="km/h"
+      :from="shown.from"
+      :to="shown.to"
+      :main="shown.points"
+      zero
+      tone="speed"
+      :value-decimals="0"
+    />
   </div>
 </template>

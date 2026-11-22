@@ -11,11 +11,20 @@ const rows = [
   message(4, { to_call: "OH2RDG", text: "Hello?", state: "sending", attempts: 2 }),
   incoming(5, "OH2XYZ", { text: "73 de OH2XYZ" }),
 ];
-const heard = [...rows, message(6, { direction: "in", state: "overheard", from_call: "OH2AAA", to_call: "OH2BBB", text: "chatter" })];
+const heard = [
+  ...rows,
+  message(6, { direction: "in", state: "overheard", from_call: "OH2AAA", to_call: "OH2BBB", text: "chatter" }),
+];
 
 function list(extra: Record<string, unknown> = {}) {
   return mount(ConversationList, {
-    props: { conversations: conversations(rows, () => 0), selected: "OH2RDG", now: NOW, showOverheard: false, ...extra },
+    props: {
+      conversations: conversations(rows, () => 0),
+      selected: "OH2RDG",
+      now: NOW,
+      showOverheard: false,
+      ...extra,
+    },
   });
 }
 
@@ -53,7 +62,9 @@ describe("ConversationList", () => {
     const wrapper = list();
     const stops = wrapper.findAll("button");
     expect(stops.map((b) => b.attributes("tabindex"))).not.toContain("-1");
-    expect(wrapper.findAll(".conv-item button").map((b) => b.classes().includes("conv") || b.classes().includes("xbtn"))).toEqual([true, true, true, true]);
+    expect(
+      wrapper.findAll(".conv-item button").map((b) => b.classes().includes("conv") || b.classes().includes("xbtn")),
+    ).toEqual([true, true, true, true]);
   });
 
   it("says there is no message yet", () => {
@@ -116,8 +127,12 @@ describe("ConversationList", () => {
         const wrapper = wide();
         expect(wrapper.findAll(".conv")).toHaveLength(3);
         expect(wrapper.findAll(".conv-delete")).toHaveLength(3);
-        expect(at(wrapper, "OH2AAA > OH2BBB")?.attributes("aria-label")).toBe("Delete the overheard messages OH2AAA > OH2BBB");
-        expect(list({ conversations: conversations(heard, () => 0, false), showOverheard: false }).findAll(".conv-delete")).toHaveLength(2);
+        expect(at(wrapper, "OH2AAA > OH2BBB")?.attributes("aria-label")).toBe(
+          "Delete the overheard messages OH2AAA > OH2BBB",
+        );
+        expect(
+          list({ conversations: conversations(heard, () => 0, false), showOverheard: false }).findAll(".conv-delete"),
+        ).toHaveLength(2);
       });
 
       it("asks twice and then says which pair, as two calls, and not as a conversation", async () => {

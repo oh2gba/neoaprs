@@ -38,14 +38,17 @@ describe("the card of a thing: its rows", () => {
   });
 
   it("says an aircraft's vertical speed straight after its altitude with its sign, level flight as 0, and has no row where its source told none", () => {
-    const rows = (v: number | null) => pairs(cardRows("aircraft", aircraft({ at: ago(12), vertical_ms: v }), "radarcape", NOW));
+    const rows = (v: number | null) =>
+      pairs(cardRows("aircraft", aircraft({ at: ago(12), vertical_ms: v }), "radarcape", NOW));
     expect(rows(3.2)).toContainEqual(["Vertical speed", "+3.2 m/s"]);
     expect(rows(-10.7)).toContainEqual(["Vertical speed", "\u221210.7 m/s"]);
     expect(rows(0)).toContainEqual(["Vertical speed", "0 m/s"]);
     const labels = rows(3.2).map(([label]) => label);
     expect(labels.indexOf("Vertical speed")).toBe(labels.indexOf("Altitude") + 1);
     expect(rows(null).map(([label]) => label)).not.toContain("Vertical speed");
-    expect(pairs(hoverRows("aircraft", aircraft({ at: ago(12), vertical_ms: 3.2 }), NOW)).map(([label]) => label)).not.toContain("Vertical speed");
+    expect(
+      pairs(hoverRows("aircraft", aircraft({ at: ago(12), vertical_ms: 3.2 }), NOW)).map(([label]) => label),
+    ).not.toContain("Vertical speed");
   });
 
   it("leaves out a row that has nothing, and the registration where it is the title", () => {
@@ -63,7 +66,13 @@ describe("the card of a thing: its rows", () => {
   });
 
   it("says where an aircraft came from and where it goes as the place with the code in brackets, after its type and before its altitude", () => {
-    const flying = aircraft({ at: ago(12), origin: "ESSA", origin_place: "Stockholm", destination: "EFHK", destination_place: "Helsinki" });
+    const flying = aircraft({
+      at: ago(12),
+      origin: "ESSA",
+      origin_place: "Stockholm",
+      destination: "EFHK",
+      destination_place: "Helsinki",
+    });
     expect(pairs(cardRows("aircraft", flying, "radarcape", NOW))).toEqual([
       ["Registration", "OH-LZA"],
       ["Type", "AIRBUS A-321"],
@@ -79,7 +88,9 @@ describe("the card of a thing: its rows", () => {
 
   it("says an airport the table does not know by its code alone, and leaves out From or To where there is no code", () => {
     const rows = (extra: Parameters<typeof aircraft>[0]) =>
-      pairs(cardRows("aircraft", aircraft({ at: ago(1), ...extra }), "radarcape", NOW)).filter(([label]) => label === "From" || label === "To");
+      pairs(cardRows("aircraft", aircraft({ at: ago(1), ...extra }), "radarcape", NOW)).filter(
+        ([label]) => label === "From" || label === "To",
+      );
     expect(rows({ origin: "ZZZZ", destination: "EFHK", destination_place: "Helsinki" })).toEqual([
       ["From", "ZZZZ"],
       ["To", "Helsinki (EFHK)"],
@@ -89,15 +100,51 @@ describe("the card of a thing: its rows", () => {
   });
 
   it("prints a Radarcape's 16 050 ft, which the daemon sends as 4892 m, as 4892 m", () => {
-    expect(pairs(cardRows("aircraft", aircraft({ altitude_m: 4892, at: ago(1) }), "radarcape", NOW))).toContainEqual(["Altitude", "4892 m"]);
+    expect(pairs(cardRows("aircraft", aircraft({ altitude_m: 4892, at: ago(1) }), "radarcape", NOW))).toContainEqual([
+      "Altitude",
+      "4892 m",
+    ]);
   });
 
   it("names every row a card of its layer may have, whatever the thing tells now, so that the card can keep the room of the widest label", () => {
-    const bare = aircraft({ name: "", registration: "", type: "", altitude_m: null, vertical_ms: null, speed_kmh: null, heading_deg: null, at: ago(1) });
-    const all = ["Registration", "Type", "From", "To", "Altitude", "Vertical speed", "Speed", "Heading", "Age", "Source"];
+    const bare = aircraft({
+      name: "",
+      registration: "",
+      type: "",
+      altitude_m: null,
+      vertical_ms: null,
+      speed_kmh: null,
+      heading_deg: null,
+      at: ago(1),
+    });
+    const all = [
+      "Registration",
+      "Type",
+      "From",
+      "To",
+      "Altitude",
+      "Vertical speed",
+      "Speed",
+      "Heading",
+      "Age",
+      "Source",
+    ];
     expect(cardLabels("aircraft", bare, "receiver")).toEqual(all);
-    expect(cardLabels("aircraft", aircraft({ at: ago(1), origin: "ESSA", destination: "EFHK", vertical_ms: 3.2 }), "radarcape")).toEqual(all);
-    expect(cardLabels("ships", ship({ at: ago(1) }), "fintraffic")).toEqual(["Kind", "Speed", "Course", "Destination", "Age", "Source"]);
+    expect(
+      cardLabels(
+        "aircraft",
+        aircraft({ at: ago(1), origin: "ESSA", destination: "EFHK", vertical_ms: 3.2 }),
+        "radarcape",
+      ),
+    ).toEqual(all);
+    expect(cardLabels("ships", ship({ at: ago(1) }), "fintraffic")).toEqual([
+      "Kind",
+      "Speed",
+      "Course",
+      "Destination",
+      "Age",
+      "Source",
+    ]);
   });
 
   it("has a ship's kind, speed, course, destination and age, then the source", () => {
@@ -109,14 +156,26 @@ describe("the card of a thing: its rows", () => {
       ["Age", "2 min"],
       ["Source", "Fintraffic"],
     ]);
-    expect(pairs(cardRows("ships", ship({ ship_type: null, course_deg: null, destination: "", speed_kmh: null, at: ago(1) }), "receiver", NOW))).toEqual([
+    expect(
+      pairs(
+        cardRows(
+          "ships",
+          ship({ ship_type: null, course_deg: null, destination: "", speed_kmh: null, at: ago(1) }),
+          "receiver",
+          NOW,
+        ),
+      ),
+    ).toEqual([
       ["Age", "1 s"],
       ["Source", "My own receiver"],
     ]);
   });
 
   it("has nothing of a station: no path, no packets, no message", () => {
-    const labels = [...cardRows("aircraft", aircraft(), "adsblol", NOW), ...cardRows("ships", ship(), "fintraffic", NOW)].map((row) => row.label);
+    const labels = [
+      ...cardRows("aircraft", aircraft(), "adsblol", NOW),
+      ...cardRows("ships", ship(), "fintraffic", NOW),
+    ].map((row) => row.label);
     for (const word of ["Path", "Packets", "Message", "Comment", "Last heard"]) expect(labels).not.toContain(word);
   });
 });

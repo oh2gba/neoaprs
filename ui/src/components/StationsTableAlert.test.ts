@@ -17,7 +17,11 @@ let book: Map<string, StationPref>;
 let send: ReturnType<typeof vi.fn<(command: Command) => boolean>>;
 const make = (home: { lat: number; lon: number } | null = { lat: 60.17, lon: 24.94 }) => {
   send = vi.fn((_command: Command) => true);
-  book = shallowReactive(new Map<string, StationPref>([["OH2XYZ", { path: null, rf_only: false, alert: { on_air: true, within_km: 10, direct: false } }]]));
+  book = shallowReactive(
+    new Map<string, StationPref>([
+      ["OH2XYZ", { path: null, rf_only: false, alert: { on_air: true, within_km: 10, direct: false } }],
+    ]),
+  );
   const daemon = fakeDaemon({ stations: rows, send, home, prefs: useStationPrefs(book, send) });
   wrapper = mount(StationsTable, { props: { selected: null }, attachTo: document.body, global: withDaemon(daemon) });
   return wrapper;
@@ -62,11 +66,11 @@ describe("Alert me when…", () => {
     await row("OH2XYZ").trigger("click");
     const panel = wrapper.find(".stationpanel");
     expect(panel.findAll("legend").map((l) => l.text())).toContain("Alert me when OH2XYZ…");
-    expect(["on_air", "within", "direct"].map((name) => (panel.find(`input[data-alert='${name}']`).element as HTMLInputElement).checked)).toEqual([
-      true,
-      true,
-      false,
-    ]);
+    expect(
+      ["on_air", "within", "direct"].map(
+        (name) => (panel.find(`input[data-alert='${name}']`).element as HTMLInputElement).checked,
+      ),
+    ).toEqual([true, true, false]);
     await row("OH2XYZ").trigger("contextmenu", { clientX: 100, clientY: 120 });
     await nextTick();
     expect(wrapper.findAll("[role='menuitem']").map((i) => i.attributes("data-item"))).not.toContain("alert");

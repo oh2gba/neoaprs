@@ -28,7 +28,9 @@ const props = withDefaults(
   }>(),
   { radios: () => [], sentNowhere: false },
 );
-const look = computed(() => reportLook(props.lastSent, props.minutes, props.beaconOff, props.rxOnly, props.sentNowhere, props.now));
+const look = computed(() =>
+  reportLook(props.lastSent, props.minutes, props.beaconOff, props.rxOnly, props.sentNowhere, props.now),
+);
 </script>
 
 <template>

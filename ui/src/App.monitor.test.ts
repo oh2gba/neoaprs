@@ -40,7 +40,8 @@ const scoped = (socket: Awaited<ReturnType<typeof open>>["socket"]) => {
   socket.say({ type: "state", topic: "radios", rev: 1, value: radiosValue(fmRow(), hfRow({}, { scope: true })) });
 };
 const statsCard = () => document.querySelector<HTMLElement>(".statscard");
-const menuItem = (name: string) => document.querySelector<HTMLElement>(`.mapmenu [role='menuitem'][data-item='${name}']`);
+const menuItem = (name: string) =>
+  document.querySelector<HTMLElement>(`.mapmenu [role='menuitem'][data-item='${name}']`);
 const escape = async (): Promise<void> => {
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   await flushPromises();

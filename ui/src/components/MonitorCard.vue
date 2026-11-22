@@ -46,7 +46,11 @@ const title = computed(() => {
 const speed = usePersisted("monitorspeed", "normal", SPEEDS);
 const picture = ref<HTMLElement | null>(null);
 const menu = useMonitorMenu(() => picture.value);
-const listeners = { ...drag.on, ...menu.on, keydown: (event: KeyboardEvent) => (drag.on.keydown(event), sizing.keydown(event)) };
+const listeners = {
+  ...drag.on,
+  ...menu.on,
+  keydown: (event: KeyboardEvent) => (drag.on.keydown(event), sizing.keydown(event)),
+};
 </script>
 
 <template>
@@ -68,12 +72,21 @@ const listeners = { ...drag.on, ...menu.on, keydown: (event: KeyboardEvent) => (
       <IconButton kind="close" class="card-close" :label="t('iconbutton.close')" @click="emit('close')" />
     </header>
     <div class="card-body" v-on="menu.pressOn">
-      <div ref="picture" class="monitor-picture" tabindex="0" aria-haspopup="menu"><HfWaterfall :speed="speed" :radio="radio" @shown="shown = $event" /></div>
+      <div ref="picture" class="monitor-picture" tabindex="0" aria-haspopup="menu">
+        <HfWaterfall :speed="speed" :radio="radio" @shown="shown = $event" />
+      </div>
       <HfLevelBar :on="on" :radio="radio" />
     </div>
     <CardSizer :sizing="sizing" />
     <Teleport to="body">
-      <MonitorMenu v-if="menu.menu.value" :key="menu.key.value" v-bind="menu.menu.value" :speed="speed" @speed="speed = $event" @close="menu.close()" />
+      <MonitorMenu
+        v-if="menu.menu.value"
+        :key="menu.key.value"
+        v-bind="menu.menu.value"
+        :speed="speed"
+        @speed="speed = $event"
+        @close="menu.close()"
+      />
     </Teleport>
   </section>
 </template>

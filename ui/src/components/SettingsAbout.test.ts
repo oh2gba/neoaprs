@@ -17,7 +17,10 @@ function makeWith(over = {}) {
   return mount(SettingsAbout, { global: withDaemon(fakeDaemon({ version: "0.9.1", call: "OH2GBA", ...over })) });
 }
 
-const ZIP = { "Content-Type": "application/zip", "Content-Disposition": 'attachment; filename="neoaprs-support-OH2GBA-20261021-123456Z.zip"' };
+const ZIP = {
+  "Content-Type": "application/zip",
+  "Content-Disposition": 'attachment; filename="neoaprs-support-OH2GBA-20261021-123456Z.zip"',
+};
 
 /**
  * The fetch of the page: `answer` is what the daemon says to the next request, kept with what was
@@ -41,7 +44,9 @@ describe("the About group", () => {
   it("says what NeoAPRS is with the daemon's version, who made it, and has one control: Download logs, a link on the last line", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("About");
-    expect(wrapper.findAll("p")[0]?.text()).toBe("NeoAPRS 0.9.1, an APRS client for your radios: FM, Mercury and LoRa. Made by OH2GBA, 2026.");
+    expect(wrapper.findAll("p")[0]?.text()).toBe(
+      "NeoAPRS 0.9.1, an APRS client for your radios: FM, Mercury and LoRa. Made by OH2GBA, 2026.",
+    );
     const controls = wrapper.findAll("button:not(.groupfold), input, select");
     expect(controls.map((c) => [c.text(), c.classes()])).toEqual([["Download logs", ["linkbtn"]]]);
     const paragraphs = wrapper.findAll("p");
@@ -88,7 +93,9 @@ describe("the About group", () => {
   it("names the modem of a Sound card radio and its pinned version on its own line after the Mercury modem's, where this installation carries it: the one place the page names Dire Wolf; its name a link to its source", () => {
     const wrapper = makeWith({ status: status({ unavailable_types: [] }) });
     const line = wrapper.findAll("p")[4];
-    expect(line?.text()).toBe(`The modem of a Sound card radio is Dire Wolf ${LIMITS.soundCard.version} by John Langner, WB2OSZ.`);
+    expect(line?.text()).toBe(
+      `The modem of a Sound card radio is Dire Wolf ${LIMITS.soundCard.version} by John Langner, WB2OSZ.`,
+    );
     expect(LIMITS.soundCard.version).toMatch(/^\d+\.\d+\.\d+$/);
     const link = line?.get("a");
     expect(link?.text()).toBe(`Dire Wolf ${LIMITS.soundCard.version}`);
@@ -155,7 +162,8 @@ describe("the words of the group in every language", () => {
         const source = String(english[id]);
         expect(text, id).not.toBe("undefined");
         // the name of the licence is kept in German and Dutch as it is written there
-        if (!(["de", "nl"].includes(locale.code) && id === "settings.about.license_link")) expect(text, id).not.toBe(source);
+        if (!(["de", "nl"].includes(locale.code) && id === "settings.about.license_link"))
+          expect(text, id).not.toBe(source);
         for (const name of source.match(/\{\w+\}/g) ?? []) expect(text, id).toContain(name);
       }
     });
@@ -185,7 +193,10 @@ describe("the typography of the group in French and Italian", () => {
 describe("Download logs, the last line", () => {
   beforeEach(() => {
     downloads.length = 0;
-    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:support"), revokeObjectURL: vi.fn() }));
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, { createObjectURL: vi.fn(() => "blob:support"), revokeObjectURL: vi.fn() }),
+    );
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
       downloads.push({ href: this.href, download: this.download });
     });
@@ -248,7 +259,9 @@ describe("Download logs, the last line", () => {
     await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();
     expect(downloads).toEqual([{ href: "blob:support", download: "neoaprs-support-OH2GBA-20261021-123456Z.zip" }]);
-    expect(wrapper.get(".about-download").text()).toBe("Download logs · Saved neoaprs-support-OH2GBA-20261021-123456Z.zip.");
+    expect(wrapper.get(".about-download").text()).toBe(
+      "Download logs · Saved neoaprs-support-OH2GBA-20261021-123456Z.zip.",
+    );
     expect(wrapper.find(".about-download .field-error").exists()).toBe(false);
   });
 

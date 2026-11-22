@@ -29,7 +29,10 @@ describe("App: the statistics card", () => {
     await askForStats();
     expect(card()).not.toBeNull();
     const rows = Object.fromEntries(
-      [...document.querySelectorAll<HTMLElement>(".statscard dt")].map((dt) => [dt.textContent ?? "", dt.nextElementSibling?.textContent ?? ""]),
+      [...document.querySelectorAll<HTMLElement>(".statscard dt")].map((dt) => [
+        dt.textContent ?? "",
+        dt.nextElementSibling?.textContent ?? "",
+      ]),
     );
     expect(rows["Heard"]).toBe("3");
     expect(rows["In the database"]).toBe("2");

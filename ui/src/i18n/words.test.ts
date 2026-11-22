@@ -17,7 +17,12 @@ const RADIO: Record<string, string> = {
   "pt-BR": "Rádio",
 };
 /** The texts that mean whichever radio the station has, of any type. */
-const ANY_RADIO = ["compose.tnc_not_connected", "stats.frames", "settings.tnc.terminal_label", "pill.radio_waiting_why"];
+const ANY_RADIO = [
+  "compose.tnc_not_connected",
+  "stats.frames",
+  "settings.tnc.terminal_label",
+  "pill.radio_waiting_why",
+];
 /** The texts that name the program. */
 const PROGRAM = [
   "pill.daemon",
@@ -58,9 +63,11 @@ const DUMMY_IDS = [
 ];
 /** The texts the phone's code, the Sound card type and the modem-neutral words of a radio brought: the program in them is NeoAPRS, written one way, and never the server. */
 const BROUGHT = (id: string): boolean =>
-  id.startsWith("phone.") || ["radio.type.direwolf", "settings.tnc.hf.keying", "settings.tnc.hf.not_installed"].includes(id);
+  id.startsWith("phone.") ||
+  ["radio.type.direwolf", "settings.tnc.hf.keying", "settings.tnc.hf.not_installed"].includes(id);
 /** The texts of the two boxes of the Notifications group, in a browser and in the app's own window: the computer NeoAPRS runs on is a computer, never a server. */
-const ALERT_BOXES = (id: string): boolean => id.startsWith("settings.alerts.") || id.startsWith("settings.browser.") || id === "settings.alert.tip1";
+const ALERT_BOXES = (id: string): boolean =>
+  id.startsWith("settings.alerts.") || id.startsWith("settings.browser.") || id === "settings.alert.tip1";
 /** The lines of the list of types that only receive. */
 const RECEIVE_ONLY_TYPES = ["radio.type.tnc_text", "radio.type.lora_console"];
 /** The one type whose name says Direwolf: the operator's own, which he runs himself and NeoAPRS reaches over the network. The Sound card type, whose Dire Wolf NeoAPRS carries and starts, is named by what the operator
@@ -87,7 +94,8 @@ const all = (m: Message | undefined): string => (m === undefined ? "" : texts(m)
 for (const locale of LOCALES) {
   const messages = locale.messages as Record<string, Message>;
   const say = (id: string) => all(messages[id]);
-  const has = (id: string, word: string) => say(id).toLocaleLowerCase(locale.code).includes(word.toLocaleLowerCase(locale.code));
+  const has = (id: string, word: string) =>
+    say(id).toLocaleLowerCase(locale.code).includes(word.toLocaleLowerCase(locale.code));
 
   describe(`the words of ${locale.name}`, () => {
     it("call the choice of a radio by the word for a radio", () => {
@@ -106,15 +114,25 @@ for (const locale of LOCALES) {
     it("call the program NeoAPRS one way in the texts of the phone's code and of the Sound card type, and never the server", () => {
       const brought = Object.keys(messages).filter(BROUGHT);
       expect(brought.length).toBeGreaterThanOrEqual(7);
-      expect(brought.flatMap((id) => [...say(id).matchAll(/neo[\s-]*aprs/giu)].map((m) => m[0])).filter((name) => name !== "NeoAPRS")).toEqual([]);
-      expect(brought.filter((id) => /daemon|démon|デーモン|server|serveur|servidor|palvelin|サーバ/iu.test(say(id)))).toEqual([]);
+      expect(
+        brought
+          .flatMap((id) => [...say(id).matchAll(/neo[\s-]*aprs/giu)].map((m) => m[0]))
+          .filter((name) => name !== "NeoAPRS"),
+      ).toEqual([]);
+      expect(
+        brought.filter((id) => /daemon|démon|デーモン|server|serveur|servidor|palvelin|サーバ/iu.test(say(id))),
+      ).toEqual([]);
     });
 
     it("call the computer of the alert boxes a computer, never the server, in a browser and in the app's window", () => {
       const boxes = Object.keys(messages).filter(ALERT_BOXES);
       expect(boxes.length).toBeGreaterThanOrEqual(18);
-      expect(boxes.filter((id) => /daemon|démon|デーモン|server|serveur|servidor|palvelin|サーバ/iu.test(say(id)))).toEqual([]);
-      expect(boxes.filter((id) => id.endsWith("_app") && /browser|navigateur|navegador|selain|ブラウザ/iu.test(say(id)))).toEqual([]);
+      expect(
+        boxes.filter((id) => /daemon|démon|デーモン|server|serveur|servidor|palvelin|サーバ/iu.test(say(id))),
+      ).toEqual([]);
+      expect(
+        boxes.filter((id) => id.endsWith("_app") && /browser|navigateur|navegador|selain|ブラウザ/iu.test(say(id))),
+      ).toEqual([]);
     });
 
     it("say receive-only with the word of the RX only switch, in the list of types too", () => {
@@ -149,7 +167,10 @@ for (const locale of LOCALES) {
       expect([say("channel.fm"), say("channel.hf"), say("channel.lora")]).toEqual(["FM", "Mercury", "LoRa"]);
       for (const [word, ids] of [
         ["FM", ["settings.group.fm_radio", "radio.type.dummy"]],
-        ["Mercury", ["settings.group.hf_radio", "settings.hf_enabled.name", "radio.type.dummy_hf", "settings.tnc.dummy_hf"]],
+        [
+          "Mercury",
+          ["settings.group.hf_radio", "settings.hf_enabled.name", "radio.type.dummy_hf", "settings.tnc.dummy_hf"],
+        ],
         ["LoRa", ["settings.group.lora_radio", "radio.type.dummy_lora"]],
       ] as const)
         expect(
@@ -160,7 +181,9 @@ for (const locale of LOCALES) {
 
     it("end the name of a type that only receives with the words of RX only, and start or end a Dummy's with the Dummy's", () => {
       const rx = say("pill.rx").toLocaleLowerCase(locale.code);
-      expect(RECEIVE_ONLY_TYPES.filter((id) => !say(id).toLocaleLowerCase(locale.code).endsWith(`(${rx})`))).toEqual([]);
+      expect(RECEIVE_ONLY_TYPES.filter((id) => !say(id).toLocaleLowerCase(locale.code).endsWith(`(${rx})`))).toEqual(
+        [],
+      );
       const dummy = DUMMY[locale.code] ?? "";
       const edge = (id: string) =>
         say(id)
@@ -174,9 +197,11 @@ for (const locale of LOCALES) {
     });
 
     it("name a field or a switch in a refusal or a reason by its label", () => {
-      expect(Object.entries(NAMED_LABELS).flatMap(([id, labels]) => labels.filter((label) => !has(id, say(label))).map((label) => `${id}: ${label}`))).toEqual(
-        [],
-      );
+      expect(
+        Object.entries(NAMED_LABELS).flatMap(([id, labels]) =>
+          labels.filter((label) => !has(id, say(label))).map((label) => `${id}: ${label}`),
+        ),
+      ).toEqual([]);
     });
   });
 }

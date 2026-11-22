@@ -37,7 +37,11 @@ const answer = (call: string): SpeedSeriesMessage => ({
 function make(rows: StationRow[]) {
   const speeds = shallowRef<ReadonlyMap<string, SpeedSeriesMessage>>(new Map());
   const daemon = fakeDaemon({ now: NOW, speedSeriesByCall: speeds });
-  const wrapper = mount(StationCards, { props: { rows, size: "desktop" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(StationCards, {
+    props: { rows, size: "desktop" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   const asked = () => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "speed_series");
   return { wrapper, daemon, speeds, asked };
 }

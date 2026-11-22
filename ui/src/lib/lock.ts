@@ -19,6 +19,7 @@ export function shownText(row: Sealed): string {
 export function markOf(row: Pick<MessageRow, "seal">): { kind: "lock" | "key"; title: string } | null {
   if (row.seal === "open") return { kind: "lock", title: t("lock.mark") };
   if (row.seal === "shut") return { kind: "lock", title: t("lock.shut") };
-  if (row.seal === "key" || row.seal === "key_other") return { kind: "key", title: t(row.seal === "key" ? "lock.key_mark" : "lock.key_other") };
+  if (row.seal === "key" || row.seal === "key_other")
+    return { kind: "key", title: t(row.seal === "key" ? "lock.key_mark" : "lock.key_other") };
   return null;
 }

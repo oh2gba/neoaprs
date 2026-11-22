@@ -104,7 +104,12 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           @replay="(open) => (replayOpen = open)"
         />
         <StatsCard v-if="statsShown" :packets="packets" :movable="!layout.phone.value" @close="statsOpen = false" />
-        <PacketsCard v-if="packetsShown" :packets="packets" :movable="!layout.phone.value" @close="packetsOpen = false" />
+        <PacketsCard
+          v-if="packetsShown"
+          :packets="packets"
+          :movable="!layout.phone.value"
+          @close="packetsOpen = false"
+        />
         <MonitorCard v-if="monitorShown" :movable="!layout.phone.value" @close="monitorOpen = false" />
         <SetupGuide />
         <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="picks.cancel" />
@@ -131,7 +136,12 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
         v-model:width="panel.width.value"
         :size="layout.size.value"
         :view="layout.showing.value"
-        :badges="{ messages: talk.unread.value, email: mail.unread.value, bulletins: board.fresh.value, skeds: sked.fresh.value }"
+        :badges="{
+          messages: talk.unread.value,
+          email: mail.unread.value,
+          bulletins: board.fresh.value,
+          skeds: sked.fresh.value,
+        }"
         @update:view="layout.view.value = $event"
       >
         <template #stations>
@@ -193,7 +203,11 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           <ObjectsPane :objects="ownObjects" :form="objects" @select="cards.pickFromTable" />
         </template>
         <template #beacon>
-          <BeaconPane :picking="stationPick.picking.value" :picked="stationPick.picked.value" @pick-position="stationPick.toggle()" />
+          <BeaconPane
+            :picking="stationPick.picking.value"
+            :picked="stationPick.picked.value"
+            @pick-position="stationPick.toggle()"
+          />
         </template>
         <template #settings>
           <SettingsForm @setup="guide.show()" @update="updateOpen = true" @notes="whatsNew.show" />

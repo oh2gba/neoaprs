@@ -14,11 +14,17 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.list": "オブジェクト",
   "objects.mine": "自分のオブジェクト",
   "objects.about_label": "オブジェクトについて",
-  "objects.about1": "オブジェクトは、局ではないもの(リピーター、集合場所、イベントなど)を示すために地図に置く目印です。",
+  "objects.about1":
+    "オブジェクトは、局ではないもの(リピーター、集合場所、イベントなど)を示すために地図に置く目印です。",
   "objects.about2": "送信している間は、近くにいる全員に見えます。",
   "objects.edit_label": "{name}を編集",
   "objects.delete_title": "削除(電波でキル)",
-  "objects.delete_label": { select: "kind", object: "オブジェクト{name}を削除", item: "アイテム{name}を削除", other: "オブジェクト{name}を削除" },
+  "objects.delete_label": {
+    select: "kind",
+    object: "オブジェクト{name}を削除",
+    item: "アイテム{name}を削除",
+    other: "オブジェクト{name}を削除",
+  },
   "objects.kind_word": { select: "kind", object: "オブジェクト", item: "アイテム", other: "オブジェクト" },
   "objects.in_group": "カテゴリ: {group}",
   "objects.category.rp2m": "2m レピータ",
@@ -54,7 +60,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.category.other": "その他…",
   "objects.qru": "ローカル情報",
   "objects.qru_tip_label": "ローカル情報について",
-  "objects.qru_tip": "近くの局にオブジェクト(APRS の QRU)を問い合わせます。レピータ、イベント、場所など。無線でのみ送信します。",
+  "objects.qru_tip":
+    "近くの局にオブジェクト(APRS の QRU)を問い合わせます。レピータ、イベント、場所など。無線でのみ送信します。",
   "objects.qru_ask": "問い合わせ",
   "objects.qru_km": "km",
   "objects.qru_km_label": "距離 (km)",
@@ -96,7 +103,8 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.speed": "移動の速さを km/h で指定します。動かないオブジェクトは両方とも空欄のままにします。",
   "objects.tip.path": "そのパケットが要求するデジピーターです。空欄ならビーコンのパスを使います。",
   "objects.tip.category": "オブジェクトにカテゴリを付けると、ローカル情報を問い合わせた局に提供されます。",
-  "objects.tip.category_code": "独自のカテゴリ: 英数字{max}文字まで、INFO と NEXT は使えません。局はこの単語で問い合わせます。",
+  "objects.tip.category_code":
+    "独自のカテゴリ: 英数字{max}文字まで、INFO と NEXT は使えません。局はこの単語で問い合わせます。",
   "objects.tip.on_request": "ビーコンでは送らず、ローカル情報を問い合わせた局にだけ送ります。",
   "objects.sent_on": "無線機「{name}」で送信",
 

@@ -15,7 +15,9 @@ describe("the Help group", () => {
   it("is one line, the one primary button Send feedback / logs with its (i), and nothing else", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("Help");
-    expect(wrapper.get("p").text()).toBe("Feedback, an idea or a problem? This is the fastest way to reach the developer.");
+    expect(wrapper.get("p").text()).toBe(
+      "Feedback, an idea or a problem? This is the fastest way to reach the developer.",
+    );
     expect(wrapper.findAll("a")).toHaveLength(0);
     const buttons = wrapper.findAll("button.btn");
     expect(buttons.map((b) => b.text())).toEqual(["Send feedback / logs"]);
@@ -66,7 +68,8 @@ describe("the words of the group in every language", () => {
         // the word is borrowed as it is in German, Italian, Dutch and Portuguese; Dutch says "Help"
         // too
         const borrowed =
-          (id === "settings.help.label" && ["de", "it", "nl", "pt-BR"].includes(locale.code)) || (id === "settings.help.group" && locale.code === "nl");
+          (id === "settings.help.label" && ["de", "it", "nl", "pt-BR"].includes(locale.code)) ||
+          (id === "settings.help.group" && locale.code === "nl");
         if (!borrowed) expect(text, id).not.toBe(source);
         for (const name of source.match(/\{\w+\}/g) ?? []) expect(text, id).toContain(name);
       }

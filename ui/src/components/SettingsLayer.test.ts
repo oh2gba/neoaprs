@@ -8,7 +8,11 @@ import { mapLayer } from "@/test/layerfixtures";
 import type { LayerReceiver } from "@/protocol/protocol";
 
 const NOW = Date.parse("2026-10-21T12:00:03Z");
-const receiving = (things: number, heard_at: string | null = "2026-10-21T12:00:00Z"): LayerReceiver => ({ state: "receiving", things, heard_at });
+const receiving = (things: number, heard_at: string | null = "2026-10-21T12:00:00Z"): LayerReceiver => ({
+  state: "receiving",
+  things,
+  heard_at,
+});
 
 /**
  * The Settings tab with the layers of the map as `layers` says them and `extra` over the settings.
@@ -18,7 +22,8 @@ function make(extra: Record<string, string> = {}, layers = [mapLayer("aircraft")
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon) });
   return { wrapper, send: daemon.send, daemon };
 }
-const options = (wrapper: ReturnType<typeof make>["wrapper"], id: string) => wrapper.findAll(`${id} option`).map((o) => o.text());
+const options = (wrapper: ReturnType<typeof make>["wrapper"], id: string) =>
+  wrapper.findAll(`${id} option`).map((o) => o.text());
 
 describe("Settings, Map: aircraft and ships", () => {
   it("has the rows Aircraft and Ships, each at None out of the box, with no address field", () => {
@@ -33,7 +38,13 @@ describe("Settings, Map: aircraft and ships", () => {
 
   it("lists the sources the daemon offers, in its order, by the services' own names", () => {
     const { wrapper } = make();
-    expect(options(wrapper, "#set-map-aircraft")).toEqual(["None", "adsb.fi", "adsb.lol", "Radarcape", "My own receiver"]);
+    expect(options(wrapper, "#set-map-aircraft")).toEqual([
+      "None",
+      "adsb.fi",
+      "adsb.lol",
+      "Radarcape",
+      "My own receiver",
+    ]);
     expect(options(wrapper, "#set-map-ships")).toEqual(["None", "Fintraffic", "My own receiver"]);
   });
 
@@ -43,12 +54,18 @@ describe("Settings, Map: aircraft and ships", () => {
   });
 
   it("shows a stored source that is not offered as None", () => {
-    const { wrapper } = make({ "map/ships": "fintraffic" }, [mapLayer("aircraft"), mapLayer("ships", { offered: ["none", "receiver"] })]);
+    const { wrapper } = make({ "map/ships": "fintraffic" }, [
+      mapLayer("aircraft"),
+      mapLayer("ships", { offered: ["none", "receiver"] }),
+    ]);
     expect(wrapper.find<HTMLSelectElement>("#set-map-ships").element.value).toBe("none");
   });
 
   it("shows the stored source of a service", () => {
-    const { wrapper } = make({ "map/aircraft": "adsblol" }, [mapLayer("aircraft", { source: "adsblol" }), mapLayer("ships")]);
+    const { wrapper } = make({ "map/aircraft": "adsblol" }, [
+      mapLayer("aircraft", { source: "adsblol" }),
+      mapLayer("ships"),
+    ]);
     expect(wrapper.find<HTMLSelectElement>("#set-map-aircraft").element.value).toBe("adsblol");
     expect(wrapper.find("#set-map-aircraft_host").exists()).toBe(false);
   });
@@ -63,7 +80,10 @@ describe("Settings, Map: aircraft and ships", () => {
   });
 
   it("shows the address field and its state only while the choice is My own receiver, and hides it with another choice", async () => {
-    const { wrapper } = make({ "map/aircraft": "receiver" }, [mapLayer("aircraft", { source: "receiver", receiver: receiving(42) }), mapLayer("ships")]);
+    const { wrapper } = make({ "map/aircraft": "receiver" }, [
+      mapLayer("aircraft", { source: "receiver", receiver: receiving(42) }),
+      mapLayer("ships"),
+    ]);
     expect(wrapper.find("#set-map-aircraft_host").exists()).toBe(true);
     expect(wrapper.find('label[for="set-map-aircraft_host"]').text()).toBe("Receiver's address");
     expect(wrapper.find("#set-map-aircraft_host").attributes("placeholder")).toBe("This computer");
@@ -75,7 +95,10 @@ describe("Settings, Map: aircraft and ships", () => {
   });
 
   it("shows the address field and its state with a Radarcape chosen, with an empty box and an (i) of one line", async () => {
-    const { wrapper } = make({ "map/aircraft": "radarcape" }, [mapLayer("aircraft", { source: "radarcape", receiver: receiving(30) }), mapLayer("ships")]);
+    const { wrapper } = make({ "map/aircraft": "radarcape" }, [
+      mapLayer("aircraft", { source: "radarcape", receiver: receiving(30) }),
+      mapLayer("ships"),
+    ]);
     const input = wrapper.find("#set-map-aircraft_host");
     expect(input.exists()).toBe(true);
     expect(input.attributes("placeholder")).toBe("");
@@ -94,18 +117,28 @@ describe("Settings, Map: aircraft and ships", () => {
   });
 
   it("saves the typed address when the field is left", async () => {
-    const { wrapper, send } = make({ "map/ships": "receiver" }, [mapLayer("aircraft"), mapLayer("ships", { source: "receiver", receiver: receiving(3) })]);
+    const { wrapper, send } = make({ "map/ships": "receiver" }, [
+      mapLayer("aircraft"),
+      mapLayer("ships", { source: "receiver", receiver: receiving(3) }),
+    ]);
     await wrapper.find("#set-map-ships_host").setValue("ais.local:10110");
     await wrapper.find("#set-map-ships_host").trigger("blur");
     expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "map/ships_host": "ais.local:10110" } });
   });
 
   it("says the refusal of an address in the page's words under the field", async () => {
-    const { wrapper, daemon } = make({ "map/aircraft": "receiver" }, [mapLayer("aircraft", { source: "receiver" }), mapLayer("ships")]);
+    const { wrapper, daemon } = make({ "map/aircraft": "receiver" }, [
+      mapLayer("aircraft", { source: "receiver" }),
+      mapLayer("ships"),
+    ]);
     await wrapper.find("#set-map-aircraft_host").setValue("a b");
     await wrapper.find("#set-map-aircraft_host").trigger("blur");
     await tell(daemon, {
-      lastError: toastOf("set_config: map/aircraft_host: 'a b' is not the address of a receiver", "setting.not_receiver", { value: "a b" }),
+      lastError: toastOf(
+        "set_config: map/aircraft_host: 'a b' is not the address of a receiver",
+        "setting.not_receiver",
+        { value: "a b" },
+      ),
     });
     const field = wrapper.find("#set-map-aircraft_host").element.closest(".field");
     expect(field?.querySelector(".field-error")?.textContent).toBe("'a b' is not the address of a receiver");
@@ -114,7 +147,10 @@ describe("Settings, Map: aircraft and ships", () => {
   it("has an (i) on each row and on each address", () => {
     const { wrapper } = make({ "map/aircraft": "receiver", "map/ships": "receiver" });
     for (const id of ["aircraft", "ships", "aircraft_host", "ships_host"])
-      expect(wrapper.find(`#set-map-${id}`).element.closest(".field")?.querySelector(".info-toggle"), id).not.toBeNull();
+      expect(
+        wrapper.find(`#set-map-${id}`).element.closest(".field")?.querySelector(".info-toggle"),
+        id,
+      ).not.toBeNull();
   });
 
   it("keeps the room of the state: a receiver that has not said yet is looking, so the row is there from the start", () => {
@@ -130,7 +166,11 @@ describe("the state of an own receiver in words", () => {
       state: "looking",
       line: "Looking for the receiver",
     });
-    expect(receiverLook("aircraft", receiving(42), NOW)).toMatchObject({ state: "receiving", tone: "tnc-connected", line: "Receiving: 42 aircraft, 3 s ago" });
+    expect(receiverLook("aircraft", receiving(42), NOW)).toMatchObject({
+      state: "receiving",
+      tone: "tnc-connected",
+      line: "Receiving: 42 aircraft, 3 s ago",
+    });
     expect(receiverLook("aircraft", { state: "no_answer", things: 0, heard_at: null }, NOW)).toMatchObject({
       state: "no answer",
       line: "No answer from the receiver",
@@ -147,6 +187,8 @@ describe("the state of an own receiver in words", () => {
   it("names no address and no port", () => {
     for (const layer of ["aircraft", "ships"] as const)
       for (const state of ["looking", "receiving", "no_answer"] as const)
-        expect(JSON.stringify(receiverLook(layer, { state, things: 2, heard_at: "2026-10-21T12:00:00Z" }, NOW))).not.toMatch(/:\d|\d\.\d+\.\d|\//);
+        expect(
+          JSON.stringify(receiverLook(layer, { state, things: 2, heard_at: "2026-10-21T12:00:00Z" }, NOW)),
+        ).not.toMatch(/:\d|\d\.\d+\.\d|\//);
   });
 });

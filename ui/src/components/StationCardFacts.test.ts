@@ -16,7 +16,9 @@ const fieldsOf = (wrapper: ReturnType<typeof mount>) =>
 
 describe("the device on the card", () => {
   it("is one line, Device, when the device list knows what the station runs", () => {
-    const fields = fieldsOf(mount(StationCard, { props: { row: station("OH2PU-9", { device: "Kenwood TH-D74" }), now: NOW } }));
+    const fields = fieldsOf(
+      mount(StationCard, { props: { row: station("OH2PU-9", { device: "Kenwood TH-D74" }), now: NOW } }),
+    );
     expect(fields["Device"]?.textContent?.trim()).toBe("Kenwood TH-D74");
   });
 
@@ -54,14 +56,20 @@ describe("the antenna direction on the card", () => {
 
 describe("the packets on the card", () => {
   it("are the total and those of the last hour", () => {
-    const fields = fieldsOf(mount(StationCard, { props: { row: station("OH2PU-9", { packets: 312, packets_hour: 14 }), now: NOW } }));
+    const fields = fieldsOf(
+      mount(StationCard, { props: { row: station("OH2PU-9", { packets: 312, packets_hour: 14 }), now: NOW } }),
+    );
     expect(fields["Packets"]?.textContent?.trim()).toBe("312 · 14 in the last hour");
   });
 
   it("are only the total for our own station and for an object of ours, which are not heard", () => {
-    const own = fieldsOf(mount(StationCard, { props: { row: station("LEADER", { kind: "object", own: true, packets: 5 }), now: NOW } }));
+    const own = fieldsOf(
+      mount(StationCard, { props: { row: station("LEADER", { kind: "object", own: true, packets: 5 }), now: NOW } }),
+    );
     expect(own["Packets"]?.textContent?.trim()).toBe("5");
-    const me = fieldsOf(mount(StationCard, { props: { row: station("OH2GBA-7", { is_me: true, packets: 0 }), now: NOW } }));
+    const me = fieldsOf(
+      mount(StationCard, { props: { row: station("OH2GBA-7", { is_me: true, packets: 0 }), now: NOW } }),
+    );
     expect(me["Packets"]?.textContent?.trim()).toBe("0");
   });
 });
@@ -104,10 +112,16 @@ describe("the storm data and the sign in the details", () => {
       storm_radius_km: null,
       gale_radius_km: null,
     } as const;
-    const fields = fieldsOf(mount(StationCard, { props: { row: station("BRENDA", { kind: "object", storm }), now: NOW } }));
+    const fields = fieldsOf(
+      mount(StationCard, { props: { row: station("BRENDA", { kind: "object", storm }), now: NOW } }),
+    );
     expect(fields["Storm"]?.textContent?.trim()).toBe("Hurricane, wind 278 km/h, pressure 980 hPa");
-    const sign = fieldsOf(mount(StationCard, { props: { row: station("I91 3N", { kind: "item", sign: "55" }), now: NOW } }));
+    const sign = fieldsOf(
+      mount(StationCard, { props: { row: station("I91 3N", { kind: "item", sign: "55" }), now: NOW } }),
+    );
     expect(sign["Sign"]?.textContent?.trim()).toBe("55");
-    expect(Object.keys(fieldsOf(mount(StationCard, { props: { row: station("OH2PU-9"), now: NOW } })))).not.toEqual(expect.arrayContaining(["Storm", "Sign"]));
+    expect(Object.keys(fieldsOf(mount(StationCard, { props: { row: station("OH2PU-9"), now: NOW } })))).not.toEqual(
+      expect.arrayContaining(["Storm", "Sign"]),
+    );
   });
 });

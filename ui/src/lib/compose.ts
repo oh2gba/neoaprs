@@ -24,9 +24,17 @@ export function sendBlockedReason(connected: boolean, rxOnly = false): string | 
  * or there is none; undefined while it is connected, and while `told` is false (before the
  * daemon has told its radios).
  */
-export function radioBlockedReason(radio: PageRadio | null | undefined, named: boolean, told = true): string | undefined {
+export function radioBlockedReason(
+  radio: PageRadio | null | undefined,
+  named: boolean,
+  told = true,
+): string | undefined {
   if (!told || radio?.connected === true) return undefined;
-  return radio == null ? t("error.radio.none") : named ? t("radio.not_connected", { name: radio.name }) : tncNotConnected();
+  return radio == null
+    ? t("error.radio.none")
+    : named
+      ? t("radio.not_connected", { name: radio.name })
+      : tncNotConnected();
 }
 
 /** The title of every button that sends while transmitting is switched off. */

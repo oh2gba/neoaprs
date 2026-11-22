@@ -108,7 +108,9 @@ describe("the range circle of the selected digipeater", () => {
     mountStationMap(props({ selected: "OH2RCH-2" }));
     await flushPromises();
     FakeMap.last().fire("style.load");
-    expect((FakeMap.last().getSource("digipeater-ranges")?.data as Rings).features.map((f) => f.properties.call)).toEqual(["OH2RCH-2"]);
+    expect(
+      (FakeMap.last().getSource("digipeater-ranges")?.data as Rings).features.map((f) => f.properties.call),
+    ).toEqual(["OH2RCH-2"]);
   });
 
   it("follows the row of the selected station: a new range, no range, a new position", async () => {
@@ -123,8 +125,13 @@ describe("the range circle of the selected digipeater", () => {
   });
 
   it("is drawn for a selected digipeater past its timeout, as its marker is", async () => {
-    await mounted({ selected: "OH2RCH-2", stations: stations({ last_position_at: ago(5 * 3600), last_heard: ago(5 * 3600) }) });
-    expect((FakeMap.last().getSource("digipeater-ranges")?.data as Rings).features.map((f) => f.properties.call)).toEqual(["OH2RCH-2"]);
+    await mounted({
+      selected: "OH2RCH-2",
+      stations: stations({ last_position_at: ago(5 * 3600), last_heard: ago(5 * 3600) }),
+    });
+    expect(
+      (FakeMap.last().getSource("digipeater-ranges")?.data as Rings).features.map((f) => f.properties.call),
+    ).toEqual(["OH2RCH-2"]);
   });
 });
 
@@ -211,6 +218,11 @@ describe("the map and the range circle of a station that is picked", () => {
     expect(FakeMap.last().fits).toEqual([]); // (a card that came back with the page)
     await wrapper.setProps({ selected: null });
     await flushPromises();
-    expect([FakeMap.last().fits, FakeMap.last().flights, FakeMap.last().jumps, FakeMap.last().pans]).toEqual([[], [], [], []]);
+    expect([FakeMap.last().fits, FakeMap.last().flights, FakeMap.last().jumps, FakeMap.last().pans]).toEqual([
+      [],
+      [],
+      [],
+      [],
+    ]);
   });
 });

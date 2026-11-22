@@ -18,7 +18,9 @@ const typed = ref("");
 const found = computed(() => typedHops(typed.value));
 const room = computed(() => LIMITS.path.maxCalls - props.hops.length);
 const addable = computed(() => found.value !== null && found.value.length <= room.value);
-const tone = computed(() => (props.meaning.level === "bad" ? "bad" : props.meaning.level === "many" ? "warn" : "neutral"));
+const tone = computed(() =>
+  props.meaning.level === "bad" ? "bad" : props.meaning.level === "many" ? "warn" : "neutral",
+);
 
 function add(): void {
   if (!addable.value || found.value === null) return;
@@ -31,9 +33,13 @@ function add(): void {
   <div class="pathbuild-path">
     <PathDrawing :meaning="meaning" @remove="emit('remove', $event)" />
     <p class="pathbuild-result">
-      <output class="mono" :class="{ invalid: problem !== '' }" :title="problem || undefined">{{ pathOf(hops) }}</output>
+      <output class="mono" :class="{ invalid: problem !== '' }" :title="problem || undefined">{{
+        pathOf(hops)
+      }}</output>
       <span class="pathbuild-total">
-        <TagMark class="pathbuild-count" :tone="tone" :title="meaning.reason || undefined">{{ t("pathbuilder.count", { n: meaning.hops }) }}</TagMark>
+        <TagMark class="pathbuild-count" :tone="tone" :title="meaning.reason || undefined">{{
+          t("pathbuilder.count", { n: meaning.hops })
+        }}</TagMark>
       </span>
     </p>
     <div class="pathbuild-type">

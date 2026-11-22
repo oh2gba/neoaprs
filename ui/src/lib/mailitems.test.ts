@@ -6,7 +6,11 @@ const sent = (text: string) => mailItem(message(1, { to_call: "EMAIL-2", text })
 
 describe("mailItem: what we sent", () => {
   it("is a mail to the first word with the rest as its text", () => {
-    expect(sent("jane@example.com Hello Pekka")).toMatchObject({ kind: "mail", title: "To jane@example.com", text: "Hello Pekka" });
+    expect(sent("jane@example.com Hello Pekka")).toMatchObject({
+      kind: "mail",
+      title: "To jane@example.com",
+      text: "Hello Pekka",
+    });
     expect(sent("me hello")).toMatchObject({ kind: "mail", title: "To me", text: "hello" });
   });
 
@@ -36,14 +40,30 @@ describe("mailItem: what came in", () => {
   const from = (text: string) => mailItem(incoming(2, "EMAIL-2", { text }));
 
   it("is From EMAIL-2 for the gateway's own replies", () => {
-    expect(from("Msg sent to jane@example.com")).toMatchObject({ kind: "reply", title: "From EMAIL-2", text: "Msg sent to jane@example.com" });
+    expect(from("Msg sent to jane@example.com")).toMatchObject({
+      kind: "reply",
+      title: "From EMAIL-2",
+      text: "Msg sent to jane@example.com",
+    });
     expect(from("No email address found!")).toMatchObject({ kind: "reply", title: "From EMAIL-2" });
   });
 
   it("is From the address when the text starts with one: the mail the gateway forwards", () => {
-    expect(from("jane@example.com Hello Pekka")).toMatchObject({ kind: "forwarded", title: "From jane@example.com", text: "Hello Pekka" });
-    expect(from("<jane@example.com> Hello")).toMatchObject({ kind: "forwarded", title: "From jane@example.com", text: "Hello" });
-    expect(from("jane@example.com: Hello")).toMatchObject({ kind: "forwarded", title: "From jane@example.com", text: "Hello" });
+    expect(from("jane@example.com Hello Pekka")).toMatchObject({
+      kind: "forwarded",
+      title: "From jane@example.com",
+      text: "Hello Pekka",
+    });
+    expect(from("<jane@example.com> Hello")).toMatchObject({
+      kind: "forwarded",
+      title: "From jane@example.com",
+      text: "Hello",
+    });
+    expect(from("jane@example.com: Hello")).toMatchObject({
+      kind: "forwarded",
+      title: "From jane@example.com",
+      text: "Hello",
+    });
     expect(from("jane@example.com")).toMatchObject({ kind: "reply" });
   });
 });
@@ -58,7 +78,10 @@ describe("mailState", () => {
   const state = (extra: Parameters<typeof message>[1]) => mailState(message(1, extra));
 
   it("says Sending with the attempt, or that the radio is waited for", () => {
-    expect(state({ state: "sending", attempts: 2, attempts_max: 2 })).toEqual({ word: "Sending (2 of 2)", tone: "plain" });
+    expect(state({ state: "sending", attempts: 2, attempts_max: 2 })).toEqual({
+      word: "Sending (2 of 2)",
+      tone: "plain",
+    });
     expect(state({ state: "sending", attempts: 0 })?.word).toBe("Waiting for the radio");
   });
 
@@ -74,7 +97,10 @@ describe("mailState", () => {
   });
 
   it("says Too long for the radio for a mail that was never sent because it does not fit", () => {
-    expect(state({ state: "failed", attempts: 0, failure: "too_long_for_radio" })).toEqual({ word: "Too long for the radio", tone: "bad" });
+    expect(state({ state: "failed", attempts: 0, failure: "too_long_for_radio" })).toEqual({
+      word: "Too long for the radio",
+      tone: "bad",
+    });
   });
 
   it("has none for what came in", () => {

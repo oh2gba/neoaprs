@@ -8,7 +8,11 @@ const kinds = (hops: string[]): string[][] => meaningOf(hops).parts.map((part) =
 
 describe("the Hops choice", () => {
   it("makes the aliases for Direct and 1 to 3 hops, WIDE1-1 first when home digipeaters may take the first hop", () => {
-    const table = [0, 1, 2, 3].map((count) => [count, withReach([], count, true).join(","), withReach([], count, false).join(",")]);
+    const table = [0, 1, 2, 3].map((count) => [
+      count,
+      withReach([], count, true).join(","),
+      withReach([], count, false).join(","),
+    ]);
     expect(table).toEqual([
       [0, "", ""],
       [1, "WIDE1-1", "WIDE2-1"],
@@ -72,15 +76,24 @@ describe("what a path means", () => {
 
   it("counts the Ns of the aliases and one for each call", () => {
     expect(
-      [[], ["WIDE1-1"], ["WIDE2-2"], ["WIDE1-1", "WIDE2-1"], ["WIDE3-3"], ["OH2RDK-7", "WIDE2-1"], ["OH2RDK-7", "OH2RCH-2", "WIDE2-2"]].map(
-        (hops) => meaningOf(hops).hops,
-      ),
+      [
+        [],
+        ["WIDE1-1"],
+        ["WIDE2-2"],
+        ["WIDE1-1", "WIDE2-1"],
+        ["WIDE3-3"],
+        ["OH2RDK-7", "WIDE2-1"],
+        ["OH2RDK-7", "OH2RCH-2", "WIDE2-2"],
+      ].map((hops) => meaningOf(hops).hops),
     ).toEqual([0, 1, 2, 2, 3, 2, 4]);
   });
 
   it("is more than the network usually allows past two hops, with the reason", () => {
     expect(meaningOf(["WIDE2-2"]).level).toBe("ok");
-    expect(meaningOf(["WIDE3-3"])).toMatchObject({ level: "many", reason: "3 hops: more than the 2 that most networks allow" });
+    expect(meaningOf(["WIDE3-3"])).toMatchObject({
+      level: "many",
+      reason: "3 hops: more than the 2 that most networks allow",
+    });
     expect(meaningOf(["WIDE1-1", "WIDE2-2"]).level).toBe("many");
   });
 
@@ -90,9 +103,15 @@ describe("what a path means", () => {
       reason: "WIDE1-2 is no path: N (2) is never more than n (1); home digipeaters answer only WIDE1-1",
     });
     expect(meaningOf(["WIDE2-3"]).level).toBe("bad");
-    expect(meaningOf(["WIDE2-0"])).toMatchObject({ level: "bad", reason: "WIDE2-0 has no hops left: no digipeater repeats it" });
+    expect(meaningOf(["WIDE2-0"])).toMatchObject({
+      level: "bad",
+      reason: "WIDE2-0 has no hops left: no digipeater repeats it",
+    });
     expect(meaningOf(["WIDE2"]).level).toBe("bad");
-    expect(meaningOf(["WIDE8-8"])).toMatchObject({ level: "bad", reason: "WIDE8-8 is no path: in WIDEn-N, n and N go from 1 to 7" });
+    expect(meaningOf(["WIDE8-8"])).toMatchObject({
+      level: "bad",
+      reason: "WIDE8-8 is no path: in WIDEn-N, n and N go from 1 to 7",
+    });
     expect(kinds(["WIDE1-2"])).toEqual([["none"]]);
     expect(meaningOf(["WIDE1-2", "WIDE2-1"]).hops).toBe(1);
   });

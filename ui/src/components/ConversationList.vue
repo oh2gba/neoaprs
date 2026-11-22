@@ -57,7 +57,11 @@ function remove(call: string): void {
     <div class="convlist-head">
       <div class="convlist-overheard">
         <label class="check"
-          ><input type="checkbox" :checked="showOverheard" @change="emit('update:showOverheard', ($event.target as HTMLInputElement).checked)" />
+          ><input
+            type="checkbox"
+            :checked="showOverheard"
+            @change="emit('update:showOverheard', ($event.target as HTMLInputElement).checked)"
+          />
           {{ t("messages.show_overheard") }}</label
         >
         <InfoTip :label="t('messages.overheard_help_label')">{{ t("messages.overheard_help") }}</InfoTip>
@@ -68,7 +72,12 @@ function remove(call: string): void {
         <button
           type="button"
           class="conv copysource"
-          :class="{ active: c.call === selected, unread: c.unread > 0, fresh: isHighlighted(c.unread, c.call, selected), heard: c.overheard }"
+          :class="{
+            active: c.call === selected,
+            unread: c.unread > 0,
+            fresh: isHighlighted(c.unread, c.call, selected),
+            heard: c.overheard,
+          }"
           :data-call="c.call"
           :aria-current="c.call === selected"
           v-on="copy.on.value"
@@ -83,7 +92,11 @@ function remove(call: string): void {
           kind="delete"
           class="conv-delete"
           :armed="sure.armed.value === c.call"
-          :label="c.overheard ? t('messages.delete_overheard', { name: conversationName(c.call) }) : t('messages.delete_conversation', { call: c.call })"
+          :label="
+            c.overheard
+              ? t('messages.delete_overheard', { name: conversationName(c.call) })
+              : t('messages.delete_conversation', { call: c.call })
+          "
           @click="sure.press(c.call, () => remove(c.call))"
         />
       </li>

@@ -41,7 +41,10 @@ describe("the Key menu of a conversation", () => {
   });
 
   it("keeps Send my key off while the radio of the station's messages is not connected, with that reason, as Send", async () => {
-    const wrapper = mount(KeyMenu, { props: { call: "OH2RDG", theirs: null, offline: "Mercury: not connected" }, attachTo: document.body });
+    const wrapper = mount(KeyMenu, {
+      props: { call: "OH2RDG", theirs: null, offline: "Mercury: not connected" },
+      attachTo: document.body,
+    });
     await wrapper.find("button.route-button").trigger("click");
     const send = wrapper.find<HTMLButtonElement>(".keybox-buttons button");
     expect([send.element.disabled, send.attributes("title")]).toEqual([true, "Mercury: not connected"]);

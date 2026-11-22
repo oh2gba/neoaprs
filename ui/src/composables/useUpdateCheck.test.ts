@@ -30,7 +30,11 @@ afterEach(() => vi.useRealTimers());
 describe("outcomeOf", () => {
   it("has a few words for each answer", () => {
     expect(outcomeOf(answer({}))).toEqual({ text: "up to date", tone: "update-current", newer: false });
-    expect(outcomeOf(answer({ outcome: "newer", version: "0.4.0" }))).toEqual({ text: "0.4.0 available", tone: "update-available", newer: true });
+    expect(outcomeOf(answer({ outcome: "newer", version: "0.4.0" }))).toEqual({
+      text: "0.4.0 available",
+      tone: "update-available",
+      newer: true,
+    });
     expect(outcomeOf(answer({ outcome: "no_answer", version: "", reason: "offline" }))).toEqual({
       text: "no answer from the update server; is there a connection?",
       tone: "update-failed",

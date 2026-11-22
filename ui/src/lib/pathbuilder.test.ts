@@ -6,8 +6,16 @@ import { ago, station } from "@/test/fixtures";
 /** A station with no known route except what a test gives. */
 const quiet = (call: string, extra: Partial<StationRow> = {}): StationRow =>
   station(call, { heard_via: [], last_route: "", best_route: "", route_marks: [], suggested_path: null, ...extra });
-const digi = (call: string, extra: Partial<StationRow> = {}): StationRow => quiet(call, { symbol_table: "/", symbol_code: "#", ...extra });
-const mark = (hops: string[]): StationRow["route_marks"][number] => ({ kind: "rf", hops, gate: "", at: ago(60), lat: null, lon: null });
+const digi = (call: string, extra: Partial<StationRow> = {}): StationRow =>
+  quiet(call, { symbol_table: "/", symbol_code: "#", ...extra });
+const mark = (hops: string[]): StationRow["route_marks"][number] => ({
+  kind: "rf",
+  hops,
+  gate: "",
+  at: ago(60),
+  lat: null,
+  lon: null,
+});
 
 describe("a path as the builder holds it", () => {
   it("is its hops, and none for DIRECT and for an empty field", () => {

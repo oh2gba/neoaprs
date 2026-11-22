@@ -10,8 +10,22 @@ type Feature = { geometry: { type: string; coordinates: unknown }; properties: {
 type Mark = StationRow["route_marks"][number];
 
 /** A route as the daemon tells it. */
-const rf = (...hops: string[]): Mark => ({ kind: "rf", hops, gate: "", at: "2026-10-21T11:59:00Z", lat: null, lon: null });
-const heardBy = (gate: string, ...hops: string[]): Mark => ({ kind: "igate", hops, gate, at: "2026-10-21T11:59:00Z", lat: null, lon: null });
+const rf = (...hops: string[]): Mark => ({
+  kind: "rf",
+  hops,
+  gate: "",
+  at: "2026-10-21T11:59:00Z",
+  lat: null,
+  lon: null,
+});
+const heardBy = (gate: string, ...hops: string[]): Mark => ({
+  kind: "igate",
+  hops,
+  gate,
+  at: "2026-10-21T11:59:00Z",
+  lat: null,
+  lon: null,
+});
 
 const stations = (extra = {}) =>
   table(
@@ -32,7 +46,8 @@ const props = (extra = {}) => ({
   aging: { defaultMin: 0 },
   ...extra,
 });
-const drawn = (): Feature[] => (FakeMap.last().getSource("route")?.setData.mock.calls.at(-1)?.[0] as { features: Feature[] }).features;
+const drawn = (): Feature[] =>
+  (FakeMap.last().getSource("route")?.setData.mock.calls.at(-1)?.[0] as { features: Feature[] }).features;
 const lines = () => drawn().filter((f) => f.geometry.type === "LineString");
 
 async function mounted(extra = {}) {
@@ -51,7 +66,14 @@ describe("the route of the selected station", () => {
   it("has layers of its own in the map's style", async () => {
     await mounted();
     expect(FakeMap.last().layers).toEqual(
-      expect.arrayContaining(["tracks-line", "route-casing", "route-previous", "route-latest", "route-hops", "route-names"]),
+      expect.arrayContaining([
+        "tracks-line",
+        "route-casing",
+        "route-previous",
+        "route-latest",
+        "route-hops",
+        "route-names",
+      ]),
     );
   });
 
@@ -105,7 +127,10 @@ describe("the route of the selected station", () => {
   });
 
   it("draws the route before the latest one too, marked, when the packet before it came another way", async () => {
-    await mounted({ stations: stations({ route_marks: [rf("OH2RCH-1", "OH2RCH-3"), rf("OH2RCH-2")] }), selected: "OH2PU-9" });
+    await mounted({
+      stations: stations({ route_marks: [rf("OH2RCH-1", "OH2RCH-3"), rf("OH2RCH-2")] }),
+      selected: "OH2PU-9",
+    });
     expect(lines().map((f) => f.properties.previous)).toEqual([0, 1]);
     expect(lines()[1]?.geometry.coordinates).toEqual([
       [24.65, 60.2],

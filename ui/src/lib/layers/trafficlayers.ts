@@ -12,7 +12,14 @@ import { FONT_REGULAR } from "@/lib/basemapstyle";
 import { MARKS, markBox } from "@/lib/layers/marks";
 import { NO_TRAIL } from "@/lib/layers/trail";
 import type { TrackCollection } from "@/lib/tracks";
-import { NO_TRAFFIC, THING_SHAPES, imageName, sideOf, type ThingShape, type TrafficCollection } from "@/lib/layers/traffic";
+import {
+  NO_TRAFFIC,
+  THING_SHAPES,
+  imageName,
+  sideOf,
+  type ThingShape,
+  type TrafficCollection,
+} from "@/lib/layers/traffic";
 
 const TRAFFIC_SOURCE = "traffic";
 const TRAIL_SOURCE = "traffic-trail";
@@ -38,7 +45,10 @@ const NAME_GAP = 1.9;
 const NAME_OFFSET: ExpressionSpecification = [
   "match",
   ["get", "side"],
-  ...[...new Set(THING_SHAPES.map(sideOf))].flatMap((side) => [side, ["literal", [0, Math.round(((side / 2 + NAME_GAP) / NAME_SIZE) * 100) / 100]]]),
+  ...[...new Set(THING_SHAPES.map(sideOf))].flatMap((side) => [
+    side,
+    ["literal", [0, Math.round(((side / 2 + NAME_GAP) / NAME_SIZE) * 100) / 100]],
+  ]),
   ["literal", [0, 0.9]],
 ] as unknown as ExpressionSpecification;
 
@@ -94,7 +104,11 @@ function firstBaseName(map: MapLibreMap): string | undefined {
   return map.getStyle().layers.find((layer) => layer.type === "symbol")?.id;
 }
 
-export function addTrafficLayers(map: MapLibreMap, data: TrafficCollection = NO_TRAFFIC, trail: TrackCollection = NO_TRAIL): void {
+export function addTrafficLayers(
+  map: MapLibreMap,
+  data: TrafficCollection = NO_TRAFFIC,
+  trail: TrackCollection = NO_TRAIL,
+): void {
   addTrafficImages(map);
   if (map.getSource(TRAFFIC_SOURCE)) return;
   const ink = paletteColor("--map-label", "#1d2125");
@@ -110,7 +124,11 @@ export function addTrafficLayers(map: MapLibreMap, data: TrafficCollection = NO_
     type: "line",
     source: TRAIL_SOURCE,
     layout: { "line-cap": "butt", "line-join": "round" },
-    paint: { "line-color": paletteColor("--map-layer", "#8e24aa"), "line-width": 2, "line-opacity": ["get", "opacity"] },
+    paint: {
+      "line-color": paletteColor("--map-layer", "#8e24aa"),
+      "line-width": 2,
+      "line-opacity": ["get", "opacity"],
+    },
   });
   map.addLayer({
     id: TRAFFIC_LAYER,

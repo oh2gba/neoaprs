@@ -4,7 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { listenForInstall } from "@/composables/useInstall";
-import { APP_WINDOWS, FakeAudioContext, FakeNotification, openedAt, openedInApp, resetSeen, setSeen, stubBrowser } from "@/test/fakealert";
+import {
+  APP_WINDOWS,
+  FakeAudioContext,
+  FakeNotification,
+  openedAt,
+  openedInApp,
+  resetSeen,
+  setSeen,
+  stubBrowser,
+} from "@/test/fakealert";
 
 const scope = effectScope();
 
@@ -35,8 +44,15 @@ describe("the browser's part of the Notifications group", () => {
     expect(wrapper.findAll("fieldset")).toHaveLength(1);
     expect(wrapper.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Sound", "Notification"]);
     expect(wrapper.findAll("select")).toHaveLength(0);
-    expect(wrapper.findAll("input[type=checkbox]").map((i) => i.attributes("id"))).toEqual(["alert-mode", "alert-sound", "alert-popup"]);
-    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test sound", "Test notification"]);
+    expect(wrapper.findAll("input[type=checkbox]").map((i) => i.attributes("id"))).toEqual([
+      "alert-mode",
+      "alert-sound",
+      "alert-popup",
+    ]);
+    expect(wrapper.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual([
+      "Test sound",
+      "Test notification",
+    ]);
     expect(wrapper.find("#alert-sound").element.nextElementSibling?.id).toBe("alert-test-sound");
     expect(wrapper.find("#alert-popup").element.nextElementSibling?.id).toBe("alert-test-popup");
     expect(wrapper.find("p").exists()).toBe(false); // (no hint sentences)
@@ -44,11 +60,11 @@ describe("the browser's part of the Notifications group", () => {
 
   it("starts ticked, with sound and notification, for a page from another device, and unticked on the loopback", () => {
     const other = make().wrapper;
-    expect([box(other, "alert-mode").element.checked, box(other, "alert-sound").element.checked, box(other, "alert-popup").element.checked]).toEqual([
-      true,
-      true,
-      true,
-    ]);
+    expect([
+      box(other, "alert-mode").element.checked,
+      box(other, "alert-sound").element.checked,
+      box(other, "alert-popup").element.checked,
+    ]).toEqual([true, true, true]);
     const here = make("127.0.0.1").wrapper;
     expect(box(here, "alert-mode").element.checked).toBe(false);
     expect(here.find("#alert-sound").exists()).toBe(false);
@@ -92,15 +108,22 @@ describe("the browser's part of the Notifications group", () => {
     stubBrowser({ secure: false });
     const { wrapper } = make();
     expect(box(wrapper, "alert-popup").element.disabled).toBe(true);
-    expect(box(wrapper, "alert-popup").attributes("title")).toBe("Notifications are off in this browser for this address");
-    expect([box(wrapper, "alert-sound").element.checked, box(wrapper, "alert-popup").element.checked]).toEqual([true, false]);
+    expect(box(wrapper, "alert-popup").attributes("title")).toBe(
+      "Notifications are off in this browser for this address",
+    );
+    expect([box(wrapper, "alert-sound").element.checked, box(wrapper, "alert-popup").element.checked]).toEqual([
+      true,
+      false,
+    ]);
   });
 
   it("disables it too where the browser has blocked notifications for the page", () => {
     FakeNotification.permission = "denied";
     const { wrapper } = make();
     expect(box(wrapper, "alert-popup").element.disabled).toBe(true);
-    expect(box(wrapper, "alert-popup").attributes("title")).toBe("Notifications are blocked for this page in the browser");
+    expect(box(wrapper, "alert-popup").attributes("title")).toBe(
+      "Notifications are blocked for this page in the browser",
+    );
   });
 
   it("asks for the permission only when the notification is ticked, and goes back to sound, saying so, when it is refused", async () => {
@@ -173,7 +196,9 @@ describe("the browser's part of the Notifications group", () => {
 
   it("offers Enable notifications… beside the Notification tickbox where the page is not a secure context, and opens the steps for the browser", async () => {
     stubBrowser({ secure: false });
-    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0" });
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
+    });
     const { wrapper } = make("neoaprs-pi.local");
     expect(wrapper.find(".popuphelp").exists()).toBe(false);
     const link = wrapper.find("#alert-popup ~ #alert-enable-popups");
@@ -262,7 +287,9 @@ describe("the same box in the desktop app's own window", () => {
         wrapper.findAll("button:not(.info-toggle)").map((b) => b.text()),
         name,
       ).toEqual(["Test sound"]);
-      expect([box(wrapper, "alert-sound").element.checked, box(wrapper, "alert-sound").element.disabled], name).toEqual([true, true]);
+      expect([box(wrapper, "alert-sound").element.checked, box(wrapper, "alert-sound").element.disabled], name).toEqual(
+        [true, true],
+      );
       expect(wrapper.find("#alert-popup").exists() || wrapper.find("#alert-enable-popups").exists(), name).toBe(false);
       expect(localStorage.getItem("NeoAPRS.alert.mode"), name).toBeNull();
       expect(FakeNotification.asked, name).toBe(0);
@@ -272,7 +299,10 @@ describe("the same box in the desktop app's own window", () => {
   it("offers no Install app: the window is the app", () => {
     const stop = listenForInstall();
     window.dispatchEvent(
-      Object.assign(new Event("beforeinstallprompt"), { prompt: () => Promise.resolve(), userChoice: Promise.resolve({ outcome: "dismissed" }) }),
+      Object.assign(new Event("beforeinstallprompt"), {
+        prompt: () => Promise.resolve(),
+        userChoice: Promise.resolve({ outcome: "dismissed" }),
+      }),
     );
     expect(make("192.168.1.20").wrapper.find("#install-app").exists()).toBe(true);
     expect(inApp(APP_WINDOWS["macOS, Qt"]).wrapper.find("#install-app").exists()).toBe(false);

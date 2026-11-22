@@ -77,7 +77,9 @@ function openGuideOnce(config: Readonly<Ref<ConfigValues | null>>, guide: SetupG
 function useDerived(daemon: ReturnType<typeof useDaemon>) {
   const { config, status, lastError, send } = daemon;
   const radios = useShellRadios(daemon);
-  const settings = useSettings(config, lastError, send, { byId: (id: number) => radios.all.value.find((radio) => radio.id === id) });
+  const settings = useSettings(config, lastError, send, {
+    byId: (id: number) => radios.all.value.find((radio) => radio.id === id),
+  });
   const prefs = useStationPrefs(daemon.stationPrefs, send);
   const keys = useStationKeys(daemon.stationKeys, status, send);
   const heard = useHeardIndex(daemon.stations, config);
@@ -91,14 +93,22 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     now,
     dark: useDark(),
     aging: computed<Aging>(() => agingOf(config.value?.values)),
-    receiveOnly: computed(() => config.value?.values["station/transmit"] === "false" || listensOnly(daemon.radios.value)),
+    receiveOnly: computed(
+      () => config.value?.values["station/transmit"] === "false" || listensOnly(daemon.radios.value),
+    ),
     pills: computed(() =>
       headerPills(
         config.value?.values ?? {},
         daemon.gps.value,
         daemon.igate.value,
         daemon.status.value?.update ?? null,
-        { connection: daemon.connection.value, now: now.value, inApp: app, radios: radios.all.value, told: daemon.radios.value !== null },
+        {
+          connection: daemon.connection.value,
+          now: now.value,
+          inApp: app,
+          radios: radios.all.value,
+          told: daemon.radios.value !== null,
+        },
         daemon.map.value,
         listensOnly(daemon.radios.value),
       ),
@@ -171,7 +181,11 @@ const MARGIN_PX = 10;
  * and remembered-open cards that do not fit beside the ones before them (OVERLAYS' order) stay
  * hidden until there is room. The monitor is shown only while a radio has a scope.
  */
-function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<Ref<boolean>>, mapWidth: Readonly<Ref<number>>) {
+function useMapOverlays(
+  scopeAvailable: Readonly<Ref<boolean>>,
+  phone: Readonly<Ref<boolean>>,
+  mapWidth: Readonly<Ref<number>>,
+) {
   // Each open from the map's menu, closed by its cross or Esc, and remembered by this browser.
   const open: Record<Overlay, WritableComputedRef<boolean>> = {
     stats: usePersistedFlag("stats", ["open", "closed"], false),
@@ -180,9 +194,14 @@ function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<
   };
   const available = (card: Overlay): boolean => card !== "monitor" || scopeAvailable.value;
   const fits = (cards: readonly Overlay[]): boolean =>
-    cards.length <= 1 || (!phone.value && (mapWidth.value === 0 || cards.reduce((px, card) => px + CARD_PX[card] + MARGIN_PX, 0) <= mapWidth.value));
+    cards.length <= 1 ||
+    (!phone.value &&
+      (mapWidth.value === 0 || cards.reduce((px, card) => px + CARD_PX[card] + MARGIN_PX, 0) <= mapWidth.value));
   const shown = computed(() =>
-    OVERLAYS.reduce<Overlay[]>((kept, card) => (open[card].value && available(card) && fits([...kept, card]) ? [...kept, card] : kept), []),
+    OVERLAYS.reduce<Overlay[]>(
+      (kept, card) => (open[card].value && available(card) && fits([...kept, card]) ? [...kept, card] : kept),
+      [],
+    ),
   );
   for (const card of OVERLAYS) {
     watch(open[card], (on) => {
@@ -226,7 +245,10 @@ function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<
  */
 const holdsOf = (rows: Iterable<RadioRow>): string =>
   [...rows]
-    .map((row) => `${row.id}:${row.type}:${row.enabled}:${row.removed}:${row.holds.map((held) => `${held.resource}=${held.value}`).join(",")}`)
+    .map(
+      (row) =>
+        `${row.id}:${row.type}:${row.enabled}:${row.removed}:${row.holds.map((held) => `${held.resource}=${held.value}`).join(",")}`,
+    )
     .sort()
     .join(";");
 
@@ -295,7 +317,13 @@ export function useAppShell() {
   const mapwrap = ref<HTMLElement | null>(null);
   const mapWidth = useElementWidth(mapwrap);
   const overlays = useMapOverlays(scope.available, layout.phone, mapWidth);
-  const traffic = useLayerThings({ ...daemon, visible: pageVisible(), replay: overlays.replayOpen, now: derived.now, store: daemon.layerTables });
+  const traffic = useLayerThings({
+    ...daemon,
+    visible: pageVisible(),
+    replay: overlays.replayOpen,
+    now: derived.now,
+    store: daemon.layerTables,
+  });
   const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, () =>
     [overlays.closeOverlays(), traffic.close()].some(Boolean),
   );

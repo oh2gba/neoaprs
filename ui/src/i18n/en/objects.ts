@@ -2,7 +2,11 @@
 export const objects = {
   "schedule.sent": { "=0": "not sent yet", "=1": "sent once", other: "sent {n} times" },
   "schedule.ended": { "=1": "sent once, ended", other: "sent {n} times, ended" },
-  "schedule.next": { "=0": "not sent yet, next {when}", "=1": "sent once, next {when}", other: "sent {n} times, next {when}" },
+  "schedule.next": {
+    "=0": "not sent yet, next {when}",
+    "=1": "sent once, next {when}",
+    other: "sent {n} times, next {when}",
+  },
   "schedule.waiting": { "=0": "not sent yet, waiting", "=1": "sent once, waiting", other: "sent {n} times, waiting" },
   "schedule.killing": { "=0": "killing, not sent yet", "=1": "killing, sent once", other: "killing, sent {n} times" },
   "schedule.on_request": "sent only when asked",
@@ -11,11 +15,17 @@ export const objects = {
   "objects.list": "Objects",
   "objects.mine": "My objects",
   "objects.about_label": "About objects",
-  "objects.about1": "An object is a marker you put on the map for something that is not a station: a repeater, a meeting point, an event.",
+  "objects.about1":
+    "An object is a marker you put on the map for something that is not a station: a repeater, a meeting point, an event.",
   "objects.about2": "Everyone near you sees it, as long as you send it.",
   "objects.edit_label": "Edit {name}",
   "objects.delete_title": "Delete (kill on the air)",
-  "objects.delete_label": { select: "kind", object: "Delete the object {name}", item: "Delete the item {name}", other: "Delete the object {name}" },
+  "objects.delete_label": {
+    select: "kind",
+    object: "Delete the object {name}",
+    item: "Delete the item {name}",
+    other: "Delete the object {name}",
+  },
   "objects.kind_word": { select: "kind", object: "object", item: "item", other: "object" },
   "objects.in_group": "Category: {group}",
   "objects.category.rp2m": "2 m repeater",
@@ -51,7 +61,8 @@ export const objects = {
   "objects.category.other": "Other…",
   "objects.qru": "Local info",
   "objects.qru_tip_label": "About local info",
-  "objects.qru_tip": "Asks stations near you for their objects (APRS QRU): repeaters, events, places. Sent by radio only.",
+  "objects.qru_tip":
+    "Asks stations near you for their objects (APRS QRU): repeaters, events, places. Sent by radio only.",
   "objects.qru_ask": "Ask",
   "objects.qru_km": "km",
   "objects.qru_km_label": "Distance in km",
@@ -93,7 +104,8 @@ export const objects = {
   "objects.tip.speed": "How fast it moves, in km/h. Leave both empty for an object that stays.",
   "objects.tip.path": "The digipeaters its packets ask for. Empty uses the path of your beacon.",
   "objects.tip.category": "Give an object a category to offer it to stations that ask for local info.",
-  "objects.tip.category_code": "Your own category: {max} letters or digits at most, not INFO or NEXT. Stations ask for it by this word.",
+  "objects.tip.category_code":
+    "Your own category: {max} letters or digits at most, not INFO or NEXT. Stations ask for it by this word.",
   "objects.tip.on_request": "Not beaconed; sent only to a station that asks for local info.",
   "objects.sent_on": "Sent on radio {name}",
 

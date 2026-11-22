@@ -74,7 +74,16 @@ describe("the status choices", () => {
   it("show the fields they need", () => {
     const keys = ["status/source", "station/status", "status/rigctld", "status/template", "status/interval_min"];
     expect(keys.filter((k) => statusShown(k, "off"))).toEqual(["status/source"]);
-    expect(keys.filter((k) => statusShown(k, "text"))).toEqual(["status/source", "station/status", "status/interval_min"]);
-    expect(keys.filter((k) => statusShown(k, "rig"))).toEqual(["status/source", "status/rigctld", "status/template", "status/interval_min"]);
+    expect(keys.filter((k) => statusShown(k, "text"))).toEqual([
+      "status/source",
+      "station/status",
+      "status/interval_min",
+    ]);
+    expect(keys.filter((k) => statusShown(k, "rig"))).toEqual([
+      "status/source",
+      "status/rigctld",
+      "status/template",
+      "status/interval_min",
+    ]);
   });
 });

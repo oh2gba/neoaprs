@@ -20,7 +20,12 @@ afterEach(() => {
 });
 
 const KEY = (id: string) => `NeoAPRS.settings.fold.${id}`;
-const HF_VALUES = { "radio/2/beacon": "true", "radio/2/sound_card": "plughw:1,0", "radio/2/keying": "vox", "radio/2/tx_gain_db": "0" };
+const HF_VALUES = {
+  "radio/2/beacon": "true",
+  "radio/2/sound_card": "plughw:1,0",
+  "radio/2/keying": "vox",
+  "radio/2/tx_gain_db": "0",
+};
 /**
  * The topic `radios` of the FM radio (radio 1) and the HF radio (radio 2), both on unless a row
  * says otherwise.
@@ -29,7 +34,11 @@ const two = (fm: Partial<RadioRow> = {}, hf: Partial<RadioRow> = {}) => radiosTo
 
 function make(more: Given = {}) {
   const daemon = fakeDaemon({ config: configValues({}, HF_VALUES), radios: two(), ...more });
-  const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(SettingsForm, {
+    props: { scope: "settings" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   mounted.push(wrapper);
   const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
   if (!group) throw new Error("no Radio group");

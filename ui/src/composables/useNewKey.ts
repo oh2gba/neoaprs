@@ -20,5 +20,10 @@ export function useNewKey(renew: () => Promise<string> = renewKey) {
     if (problem) result.value = { ok: false, text: problem };
   }
 
-  return { running, result, armed: computed(() => sure.armed.value === KEY_KEY), press: () => sure.press(KEY_KEY, () => void make()) };
+  return {
+    running,
+    result,
+    armed: computed(() => sure.armed.value === KEY_KEY),
+    press: () => sure.press(KEY_KEY, () => void make()),
+  };
 }

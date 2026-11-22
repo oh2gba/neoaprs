@@ -9,8 +9,20 @@ const thread = [
   message(1, { to_call: "EMAIL-2", text: "jane@example.com Hello Pekka", state: "acked", attempts: 1 }),
   incoming(2, "EMAIL-2", { text: "Msg sent to jane@example.com", route: "via OH2RCH-2" }),
   message(3, { to_call: "EMAIL-2", text: "get", state: "failed", attempts: 6 }),
-  message(4, { to_call: "EMAIL-2", text: "jane@example.com On my way", state: "sending", attempts: 2, attempts_max: 2 }),
-  message(5, { to_call: "EMAIL-2", text: "bob@example.org Second mail", state: "unconfirmed", attempts: 2, attempts_max: 2 }),
+  message(4, {
+    to_call: "EMAIL-2",
+    text: "jane@example.com On my way",
+    state: "sending",
+    attempts: 2,
+    attempts_max: 2,
+  }),
+  message(5, {
+    to_call: "EMAIL-2",
+    text: "bob@example.org Second mail",
+    state: "unconfirmed",
+    attempts: 2,
+    attempts_max: 2,
+  }),
   message(6, { to_call: "EMAIL-2", text: "bob@example.org Third mail", state: "rejected", attempts: 1 }),
   incoming(7, "EMAIL-2", { text: "bob@example.org Hi from Bob" }),
   message(8, { to_call: "EMAIL-2", text: "bob@example.org Last mail", state: "acked", attempts: 2 }),
@@ -109,7 +121,9 @@ describe("EmailPane: Check email", () => {
     expect(button?.attributes("title")).toBe("Already checking");
     await button?.trigger("click");
     expect(wrapper.emitted("get")).toBeUndefined();
-    await wrapper.setProps({ thread: [message(1, { to_call: "EMAIL-2", text: "get", state: "unconfirmed", attempts: 2 })] });
+    await wrapper.setProps({
+      thread: [message(1, { to_call: "EMAIL-2", text: "get", state: "unconfirmed", attempts: 2 })],
+    });
     expect(bar(wrapper, "Check email")?.attributes("disabled")).toBeUndefined();
     expect(bar(wrapper, "Check email")?.attributes("title")).toBeUndefined();
     wrapper.unmount();
@@ -246,7 +260,16 @@ describe("EmailPane: the list", () => {
 describe("EmailPane: unread rows and the actions on a row", () => {
   it("makes the rows that came in after the seen mark bold, and none of ours", () => {
     const wrapper = pane({ freshAfter: 2 });
-    expect(rows(wrapper).map((r) => r.classes().includes("fresh"))).toEqual([false, true, false, false, false, false, false, false]);
+    expect(rows(wrapper).map((r) => r.classes().includes("fresh"))).toEqual([
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
     wrapper.unmount();
   });
 

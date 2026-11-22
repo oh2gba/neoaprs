@@ -5,7 +5,11 @@ import { pageRadios, type PageRadio, type RadioId } from "@/lib/radios";
 import { radioRow, radiosTopic } from "@/test/fixtures";
 
 const radios = (...rows: Parameters<typeof radiosTopic>): PageRadio[] => pageRadios(radiosTopic(...rows), null);
-const [fm, hf, away] = radios(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { name: "Mobile", state: "waiting" }));
+const [fm, hf, away] = radios(
+  radioRow(1, "kenwood-tnc2"),
+  radioRow(2, "mercury"),
+  radioRow(3, "kiss", { name: "Mobile", state: "waiting" }),
+);
 const several = (): boolean => true;
 const alone = (): boolean => false;
 
@@ -62,7 +66,8 @@ describe("Send on bound to a draft (an object's, a bulletin's)", () => {
 
   it("ticks the radios of the set in force and greys the one left; with none in force none is ticked and none greyed", () => {
     if (fm === undefined || hf === undefined || away === undefined) throw new Error("no radios");
-    const row = (own: RadioId[]) => draftTicks([fm, hf, away], own, "post").map((tick) => [tick.key, tick.name, tick.on, tick.last]);
+    const row = (own: RadioId[]) =>
+      draftTicks([fm, hf, away], own, "post").map((tick) => [tick.key, tick.name, tick.on, tick.last]);
     expect(row([1, 2])).toEqual([
       ["post/1", "FM", true, false],
       ["post/2", "Mercury", true, false],

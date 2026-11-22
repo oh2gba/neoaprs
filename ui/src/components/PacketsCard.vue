@@ -11,7 +11,9 @@ import { useFreeDrag } from "@/composables/useFreeDrag";
 import { t } from "@/i18n";
 import type { PacketRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ packets: ReadonlyMap<string, PacketRow>; movable?: boolean }>(), { movable: false });
+const props = withDefaults(defineProps<{ packets: ReadonlyMap<string, PacketRow>; movable?: boolean }>(), {
+  movable: false,
+});
 const emit = defineEmits<{ close: [] }>();
 const root = ref<HTMLElement | null>(null);
 const drag = useFreeDrag(root, "packetsplace", () => props.movable);

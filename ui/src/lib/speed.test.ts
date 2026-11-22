@@ -99,7 +99,11 @@ describe("speed: the line of the graph", () => {
       type: "speed_series" as const,
       call: "OH2ZMA-9",
       hours: 3,
-      points: [[ago(150 * 60), 30] as [string, number], [ago(HOUR), 66.7] as [string, number], [ago(60), 0] as [string, number]],
+      points: [
+        [ago(150 * 60), 30] as [string, number],
+        [ago(HOUR), 66.7] as [string, number],
+        [ago(60), 0] as [string, number],
+      ],
     };
     expect(speedPoints(series, from, NOW).points).toEqual([
       { t: NOW - HOUR * 1000, v: 66.7 },

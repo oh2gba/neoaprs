@@ -33,7 +33,8 @@ export interface ScopeLooks {
 
 const scoped = (row: RadioRow): boolean => row.enabled && !row.removed && row.can.scope;
 const withScope = (row: RadioRow): boolean => scoped(row) && row.modem?.scope === true;
-const canHave = (topic: ReadonlyMap<string, RadioRow>, radio: RadioId): boolean => [...topic.values()].some((row) => row.id === radio && scoped(row));
+const canHave = (topic: ReadonlyMap<string, RadioRow>, radio: RadioId): boolean =>
+  [...topic.values()].some((row) => row.id === radio && scoped(row));
 
 export function useScopeLooks(
   send: (command: Command) => boolean,

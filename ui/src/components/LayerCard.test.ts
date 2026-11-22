@@ -41,7 +41,9 @@ function make(thing: OpenThing | null, rows: ReturnType<typeof station>[] = [], 
 const plane: OpenThing = { layer: "aircraft", thing: aircraft({ at: ago(12) }), source: "adsblol" };
 const boat: OpenThing = { layer: "ships", thing: ship({ at: ago(65), name: "" }), source: "receiver" };
 const fields = (card: Element | null) =>
-  [...(card?.querySelectorAll("dt:not(.layercard-room)") ?? [])].map((dt) => `${dt.textContent}: ${dt.nextElementSibling?.textContent}`);
+  [...(card?.querySelectorAll("dt:not(.layercard-room)") ?? [])].map(
+    (dt) => `${dt.textContent}: ${dt.nextElementSibling?.textContent}`,
+  );
 
 afterEach(() => document.body.replaceChildren());
 
@@ -84,7 +86,11 @@ describe("the card of an aircraft or a ship", () => {
   });
 
   it("has the aircraft's own shape in its head, pointing north, also where it gives no direction, and a ship's hull", () => {
-    const glider: OpenThing = { layer: "aircraft", thing: aircraft({ category: "B1", designator: "", heading_deg: null }), source: "radarcape" };
+    const glider: OpenThing = {
+      layer: "aircraft",
+      thing: aircraft({ category: "B1", designator: "", heading_deg: null }),
+      source: "radarcape",
+    };
     const head = (thing: OpenThing) => make(thing).wrapper.find(".layercard .card-head .layercard-mark svg");
     expect(head(glider).find("path").attributes("d")).toBe(AIRCRAFT_SHAPES.glider.d);
     expect(head(glider).attributes("viewBox")).toBe(AIRCRAFT_SHAPES.glider.viewBox);
@@ -110,7 +116,8 @@ describe("the card of an aircraft or a ship", () => {
   it("has nothing of a station: no pin, no Message, no Forget, no Details, no packets", () => {
     const { wrapper } = make(plane);
     const card = wrapper.find(".layercard");
-    for (const part of [".card-pin", ".msgbtn", "details", ".stationpackets", "[data-call]"]) expect(card.find(part).exists()).toBe(false);
+    for (const part of [".card-pin", ".msgbtn", "details", ".stationpackets", "[data-call]"])
+      expect(card.find(part).exists()).toBe(false);
     expect(card.text()).not.toMatch(/Message|Forget|Details|Path/);
   });
 
@@ -123,7 +130,10 @@ describe("the card of an aircraft or a ship", () => {
 
   it("stands after the station cards, and Close all closes it with them", async () => {
     const { wrapper, close } = make(plane, [car]);
-    expect(wrapper.findAll(".cardstack > .card").map((card) => card.classes().includes("layercard"))).toEqual([false, true]);
+    expect(wrapper.findAll(".cardstack > .card").map((card) => card.classes().includes("layercard"))).toEqual([
+      false,
+      true,
+    ]);
     await wrapper.find(".cards-closeall").trigger("click");
     expect(close).toHaveBeenCalled();
     expect(wrapper.emitted("closeAll")).toHaveLength(1);

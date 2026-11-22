@@ -4,7 +4,8 @@ import type { Message } from "@/i18n/message";
 
 export const skeds: Record<keyof typeof source, Message> = {
   "skeds.about_label": "Sui test HF",
-  "skeds.about1": "Per le stazioni che provano l’APRS in HF: indica quando sarai in onda e su quale frequenza, così un’altra stazione può fare un test con te.",
+  "skeds.about1":
+    "Per le stazioni che provano l’APRS in HF: indica quando sarai in onda e su quale frequenza, così un’altra stazione può fare un test con te.",
   "skeds.about2": "La bacheca è pubblica, su neo.oh2gba.eu. Non viene inviata via radio.",
 
   "skeds.empty": "Nessun test in programma.",

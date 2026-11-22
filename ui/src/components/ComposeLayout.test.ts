@@ -19,12 +19,20 @@ import { shown } from "@/test/shown";
 function bulletins() {
   const rows = [bulletin("BLN1", { text: "Road closed" })];
   return mount(BulletinsPane, {
-    props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>() },
+    props: {
+      bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])),
+      ownBulletins: new Map<string, OwnBulletinRow>(),
+    },
     global: withDaemon(),
   });
 }
 
-function email(thread = [message(1, { to_call: "EMAIL-2", text: "jane@example.com Hello" }), incoming(2, "EMAIL-2", { text: "bob@example.org Hi" })]) {
+function email(
+  thread = [
+    message(1, { to_call: "EMAIL-2", text: "jane@example.com Hello" }),
+    incoming(2, "EMAIL-2", { text: "bob@example.org Hi" }),
+  ],
+) {
   return mount(EmailPane, { props: { thread, addresses: [] }, global: withDaemon(), attachTo: document.body });
 }
 
@@ -77,9 +85,15 @@ describe("Bulletins", () => {
   });
 
   it("keeps the board newest first in its sections", () => {
-    const rows = [bulletin("BLN1", { text: "old", last_heard: ago(900) }), bulletin("BLN2", { text: "new", last_heard: ago(30) })];
+    const rows = [
+      bulletin("BLN1", { text: "old", last_heard: ago(900) }),
+      bulletin("BLN2", { text: "new", last_heard: ago(30) }),
+    ];
     const wrapper = mount(BulletinsPane, {
-      props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>() },
+      props: {
+        bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])),
+        ownBulletins: new Map<string, OwnBulletinRow>(),
+      },
       global: withDaemon(fakeDaemon({ call: null })),
     });
     expect(wrapper.findAll(".bulletin-text").map((t) => t.text())).toEqual(["new", "old"]);
@@ -97,7 +111,10 @@ describe("Email", () => {
 
   it("lists the mail oldest first, the newest at the bottom next to the box", () => {
     const wrapper = email();
-    expect(wrapper.findAll(".mail").map((m) => m.find(".mail-title").text())).toEqual(["To jane@example.com", "From bob@example.org"]);
+    expect(wrapper.findAll(".mail").map((m) => m.find(".mail-title").text())).toEqual([
+      "To jane@example.com",
+      "From bob@example.org",
+    ]);
     const newest = wrapper.findAll(".mail").at(-1)?.element ?? document.body;
     expect(newest.compareDocumentPosition(barOf(wrapper).element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     wrapper.unmount();
@@ -107,14 +124,20 @@ describe("Email", () => {
     const wrapper = email();
     const list = wrapper.find(".maillist-wrap").element;
     Object.defineProperty(list, "scrollHeight", { configurable: true, value: 500 });
-    await wrapper.setProps({ thread: [...(wrapper.props("thread") as []), incoming(3, "EMAIL-2", { text: "bob@example.org Again" })] });
+    await wrapper.setProps({
+      thread: [...(wrapper.props("thread") as []), incoming(3, "EMAIL-2", { text: "bob@example.org Again" })],
+    });
     await wrapper.vm.$nextTick();
     expect(list.scrollTop).toBe(500);
     wrapper.unmount();
   });
 
   it("opens the suggestions of the address upward, inside the box", async () => {
-    const wrapper = mount(EmailPane, { props: { thread: [], addresses: ["carl@example.net"] }, global: withDaemon(), attachTo: document.body });
+    const wrapper = mount(EmailPane, {
+      props: { thread: [], addresses: ["carl@example.net"] },
+      global: withDaemon(),
+      attachTo: document.body,
+    });
     await wrapper.find("#mail-to").trigger("focus");
     expect(barOf(wrapper).find(".mail-address .suggestions").exists()).toBe(true);
     wrapper.unmount();
@@ -135,7 +158,11 @@ describe("Objects", () => {
   it("has no toolbar: the three boxes are the tab", () => {
     const { wrapper } = objects();
     expect(kids(wrapper).map((c) => c.className.split(" ")[0])).toEqual(["tab-help", "objectlist"]);
-    expect([...wrapper.find(".objectlist").element.children].map((c) => c.className.split(" ")[0])).toEqual(["composebar", "myobjects", "objects-qru"]);
+    expect([...wrapper.find(".objectlist").element.children].map((c) => c.className.split(" ")[0])).toEqual([
+      "composebar",
+      "myobjects",
+      "objects-qru",
+    ]);
   });
 
   it("names the form's box for a new object and for the one being changed, which Save changes", async () => {

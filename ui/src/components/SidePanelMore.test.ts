@@ -66,7 +66,8 @@ async function make(room: number, extra: Record<string, unknown> = {}, size: Siz
 }
 const button = (wrapper: Wrapper) => wrapper.find("button.tabmenu-button");
 const items = (wrapper: Wrapper) => wrapper.findAll("[role='menuitem']");
-const row = (wrapper: Wrapper) => wrapper.findAll("[role='tab']").map((tab) => tab.attributes("id")?.replace("tab-", ""));
+const row = (wrapper: Wrapper) =>
+  wrapper.findAll("[role='tab']").map((tab) => tab.attributes("id")?.replace("tab-", ""));
 const listed = (wrapper: Wrapper) => items(wrapper).map((item) => item.text().replace(/\s*\d+$/, ""));
 const key = async (wrapper: Wrapper, target: string, name: string) => {
   await wrapper.find(target).trigger("keydown", { key: name });
@@ -190,7 +191,15 @@ describe("the More button", () => {
     await opened(wrapper);
     expect(button(wrapper).attributes("aria-expanded")).toBe("true");
     expect(wrapper.find("[role='menu']").attributes("id")).toBe(button(wrapper).attributes("aria-controls"));
-    expect(items(wrapper).map((i) => i.text())).toEqual(["Email", "Bulletins 2", "HF tests", "Objects", "My station", "Packets", "Settings"]);
+    expect(items(wrapper).map((i) => i.text())).toEqual([
+      "Email",
+      "Bulletins 2",
+      "HF tests",
+      "Objects",
+      "My station",
+      "Packets",
+      "Settings",
+    ]);
     expect(items(wrapper)[1]?.find(".badge").attributes("title")).toBe("2 new bulletins");
     expect(items(wrapper).some((i) => i.attributes("aria-current"))).toBe(false);
   });
@@ -338,7 +347,14 @@ describe("the HF tests tab, only while a radio of the kind Mercury is on", () =>
   async function within(daemon: FakeDaemon, room: number, extra: Record<string, unknown> = {}) {
     width = stubWidth(room);
     const wrapper = mount(SidePanel, {
-      props: { tab: "messages" as TabId, collapsed: false, width: 500, size: "tablet" as SizeClass, view: "panel", ...extra },
+      props: {
+        tab: "messages" as TabId,
+        collapsed: false,
+        width: 500,
+        size: "tablet" as SizeClass,
+        view: "panel",
+        ...extra,
+      },
       slots,
       attachTo: document.body,
       global: withDaemon(daemon),
@@ -355,13 +371,19 @@ describe("the HF tests tab, only while a radio of the kind Mercury is on", () =>
     expect(row(wide)).toEqual(NINE);
     const narrow = await within(fmAlone(), 300);
     await opened(narrow);
-    expect([...row(narrow), ...listed(narrow).map((name) => TAB_IDS.find((id) => t(`tab.${id}`) === name))]).toEqual(NINE);
+    expect([...row(narrow), ...listed(narrow).map((name) => TAB_IDS.find((id) => t(`tab.${id}`) === name))]).toEqual(
+      NINE,
+    );
   });
 
   it("is there while the Mercury radio is on, and while a third radio of the kind Mercury is on with the Mercury radio of before off", async () => {
     expect(row(await within(withHf(), 1000))).toEqual([...TAB_IDS]);
     const third = fakeDaemon({
-      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }), radioRow(4, "dummy-hf", { number: 2 })),
+      radios: radiosTopic(
+        radioRow(1, "kenwood-tnc2"),
+        radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+        radioRow(4, "dummy-hf", { number: 2 }),
+      ),
     });
     expect(row(await within(third, 1000))).toEqual([...TAB_IDS]);
   });
@@ -407,7 +429,9 @@ describe("the HF tests tab, only while a radio of the kind Mercury is on", () =>
     const daemon = withHf();
     const open = await within(daemon, 1000, { tab: "skeds" });
     expect(open.emitted("update:tab")).toBeUndefined();
-    await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) });
+    await tell(daemon, {
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })),
+    });
     expect(open.emitted("update:tab")).toEqual([["messages"]]);
     expect(row(open)).not.toContain("skeds");
   });

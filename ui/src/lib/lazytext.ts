@@ -7,7 +7,10 @@
  * `plain` with the fields of `words` added as getters (they are enumerable, and a spread copies
  * them as the text they are then).
  */
-export function lazyText<T extends object, K extends string>(plain: T, words: Readonly<Record<K, () => string>>): T & Readonly<Record<K, string>> {
+export function lazyText<T extends object, K extends string>(
+  plain: T,
+  words: Readonly<Record<K, () => string>>,
+): T & Readonly<Record<K, string>> {
   const made = { ...plain };
   for (const key of Object.keys(words) as K[]) Object.defineProperty(made, key, { enumerable: true, get: words[key] });
   return made as T & Readonly<Record<K, string>>;

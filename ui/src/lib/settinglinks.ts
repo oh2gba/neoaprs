@@ -22,7 +22,9 @@ export const TOGETHER: Record<string, readonly string[]> = {
 };
 
 /** Every field of every radio type: its key and the set it is sent with (empty for none). */
-const RADIO_FIELDS: readonly { key: string; together: string }[] = RADIO_TYPES.flatMap((type): readonly { key: string; together: string }[] => type.fields);
+const RADIO_FIELDS: readonly { key: string; together: string }[] = RADIO_TYPES.flatMap(
+  (type): readonly { key: string; together: string }[] => type.fields,
+);
 
 /**
  * The fields that apply together with `key`: TOGETHER, or a radio's own fields its type sends
@@ -51,8 +53,13 @@ export const refusedAtField = (error: { cmd: string } | null): boolean =>
  * Values that must be sent with the change of `key` to `text` so it is valid at once (a rigctld for
  * the radio status source). `draft` holds the fields.
  */
-export function linkedValues(key: string, text: string, draft: Readonly<Record<string, string>>): Record<string, string> {
-  if (key === "status/source" && text === "rig" && (draft["status/rigctld"] ?? "").trim() === "") return { "status/rigctld": RIGCTLD_DEFAULT };
+export function linkedValues(
+  key: string,
+  text: string,
+  draft: Readonly<Record<string, string>>,
+): Record<string, string> {
+  if (key === "status/source" && text === "rig" && (draft["status/rigctld"] ?? "").trim() === "")
+    return { "status/rigctld": RIGCTLD_DEFAULT };
   return {};
 }
 

@@ -36,7 +36,14 @@ export function useCardDrag(stack: Readonly<Ref<HTMLElement | null>>, places: Re
     const pressed = enabled() && event.button <= 0 && !drag ? headPressed(stack.value, event) : null;
     const origin = pressed ? current(pressed.call) : null;
     if (!pressed || !origin) return;
-    drag = { call: pressed.call, pointer: event.pointerId, from: { x: event.clientX, y: event.clientY }, origin, started: false, head: pressed.head };
+    drag = {
+      call: pressed.call,
+      pointer: event.pointerId,
+      from: { x: event.clientX, y: event.clientY },
+      origin,
+      started: false,
+      head: pressed.head,
+    };
     try {
       pressed.head.setPointerCapture?.(event.pointerId);
     } catch {

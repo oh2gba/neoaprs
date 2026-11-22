@@ -28,7 +28,11 @@ const rows = computed(() => {
   const all = newestFirst(props.packets.values());
   const needle = filter.value.trim().toLowerCase();
   const found = new Set(filterPackets(all, filter.value));
-  return needle === "" ? all : all.filter((row) => found.has(row) || (packetTag(row, radios.all.value)?.label.toLowerCase().includes(needle) ?? false));
+  return needle === ""
+    ? all
+    : all.filter(
+        (row) => found.has(row) || (packetTag(row, radios.all.value)?.label.toLowerCase().includes(needle) ?? false),
+      );
 });
 </script>
 
@@ -52,7 +56,11 @@ const rows = computed(() => {
       </div>
     </fieldset>
     <div class="scroll">
-      <PacketLines :rows="rows" :stacked="stacked" :empty="packets.size === 0 ? t('packets.none_yet') : t('packets.none_match')" />
+      <PacketLines
+        :rows="rows"
+        :stacked="stacked"
+        :empty="packets.size === 0 ? t('packets.none_yet') : t('packets.none_match')"
+      />
     </div>
     <div class="foot muted">{{ t("packets.count", { shown: rows.length, n: packets.size }) }}</div>
   </div>

@@ -9,8 +9,21 @@ import { NOW, ago, configValues, fmRow, hello, radiosValue, station, status } fr
 
 const CALLS = ["OH2ZWA", "OH2ZWB", "OH2ZWC", "OH2ZWD", "OH2ZWE", "OH2ZWF"];
 const stations = {
-  OH2GBA: station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_table: "", symbol_code: "", distance_km: null, bearing_deg: null }),
-  ...Object.fromEntries(CALLS.map((call, i) => [call, station(call, { symbol_code: "_", lat: 60.1 + i / 10, lon: 24.6 + i / 10, last_heard: ago(10 + i) })])),
+  OH2GBA: station("OH2GBA", {
+    is_me: true,
+    lat: 60.17,
+    lon: 24.94,
+    symbol_table: "",
+    symbol_code: "",
+    distance_km: null,
+    bearing_deg: null,
+  }),
+  ...Object.fromEntries(
+    CALLS.map((call, i) => [
+      call,
+      station(call, { symbol_code: "_", lat: 60.1 + i / 10, lon: 24.6 + i / 10, last_heard: ago(10 + i) }),
+    ]),
+  ),
 };
 
 function resize(width: number, height: number): void {
@@ -43,10 +56,14 @@ const marked = () =>
   FakeMarker.live()
     .filter((m) => m.element.classList.contains("stn--selected"))
     .map((m) => m.element.textContent);
-const ctrl = (call: string) => marker(call)?.element.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
-const esc = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+const ctrl = (call: string) =>
+  marker(call)?.element.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+const esc = () =>
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
 const root = (wrapper: VueWrapper) => wrapper.find(".app").classes();
-const route = () => FakeMap.last().getSource("route")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: Record<string, unknown> }[] } | undefined;
+const route = () =>
+  FakeMap.last().getSource("route")?.setData.mock.calls.at(-1)?.[0] as
+    { features: { properties: Record<string, unknown> }[] } | undefined;
 
 beforeEach(() => {
   FakeSocket.all = [];
@@ -230,7 +247,8 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     await row(wrapper, "OH2ZWA")?.trigger("click");
     const box = wrapper.find("#pane-stations input[type='search']");
     await box.setValue("ZWA");
-    const press = () => box.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    const press = () =>
+      box.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     press();
     await nextTick();
     expect((box.element as HTMLInputElement).value).toBe("");
@@ -455,7 +473,9 @@ describe("the header marks and no footer under the panel", () => {
       await wrapper.find(".appheader .pill-update").trigger("click");
       await flushPromises();
       expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
-      await vi.waitFor(() => expect(document.getElementById("set-update-now")?.closest("fieldset")?.classList.contains("attend")).toBe(true));
+      await vi.waitFor(() =>
+        expect(document.getElementById("set-update-now")?.closest("fieldset")?.classList.contains("attend")).toBe(true),
+      );
       wrapper.unmount();
       FakeSocket.all = [];
     }
@@ -476,7 +496,11 @@ describe("the header marks and no footer under the panel", () => {
     expect(mark.attributes("title")).toMatch(/^nothing heard since \d\d:\d\d \(10 min\)\. Settings → Radio$/);
     await mark.trigger("click");
     expect(panelOn(wrapper)).toEqual(["pane-settings"]);
-    await vi.waitFor(() => expect(document.getElementById("set-radio-1-enabled")?.closest("fieldset")?.classList.contains("attend")).toBe(true));
+    await vi.waitFor(() =>
+      expect(document.getElementById("set-radio-1-enabled")?.closest("fieldset")?.classList.contains("attend")).toBe(
+        true,
+      ),
+    );
   });
 });
 

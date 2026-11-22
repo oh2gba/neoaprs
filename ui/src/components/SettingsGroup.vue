@@ -8,7 +8,10 @@
 import { computed, ref } from "vue";
 import { useFold } from "@/composables/useFold";
 
-const props = withDefaults(defineProps<{ id: string; title: string; fold?: boolean; show?: boolean }>(), { fold: true, show: false });
+const props = withDefaults(defineProps<{ id: string; title: string; fold?: boolean; show?: boolean }>(), {
+  fold: true,
+  show: false,
+});
 const root = ref<HTMLElement | null>(null);
 const { open } = useFold(props.id, () => props.show, root);
 const bodyId = computed(() => `settings-group-${props.id}`);
@@ -17,7 +20,16 @@ const bodyId = computed(() => `settings-group-${props.id}`);
 <template>
   <fieldset ref="root" :class="{ folded: fold && !open }">
     <legend>
-      <button v-if="fold" type="button" class="groupfold" :aria-expanded="open" :aria-controls="bodyId" @click="open = !open">{{ title }}</button>
+      <button
+        v-if="fold"
+        type="button"
+        class="groupfold"
+        :aria-expanded="open"
+        :aria-controls="bodyId"
+        @click="open = !open"
+      >
+        {{ title }}
+      </button>
       <template v-else>{{ title }}</template>
     </legend>
     <div v-show="!fold || open" :id="fold ? bodyId : undefined" class="group-body"><slot></slot></div>

@@ -11,7 +11,10 @@ function rows(...list: StationRow[]) {
 describe("useHeardIndex", () => {
   it("draws our own station with the symbol of the settings when the daemon heard none", () => {
     const heard = rows(station("OH2GBA", { is_me: true, symbol_table: "", symbol_code: "" }), station("OH2PU-9"));
-    const { stations } = useHeardIndex(heard, shallowRef(configValues({ "station/symbol_table": "/", "station/symbol_code": "-" })));
+    const { stations } = useHeardIndex(
+      heard,
+      shallowRef(configValues({ "station/symbol_table": "/", "station/symbol_code": "-" })),
+    );
     expect([stations.value.get("OH2GBA")?.symbol_table, stations.value.get("OH2GBA")?.symbol_code]).toEqual(["/", "-"]);
     expect(stations.value.get("OH2PU-9")?.symbol_code).toBe(">");
   });

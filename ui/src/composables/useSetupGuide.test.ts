@@ -7,7 +7,15 @@ import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
 import { configValues, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
-  configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
+  configValues({
+    "beacon/interval_min": "0",
+    "station/call": "",
+    "station/lat": "",
+    "station/lon": "",
+    "serial/baud": "",
+    "serial/port": "",
+    ...extra,
+  });
 
 function setUp(initial: ConfigValues | null = fresh()) {
   const config = ref<ConfigValues | null>(initial);
@@ -225,7 +233,15 @@ describe("useSetupGuide: Finish", () => {
     guide.go(3);
     guide.next();
     expect(setConfigs(sent)).toEqual([
-      { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
+      {
+        cmd: "set_config",
+        values: {
+          "station/call": "OH2ABC",
+          "station/lat": "60.17",
+          "station/lon": "24.94",
+          "beacon/interval_min": "30",
+        },
+      },
     ]);
   });
 
@@ -240,13 +256,23 @@ describe("useSetupGuide: Finish", () => {
   });
 
   it("sends nothing of the radios, whatever their settings: the Radio step saved them as they were changed (plan section 6: the call, the place, the symbol and the beacon still go at Finish)", () => {
-    const { guide, sent, fill } = setUp(fresh({ "serial/port": "/dev/ttyUSB0", "tnc/profile": "kiss-tcp", "fm/enabled": "false", "hf/enabled": "true" }));
+    const { guide, sent, fill } = setUp(
+      fresh({ "serial/port": "/dev/ttyUSB0", "tnc/profile": "kiss-tcp", "fm/enabled": "false", "hf/enabled": "true" }),
+    );
     guide.show();
     fill();
     guide.go(3);
     guide.next();
     expect(setConfigs(sent)).toEqual([
-      { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
+      {
+        cmd: "set_config",
+        values: {
+          "station/call": "OH2ABC",
+          "station/lat": "60.17",
+          "station/lon": "24.94",
+          "beacon/interval_min": "30",
+        },
+      },
     ]);
   });
 
@@ -278,7 +304,11 @@ describe("useSetupGuide: Finish", () => {
     guide.go(3);
     guide.next();
     expect(guide.saving).toBe(true);
-    await fail("set_config: station/lat: 95 is not between -90 and 90", "setting.range", { value: 95, min: -90, max: 90 });
+    await fail("set_config: station/lat: 95 is not between -90 and 90", "setting.range", {
+      value: 95,
+      min: -90,
+      max: 90,
+    });
     expect(guide.saving).toBe(false);
     expect(guide.open).toBe(true);
     expect(guide.step).toBe(1);
@@ -296,7 +326,11 @@ describe("useSetupGuide: Finish", () => {
     fill();
     guide.go(3);
     guide.next();
-    await fail("set_config: station/symbol_table: '!' is not / or \\ or an overlay character A-Z, 0-9", "setting.not_symbol_table", { value: "!" });
+    await fail(
+      "set_config: station/symbol_table: '!' is not / or \\ or an overlay character A-Z, 0-9",
+      "setting.not_symbol_table",
+      { value: "!" },
+    );
     expect(guide.step).toBe(2);
     expect(guide.problems.symbol).toContain("is not / or");
     guide.edit("symbol", "/-");
@@ -314,7 +348,11 @@ describe("useSetupGuide: Finish", () => {
     const { guide, fail, fill } = setUp();
     guide.show();
     fill();
-    await fail("set_config: station/lat: 95 is not between -90 and 90", "setting.range", { value: 95, min: -90, max: 90 });
+    await fail("set_config: station/lat: 95 is not between -90 and 90", "setting.range", {
+      value: 95,
+      min: -90,
+      max: 90,
+    });
     expect(guide.problems.lat).toBeUndefined();
     guide.go(3);
     guide.next();
@@ -383,7 +421,10 @@ describe("useSetupGuide: the map is asked for as the Position step is left", () 
     await nextTick();
     guide.next();
     await nextTick();
-    expect(sent).toEqual([{ cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } }, { cmd: "map_wanted" }]);
+    expect(sent).toEqual([
+      { cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } },
+      { cmd: "map_wanted" },
+    ]);
     // The guide run again on a station that has a place.
     const again = setUp(fresh({ "station/lat": "60.17", "station/lon": "24.94" }));
     again.fill();

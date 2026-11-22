@@ -21,7 +21,9 @@ const TRAFFIC_LAYERS: readonly LayerName[] = ["aircraft", "ships"];
 
 export function useLayerTables() {
   const told = shallowRef<LayerTables>(new Map());
-  const handlers: Pick<Store, "layerThings"> = { layerThings: (message) => (told.value = new Map(told.value).set(message.layer, message)) };
+  const handlers: Pick<Store, "layerThings"> = {
+    layerThings: (message) => (told.value = new Map(told.value).set(message.layer, message)),
+  };
   function forget(layer: LayerName): void {
     if (!told.value.has(layer)) return;
     const next = new Map(told.value);
@@ -64,7 +66,9 @@ export function useLayerThings(parts: TrafficParts): LayerTraffic {
   const looked = computed<readonly LayerName[]>((old) => {
     const front = parts.visible.value && connection.value === "open" && !parts.replay.value;
     const rows = ticks.rows.value;
-    const layers = front ? TRAFFIC_LAYERS.filter((layer) => rows.some((row) => row.id === layer) && ticks.ticked(layer)) : [];
+    const layers = front
+      ? TRAFFIC_LAYERS.filter((layer) => rows.some((row) => row.id === layer) && ticks.ticked(layer))
+      : [];
     return keepList(old, layers);
   });
   // A closed socket says no to nothing: the daemon forgets the page by itself.
@@ -82,7 +86,9 @@ export function useLayerThings(parts: TrafficParts): LayerTraffic {
     },
     { flush: "sync", immediate: true },
   );
-  const tables = computed<LayerTables>(() => new Map([...store.told.value].filter(([layer]) => looked.value.includes(layer))));
+  const tables = computed<LayerTables>(
+    () => new Map([...store.told.value].filter(([layer]) => looked.value.includes(layer))),
+  );
 
   const opened = shallowRef<{ layer: LayerName; id: string } | null>(null);
   const find = (layer: LayerName, id: string): OpenThing | null => {

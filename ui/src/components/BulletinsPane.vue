@@ -22,13 +22,19 @@ import { inForce } from "@/lib/sendon";
 import { heardText, ownEntries, ownMeta, sections, targetOf, type BoardEntry } from "@/lib/bulletins";
 import type { BulletinRow, OwnBulletinRow } from "@/protocol/protocol";
 
-const props = defineProps<{ bulletins: ReadonlyMap<string, BulletinRow>; ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
+const props = defineProps<{
+  bulletins: ReadonlyMap<string, BulletinRow>;
+  ownBulletins: ReadonlyMap<string, OwnBulletinRow>;
+}>();
 const { call, now, send } = useDaemonContext();
 const { severalSenders: several, senders, byId } = useRadios();
 /** Radio tags of our bulletin: the first two by name, then "+n" with the rest in the hover; none
  * with one radio on. */
 const NONE = { shown: [], rest: [] } as const;
-function tagsOf(own: OwnBulletinRow | undefined): { readonly shown: readonly PageRadio[]; readonly rest: readonly PageRadio[] } {
+function tagsOf(own: OwnBulletinRow | undefined): {
+  readonly shown: readonly PageRadio[];
+  readonly rest: readonly PageRadio[];
+} {
   if (own === undefined || !several.value) return NONE;
   const radios = inForce(
     own.radios,
@@ -40,7 +46,12 @@ function tagsOf(own: OwnBulletinRow | undefined): { readonly shown: readonly Pag
 const sentOn = (radio: PageRadio): string => t("objects.sent_on", { name: radio.name });
 const sure = useSure<string>();
 const keyOf = (b: BoardEntry) => (b.own ? `own/${b.slot}` : `${b.sender}/${b.slot}`);
-const shown = computed(() => sections<BoardEntry>([...props.bulletins.values(), ...ownEntries(props.ownBulletins.values(), call.value ?? t("chain.you"))]));
+const shown = computed(() =>
+  sections<BoardEntry>([
+    ...props.bulletins.values(),
+    ...ownEntries(props.ownBulletins.values(), call.value ?? t("chain.you")),
+  ]),
+);
 /** The copy menu of a bulletin: its text and its sender's call. */
 const copy = useCopyMenu((item) => {
   const b = shown.value.flatMap((section) => section.rows).find((row) => keyOf(row) === item.dataset["key"]);
@@ -52,7 +63,9 @@ const copy = useCopyMenu((item) => {
       ];
 });
 const remove = (b: BoardEntry): void =>
-  void (b.own ? send({ cmd: "bulletin_unpost", slot: b.slot }) : send({ cmd: "bulletin_delete", sender: b.sender, slot: b.slot }));
+  void (b.own
+    ? send({ cmd: "bulletin_unpost", slot: b.slot })
+    : send({ cmd: "bulletin_delete", sender: b.sender, slot: b.slot }));
 </script>
 
 <template>
@@ -83,7 +96,11 @@ const remove = (b: BoardEntry): void =>
                 class="bulletin-delete"
                 :title="b.own ? t('bulletins.delete_title') : undefined"
                 :armed="sure.armed.value === keyOf(b)"
-                :label="b.own ? t('bulletins.delete_own', { slot: b.slot }) : t('bulletins.delete', { slot: b.slot, sender: b.sender })"
+                :label="
+                  b.own
+                    ? t('bulletins.delete_own', { slot: b.slot })
+                    : t('bulletins.delete', { slot: b.slot, sender: b.sender })
+                "
                 @click="sure.press(keyOf(b), () => remove(b))"
               />
             </div>
@@ -92,16 +109,38 @@ const remove = (b: BoardEntry): void =>
               <span class="muted">{{ ` ${t("bulletins.to")} ` }}</span>
               <span class="mono bulletin-target" :title="b.slot">{{ targetOf(b) }}</span>
               <TagMark v-if="b.own" tone="outline" class="own-mark">{{ t("bulletins.ours") }}</TagMark>
-              <TagMark v-for="radio in tagsOf(b.own).shown" :key="radio.id" :tone="radioTone(radio)" class="own-radio" :title="sentOn(radio)">{{
-                radio.name
-              }}</TagMark>
-              <TagMark v-if="tagsOf(b.own).rest.length > 0" tone="neutral" class="own-radio" :title="titled(tagsOf(b.own).rest.map(sentOn))"
-                >{{ t("radio.more", { n: tagsOf(b.own).rest.length }) }}<span class="sr-only"> {{ titled(tagsOf(b.own).rest.map(sentOn)) }}</span></TagMark
+              <TagMark
+                v-for="radio in tagsOf(b.own).shown"
+                :key="radio.id"
+                :tone="radioTone(radio)"
+                class="own-radio"
+                :title="sentOn(radio)"
+                >{{ radio.name }}</TagMark
+              >
+              <TagMark
+                v-if="tagsOf(b.own).rest.length > 0"
+                tone="neutral"
+                class="own-radio"
+                :title="titled(tagsOf(b.own).rest.map(sentOn))"
+                >{{ t("radio.more", { n: tagsOf(b.own).rest.length })
+                }}<span class="sr-only"> {{ titled(tagsOf(b.own).rest.map(sentOn)) }}</span></TagMark
               >
             </p>
             <p class="bulletin-text">{{ b.text }}</p>
-            <p v-if="b.own" class="bulletin-meta muted" :title="t('bulletins.posted', { time: dateTimeText(b.first_heard) })">{{ ownMeta(b.own, now) }}</p>
-            <p v-else class="bulletin-meta muted" :title="t('bulletins.heard_title', { first: dateTimeText(b.first_heard), last: dateTimeText(b.last_heard) })">
+            <p
+              v-if="b.own"
+              class="bulletin-meta muted"
+              :title="t('bulletins.posted', { time: dateTimeText(b.first_heard) })"
+            >
+              {{ ownMeta(b.own, now) }}
+            </p>
+            <p
+              v-else
+              class="bulletin-meta muted"
+              :title="
+                t('bulletins.heard_title', { first: dateTimeText(b.first_heard), last: dateTimeText(b.last_heard) })
+              "
+            >
               {{ heardText(b.times_heard, b.last_heard, now) }}
             </p>
           </li>
@@ -110,7 +149,12 @@ const remove = (b: BoardEntry): void =>
     </div>
     <BulletinCompose
       :own-bulletins="ownBulletins"
-      @post="(slot, text, radios) => send(radios === undefined ? { cmd: 'bulletin_post', slot, text } : { cmd: 'bulletin_post', slot, text, radios })"
+      @post="
+        (slot, text, radios) =>
+          send(
+            radios === undefined ? { cmd: 'bulletin_post', slot, text } : { cmd: 'bulletin_post', slot, text, radios },
+          )
+      "
     />
     <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </div>

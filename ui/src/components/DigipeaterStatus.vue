@@ -11,7 +11,13 @@ import { rxOnlyLink } from "@/lib/settinglink";
 import type { RadioRow } from "@/protocol/protocol";
 
 const props = withDefaults(
-  defineProps<{ tnc?: Pick<RadioRow, "stats"> | null; pair?: PairLink; startedAt?: string | null; now?: number; rxOnly?: boolean }>(),
+  defineProps<{
+    tnc?: Pick<RadioRow, "stats"> | null;
+    pair?: PairLink;
+    startedAt?: string | null;
+    now?: number;
+    rxOnly?: boolean;
+  }>(),
   {
     tnc: null,
     pair: undefined,
@@ -22,7 +28,9 @@ const props = withDefaults(
 );
 const context = inject(DAEMON_KEY, null);
 /** The daemon start time and RX only as given, else the page's. */
-const startedAt = computed(() => (props.startedAt === undefined ? (context?.status.value?.started_at ?? null) : props.startedAt));
+const startedAt = computed(() =>
+  props.startedAt === undefined ? (context?.status.value?.started_at ?? null) : props.startedAt,
+);
 const now = computed(() => props.now ?? context?.now.value ?? Date.now());
 const rxOnly = computed(() => props.rxOnly ?? context?.settings.draft["station/transmit"] === "false");
 /** The row text and its lines behind the arrow, each only when it has content. */
@@ -38,7 +46,14 @@ const look = computed(() => {
 </script>
 
 <template>
-  <StatusFold v-if="look" class="digistatus" :state="look.state" :tone="look.tone" :line="look.line" :link="rxOnly ? rxOnlyLink() : undefined">
+  <StatusFold
+    v-if="look"
+    class="digistatus"
+    :state="look.state"
+    :tone="look.tone"
+    :line="look.line"
+    :link="rxOnly ? rxOnlyLink() : undefined"
+  >
     <p v-for="(line, i) in look.lines" :key="i" class="igatefold">{{ line }}</p>
   </StatusFold>
 </template>

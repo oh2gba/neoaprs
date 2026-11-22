@@ -78,7 +78,16 @@ describe("the replay's bar", () => {
   it("asks again for another span, the hours of On map for", async () => {
     const { send, wrapper } = setUp();
     const span = wrapper.find<HTMLSelectElement>(".replay-span");
-    expect([...span.element.options].map((o) => o.text)).toEqual(["1 h", "3 h", "6 h", "12 h", "24 h", "2 days", "3 days", "7 days"]);
+    expect([...span.element.options].map((o) => o.text)).toEqual([
+      "1 h",
+      "3 h",
+      "6 h",
+      "12 h",
+      "24 h",
+      "2 days",
+      "3 days",
+      "7 days",
+    ]);
     await span.setValue("168");
     expect(send).toHaveBeenLastCalledWith({ cmd: "position_history", hours: 168 });
   });
@@ -96,7 +105,10 @@ describe("the replay's bar", () => {
     expect([speed().disabled, span().disabled]).toEqual([true, true]);
     // off, a select keeps its size: only its look changes
     expect(cssRule(".input:disabled")).not.toMatch(/width|height|padding|margin|border|font/);
-    expect([speed().title, span().title]).toEqual(["Speed: can be changed while paused", "Span: can be changed while paused"]);
+    expect([speed().title, span().title]).toEqual([
+      "Speed: can be changed while paused",
+      "Span: can be changed while paused",
+    ]);
     await wrapper.find(".replay-play").trigger("click");
     expect([speed().disabled, span().disabled]).toEqual([false, false]);
     expect([speed().title, span().title]).toEqual(["Speed", "Span"]);
@@ -115,7 +127,8 @@ describe("the replay's bar", () => {
     const options = selects.flatMap((s) => [...s.options]);
     const changes: MutationRecord[] = [];
     const watcher = new MutationObserver((records) => changes.push(...records));
-    for (const select of selects) watcher.observe(select, { subtree: true, attributes: true, childList: true, characterData: true });
+    for (const select of selects)
+      watcher.observe(select, { subtree: true, attributes: true, childList: true, characterData: true });
     const clock = wrapper.find(".replay-clock").text();
     for (let step = 0; step < 5; step++) {
       vi.advanceTimersByTime(100);

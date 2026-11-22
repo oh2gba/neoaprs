@@ -26,7 +26,9 @@ const row = station("OH2PU-9", {
 afterEach(() => vi.useRealTimers());
 
 const fieldsOf = (wrapper: ReturnType<typeof mount>) =>
-  Object.fromEntries(wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]));
+  Object.fromEntries(
+    wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]),
+  );
 
 describe("StationCard", () => {
   it("shows the main facts of the row, and the rest under Details", () => {
@@ -69,7 +71,8 @@ describe("StationCard", () => {
   });
   it("shows the data extensions, the locator and the telemetry of a station, a line each, and nothing for one that has none", () => {
     const plain = fieldsOf(mount(StationCard, { props: { row, now: NOW } }));
-    for (const label of ["PHG", "Range", "Locator", "Telemetry", "Bits"]) expect(plain, label).not.toHaveProperty(label);
+    for (const label of ["PHG", "Range", "Locator", "Telemetry", "Bits"])
+      expect(plain, label).not.toHaveProperty(label);
     const detailed = station("OH2PU-9", {
       extensions: {
         phg: { power_w: 25, height_m: 6.1, gain_db: 3, direction_deg: 90, range_km: 12.8 },
@@ -109,7 +112,9 @@ describe("StationCard", () => {
       suggested_path: "OH2RCH-2",
     });
     const wrapper = mount(StationCard, { props: { row: heard, now: NOW } });
-    const fields = Object.fromEntries(wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]));
+    const fields = Object.fromEntries(
+      wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]),
+    );
     expect(fields["Reached us"]).toBe("via OH2RCH-1 → OH2RCH-3");
     expect(wrapper.findAll("dt").filter((dt) => dt.text() === "Reached us")).toHaveLength(1);
     expect(
@@ -178,19 +183,25 @@ describe("StationCard", () => {
   });
   it("leaves out what is not known, and writes no dash", () => {
     const wrapper = mount(StationCard, {
-      props: { row: station("X", { lat: null, lon: null, distance_km: null, bearing_deg: null, last_position_at: null }), now: NOW },
+      props: {
+        row: station("X", { lat: null, lon: null, distance_km: null, bearing_deg: null, last_position_at: null }),
+        now: NOW,
+      },
     });
     const rows = rowsOf(wrapper);
-    for (const label of ["Position", "From us", "Speed", "Altitude", "Status", "Comment"]) expect(rows, label).not.toContain(label);
+    for (const label of ["Position", "From us", "Speed", "Altitude", "Status", "Comment"])
+      expect(rows, label).not.toContain(label);
     expect(wrapper.findAll("dd").map((dd) => dd.text())).not.toContain("-");
   });
   it("says a speed and a course only for a station that moves; an altitude of zero that the station did send is kept", () => {
-    const rows = (extra: Parameters<typeof station>[1]) => rowsOf(mount(StationCard, { props: { row: station("X", extra), now: NOW } }));
+    const rows = (extra: Parameters<typeof station>[1]) =>
+      rowsOf(mount(StationCard, { props: { row: station("X", extra), now: NOW } }));
     expect(rows({ course_deg: 90, speed_kmh: 0 })).not.toContain("Speed");
     expect(rows({ course_deg: 90, speed_kmh: null })).not.toContain("Speed");
     expect(rows({ course_deg: 0, speed_kmh: 0, altitude_m: 0 })).toEqual(expect.arrayContaining(["Altitude"]));
     expect(rows({ course_deg: 0, speed_kmh: 0, altitude_m: 0 })).not.toContain("Speed");
-    const text = (extra: Parameters<typeof station>[1]) => fieldsOf(mount(StationCard, { props: { row: station("X", extra), now: NOW } }))["Speed"];
+    const text = (extra: Parameters<typeof station>[1]) =>
+      fieldsOf(mount(StationCard, { props: { row: station("X", extra), now: NOW } }))["Speed"];
     expect(text({ course_deg: 96, speed_kmh: 85 })).toBe("85 km/h, course 96° E");
     expect(text({ course_deg: null, speed_kmh: 85 })).toBe("85 km/h");
   });
@@ -330,7 +341,9 @@ describe("StationCard", () => {
   });
 
   it("has the bell of an alert at the end of the line of the call when one is set, with what it watches, and nothing without one", () => {
-    const bell = mount(StationCard, { props: { row, now: NOW, alert: { on_air: false, within_km: 5, direct: true } } }).find(".card-call .alert-bell");
+    const bell = mount(StationCard, {
+      props: { row, now: NOW, alert: { on_air: false, within_km: 5, direct: true } },
+    }).find(".card-call .alert-bell");
     expect(bell.attributes("title")).toBe("Alert when within 5 km, heard direct");
     expect(
       mount(StationCard, { props: { row, now: NOW } })
@@ -401,7 +414,10 @@ describe("StationCard", () => {
     expect(pin.attributes("aria-pressed")).toBe("false");
     expect(pin.attributes("title")).toBe("Pin card");
     const head = wrapper.find(".card-head").element;
-    expect([...head.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual(["Pin card", "Close"]);
+    expect([...head.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Pin card",
+      "Close",
+    ]);
     await pin.trigger("click");
     expect(wrapper.emitted("pin")).toHaveLength(1);
     expect(wrapper.emitted("close")).toBeUndefined();
@@ -448,7 +464,9 @@ describe("StationCard", () => {
   });
 
   it("asks for the series when it opens, gives the panel the answer, and asks again when the switch changes", async () => {
-    const wrapper = mount(StationCard, { props: { row: weatherStation("OH2MUI"), now: NOW, weatherSeries: series("OH2MUI", 24, 12) } });
+    const wrapper = mount(StationCard, {
+      props: { row: weatherStation("OH2MUI"), now: NOW, weatherSeries: series("OH2MUI", 24, 12) },
+    });
     expect(wrapper.emitted("weather")).toEqual([["OH2MUI", 24]]);
     // the weather graphs; the bars of its packets are the fifth, under the facts
     expect(wrapper.findAll(".wx figure")).toHaveLength(4);
@@ -501,7 +519,9 @@ describe("StationCard", () => {
   });
 
   it("says who reported an object", () => {
-    const text = mount(StationCard, { props: { row: station("STORM", { kind: "object", reported_by: "OH2XYZ" }), now: NOW } }).text();
+    const text = mount(StationCard, {
+      props: { row: station("STORM", { kind: "object", reported_by: "OH2XYZ" }), now: NOW },
+    }).text();
     expect(text).toContain("object, reported by OH2XYZ");
   });
 });

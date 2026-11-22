@@ -17,7 +17,8 @@ async function copy(command: string): Promise<void> {
   clearTimeout(timer);
   timer = setTimeout(() => (copied.value = null), 2000);
 }
-const label = (command: string): string => t(copied.value?.command !== command ? "help.copy" : copied.value.ok ? "help.copied" : "help.not_copied");
+const label = (command: string): string =>
+  t(copied.value?.command !== command ? "help.copy" : copied.value.ok ? "help.copied" : "help.not_copied");
 onBeforeUnmount(() => clearTimeout(timer));
 </script>
 
@@ -25,7 +26,14 @@ onBeforeUnmount(() => clearTimeout(timer));
   <ol class="updatesteps">
     <li v-for="step in steps" :key="step.text + (step.command ?? '')">
       <span>{{ step.text }}</span>
-      <a v-if="step.link" class="btn updatesteps-file" :href="step.link.href" target="_blank" rel="noopener noreferrer">{{ step.link.label }}</a>
+      <a
+        v-if="step.link"
+        class="btn updatesteps-file"
+        :href="step.link.href"
+        target="_blank"
+        rel="noopener noreferrer"
+        >{{ step.link.label }}</a
+      >
       <span v-if="step.command" class="updatesteps-command">
         <code class="mono">{{ step.command }}</code>
         <button type="button" class="btn small" @click="copy(step.command)">{{ label(step.command) }}</button>

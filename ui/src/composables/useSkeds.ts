@@ -23,7 +23,12 @@ function stored(): Set<string> {
   }
 }
 
-export function useSkeds(skeds: Readonly<Ref<SkedsState | null>>, panel: Panel, send: (command: Command) => boolean, live: Readonly<Ref<boolean>>) {
+export function useSkeds(
+  skeds: Readonly<Ref<SkedsState | null>>,
+  panel: Panel,
+  send: (command: Command) => boolean,
+  live: Readonly<Ref<boolean>>,
+) {
   const viewing = useViewing(panel, "skeds");
   const seen = ref(stored());
   const rows = computed(() => skeds.value?.rows ?? []);

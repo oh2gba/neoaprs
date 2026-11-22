@@ -11,6 +11,8 @@ defineProps<{ find: Pick<FindRadio, "running" | "text" | "cancel"> }>();
 <template>
   <div v-if="find.running.value" class="toast notice findradio" role="status">
     <span>{{ find.text.value }}</span>
-    <button class="linkbutton findradio-cancel" type="button" @click="find.cancel()">{{ t("settings.find.cancel") }}</button>
+    <button class="linkbutton findradio-cancel" type="button" @click="find.cancel()">
+      {{ t("settings.find.cancel") }}
+    </button>
   </div>
 </template>

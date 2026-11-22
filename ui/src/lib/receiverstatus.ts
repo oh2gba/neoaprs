@@ -30,7 +30,8 @@ export interface ReceiverLook {
 function lineOf(layer: LayerName, receiver: LayerReceiver, nowMs: number): string {
   if (receiver.state === "looking") return t("layers.receiver.line.looking");
   if (receiver.state === "no_answer") return t("layers.receiver.line.no_answer");
-  if (receiver.heard_at === null) return t(layer === "ships" ? "layers.receiver.line.ships_none" : "layers.receiver.line.aircraft_none");
+  if (receiver.heard_at === null)
+    return t(layer === "ships" ? "layers.receiver.line.ships_none" : "layers.receiver.line.aircraft_none");
   const values = { n: receiver.things, span: ageText(receiver.heard_at, nowMs) };
   return layer === "ships" ? t("layers.receiver.line.ships", values) : t("layers.receiver.line.aircraft", values);
 }

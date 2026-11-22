@@ -26,7 +26,9 @@ let told = 0;
 /** The daemon tells the request it took, long enough ago to hold nothing back: the next press
  * sends. */
 const answer = (daemon: ReturnType<typeof make>["daemon"]) =>
-  tell(daemon, { qru: { ...(daemon.qru.value ?? qruState({ asked: null })), asked: qruAsked("INFO", ago(100 + ++told)) } });
+  tell(daemon, {
+    qru: { ...(daemon.qru.value ?? qruState({ asked: null })), asked: qruAsked("INFO", ago(100 + ++told)) },
+  });
 
 beforeEach(() => localStorage.clear());
 
@@ -47,15 +49,25 @@ describe("the path of a request for local info", () => {
   it("has as its placeholder the path its ticked radios share, a LoRa radio's own WIDE1-1 among them, and the page's word for the default while theirs differ", async () => {
     const ticked = { beacon: true, status: false, ask: false, local_info: true, path: "", digipeat: false };
     const LORA = radioRow(3, "lora-tcp", { choices: { ...ticked, digipeat: null } });
-    const config = (fm: string) => configValues({}, { "radio/1/path": fm, "radio/1/local_info": "true", "radio/3/path": "", "radio/3/local_info": "true" });
-    const { wrapper, daemon } = make({ ...ofRadios(radioRow(1, "kenwood-tnc2", { choices: ticked }), LORA), config: config("") });
+    const config = (fm: string) =>
+      configValues(
+        {},
+        { "radio/1/path": fm, "radio/1/local_info": "true", "radio/3/path": "", "radio/3/local_info": "true" },
+      );
+    const { wrapper, daemon } = make({
+      ...ofRadios(radioRow(1, "kenwood-tnc2", { choices: ticked }), LORA),
+      config: config(""),
+    });
     expect(pathField(wrapper).attributes("placeholder")).toBe("(default)");
     await tell(daemon, { config: config("WIDE1-1") });
     expect(pathField(wrapper).attributes("placeholder")).toBe("WIDE1-1");
   });
 
   it("has the station QRU's own path as the placeholder when it has one", () => {
-    const prefs = useStationPrefs(shallowReactive(new Map<string, StationPref>([["QRU", { path: "OH2RCH-2", rf_only: false, alert: null }]])), () => true);
+    const prefs = useStationPrefs(
+      shallowReactive(new Map<string, StationPref>([["QRU", { path: "OH2RCH-2", rf_only: false, alert: null }]])),
+      () => true,
+    );
     const { wrapper } = make({ prefs });
     expect(pathField(wrapper).attributes("placeholder")).toBe("OH2RCH-2");
   });
@@ -89,7 +101,12 @@ describe("the path of a request for local info", () => {
     expect(fold(wrapper).find(".field").classes()).toContain("invalid");
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
     expect(ask(wrapper).attributes("title")).toBe("Calls separated by commas, at most 8");
-    expect(pills(wrapper).every((p) => p.attributes("disabled") !== undefined && p.attributes("title") === "Calls separated by commas, at most 8")).toBe(true);
+    expect(
+      pills(wrapper).every(
+        (p) =>
+          p.attributes("disabled") !== undefined && p.attributes("title") === "Calls separated by commas, at most 8",
+      ),
+    ).toBe(true);
   });
 
   it("is remembered by the browser apart from Ask around's, and opens the fold when it is not the usual", async () => {
@@ -105,7 +122,9 @@ describe("the path of a request for local info", () => {
 
   it("does not hold Ask for a stored path that is wrong while the FM radio is off and the fold is not there, and sends no path", async () => {
     localStorage.setItem("NeoAPRS.qru.path", "not a path!");
-    const { wrapper, daemon } = make({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")) });
+    const { wrapper, daemon } = make({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")),
+    });
     expect(fold(wrapper).exists()).toBe(false);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await ask(wrapper).trigger("click");
@@ -124,11 +143,15 @@ describe("the Send on of Local info", () => {
   const Mobile = radioRow(3, "kiss", { name: "Mobile" });
   const ticked = (row: RadioRow, local_info = true): RadioRow => ({ ...row, choices: { ...row.choices, local_info } });
   const sendOn = (wrapper: Wrapper) => wrapper.find("#qru-send-on").element.closest(".field");
-  const ticks = (wrapper: Wrapper) => wrapper.findAll<HTMLInputElement>("#qru-send-on ~ .field-control input[type=checkbox]");
-  const shown = (wrapper: Wrapper) => ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined]);
+  const ticks = (wrapper: Wrapper) =>
+    wrapper.findAll<HTMLInputElement>("#qru-send-on ~ .field-control input[type=checkbox]");
+  const shown = (wrapper: Wrapper) =>
+    ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined]);
   const line = (wrapper: Wrapper) => wrapper.find(".qrustatus .statusline, .qrustatus").text();
-  const requests = (daemon: ReturnType<typeof make>["daemon"]): Command[] => sent(daemon).filter((command) => command.cmd === "qru_ask");
-  const saves = (daemon: ReturnType<typeof make>["daemon"]): Command[] => sent(daemon).filter((command) => command.cmd === "set_config");
+  const requests = (daemon: ReturnType<typeof make>["daemon"]): Command[] =>
+    sent(daemon).filter((command) => command.cmd === "qru_ask");
+  const saves = (daemon: ReturnType<typeof make>["daemon"]): Command[] =>
+    sent(daemon).filter((command) => command.cmd === "set_config");
   const tags = (wrapper: Wrapper) => wrapper.findAll("li.qru-server .qru-call .tag").map((tag) => tag.text());
   /** The fixture's server, as it answered on that radio. */
   const answeredOn = (radio: number | null, extra: Partial<QruServer> = {}): QruServer[] =>
@@ -137,7 +160,10 @@ describe("the Send on of Local info", () => {
   it("is not there with one radio that can send, whichever it is: nothing is ticked, tagged, named or sent with the request", async () => {
     for (const rows of [[FM], [FM, { ...HF, enabled: false }], [{ ...FM, enabled: false }, HF]]) {
       const id = rows[0]?.enabled === true ? 1 : 2;
-      const { wrapper, daemon } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), id), servers: answeredOn(id) }) }, ...rows);
+      const { wrapper, daemon } = on(
+        { qru: qruState({ asked: qruAsked("INFO 150", ago(90), id), servers: answeredOn(id) }) },
+        ...rows,
+      );
       expect(wrapper.find("#qru-send-on").exists()).toBe(false);
       expect(wrapper.find(".qru-ask select").exists()).toBe(false);
       expect(tags(wrapper)).toEqual([]);
@@ -159,8 +185,14 @@ describe("the Send on of Local info", () => {
     expect(row?.getAttribute("aria-labelledby")).toBe("qru-send-on");
     expect(row?.previousElementSibling).toBe(wrapper.find(".qru-ask").element);
     expect(row?.nextElementSibling).toBe(fold(wrapper).element);
-    expect(ticks(wrapper).map((tick) => tick.attributes("id"))).toEqual(["set-radio-1-local_info", "set-radio-2-local_info"]);
-    expect([...(row?.querySelectorAll("label.check") ?? [])].map((label) => label.textContent)).toEqual(["FM", "Mercury"]);
+    expect(ticks(wrapper).map((tick) => tick.attributes("id"))).toEqual([
+      "set-radio-1-local_info",
+      "set-radio-2-local_info",
+    ]);
+    expect([...(row?.querySelectorAll("label.check") ?? [])].map((label) => label.textContent)).toEqual([
+      "FM",
+      "Mercury",
+    ]);
     expect(wrapper.find(".qru-ask").element.firstElementChild).toBe(ask(wrapper).element);
     expect(wrapper.find(".qru-ask select").exists()).toBe(false);
   });
@@ -172,7 +204,10 @@ describe("the Send on of Local info", () => {
       [false, false],
       [false, false],
     ]);
-    expect([ask(wrapper).attributes("disabled") !== undefined, ask(wrapper).attributes("title")]).toEqual([true, undefined]);
+    expect([ask(wrapper).attributes("disabled") !== undefined, ask(wrapper).attributes("title")]).toEqual([
+      true,
+      undefined,
+    ]);
     await ask(wrapper).trigger("click");
     expect(requests(daemon)).toEqual([]);
     await ticks(wrapper)[2]?.setValue(true);
@@ -204,9 +239,10 @@ describe("the Send on of Local info", () => {
     expect((rfOnly(wrapper).element as HTMLInputElement).disabled).toBe(true);
     expect((pathField(wrapper).element as HTMLInputElement).value).toBe("OH2RDK-7");
     expect(fold(wrapper).find("button.pathbuild-open").attributes("disabled")).toBeDefined();
-    expect(fold(wrapper).find("button.pathbuild-open").attributes("title"), "the path builder's button says why it is off, as its row does").toBe(
-      "Mercury: no path",
-    );
+    expect(
+      fold(wrapper).find("button.pathbuild-open").attributes("title"),
+      "the path builder's button says why it is off, as its row does",
+    ).toBe("Mercury: no path");
     expect(
       fold(wrapper)
         .findAll(".field")
@@ -228,7 +264,11 @@ describe("the Send on of Local info", () => {
   });
 
   it("holds Ask while a ticked radio is inside its minute, and not for the minute of a radio that is not ticked", async () => {
-    const { wrapper } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(20), 1), servers: [] }) }, ticked(FM), ticked(HF));
+    const { wrapper } = on(
+      { qru: qruState({ asked: qruAsked("INFO 150", ago(20), 1), servers: [] }) },
+      ticked(FM),
+      ticked(HF),
+    );
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
     expect(ask(wrapper).attributes("title")).toBe("Next request in 40 s");
     await ticks(wrapper)[0]?.setValue(false);
@@ -253,7 +293,11 @@ describe("the Send on of Local info", () => {
 
   it("tags a server's row with the radio it answered on, and sends its group's button and Ask again on that radio, whatever is ticked", async () => {
     const lost = answeredOn(2, { received: ["RPKUM"], settles_at: ago(5) });
-    const { wrapper, daemon } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1, 2), servers: lost }) }, ticked(FM), HF);
+    const { wrapper, daemon } = on(
+      { qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1, 2), servers: lost }) },
+      ticked(FM),
+      HF,
+    );
     expect(tags(wrapper)).toEqual(["Mercury"]);
     expect(wrapper.find("li.qru-server .qru-call .tag").attributes("title")).toBe("Heard on radio Mercury");
     expect(wrapper.find("li.qru-server .qru-call").text()).toBe("DF8LS-10Mercury");
@@ -271,10 +315,17 @@ describe("the Send on of Local info", () => {
     const servers = answeredOn(2);
     const waiting = on({ qru: qruState({ asked: qruAsked("RP70 150", ago(20), 1), servers }) }, ticked(FM), HF);
     expect(pills(waiting.wrapper)[0]?.attributes("disabled")).toBeUndefined();
-    const away = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1), servers }) }, ticked(FM), { ...HF, state: "waiting" });
+    const away = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1), servers }) }, ticked(FM), {
+      ...HF,
+      state: "waiting",
+    });
     expect(pills(away.wrapper)[0]?.attributes("title")).toBe("Mercury: not connected");
     expect(ask(away.wrapper).attributes("disabled")).toBeUndefined();
-    const { wrapper, daemon } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1), servers }) }, ticked(FM), HF);
+    const { wrapper, daemon } = on(
+      { qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1), servers }) },
+      ticked(FM),
+      HF,
+    );
     await pathField(wrapper).setValue("OH2RDK-7,???");
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
     await pills(wrapper)[0]?.trigger("click");
@@ -292,7 +343,11 @@ describe("the Send on of Local info", () => {
     expect(line(gone.wrapper)).toMatch(/^Mercury: Asked\s*\d\d:\d\d · /);
     await pills(gone.wrapper)[0]?.trigger("click");
     expect(requests(gone.daemon)).toEqual([{ cmd: "qru_ask", text: "RP70 150" }]);
-    const none = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1), servers: answeredOn(null) }) }, ticked(FM), ticked(HF));
+    const none = on(
+      { qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1), servers: answeredOn(null) }) },
+      ticked(FM),
+      ticked(HF),
+    );
     expect(tags(none.wrapper)).toEqual([]);
     await pills(none.wrapper)[0]?.trigger("click");
     expect(requests(none.daemon)).toEqual([{ cmd: "qru_ask", text: "RP70 150" }]);

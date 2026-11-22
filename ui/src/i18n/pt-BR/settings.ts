@@ -24,15 +24,18 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.group.lora_radio": "Rádio LoRa",
   "settings.fm_enabled.name": "Rádio FM",
   "settings.fm_enabled.tip_label": "Sobre o rádio FM",
-  "settings.fm_enabled.tip1": "Seu rádio FM com o TNC ou a placa de som dele: a rede local, com digipeaters, caminhos e um beacon que segue um GPS.",
+  "settings.fm_enabled.tip1":
+    "Seu rádio FM com o TNC ou a placa de som dele: a rede local, com digipeaters, caminhos e um beacon que segue um GPS.",
   "settings.fm_enabled.tip2": "Desmarque para deixar este rádio desligado; os ajustes dele são mantidos.",
   "settings.hf_enabled.name": "Rádio Mercury",
   "settings.hf_enabled.tip_label": "Sobre o rádio Mercury",
-  "settings.hf_enabled.tip1": "Um rádio em uma placa de som com o modem Mercury que vem no NeoAPRS: só estações com Mercury o ouvem, e todo quadro sai direto.",
+  "settings.hf_enabled.tip1":
+    "Um rádio em uma placa de som com o modem Mercury que vem no NeoAPRS: só estações com Mercury o ouvem, e todo quadro sai direto.",
   "settings.hf_enabled.tip2":
     "Vários rádios podem estar ligados: toda estação ouvida por qualquer um está no mapa, e a Rota diz por qual rádio vão as mensagens para ela.",
   "settings.lora_enabled.tip_label": "Sobre o rádio LoRa",
-  "settings.lora_enabled.tip1": "Uma placa LoRa APRS: na sua rede, em USB ou em Bluetooth. A frequência é definida na placa.",
+  "settings.lora_enabled.tip1":
+    "Uma placa LoRa APRS: na sua rede, em USB ou em Bluetooth. A frequência é definida na placa.",
   "settings.rx_enabled.tip1": "Ele só escuta: o que ouve entra, e nada é enviado por ele.",
   "settings.enable.only_radio_title": "O único rádio ligado da estação",
   "settings.group.web": "Página web",
@@ -70,7 +73,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.lat.label": "Latitude",
   "settings.lon.label": "Longitude",
   "settings.symbol.label": "Símbolo",
-  "settings.symbol.tip1": "O ícone que as outras estações veem no mapa. Escolha um que combine: casa, carro, bicicleta, barco.",
+  "settings.symbol.tip1":
+    "O ícone que as outras estações veem no mapa. Escolha um que combine: casa, carro, bicicleta, barco.",
   "settings.symbol_code.label": "Código do símbolo",
   "settings.symbol.none": "Sem símbolo",
   "settings.symbol.change": "Mudar símbolo",
@@ -78,16 +82,19 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.symbol.overlay": "Letra ou dígito sobre ele",
 
   "settings.comment.label": "Comentário",
-  "settings.comment.tip1": "Um texto curto enviado em cada beacon e mostrado ao lado do seu nome no mapa. Até {max} caracteres.",
+  "settings.comment.tip1":
+    "Um texto curto enviado em cada beacon e mostrado ao lado do seu nome no mapa. Até {max} caracteres.",
   "settings.comment.tip2": "Exemplo: QTH fixo, 2 m FM",
 
   "settings.station_status.name": "Texto de status",
   "settings.station_status.label": "Texto",
-  "settings.station_status.tip1": "Comece com a frequência de voz em que você escuta, como 145.500MHz, para que os rádios possam sintonizá-la.",
+  "settings.station_status.tip1":
+    "Comece com a frequência de voz em que você escuta, como 145.500MHz, para que os rádios possam sintonizá-la.",
   "settings.station_status.tip2": "Até {max} caracteres, p. ex. 145.500MHz T088 QRV",
 
   "settings.power.label": "Potência",
-  "settings.power.tip1": "A potência do transmissor em watts. Com os campos da antena, envia um código PHG: até onde você é ouvido.",
+  "settings.power.tip1":
+    "A potência do transmissor em watts. Com os campos da antena, envia um código PHG: até onde você é ouvido.",
   "settings.power.tip2": "Exemplo: 5",
 
   "settings.antenna_height.label": "Altura da antena",
@@ -95,12 +102,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.antenna_height.tip2": "Exemplo: 10 para um mastro em uma casa em terreno plano",
 
   "settings.antenna_gain.label": "Ganho da antena",
-  "settings.antenna_gain.tip1": "O quanto a antena concentra o sinal, de {min} a {max} dBi; 0 se não souber. Usado só para o PHG.",
+  "settings.antenna_gain.tip1":
+    "O quanto a antena concentra o sinal, de {min} a {max} dBi; 0 se não souber. Usado só para o PHG.",
   "settings.antenna_gain.tip2": "Exemplo: 3",
 
   "settings.antenna_direction.label": "Direção da antena",
   "settings.antenna_direction.omni": "omni",
-  "settings.antenna_direction.tip1": "omni se funciona igual em todas as direções, ou o ponto cardeal para onde uma antena direcional aponta.",
+  "settings.antenna_direction.tip1":
+    "omni se funciona igual em todas as direções, ou o ponto cardeal para onde uma antena direcional aponta.",
 
   "settings.transmit.name": "Somente RX",
   "settings.transmit.label": "Somente RX",
@@ -109,8 +118,10 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "Tipo de rádio",
   "settings.profile.tip_label": "Qual tipo de rádio escolher",
-  "settings.profile.tip1": "Um rádio FM com um Digirig, um SignaLink, um AIOC ou o próprio áudio USB é Placa de som. A maioria dos TNCs é KISS TNC.",
-  "settings.profile.tip2": "Modem Mercury só é ouvido por estações com Mercury, em qualquer banda, em SSB ou FM. Sem rádio? Escolha um rádio simulado.",
+  "settings.profile.tip1":
+    "Um rádio FM com um Digirig, um SignaLink, um AIOC ou o próprio áudio USB é Placa de som. A maioria dos TNCs é KISS TNC.",
+  "settings.profile.tip2":
+    "Modem Mercury só é ouvido por estações com Mercury, em qualquer banda, em SSB ou FM. Sem rádio? Escolha um rádio simulado.",
 
   "settings.port.name": "Porta",
   "settings.port.label": "Porta",
@@ -143,11 +154,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.board_port.label": "Porta",
   "settings.sound_card.label": "Placa de som",
   "settings.sound_card.tip_label": "Sobre a placa de som",
-  "settings.sound_card.tip1": "A placa de som por onde passa o áudio do rádio: um codec USB, um Digirig ou o áudio USB do próprio rádio.",
-  "settings.sound_card.tip2": "A placa do próprio rádio costuma se chamar codec USB. Sintonizar torna audível a placa escolhida; Atualizar lê a lista de novo.",
+  "settings.sound_card.tip1":
+    "A placa de som por onde passa o áudio do rádio: um codec USB, um Digirig ou o áudio USB do próprio rádio.",
+  "settings.sound_card.tip2":
+    "A placa do próprio rádio costuma se chamar codec USB. Sintonizar torna audível a placa escolhida; Atualizar lê a lista de novo.",
   "settings.keying.label": "Chaveamento",
   "settings.keying.tip_label": "Sobre o chaveamento",
-  "settings.keying.tip1": "Como o rádio passa a transmitir: sozinho (VOX ou seu modo de dados), por um chip de som CM108 ou por uma linha de uma porta serial.",
+  "settings.keying.tip1":
+    "Como o rádio passa a transmitir: sozinho (VOX ou seu modo de dados), por um chip de som CM108 ou por uma linha de uma porta serial.",
   "settings.keying.tip2": "Um Digirig chaveia pelo RTS da sua porta serial.",
   "settings.keying.vox": "O rádio chaveia sozinho (VOX)",
   "settings.keying.cm108": "Chip de som CM108",
@@ -162,7 +176,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "Sobre o nível de recepção",
   "settings.scope.tip1": "A barra é o nível do áudio do rádio, a parte verde a faixa boa.",
-  "settings.scope.tip2": "Baixo demais: aumente a saída de áudio do rádio ou a entrada da placa de som. Vermelho: diminua, a placa satura.",
+  "settings.scope.tip2":
+    "Baixo demais: aumente a saída de áudio do rádio ou a entrada da placa de som. Vermelho: diminua, a placa satura.",
   "settings.scope.heard": "{call} {db} dB",
   "settings.txlevel.label": "Nível de transmissão",
   "settings.txlevel.lower": "Diminuir o nível de transmissão",
@@ -170,9 +185,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.txlevel.value": "{value} dB",
   "settings.txlevel.peak": "Pico {value} dBFS",
   "settings.txlevel.tip_label": "Sobre o nível de transmissão",
-  "settings.txlevel.tip1": "Quão forte o áudio do modem vai para o rádio, em dB. Aperte Sintonizar e ajuste-o pelo medidor do rádio.",
+  "settings.txlevel.tip1":
+    "Quão forte o áudio do modem vai para o rádio, em dB. Aperte Sintonizar e ajuste-o pelo medidor do rádio.",
   "settings.txlevel.tip2": "O pico fica laranja em 0 dBFS, onde a placa de som satura.",
-  "settings.txlevel.card_tip1": "Quão forte o áudio da placa de som vai para o rádio. Aperte Sintonizar e ajuste-o pelo medidor do rádio.",
+  "settings.txlevel.card_tip1":
+    "Quão forte o áudio da placa de som vai para o rádio. Aperte Sintonizar e ajuste-o pelo medidor do rádio.",
   "settings.cardlevel.value": "{value} %",
   "settings.cardlevel.rx_label": "Nível de entrada da placa de som",
   "settings.tune": "Sintonizar",
@@ -186,7 +203,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.network.name": "Acesso pela rede",
   "settings.network.label": "Permitir acesso pela rede",
   "settings.network.tip_label": "Sobre o acesso pela rede",
-  "settings.network.tip1": "Permite que um celular, um tablet ou um notebook da sua rede abra esta página. Sem isso, só este computador abre.",
+  "settings.network.tip1":
+    "Permite que um celular, um tablet ou um notebook da sua rede abra esta página. Sem isso, só este computador abre.",
 
   "settings.access_key.label": "Chave de acesso",
   "settings.access_key.tip_label": "Sobre a chave de acesso",
@@ -214,12 +232,14 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.station_hours.name": "Tempo no mapa",
   "settings.radius.label": "Raio",
   "settings.radius.tip_label": "Sobre o raio",
-  "settings.radius.tip1": "Até onde, a partir da sua estação, vai o mapa detalhado, com ruas e nomes. O mapa-múndi está sempre lá.",
+  "settings.radius.tip1":
+    "Até onde, a partir da sua estação, vai o mapa detalhado, com ruas e nomes. O mapa-múndi está sempre lá.",
   "settings.radius.tip2": "Um raio maior é um download maior: 150 km são uma região, 300 km uma região grande.",
 
   "settings.digipeater.name": "Digipeater",
   "settings.digipeater.tip_label": "O que o digipeater faz",
-  "settings.digipeater.tip1": "Repete pacotes de estações próximas que não alcançam um digipeater: WIDE1-1, ou enviados pelo seu indicativo.",
+  "settings.digipeater.tip1":
+    "Repete pacotes de estações próximas que não alcançam um digipeater: WIDE1-1, ou enviados pelo seu indicativo.",
   "settings.digipeater.tip2": "Deixe desligado, a menos que você esteja em um lugar com cobertura fraca.",
 
   "settings.igate.name": "Estações da Internet",
@@ -247,7 +267,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "Com Notificar-me ligado, o comando é executado quando chega uma mensagem.",
   "settings.alert_command.name": "Comando de alerta",
   "settings.alert_command.label": "Comando",
-  "settings.alert_command.tip1": "Executado a cada mensagem nova e aviso de estação; NEOAPRS_TITLE e NEOAPRS_TEXT trazem o título e o texto.",
+  "settings.alert_command.tip1":
+    "Executado a cada mensagem nova e aviso de estação; NEOAPRS_TITLE e NEOAPRS_TEXT trazem o título e o texto.",
   "settings.alert_test": "Testar",
   "settings.alert_test.ran": "O comando de aviso foi executado",
   "settings.alert_test.exit": "O comando de aviso terminou com o código de saída {status}",
@@ -259,21 +280,26 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alerts.title": "O alerta do próprio NeoAPRS: o comando executado no computador do NeoAPRS",
   "settings.alerts.title_app": "O alerta do próprio NeoAPRS: o comando executado neste computador",
   "settings.alerts.tip_label": "Sobre as notificações",
-  "settings.alerts.tip1": "O alerta do computador do NeoAPRS: executa o comando a cada mensagem nova, por padrão um som e uma notificação.",
-  "settings.alerts.tip1_app": "O alerta deste computador: executa o comando a cada mensagem nova, por padrão um som e uma notificação.",
+  "settings.alerts.tip1":
+    "O alerta do computador do NeoAPRS: executa o comando a cada mensagem nova, por padrão um som e uma notificação.",
+  "settings.alerts.tip1_app":
+    "O alerta deste computador: executa o comando a cada mensagem nova, por padrão um som e uma notificação.",
   "settings.alerts.tip2": "O grupo seguinte é este navegador. Use um dos dois, ou os dois para ser avisado duas vezes.",
-  "settings.alerts.tip2_app": "O grupo seguinte é esta janela. Use um dos dois, ou os dois para ser avisado duas vezes.",
+  "settings.alerts.tip2_app":
+    "O grupo seguinte é esta janela. Use um dos dois, ou os dois para ser avisado duas vezes.",
 
   "settings.encrypt.tip_label": "Sobre as mensagens criptografadas",
   "settings.encrypt.tip1":
     "Uma mensagem para uma estação da qual você tem a chave pode ser trancada: só essa estação a lê. Nada é criptografado nem enviado sozinho.",
-  "settings.encrypt.tip2": "A regulamentação proíbe ocultar o que é dito: só quando as circunstâncias permitem, com o NeoAPRS iniciado com --encryption.",
+  "settings.encrypt.tip2":
+    "A regulamentação proíbe ocultar o que é dito: só quando as circunstâncias permitem, com o NeoAPRS iniciado com --encryption.",
   "settings.encrypt.key_label": "Sua chave",
 
   "settings.browser.heading": "Neste navegador",
   "settings.browser.heading_app": "Nesta janela",
   "settings.browser.mode": "Notificar-me",
-  "settings.browser.mode_tip": "Avisa de uma mensagem nova neste navegador, com som ou notificação. Cada dispositivo escolhe o seu.",
+  "settings.browser.mode_tip":
+    "Avisa de uma mensagem nova neste navegador, com som ou notificação. Cada dispositivo escolhe o seu.",
   "settings.browser.mode_tip_app": "Avisa de uma mensagem nova nesta janela, com som. Cada dispositivo escolhe o seu.",
   "settings.browser.enable_popups": "Ativar notificações…",
   "settings.browser.sound": "Som",
@@ -300,14 +326,16 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.status_source.tip1":
     "Uma linha que as outras estações veem depois do seu indicativo: nenhuma, um texto seu ou a frequência do seu rádio (rigctld).",
   "settings.status_rigctld.label": "Rigctld",
-  "settings.status_rigctld.tip1": "O rigctld, um programa do Hamlib, diz ao NeoAPRS em que o rádio está sintonizado. Inicie-o antes e digite endereço:porta.",
+  "settings.status_rigctld.tip1":
+    "O rigctld, um programa do Hamlib, diz ao NeoAPRS em que o rádio está sintonizado. Inicie-o antes e digite endereço:porta.",
   "settings.status_rigctld.tip2": "Exemplo: 127.0.0.1:4532",
   "settings.status_interval.name": "Intervalo do status",
   "settings.status_interval.label": "A cada",
   "settings.status_interval.tip1": "O tempo entre dois status.",
   "settings.status_template.name": "Modelo do status",
   "settings.status_template.label": "Texto",
-  "settings.status_template.tip1": "{{freq}} vira a frequência do rádio e {{mode}} o seu modo. Até {max} caracteres depois de preenchido.",
+  "settings.status_template.tip1":
+    "{{freq}} vira a frequência do rádio e {{mode}} o seu modo. Até {max} caracteres depois de preenchido.",
   "settings.status_template.tip2": "Exemplo: QRV {{freq}} {{mode}} resulta em QRV 14.074 MHz USB",
 
   "settings.beacon_interval.name": "Intervalo do beacon",
@@ -325,7 +353,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.path.direct": "Somente direto (sem digipeaters)",
   "settings.path.custom": "Personalizado…",
   "settings.path.custom_label": "Digipeaters",
-  "settings.path.tip1": "O recomendado é WIDE1-1,WIDE2-1 para uma estação móvel e WIDE2-2 para uma fixa, conforme o seu símbolo.",
+  "settings.path.tip1":
+    "O recomendado é WIDE1-1,WIDE2-1 para uma estação móvel e WIDE2-2 para uma fixa, conforme o seu símbolo.",
   "settings.path.tip2": "Só direto se todos com quem você fala ouvem você diretamente.",
 
   "settings.confirm.label": "Confirmar",
@@ -380,16 +409,23 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.keyed": "Chaveado",
   "settings.tnc.listening": "Ouvindo",
   "settings.tnc.snr": "SNR {db} dB",
-  "settings.tnc.dummy_hf": "Rádio Mercury simulado: estações distantes inventadas, seus quadros nos alto-falantes, nada vai ao ar",
+  "settings.tnc.dummy_hf":
+    "Rádio Mercury simulado: estações distantes inventadas, seus quadros nos alto-falantes, nada vai ao ar",
   "settings.tnc.no_packet": "Nenhum pacote ainda",
   "settings.tnc.last_packet": "Último pacote há {span}",
   "settings.digi.on": "ativo",
   "settings.digi.off": "desligado",
   "settings.digi.line.none": "Nada repetido ainda",
-  "settings.digi.line.count": { one: "{n} pacote repetido · último há {span}", other: "{n} pacotes repetidos · último há {span}" },
+  "settings.digi.line.count": {
+    one: "{n} pacote repetido · último há {span}",
+    other: "{n} pacotes repetidos · último há {span}",
+  },
   "settings.digi.line.rx_only": "Somente RX: nada é repetido",
   "settings.digi.fold.since": "Contado desde {when}",
-  "settings.digi.fold.held": { one: "{n} quadro retido: muitos de uma vez", other: "{n} quadros retidos: muitos de uma vez" },
+  "settings.digi.fold.held": {
+    one: "{n} quadro retido: muitos de uma vez",
+    other: "{n} quadros retidos: muitos de uma vez",
+  },
   "settings.pair.legend": "{first} e {second}",
   "settings.pair.name": "Par de rádios",
   "settings.pair.call": "Indicativo",
@@ -398,8 +434,14 @@ export const settings: Record<keyof typeof source, Message> = {
     "Passa para o outro rádio um pacote ouvido em um dos dois, quando o caminho cita este indicativo. Dê-o a quem quer alcançar o outro rádio.",
   "settings.pair.tip2": "Um caminho só com WIDE nunca passa.",
   "settings.pair.fold.each_way": "{n} para {first} · {m} para {second}",
-  "settings.pair.fold.held": { one: "{n} quadro retido: muitos para {radio}", other: "{n} quadros retidos: muitos para {radio}" },
-  "settings.pair.fold.too_long": { one: "{n} quadro longo demais para {radio}", other: "{n} quadros longos demais para {radio}" },
+  "settings.pair.fold.held": {
+    one: "{n} quadro retido: muitos para {radio}",
+    other: "{n} quadros retidos: muitos para {radio}",
+  },
+  "settings.pair.fold.too_long": {
+    one: "{n} quadro longo demais para {radio}",
+    other: "{n} quadros longos demais para {radio}",
+  },
   "settings.tnc.searching": "Procurando o rádio…",
   "settings.tnc.connecting": "Conectando…",
   "settings.tnc.connecting_to": "Conectando a {path}…",
@@ -437,7 +479,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.map.step_percent": "{step} {percent}%",
   "settings.map.downloaded": "Mapa baixado",
   "settings.map.downloaded_on": "Mapa baixado em {day} {month}",
-  "settings.map.problem.no_position": "a estação ainda não tem posição: defina Latitude e Longitude (o mapa é recortado em volta delas)",
+  "settings.map.problem.no_position":
+    "a estação ainda não tem posição: defina Latitude e Longitude (o mapa é recortado em volta delas)",
   "settings.map.problem.busy": "há um trabalho de mapa em andamento",
   "settings.map.problem.slow": "o servidor de mapas está lento demais agora; tente de novo mais tarde",
   "settings.map.problem.unreachable": "não foi possível alcançar o servidor de mapas; há conexão?",
@@ -462,26 +505,31 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.position.gpsd": "Um GPS via gpsd",
   "settings.position.serial": "Um GPS em uma porta serial",
   "settings.position.tip1": "Fixa: a estação fica no local abaixo. Um GPS: posição, rumo e velocidade vêm do receptor.",
-  "settings.position.tip2": "gpsd é o serviço de GPS do Linux. Sem uma posição recente nada é enviado, nunca a da casa.",
+  "settings.position.tip2":
+    "gpsd é o serviço de GPS do Linux. Sem uma posição recente nada é enviado, nunca a da casa.",
   "settings.gps_host.label": "Endereço do gpsd",
   "settings.gps_host.tip1": "Onde o gpsd escuta, como host:porta; deixe como está se o gpsd roda neste computador.",
   "settings.gps_device.label": "Porta do GPS",
   "settings.gps_device.tip1": "A porta do receptor GPS: /dev/ttyUSB1 no Linux, COM4 no Windows.",
-  "settings.gps_device.tip2": "Mantenha-a separada da porta do rádio: um mesmo dispositivo não pode fazer as duas coisas.",
+  "settings.gps_device.tip2":
+    "Mantenha-a separada da porta do rádio: um mesmo dispositivo não pode fazer as duas coisas.",
   "settings.gps_baud.label": "Velocidade do GPS",
-  "settings.gps_baud.tip1": "A velocidade do receptor: 4800 ou 9600 na maioria. Uma velocidade errada aparece como sem posição.",
+  "settings.gps_baud.tip1":
+    "A velocidade do receptor: 4800 ou 9600 na maioria. Uma velocidade errada aparece como sem posição.",
   "settings.travel.label": "Deslocamento",
   "settings.travel.car": "De carro",
   "settings.travel.bicycle": "De bicicleta",
   "settings.travel.foot": "A pé",
   "settings.travel.boat": "De barco",
-  "settings.travel.tip1": "Define com que frequência o beacon sai e em quais curvas: em velocidade, um carro envia com mais frequência do que quem anda a pé.",
+  "settings.travel.tip1":
+    "Define com que frequência o beacon sai e em quais curvas: em velocidade, um carro envia com mais frequência do que quem anda a pé.",
 
   "settings.update.group": "Verificação de atualização",
   "settings.update.label": "Nova versão",
   "settings.update.check": "Verificar agora",
   "settings.update.tip_label": "Sobre a verificação de atualização",
-  "settings.update.tip": "Uma vez por dia o NeoAPRS pergunta se há uma versão mais nova e mostra no alto a marca Atualizar.",
+  "settings.update.tip":
+    "Uma vez por dia o NeoAPRS pergunta se há uma versão mais nova e mostra no alto a marca Atualizar.",
   "settings.update.available": "{version} disponível",
   "settings.update.current": "atualizado",
   "settings.update.checking": "verificando…",
@@ -498,7 +546,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.send": "Enviar feedback / logs",
   "settings.help.sending": "Enviando…",
   "settings.help.tip_label": "Sobre os logs",
-  "settings.help.tip": "O log, os ajustes, os pacotes ouvidos e enviados. Podem ser salvos em um arquivo ou enviados ao projeto.",
+  "settings.help.tip":
+    "O log, os ajustes, os pacotes ouvidos e enviados. Podem ser salvos em um arquivo ou enviados ao projeto.",
   "settings.help.saved": "Salvo: {file}.",
   "settings.help.sent": "Enviado. Referência {ref}.",
   "settings.help.problem.access": "Sem acesso: recarregue a página, digite a chave de acesso e tente de novo.",
@@ -518,7 +567,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.dialog.send": "Enviar",
   "settings.help.dialog.cancel": "Cancelar",
   "settings.about.group": "Sobre",
-  "settings.about.intro": "NeoAPRS {version}, um cliente APRS para os seus rádios: FM, Mercury e LoRa. Feito por {call}, {year}.",
+  "settings.about.intro":
+    "NeoAPRS {version}, um cliente APRS para os seus rádios: FM, Mercury e LoRa. Feito por {call}, {year}.",
   "settings.about.license": "Software livre sob a {license}, versão 3 ou posterior.",
   "settings.about.license_link": "Licença Pública Geral GNU",
   "settings.about.source": "Código-fonte",

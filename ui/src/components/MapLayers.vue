@@ -35,7 +35,8 @@ function toggle(): void {
 }
 
 /** The thin line goes before the first row of things. */
-const ruleBefore = (row: LayerRow, i: number): boolean => row.part === "outside" && rows.value[i - 1]?.part !== "outside";
+const ruleBefore = (row: LayerRow, i: number): boolean =>
+  row.part === "outside" && rows.value[i - 1]?.part !== "outside";
 
 function countText(id: LayerId): string {
   if (id !== "aircraft" && id !== "ships") return "";

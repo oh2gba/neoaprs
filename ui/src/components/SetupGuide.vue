@@ -63,7 +63,14 @@ watch(
 </script>
 
 <template>
-  <section v-if="guide.open" ref="root" class="setup" :class="{ peeking: guide.peeking }" role="dialog" :aria-label="t('setup.title')">
+  <section
+    v-if="guide.open"
+    ref="root"
+    class="setup"
+    :class="{ peeking: guide.peeking }"
+    role="dialog"
+    :aria-label="t('setup.title')"
+  >
     <form novalidate @submit.prevent="next">
       <header class="setup-head">
         <h2>
@@ -74,7 +81,10 @@ watch(
             <button
               type="button"
               class="setup-dot"
-              :class="{ active: i - 1 === guide.step, done: i - 1 <= guide.reached && valid[i - 1] && i - 1 !== guide.step }"
+              :class="{
+                active: i - 1 === guide.step,
+                done: i - 1 <= guide.reached && valid[i - 1] && i - 1 !== guide.step,
+              }"
               :aria-current="i - 1 === guide.step ? 'step' : undefined"
               :aria-label="t('setup.step_label', { n: i, title: stepTitle(i - 1) })"
               :title="stepTitle(i - 1)"

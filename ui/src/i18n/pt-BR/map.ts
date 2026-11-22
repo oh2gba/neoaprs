@@ -15,9 +15,12 @@ export const map: Record<keyof typeof source, Message> = {
 
   "map.credits.hide": "Ocultar os créditos",
   "map.credits.show": "Créditos do mapa e dos símbolos",
-  "map.credits.symbols": "Símbolos APRS: conjunto aprs.fi de Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
-  "map.credits.devices": "Nomes de dispositivos: lista de identificação APRS de Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
-  "map.credits.aircraft": "Formas de aeronaves: tar1090 de Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 ou posterior",
+  "map.credits.symbols":
+    "Símbolos APRS: conjunto aprs.fi de Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
+  "map.credits.devices":
+    "Nomes de dispositivos: lista de identificação APRS de Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.aircraft":
+    "Formas de aeronaves: tar1090 de Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 ou posterior",
 
   "map.menu_label": "Mapa",
   "map.menu.copy_position": "Copiar a posição {place}",

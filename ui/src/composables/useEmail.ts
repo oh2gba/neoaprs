@@ -10,7 +10,12 @@ import { EMAIL_GATEWAY, newestIncomingId, threadOf, threadUnread } from "@/lib/m
 import type { Command, MessageRow } from "@/protocol/protocol";
 
 /** `loaded`: the daemon sent all messages (in a window with a new store, they count as seen). */
-export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel, send: (command: Command) => boolean, loaded?: Readonly<Ref<boolean>>) {
+export function useEmail(
+  messages: ReadonlyMap<string, MessageRow>,
+  panel: Panel,
+  send: (command: Command) => boolean,
+  loaded?: Readonly<Ref<boolean>>,
+) {
   const viewing = useViewing(panel, "email");
   const marks = useReadMarks();
   const book = useAddressBook();

@@ -10,7 +10,14 @@ const rows = table(
   station("OH2GBA", { is_me: true, distance_km: null, bearing_deg: null, last_heard: ago(500), symbol_code: "-" }),
   station("OH2PU-9", { distance_km: 16, last_heard: ago(180), packets: 20, last_comment: "D-STAR" }),
   station("OH2RDG", { distance_km: 25.4, last_heard: ago(20), packets: 5 }),
-  station("OH2NOPOS", { lat: null, lon: null, distance_km: null, bearing_deg: null, last_position_at: null, last_heard: ago(900) }),
+  station("OH2NOPOS", {
+    lat: null,
+    lon: null,
+    distance_km: null,
+    bearing_deg: null,
+    last_position_at: null,
+    last_heard: ago(900),
+  }),
 );
 
 function calls(wrapper: ReturnType<typeof mount>): string[] {
@@ -30,7 +37,9 @@ describe("StationsTable", () => {
     const wrapper = make();
     expect(wrapper.find(".tablepane").element.firstElementChild?.className).toBe("tab-help");
     await wrapper.find(".tab-help .info-toggle").trigger("click");
-    expect(wrapper.find(".tab-help .info-text").text()).toContain("Every station heard, with its distance and direction from you.");
+    expect(wrapper.find(".tab-help .info-text").text()).toContain(
+      "Every station heard, with its distance and direction from you.",
+    );
     expect(wrapper.find(".tab-help .info-text").text()).toContain("heard direct, with no digipeater");
   });
 
@@ -46,7 +55,15 @@ describe("StationsTable", () => {
 
   it("has the columns symbol, Call, a check mark, km, the bearing as an arrow and Last heard, and nothing else: the rest is on the card", () => {
     const wrapper = make();
-    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["", "Call", "Heard on", "km", "bearing", "Last heard▼", ""]);
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual([
+      "",
+      "Call",
+      "Heard on",
+      "km",
+      "bearing",
+      "Last heard▼",
+      "",
+    ]);
     for (const tr of wrapper.findAll("tbody tr")) expect(tr.findAll("td")).toHaveLength(7);
     const text = wrapper.findAll("tbody tr")[2]?.text() ?? "";
     expect(text).toContain("OH2PU-9");
@@ -88,7 +105,9 @@ describe("StationsTable", () => {
       station("OH2FAR", { last_direct_at: null }),
     );
     const wrapper = make(null, never, stations);
-    const marks = Object.fromEntries(wrapper.findAll("tbody tr").map((tr) => [tr.find("td.call .callname").text(), tr.find("td.call .direct-mark")]));
+    const marks = Object.fromEntries(
+      wrapper.findAll("tbody tr").map((tr) => [tr.find("td.call .callname").text(), tr.find("td.call .direct-mark")]),
+    );
     expect(marks.OH2NEAR?.exists()).toBe(true);
     expect(marks.OH2NEAR?.attributes("aria-label")).toBe("Heard direct");
     expect(marks.OH2NEAR?.attributes("title")).toBe("Heard direct");
@@ -147,7 +166,10 @@ describe("StationsTable", () => {
 
   it("has no tickbox for a position, and lists the stations without one", () => {
     const wrapper = make();
-    expect(wrapper.findAll("input[type='checkbox']").map((c) => c.element.parentElement?.textContent?.trim())).toEqual(["hide timed out", "direct only"]);
+    expect(wrapper.findAll("input[type='checkbox']").map((c) => c.element.parentElement?.textContent?.trim())).toEqual([
+      "hide timed out",
+      "direct only",
+    ]);
     expect(calls(wrapper)).toContain("OH2NOPOS");
   });
 
@@ -191,9 +213,27 @@ describe("StationsTable", () => {
   describe("the stations heard direct", () => {
     const heard = table(
       station("OH2GBA", { is_me: true, distance_km: null, bearing_deg: null }),
-      station("OH2NEAR", { last_heard: ago(30), last_direct_at: ago(300), heard_direct: 2, heard_via: [["OH2RCH-2", 3]], packets: 5 }),
-      station("OH2ONCE", { last_heard: ago(60), last_direct_at: ago(7200), heard_direct: 1, heard_via: [["OH2RCH-2", 3]], packets: 4 }),
-      station("OH2FAR", { last_heard: ago(90), last_direct_at: null, heard_direct: 0, heard_via: [["OH2RCH-2", 3]], packets: 3 }),
+      station("OH2NEAR", {
+        last_heard: ago(30),
+        last_direct_at: ago(300),
+        heard_direct: 2,
+        heard_via: [["OH2RCH-2", 3]],
+        packets: 5,
+      }),
+      station("OH2ONCE", {
+        last_heard: ago(60),
+        last_direct_at: ago(7200),
+        heard_direct: 1,
+        heard_via: [["OH2RCH-2", 3]],
+        packets: 4,
+      }),
+      station("OH2FAR", {
+        last_heard: ago(90),
+        last_direct_at: null,
+        heard_direct: 0,
+        heard_via: [["OH2RCH-2", 3]],
+        packets: 3,
+      }),
     );
     it("can be narrowed to them by a toggle, which is remembered; our own station stays", async () => {
       const wrapper = make(null, never, heard);
@@ -218,7 +258,10 @@ describe("StationsTable", () => {
   });
 
   it("says so when there is no station", () => {
-    const wrapper = mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ aging: never })) });
+    const wrapper = mount(StationsTable, {
+      props: { selected: null },
+      global: withDaemon(fakeDaemon({ aging: never })),
+    });
     expect(wrapper.text()).toContain("No station heard yet.");
   });
 

@@ -14,7 +14,9 @@ import { DEFAULT_HOURS, DEFAULT_SPEED, replayData, type ReplayData } from "@/lib
 
 const TICK_MS = 100;
 
-export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory" | "igate"> & Partial<Pick<DaemonContext, "connection">>) {
+export function useReplay(
+  page: Pick<DaemonContext, "send" | "positionHistory" | "igate"> & Partial<Pick<DaemonContext, "connection">>,
+) {
   const hours = ref(DEFAULT_HOURS);
   const speed = ref(DEFAULT_SPEED);
   const playing = ref(false);
@@ -101,7 +103,19 @@ export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory" |
     if (span) at.value = Math.min(span.end, Math.max(span.start, t));
   }
 
-  return { hours, speed, playing, at, data, loading: computed(() => asked.value !== null), ask, stop, toggle, pace, seek };
+  return {
+    hours,
+    speed,
+    playing,
+    at,
+    data,
+    loading: computed(() => asked.value !== null),
+    ask,
+    stop,
+    toggle,
+    pace,
+    seek,
+  };
 }
 
 export type Replay = ReturnType<typeof useReplay>;

@@ -15,7 +15,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.check": "Tarkista sähköposti",
   "email.checking": "Tarkistus on jo käynnissä",
   "email.about": "Tietoa sähköpostista",
-  "email.about_gateway": "Sähköposti kulkee Internet-yhdyskäytävän EMAIL-2 kautta, joten viestin tilana voi näkyä {unconfirmed}, vaikka se on perillä.",
+  "email.about_gateway":
+    "Sähköposti kulkee Internet-yhdyskäytävän EMAIL-2 kautta, joten viestin tilana voi näkyä {unconfirmed}, vaikka se on perillä.",
   "email.about_check": "{check} pyytää yhdyskäytävältä sinulle säilyttämät viestit (24 tuntia).",
 
   "email.field.to": "Vastaanottaja",
@@ -34,7 +35,8 @@ export const email: Record<keyof typeof source, Message> = {
   "email.state.cancelled": "Peruttu",
   "email.state.unconfirmed": "Ei vahvistettu",
   "email.state.too_long_for_radio": "Liian pitkä radiolle",
-  "email.not_confirmed": "lähetetty, ei vahvistettu: yhdyskäytävän kuittaus tulee luoksesi vain iGaten kautta, joten viesti on voinut mennä perille",
+  "email.not_confirmed":
+    "lähetetty, ei vahvistettu: yhdyskäytävän kuittaus tulee luoksesi vain iGaten kautta, joten viesti on voinut mennä perille",
 
   "email.date_time": "{day}. {month} {time}",
 } as const;

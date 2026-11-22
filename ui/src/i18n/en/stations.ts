@@ -13,7 +13,8 @@ export const stations = {
 
   "station.card.label": "Station",
   "station.card.qrz_title": "Open the QRZ page of this call",
-  "station.card.size_title": "Drag to move the card, its edges to size it (Alt+arrow keys move the focused card, Ctrl+Alt+arrow keys size it)",
+  "station.card.size_title":
+    "Drag to move the card, its edges to size it (Alt+arrow keys move the focused card, Ctrl+Alt+arrow keys size it)",
   "station.card.drag_title": "Drag to move the card (Alt+arrow keys move the focused card)",
   "station.card.edit": "Edit",
   "station.card.kill": "Kill",
@@ -120,7 +121,13 @@ export const stations = {
   "station.freq.offset": "{khz} kHz",
   "station.freq.range": "range {km} km",
   "station.freq.receive": "receive {mhz} MHz",
-  "station.storm.kind": { select: "kind", TS: "Tropical storm", HC: "Hurricane", TD: "Tropical depression", other: "{kind}" },
+  "station.storm.kind": {
+    select: "kind",
+    TS: "Tropical storm",
+    HC: "Hurricane",
+    TD: "Tropical depression",
+    other: "{kind}",
+  },
   "station.storm.wind": "wind {speed}",
   "station.storm.gusts": "gusts {speed}",
   "station.storm.pressure": "pressure {value}",
@@ -134,7 +141,8 @@ export const stations = {
   "station.table.filter": "Filter",
   "station.table.filter_title": "Call, symbol, comment, path",
   "station.table.about_label": "About the stations",
-  "station.table.about1": "Every station heard, with its distance and direction from you. Click one to find it on the map.",
+  "station.table.about1":
+    "Every station heard, with its distance and direction from you. Click one to find it on the map.",
   "station.table.about2": "A tick after a call means the station was heard direct, with no digipeater.",
   "station.table.filter_label": "Filter the stations",
   "station.table.hide_timed_out": "hide timed out",
@@ -162,7 +170,8 @@ export const stations = {
   "station.menu.ask_heard": "Ask what it hears direct",
   "station.menu.ask_trace": "Trace the route",
   "station.menu.ask_weather": "Ask for weather",
-  "station.menu.ask_weather_title": "?WX? is not a directed query in the APRS specification: many stations don't answer it",
+  "station.menu.ask_weather_title":
+    "?WX? is not a directed query in the APRS specification: many stations don't answer it",
   "station.menu.show_map": "Show on map",
   "station.menu.show_card": "Open its card",
   "station.menu.copy": "Copy call",

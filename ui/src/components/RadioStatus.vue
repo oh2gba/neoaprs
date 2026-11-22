@@ -18,12 +18,26 @@ const look = computed(() => {
   const parts = rowParts(props.row, props.now);
   const line = rowStatus(props.row, props.now, radios);
   const counts = statsCounts(props.row.stats);
-  return { state: rowPillText(props.row), tone: rowPillClass(props.row), line, parts, hover: parts === null ? counts : `${line}\n${counts}` };
+  return {
+    state: rowPillText(props.row),
+    tone: rowPillClass(props.row),
+    line,
+    parts,
+    hover: parts === null ? counts : `${line}\n${counts}`,
+  };
 });
 </script>
 
 <template>
-  <StatusFold class="radiostatus" :state="look.state" :tone="look.tone" :line="look.line" :hover="look.hover" :parts="look.parts" :open="open">
+  <StatusFold
+    class="radiostatus"
+    :state="look.state"
+    :tone="look.tone"
+    :line="look.line"
+    :hover="look.hover"
+    :parts="look.parts"
+    :open="open"
+  >
     <slot></slot>
     <TncTerminal v-if="row.can.terminal" :tnc="row" />
   </StatusFold>

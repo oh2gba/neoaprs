@@ -14,7 +14,14 @@ const tests = useHfTests(() => props.radio);
 
 <template>
   <ActionRow :id="id" :label="t('settings.tune.label')" :tip-label="t('settings.tune.tip_label')">
-    <button :id="id" class="btn" type="button" :disabled="tests.tuneOff.value" :title="tests.why.value" @click="tests.tune">
+    <button
+      :id="id"
+      class="btn"
+      type="button"
+      :disabled="tests.tuneOff.value"
+      :title="tests.why.value"
+      @click="tests.tune"
+    >
       <TwoWords :second="tests.tuning.value">
         <template #first>{{ t("settings.tune") }}</template>
         <template #second>{{ t("settings.tune_stop") }}</template>

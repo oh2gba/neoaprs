@@ -11,11 +11,14 @@ import { t } from "@/i18n";
 import SymbolPicker from "@/components/SymbolPicker.vue";
 import { overlayOf, symbolName, tableWithOverlay, takesOverlay } from "@/lib/symbolpicker";
 
-const props = withDefaults(defineProps<{ id: string; symbol: string; label?: string; changed?: boolean; more?: boolean }>(), {
-  label: undefined,
-  changed: false,
-  more: false,
-});
+const props = withDefaults(
+  defineProps<{ id: string; symbol: string; label?: string; changed?: boolean; more?: boolean }>(),
+  {
+    label: undefined,
+    changed: false,
+    more: false,
+  },
+);
 const emit = defineEmits<{ "update:symbol": [value: string]; commit: [] }>();
 
 const table = computed(() => props.symbol.slice(0, 1));
@@ -40,7 +43,8 @@ function close(): void {
 }
 
 function typed(event: Event): void {
-  if (event.target instanceof HTMLInputElement) emit("update:symbol", `${tableWithOverlay(event.target.value)}${code.value}`);
+  if (event.target instanceof HTMLInputElement)
+    emit("update:symbol", `${tableWithOverlay(event.target.value)}${code.value}`);
 }
 </script>
 
@@ -53,7 +57,14 @@ function typed(event: Event): void {
           <SymbolIcon :table="table" :code="code" :size="32" />
           <span :id="nameId" class="symbolfield-name">{{ name }}</span>
         </span>
-        <button :id="`${id}-change`" ref="change" class="btn symbolmore" type="button" :aria-describedby="nameId" @click="open = true">
+        <button
+          :id="`${id}-change`"
+          ref="change"
+          class="btn symbolmore"
+          type="button"
+          :aria-describedby="nameId"
+          @click="open = true"
+        >
           {{ t("settings.symbol.more") }}
         </button>
       </template>

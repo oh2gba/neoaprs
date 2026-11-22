@@ -20,11 +20,18 @@ export function useClearOfCard(root: Readonly<Ref<HTMLElement | null>>, host: Re
       bottom: Math.max(...rects.map((c) => c.bottom)) - at.top,
     });
     const inRow = cards.filter((card) => !card.classList.contains("moved")).map((card) => card.getBoundingClientRect());
-    const moved = cards.filter((card) => card.classList.contains("moved")).map((card) => around([card.getBoundingClientRect()]));
+    const moved = cards
+      .filter((card) => card.classList.contains("moved"))
+      .map((card) => around([card.getBoundingClientRect()]));
     return [...(inRow.length > 0 ? [around(inRow)] : []), ...moved];
   }
 
-  const viewBox = (): Box => ({ left: 0, top: 0, right: host.value?.clientWidth ?? 0, bottom: host.value?.clientHeight ?? 0 });
+  const viewBox = (): Box => ({
+    left: 0,
+    top: 0,
+    right: host.value?.clientWidth ?? 0,
+    bottom: host.value?.clientHeight ?? 0,
+  });
 
   /** How far a marker at this place must move on screen to be clear of the cards; null if clear. */
   function moveFor(at: Point): Point | null {
@@ -48,7 +55,10 @@ export function useClearOfCard(root: Readonly<Ref<HTMLElement | null>>, host: Re
     return move ? { offset: [move.x, move.y] } : undefined;
   }
 
-  function panClear(map: Pick<MapLibreMap, "isMoving" | "project" | "panBy">, place: { lon: number; lat: number }): void {
+  function panClear(
+    map: Pick<MapLibreMap, "isMoving" | "project" | "panBy">,
+    place: { lon: number; lat: number },
+  ): void {
     if (map.isMoving()) return;
     const move = moveFor(map.project([place.lon, place.lat]));
     if (move) map.panBy([0 - move.x, 0 - move.y], { duration: 300 });

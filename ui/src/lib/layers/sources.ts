@@ -15,13 +15,20 @@ export type ServiceName = Exclude<SourceName, "none" | "receiver" | "radarcape">
 export type OwnName = "receiver" | "radarcape";
 
 /** The catalogue's id of each layer's name. */
-export const LAYER_NAMES: Readonly<Record<LayerName, MessageId>> = { aircraft: "layers.aircraft", ships: "layers.ships" };
+export const LAYER_NAMES: Readonly<Record<LayerName, MessageId>> = {
+  aircraft: "layers.aircraft",
+  ships: "layers.ships",
+};
 
 /** The Radarcape's name, which no language translates. */
 export const RADARCAPE_NAME = "Radarcape";
 
 /** The services by their own names, which no language translates. */
-export const SOURCE_NAMES: Readonly<Record<ServiceName, string>> = { adsbfi: "adsb.fi", adsblol: "adsb.lol", fintraffic: "Fintraffic" };
+export const SOURCE_NAMES: Readonly<Record<ServiceName, string>> = {
+  adsbfi: "adsb.fi",
+  adsblol: "adsb.lol",
+  fintraffic: "Fintraffic",
+};
 
 /** A piece of a credit: its text, and the address it links to where it is a link. */
 export interface CreditPart {
@@ -33,7 +40,11 @@ export interface CreditPart {
  * address links to it (opened in a new tab). Own receivers are owed none. */
 export const CREDITS: Readonly<Record<ServiceName, readonly CreditPart[]>> = {
   adsbfi: [{ text: "adsb.fi", href: "https://adsb.fi/" }],
-  adsblol: [{ text: "adsb.lol", href: "https://www.adsb.lol/" }, { text: ", " }, { text: "ODbL 1.0", href: "https://opendatacommons.org/licenses/odbl/1-0/" }],
+  adsblol: [
+    { text: "adsb.lol", href: "https://www.adsb.lol/" },
+    { text: ", " },
+    { text: "ODbL 1.0", href: "https://opendatacommons.org/licenses/odbl/1-0/" },
+  ],
   fintraffic: [
     { text: "Source: " },
     { text: "Fintraffic / digitraffic.fi", href: "https://www.digitraffic.fi/" },

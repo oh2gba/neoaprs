@@ -38,7 +38,8 @@ async function mounted(extra = {}) {
 }
 const markerOf = (call: string) => FakeMarker.live().find((m) => m.element.textContent === call);
 const selected = (call: string) => markerOf(call)?.element.classList.contains("stn--selected") ?? false;
-const click = (call: string, init: MouseEventInit = {}) => markerOf(call)?.element.dispatchEvent(new MouseEvent("click", { bubbles: true, ...init }));
+const click = (call: string, init: MouseEventInit = {}) =>
+  markerOf(call)?.element.dispatchEvent(new MouseEvent("click", { bubbles: true, ...init }));
 
 beforeEach(() => {
   resetFakes();
@@ -95,9 +96,11 @@ describe("StationMap with several cards", () => {
   it("draws a station past its timeout again, its marker and its track, while its card is open, and hides them when the card is closed", async () => {
     const wrapper = await mounted();
     const lines = () =>
-      (FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string; selected: number } }[] }).features.map(
-        (f) => [f.properties.call, f.properties.selected],
-      );
+      (
+        FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as {
+          features: { properties: { call: string; selected: number } }[];
+        }
+      ).features.map((f) => [f.properties.call, f.properties.selected]);
     FakeMap.last().fire("style.load");
     expect(markerOf("OH2OLD")).toBeUndefined();
     expect(lines()).toEqual([]);
@@ -133,8 +136,11 @@ describe("StationMap with several cards", () => {
     });
     FakeMap.last().fire("style.load");
     await wrapper.setProps({ selected: "OH2ZWA", others: ["OH2OLD"] });
-    const features = (FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as { features: { properties: { call: string; selected: number } }[] })
-      .features;
+    const features = (
+      FakeMap.last().getSource("tracks")?.setData.mock.calls.at(-1)?.[0] as {
+        features: { properties: { call: string; selected: number } }[];
+      }
+    ).features;
     expect(features.map((f) => [f.properties.call, f.properties.selected]).sort()).toEqual([
       ["OH2OLD", 1],
       ["OH2ZWA", 1],

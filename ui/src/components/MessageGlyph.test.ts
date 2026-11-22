@@ -31,7 +31,10 @@ describe("MessageGlyph", () => {
     const header = mount(AppHeader, { props: { call: "OH2GBA", unread: 2 } });
     expect(header.find("button.headmail .msgglyph path").attributes("d")).toBe(own);
     const stations = table(station("OH2GBA", { is_me: true }), station("OH2RDG", { last_heard: ago(20) }));
-    const wrapper = mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations, call: "OH2GBA" })) });
+    const wrapper = mount(StationsTable, {
+      props: { selected: null },
+      global: withDaemon(fakeDaemon({ stations, call: "OH2GBA" })),
+    });
     expect(wrapper.find("tr:not(.stranger) td.actions .msgglyph path").attributes("d")).toBe(own);
     return wrapper
       .find("input[type='search']")

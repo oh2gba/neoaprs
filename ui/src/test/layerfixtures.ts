@@ -6,7 +6,13 @@ import { AIRCRAFT_SOURCES, SHIP_SOURCES } from "@/protocol/lists";
 const AT = "2026-10-21T12:00:00Z";
 
 export function mapLayer(layer: MapLayer["layer"], extra: Partial<MapLayer> = {}): MapLayer {
-  return { layer, source: "none", offered: [...(layer === "aircraft" ? AIRCRAFT_SOURCES : SHIP_SOURCES)], receiver: null, ...extra };
+  return {
+    layer,
+    source: "none",
+    offered: [...(layer === "aircraft" ? AIRCRAFT_SOURCES : SHIP_SOURCES)],
+    receiver: null,
+    ...extra,
+  };
 }
 
 export function aircraft(extra: Partial<LayerThing> = {}): LayerThing {
@@ -61,6 +67,10 @@ export function ship(extra: Partial<LayerThing> = {}): LayerThing {
   };
 }
 
-export function layerThings(layer: MapLayer["layer"], things: LayerThing[], extra: Partial<LayerThingsMessage> = {}): LayerThingsMessage {
+export function layerThings(
+  layer: MapLayer["layer"],
+  things: LayerThing[],
+  extra: Partial<LayerThingsMessage> = {},
+): LayerThingsMessage {
   return { type: "layer_things", layer, source: "receiver", away: false, things, ...extra };
 }

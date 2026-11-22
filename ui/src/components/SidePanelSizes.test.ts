@@ -5,12 +5,22 @@ import SidePanel from "@/components/SidePanel.vue";
 import type { SizeClass } from "@/lib/layout";
 import { cssRule, mediaRule } from "@/test/css";
 
-const slots = { stations: "<p>stations pane</p>", packets: "<p>packets pane</p>", messages: "<p>messages pane</p>", settings: "<p>settings pane</p>" };
+const slots = {
+  stations: "<p>stations pane</p>",
+  packets: "<p>packets pane</p>",
+  messages: "<p>messages pane</p>",
+  settings: "<p>settings pane</p>",
+};
 function make(size: SizeClass, extra: Record<string, unknown> = {}) {
-  return mount(SidePanel, { props: { tab: "packets", collapsed: false, width: 500, size, view: "panel", ...extra }, slots });
+  return mount(SidePanel, {
+    props: { tab: "packets", collapsed: false, width: 500, size, view: "panel", ...extra },
+    slots,
+  });
 }
 const visible = (wrapper: ReturnType<typeof make>) =>
-  wrapper.findAll("[role='tabpanel']").filter((p) => p.attributes("style") === undefined || !p.attributes("style")?.includes("none"));
+  wrapper
+    .findAll("[role='tabpanel']")
+    .filter((p) => p.attributes("style") === undefined || !p.attributes("style")?.includes("none"));
 
 describe("SidePanel on a phone", () => {
   it("begins the tab bar with a Map button, which asks for the map and has no tab's place", async () => {

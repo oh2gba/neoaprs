@@ -9,27 +9,38 @@ export const help: Record<keyof typeof source, Message> = {
   "help.me": "Tämä asema",
   "help.picture.object":
     "Kartta, jolla on autoasemasi ja kaksi lähettämääsi kohdetta, toistin taajuuksineen ja kokoontumispaikka; molemmat näkyvät kahden muun aseman kartoilla.",
-  "help.picture.bulletin": "Yksi asema lähettää tiedotteen, BLN1, ja sama viesti näkyy kolmen muun aseman ilmoitustaululla.",
+  "help.picture.bulletin":
+    "Yksi asema lähettää tiedotteen, BLN1, ja sama viesti näkyy kolmen muun aseman ilmoitustaululla.",
   "help.picture.bulletingroup":
     "Yksi asema lähettää ryhmätiedotteen, BLN3HAMS, kolmelle asemalle: kaksi, jotka näyttävät ryhmän HAMS, panevat sen taulullensa, kolmas on valinnut muita ryhmiä, kuulee sen eikä näytä mitään.",
-  "help.picture.beacon": "Asemasi lähettää sijaintinsa yhä uudelleen, majakoiden välissä kello, ja näkyy muiden kartalla.",
+  "help.picture.beacon":
+    "Asemasi lähettää sijaintinsa yhä uudelleen, majakoiden välissä kello, ja näkyy muiden kartalla.",
   "help.picture.path":
     "Pakettisi kulkee autostasi täydentävälle digipeaterille, WIDE1-1, ja sieltä laajan alueen digipeaterille, WIDE2-1: kaksi hyppyä, ennen kuin muut asemat kuulevat sen.",
   "help.picture.status": "Lyhyt tilaviestisi, QRV 145.500, näkyy muiden asemien kartalla kutsusi alla.",
-  "help.picture.range": "Digipeateri ja sen kuuluvuusympyrä: ympyrän sisällä olevat asemat kuullaan sen kautta, ulkopuoliset eivät.",
+  "help.picture.range":
+    "Digipeateri ja sen kuuluvuusympyrä: ympyrän sisällä olevat asemat kuullaan sen kautta, ulkopuoliset eivät.",
   "help.picture.request": "Asema pyytää paikallista tietoa, ja asemasi vastaa kohteella, jota ei muuten lähetetä.",
   "help.picture.ssid": "Yksi kutsu, YOURCALL, kolmelle asemalle: pelkkä kutsu on talo, -9 auto, -10 iGate.",
   "help.picture.symbol": "Symbolien valikoima, josta auto on valittu, ja auto toisen aseman kartalla kutsusi alla.",
-  "help.picture.network": "NeoAPRS:ää ajava tietokone, joka on verkon kautta yhteydessä puhelimeen, tablettiin ja kannettavaan, jotka avaavat sen sivun.",
+  "help.picture.network":
+    "NeoAPRS:ää ajava tietokone, joka on verkon kautta yhteydessä puhelimeen, tablettiin ja kannettavaan, jotka avaavat sen sivun.",
   "help.picture.accesskey": "Puhelimeen kerran kirjoitettu avain, jonka jälkeen puhelin pysyy kirjautuneena.",
-  "help.picture.igate": "Auton paketti kulkee radiotietä iGatelle, joka välittää sen Internetiin, APRS-IS:ään, ja takaisin.",
-  "help.picture.radius": "Kartta, jonka keskellä on asema: tarkka kartta ulottuu sen ympärillä olevaan ympyrään, maailmankartta loppuun.",
-  "help.picture.position": "Kiinteä asema, joka pysyy paikallaan, ja GPS:llä varustettu asema, joka liikkuu majakoineen reitin varrella.",
-  "help.picture.digipeater": "Auto, joka ei tavoita laajan alueen digipeateria suoraan, tulee toistetuksi asemallasi, joka välittää sen paketin eteenpäin.",
+  "help.picture.igate":
+    "Auton paketti kulkee radiotietä iGatelle, joka välittää sen Internetiin, APRS-IS:ään, ja takaisin.",
+  "help.picture.radius":
+    "Kartta, jonka keskellä on asema: tarkka kartta ulottuu sen ympärillä olevaan ympyrään, maailmankartta loppuun.",
+  "help.picture.position":
+    "Kiinteä asema, joka pysyy paikallaan, ja GPS:llä varustettu asema, joka liikkuu majakoineen reitin varrella.",
+  "help.picture.digipeater":
+    "Auto, joka ei tavoita laajan alueen digipeateria suoraan, tulee toistetuksi asemallasi, joka välittää sen paketin eteenpäin.",
   "help.picture.logs": "Lokitiedosto, joka lähtee liitteenä sähköpostissa.",
-  "help.picture.transmit": "Asemamme kuulee muut (nuoli sisään), mutta mitä se lähettäisi, ei mene minnekään: katkoviivanuoli on yliviivattu.",
-  "help.picture.beaconoff": "Kun majakka on pois, kello ei lähetä mitään, aikajanan majakat ovat tyhjiä; napin painallus lähettää silti yhden.",
-  "help.picture.internet": "Asemat, jotka APRS-IS:llä on kartan säteen sisällä, tulevat pilvestä kartallesi vain yhteen suuntaan; mitään ei lähde takaisin.",
+  "help.picture.transmit":
+    "Asemamme kuulee muut (nuoli sisään), mutta mitä se lähettäisi, ei mene minnekään: katkoviivanuoli on yliviivattu.",
+  "help.picture.beaconoff":
+    "Kun majakka on pois, kello ei lähetä mitään, aikajanan majakat ovat tyhjiä; napin painallus lähettää silti yhden.",
+  "help.picture.internet":
+    "Asemat, jotka APRS-IS:llä on kartan säteen sisällä, tulevat pilvestä kartallesi vain yhteen suuntaan; mitään ei lähde takaisin.",
   "help.picture.channels":
     "Radiolla, radioaalloilla, kuultu asema saa sen kuulleen radion merkinnän, FM; pilvestä, APRS-IS:stä, tullut asema on pisteviivareunainen ja sillä on oma merkintänsä.",
   "help.picture.mercury":
@@ -38,11 +49,14 @@ export const help: Record<keyof typeof source, Message> = {
     "Kaukainen asema lähettää; vesiputous näyttää sen kehyksen lohkona merkityllä kaistalla, uusin ylimpänä, ja vastaanottotason palkki on alla hyvällä alueella.",
   "help.picture.tworadios":
     "Asemasi kahdella radiolla: FM-radio tavoittaa lähellä olevan auton ja digipeaterin maanpintaa pitkin, Mercury-radio kaukaisen aseman signaalilla, joka nousee ylös ja tulee alas.",
-  "help.picture.dummy": "Katkoviivakehyksessä olevat keksityt asemat vastaavat asemallesi, eikä asemasi lähettämä lähde ilmaan: aallot on yliviivattu.",
-  "help.picture.notifications": "Asemalta tulee viesti, ja tämä laite soittaa äänen, kaiuttimen, ja näyttää ilmoituksen, kortin.",
+  "help.picture.dummy":
+    "Katkoviivakehyksessä olevat keksityt asemat vastaavat asemallesi, eikä asemasi lähettämä lähde ilmaan: aallot on yliviivattu.",
+  "help.picture.notifications":
+    "Asemalta tulee viesti, ja tämä laite soittaa äänen, kaiuttimen, ja näyttää ilmoituksen, kortin.",
   "help.picture.encrypt":
     "Kaksi asemaa antaa toisilleen avaimensa. Sen jälkeen lukitun viestimme lukee asema, jolla on avain, kun taas kolmas asema, joka sen kuulee, näkee vain lukon.",
-  "help.picture.qru": "Asemasi pyytää paikallista tietoa, ja palvelinasema vastaa kohteilla, toistimella ja tapahtumalla, jotka näkyvät kartallasi.",
+  "help.picture.qru":
+    "Asemasi pyytää paikallista tietoa, ja palvelinasema vastaa kohteilla, toistimella ja tapahtumalla, jotka näkyvät kartallasi.",
   "help.not_copied": "Ei kopioitu",
 
   "help.install.label": "Sovellus",
@@ -57,43 +71,52 @@ export const help: Record<keyof typeof source, Message> = {
   "help.https.open_secure": "avaa suojattu sivu",
   "help.https.install_title": "Asenna varmenne laitteelle",
 
-  "help.cert.android1": 'Avaa Asetukset → Tietoturva → Salaus ja tunnistetiedot → Asenna varmenne → CA-varmenne (tai hae asetuksista "CA-varmenne").',
+  "help.cert.android1":
+    'Avaa Asetukset → Tietoturva → Salaus ja tunnistetiedot → Asenna varmenne → CA-varmenne (tai hae asetuksista "CA-varmenne").',
   "help.cert.android2": 'Napauta "Asenna silti" ja valitse {file} Latauksista.',
   "help.cert.android3": "Avaa suojattu sivu uudelleen.",
   "help.cert.ios1": "Avaa tämä sivu Safarissa, napauta Lataa varmenne ja Salli.",
   "help.cert.ios2": "Avaa Asetukset → Profiili ladattu → Asenna.",
-  "help.cert.ios3": 'Avaa Asetukset → Yleiset → Tietoja → Varmenteen luotettavuusasetukset ja kytke päälle "NeoAPRS local CA".',
+  "help.cert.ios3":
+    'Avaa Asetukset → Yleiset → Tietoja → Varmenteen luotettavuusasetukset ja kytke päälle "NeoAPRS local CA".',
   "help.cert.windows1": "Avaa {file} → Asenna varmenne → Nykyinen käyttäjä tai Paikallinen tietokone → Seuraava.",
-  "help.cert.windows2": 'Valitse "Aseta kaikki varmenteet seuraavaan arkistoon" → Selaa → Luotetut varmenteen myöntäjät → Seuraava → Valmis.',
+  "help.cert.windows2":
+    'Valitse "Aseta kaikki varmenteet seuraavaan arkistoon" → Selaa → Luotetut varmenteen myöntäjät → Seuraava → Valmis.',
   "help.cert.windows3": "Käynnistä selain uudelleen.",
   "help.cert.mac1": "Avaa Avainnippu ja tuo {file} järjestelmän avainnippuun (Arkisto → Tuo kohteita).",
   "help.cert.mac2": 'Kaksoisnapsauta "NeoAPRS local CA", avaa Luottamus ja valitse Luota aina.',
   "help.cert.mac3": "Käynnistä selain uudelleen.",
   "help.cert.linux1": "Avaa Asetukset → Tietosuoja ja turvallisuus → Turvallisuus → Hallitse varmenteita → Myöntäjät.",
-  "help.cert.linux2": 'Napsauta Tuo, valitse {file} ja rastita "Luota tähän varmenteeseen verkkosivustojen tunnistamisessa".',
+  "help.cert.linux2":
+    'Napsauta Tuo, valitse {file} ja rastita "Luota tähän varmenteeseen verkkosivustojen tunnistamisessa".',
   "help.cert.linux3": "Käynnistä selain uudelleen.",
   "help.cert.firefox1": "Avaa Asetukset → Tietosuoja ja turvallisuus → Varmenteet → Näytä varmenteet → Myöntäjät.",
-  "help.cert.firefox2": 'Napsauta Tuo, valitse {file} ja rastita "Luota tähän myöntäjään verkkosivustojen tunnistamisessa".',
+  "help.cert.firefox2":
+    'Napsauta Tuo, valitse {file} ja rastita "Luota tähän myöntäjään verkkosivustojen tunnistamisessa".',
 
   "help.popup.title": "Salli ilmoitukset",
   "help.popup.title_in": "Salli ilmoitukset selaimessa {browser}",
   "help.popup.secure_page": "Avaa suojattu sivu: {link}",
   "help.popup.remove_warning": "Poista selaimen varoitus",
   "help.popup.keep_http": "Tai jatka http:llä",
-  "help.popup.firefox1": 'Avaa uusi välilehti, kirjoita {config} ja paina Enter, napsauta sitten "Hyväksy riski ja jatka".',
+  "help.popup.firefox1":
+    'Avaa uusi välilehti, kirjoita {config} ja paina Enter, napsauta sitten "Hyväksy riski ja jatka".',
   "help.popup.firefox2": "Hae {key}.",
-  "help.popup.firefox3a": 'Jos sitä ei ole, valitse "String" ja napsauta "+". Kirjoita tämä ja napsauta valintamerkkiä:',
+  "help.popup.firefox3a":
+    'Jos sitä ei ole, valitse "String" ja napsauta "+". Kirjoita tämä ja napsauta valintamerkkiä:',
   "help.popup.firefox3b": "Jos siinä on jo tekstiä, lisää loppuun pilkku ja tämä.",
   "help.popup.chromium1": "Avaa uusi välilehti ja liitä tämä osoitekenttään:",
   "help.popup.chromium2": 'Kirjoita tämä kenttään ja aseta sen vieressä oleva valinta tilaan "Enabled":',
   "help.popup.chromium3": 'Napsauta alareunassa "Relaunch".',
   "help.popup.back": "Palaa tänne ja paina {reload}",
   "help.popup.reload": "Lataa uudelleen",
-  "help.popup.phone": "Puhelimet näyttävät ilmoituksia vain https-sivuille, eikä tämä sivu ole sellainen. Ääni ja välilehden hälytys toimivat täällä.",
+  "help.popup.phone":
+    "Puhelimet näyttävät ilmoituksia vain https-sivuille, eikä tämä sivu ole sellainen. Ääni ja välilehden hälytys toimivat täällä.",
   "help.popup.other":
     "Tämä selain ei voi sallia ilmoituksia tälle osoitteelle. Ääni ja välilehden hälytys toimivat täällä. Firefox, Chrome ja Edge tietokoneella voivat sallia ne.",
   "help.popup.still": "Jos ilmoitus ei vieläkään näy",
-  "help.popup.flatpak": "Flatpakina asennettu Firefox (KDE) tarvitsee nämä kaksi komentoa päätteessä ja sitten Firefoxin uudelleenkäynnistyksen:",
+  "help.popup.flatpak":
+    "Flatpakina asennettu Firefox (KDE) tarvitsee nämä kaksi komentoa päätteessä ja sitten Firefoxin uudelleenkäynnistyksen:",
 
   "help.update.title": "NeoAPRS {version} on saatavilla",
   "help.update.installed": "Käytössäsi on NeoAPRS {version}",
@@ -115,10 +138,13 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.restarting_installer": "Asennetaan… NeoAPRS käynnistyy uudelleen hetken kuluttua",
   "help.update.reconnecting": "NeoAPRS käynnistyy uudelleen",
   "help.update.problem.download": "Päivitystä ei voitu ladata. Yritä uudelleen tai lataa se projektin sivulta.",
-  "help.update.problem.unverified": "Tätä päivitystä ei voitu tarkistaa, joten mitään ei asennettu. Lataa se projektin sivulta.",
-  "help.update.problem.checksum": "Lataus ei ole julkaisun tiedosto, joten se poistettiin eikä mitään asennettu. Yritä uudelleen.",
+  "help.update.problem.unverified":
+    "Tätä päivitystä ei voitu tarkistaa, joten mitään ei asennettu. Lataa se projektin sivulta.",
+  "help.update.problem.checksum":
+    "Lataus ei ole julkaisun tiedosto, joten se poistettiin eikä mitään asennettu. Yritä uudelleen.",
   "help.update.problem.install": "Päivitystä ei voitu asentaa. Päivitä käsin.",
-  "help.update.problem.no_restart": "Päivitys on asennettu, mutta NeoAPRS ei käynnistynyt uudelleen. Sulje NeoAPRS ja käynnistä se uudelleen.",
+  "help.update.problem.no_restart":
+    "Päivitys on asennettu, mutta NeoAPRS ei käynnistynyt uudelleen. Sulje NeoAPRS ja käynnistä se uudelleen.",
   "help.update.by_hand": "Tai päivitä käsin",
   "help.update.steps": "Näin päivität",
   "help.update.restart_service": "Käynnistä palvelu uudelleen",

@@ -60,7 +60,11 @@ describe("SettingsFold", () => {
   it("has the path as one choice (Recommended, Direct only, Custom) in the place of a field, with the recommended path of the station's symbol", async () => {
     const { wrapper, daemon } = make(["beacon/path"], { "station/symbol_table": "/", "station/symbol_code": ">" });
     expect(wrapper.find("#set-beacon-path").exists()).toBe(true);
-    expect(wrapper.findAll("option").map((o) => o.text())).toEqual(["Recommended (WIDE1-1,WIDE2-1)", "Direct only (no digipeaters)", "Custom…"]);
+    expect(wrapper.findAll("option").map((o) => o.text())).toEqual([
+      "Recommended (WIDE1-1,WIDE2-1)",
+      "Direct only (no digipeaters)",
+      "Custom…",
+    ]);
     await wrapper.find("select").setValue("direct");
     expect(sent(daemon)).toEqual([{ cmd: "set_config", values: { "beacon/path": "DIRECT" } }]);
     wrapper.unmount();

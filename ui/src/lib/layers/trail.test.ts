@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { TRAIL_GAP_SEC, TRAIL_MAX_AGE_SEC, TRAIL_MAX_POINTS, growTrails, trailKey, trailLines, type TrailPoint, type Trails } from "@/lib/layers/trail";
+import {
+  TRAIL_GAP_SEC,
+  TRAIL_MAX_AGE_SEC,
+  TRAIL_MAX_POINTS,
+  growTrails,
+  trailKey,
+  trailLines,
+  type TrailPoint,
+  type Trails,
+} from "@/lib/layers/trail";
 import { NOW, ago } from "@/test/fixtures";
 import { aircraft, layerThings, ship } from "@/test/layerfixtures";
 
@@ -20,13 +29,24 @@ describe("growTrails", () => {
 
   it("keeps the trails of aircraft and of ships apart, each by its id", () => {
     const trails: Trails = new Map();
-    growTrails(trails, [layerThings("aircraft", [aircraft({ id: "a", at: ago(1) })]), layerThings("ships", [ship({ id: "a", at: ago(1) })])], NOW);
+    growTrails(
+      trails,
+      [
+        layerThings("aircraft", [aircraft({ id: "a", at: ago(1) })]),
+        layerThings("ships", [ship({ id: "a", at: ago(1) })]),
+      ],
+      NOW,
+    );
     expect([...trails.keys()].sort()).toEqual(["aircraft:a", "ships:a"]);
   });
 
   it("drops the points older than 30 minutes and keeps the others", () => {
     const trails: Trails = new Map();
-    growTrails(trails, [layerThings("aircraft", [aircraft({ id: "a", lat: 60.1, at: ago(TRAIL_MAX_AGE_SEC - 1) })])], NOW);
+    growTrails(
+      trails,
+      [layerThings("aircraft", [aircraft({ id: "a", lat: 60.1, at: ago(TRAIL_MAX_AGE_SEC - 1) })])],
+      NOW,
+    );
     growTrails(trails, [layerThings("aircraft", [aircraft({ id: "a", lat: 60.2, at: ago(1) })])], NOW + 5000);
     expect(trails.get(KEY)).toHaveLength(1);
     expect(trails.get(KEY)?.[0]?.[1]).toBe(60.2);
@@ -34,7 +54,8 @@ describe("growTrails", () => {
 
   it("keeps the last 400 points of a thing", () => {
     const trails: Trails = new Map();
-    for (let i = 0; i < TRAIL_MAX_POINTS + 25; i++) growTrails(trails, [layerThings("aircraft", [aircraft({ id: "a", lat: 60 + i / 1000, at: ago(1) })])], NOW);
+    for (let i = 0; i < TRAIL_MAX_POINTS + 25; i++)
+      growTrails(trails, [layerThings("aircraft", [aircraft({ id: "a", lat: 60 + i / 1000, at: ago(1) })])], NOW);
     const points = trails.get(KEY) ?? [];
     expect(points).toHaveLength(TRAIL_MAX_POINTS);
     expect(points.at(-1)?.[1]).toBeCloseTo(60 + (TRAIL_MAX_POINTS + 24) / 1000);
@@ -44,7 +65,10 @@ describe("growTrails", () => {
     const trails: Trails = new Map();
     growTrails(
       trails,
-      [layerThings("aircraft", [aircraft({ id: "a", at: ago(1) }), aircraft({ id: "b", at: ago(1) })]), layerThings("ships", [ship({ at: ago(1) })])],
+      [
+        layerThings("aircraft", [aircraft({ id: "a", at: ago(1) }), aircraft({ id: "b", at: ago(1) })]),
+        layerThings("ships", [ship({ at: ago(1) })]),
+      ],
       NOW,
     );
     growTrails(trails, [layerThings("aircraft", [aircraft({ id: "b", at: ago(1) })])], NOW);
@@ -88,7 +112,11 @@ describe("trailLines", () => {
 
   it("draws no line across a gap of more than a few minutes", () => {
     const gap = TRAIL_GAP_SEC + 1;
-    const { features } = trailLines(KEY, [point(24, 60, 600 + gap), point(24.01, 60, 600 + gap - 3), point(25, 61, 500), point(25.01, 61, 497)], NOW);
+    const { features } = trailLines(
+      KEY,
+      [point(24, 60, 600 + gap), point(24.01, 60, 600 + gap - 3), point(25, 61, 500), point(25.01, 61, 497)],
+      NOW,
+    );
     expect(features.map((feature) => feature.geometry.coordinates)).toEqual([
       [
         [24, 60],

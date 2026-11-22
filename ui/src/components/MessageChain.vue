@@ -14,12 +14,15 @@ const props = withDefaults(defineProps<{ row: MessageRow; heardDirect?: Readonly
 
 const radios = useRadios();
 /** The name on the "you" chip: the attempt's radio where radios are named; null otherwise. */
-const radioName = (id: number | null): string | null => (id !== null && radios.named(id) ? (radios.byId(id)?.name ?? null) : null);
+const radioName = (id: number | null): string | null =>
+  id !== null && radios.named(id) ? (radios.byId(id)?.name ?? null) : null;
 
 /** The chips of the latest attempt, or null when none is kept. */
 const latest = computed(() => {
   const attempt = props.row.attempts_detail.at(-1);
-  return attempt === undefined ? null : chainOf(props.row, attempt, true, props.heardDirect, props.mail, radioName(attempt.radio_id));
+  return attempt === undefined
+    ? null
+    : chainOf(props.row, attempt, true, props.heardDirect, props.mail, radioName(attempt.radio_id));
 });
 </script>
 

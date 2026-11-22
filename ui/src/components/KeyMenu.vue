@@ -45,7 +45,15 @@ watch(
         <span class="muted">{{ t("lock.heard", { date: dateTimeText(theirs.heard_at) }) }}</span>
       </p>
       <p class="keybox-buttons">
-        <button type="button" class="btn" :disabled="offline !== undefined" :title="offline" @click="emit('sendKey', call)">{{ t("lock.send_key") }}</button>
+        <button
+          type="button"
+          class="btn"
+          :disabled="offline !== undefined"
+          :title="offline"
+          @click="emit('sendKey', call)"
+        >
+          {{ t("lock.send_key") }}
+        </button>
         <button
           v-if="theirs !== null"
           type="button"

@@ -111,7 +111,8 @@ export const de: Catalogue = {
   "error.bulletin.group": "„{value}“: ein Gruppenbulletin ist BLN, eine Ziffer und die Gruppe",
   "error.bulletin.not_on_board": "auf der Tafel gibt es keinen Eintrag {sender}/{slot}",
   "error.bulletin.not_posted": "von uns gibt es kein Bulletin {slot}",
-  "error.bulletin.slot": "„{value}“ ist weder BLN0 bis BLN9 noch BLNA bis BLNZ noch BLN, eine Ziffer und eine Gruppe mit höchstens {group_max} Zeichen",
+  "error.bulletin.slot":
+    "„{value}“ ist weder BLN0 bis BLN9 noch BLNA bis BLNZ noch BLN, eine Ziffer und eine Gruppe mit höchstens {group_max} Zeichen",
   "error.call.characters": "Rufzeichen „{value}“ enthält andere Zeichen als A-Z, 0-9 und eine „-SSID“",
   "error.call.shape": "Rufzeichen „{value}“ besteht nicht aus 1 bis 6 Zeichen A-Z und 0-9 mit einer optionalen „-SSID“",
   "error.call.ssid": "Rufzeichen „{value}“ hat eine SSID über {max}",
@@ -127,11 +128,14 @@ export const de: Catalogue = {
   "error.lock.no_key": "kein Schlüssel von {call}: Er muss zuerst seinen Schlüssel senden",
   "error.lock.too_long": "der Text hat {length} Bytes, in eine verschlüsselte Nachricht passen höchstens {max}",
   "error.lock.unprintable": "der Text ist leer oder enthält ein Zeichen, das eine Nachricht nicht tragen kann",
-  "error.failed": "Das hat nicht geklappt; noch einmal versuchen. Bleibt es so, die Logs senden (Einstellungen → Hilfe).",
+  "error.failed":
+    "Das hat nicht geklappt; noch einmal versuchen. Bleibt es so, die Logs senden (Einstellungen → Hilfe).",
   "error.not_connected": "Nicht gesendet: keine Verbindung zu NeoAPRS",
   "error.map.no_job": "es läuft kein Kartenauftrag",
-  "error.update.unsupported": "diese Kopie von NeoAPRS kann sich nicht selbst aktualisieren; die Seite zeigt die Schritte",
-  "error.update.blocked": "NeoAPRS kann sich hier nicht selbst aktualisieren: dieser Benutzer darf nicht in den Ordner des AppImage schreiben",
+  "error.update.unsupported":
+    "diese Kopie von NeoAPRS kann sich nicht selbst aktualisieren; die Seite zeigt die Schritte",
+  "error.update.blocked":
+    "NeoAPRS kann sich hier nicht selbst aktualisieren: dieser Benutzer darf nicht in den Ordner des AppImage schreiben",
   "error.update.not_announced": "{version} ist nicht die Version, die die Update-Prüfung gemeldet hat",
   "error.update.no_file": "das Release {version} hat keine Datei für diese Kopie von NeoAPRS",
   "error.update.busy": "es läuft schon ein Update",
@@ -161,7 +165,11 @@ export const de: Catalogue = {
     other: "das Gerät ist vom Funkgerät {holder} belegt: wähle ein anderes",
   },
   "error.radio.type_kind": "das Funkgerät {name} nimmt nur einen Typ seiner Art ({kind})",
-  "error.radio.unknown": { select: "removed", "1": "das Funkgerät {name} wurde entfernt", other: "es gibt kein Funkgerät {radio}" },
+  "error.radio.unknown": {
+    select: "removed",
+    "1": "das Funkgerät {name} wurde entfernt",
+    other: "es gibt kein Funkgerät {radio}",
+  },
   "error.radio.unknown_type": "„{type}“ ist kein Funkgerätetyp (die Typen stehen in der Liste)",
   "error.radio.failed": "die Suche nach dem Funkgerät ist fehlgeschlagen",
   "error.radio.no_ports": "es gibt keinen Port zum Ausprobieren: keiner ist aufgelistet, den die Suche beachtet",
@@ -172,13 +180,15 @@ export const de: Catalogue = {
   "error.alert.own": "{call} ist unsere eigene Station: eine Benachrichtigung ist für eine andere Station",
   "error.message.control": "der Text enthält ein Steuerzeichen",
   "error.message.empty": "die Nachricht ist leer",
-  "error.message.forbidden": "der Text enthält {chars}, was eine Nachricht nicht tragen kann ({forbidden} sind nicht erlaubt)",
+  "error.message.forbidden":
+    "der Text enthält {chars}, was eine Nachricht nicht tragen kann ({forbidden} sind nicht erlaubt)",
   "error.message.not_ascii": {
     select: "chars",
     "": "der Text enthält ein Zeichen, das kein druckbares ASCII ist: eine Nachricht enthält nur druckbares ASCII",
     other: "der Text enthält {chars}, was kein druckbares ASCII ist: eine Nachricht enthält nur druckbares ASCII",
   },
-  "error.message.too_long_for_radio": "die Nachricht ist {length} Bytes auf der Luft, das Funkgerät trägt {max}: kürze sie um {cut} Zeichen",
+  "error.message.too_long_for_radio":
+    "die Nachricht ist {length} Bytes auf der Luft, das Funkgerät trägt {max}: kürze sie um {cut} Zeichen",
   "error.message.too_long": "der Text hat {length} Zeichen, in eine Nachricht passen höchstens {max}",
   "error.no_command": "ein Befehl hat ein „cmd“",
   "error.not_object": "Ein Befehl ist ein JSON-Objekt mit einem „cmd“",
@@ -197,16 +207,19 @@ export const de: Catalogue = {
     other: "der Name eines Items hat {min} bis {max} Zeichen, nicht {length}",
   },
   "error.object.position": "die Position {lat}, {lon} liegt nicht auf der Erde",
-  "error.object.qru_group": "die Kategorie „{group}“ hat 1 bis {max} Buchstaben und Ziffern und ist nicht INFO oder NEXT",
+  "error.object.qru_group":
+    "die Kategorie „{group}“ hat 1 bis {max} Buchstaben und Ziffern und ist nicht INFO oder NEXT",
   "error.object.speed": "die Geschwindigkeit {value} liegt nicht zwischen 0 und {max} km/h",
-  "error.object.symbol": "das Symbol „{table}“ „{symbol}“ ist weder eine Tabelle (/ \\ A-Z 0-9) noch ein druckbares Zeichen",
+  "error.object.symbol":
+    "das Symbol „{table}“ „{symbol}“ ist weder eine Tabelle (/ \\ A-Z 0-9) noch ein druckbares Zeichen",
   "error.pair.receive_only": "das Funkgerät {name} empfängt nur",
   "error.pair.dummy_and_real": "ein Dummy-Funkgerät und ein echtes bilden kein Paar",
   "error.pair.call_is_station": "{call} ist das eigene Rufzeichen der Station",
   "error.pair.call_taken": "{call} ist das Rufzeichen eines anderen Paares",
   "error.pair.no_free_call": "alle SSIDs von 1 bis 15 sind vergeben",
   "error.path.too_long": "{count} Digipeater sind mehr als die {max}, die ein Pfad haben darf",
-  "error.path.too_long_rf_only": "Pfad zu lang für Nur Funk: {count} Digipeater und RFONLY sind mehr als die {max}, die ein Pfad haben darf",
+  "error.path.too_long_rf_only":
+    "Pfad zu lang für Nur Funk: {count} Digipeater und RFONLY sind mehr als die {max}, die ein Pfad haben darf",
   "error.query.not_capable": "{call} nimmt keine Nachrichten an: es gibt niemanden zu fragen",
   "error.transmit.call": "Es wird nichts gesendet: {reason}",
   "error.transmit.off": "Nur RX: Es wird nichts gesendet",
@@ -218,25 +231,29 @@ export const de: Catalogue = {
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",
   "error.setting.local_only": "das geht nur auf einer Seite am NeoAPRS-Computer",
-  "error.setting.not_access_key": "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
+  "error.setting.not_access_key":
+    "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "es enthält Zeichen, die kein druckbares ASCII sind",
   "error.setting.not_boolean": "„{value}“ ist weder true noch false",
   "error.setting.not_keying": "„{value}“ ist keine Art, das Funkgerät zu tasten: vox, cm108, rts:PORT oder dtr:PORT",
   "error.setting.not_among": "{value} ist keiner der Werte {choices}",
   "error.setting.not_direction": "„{value}“ ist weder omni noch eines von N NE E SE S SW W NW",
-  "error.setting.not_globs": "„{value}“ ist nicht ein oder mehrere absolute Muster, durch Leerzeichen getrennt, etwa /dev/ttyUSB*",
+  "error.setting.not_globs":
+    "„{value}“ ist nicht ein oder mehrere absolute Muster, durch Leerzeichen getrennt, etwa /dev/ttyUSB*",
   "error.setting.not_host": "„{value}“ ist weder eine Adresse noch ein Name",
   "error.setting.not_hostport": "„{value}“ ist nicht Host:Port (4532 ist der Port von rigctld)",
   "error.setting.not_receiver": "„{value}“ ist nicht die Adresse eines Empfängers",
   "error.setting.not_server": "„{value}“ ist nicht Host:Port (14580 ist der übliche Port eines APRS-IS-Servers)",
   "error.setting.not_passcode": "der Passcode deines Rufzeichens ist eine Zahl von 0 bis {max}",
-  "error.setting.passcode_read_only": "-1 ist der Passcode nur zum Lesen; ein iGate braucht den Passcode seines Rufzeichens",
+  "error.setting.passcode_read_only":
+    "-1 ist der Passcode nur zum Lesen; ein iGate braucht den Passcode seines Rufzeichens",
   "error.setting.not_map_source": "„{value}“ ist weder eine Webadresse noch der Pfad einer PMTiles-Datei",
   "error.setting.not_number": "„{value}“ ist keine Zahl",
   "error.setting.not_printable": "es enthält nicht druckbare Zeichen",
   "error.setting.not_profile": "„{value}“ ist kein Funkgerätetyp (die Typen sind {profiles})",
   "error.setting.not_hf_profile": "„{value}“ ist kein Typ eines Mercury-Funkgeräts (die Typen sind mercury, dummy-hf)",
-  "error.setting.not_stored": "die Einstellungen konnten nicht gespeichert werden (die Datenbank nahm sie nicht an); nichts wurde geändert",
+  "error.setting.not_stored":
+    "die Einstellungen konnten nicht gespeichert werden (die Datenbank nahm sie nicht an); nichts wurde geändert",
   "error.setting.not_symbol_code": "„{value}“ ist nicht ein druckbares ASCII-Zeichen",
   "error.setting.not_symbol_table": "„{value}“ ist weder / noch \\ noch ein Overlay-Zeichen A-Z, 0-9",
   "error.setting.not_web_address": "„{value}“ ist keine http- oder https-Adresse",
@@ -245,11 +262,15 @@ export const de: Catalogue = {
   "error.setting.profile_port":
     "{profile} verbindet über TCP (tcp/host und tcp/port), nicht mit dem seriellen Port {port}: serial/port leeren oder ein serielles TNC wählen",
   "error.setting.range": "{value} liegt nicht zwischen {min} und {max}",
-  "error.setting.status_needs_rigctld": "das Funkgerät braucht status/rigctld (Host:Port eines rigctld, 127.0.0.1:4532)",
-  "error.setting.status_source": "„{value}“ ist weder off noch text noch rig (leer: wie status/rigctld und station/status es sagen)",
+  "error.setting.status_needs_rigctld":
+    "das Funkgerät braucht status/rigctld (Host:Port eines rigctld, 127.0.0.1:4532)",
+  "error.setting.status_source":
+    "„{value}“ ist weder off noch text noch rig (leer: wie status/rigctld und station/status es sagen)",
   "error.setting.template_field": "{{{field}}} ist kein Feld der Vorlage (die Felder sind {{freq}} und {{mode}})",
-  "error.setting.template_long": "{length} Zeichen mit langer Frequenz und Betriebsart sind mehr als die {max} erlaubten",
-  "error.setting.tnc_char": "„{char}“ ist ein Zeichen, das ein TNC für einen Befehl hält, und darf nicht darin vorkommen",
+  "error.setting.template_long":
+    "{length} Zeichen mit langer Frequenz und Betriebsart sind mehr als die {max} erlaubten",
+  "error.setting.tnc_char":
+    "„{char}“ ist ein Zeichen, das ein TNC für einen Befehl hält, und darf nicht darin vorkommen",
   "error.setting.too_long": "{length} Zeichen sind mehr als die {max} erlaubten",
   "error.setting.unknown": "diese Einstellung gibt es nicht (die Einstellungen sind {settings})",
   "error.station.is_object": "{call} ist ein Objekt von uns: zurückziehen (object_kill)",
@@ -284,7 +305,8 @@ export const de: Catalogue = {
   "error.message.busy": "{count} Nachrichten werden gleichzeitig gesendet: keine Nachrichtennummer ist frei",
   "error.message.bad_text": "der Text enthält ein Zeichen, das eine Nachricht nicht tragen kann, oder ist zu lang",
   "error.message.addressee": "„{addressee}“ kann nicht der Empfänger einer Nachricht sein",
-  "error.map.no_position": "die Station hat noch keine Position: lege Breite und Länge fest (die Karte wird um sie herum geschnitten)",
+  "error.map.no_position":
+    "die Station hat noch keine Position: lege Breite und Länge fest (die Karte wird um sie herum geschnitten)",
   "error.map.busy": "es läuft schon ein Kartenauftrag",
   "error.frame.too_long": "das Informationsfeld hat {length} Bytes, mehr als die {max}, die AX.25 erlaubt",
   "error.call.placeholder": "{call} ist ein Platzhalter, kein Rufzeichen: lege zuerst dein Rufzeichen fest",
@@ -304,7 +326,8 @@ export const de: Catalogue = {
   "messages.about2": "Starte eine mit Nachricht auf der Karte einer Station oder im Reiter Stationen.",
   "messages.show_overheard": "Mitgehörte zeigen",
   "messages.overheard_help_label": "Was „mitgehört“ heißt",
-  "messages.overheard_help": "Nachrichten, die andere Stationen einander gesendet haben und die wir über Funk gehört haben.",
+  "messages.overheard_help":
+    "Nachrichten, die andere Stationen einander gesendet haben und die wir über Funk gehört haben.",
   "messages.last_out": "Du: {text}",
   "messages.asked.position": "Du hast nach der Position gefragt",
   "messages.asked.status": "Du hast nach dem Status gefragt",
@@ -413,21 +436,25 @@ export const de: Catalogue = {
   "route.rf_only_title": "iGates setzen diese Nachrichten nicht ins Internet",
   "route.request_path_tip":
     "Rufzeichen oder Aliase, durch Kommas getrennt (OH2RDK-7,OH2RCH-2 oder WIDE1-1,WIDE2-1), DIRECT für keine. Leer ist der übliche Pfad.",
-  "route.request_rf_only_tip": "Hängt RFONLY an den Pfad: iGates lassen die Anfrage aus dem Internet, und nur Stationen in Funkreichweite antworten.",
+  "route.request_rf_only_tip":
+    "Hängt RFONLY an den Pfad: iGates lassen die Anfrage aus dem Internet, und nur Stationen in Funkreichweite antworten.",
   "pathbuilder.open": "Pfad zusammenstellen",
   "pathbuilder.title": "Pfad zusammenstellen",
   "pathbuilder.cancel": "Abbrechen",
   "pathbuilder.use": "Übernehmen",
   "pathbuilder.direct": "Direkt",
-  "pathbuilder.tip1": "WIDEn-N: n ist, wie viele Sprünge der Pfad verlangt, N, wie viele übrig sind. Jeder Digipeater zieht eins von N ab; bei 0 ist Schluss.",
+  "pathbuilder.tip1":
+    "WIDEn-N: n ist, wie viele Sprünge der Pfad verlangt, N, wie viele übrig sind. Jeder Digipeater zieht eins von N ab; bei 0 ist Schluss.",
   "pathbuilder.tip2":
     "WIDE1-1 ist ein Sprung über jeden Digipeater, auch einen Heim-Digi (Fill-in). WIDE2-1 ist ein Sprung, WIDE2-2 zwei, nur über weite Digipeater.",
-  "pathbuilder.tip3": "Zwei Sprünge insgesamt reichen fast überall weit genug; mehr belasten nur den Kanal, und viele Digipeater kappen sie.",
+  "pathbuilder.tip3":
+    "Zwei Sprünge insgesamt reichen fast überall weit genug; mehr belasten nur den Kanal, und viele Digipeater kappen sie.",
   "pathbuilder.tip4": "Ein genannter Digipeater (OH2RDK-7) ist ein Sprung über genau diesen.",
   "pathbuilder.reach_direct": "Kein Digipeater: nur die Stationen, die dich hören",
   "pathbuilder.reach_title": { one: "{n} Sprung insgesamt: {path}", other: "{n} Sprünge insgesamt: {path}" },
   "pathbuilder.home": "Heim-Digis dürfen den ersten Sprung nehmen",
-  "pathbuilder.home_title": "An: der erste Sprung ist WIDE1-1, den Heim-Digipeater (Fill-in) wie weite nehmen. Aus: nur weite Digipeater",
+  "pathbuilder.home_title":
+    "An: der erste Sprung ist WIDE1-1, den Heim-Digipeater (Fill-in) wie weite nehmen. Aus: nur weite Digipeater",
   "pathbuilder.home_named": "Der erste Sprung ist {call}",
   "pathbuilder.home_choose": "Wähle zuerst 1, 2 oder 3 Sprünge",
   "pathbuilder.drawing_label": "Der Pfad, Sprung für Sprung",
@@ -441,11 +468,13 @@ export const de: Catalogue = {
   "pathbuilder.node.wide": "Sprung {n}: ein weiter Digipeater; Heim-Digis (Fill-in) lassen es liegen",
   "pathbuilder.node.call": "Sprung {n}: {call} und kein anderer Digipeater",
   "pathbuilder.node.alias": "Sprung {n}: die Digipeater, die auf {alias} antworten",
-  "pathbuilder.wide_part": "{alias}: n = {n} verlangte Sprünge, N = {left} noch übrig; jeder Digipeater zieht eins von N ab",
+  "pathbuilder.wide_part":
+    "{alias}: n = {n} verlangte Sprünge, N = {left} noch übrig; jeder Digipeater zieht eins von N ab",
   "pathbuilder.many": "{n} Sprünge: mehr als die {most}, die die meisten Netze zulassen",
   "pathbuilder.bad.shape": "{alias} ist kein Pfad: in WIDEn-N gehen n und N von 1 bis 7",
   "pathbuilder.bad.used_up": "{alias} hat keine Sprünge mehr: kein Digipeater wiederholt es",
-  "pathbuilder.bad.more_left": "{alias} ist kein Pfad: N ({left}) ist nie größer als n ({n}); Heim-Digipeater antworten nur auf WIDE1-1",
+  "pathbuilder.bad.more_left":
+    "{alias} ist kein Pfad: N ({left}) ist nie größer als n ({n}); Heim-Digipeater antworten nur auf WIDE1-1",
   "pathbuilder.as_it_comes": "Wie seine Pakete kommen",
   "pathbuilder.no_route": "Kein Weg seiner Pakete bekannt",
   "pathbuilder.hops_label": "Sprünge",
@@ -456,7 +485,10 @@ export const de: Catalogue = {
   "pathbuilder.add": "Hinzufügen",
   "pathbuilder.heard": "Gehörte Digipeater",
   "pathbuilder.next_to": "Neben {call}",
-  "pathbuilder.seen_next": { one: "Neben {call} im Weg von {n} Station", other: "Neben {call} in den Wegen von {n} Stationen" },
+  "pathbuilder.seen_next": {
+    one: "Neben {call} im Weg von {n} Station",
+    other: "Neben {call} in den Wegen von {n} Stationen",
+  },
   "pathbuilder.add_hop": "{call} hinzufügen",
 
   "compose.tnc_not_connected": "Das Funkgerät ist nicht verbunden",
@@ -480,7 +512,8 @@ export const de: Catalogue = {
   "email.check": "E-Mails abfragen",
   "email.checking": "Abfrage läuft schon",
   "email.about": "Über E-Mail",
-  "email.about_gateway": "Mail läuft über das Internet-Gateway EMAIL-2, daher kann eine Mail {unconfirmed} zeigen, obwohl sie angekommen ist.",
+  "email.about_gateway":
+    "Mail läuft über das Internet-Gateway EMAIL-2, daher kann eine Mail {unconfirmed} zeigen, obwohl sie angekommen ist.",
   "email.about_check": "{check} fragt das Gateway nach der Mail, die es für dich aufgehoben hat (24 Stunden).",
 
   "email.field.to": "An",
@@ -525,8 +558,14 @@ export const de: Catalogue = {
 
   "bulletins.post_label": "Bulletin senden",
   "bulletins.kind": "Art",
-  "bulletins.kind.bulletin": { one: "Bulletin (wird {n} Stunde lang gesendet)", other: "Bulletin (wird {n} Stunden lang gesendet)" },
-  "bulletins.kind.announcement": { one: "Ankündigung (wird {n} Tag lang gesendet)", other: "Ankündigung (wird {n} Tage lang gesendet)" },
+  "bulletins.kind.bulletin": {
+    one: "Bulletin (wird {n} Stunde lang gesendet)",
+    other: "Bulletin (wird {n} Stunden lang gesendet)",
+  },
+  "bulletins.kind.announcement": {
+    one: "Ankündigung (wird {n} Tag lang gesendet)",
+    other: "Ankündigung (wird {n} Tage lang gesendet)",
+  },
   "bulletins.kind.group": {
     one: "Gruppenbulletin (an eine Gruppe, wird {n} Stunde lang gesendet)",
     other: "Gruppenbulletin (an eine Gruppe, wird {n} Stunden lang gesendet)",
@@ -542,8 +581,10 @@ export const de: Catalogue = {
     "Ein Bulletin und eine Ankündigung zeigt jede Station, die sie hört. Ein Bulletin ist für das, was jetzt zählt, und wird {hours} lang gesendet; eine Ankündigung ist für das, was gültig bleibt, und wird {days} lang gesendet.",
   "bulletins.tip.kind2":
     "Ein Gruppenbulletin wird {hours} lang gesendet; jede Station zeigt es, es sei denn, ihr Betreiber hat andere Gruppen zum Anzeigen gewählt.",
-  "bulletins.tip.id1": "Die Nummer benennt den Beitrag, bei einer Ankündigung ein Buchstabe; ein neuer Beitrag darunter ersetzt ihn.",
-  "bulletins.tip.id2": "Wer unter derselben Nummer oder demselben Buchstaben erneut sendet, sendet den neuen Text von Anfang an.",
+  "bulletins.tip.id1":
+    "Die Nummer benennt den Beitrag, bei einer Ankündigung ein Buchstabe; ein neuer Beitrag darunter ersetzt ihn.",
+  "bulletins.tip.id2":
+    "Wer unter derselben Nummer oder demselben Buchstaben erneut sendet, sendet den neuen Text von Anfang an.",
   "bulletins.tip.group1":
     "Der Name ist Teil der Adresse, wie in BLN3HAMS, daher hört jede Station das Bulletin und zeigt es, es sei denn, ihr Betreiber hat andere Gruppen zum Anzeigen gewählt.",
   "bulletins.tip.group2": "NeoAPRS zeigt die Bulletins jeder Gruppe, die es hört, unter Gruppennachrichten.",
@@ -583,8 +624,16 @@ export const de: Catalogue = {
   // objects
   "schedule.sent": { "=0": "noch nicht gesendet", "=1": "einmal gesendet", other: "{n}-mal gesendet" },
   "schedule.ended": { "=1": "einmal gesendet, beendet", other: "{n}-mal gesendet, beendet" },
-  "schedule.next": { "=0": "noch nicht gesendet, nächste {when}", "=1": "einmal gesendet, nächste {when}", other: "{n}-mal gesendet, nächste {when}" },
-  "schedule.waiting": { "=0": "noch nicht gesendet, wartet", "=1": "einmal gesendet, wartet", other: "{n}-mal gesendet, wartet" },
+  "schedule.next": {
+    "=0": "noch nicht gesendet, nächste {when}",
+    "=1": "einmal gesendet, nächste {when}",
+    other: "{n}-mal gesendet, nächste {when}",
+  },
+  "schedule.waiting": {
+    "=0": "noch nicht gesendet, wartet",
+    "=1": "einmal gesendet, wartet",
+    other: "{n}-mal gesendet, wartet",
+  },
   "schedule.killing": {
     "=0": "wird zurückgezogen, noch nicht gesendet",
     "=1": "wird zurückgezogen, einmal gesendet",
@@ -601,7 +650,12 @@ export const de: Catalogue = {
   "objects.about2": "Alle in deiner Nähe sehen es, solange du es sendest.",
   "objects.edit_label": "{name} bearbeiten",
   "objects.delete_title": "Löschen (per Funk zurückziehen)",
-  "objects.delete_label": { select: "kind", object: "Das Objekt {name} löschen", item: "Das Item {name} löschen", other: "Das Objekt {name} löschen" },
+  "objects.delete_label": {
+    select: "kind",
+    object: "Das Objekt {name} löschen",
+    item: "Das Item {name} löschen",
+    other: "Das Objekt {name} löschen",
+  },
   "objects.kind_word": { select: "kind", object: "Objekt", item: "Item", other: "Objekt" },
   "objects.in_group": "Kategorie: {group}",
   "objects.category.rp2m": "2-m-Relais",
@@ -637,14 +691,19 @@ export const de: Catalogue = {
   "objects.category.other": "Andere…",
   "objects.qru": "Ortsinfo",
   "objects.qru_tip_label": "Über Ortsinfo",
-  "objects.qru_tip": "Fragt Stationen in deiner Nähe nach ihren Objekten (APRS QRU): Relais, Termine, Orte. Nur per Funk gesendet.",
+  "objects.qru_tip":
+    "Fragt Stationen in deiner Nähe nach ihren Objekten (APRS QRU): Relais, Termine, Orte. Nur per Funk gesendet.",
   "objects.qru_ask": "Fragen",
   "objects.qru_km": "km",
   "objects.qru_km_label": "Entfernung in km",
-  "objects.qru_km_tip": "Wie weit gesucht wird; Vorgabe ist der Kartenradius. Leer: der Standard der Server, meist 50 km.",
+  "objects.qru_km_tip":
+    "Wie weit gesucht wird; Vorgabe ist der Kartenradius. Leer: der Standard der Server, meist 50 km.",
   "objects.qru_state": "Gefragt",
   "objects.qru_waiting": "{time} · warte auf Antworten…",
-  "objects.qru_answered": { one: "{time} · {n} Server hat geantwortet", other: "{time} · {n} Server haben geantwortet" },
+  "objects.qru_answered": {
+    one: "{time} · {n} Server hat geantwortet",
+    other: "{time} · {n} Server haben geantwortet",
+  },
   "objects.qru_no_answer": "{time} · keine Antwort",
   "objects.qru_refused": "Nicht gesendet",
   "objects.qru_request": "Letzte Anfrage: {text}",
@@ -815,7 +874,13 @@ export const de: Catalogue = {
   "station.freq.offset": "{khz} kHz",
   "station.freq.range": "Reichweite {km} km",
   "station.freq.receive": "Empfang {mhz} MHz",
-  "station.storm.kind": { select: "kind", TS: "Tropischer Sturm", HC: "Hurrikan", TD: "Tropisches Tief", other: "{kind}" },
+  "station.storm.kind": {
+    select: "kind",
+    TS: "Tropischer Sturm",
+    HC: "Hurrikan",
+    TD: "Tropisches Tief",
+    other: "{kind}",
+  },
   "station.storm.wind": "Wind {speed}",
   "station.storm.gusts": "Böen {speed}",
   "station.storm.pressure": "Luftdruck {value}",
@@ -829,7 +894,8 @@ export const de: Catalogue = {
   "station.table.filter": "Filter",
   "station.table.filter_title": "Rufzeichen, Symbol, Kommentar, Pfad",
   "station.table.about_label": "Über die Stationen",
-  "station.table.about1": "Jede gehörte Station, mit Entfernung und Richtung von dir. Ein Klick zeigt sie auf der Karte.",
+  "station.table.about1":
+    "Jede gehörte Station, mit Entfernung und Richtung von dir. Ein Klick zeigt sie auf der Karte.",
   "station.table.about2": "Ein Häkchen hinter einem Rufzeichen heißt: direkt gehört, ohne Digipeater.",
   "station.table.filter_label": "Stationen filtern",
   "station.table.hide_timed_out": "abgelaufene ausblenden",
@@ -857,7 +923,8 @@ export const de: Catalogue = {
   "station.menu.ask_heard": "Direkt Gehörte erfragen",
   "station.menu.ask_trace": "Weg verfolgen",
   "station.menu.ask_weather": "Wetter erfragen",
-  "station.menu.ask_weather_title": "?WX? ist in der APRS-Spezifikation keine gerichtete Anfrage: viele Stationen antworten nicht",
+  "station.menu.ask_weather_title":
+    "?WX? ist in der APRS-Spezifikation keine gerichtete Anfrage: viele Stationen antworten nicht",
   "station.menu.show_map": "Auf der Karte zeigen",
   "station.menu.show_card": "Stationskarte öffnen",
   "station.menu.copy": "Rufzeichen kopieren",
@@ -933,7 +1000,8 @@ export const de: Catalogue = {
   "station.table.rf_only": "nur über Funk gehört",
   "station.table.rf_only_title": "Stationen ausblenden, die nur aus dem Internet bekannt sind",
   "station.field.messages": "Nachrichten",
-  "station.messages_internet_only": "Nicht möglich: nur über das Internet gehört, und Nachrichten gehen über Funk hinaus",
+  "station.messages_internet_only":
+    "Nicht möglich: nur über das Internet gehört, und Nachrichten gehen über Funk hinaus",
   "station.hover.via": "Gehört über",
   "station.marker.internet": "über das Internet gehört",
   "route.heard.internet": "{n} über das Internet",
@@ -960,8 +1028,10 @@ export const de: Catalogue = {
   "map.credits.hide": "Quellenangaben ausblenden",
   "map.credits.show": "Quellen von Karte und Symbolen",
   "map.credits.symbols": "APRS-Symbole: aprs.fi-Satz von Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
-  "map.credits.devices": "Gerätenamen: APRS-Geräteliste von Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
-  "map.credits.aircraft": "Flugzeugformen: tar1090 von Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 oder später",
+  "map.credits.devices":
+    "Gerätenamen: APRS-Geräteliste von Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+  "map.credits.aircraft":
+    "Flugzeugformen: tar1090 von Matthias Wirth (github.com/wiedehopf/tar1090), GPL 2 oder später",
 
   // layers
   "layers.aircraft": "Flugzeuge",
@@ -1033,7 +1103,8 @@ export const de: Catalogue = {
   "packets.filter_title": "Rufzeichen, Text, Art",
   "packets.card_label": "Paketekarte",
   "packets.about_label": "Über die Pakete",
-  "packets.about1": "Jedes gehörte (ein) oder von dir gesendete (aus) Paket, das neueste zuerst, so wie es über den Äther ging.",
+  "packets.about1":
+    "Jedes gehörte (ein) oder von dir gesendete (aus) Paket, das neueste zuerst, so wie es über den Äther ging.",
   "packets.about2": "Ein Klick auf ein Paket zeigt, was NeoAPRS daraus gemacht hat.",
   "packets.filter_label": "Pakete filtern",
   "packets.col.time": "Zeit",
@@ -1372,7 +1443,8 @@ export const de: Catalogue = {
   "settings.fm_enabled.tip_label": "Über das FM-Funkgerät",
   "settings.fm_enabled.tip1":
     "Dein FM-Funkgerät mit seinem TNC oder seiner Soundkarte: das lokale Netz, mit Digipeatern, Pfaden und einer Bake, die einem GPS folgt.",
-  "settings.fm_enabled.tip2": "Nimm das Häkchen weg, um dieses Funkgerät auszuschalten; seine Einstellungen bleiben erhalten.",
+  "settings.fm_enabled.tip2":
+    "Nimm das Häkchen weg, um dieses Funkgerät auszuschalten; seine Einstellungen bleiben erhalten.",
   "settings.hf_enabled.name": "Mercury-Funkgerät",
   "settings.hf_enabled.tip_label": "Über das Mercury-Funkgerät",
   "settings.hf_enabled.tip1":
@@ -1380,7 +1452,8 @@ export const de: Catalogue = {
   "settings.hf_enabled.tip2":
     "Mehrere Funkgeräte können an sein: jede gehörte Station ist auf der Karte, und Weg zeigt, über welches Funkgerät Nachrichten an sie gehen.",
   "settings.lora_enabled.tip_label": "Über das LoRa-Funkgerät",
-  "settings.lora_enabled.tip1": "Ein LoRa-APRS-Board: im Netzwerk, an USB oder über Bluetooth. Seine Frequenz wird am Board eingestellt.",
+  "settings.lora_enabled.tip1":
+    "Ein LoRa-APRS-Board: im Netzwerk, an USB oder über Bluetooth. Seine Frequenz wird am Board eingestellt.",
   "settings.rx_enabled.tip1": "Es hört nur zu: Was es hört, kommt herein, gesendet wird darüber nie.",
   "settings.enable.only_radio_title": "Das einzige Funkgerät der Station, das an ist",
   "settings.group.web": "Webseite",
@@ -1397,7 +1470,8 @@ export const de: Catalogue = {
 
   "settings.call.label": "Rufzeichen",
   "settings.call.tip1": "Dein Rufzeichen. Ohne es wird nichts gesendet.",
-  "settings.call.tip2": "Mehrere Stationen unter einem Rufzeichen; die Nummer sagt den anderen, was für eine Station es ist.",
+  "settings.call.tip2":
+    "Mehrere Stationen unter einem Rufzeichen; die Nummer sagt den anderen, was für eine Station es ist.",
   "settings.ssid.label": "SSID",
   "settings.ssid.s0": "keine · Hauptstation",
   "settings.ssid.s1": "-1 · weitere Station",
@@ -1418,7 +1492,8 @@ export const de: Catalogue = {
   "settings.lat.label": "Breite",
   "settings.lon.label": "Länge",
   "settings.symbol.label": "Symbol",
-  "settings.symbol.tip1": "Das Symbol, das andere Stationen auf der Karte sehen. Wähle eines, das passt: Haus, Auto, Fahrrad, Boot.",
+  "settings.symbol.tip1":
+    "Das Symbol, das andere Stationen auf der Karte sehen. Wähle eines, das passt: Haus, Auto, Fahrrad, Boot.",
   "settings.symbol_code.label": "Symbolcode",
   "settings.symbol.none": "Kein Symbol",
   "settings.symbol.change": "Symbol ändern",
@@ -1426,16 +1501,19 @@ export const de: Catalogue = {
   "settings.symbol.overlay": "Buchstabe oder Ziffer darauf",
 
   "settings.comment.label": "Kommentar",
-  "settings.comment.tip1": "Ein kurzer Text, der mit jeder Bake gesendet und auf der Karte neben deinem Namen gezeigt wird. Bis zu {max} Zeichen.",
+  "settings.comment.tip1":
+    "Ein kurzer Text, der mit jeder Bake gesendet und auf der Karte neben deinem Namen gezeigt wird. Bis zu {max} Zeichen.",
   "settings.comment.tip2": "Beispiel: Heimstation, 2 m FM",
 
   "settings.station_status.name": "Statustext",
   "settings.station_status.label": "Text",
-  "settings.station_status.tip1": "Beginne mit der Sprechfunk-Frequenz, auf der du mithörst, als 145.500MHz, damit Funkgeräte sie einstellen können.",
+  "settings.station_status.tip1":
+    "Beginne mit der Sprechfunk-Frequenz, auf der du mithörst, als 145.500MHz, damit Funkgeräte sie einstellen können.",
   "settings.station_status.tip2": "Bis zu {max} Zeichen, z. B. 145.500MHz T088 QRV",
 
   "settings.power.label": "Leistung",
-  "settings.power.tip1": "Die Sendeleistung in Watt. Mit den Antennenfeldern ergibt sie einen PHG-Code: wie weit du zu hören bist.",
+  "settings.power.tip1":
+    "Die Sendeleistung in Watt. Mit den Antennenfeldern ergibt sie einen PHG-Code: wie weit du zu hören bist.",
   "settings.power.tip2": "Beispiel: 5",
 
   "settings.antenna_height.label": "Antennenhöhe",
@@ -1443,12 +1521,14 @@ export const de: Catalogue = {
   "settings.antenna_height.tip2": "Beispiel: 10 für einen Mast auf einem Haus im flachen Gelände",
 
   "settings.antenna_gain.label": "Antennengewinn",
-  "settings.antenna_gain.tip1": "Wie stark die Antenne das Signal bündelt, {min} bis {max} dBi; 0, wenn du es nicht weißt. Nur für PHG.",
+  "settings.antenna_gain.tip1":
+    "Wie stark die Antenne das Signal bündelt, {min} bis {max} dBi; 0, wenn du es nicht weißt. Nur für PHG.",
   "settings.antenna_gain.tip2": "Beispiel: 3",
 
   "settings.antenna_direction.label": "Antennenrichtung",
   "settings.antenna_direction.omni": "omni",
-  "settings.antenna_direction.tip1": "omni, wenn sie in alle Richtungen gleich wirkt, sonst die Himmelsrichtung, in die eine Richtantenne zeigt.",
+  "settings.antenna_direction.tip1":
+    "omni, wenn sie in alle Richtungen gleich wirkt, sonst die Himmelsrichtung, in die eine Richtantenne zeigt.",
 
   "settings.transmit.name": "Nur RX",
   "settings.transmit.label": "Nur RX",
@@ -1459,13 +1539,16 @@ export const de: Catalogue = {
   "settings.profile.tip_label": "Welchen Typ wählen",
   "settings.profile.tip1":
     "Ein FM-Funkgerät an einem Digirig, einem SignaLink, einem AIOC oder mit eigenem USB-Ton ist Soundkarte. Die meisten TNCs sind KISS TNC.",
-  "settings.profile.tip2": "Mercury-Modem hören nur Stationen mit Mercury, auf jedem Band, in SSB oder FM. Kein Funkgerät? Nimm einen Dummy.",
+  "settings.profile.tip2":
+    "Mercury-Modem hören nur Stationen mit Mercury, auf jedem Band, in SSB oder FM. Kein Funkgerät? Nimm einen Dummy.",
 
   "settings.port.name": "Port",
   "settings.port.label": "Port",
   "settings.port.tip_label": "Über den Port",
-  "settings.port.tip1": "Die Verbindung zum Funkgerät. Automatisch suchen sucht sie an den USB-Ports und merkt sie sich.",
-  "settings.port.tip2": "Ein USB-Funkgerät ist unter Linux /dev/ttyUSB0, unter Windows COM3. Aktualisieren liest die Liste neu.",
+  "settings.port.tip1":
+    "Die Verbindung zum Funkgerät. Automatisch suchen sucht sie an den USB-Ports und merkt sie sich.",
+  "settings.port.tip2":
+    "Ein USB-Funkgerät ist unter Linux /dev/ttyUSB0, unter Windows COM3. Aktualisieren liest die Liste neu.",
   "settings.port.auto": "automatisch suchen",
   "settings.port.none": "nicht gesetzt",
   "settings.port.unset": "nicht gesetzt",
@@ -1478,7 +1561,8 @@ export const de: Catalogue = {
   "settings.baud.name": "Geschwindigkeit",
   "settings.baud.label": "Geschwindigkeit",
   "settings.baud.tip_label": "Über die Geschwindigkeit",
-  "settings.baud.tip1": "Leer lassen: NeoAPRS nimmt dann die Geschwindigkeit des gewählten Funkgerätetyps, bei den meisten 9600.",
+  "settings.baud.tip1":
+    "Leer lassen: NeoAPRS nimmt dann die Geschwindigkeit des gewählten Funkgerätetyps, bei den meisten 9600.",
   "settings.baud.tip2": "Nur setzen, wenn die Anleitung des TNCs es verlangt, zum Beispiel 57600 für ein NinoTNC.",
 
   "settings.tcp_host.label": "Adresse",
@@ -1492,7 +1576,8 @@ export const de: Catalogue = {
   "settings.board_port.label": "Port",
   "settings.sound_card.label": "Soundkarte",
   "settings.sound_card.tip_label": "Über die Soundkarte",
-  "settings.sound_card.tip1": "Die Soundkarte, über die der Ton des Funkgeräts läuft: ein USB-Codec, ein Digirig oder der USB-Ton des Funkgeräts selbst.",
+  "settings.sound_card.tip1":
+    "Die Soundkarte, über die der Ton des Funkgeräts läuft: ein USB-Codec, ein Digirig oder der USB-Ton des Funkgeräts selbst.",
   "settings.sound_card.tip2":
     "Die Karte des Funkgeräts nennt sich meist USB-Codec. Abstimmen macht die gewählte Karte hörbar; Aktualisieren liest die Liste neu.",
   "settings.keying.label": "Tastung",
@@ -1513,7 +1598,8 @@ export const de: Catalogue = {
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "Über den Empfangspegel",
   "settings.scope.tip1": "Der Balken zeigt den Pegel des Funkaudios, der grüne Teil den guten Bereich.",
-  "settings.scope.tip2": "Zu niedrig: Audioausgang des Funkgeräts oder Eingang der Soundkarte anheben. Rot: absenken, die Soundkarte übersteuert.",
+  "settings.scope.tip2":
+    "Zu niedrig: Audioausgang des Funkgeräts oder Eingang der Soundkarte anheben. Rot: absenken, die Soundkarte übersteuert.",
   "settings.scope.heard": "{call} {db} dB",
   "settings.txlevel.label": "Sendepegel",
   "settings.txlevel.lower": "Sendepegel senken",
@@ -1521,9 +1607,11 @@ export const de: Catalogue = {
   "settings.txlevel.value": "{value} dB",
   "settings.txlevel.peak": "Spitze {value} dBFS",
   "settings.txlevel.tip_label": "Über den Sendepegel",
-  "settings.txlevel.tip1": "Wie stark das Modem-Audio zum Funkgerät geht, in dB. Drücke Abstimmen und stelle es nach der Anzeige des Funkgeräts ein.",
+  "settings.txlevel.tip1":
+    "Wie stark das Modem-Audio zum Funkgerät geht, in dB. Drücke Abstimmen und stelle es nach der Anzeige des Funkgeräts ein.",
   "settings.txlevel.tip2": "Die Spitze wird bei 0 dBFS orange, dort übersteuert die Soundkarte.",
-  "settings.txlevel.card_tip1": "Wie stark das Audio der Soundkarte zum Funkgerät geht. Drücke Abstimmen und stelle es nach der Anzeige des Funkgeräts ein.",
+  "settings.txlevel.card_tip1":
+    "Wie stark das Audio der Soundkarte zum Funkgerät geht. Drücke Abstimmen und stelle es nach der Anzeige des Funkgeräts ein.",
   "settings.cardlevel.value": "{value} %",
   "settings.cardlevel.rx_label": "Eingangspegel der Soundkarte",
   "settings.tune": "Abstimmen",
@@ -1537,11 +1625,13 @@ export const de: Catalogue = {
   "settings.network.name": "Netzwerkzugriff",
   "settings.network.label": "Zugriff aus dem Netzwerk erlauben",
   "settings.network.tip_label": "Über den Netzwerkzugriff",
-  "settings.network.tip1": "Lässt ein Telefon, Tablet oder einen Laptop in deinem Netzwerk diese Seite öffnen. Ohne das kann es nur dieser Computer.",
+  "settings.network.tip1":
+    "Lässt ein Telefon, Tablet oder einen Laptop in deinem Netzwerk diese Seite öffnen. Ohne das kann es nur dieser Computer.",
 
   "settings.access_key.label": "Zugangsschlüssel",
   "settings.access_key.tip_label": "Über den Zugangsschlüssel",
-  "settings.access_key.tip1": "Das Passwort für die anderen Geräte: einmal auf jedem eingeben, dann bleibt es angemeldet.",
+  "settings.access_key.tip1":
+    "Das Passwort für die anderen Geräte: einmal auf jedem eingeben, dann bleibt es angemeldet.",
   "settings.access_key.tip2": "Neuer Schlüssel meldet alle anderen Geräte ab.",
   "settings.new_key": "Neuer Schlüssel",
   "settings.new_key_sure": "sicher?",
@@ -1557,20 +1647,25 @@ export const de: Catalogue = {
   "settings.https.tip1": "Nötig für Benachrichtigungen auf Telefonen und um NeoAPRS als App zu installieren.",
   "settings.https.tip2": "Der Browser warnt beim ersten Mal vor dem Zertifikat: Du kannst trotzdem fortfahren.",
   "settings.https.reason.no_library": "die sichere Verbindung ist in dieser Installation nicht möglich",
-  "settings.https.reason.clock": "die Uhr dieses Computers ist nicht gestellt; die sichere Verbindung startet, sobald sie es ist",
-  "settings.https.reason.certificates": "die Zertifikate der sicheren Verbindung ließen sich nicht erstellen oder lesen",
+  "settings.https.reason.clock":
+    "die Uhr dieses Computers ist nicht gestellt; die sichere Verbindung startet, sobald sie es ist",
+  "settings.https.reason.certificates":
+    "die Zertifikate der sicheren Verbindung ließen sich nicht erstellen oder lesen",
   "settings.https.reason.no_port": "die sichere Seite kann an keinem Port lauschen: keiner ist frei",
 
   "settings.radius.name": "Kartenradius",
   "settings.station_hours.name": "Zeit auf der Karte",
   "settings.radius.label": "Radius",
   "settings.radius.tip_label": "Über den Radius",
-  "settings.radius.tip1": "Wie weit von deiner Station die Detailkarte mit Straßen und Namen reicht. Die Weltkarte ist immer da.",
-  "settings.radius.tip2": "Ein größerer Radius ist ein größerer Download: 150 km sind eine Region, 300 km eine große Region.",
+  "settings.radius.tip1":
+    "Wie weit von deiner Station die Detailkarte mit Straßen und Namen reicht. Die Weltkarte ist immer da.",
+  "settings.radius.tip2":
+    "Ein größerer Radius ist ein größerer Download: 150 km sind eine Region, 300 km eine große Region.",
 
   "settings.digipeater.name": "Digipeater",
   "settings.digipeater.tip_label": "Was der Digipeater tut",
-  "settings.digipeater.tip1": "Wiederholt Pakete naher Stationen, die keinen Digipeater erreichen: WIDE1-1 oder über dein Rufzeichen.",
+  "settings.digipeater.tip1":
+    "Wiederholt Pakete naher Stationen, die keinen Digipeater erreichen: WIDE1-1 oder über dein Rufzeichen.",
   "settings.digipeater.tip2": "Ausgeschaltet lassen, außer du bist an einem Ort mit schlechter Abdeckung.",
 
   "settings.igate.name": "Internet-Stationen",
@@ -1583,7 +1678,8 @@ export const de: Catalogue = {
   "settings.igate.line.no_server": "Nicht verbunden: kein Server festgelegt",
   "settings.igate.line.no_call": "Nicht verbunden: lege zuerst dein Rufzeichen fest",
   "settings.igate.line.unreachable": "Nicht verbunden: der Server ist nicht erreichbar",
-  "settings.igate.line.offline": "Nicht verbunden: der Name des Servers lässt sich nicht auflösen; gibt es eine Verbindung?",
+  "settings.igate.line.offline":
+    "Nicht verbunden: der Name des Servers lässt sich nicht auflösen; gibt es eine Verbindung?",
   "settings.igate.line.not_server": "Nicht verbunden: der Server hat nicht wie ein APRS-IS-Server geantwortet",
   "settings.igate.line.lost": "Nicht verbunden: die Verbindung wurde beendet",
   "settings.igate.line.receiving": {
@@ -1595,10 +1691,12 @@ export const de: Catalogue = {
   "settings.igate.fold.filter": "Filter: Stationen im Umkreis von {km} km um deine Position",
   "settings.igate.fold.named": "{name} ({server})",
 
-  "settings.alert.tip1": "Bei eingeschaltetem „Benachrichtigen“ wird der Befehl ausgeführt, wenn eine Nachricht ankommt.",
+  "settings.alert.tip1":
+    "Bei eingeschaltetem „Benachrichtigen“ wird der Befehl ausgeführt, wenn eine Nachricht ankommt.",
   "settings.alert_command.name": "Alarmbefehl",
   "settings.alert_command.label": "Befehl",
-  "settings.alert_command.tip1": "Läuft für jede neue Nachricht und Stationsbenachrichtigung; NEOAPRS_TITLE und NEOAPRS_TEXT enthalten Titel und Text.",
+  "settings.alert_command.tip1":
+    "Läuft für jede neue Nachricht und Stationsbenachrichtigung; NEOAPRS_TITLE und NEOAPRS_TEXT enthalten Titel und Text.",
   "settings.alert_test": "Test",
   "settings.alert_test.ran": "Der Benachrichtigungsbefehl ist gelaufen",
   "settings.alert_test.exit": "Der Benachrichtigungsbefehl endete mit dem Exit-Code {status}",
@@ -1610,10 +1708,14 @@ export const de: Catalogue = {
   "settings.alerts.title": "Der eigene Alarm von NeoAPRS: der Befehl, der am NeoAPRS-Computer läuft",
   "settings.alerts.title_app": "Der eigene Alarm von NeoAPRS: der Befehl, der auf diesem Computer läuft",
   "settings.alerts.tip_label": "Über Benachrichtigungen",
-  "settings.alerts.tip1": "Der Alarm des NeoAPRS-Computers: Er führt für jede neue Nachricht den Befehl aus, standardmäßig ein Ton und eine Benachrichtigung.",
-  "settings.alerts.tip1_app": "Der Alarm dieses Computers: Er führt für jede neue Nachricht den Befehl aus, standardmäßig ein Ton und eine Benachrichtigung.",
-  "settings.alerts.tip2": "Die nächste Gruppe ist dieser Browser. Nimm eines von beiden, oder beide, um doppelt gewarnt zu werden.",
-  "settings.alerts.tip2_app": "Die nächste Gruppe ist dieses Fenster. Nimm eines von beiden, oder beide, um doppelt gewarnt zu werden.",
+  "settings.alerts.tip1":
+    "Der Alarm des NeoAPRS-Computers: Er führt für jede neue Nachricht den Befehl aus, standardmäßig ein Ton und eine Benachrichtigung.",
+  "settings.alerts.tip1_app":
+    "Der Alarm dieses Computers: Er führt für jede neue Nachricht den Befehl aus, standardmäßig ein Ton und eine Benachrichtigung.",
+  "settings.alerts.tip2":
+    "Die nächste Gruppe ist dieser Browser. Nimm eines von beiden, oder beide, um doppelt gewarnt zu werden.",
+  "settings.alerts.tip2_app":
+    "Die nächste Gruppe ist dieses Fenster. Nimm eines von beiden, oder beide, um doppelt gewarnt zu werden.",
   "settings.encrypt.tip_label": "Über verschlüsselte Nachrichten",
   "settings.encrypt.tip1":
     "Eine Nachricht an eine Station, deren Schlüssel du hast, lässt sich verschließen: Nur diese liest sie. Nichts wird von selbst verschlüsselt.",
@@ -1624,7 +1726,8 @@ export const de: Catalogue = {
   "settings.browser.heading": "In diesem Browser",
   "settings.browser.heading_app": "In diesem Fenster",
   "settings.browser.mode": "Benachrichtigen",
-  "settings.browser.mode_tip": "Meldet eine neue Nachricht in diesem Browser, mit Ton oder Benachrichtigung. Jedes Gerät wählt für sich.",
+  "settings.browser.mode_tip":
+    "Meldet eine neue Nachricht in diesem Browser, mit Ton oder Benachrichtigung. Jedes Gerät wählt für sich.",
   "settings.browser.mode_tip_app": "Meldet eine neue Nachricht in diesem Fenster, mit Ton. Jedes Gerät wählt für sich.",
   "settings.browser.enable_popups": "Benachrichtigungen aktivieren…",
   "settings.browser.sound": "Ton",
@@ -1659,7 +1762,8 @@ export const de: Catalogue = {
   "settings.status_interval.tip1": "Die Zeit zwischen zwei Status.",
   "settings.status_template.name": "Statusvorlage",
   "settings.status_template.label": "Text",
-  "settings.status_template.tip1": "{{freq}} wird zur Frequenz des Funkgeräts und {{mode}} zur Betriebsart. Bis zu {max} Zeichen nach dem Einsetzen.",
+  "settings.status_template.tip1":
+    "{{freq}} wird zur Frequenz des Funkgeräts und {{mode}} zur Betriebsart. Bis zu {max} Zeichen nach dem Einsetzen.",
   "settings.status_template.tip2": "Beispiel: QRV {{freq}} {{mode}} ergibt QRV 14.074 MHz USB",
 
   "settings.beacon_interval.name": "Bakenintervall",
@@ -1677,7 +1781,8 @@ export const de: Catalogue = {
   "settings.path.direct": "Nur direkt (keine Digipeater)",
   "settings.path.custom": "Eigener…",
   "settings.path.custom_label": "Digipeater",
-  "settings.path.tip1": "Empfohlen ist WIDE1-1,WIDE2-1 für eine bewegte Station und WIDE2-2 für eine feste, je nach deinem Symbol.",
+  "settings.path.tip1":
+    "Empfohlen ist WIDE1-1,WIDE2-1 für eine bewegte Station und WIDE2-2 für eine feste, je nach deinem Symbol.",
   "settings.path.tip2": "Nur direkt, wenn alle, mit denen du sprichst, dich direkt hören.",
 
   "settings.confirm.label": "Bestätigen",
@@ -1732,16 +1837,23 @@ export const de: Catalogue = {
   "settings.tnc.keyed": "Getastet",
   "settings.tnc.listening": "Hört zu",
   "settings.tnc.snr": "SNR {db} dB",
-  "settings.tnc.dummy_hf": "Dummy-Mercury-Funkgerät: erfundene ferne Stationen, deine Rahmen über die Lautsprecher, nichts geht auf Sendung",
+  "settings.tnc.dummy_hf":
+    "Dummy-Mercury-Funkgerät: erfundene ferne Stationen, deine Rahmen über die Lautsprecher, nichts geht auf Sendung",
   "settings.tnc.no_packet": "Noch kein Paket",
   "settings.tnc.last_packet": "Letztes Paket vor {span}",
   "settings.digi.on": "an",
   "settings.digi.off": "aus",
   "settings.digi.line.none": "Noch nichts weitergeleitet",
-  "settings.digi.line.count": { one: "{n} Paket weitergeleitet · zuletzt vor {span}", other: "{n} Pakete weitergeleitet · zuletzt vor {span}" },
+  "settings.digi.line.count": {
+    one: "{n} Paket weitergeleitet · zuletzt vor {span}",
+    other: "{n} Pakete weitergeleitet · zuletzt vor {span}",
+  },
   "settings.digi.line.rx_only": "Nur RX: nichts wird weitergeleitet",
   "settings.digi.fold.since": "Gezählt seit {when}",
-  "settings.digi.fold.held": { one: "{n} Frame zurückgehalten: zu viele auf einmal", other: "{n} Frames zurückgehalten: zu viele auf einmal" },
+  "settings.digi.fold.held": {
+    one: "{n} Frame zurückgehalten: zu viele auf einmal",
+    other: "{n} Frames zurückgehalten: zu viele auf einmal",
+  },
   "settings.pair.legend": "{first} und {second}",
   "settings.pair.name": "Funkgerätepaar",
   "settings.pair.call": "Rufzeichen",
@@ -1750,7 +1862,10 @@ export const de: Catalogue = {
     "Sendet ein gehörtes Paket einmal auf dem anderen Funkgerät aus, wenn sein Pfad dieses Rufzeichen nennt. Gib es Stationen, die hinüber wollen.",
   "settings.pair.tip2": "Ein WIDE-Pfad allein geht nie hinüber.",
   "settings.pair.fold.each_way": "{n} auf {first} · {m} auf {second}",
-  "settings.pair.fold.held": { one: "{n} Frame zurückgehalten: zu viele für {radio}", other: "{n} Frames zurückgehalten: zu viele für {radio}" },
+  "settings.pair.fold.held": {
+    one: "{n} Frame zurückgehalten: zu viele für {radio}",
+    other: "{n} Frames zurückgehalten: zu viele für {radio}",
+  },
   "settings.pair.fold.too_long": { one: "{n} Frame zu lang für {radio}", other: "{n} Frames zu lang für {radio}" },
   "settings.tnc.searching": "Suche das Funkgerät…",
   "settings.tnc.connecting": "Verbinde…",
@@ -1805,7 +1920,10 @@ export const de: Catalogue = {
   "layers.receiver.state.no_answer": "keine Antwort",
   "layers.receiver.line.looking": "Suche den Empfänger",
   "layers.receiver.line.no_answer": "Keine Antwort vom Empfänger",
-  "layers.receiver.line.aircraft": { one: "Empfang: {n} Flugzeug, vor {span}", other: "Empfang: {n} Flugzeuge, vor {span}" },
+  "layers.receiver.line.aircraft": {
+    one: "Empfang: {n} Flugzeug, vor {span}",
+    other: "Empfang: {n} Flugzeuge, vor {span}",
+  },
   "layers.receiver.line.aircraft_none": "Empfang, noch kein Flugzeug",
   "layers.receiver.line.ships": { one: "Empfang: {n} Schiff, vor {span}", other: "Empfang: {n} Schiffe, vor {span}" },
   "layers.receiver.line.ships_none": "Verbunden, noch kein Schiff gehört",
@@ -1819,11 +1937,13 @@ export const de: Catalogue = {
   "settings.map.step_percent": "{step} {percent} %",
   "settings.map.downloaded": "Karte heruntergeladen",
   "settings.map.downloaded_on": "Karte heruntergeladen am {day} {month}",
-  "settings.map.problem.no_position": "die Station hat noch keine Position: lege Breite und Länge fest (die Karte wird um sie herum geschnitten)",
+  "settings.map.problem.no_position":
+    "die Station hat noch keine Position: lege Breite und Länge fest (die Karte wird um sie herum geschnitten)",
   "settings.map.problem.busy": "ein Kartenauftrag läuft",
   "settings.map.problem.slow": "der Kartenserver ist gerade zu langsam; versuche es später noch einmal",
   "settings.map.problem.unreachable": "der Kartenserver war nicht erreichbar; gibt es eine Verbindung?",
-  "settings.map.problem.no_build": "in den letzten {days} Tagen wurde kein täglicher Stand der Karte gefunden (gibt es eine Verbindung?)",
+  "settings.map.problem.no_build":
+    "in den letzten {days} Tagen wurde kein täglicher Stand der Karte gefunden (gibt es eine Verbindung?)",
   "settings.map.problem.too_big": "die Karte wäre {size} MB groß, mehr als die erlaubten {max} MB",
   "settings.map.problem.no_space": "die Karte ließ sich nicht erstellen: der Datenträger ist voll",
   "settings.map.problem.failed": "die Karte ließ sich nicht erstellen; das Protokoll sagt, warum",
@@ -1836,34 +1956,40 @@ export const de: Catalogue = {
   "settings.map.cancel": "Abbrechen",
   "settings.map.detail_label": "Detailkarte",
   "settings.map.tip_label": "Zum Herunterladen der Karte",
-  "settings.map.tip1": "Lädt Straßen und Namen für den Radius oben herunter, einmalig. Die Karte bleibt auf diesem Computer.",
+  "settings.map.tip1":
+    "Lädt Straßen und Namen für den Radius oben herunter, einmalig. Die Karte bleibt auf diesem Computer.",
 
   "settings.position.name": "Positionsquelle",
   "settings.position.label": "Position",
   "settings.position.fixed": "Fest",
   "settings.position.gpsd": "Ein GPS über gpsd",
   "settings.position.serial": "Ein GPS an einem seriellen Port",
-  "settings.position.tip1": "Fest: Die Station bleibt am Ort unten. Ein GPS: Position, Kurs und Geschwindigkeit kommen vom Empfänger.",
-  "settings.position.tip2": "gpsd ist der GPS-Dienst von Linux. Ohne frischen Fix wird nichts gesendet, nie die Heimatposition.",
+  "settings.position.tip1":
+    "Fest: Die Station bleibt am Ort unten. Ein GPS: Position, Kurs und Geschwindigkeit kommen vom Empfänger.",
+  "settings.position.tip2":
+    "gpsd ist der GPS-Dienst von Linux. Ohne frischen Fix wird nichts gesendet, nie die Heimatposition.",
   "settings.gps_host.label": "gpsd-Adresse",
   "settings.gps_host.tip1": "Wo gpsd lauscht, als Host:Port; unverändert lassen, wenn gpsd auf diesem Computer läuft.",
   "settings.gps_device.label": "GPS-Port",
   "settings.gps_device.tip1": "Der Anschluss des GPS-Empfängers: /dev/ttyUSB1 unter Linux, COM4 unter Windows.",
   "settings.gps_device.tip2": "Halte ihn getrennt vom Port des Funkgeräts: Ein Gerät kann nicht beides sein.",
   "settings.gps_baud.label": "GPS-Geschwindigkeit",
-  "settings.gps_baud.tip1": "Die Geschwindigkeit des Empfängers: bei den meisten 4800 oder 9600. Eine falsche zeigt sich als kein Fix.",
+  "settings.gps_baud.tip1":
+    "Die Geschwindigkeit des Empfängers: bei den meisten 4800 oder 9600. Eine falsche zeigt sich als kein Fix.",
   "settings.travel.label": "Unterwegs",
   "settings.travel.car": "Mit dem Auto",
   "settings.travel.bicycle": "Mit dem Fahrrad",
   "settings.travel.foot": "Zu Fuß",
   "settings.travel.boat": "Mit dem Boot",
-  "settings.travel.tip1": "Legt fest, wie oft und bei welchen Kurven die Bake gesendet wird: Ein Auto sendet bei Tempo öfter als ein Fußgänger.",
+  "settings.travel.tip1":
+    "Legt fest, wie oft und bei welchen Kurven die Bake gesendet wird: Ein Auto sendet bei Tempo öfter als ein Fußgänger.",
 
   "settings.update.group": "Update-Prüfung",
   "settings.update.label": "Neue Version",
   "settings.update.check": "Jetzt prüfen",
   "settings.update.tip_label": "Über die Update-Prüfung",
-  "settings.update.tip": "Einmal am Tag fragt NeoAPRS, ob eine neuere Version erschienen ist, und zeigt oben die Markierung Update.",
+  "settings.update.tip":
+    "Einmal am Tag fragt NeoAPRS, ob eine neuere Version erschienen ist, und zeigt oben die Markierung Update.",
   "settings.update.available": "{version} verfügbar",
   "settings.update.current": "aktuell",
   "settings.update.checking": "prüfe…",
@@ -1880,10 +2006,12 @@ export const de: Catalogue = {
   "settings.help.send": "Feedback / Protokolle senden",
   "settings.help.sending": "Sende…",
   "settings.help.tip_label": "Zu den Protokollen",
-  "settings.help.tip": "Das Protokoll, die Einstellungen, die empfangenen und gesendeten Pakete. Als Datei speichern oder ans Projekt senden.",
+  "settings.help.tip":
+    "Das Protokoll, die Einstellungen, die empfangenen und gesendeten Pakete. Als Datei speichern oder ans Projekt senden.",
   "settings.help.saved": "Gespeichert: {file}.",
   "settings.help.sent": "Gesendet. Referenz {ref}.",
-  "settings.help.problem.access": "Kein Zugriff: Lade die Seite neu, gib den Zugangsschlüssel ein und versuche es noch einmal.",
+  "settings.help.problem.access":
+    "Kein Zugriff: Lade die Seite neu, gib den Zugangsschlüssel ein und versuche es noch einmal.",
   "settings.help.problem.busy": "Es wird gerade eine andere Datei erstellt. Versuche es in einer Minute noch einmal.",
   "settings.help.problem.unreachable": "NeoAPRS ist nicht erreichbar.",
   "settings.help.problem.failed": "Die Datei konnte nicht erstellt werden (Fehler {status}).",
@@ -1900,7 +2028,8 @@ export const de: Catalogue = {
   "settings.help.dialog.send": "Senden",
   "settings.help.dialog.cancel": "Abbrechen",
   "settings.about.group": "Info",
-  "settings.about.intro": "NeoAPRS {version}, ein APRS-Programm für deine Funkgeräte: FM, Mercury und LoRa. Von {call}, {year}.",
+  "settings.about.intro":
+    "NeoAPRS {version}, ein APRS-Programm für deine Funkgeräte: FM, Mercury und LoRa. Von {call}, {year}.",
   "settings.about.license": "Freie Software unter der {license}, Version 3 oder später.",
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Quellcode",
@@ -1947,7 +2076,8 @@ export const de: Catalogue = {
   "beacon.rigctld_on": "rigctld ein",
   "beacon.rigctld_off": "rigctld aus",
   "beacon.about_label": "Über den Reiter Meine Station",
-  "beacon.about1": "Die Bake ist deine Position, die immer wieder gesendet wird, damit andere Stationen dich auf der Karte sehen.",
+  "beacon.about1":
+    "Die Bake ist deine Position, die immer wieder gesendet wird, damit andere Stationen dich auf der Karte sehen.",
   "beacon.about2": "Hier stellst du ein, wer du bist, wo, und was die Bake sagt.",
 
   "gps.label": "GPS",
@@ -2019,29 +2149,42 @@ export const de: Catalogue = {
   "help.me": "Diese Station",
   "help.picture.object":
     "Eine Karte mit deiner Auto-Station und zwei Objekten, die du sendest, einem Relais mit seiner Frequenz und einem Treffpunkt; beide erscheinen auf den Karten zweier anderer Stationen.",
-  "help.picture.bulletin": "Eine Station sendet ein Bulletin, BLN1, und dieselbe Nachricht erscheint auf der Tafel von drei anderen Stationen.",
+  "help.picture.bulletin":
+    "Eine Station sendet ein Bulletin, BLN1, und dieselbe Nachricht erscheint auf der Tafel von drei anderen Stationen.",
   "help.picture.bulletingroup":
     "Eine Station sendet ein Gruppenbulletin, BLN3HAMS, an drei Stationen: die zwei, die die Gruppe HAMS zeigen, stellen es auf ihre Tafel, die dritte hat andere Gruppen gewählt, hört es und zeigt nichts.",
-  "help.picture.beacon": "Deine Station sendet ihre Position immer wieder, mit einer Uhr zwischen den Baken, und erscheint auf der Karte der anderen.",
+  "help.picture.beacon":
+    "Deine Station sendet ihre Position immer wieder, mit einer Uhr zwischen den Baken, und erscheint auf der Karte der anderen.",
   "help.picture.path":
     "Dein Paket geht von deinem Auto zu einem Fill-in-Digipeater, WIDE1-1, dann zu einem Weitbereichs-Digipeater, WIDE2-1: zwei Hops, bevor die anderen Stationen es hören.",
-  "help.picture.status": "Dein kurzer Statustext, QRV 145.500, erscheint auf der Karte der anderen Stationen unter deinem Rufzeichen.",
-  "help.picture.range": "Ein Digipeater mit seinem Reichweitenkreis: Die Stationen im Kreis werden über ihn gehört, die außerhalb nicht.",
-  "help.picture.request": "Eine Station fragt nach Ortsinfo, und deine Station antwortet mit dem Objekt, das sonst nicht gesendet wird.",
-  "help.picture.ssid": "Ein Rufzeichen, YOURCALL, für drei Stationen: das einfache ein Haus, -9 ein Auto, -10 ein iGate.",
-  "help.picture.symbol": "Eine Auswahl von Symbolen, das Auto ist gewählt, und das Auto auf der Karte einer anderen Station unter deinem Rufzeichen.",
+  "help.picture.status":
+    "Dein kurzer Statustext, QRV 145.500, erscheint auf der Karte der anderen Stationen unter deinem Rufzeichen.",
+  "help.picture.range":
+    "Ein Digipeater mit seinem Reichweitenkreis: Die Stationen im Kreis werden über ihn gehört, die außerhalb nicht.",
+  "help.picture.request":
+    "Eine Station fragt nach Ortsinfo, und deine Station antwortet mit dem Objekt, das sonst nicht gesendet wird.",
+  "help.picture.ssid":
+    "Ein Rufzeichen, YOURCALL, für drei Stationen: das einfache ein Haus, -9 ein Auto, -10 ein iGate.",
+  "help.picture.symbol":
+    "Eine Auswahl von Symbolen, das Auto ist gewählt, und das Auto auf der Karte einer anderen Station unter deinem Rufzeichen.",
   "help.picture.network":
     "Der Computer, auf dem NeoAPRS läuft, ist über das Netzwerk mit einem Telefon, einem Tablet und einem Laptop verbunden, die seine Seite öffnen.",
   "help.picture.accesskey": "Ein Schlüssel, einmal auf einem Telefon eingegeben, danach bleibt es angemeldet.",
-  "help.picture.igate": "Das Paket eines Autos geht per Funk zu einem iGate, das es ins Internet, APRS-IS, weitergibt, und auch zurück.",
-  "help.picture.radius": "Eine Karte mit der Station in der Mitte: Die Detailkarte reicht bis zum Kreis um sie, die Weltkarte für den Rest.",
-  "help.picture.position": "Eine feste Station, die an ihrem Platz bleibt, und eine Station mit GPS, die sich bewegt, mit ihren Baken entlang der Strecke.",
-  "help.picture.digipeater": "Ein Auto, das den Weitbereichs-Digipeater nicht direkt erreicht, wird von deiner Station wiederholt, die sein Paket weitergibt.",
+  "help.picture.igate":
+    "Das Paket eines Autos geht per Funk zu einem iGate, das es ins Internet, APRS-IS, weitergibt, und auch zurück.",
+  "help.picture.radius":
+    "Eine Karte mit der Station in der Mitte: Die Detailkarte reicht bis zum Kreis um sie, die Weltkarte für den Rest.",
+  "help.picture.position":
+    "Eine feste Station, die an ihrem Platz bleibt, und eine Station mit GPS, die sich bewegt, mit ihren Baken entlang der Strecke.",
+  "help.picture.digipeater":
+    "Ein Auto, das den Weitbereichs-Digipeater nicht direkt erreicht, wird von deiner Station wiederholt, die sein Paket weitergibt.",
   "help.picture.logs": "Eine Protokolldatei, die als Anhang in einer E-Mail verschickt wird.",
-  "help.picture.transmit": "Die eigene Station hört die anderen (Pfeil hinein), während nichts hinausgeht: Der gestrichelte Pfeil ist durchgestrichen.",
+  "help.picture.transmit":
+    "Die eigene Station hört die anderen (Pfeil hinein), während nichts hinausgeht: Der gestrichelte Pfeil ist durchgestrichen.",
   "help.picture.beaconoff":
     "Bei ausgeschalteter Bake sendet die Uhr nichts, die Baken auf der Zeitleiste sind leer; ein Druck auf die Taste sendet trotzdem eine.",
-  "help.picture.internet": "Stationen, die APRS-IS im Radius der Karte hat, kommen aus der Wolke auf deine Karte, nur in eine Richtung; nichts geht zurück.",
+  "help.picture.internet":
+    "Stationen, die APRS-IS im Radius der Karte hat, kommen aus der Wolke auf deine Karte, nur in eine Richtung; nichts geht zurück.",
   "help.picture.channels":
     "Eine über Funk gehörte Station, mit Wellen, trägt das Schild des Funkgeräts, das sie gehört hat, FM; eine aus der Wolke, APRS-IS, hat einen gepunkteten Rand und ein eigenes Schild.",
   "help.picture.mercury":
@@ -2078,26 +2221,33 @@ export const de: Catalogue = {
   "help.cert.android3": "Die sichere Seite noch einmal öffnen.",
   "help.cert.ios1": "Diese Seite in Safari öffnen, „Zertifikat herunterladen“ und „Zulassen“ antippen.",
   "help.cert.ios2": "Einstellungen → Profil geladen → Installieren öffnen.",
-  "help.cert.ios3": "Einstellungen → Allgemein → Info → Zertifikatsvertrauenseinstellungen öffnen und „NeoAPRS local CA“ einschalten.",
+  "help.cert.ios3":
+    "Einstellungen → Allgemein → Info → Zertifikatsvertrauenseinstellungen öffnen und „NeoAPRS local CA“ einschalten.",
   "help.cert.windows1": "{file} öffnen → Zertifikat installieren → Aktueller Benutzer oder Lokaler Computer → Weiter.",
   "help.cert.windows2":
     "„Alle Zertifikate in folgendem Speicher speichern“ wählen → Durchsuchen → Vertrauenswürdige Stammzertifizierungsstellen → Weiter → Fertig stellen.",
   "help.cert.windows3": "Den Browser neu starten.",
-  "help.cert.mac1": "Schlüsselbundverwaltung öffnen und {file} in den Schlüsselbund „System“ importieren (Ablage → Objekte importieren).",
+  "help.cert.mac1":
+    "Schlüsselbundverwaltung öffnen und {file} in den Schlüsselbund „System“ importieren (Ablage → Objekte importieren).",
   "help.cert.mac2": "„NeoAPRS local CA“ doppelklicken, „Vertrauen“ öffnen und „Immer vertrauen“ wählen.",
   "help.cert.mac3": "Den Browser neu starten.",
-  "help.cert.linux1": "Einstellungen → Datenschutz & Sicherheit → Sicherheit → Zertifikate verwalten → Zertifizierungsstellen öffnen.",
-  "help.cert.linux2": "„Importieren“ klicken, {file} wählen und „Diesem Zertifikat zur Identifizierung von Websites vertrauen“ ankreuzen.",
+  "help.cert.linux1":
+    "Einstellungen → Datenschutz & Sicherheit → Sicherheit → Zertifikate verwalten → Zertifizierungsstellen öffnen.",
+  "help.cert.linux2":
+    "„Importieren“ klicken, {file} wählen und „Diesem Zertifikat zur Identifizierung von Websites vertrauen“ ankreuzen.",
   "help.cert.linux3": "Den Browser neu starten.",
-  "help.cert.firefox1": "Einstellungen → Datenschutz & Sicherheit → Zertifikate → Zertifikate anzeigen → Zertifizierungsstellen öffnen.",
-  "help.cert.firefox2": "„Importieren“ klicken, {file} wählen und „Dieser CA vertrauen, um Websites zu identifizieren“ ankreuzen.",
+  "help.cert.firefox1":
+    "Einstellungen → Datenschutz & Sicherheit → Zertifikate → Zertifikate anzeigen → Zertifizierungsstellen öffnen.",
+  "help.cert.firefox2":
+    "„Importieren“ klicken, {file} wählen und „Dieser CA vertrauen, um Websites zu identifizieren“ ankreuzen.",
 
   "help.popup.title": "Benachrichtigungen aktivieren",
   "help.popup.title_in": "Benachrichtigungen in {browser} aktivieren",
   "help.popup.secure_page": "Die sichere Seite öffnen: {link}",
   "help.popup.remove_warning": "Die Warnung des Browsers entfernen",
   "help.popup.keep_http": "Oder bei http bleiben",
-  "help.popup.firefox1": "Einen neuen Tab öffnen, {config} eingeben und die Eingabetaste drücken, dann „Risiko akzeptieren und fortfahren“ klicken.",
+  "help.popup.firefox1":
+    "Einen neuen Tab öffnen, {config} eingeben und die Eingabetaste drücken, dann „Risiko akzeptieren und fortfahren“ klicken.",
   "help.popup.firefox2": "Nach {key} suchen.",
   "help.popup.firefox3a": "Gibt es sie nicht, „String“ wählen und „+“ klicken. Dies eintragen und das Häkchen klicken:",
   "help.popup.firefox3b": "Steht dort schon Text, ein Komma und dies am Ende anfügen.",
@@ -2106,11 +2256,13 @@ export const de: Catalogue = {
   "help.popup.chromium3": "Unten „Relaunch“ klicken.",
   "help.popup.back": "Hierher zurückkommen und {reload}",
   "help.popup.reload": "neu laden",
-  "help.popup.phone": "Handys zeigen Benachrichtigungen nur für https-Seiten, und diese Seite ist keine. Der Ton und der Tab-Alarm funktionieren hier.",
+  "help.popup.phone":
+    "Handys zeigen Benachrichtigungen nur für https-Seiten, und diese Seite ist keine. Der Ton und der Tab-Alarm funktionieren hier.",
   "help.popup.other":
     "Dieser Browser kann Benachrichtigungen für diese Adresse nicht erlauben. Der Ton und der Tab-Alarm funktionieren hier. Firefox, Chrome und Edge auf einem Computer können sie erlauben.",
   "help.popup.still": "Wenn die Benachrichtigung immer noch nicht erscheint",
-  "help.popup.flatpak": "Firefox als Flatpak (KDE) braucht diese beiden Befehle in einem Terminal und danach einen Neustart von Firefox:",
+  "help.popup.flatpak":
+    "Firefox als Flatpak (KDE) braucht diese beiden Befehle in einem Terminal und danach einen Neustart von Firefox:",
 
   "help.update.title": "NeoAPRS {version} ist verfügbar",
   "help.update.installed": "Du hast NeoAPRS {version}",
@@ -2131,11 +2283,15 @@ export const de: Catalogue = {
   "help.update.restarting": "NeoAPRS startet gleich neu",
   "help.update.restarting_installer": "Wird installiert … NeoAPRS startet gleich neu",
   "help.update.reconnecting": "NeoAPRS startet neu",
-  "help.update.problem.download": "Das Update konnte nicht heruntergeladen werden. Versuche es noch einmal oder lade es von der Projektseite herunter.",
-  "help.update.problem.unverified": "Dieses Update konnte nicht geprüft werden, darum wurde nichts installiert. Lade es von der Projektseite herunter.",
-  "help.update.problem.checksum": "Der Download ist nicht die Datei des Release; er wurde gelöscht und nichts wurde installiert. Versuche es noch einmal.",
+  "help.update.problem.download":
+    "Das Update konnte nicht heruntergeladen werden. Versuche es noch einmal oder lade es von der Projektseite herunter.",
+  "help.update.problem.unverified":
+    "Dieses Update konnte nicht geprüft werden, darum wurde nichts installiert. Lade es von der Projektseite herunter.",
+  "help.update.problem.checksum":
+    "Der Download ist nicht die Datei des Release; er wurde gelöscht und nichts wurde installiert. Versuche es noch einmal.",
   "help.update.problem.install": "Das Update konnte nicht installiert werden. Aktualisiere von Hand.",
-  "help.update.problem.no_restart": "Das Update ist installiert, aber NeoAPRS ist nicht neu gestartet. Beende NeoAPRS und starte es neu.",
+  "help.update.problem.no_restart":
+    "Das Update ist installiert, aber NeoAPRS ist nicht neu gestartet. Beende NeoAPRS und starte es neu.",
   "help.update.by_hand": "Oder von Hand aktualisieren",
   "help.update.steps": "So aktualisierst du",
   "help.update.restart_service": "Den Dienst neu starten",
@@ -2153,7 +2309,8 @@ export const de: Catalogue = {
   "help.update.deb.install": "Im Ordner installieren, in den du es geladen hast (es fragt nach deinem Passwort)",
   "help.update.deb.service": "Der Dienst startet von selbst neu. Zeigt er noch die alte Version:",
   "help.update.macos.download": "Die neue App herunterladen",
-  "help.update.macos.replace": "NeoAPRS beenden, den Download öffnen und NeoAPRS anstelle der alten App in den Ordner Programme ziehen",
+  "help.update.macos.replace":
+    "NeoAPRS beenden, den Download öffnen und NeoAPRS anstelle der alten App in den Ordner Programme ziehen",
   "help.update.macos.start": "NeoAPRS wieder aus dem Ordner Programme starten",
   "help.update.source.pull": "Im Ordner des Klons",
   "help.update.source.sync": "Die Umgebung auf den neuesten Stand bringen",
@@ -2161,15 +2318,19 @@ export const de: Catalogue = {
 
   // nearby
   "nearby.digipeaters": "Digipeater",
-  "nearby.digipeaters_help": "Stationen, die von uns gehörte Pakete wiederholt haben, und Stationen mit Digipeater-Symbol.",
+  "nearby.digipeaters_help":
+    "Stationen, die von uns gehörte Pakete wiederholt haben, und Stationen mit Digipeater-Symbol.",
   "nearby.digipeaters_tip_label": "Über die Reichweite",
-  "nearby.digipeaters_tip": "Ein Digipeater wiederholt, was er hört. Stationen im Kreis erreichen ihn, Stationen außerhalb nicht.",
+  "nearby.digipeaters_tip":
+    "Ein Digipeater wiederholt, was er hört. Stationen im Kreis erreichen ihn, Stationen außerhalb nicht.",
   "nearby.voice": "Sprechfunk-Frequenzen",
   "nearby.voice_help": "Stationen, Objekte und Items, die eine Frequenz zum Anrufen angegeben haben.",
   "nearby.igates": "iGates",
-  "nearby.igates_help": "Stationen, die Pakete aus dem Internet auf die Funkstrecke gesetzt haben, sich als iGate gemeldet haben oder das iGate-Symbol tragen.",
+  "nearby.igates_help":
+    "Stationen, die Pakete aus dem Internet auf die Funkstrecke gesetzt haben, sich als iGate gemeldet haben oder das iGate-Symbol tragen.",
   "nearby.igates_tip_label": "Über iGates",
-  "nearby.igates_tip": "Ein iGate reicht Pakete zwischen Funk und Internet weiter, damit auch ferne Stationen dich sehen.",
+  "nearby.igates_tip":
+    "Ein iGate reicht Pakete zwischen Funk und Internet weiter, damit auch ferne Stationen dich sehen.",
   "nearby.direct": "Direkt gehört",
   "nearby.direct_help": "Stationen, die ohne Digipeater dazwischen gehört wurden: die in Simplex-Reichweite.",
   "nearby.none_yet": "noch keine",
@@ -2180,13 +2341,17 @@ export const de: Catalogue = {
   "nearby.range_phg": "PHG-Reichweite {km} km",
   "nearby.range": "Reichweite {km} km",
   "nearby.reported_by": "gemeldet von {call}",
-  "nearby.gated": { one: "{n} Paket aus dem Internet weitergeleitet", other: "{n} Pakete aus dem Internet weitergeleitet" },
+  "nearby.gated": {
+    one: "{n} Paket aus dem Internet weitergeleitet",
+    other: "{n} Pakete aus dem Internet weitergeleitet",
+  },
   "nearby.igate_says": "meldet sich als iGate",
   "nearby.igate_symbol": "iGate-Symbol",
   "nearby.direct_last": "zuletzt direkt gehört {when}",
   "nearby.ask": "Rundfrage",
   "nearby.ask_tip_label": "Über die Rundfrage",
-  "nearby.ask_tip": "Sendet eine Abfrage per Funk. Stationen antworten mit ihrer Position, iGates mit ihren Fähigkeiten, Wetterstationen mit ihrem Wetter.",
+  "nearby.ask_tip":
+    "Sendet eine Abfrage per Funk. Stationen antworten mit ihrer Position, iGates mit ihren Fähigkeiten, Wetterstationen mit ihrem Wetter.",
   "nearby.ask_kind_label": "Was fragen",
   "nearby.ask_kind.aprs": "Wer ist da",
   "nearby.ask_kind.igate": "iGates",
@@ -2196,12 +2361,16 @@ export const de: Catalogue = {
   "nearby.ask_wait": "Gerade gefragt: wieder in {seconds} s",
   "nearby.ask_help": "Bittet die Stationen in Funkreichweite, sich zu melden.",
   "nearby.ask_refused": "Nicht gesendet: {reason}",
-  "nearby.ask_sent.aprs": "Um {time} über {path} gefragt, wer da ist; Antworten erscheinen auf der Karte und unter Stationen",
-  "nearby.ask_sent.igate": "Um {time} über {path} die iGates gefragt; Antworten erscheinen auf der Karte und unter Stationen",
-  "nearby.ask_sent.wx": "Um {time} über {path} die Wetterstationen gefragt; Antworten erscheinen auf der Karte und unter Stationen",
+  "nearby.ask_sent.aprs":
+    "Um {time} über {path} gefragt, wer da ist; Antworten erscheinen auf der Karte und unter Stationen",
+  "nearby.ask_sent.igate":
+    "Um {time} über {path} die iGates gefragt; Antworten erscheinen auf der Karte und unter Stationen",
+  "nearby.ask_sent.wx":
+    "Um {time} über {path} die Wetterstationen gefragt; Antworten erscheinen auf der Karte und unter Stationen",
   "nearby.ask_sent_own.aprs": "Um {time} gefragt, wer da ist; Antworten erscheinen auf der Karte und unter Stationen",
   "nearby.ask_sent_own.igate": "Um {time} die iGates gefragt; Antworten erscheinen auf der Karte und unter Stationen",
-  "nearby.ask_sent_own.wx": "Um {time} die Wetterstationen gefragt; Antworten erscheinen auf der Karte und unter Stationen",
+  "nearby.ask_sent_own.wx":
+    "Um {time} die Wetterstationen gefragt; Antworten erscheinen auf der Karte und unter Stationen",
   "nearby.ask_new_counting": {
     "=0": "Warte auf Stationen, die in den {min} Minuten davor still waren…",
     one: "{n} Station, in den {min} Minuten davor still, hat sich seitdem gemeldet…",
@@ -2212,7 +2381,8 @@ export const de: Catalogue = {
     one: "{n} Station, in den {min} Minuten davor still, hat sich in den {after} Minuten danach gemeldet",
     other: "{n} Stationen, in den {min} Minuten davor still, haben sich in den {after} Minuten danach gemeldet",
   },
-  "nearby.ask_new_title": "{calls}. Wohl meist Antworten; eine Station, deren eigene Bake in diese Minuten fiel, zählt auch.",
+  "nearby.ask_new_title":
+    "{calls}. Wohl meist Antworten; eine Station, deren eigene Bake in diese Minuten fiel, zählt auch.",
   "nearby.ask_new_note":
     "Nach der Abfrage per Funk gehörte Stationen, die in den {min} Minuten davor nicht gehört wurden. Wohl meist Antworten; eine Bake, die da fiel, zählt auch.",
 

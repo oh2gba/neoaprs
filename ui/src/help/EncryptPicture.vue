@@ -9,7 +9,8 @@ import HelpFrame from "@/help/HelpFrame.vue";
 import HelpStation from "@/help/HelpStation.vue";
 
 /** A key, drawn with its ring at (x, y) and its blade to the right. */
-const key = (x: number, y: number): string => `M${x} ${y}m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M${x + 3} ${y}h11M${x + 10} ${y}v3M${x + 14} ${y}v2`;
+const key = (x: number, y: number): string =>
+  `M${x} ${y}m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M${x + 3} ${y}h11M${x + 10} ${y}v3M${x + 14} ${y}v2`;
 /** A padlock with its body's top-left corner at (x, y), 9 wide. */
 const lock = (x: number, y: number): string => `M${x} ${y}h9v7h-9zM${x + 2} ${y}v-2.2a2.5 2.5 0 0 1 5 0V${y}`;
 </script>

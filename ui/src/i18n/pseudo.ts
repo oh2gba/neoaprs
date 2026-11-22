@@ -28,6 +28,7 @@ export function pseudoText(text: string): string {
 export function pseudoMessage(message: Message): Message {
   if (typeof message === "string") return pseudoText(message);
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(message)) if (value !== undefined) out[key] = key === "select" ? value : pseudoText(value);
+  for (const [key, value] of Object.entries(message))
+    if (value !== undefined) out[key] = key === "select" ? value : pseudoText(value);
   return out as Plural | Select;
 }

@@ -19,9 +19,12 @@ import { dateTimeText } from "@/lib/format";
 import { mailState, mailTime, type MailItem } from "@/lib/mailitems";
 import { canCancel, canRetry } from "@/lib/messages";
 
-const props = withDefaults(defineProps<{ item: MailItem; fresh: boolean; now: number; heardDirect: ReadonlySet<string>; offline?: string }>(), {
-  offline: undefined,
-});
+const props = withDefaults(
+  defineProps<{ item: MailItem; fresh: boolean; now: number; heardDirect: ReadonlySet<string>; offline?: string }>(),
+  {
+    offline: undefined,
+  },
+);
 const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [id: number] }>();
 
 const open = ref(false);
@@ -41,7 +44,13 @@ const copy = useCopyMenu(() => [
 <template>
   <li class="mail copysource" tabindex="0" :class="[row.direction, { fresh, open }]" v-on="copy.on.value">
     <div class="mail-top">
-      <button type="button" class="mail-body" :aria-expanded="open" :title="item.line" @click="copy.unlessHeld(() => (open = !open))">
+      <button
+        type="button"
+        class="mail-body"
+        :aria-expanded="open"
+        :title="item.line"
+        @click="copy.unlessHeld(() => (open = !open))"
+      >
         <span class="mail-title">{{ item.title }}</span>
         <span v-if="item.text" class="mail-text">{{ item.text }}</span>
       </button>
@@ -60,15 +69,25 @@ const copy = useCopyMenu(() => [
         <span aria-hidden="true">·</span>
       </template>
       <span :title="dateTimeText(row.at)">{{ mailTime(row.at, now) }}</span>
-      <button v-if="canRetry(row)" type="button" class="btn small" :disabled="offline !== undefined" :title="offline" @click="emit('retry', row.id)">
+      <button
+        v-if="canRetry(row)"
+        type="button"
+        class="btn small"
+        :disabled="offline !== undefined"
+        :title="offline"
+        @click="emit('retry', row.id)"
+      >
         {{ t("messages.retry") }}
       </button>
-      <button v-if="canCancel(row)" type="button" class="btn small" @click="emit('cancel', row.id)">{{ t("messages.cancel") }}</button>
+      <button v-if="canCancel(row)" type="button" class="btn small" @click="emit('cancel', row.id)">
+        {{ t("messages.cancel") }}
+      </button>
     </p>
     <div v-if="open" class="mail-detail muted">
       <span>{{ dateTimeText(row.at) }}</span>
       <span v-if="row.route || on" :title="t('messages.route_title')">
-        <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark> {{ routeWords(row.route) }}
+        <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark>
+        {{ routeWords(row.route) }}
       </span>
       <MessageChain v-if="row.direction === 'out'" :row="row" :heard-direct="heardDirect" mail />
     </div>

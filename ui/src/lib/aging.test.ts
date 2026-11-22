@@ -29,8 +29,15 @@ describe("DEFAULT_TIMEOUT_MIN", () => {
 describe("stationHours and agingOf", () => {
   it("follow map/station_hours: 1, 3, 6, 12 or 24 hours, else (not there, no choice) the default of 3", () => {
     expect(STATION_HOURS).toEqual([1, 3, 6, 12, 24]);
-    for (const hours of STATION_HOURS) expect(agingOf({ [STATION_HOURS_KEY]: String(hours) })).toEqual({ defaultMin: hours * 60 });
-    for (const odd of [undefined, {} as Record<string, string>, { [STATION_HOURS_KEY]: "" }, { [STATION_HOURS_KEY]: "5" }, { [STATION_HOURS_KEY]: "soon" }]) {
+    for (const hours of STATION_HOURS)
+      expect(agingOf({ [STATION_HOURS_KEY]: String(hours) })).toEqual({ defaultMin: hours * 60 });
+    for (const odd of [
+      undefined,
+      {} as Record<string, string>,
+      { [STATION_HOURS_KEY]: "" },
+      { [STATION_HOURS_KEY]: "5" },
+      { [STATION_HOURS_KEY]: "soon" },
+    ]) {
       expect(stationHours(odd)).toBe(3);
       expect(agingOf(odd)).toEqual({ defaultMin: DEFAULT_TIMEOUT_MIN });
     }
@@ -63,9 +70,13 @@ describe("timedOut", () => {
   it("is never with timeout 0, for a station without a position, or for our own station", () => {
     const old = station("A", { last_position_at: ago(10 * 86400) });
     expect(timedOut(aging(0), old, NOW)).toBe(false);
-    expect(timedOut(aging(60), station("A", { lat: null, lon: null, last_position_at: null, last_heard: ago(86400) }), NOW)).toBe(false);
+    expect(
+      timedOut(aging(60), station("A", { lat: null, lon: null, last_position_at: null, last_heard: ago(86400) }), NOW),
+    ).toBe(false);
     expect(timedOut(aging(60), station("ME", { is_me: true, last_position_at: ago(86400) }), NOW)).toBe(false);
-    expect(timedOut(aging(60), station("MINE", { kind: "object", own: true, last_position_at: ago(86400) }), NOW)).toBe(false);
+    expect(timedOut(aging(60), station("MINE", { kind: "object", own: true, last_position_at: ago(86400) }), NOW)).toBe(
+      false,
+    );
   });
   it("takes the last packet for a position that has no time", () => {
     expect(timedOut(aging(60), station("A", { last_position_at: null, last_heard: ago(3 * 3600) }), NOW)).toBe(true);
@@ -118,6 +129,8 @@ describe("markerStep", () => {
   });
   it("never fades our own station", () => {
     expect(markerStep(rules, station("ME", { is_me: true, last_position_at: ago(86400) }), NOW)).toBe(0);
-    expect(markerStep(rules, station("MINE", { kind: "object", own: true, last_position_at: ago(86400) }), NOW)).toBe(0);
+    expect(markerStep(rules, station("MINE", { kind: "object", own: true, last_position_at: ago(86400) }), NOW)).toBe(
+      0,
+    );
   });
 });

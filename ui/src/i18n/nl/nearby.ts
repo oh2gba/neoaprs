@@ -4,13 +4,16 @@ import type { Message } from "@/i18n/message";
 
 export const nearby: Record<keyof typeof source, Message> = {
   "nearby.digipeaters": "Digipeaters",
-  "nearby.digipeaters_help": "Stations die pakketten herhaalden die wij hoorden, en stations met een digipeater-symbool.",
+  "nearby.digipeaters_help":
+    "Stations die pakketten herhaalden die wij hoorden, en stations met een digipeater-symbool.",
   "nearby.digipeaters_tip_label": "Over het bereik",
-  "nearby.digipeaters_tip": "Een digipeater herhaalt wat hij hoort. Stations binnen zijn cirkel bereiken hem; stations erbuiten niet.",
+  "nearby.digipeaters_tip":
+    "Een digipeater herhaalt wat hij hoort. Stations binnen zijn cirkel bereiken hem; stations erbuiten niet.",
   "nearby.voice": "Spraakfrequenties",
   "nearby.voice_help": "Stations, objecten en items die een frequentie opgaven waarop je ze kunt aanroepen.",
   "nearby.igates": "iGates",
-  "nearby.igates_help": "Stations die pakketten van internet de lucht in stuurden, zich een iGate noemen of het iGate-symbool hebben.",
+  "nearby.igates_help":
+    "Stations die pakketten van internet de lucht in stuurden, zich een iGate noemen of het iGate-symbool hebben.",
   "nearby.igates_tip_label": "Over iGates",
   "nearby.igates_tip": "Een iGate geeft pakketten door tussen radio en internet, zodat stations ver weg je zien.",
   "nearby.direct": "Direct gehoord",
@@ -29,7 +32,8 @@ export const nearby: Record<keyof typeof source, Message> = {
   "nearby.direct_last": "laatst direct gehoord {when}",
   "nearby.ask": "Rondvraag",
   "nearby.ask_tip_label": "Over de rondvraag",
-  "nearby.ask_tip": "Verzendt één vraag via de radio. Stations antwoorden met hun positie, iGates met wat ze doen, weerstations met hun weer.",
+  "nearby.ask_tip":
+    "Verzendt één vraag via de radio. Stations antwoorden met hun positie, iGates met wat ze doen, weerstations met hun weer.",
   "nearby.ask_kind_label": "Wat je vraagt",
   "nearby.ask_kind.aprs": "Alle stations",
   "nearby.ask_kind.igate": "iGates",
@@ -39,10 +43,14 @@ export const nearby: Record<keyof typeof source, Message> = {
   "nearby.ask_wait": "Net gevraagd: opnieuw over {seconds} s",
   "nearby.ask_help": "Vraagt de stations binnen radiobereik om zich te melden.",
   "nearby.ask_refused": "Niet verzonden: {reason}",
-  "nearby.ask_sent.aprs": "Om {time} via {path} gevraagd wie er in de buurt is; de antwoorden verschijnen op de kaart en in Stations",
-  "nearby.ask_sent.igate": "Om {time} via {path} de iGates gevraagd; de antwoorden verschijnen op de kaart en in Stations",
-  "nearby.ask_sent.wx": "Om {time} via {path} de weerstations gevraagd; de antwoorden verschijnen op de kaart en in Stations",
-  "nearby.ask_sent_own.aprs": "Om {time} gevraagd wie er in de buurt is; de antwoorden verschijnen op de kaart en in Stations",
+  "nearby.ask_sent.aprs":
+    "Om {time} via {path} gevraagd wie er in de buurt is; de antwoorden verschijnen op de kaart en in Stations",
+  "nearby.ask_sent.igate":
+    "Om {time} via {path} de iGates gevraagd; de antwoorden verschijnen op de kaart en in Stations",
+  "nearby.ask_sent.wx":
+    "Om {time} via {path} de weerstations gevraagd; de antwoorden verschijnen op de kaart en in Stations",
+  "nearby.ask_sent_own.aprs":
+    "Om {time} gevraagd wie er in de buurt is; de antwoorden verschijnen op de kaart en in Stations",
   "nearby.ask_sent_own.igate": "Om {time} de iGates gevraagd; de antwoorden verschijnen op de kaart en in Stations",
   "nearby.ask_sent_own.wx": "Om {time} de weerstations gevraagd; de antwoorden verschijnen op de kaart en in Stations",
   "nearby.ask_new_counting": {
@@ -55,7 +63,8 @@ export const nearby: Record<keyof typeof source, Message> = {
     one: "{n} station dat de {min} minuten ervoor stil was, liet zich in de {after} minuten erna horen",
     other: "{n} stations die de {min} minuten ervoor stil waren, lieten zich in de {after} minuten erna horen",
   },
-  "nearby.ask_new_title": "{calls}. De meeste zijn waarschijnlijk antwoorden; een station dat toevallig in die minuten zijn eigen baken verzond, telt ook mee.",
+  "nearby.ask_new_title":
+    "{calls}. De meeste zijn waarschijnlijk antwoorden; een station dat toevallig in die minuten zijn eigen baken verzond, telt ook mee.",
   "nearby.ask_new_note":
     "Stations die na de vraag via de radio gehoord zijn, maar in de {min} minuten ervoor niet. De meeste zijn waarschijnlijk antwoorden; een baken dat toevallig toen binnenkwam, telt ook mee.",
 };

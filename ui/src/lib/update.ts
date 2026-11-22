@@ -56,7 +56,8 @@ function appImageSteps(install: InstallInfo, version: string): Step[] {
     { text: t("help.update.appimage.start"), command: `./${name}` },
   ];
   if (install.service) steps.push({ text: t("help.update.appimage.service"), command: `./${name} service install` });
-  if (install.appimage) steps.push({ text: t("help.update.appimage.delete_old", { name: fileName(install.appimage) }) });
+  if (install.appimage)
+    steps.push({ text: t("help.update.appimage.delete_old", { name: fileName(install.appimage) }) });
   return steps;
 }
 
@@ -66,9 +67,14 @@ function debSteps(install: InstallInfo, version: string): Step[] {
   return [
     install.arch
       ? { text: t("help.update.deb.download"), link: { href: debUrl(version, install.arch), label: file } }
-      : { text: t("help.update.deb.download_here"), link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } },
+      : {
+          text: t("help.update.deb.download_here"),
+          link: { href: releaseNotes(version), label: `NeoAPRS ${version}` },
+        },
     { text: t("help.update.deb.install"), command: `sudo apt install ./${file}` },
-    install.service ? { text: t("help.update.deb.service"), command: "systemctl --user restart neoaprs" } : { text: t("help.update.restart") },
+    install.service
+      ? { text: t("help.update.deb.service"), command: "systemctl --user restart neoaprs" }
+      : { text: t("help.update.restart") },
   ];
 }
 
@@ -107,14 +113,20 @@ export function updateHelp(install: InstallInfo | null, version: string): Step[]
       ];
     default:
       // Install kind unknown, or a wheel install: the release page lists the supported installs.
-      return [{ text: t("help.update.release_page"), link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } }];
+      return [
+        { text: t("help.update.release_page"), link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } },
+      ];
   }
 }
 
 /**
  * What Update now is doing, in words: null while nothing runs (the button shows) or it has failed.
  */
-export function progressText(state: UpdateState, kind: InstallInfo["kind"] | undefined, connected: boolean): string | null {
+export function progressText(
+  state: UpdateState,
+  kind: InstallInfo["kind"] | undefined,
+  connected: boolean,
+): string | null {
   switch (state.state) {
     case "downloading":
       return state.percent === null

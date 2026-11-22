@@ -21,8 +21,12 @@ const DUMMY = radioRow(3, "dummy", { name: "Dummy", number: 2 });
 const KISS = radioRow(4, "kiss", { name: "Mobile", number: 3 });
 
 const daemonOf = (...rows: RadioRow[]) =>
-  fakeDaemon({ radios: radiosTopic(...rows), status: status({ unheard_radio: rows.find((row) => row.type !== "tnc-text")?.id ?? 1 }) });
-const settings = (...rows: RadioRow[]) => mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemonOf(...rows)), attachTo: document.body });
+  fakeDaemon({
+    radios: radiosTopic(...rows),
+    status: status({ unheard_radio: rows.find((row) => row.type !== "tnc-text")?.id ?? 1 }),
+  });
+const settings = (...rows: RadioRow[]) =>
+  mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemonOf(...rows)), attachTo: document.body });
 
 describe("a radio that only listens beside radios that send", () => {
   it("is chosen above no other, and no radio is: with one sender beside it or two, the Radio group has no row of a radio of the station", () => {
@@ -37,9 +41,16 @@ describe("a radio that only listens beside radios that send", () => {
   it("has a box with its port and its speed alone: no Find my radio, no path, and no port found automatically", () => {
     const wrapper = settings(TEXT, DUMMY);
     expect(wrapper.find("#set-radio-1-find").exists()).toBe(false);
-    const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(daemonOf(TEXT, DUMMY, KISS)), attachTo: document.body });
+    const beacon = mount(SettingsForm, {
+      props: { scope: "beacon" },
+      global: withDaemon(daemonOf(TEXT, DUMMY, KISS)),
+      attachTo: document.body,
+    });
     // a Path row for each radio on that may carry one: not the text radio
-    expect([beacon.find("#set-radio-1-path").exists(), beacon.find("#set-radio-3-path").exists()]).toEqual([false, true]);
+    expect([beacon.find("#set-radio-1-path").exists(), beacon.find("#set-radio-3-path").exists()]).toEqual([
+      false,
+      true,
+    ]);
     expect(wrapper.find("#set-radio-1-digipeat").exists()).toBe(false);
     expect(wrapper.find("#set-radio-1-port").exists()).toBe(true);
     expect(wrapper.findAll("#set-radio-1-port option").map((option) => option.text())[0]).toBe("not set");
@@ -47,7 +58,8 @@ describe("a radio that only listens beside radios that send", () => {
 
   it("is no tick of Send on, the beacon's or Ask around's", () => {
     const pane = (...rows: RadioRow[]) => mount(BeaconPane, { global: withDaemon(daemonOf(...rows)) });
-    const ticks = (wrapper: Pick<VueWrapper, "findAll">, id: string) => wrapper.findAll(`#${id} ~ .field-control label.check`).map((label) => label.text());
+    const ticks = (wrapper: Pick<VueWrapper, "findAll">, id: string) =>
+      wrapper.findAll(`#${id} ~ .field-control label.check`).map((label) => label.text());
     expect(pane(TEXT, DUMMY).find("#beacon-send-on").exists()).toBe(false);
     expect(ticks(pane(TEXT, DUMMY, KISS), "beacon-send-on")).toEqual(["Dummy", "Mobile"]);
     const ask = (...rows: RadioRow[]) => mount(NearbyAsk, { global: withDaemon(daemonOf(...rows)) });
@@ -57,9 +69,17 @@ describe("a radio that only listens beside radios that send", () => {
   });
 
   it("alone greys the beacon's fields as RX only does", () => {
-    const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(daemonOf(TEXT)), attachTo: document.body });
+    const beacon = mount(SettingsForm, {
+      props: { scope: "beacon" },
+      global: withDaemon(daemonOf(TEXT)),
+      attachTo: document.body,
+    });
     expect(beacon.find<HTMLInputElement>("#set-station-comment").element.disabled).toBe(true);
-    const sending = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(daemonOf(TEXT, DUMMY)), attachTo: document.body });
+    const sending = mount(SettingsForm, {
+      props: { scope: "beacon" },
+      global: withDaemon(daemonOf(TEXT, DUMMY)),
+      attachTo: document.body,
+    });
     expect(sending.find<HTMLInputElement>("#set-station-comment").element.disabled).toBe(false);
   });
 
@@ -78,7 +98,11 @@ describe("a radio that only listens beside radios that send", () => {
         attachTo: document.body,
       });
       await convo.find(".route-button").trigger("click");
-      const box = mount(StationPanel, { props: { row: heard, armed: false }, global: withDaemon(fakeDaemon(given)), attachTo: document.body });
+      const box = mount(StationPanel, {
+        props: { row: heard, armed: false },
+        global: withDaemon(fakeDaemon(given)),
+        attachTo: document.body,
+      });
       return [convo, box].map((wrapper) => wrapper.findAll(".route-radio-pick option").map((option) => option.text()));
     };
     expect(await routeRadios(TEXT, DUMMY)).toEqual([[], []]); // (one radio sends: there is none to choose)
@@ -109,7 +133,9 @@ describe("the words of the boxes of the new types", () => {
     const words = [await tip(wrapper, "set-radio-5-tcp_host"), await tip(wrapper, "set-radio-5-tcp_port")].join(" ");
     expect(words).toContain("address of the board on your network");
     expect(words).not.toMatch(/127\.0\.0\.1|Direwolf|soundmodem/);
-    expect(wrapper.find("#set-radio-5-tcp_port").element.closest(".field")?.innerHTML ?? "").not.toMatch(/Direwolf|soundmodem/);
+    expect(wrapper.find("#set-radio-5-tcp_port").element.closest(".field")?.innerHTML ?? "").not.toMatch(
+      /Direwolf|soundmodem/,
+    );
     expect(await tip(wrapper, "set-radio-5-enabled")).toContain("LoRa APRS board");
   });
 

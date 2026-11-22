@@ -41,12 +41,19 @@ export function hoverRows(row: StationRow, nowMs: number, radios: HoverRadios = 
   if (row.distance_km !== null) {
     rows.push({
       label: t("station.field.from_us"),
-      text: t("station.from_us_value", { distance: distanceText(row.distance_km), bearing: bearingText(row.bearing_deg) }),
+      text: t("station.from_us_value", {
+        distance: distanceText(row.distance_km),
+        bearing: bearingText(row.bearing_deg),
+      }),
     });
   }
-  if (row.weather !== null && row.weather.temp_c !== null) rows.push({ label: t("weather.temperature"), text: tempText(row.weather.temp_c) });
+  if (row.weather !== null && row.weather.temp_c !== null)
+    rows.push({ label: t("weather.temperature"), text: tempText(row.weather.temp_c) });
   if (!row.is_me && row.last_route !== "")
-    rows.push({ label: t("station.hover.route"), text: row.last_route === "direct" ? t("station.heard_direct") : routeWords(row.last_route) });
+    rows.push({
+      label: t("station.hover.route"),
+      text: row.last_route === "direct" ? t("station.heard_direct") : routeWords(row.last_route),
+    });
   return rows;
 }
 
@@ -123,7 +130,8 @@ export class HoverCard {
   /** Show the card for the station when a mouse rests on it. */
   attach(target: HTMLElement, call: string): void {
     target.addEventListener("pointerenter", (event) => {
-      if (event.pointerType === "mouse") this.enter({ key: call, box: () => target.getBoundingClientRect(), content: () => this.station(call) });
+      if (event.pointerType === "mouse")
+        this.enter({ key: call, box: () => target.getBoundingClientRect(), content: () => this.station(call) });
     });
     target.addEventListener("pointerleave", () => this.hide());
     target.addEventListener("pointerdown", () => this.hide());

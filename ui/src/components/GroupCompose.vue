@@ -36,12 +36,26 @@ function take(call: string): void {
 <template>
   <section class="convo group" :aria-label="t('messages.group')">
     <header class="convo-head group-head">
-      <button v-if="narrow" type="button" class="convo-back" :aria-label="t('messages.back_label')" :title="t('messages.back')" @click="emit('close')">
+      <button
+        v-if="narrow"
+        type="button"
+        class="convo-back"
+        :aria-label="t('messages.back_label')"
+        :title="t('messages.back')"
+        @click="emit('close')"
+      >
         <span aria-hidden="true">‹</span>
       </button>
       <ul class="recipients" :aria-label="t('messages.recipients')">
         <li v-for="call in calls" :key="call">
-          <TagMark as="button" tone="outline" class="chip" :aria-label="t('messages.remove_label', { call })" :title="t('messages.remove')" @click="take(call)">
+          <TagMark
+            as="button"
+            tone="outline"
+            class="chip"
+            :aria-label="t('messages.remove_label', { call })"
+            :title="t('messages.remove')"
+            @click="take(call)"
+          >
             {{ call }} &times;
           </TagMark>
         </li>

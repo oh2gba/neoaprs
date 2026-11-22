@@ -8,7 +8,8 @@ export const layersettings: Record<keyof typeof source, Message> = {
   "layers.settings.aircraft_tip1": "航空機の情報源です。インターネット上のサービスか、自分の受信機です。",
   "layers.settings.aircraft_tip2": "レイヤーの箱で航空機にチェックを入れると、地図に航空機が表示されます。",
   "layers.settings.ships_tip_label": "船舶について",
-  "layers.settings.ships_tip1": "Fintraffic はフィンランドの海域をカバーし、地図がその海域に届く場合だけ表示されます。自分の受信機も使えます。",
+  "layers.settings.ships_tip1":
+    "Fintraffic はフィンランドの海域をカバーし、地図がその海域に届く場合だけ表示されます。自分の受信機も使えます。",
   "layers.settings.ships_tip2": "レイヤーの箱で船舶にチェックを入れると、地図に船舶が表示されます。",
   "layers.receiver.own": "自分の受信機",
   "layers.receiver.address": "受信機のアドレス",

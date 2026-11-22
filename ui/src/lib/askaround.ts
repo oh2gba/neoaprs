@@ -23,8 +23,15 @@ export const queryOf = (kind: GeneralKind): string => LIMITS.general.queries[kin
  * The seconds before a query of this kind may go out on these radios, 0 if it may now. The daemon
  * allows one a minute per kind per radio and waits for every radio (no radios given: any).
  */
-export function generalWait(state: GeneralState | null, kind: GeneralKind, radios: readonly number[], nowMs: number): number {
-  const sent = (state?.by_radio ?? []).filter((one) => one.kind === kind && (radios.length === 0 || radios.includes(one.radio)));
+export function generalWait(
+  state: GeneralState | null,
+  kind: GeneralKind,
+  radios: readonly number[],
+  nowMs: number,
+): number {
+  const sent = (state?.by_radio ?? []).filter(
+    (one) => one.kind === kind && (radios.length === 0 || radios.includes(one.radio)),
+  );
   const latest = Math.max(0, ...sent.map((one) => Date.parse(one.at)));
   return sent.length === 0 ? 0 : Math.max(0, Math.ceil((latest + LIMITS.general.askEverySec * 1000 - nowMs) / 1000));
 }
@@ -50,7 +57,14 @@ const RF_ONLY = LIMITS.path.rfOnly;
 /** The two lines under Ask: the latest query of any kind, or the refusal of the last Ask. */
 export function askLines(state: GeneralState | null, refusal: string, nowMs: number): AskLines {
   const latest = state?.asked.at(-1);
-  if (refusal !== "") return { line: t("nearby.ask_refused", { reason: refusal }), title: refusal, refused: true, count: "", countTitle: "" };
+  if (refusal !== "")
+    return {
+      line: t("nearby.ask_refused", { reason: refusal }),
+      title: refusal,
+      refused: true,
+      count: "",
+      countTitle: "",
+    };
   if (latest === undefined) return { line: t("nearby.ask_help"), title: "", refused: false, count: "", countTitle: "" };
   const hops = (latest.path ?? []).filter((hop) => hop !== RF_ONLY);
   const time = hourMinuteText(latest.at);
@@ -67,6 +81,9 @@ export function askLines(state: GeneralState | null, refusal: string, nowMs: num
     title: latest.path === null ? latest.query : `${latest.query} ${latest.path.join(",") || t("route.direct")}`,
     refused: false,
     count: t(counting ? "nearby.ask_new_counting" : "nearby.ask_new", quiet),
-    countTitle: n > 0 ? t("nearby.ask_new_title", { calls: latest.new.join(", ") }) : t("nearby.ask_new_note", { min: LIMITS.general.quietMin }),
+    countTitle:
+      n > 0
+        ? t("nearby.ask_new_title", { calls: latest.new.join(", ") })
+        : t("nearby.ask_new_note", { min: LIMITS.general.quietMin }),
   };
 }

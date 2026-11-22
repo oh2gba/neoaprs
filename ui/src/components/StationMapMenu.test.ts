@@ -53,7 +53,13 @@ describe("the menu of the map", () => {
     expect(originalEvent.defaultPrevented).toBe(true);
     expect(menu()).not.toBeNull();
     expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "packets", "replay"]);
-    expect(items().map((b) => b.textContent?.trim())).toEqual(["Copy position 60.17345, 24.94123", "Copy locator KP20le", "Statistics", "Packets", "Replay"]);
+    expect(items().map((b) => b.textContent?.trim())).toEqual([
+      "Copy position 60.17345, 24.94123",
+      "Copy locator KP20le",
+      "Statistics",
+      "Packets",
+      "Replay",
+    ]);
     expect(menu()?.style.left).toBe("300px");
     expect(menu()?.style.top).toBe("200px");
     expect(document.activeElement).toBe(item("position"));
@@ -62,10 +68,22 @@ describe("the menu of the map", () => {
   it("has Monitor between Packets and Replay while the Mercury radio has a scope, and says so to the page when it is chosen", async () => {
     const { wrapper, daemon } = await mounted();
     const modem = modemState({ scope: true });
-    await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { modem })) });
+    await tell(daemon, {
+      radios: radiosTopic(
+        radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }),
+        radioRow(2, "mercury", { modem }),
+      ),
+    });
     rightClick(60.17345, 24.94123);
     await flushPromises();
-    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "packets", "monitor", "replay"]);
+    expect(items().map((b) => b.dataset.item)).toEqual([
+      "position",
+      "locator",
+      "stats",
+      "packets",
+      "monitor",
+      "replay",
+    ]);
     expect(item("monitor")?.textContent?.trim()).toBe("Monitor");
     item("monitor")?.click();
     await flushPromises();
@@ -126,7 +144,12 @@ describe("the menu of the map", () => {
     FakeMap.last().place = { lng: 24.5, lat: 60.5 };
     const root = wrapper.find(".stationmap").element;
     const down = new Event("pointerdown", { bubbles: true }) as PointerEvent;
-    Object.defineProperties(down, { pointerType: { value: "touch" }, isPrimary: { value: true }, clientX: { value: 120 }, clientY: { value: 80 } });
+    Object.defineProperties(down, {
+      pointerType: { value: "touch" },
+      isPrimary: { value: true },
+      clientX: { value: 120 },
+      clientY: { value: 80 },
+    });
     root.dispatchEvent(down);
     vi.advanceTimersByTime(600);
     await flushPromises();
@@ -137,13 +160,16 @@ describe("the menu of the map", () => {
 });
 
 /** A Mercury radio whose modem has the interface (or has not, `scope` false). */
-const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow => radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
+const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow =>
+  radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
 
 /**
  * The map with these radios told, and the page's counting of who looks given the topic `radios` as
  * the page makes it.
  */
-async function withRadios(...rows: RadioRow[]): Promise<{ wrapper: Awaited<ReturnType<typeof mounted>>["wrapper"]; daemon: FakeDaemon }> {
+async function withRadios(
+  ...rows: RadioRow[]
+): Promise<{ wrapper: Awaited<ReturnType<typeof mounted>>["wrapper"]; daemon: FakeDaemon }> {
   const { wrapper, daemon } = await mounted();
   await tell(daemon, { radios: radiosTopic(...rows) });
   daemon.scope = useScopeLooks(daemon.send, daemon.connection, shallowRef(true), { radios: daemon.radios });
@@ -163,7 +189,15 @@ describe("the menu's Monitor by radio", () => {
     );
     rightClick(60.17345, 24.94123);
     await flushPromises();
-    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "packets", "monitor", "monitor", "replay"]);
+    expect(items().map((b) => b.dataset.item)).toEqual([
+      "position",
+      "locator",
+      "stats",
+      "packets",
+      "monitor",
+      "monitor",
+      "replay",
+    ]);
     expect(monitors().map((b) => [b.dataset.radio, b.textContent?.trim()])).toEqual([
       ["3", "20 m: Monitor"],
       ["4", "40 m: Monitor"],

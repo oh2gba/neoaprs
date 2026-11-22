@@ -10,7 +10,14 @@ import { routeWords } from "@/lib/routes";
 import type { PageRadio } from "@/lib/radios";
 import { readingText } from "@/lib/signal";
 import { tempText } from "@/lib/weather";
-import type { DecodedOther, DecodedStatus, DecodedUndecoded, DecodedWeather, PacketRow, PositionFields } from "@/protocol/protocol";
+import type {
+  DecodedOther,
+  DecodedStatus,
+  DecodedUndecoded,
+  DecodedWeather,
+  PacketRow,
+  PositionFields,
+} from "@/protocol/protocol";
 
 export interface Fact {
   label: string;
@@ -63,7 +70,10 @@ export function kindWords(row: PacketRow): string {
 }
 
 function weatherText(w: DecodedWeather): string {
-  const parts = [w.temp_c === null ? "" : tempText(w.temp_c), w.wind_kmh === null ? "" : t("packets.wind", { speed: speedText(w.wind_kmh) })];
+  const parts = [
+    w.temp_c === null ? "" : tempText(w.temp_c),
+    w.wind_kmh === null ? "" : t("packets.wind", { speed: speedText(w.wind_kmh) }),
+  ];
   return parts.filter((part) => part !== "").join(", ");
 }
 
@@ -73,15 +83,24 @@ function weatherText(w: DecodedWeather): string {
  */
 function positionFacts(p: PositionFields): Fact[] {
   const where = positionText(p.lat, p.lon);
-  const facts: Fact[] = [{ label: t("station.field.position"), text: p.ambiguity > 0 ? t("packets.position_approximate", { position: where }) : where }];
+  const facts: Fact[] = [
+    {
+      label: t("station.field.position"),
+      text: p.ambiguity > 0 ? t("packets.position_approximate", { position: where }) : where,
+    },
+  ];
   if (p.speed_kmh !== null && p.speed_kmh > 0) {
     facts.push({
       label: t("station.field.speed"),
-      text: p.course_deg === null ? speedText(p.speed_kmh) : t("station.speed_course", { speed: speedText(p.speed_kmh), course: bearingText(p.course_deg) }),
+      text:
+        p.course_deg === null
+          ? speedText(p.speed_kmh)
+          : t("station.speed_course", { speed: speedText(p.speed_kmh), course: bearingText(p.course_deg) }),
     });
   }
   if (p.altitude_m !== null) facts.push({ label: t("station.field.altitude"), text: altitudeText(p.altitude_m) });
-  if (p.weather !== null && weatherText(p.weather) !== "") facts.push({ label: t("packets.fact.weather"), text: weatherText(p.weather) });
+  if (p.weather !== null && weatherText(p.weather) !== "")
+    facts.push({ label: t("packets.fact.weather"), text: weatherText(p.weather) });
   if (p.frequency !== null) facts.push({ label: t("station.field.frequency"), text: frequencyText(p.frequency) });
   if (p.storm !== null) facts.push({ label: t("station.field.storm"), text: stormText(p.storm) });
   if (p.sign !== null) facts.push({ label: t("station.field.sign"), text: p.sign });
@@ -120,11 +139,16 @@ function contentFacts(row: PacketRow): Fact[] {
       ];
     case "object":
     case "item":
-      return [{ label: t("packets.fact.name"), text: d.alive ? d.name : t("packets.object_down", { name: d.name }) }, ...positionFacts(d.position)];
+      return [
+        { label: t("packets.fact.name"), text: d.alive ? d.name : t("packets.object_down", { name: d.name }) },
+        ...positionFacts(d.position),
+      ];
     case "status":
       return statusFacts(d);
     case "telemetry":
-      return d.sequence === null ? [] : [{ label: t("packets.fact.report"), text: t("packets.report_number", { number: d.sequence }) }];
+      return d.sequence === null
+        ? []
+        : [{ label: t("packets.fact.report"), text: t("packets.report_number", { number: d.sequence }) }];
     case "other":
       return d.text === "" ? [] : [{ label: t("packets.fact.text"), text: d.text }];
     case "undecoded": {
@@ -150,18 +174,31 @@ export function summaryText(row: PacketRow): string {
  */
 export function packetFacts(row: PacketRow, radios: readonly PageRadio[] = []): Fact[] {
   const known = radios;
-  const facts: Fact[] = [{ label: t("packets.fact.from"), text: row.source }, { label: t("packets.fact.kind"), text: kindWords(row) }, ...contentFacts(row)];
-  if (row.direction === "out") facts.push({ label: t("packets.fact.sent_via"), text: row.path.length === 0 ? t("route.direct") : row.path.join(",") });
+  const facts: Fact[] = [
+    { label: t("packets.fact.from"), text: row.source },
+    { label: t("packets.fact.kind"), text: kindWords(row) },
+    ...contentFacts(row),
+  ];
+  if (row.direction === "out")
+    facts.push({
+      label: t("packets.fact.sent_via"),
+      text: row.path.length === 0 ? t("route.direct") : row.path.join(","),
+    });
   else {
     const tag = packetTag(row, known);
     const what = packetCameBy(row, known);
-    if (tag !== null && what !== null) facts.push({ label: t("packets.fact.came"), text: t("packets.fact.came_value", { channel: tag.label, what }) });
+    if (tag !== null && what !== null)
+      facts.push({ label: t("packets.fact.came"), text: t("packets.fact.came_value", { channel: tag.label, what }) });
     if (row.route !== "") facts.push({ label: t("station.field.reached"), text: routeWords(row.route), route: true });
-    else if (row.via === "is" && row.path.length > 0) facts.push({ label: t("station.field.path"), text: row.path.join(",") });
+    else if (row.via === "is" && row.path.length > 0)
+      facts.push({ label: t("station.field.path"), text: row.path.join(",") });
   }
   const signal = row.direction === "in" ? readingText(row) : null;
   if (signal !== null) facts.push({ label: t("packets.fact.signal"), text: signal });
-  facts.push({ label: row.direction === "out" ? t("packets.fact.sent") : t("packets.fact.heard"), text: dateTimeText(row.heard_at) });
+  facts.push({
+    label: row.direction === "out" ? t("packets.fact.sent") : t("packets.fact.heard"),
+    text: dateTimeText(row.heard_at),
+  });
   const carried = sentTimeText(row);
   if (carried !== null) facts.push({ label: t("packets.fact.time_in_packet"), text: carried });
   return facts;

@@ -63,7 +63,13 @@ function startOf(row: StationRow, mark: Mark): LonLat | null {
 }
 
 /** The line of one route and the dots on it; null if there is no line to draw. */
-function oneRoute(row: StationRow, mark: Mark, stations: ReadonlyMap<string, StationRow>, us: LonLat, previous: number): RouteCollection["features"] | null {
+function oneRoute(
+  row: StationRow,
+  mark: Mark,
+  stations: ReadonlyMap<string, StationRow>,
+  us: LonLat,
+  previous: number,
+): RouteCollection["features"] | null {
   if (mark.kind === "app") return null;
   const gated = mark.kind === "gated";
   const named = (gated ? [mark.gate, ...mark.hops] : mark.hops).flatMap((call) => {
@@ -83,9 +89,20 @@ function oneRoute(row: StationRow, mark: Mark, stations: ReadonlyMap<string, Sta
   }));
   if (mark.kind === "igate" && end) {
     const label = t("route.igate_label", { call: mark.gate });
-    dots.push({ type: "Feature", properties: { call: mark.gate, label, previous, end: 1 }, geometry: { type: "Point", coordinates: end } });
+    dots.push({
+      type: "Feature",
+      properties: { call: mark.gate, label, previous, end: 1 },
+      geometry: { type: "Point", coordinates: end },
+    });
   }
-  return [{ type: "Feature", properties: { call: row.call, previous }, geometry: { type: "LineString", coordinates: unwrapLine(line) } }, ...dots];
+  return [
+    {
+      type: "Feature",
+      properties: { call: row.call, previous },
+      geometry: { type: "LineString", coordinates: unwrapLine(line) },
+    },
+    ...dots,
+  ];
 }
 
 /**

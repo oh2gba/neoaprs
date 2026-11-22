@@ -18,7 +18,12 @@ const choices = [
   ["s", "/"],
   ["^", "/"],
   ["l", "/"],
-].map(([code, table], i) => ({ code: code ?? "", table: table ?? "/", x: 34 + (i % 3) * 38, y: 38 + Math.floor(i / 3) * 38 }));
+].map(([code, table], i) => ({
+  code: code ?? "",
+  table: table ?? "/",
+  x: 34 + (i % 3) * 38,
+  y: 38 + Math.floor(i / 3) * 38,
+}));
 </script>
 
 <template>

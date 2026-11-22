@@ -10,8 +10,19 @@ useAppHarness();
 describe("App: the Bulletins tab", () => {
   describe("the Bulletins tab", () => {
     const board = {
-      "OH2XYZ/BLN1": bulletin("BLN1", { first_heard: ago(600), last_heard: ago(300), times_heard: 3, text: "Road closed" }),
-      "OH2ABC/QST": bulletin("QST", { sender: "OH2ABC", kind: "group", first_heard: ago(100), last_heard: ago(100), text: "Club news" }),
+      "OH2XYZ/BLN1": bulletin("BLN1", {
+        first_heard: ago(600),
+        last_heard: ago(300),
+        times_heard: 3,
+        text: "Road closed",
+      }),
+      "OH2ABC/QST": bulletin("QST", {
+        sender: "OH2ABC",
+        kind: "group",
+        first_heard: ago(100),
+        last_heard: ago(100),
+        text: "Club news",
+      }),
     };
     const sayBoard = async (socket: ReturnType<typeof FakeSocket.last>) => {
       socket.say({ type: "state", topic: "bulletins", rev: 0, value: board });
@@ -37,8 +48,14 @@ describe("App: the Bulletins tab", () => {
       expect(badge(wrapper)?.attributes("title")).toBe("2 new bulletins");
       await tabButton(wrapper, "Bulletins")?.trigger("click");
       expect(badge(wrapper)?.exists()).toBeFalsy();
-      expect(wrapper.findAll("#pane-bulletins .bulletin-text").map((t) => t.text())).toEqual(["Road closed", "Club news"]);
-      expect(wrapper.findAll("#pane-bulletins .board-title").map((t) => t.text())).toEqual(["Bulletins 1", "Group messages 1"]);
+      expect(wrapper.findAll("#pane-bulletins .bulletin-text").map((t) => t.text())).toEqual([
+        "Road closed",
+        "Club news",
+      ]);
+      expect(wrapper.findAll("#pane-bulletins .board-title").map((t) => t.text())).toEqual([
+        "Bulletins 1",
+        "Group messages 1",
+      ]);
     });
 
     it("counts a bulletin that comes while another tab is on show, on the handle of the folded panel too, and not one that comes while it is looked at", async () => {
@@ -97,12 +114,19 @@ describe("App: the Bulletins tab", () => {
       await tabButton(wrapper, "Bulletins")?.trigger("click");
       await wrapper.find("#post-text").setValue("Road closed");
       await wrapper.find("#pane-bulletins .bulletin-compose").trigger("submit");
-      expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "bulletin_post")).toEqual([{ cmd: "bulletin_post", slot: "BLN1", text: "Road closed" }]);
+      expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "bulletin_post")).toEqual([
+        { cmd: "bulletin_post", slot: "BLN1", text: "Road closed" },
+      ]);
       expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("Road closed");
       socket.say(errorOf("bulletin_post: set your call first"));
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("Road closed");
-      socket.say({ type: "state", topic: "own_bulletins", rev: 0, value: { BLN1: ownBulletin("BLN1", { text: "Road closed" }) } });
+      socket.say({
+        type: "state",
+        topic: "own_bulletins",
+        rev: 0,
+        value: { BLN1: ownBulletin("BLN1", { text: "Road closed" }) },
+      });
       await flushPromises();
       expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("");
       const mine = wrapper.find("#pane-bulletins .bulletin.mine");
@@ -119,7 +143,9 @@ describe("App: the Bulletins tab", () => {
       const x = () => wrapper.find("#pane-bulletins .mine .bulletin-delete");
       await x().trigger("click");
       await x().trigger("click");
-      expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "bulletin_unpost")).toEqual([{ cmd: "bulletin_unpost", slot: "BLN1" }]);
+      expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "bulletin_unpost")).toEqual([
+        { cmd: "bulletin_unpost", slot: "BLN1" },
+      ]);
       expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "bulletin_delete")).toEqual([]);
       socket.say({ type: "patch", topic: "own_bulletins", rev: 1, ops: [{ op: "del", key: "BLN1" }] });
       await flushPromises();

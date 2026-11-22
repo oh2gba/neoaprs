@@ -27,7 +27,14 @@ export function clampSize(size: CardSize, least: CardSize, room: CardSize): Card
  * One axis: the card from `start` for `length`, a move of `delta` of its low side (`low`) or
  * its high side, the other side kept, within [least, room].
  */
-function axis(start: number, length: number, delta: number, low: boolean, least: number, room: number): [start: number, length: number] {
+function axis(
+  start: number,
+  length: number,
+  delta: number,
+  low: boolean,
+  least: number,
+  room: number,
+): [start: number, length: number] {
   const end = start + length;
   if (low) {
     const longest = Math.min(room, end);
@@ -45,9 +52,13 @@ function axis(start: number, length: number, delta: number, low: boolean, least:
  */
 export function resizeRect(from: Rect, edge: Edge, dx: number, dy: number, least: CardSize, room: CardSize): Rect {
   const [x, width] =
-    edge.includes("e") || edge.includes("w") ? axis(from.x, from.width, dx, edge.includes("w"), least.width, room.width) : [from.x, from.width];
+    edge.includes("e") || edge.includes("w")
+      ? axis(from.x, from.width, dx, edge.includes("w"), least.width, room.width)
+      : [from.x, from.width];
   const [y, height] =
-    edge.includes("n") || edge.includes("s") ? axis(from.y, from.height, dy, edge.includes("n"), least.height, room.height) : [from.y, from.height];
+    edge.includes("n") || edge.includes("s")
+      ? axis(from.y, from.height, dy, edge.includes("n"), least.height, room.height)
+      : [from.y, from.height];
   return { x, y, width, height };
 }
 

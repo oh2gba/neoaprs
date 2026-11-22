@@ -15,7 +15,11 @@ describe("the marker of a station", () => {
   });
   it("stacks the overlay character over the alternate symbol", () => {
     const dom = buildMarkerDom();
-    paintMarker(dom, station("OH2RDG", { symbol_table: "N", symbol_code: "#" }), { fade: 0, selected: false, direct: false });
+    paintMarker(dom, station("OH2RDG", { symbol_table: "N", symbol_code: "#" }), {
+      fade: 0,
+      selected: false,
+      direct: false,
+    });
     expect(dom.icon.querySelectorAll(".stn-layer")).toHaveLength(2);
   });
   it("is a plain dot without a symbol", () => {
@@ -64,7 +68,11 @@ describe("the marker of a station", () => {
     paintMarker(dom, { ...net, heard_rf: 1 }, { fade: 0, selected: false, direct: false });
     expect(dom.root.classList.contains("stn--net")).toBe(false);
     expect(dom.root.getAttribute("aria-label")).toBe("OH2NET: Car");
-    paintMarker(dom, { ...net, heard_rf: 0, heard_rf_gated: 1, heard_is: 0 }, { fade: 0, selected: false, direct: false });
+    paintMarker(
+      dom,
+      { ...net, heard_rf: 0, heard_rf_gated: 1, heard_is: 0 },
+      { fade: 0, selected: false, direct: false },
+    );
     expect(dom.root.classList.contains("stn--net")).toBe(false);
   });
   it("has a dotted outline and an italic call for the class of the internet, in colours of both themes, and lets the selected marker be drawn as any other", () => {
@@ -81,7 +89,11 @@ describe("the marker of a station", () => {
   });
   it("shows the characters of a signpost over its symbol, as text, and nothing for a station that is none", () => {
     const dom = buildMarkerDom();
-    paintMarker(dom, station("I91 3N", { kind: "item", symbol_table: "\\", symbol_code: "m", sign: "<55>" }), { fade: 0, selected: false, direct: false });
+    paintMarker(dom, station("I91 3N", { kind: "item", symbol_table: "\\", symbol_code: "m", sign: "<55>" }), {
+      fade: 0,
+      selected: false,
+      direct: false,
+    });
     expect(dom.sign.textContent).toBe("<55>");
     expect(dom.sign.children).toHaveLength(0);
     expect(dom.root.classList.contains("stn--sign")).toBe(true);

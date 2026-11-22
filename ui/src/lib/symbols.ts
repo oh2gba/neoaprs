@@ -80,7 +80,9 @@ export function symbolText(table: string, code: string): string {
  * aircraft ...), by the daemon's MOBILE_SYMBOLS: in either table and with any overlay. */
 export function isMobileSymbol(table: string, code: string): boolean {
   const known = table === "/" || table === "\\" || OVERLAYS.test(table);
-  return known && code.length === 1 && (table === "/" ? MOBILE_SYMBOLS.primary : MOBILE_SYMBOLS.alternate).includes(code);
+  return (
+    known && code.length === 1 && (table === "/" ? MOBILE_SYMBOLS.primary : MOBILE_SYMBOLS.alternate).includes(code)
+  );
 }
 
 /** The path recommended for a station with this symbol, which an empty path setting means:

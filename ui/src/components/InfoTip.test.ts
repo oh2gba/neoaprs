@@ -14,7 +14,10 @@ function tip(props: { label?: string } = {}) {
   document.body.appendChild(host);
   const wrapper = mount(InfoTip, {
     props: { label: "About DAO", ...props },
-    slots: { default: '<span class="info-line">One more digit of the position.</span><span class="info-line">Example: !W41!</span>' },
+    slots: {
+      default:
+        '<span class="info-line">One more digit of the position.</span><span class="info-line">Example: !W41!</span>',
+    },
     attachTo: host,
   });
   mounted.push(wrapper);
@@ -63,7 +66,10 @@ describe("InfoTip", () => {
     await wrapper.find("button").trigger("click");
     expect(wrapper.find("button").attributes("aria-expanded")).toBe("true");
     const note = wrapper.find(".info-text");
-    expect(note.findAll(".info-line").map((l) => l.text())).toEqual(["One more digit of the position.", "Example: !W41!"]);
+    expect(note.findAll(".info-line").map((l) => l.text())).toEqual([
+      "One more digit of the position.",
+      "Example: !W41!",
+    ]);
     expect(wrapper.find("button").attributes("aria-controls")).toBe(note.attributes("id"));
     await wrapper.find("button").trigger("click");
     expect(wrapper.find(".info-text").exists()).toBe(false);
@@ -72,7 +78,11 @@ describe("InfoTip", () => {
   it("shows any markup put in its slot, so that master's bulletin note and the settings' notes are one thing", async () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
-    const wrapper = mount(InfoTip, { props: { label: "What the kinds are" }, slots: { default: "A bulletin is <b>for everyone</b>." }, attachTo: host });
+    const wrapper = mount(InfoTip, {
+      props: { label: "What the kinds are" },
+      slots: { default: "A bulletin is <b>for everyone</b>." },
+      attachTo: host,
+    });
     mounted.push(wrapper);
     await wrapper.find("button").trigger("click");
     expect(wrapper.find(".info-text").text()).toBe("A bulletin is for everyone.");
@@ -122,7 +132,8 @@ describe("InfoTip", () => {
       setup() {
         useFormEsc({ cancelPick: () => false, closeForm, blocked: () => false });
         useCardEsc(closeAll, () => false);
-        return () => h("form", { class: "objform", onKeydown: outer }, [h("input"), h(InfoTip, { label: "About" }, () => "text")]);
+        return () =>
+          h("form", { class: "objform", onKeydown: outer }, [h("input"), h(InfoTip, { label: "About" }, () => "text")]);
       },
     });
     const host = document.createElement("div");

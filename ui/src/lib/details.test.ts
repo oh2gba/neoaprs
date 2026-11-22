@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
-import { extensionRows, frequencyText, locatorText, sentTimeText, stormText, telemetryBitsText, telemetryText } from "@/lib/details";
+import {
+  extensionRows,
+  frequencyText,
+  locatorText,
+  sentTimeText,
+  stormText,
+  telemetryBitsText,
+  telemetryText,
+} from "@/lib/details";
 import { packet } from "@/test/fixtures";
 import type { ExtensionValues, FrequencyValues, PacketRow, StormValues, TelemetryValues } from "@/protocol/protocol";
 
@@ -29,8 +37,13 @@ describe("extensionRows", () => {
   it("says the shape and the colour of an area in the page's language, from the daemon's words for them", () => {
     try {
       setLocale("nl");
-      const [row] = extensionRows({ ...none, area: { shape: "open circle", colour: "dim red", lat_offset_deg: 0.1, lon_offset_deg: 0.1 } });
-      expect(row?.text, "no English in a Dutch line (the owner's 'dim red open circle, 0.1° omlaag')").toMatch(/^open cirkel \(dof rood\), 0[.,]1° omlaag/);
+      const [row] = extensionRows({
+        ...none,
+        area: { shape: "open circle", colour: "dim red", lat_offset_deg: 0.1, lon_offset_deg: 0.1 },
+      });
+      expect(row?.text, "no English in a Dutch line (the owner's 'dim red open circle, 0.1° omlaag')").toMatch(
+        /^open cirkel \(dof rood\), 0[.,]1° omlaag/,
+      );
     } finally {
       setLocale("en");
     }
@@ -56,13 +69,17 @@ describe("frequencyText", () => {
     expect(frequencyText(frequency({ mhz: 146.52 }))).toBe("146.520 MHz");
   });
   it("adds the tone, the offset and the range in the order they are heard", () => {
-    expect(frequencyText(frequency({ tone_hz: 118, offset_khz: -600, range_km: 40.2 }))).toBe("145.775 MHz, tone 118 Hz, -600 kHz, range 40 km");
+    expect(frequencyText(frequency({ tone_hz: 118, offset_khz: -600, range_km: 40.2 }))).toBe(
+      "145.775 MHz, tone 118 Hz, -600 kHz, range 40 km",
+    );
     expect(frequencyText(frequency({ tone_hz: 107, tone_both: true, offset_khz: 5000, narrow: true }))).toBe(
       "145.775 MHz, tone 107 Hz both ways, narrow FM, +5000 kHz",
     );
   });
   it("says simplex for an offset of nothing and tells a DCS code, no tone, a tone burst and a receive frequency", () => {
-    expect(frequencyText(frequency({ dcs: "023", offset_khz: 0, rx_mhz: 430.1 }))).toBe("145.775 MHz, DCS 023, simplex, receive 430.100 MHz");
+    expect(frequencyText(frequency({ dcs: "023", offset_khz: 0, rx_mhz: 430.1 }))).toBe(
+      "145.775 MHz, DCS 023, simplex, receive 430.100 MHz",
+    );
     expect(frequencyText(frequency({ tone_off: true }))).toBe("145.775 MHz, no tone");
     expect(frequencyText(frequency({ tone_burst: true }))).toBe("145.775 MHz, 1750 Hz tone burst");
   });
@@ -83,14 +100,24 @@ describe("stormText", () => {
       "Hurricane, wind 278 km/h, gusts 370 km/h, pressure 980 hPa, hurricane winds out to 167 km, tropical storm winds out to 56 km",
     );
     expect(
-      stormText({ ...storm, storm_type: "TD", wind_kmh: null, gust_kmh: null, pressure_hpa: null, hurricane_radius_km: null, storm_radius_km: null }),
+      stormText({
+        ...storm,
+        storm_type: "TD",
+        wind_kmh: null,
+        gust_kmh: null,
+        pressure_hpa: null,
+        hurricane_radius_km: null,
+        storm_radius_km: null,
+      }),
     ).toBe("Tropical depression");
   });
 });
 
 describe("locatorText", () => {
   it("gives the grid and the centre of the square", () => {
-    expect(locatorText({ grid: "IO91sx", lat: 51.97917, lon: -0.45833, symbol_table: "/", symbol_code: "-" })).toBe("IO91sx, 51.97917 N 0.45833 W");
+    expect(locatorText({ grid: "IO91sx", lat: 51.97917, lon: -0.45833, symbol_table: "/", symbol_code: "-" })).toBe(
+      "IO91sx, 51.97917 N 0.45833 W",
+    );
     expect(locatorText(null)).toBe("-");
   });
 });
@@ -125,7 +152,9 @@ describe("sentTimeText", () => {
     return { ...row, decoded: { ...row.decoded, ...extra } };
   };
   it("says local for a time the sender gave in its local clock, as it was sent", () => {
-    expect(sentTimeText(position({ timestamp: "2026-10-09T23:45:00.000000Z", timestamp_local: true }))).toBe("09 23:45 local");
+    expect(sentTimeText(position({ timestamp: "2026-10-09T23:45:00.000000Z", timestamp_local: true }))).toBe(
+      "09 23:45 local",
+    );
   });
   it("gives a zulu time in the viewer's time and nothing for a packet without a time", () => {
     expect(sentTimeText(position({ timestamp: "2026-10-09T23:45:00.000000Z" }))).toMatch(/^2026-10-\d\d \d\d:\d\d:00$/);
@@ -137,7 +166,13 @@ describe("sentTimeText", () => {
     const inner = row.decoded as PacketRow["decoded"] & { type: "position" };
     const object = {
       ...row,
-      decoded: { type: "object", name: "X", alive: true, position: { ...inner, timestamp_local: true }, timestamp: "2026-10-09T23:45:00.000000Z" },
+      decoded: {
+        type: "object",
+        name: "X",
+        alive: true,
+        position: { ...inner, timestamp_local: true },
+        timestamp: "2026-10-09T23:45:00.000000Z",
+      },
     } as PacketRow;
     expect(sentTimeText(object)).toBe("09 23:45 local");
   });

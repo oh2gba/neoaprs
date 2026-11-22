@@ -16,7 +16,11 @@ beforeEach(() => localStorage.clear());
 
 describe("the select 'On map for' of the Stations tab", () => {
   const make = (hours = "3") => {
-    const daemon = fakeDaemon({ stations, config: configValues({ "map/station_hours": hours }), aging: agingOf({ "map/station_hours": hours }) });
+    const daemon = fakeDaemon({
+      stations,
+      config: configValues({ "map/station_hours": hours }),
+      aging: agingOf({ "map/station_hours": hours }),
+    });
     return { daemon, wrapper: mount(StationsTable, { props: { selected: null }, global: withDaemon(daemon) }) };
   };
 
@@ -37,7 +41,9 @@ describe("the select 'On map for' of the Stations tab", () => {
   it("sends the setting when another is picked, and nothing else", async () => {
     const { wrapper, daemon } = make();
     await wrapper.find("select#stations-on-map").setValue("24");
-    expect(daemon.send.mock.calls.map((c) => c[0])).toEqual([{ cmd: "set_config", values: { "map/station_hours": "24" } }]);
+    expect(daemon.send.mock.calls.map((c) => c[0])).toEqual([
+      { cmd: "set_config", values: { "map/station_hours": "24" } },
+    ]);
   });
 
   it("dims the rows that are past the hours: 1 h dims the one heard 2 h ago, 3 h only the one heard 5 h ago, 6 h none", () => {

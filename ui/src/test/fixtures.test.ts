@@ -6,13 +6,21 @@ import { heardBy, message, ownObject, station } from "@/test/fixtures";
 
 describe("the makers of rows", () => {
   it("give a station heard on Mercury alone its Mercury time as the time last heard direct on any radio, as the daemon's row of Q3TKU has it", () => {
-    const q3tku = station("Q3TKU", { heard_rf: 1, heard: heardBy([2, 1, "2026-10-21T12:00:00Z"]), last_direct_at: null, heard_direct: 0 });
+    const q3tku = station("Q3TKU", {
+      heard_rf: 1,
+      heard: heardBy([2, 1, "2026-10-21T12:00:00Z"]),
+      last_direct_at: null,
+      heard_direct: 0,
+    });
     expect([q3tku.last_direct_any_at, q3tku.heard, q3tku.last_path_radio]).toEqual([
       "2026-10-21T12:00:00Z",
       { "2": { count: 1, last_at: "2026-10-21T12:00:00Z" } },
       2,
     ]);
-    const both = station("OH2BOTH", { heard: heardBy([1, 2], [2, 1, "2026-10-21T11:30:00Z"]), last_direct_at: "2026-10-21T11:00:00Z" });
+    const both = station("OH2BOTH", {
+      heard: heardBy([1, 2], [2, 1, "2026-10-21T11:30:00Z"]),
+      last_direct_at: "2026-10-21T11:00:00Z",
+    });
     expect(both.last_direct_any_at).toBe("2026-10-21T11:30:00Z");
     const fm = station("OH2FM", { heard: heardBy([1, 2]), last_direct_at: "2026-10-21T11:00:00Z" });
     expect(fm.last_direct_any_at).toBe("2026-10-21T11:00:00Z");

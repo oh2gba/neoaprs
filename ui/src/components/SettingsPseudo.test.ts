@@ -78,7 +78,8 @@ function untranslated(root: Element): string[] {
   };
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) seen(node.textContent ?? "");
-  for (const el of root.querySelectorAll("*")) for (const a of ATTRIBUTES) if (el.hasAttribute(a)) seen(el.getAttribute(a) ?? "");
+  for (const el of root.querySelectorAll("*"))
+    for (const a of ATTRIBUTES) if (el.hasAttribute(a)) seen(el.getAttribute(a) ?? "");
   return found;
 }
 
@@ -103,15 +104,25 @@ function daemon(extra: Record<string, string> = {}, more: Parameters<typeof fake
     config,
     ports,
     map: mapState({ detail: mapFile(), state: "downloading", step: "area", percent: 49, downloaded: 340_000_000 }),
-    radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting", problem: { code: "radio.searching", params: {} } })),
+    radios: radiosTopic(
+      radioRow(1, "kenwood-tnc2", { state: "waiting", problem: { code: "radio.searching", params: {} } }),
+    ),
     install: { kind: "deb", appimage: "", service: true, arch: "amd64" },
-    status: status({ beacon_last_sent: new Date(Date.now() - 60_000).toISOString(), station_status: "QRV", rig_state: "on" }),
+    status: status({
+      beacon_last_sent: new Date(Date.now() - 60_000).toISOString(),
+      station_status: "QRV",
+      rig_state: "on",
+    }),
     ...more,
   });
 }
 
 const mounted: VueWrapper[] = [];
-function draw(component: Parameters<typeof mount>[0], context: FakeDaemon | undefined, props: Record<string, unknown> = {}): HTMLElement {
+function draw(
+  component: Parameters<typeof mount>[0],
+  context: FakeDaemon | undefined,
+  props: Record<string, unknown> = {},
+): HTMLElement {
   setLocale("en-XA");
   const wrapper = mount(component, { props, global: context ? withDaemon(context) : {}, attachTo: document.body });
   mounted.push(wrapper);
@@ -127,7 +138,11 @@ afterEach(() => {
 describe("the settings area in the pseudo-locale", () => {
   it("draws the Settings tab with every text from the catalogue", async () => {
     const context = daemon();
-    const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(context), attachTo: document.body });
+    const wrapper = mount(SettingsForm, {
+      props: { scope: "settings" },
+      global: withDaemon(context),
+      attachTo: document.body,
+    });
     mounted.push(wrapper);
     setLocale("en-XA");
     await flushPromises();
@@ -160,7 +175,8 @@ describe("the settings area in the pseudo-locale", () => {
     const context = daemon({ "station/call": "", "station/lat": "", "station/lon": "" });
     context.guide.show();
     expect(untranslated(draw(SetupGuide, context))).toEqual([]);
-    for (const step of [SetupCall, SetupPosition, SetupSymbol, SetupRadio]) expect(untranslated(draw(step, context)), step.__name).toEqual([]);
+    for (const step of [SetupCall, SetupPosition, SetupSymbol, SetupRadio])
+      expect(untranslated(draw(step, context)), step.__name).toEqual([]);
     // the Radio step is live: its radios follow the daemon's rows
     context.radios.value = radiosTopic(radioRow(1, "kiss-tcp"), radioRow(2, "mercury"));
     expect(untranslated(draw(SetupRadio, context))).toEqual([]);
@@ -177,7 +193,16 @@ describe("the settings area in the pseudo-locale", () => {
     expect(untranslated(draw(PopupHelp, context, { https: null }))).toEqual([]);
     expect(untranslated(draw(HttpsGuide, context, { https }))).toEqual([]);
     expect(untranslated(draw(UpdateDialog, context, { version: "0.7.0" }))).toEqual([]);
-    const job = { supported: true, state: "error", version: "0.7.0", percent: null, downloaded: 0, total: null, problem: "checksum", detail: "" } as const;
+    const job = {
+      supported: true,
+      state: "error",
+      version: "0.7.0",
+      percent: null,
+      downloaded: 0,
+      total: null,
+      problem: "checksum",
+      detail: "",
+    } as const;
     context.selfUpdate.value = job;
     expect(untranslated(draw(UpdateDialog, context, { version: "0.7.0" }))).toEqual([]);
     context.selfUpdate.value = { ...job, state: "downloading", percent: 5, problem: "" };
@@ -191,7 +216,8 @@ describe("the settings area in the pseudo-locale", () => {
   });
 
   it("draws the steps of each browser", () => {
-    const chrome = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+    const chrome =
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
     const agents = [
       "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0",
       chrome,
@@ -221,7 +247,11 @@ describe("the settings area in the pseudo-locale", () => {
         }),
       ),
     ).toEqual([]);
-    expect(untranslated(draw(MapFetchButton, undefined, { map: mapState({ detail: mapFile() }), stale: false, send: () => true }))).toEqual([]);
+    expect(
+      untranslated(
+        draw(MapFetchButton, undefined, { map: mapState({ detail: mapFile() }), stale: false, send: () => true }),
+      ),
+    ).toEqual([]);
     expect(untranslated(draw(MapFetchNotes, undefined, { map: mapState({ detail: mapFile() }) }))).toEqual([]);
     expect(untranslated(draw(BrowserAlerts, context, { alerts: context.alerts, https }))).toEqual([]);
     expect(guide.open).toBeDefined();

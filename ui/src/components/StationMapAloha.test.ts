@@ -19,7 +19,8 @@ const props = (extra = {}) => ({
   ...extra,
 });
 const drawn = () => FakeMap.last().getSource("aloha")?.setData.mock.calls.at(-1)?.[0] as Ring;
-const title = (wrapper: { find: (selector: string) => { attributes: (name: string) => string | undefined } }) => wrapper.find(".mapbox").attributes("title");
+const title = (wrapper: { find: (selector: string) => { attributes: (name: string) => string | undefined } }) =>
+  wrapper.find(".mapbox").attributes("title");
 
 async function mounted(extra = {}) {
   const { wrapper, daemon } = mountStationMap(props(extra));
@@ -82,7 +83,9 @@ describe("the ALOHA circles", () => {
 
   it("is one for each radio the daemon worked one out for, in the map's one look", async () => {
     const { daemon } = await mounted();
-    await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { number: 2 })) });
+    await tell(daemon, {
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { number: 2 })),
+    });
     await tell(daemon, {
       map: mapState({
         aloha: [

@@ -8,17 +8,33 @@
 import { useOpenSetting } from "@/composables/useOpenSetting";
 import type { SettingLink } from "@/lib/settinglink";
 
-defineProps<{ state: string; tone: string; line: string; hover?: string; link?: SettingLink; parts?: readonly string[] | null }>();
+defineProps<{
+  state: string;
+  tone: string;
+  line: string;
+  hover?: string;
+  link?: SettingLink;
+  parts?: readonly string[] | null;
+}>();
 const goTo = useOpenSetting();
 </script>
 
 <template>
   <span class="statetext" :class="tone">{{ state }}</span>
   <span class="tncstatus" :class="{ statusparts: parts }" role="status" :title="hover">
-    <button v-if="link && goTo" type="button" class="linkbutton" :title="link.title" @click.stop.prevent="goTo('settings', link.control)">{{ line }}</button>
+    <button
+      v-if="link && goTo"
+      type="button"
+      class="linkbutton"
+      :title="link.title"
+      @click.stop.prevent="goTo('settings', link.control)"
+    >
+      {{ line }}
+    </button>
     <template v-else-if="parts"
       ><template v-for="(part, index) in parts" :key="index"
-        ><span v-if="index > 0" class="statuspart-dot"> · </span><span class="statuspart" :class="{ 'statuspart-more': index > 0 }">{{ part }}</span></template
+        ><span v-if="index > 0" class="statuspart-dot"> · </span
+        ><span class="statuspart" :class="{ 'statuspart-more': index > 0 }">{{ part }}</span></template
       ></template
     >
     <template v-else>{{ line }}</template>

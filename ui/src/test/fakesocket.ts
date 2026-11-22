@@ -24,7 +24,9 @@ export class FakeSocket implements SocketLike {
   }
 
   sayBytes(bytes: Uint8Array): void {
-    this.onmessage?.(new MessageEvent("message", { data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }));
+    this.onmessage?.(
+      new MessageEvent("message", { data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }),
+    );
   }
 
   say(message: object): void {

@@ -11,14 +11,20 @@ import { open, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
 
-const sent = (socket: ReturnType<typeof FakeSocket.last>, cmd: string) => socket.sent.filter((c) => (c as { cmd?: string }).cmd === cmd);
+const sent = (socket: ReturnType<typeof FakeSocket.last>, cmd: string) =>
+  socket.sent.filter((c) => (c as { cmd?: string }).cmd === cmd);
 const field = (wrapper: VueWrapper, label: string) =>
   wrapper
     .findAll("#pane-objects .field:not(.location-field)")
     .find((f) => f.find("label").text() === label)
     ?.find<HTMLInputElement>("input");
 const sayObjects = async (socket: ReturnType<typeof FakeSocket.last>) => {
-  socket.say({ type: "state", topic: "own_objects", rev: 0, value: { LEADER: ownObject("LEADER", { comment: "Rescue 1" }) } });
+  socket.say({
+    type: "state",
+    topic: "own_objects",
+    rev: 0,
+    value: { LEADER: ownObject("LEADER", { comment: "Rescue 1" }) },
+  });
   await flushPromises();
 };
 const esc = async (target: Element | Document = document.body) => {

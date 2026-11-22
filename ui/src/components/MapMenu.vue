@@ -20,7 +20,14 @@ const radios = useRadios();
 
 const list = ref<HTMLElement | null>(null);
 const buttons = ref<HTMLElement[]>([]);
-const menu = useContextMenu({ x: () => props.x, y: () => props.y, trigger: () => props.trigger, list, buttons, close: () => emit("close") });
+const menu = useContextMenu({
+  x: () => props.x,
+  y: () => props.y,
+  trigger: () => props.trigger,
+  list,
+  buttons,
+  close: () => emit("close"),
+});
 
 /** The place as copied: signed decimal degrees to 5 places (about a metre). */
 const place = computed(() => `${props.lat.toFixed(5)}, ${props.lon.toFixed(5)}`);
@@ -35,14 +42,22 @@ async function copy(text: string): Promise<void> {
 const monitors = computed(() =>
   scope.radios.value.map((radio) => {
     const name = radios.several.value ? radios.byId(radio)?.name : undefined;
-    return { radio, text: name === undefined ? t("map.menu.monitor") : t("radio.line", { name, line: t("map.menu.monitor") }) };
+    return {
+      radio,
+      text: name === undefined ? t("map.menu.monitor") : t("radio.line", { name, line: t("map.menu.monitor") }),
+    };
   }),
 );
 
 /** An item's place among the buttons, for the arrow keys: the copy items first (the locator is
  * not always there), then Statistics, Packets, the Monitors, Replay. */
 const first = computed(() => (locator.value === "" ? 1 : 2));
-const at = computed(() => ({ stats: first.value, packets: first.value + 1, monitor: first.value + 2, replay: first.value + 2 + monitors.value.length }));
+const at = computed(() => ({
+  stats: first.value,
+  packets: first.value + 1,
+  monitor: first.value + 2,
+  replay: first.value + 2 + monitors.value.length,
+}));
 
 function choose(item: "stats" | "packets" | "replay"): void {
   menu.done();

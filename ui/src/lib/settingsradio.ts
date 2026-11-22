@@ -4,7 +4,16 @@ import { inject, shallowRef, type InjectionKey, type ShallowRef } from "vue";
 import { hasMessage, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { PairLink } from "@/lib/digistatus";
-import { enabledRadios, fieldId, KIND_WORDS as KIND_NAMES, radioLabel, senders, typeOf, type PageRadio, type RadioType } from "@/lib/radios";
+import {
+  enabledRadios,
+  fieldId,
+  KIND_WORDS as KIND_NAMES,
+  radioLabel,
+  senders,
+  typeOf,
+  type PageRadio,
+  type RadioType,
+} from "@/lib/radios";
 import type { Choice } from "@/lib/settingchoices";
 import type { PortsMessage, RadioRow } from "@/protocol/protocol";
 import { RADIO_STATION_KEYS, RADIO_TYPES } from "@/protocol/lists";
@@ -57,7 +66,9 @@ const FIELD_WORDS: Readonly<Record<string, string>> = {
 };
 
 /** Per-kind overrides of FIELD_WORDS: a LoRa board's address is a network address. */
-const KIND_WORDS: Readonly<Partial<Record<PageRadio["kind"], Readonly<Record<string, string>>>>> = { lora: { tcp_host: "lora/host", tcp_port: "lora/port" } };
+const KIND_WORDS: Readonly<Partial<Record<PageRadio["kind"], Readonly<Record<string, string>>>>> = {
+  lora: { tcp_host: "lora/host", tcp_port: "lora/port" },
+};
 
 /** The FIELDS key for a radio field, using the kind's override if any; null if none. */
 export const flatKeyOf = (field: string, kind?: PageRadio["kind"]): string | null =>
@@ -77,7 +88,9 @@ export function boxKeys(radio: Pick<PageRadio, "id" | "type">): string[] {
   // A type with both a serial port and a TCP address uses only the fields of its transport.
   const either = fields.includes("port") && fields.some((field) => field.startsWith("tcp_"));
   return fields
-    .filter((field) => !either || (transport === "tcp" ? field !== "port" && field !== "baud" : !field.startsWith("tcp_")))
+    .filter(
+      (field) => !either || (transport === "tcp" ? field !== "port" && field !== "baud" : !field.startsWith("tcp_")),
+    )
     .map((field) => `radio/${radio.id}/${field}`);
 }
 
@@ -143,7 +156,8 @@ export const proposedFrom = (answer: PortsMessage, key: string, value: string): 
   return last !== undefined && last.key === key && last.value === value;
 };
 /** Record the proposal stored from `answer`. */
-export const proposing = (answer: PortsMessage, key: string, value: string): void => void proposed.set(answer, { key, value });
+export const proposing = (answer: PortsMessage, key: string, value: string): void =>
+  void proposed.set(answer, { key, value });
 
 /** The name of a radio type in the page's language; the key itself for an unknown type. */
 export function typeText(key: string): string {
@@ -156,14 +170,19 @@ export function typeText(key: string): string {
  * Types in `unavailable` are left out.
  */
 export const typeChoices = (kind?: PageRadio["kind"], unavailable: readonly string[] = []): Choice[] =>
-  RADIO_TYPES.filter((type) => (kind === undefined || type.kind === kind) && !unavailable.includes(type.key)).map((type) => ({
-    value: type.key,
-    label: typeText(type.key),
-  }));
+  RADIO_TYPES.filter((type) => (kind === undefined || type.kind === kind) && !unavailable.includes(type.key)).map(
+    (type) => ({
+      value: type.key,
+      label: typeText(type.key),
+    }),
+  );
 
 /** The groups of Add radio's list: each kind's real types, then the Dummy types of every kind. */
 const ADD_GROUPS: readonly { word: MessageId; holds: (type: RadioType) => boolean }[] = [
-  ...Object.entries(KIND_NAMES).map(([kind, word]) => ({ word, holds: (type: RadioType) => !type.dummy && type.kind === kind })),
+  ...Object.entries(KIND_NAMES).map(([kind, word]) => ({
+    word,
+    holds: (type: RadioType) => !type.dummy && type.kind === kind,
+  })),
   { word: "radio.add.without_radio", holds: (type: RadioType) => type.dummy },
 ];
 
@@ -174,15 +193,21 @@ const ADD_GROUPS: readonly { word: MessageId; holds: (type: RadioType) => boolea
 export const addTypeChoices = (unavailable: readonly string[] = []): Choice[] =>
   ADD_GROUPS.flatMap(({ word, holds }) => {
     const types = RADIO_TYPES.filter((type) => holds(type) && !unavailable.includes(type.key));
-    return [...types.filter((type) => type.can.transmit), ...types.filter((type) => !type.can.transmit)].map((type) => ({
-      value: type.key,
-      label: typeText(type.key),
-      group: t(word),
-    }));
+    return [...types.filter((type) => type.can.transmit), ...types.filter((type) => !type.can.transmit)].map(
+      (type) => ({
+        value: type.key,
+        label: typeText(type.key),
+        group: t(word),
+      }),
+    );
   });
 
 /** The legend text of a box by radio kind. */
-const BOX_WORDS: Record<PageRadio["kind"], MessageId> = { fm: "settings.group.fm_radio", hf: "settings.group.hf_radio", lora: "settings.group.lora_radio" };
+const BOX_WORDS: Record<PageRadio["kind"], MessageId> = {
+  fm: "settings.group.fm_radio",
+  hf: "settings.group.hf_radio",
+  lora: "settings.group.lora_radio",
+};
 
 /**
  * The legend of a radio's box: the operator's name if `named` (several radios), else the kind's
@@ -200,7 +225,9 @@ export const unnamed = (radio: Pick<PageRadio, "row">): string => radioLabel({ .
 
 /** The enabled radios that can digipeat, in box order, with their digipeat setting key. */
 function digipeaters(radios: readonly PageRadio[]): { radio: PageRadio; key: string }[] {
-  return radios.filter((radio) => !radio.removed && radio.row.allowed.digipeat && radio.enabled).map((radio) => ({ radio, key: `radio/${radio.id}/digipeat` }));
+  return radios
+    .filter((radio) => !radio.removed && radio.row.allowed.digipeat && radio.enabled)
+    .map((radio) => ({ radio, key: `radio/${radio.id}/digipeat` }));
 }
 
 /** The legend of a box in a group (components/SettingsBox.vue), with no (i). */
@@ -227,7 +254,9 @@ function pairs(radios: readonly PageRadio[], values: Readonly<Record<string, str
     on.slice(i + 1).flatMap((second) => {
       const [low, high] = first.id < second.id ? [first.id, second.id] : [second.id, first.id];
       const enabled = `pair/${low}/${high}/enabled`;
-      return first.dummy === second.dummy && enabled in values ? [{ first, second, enabled, ssid: `pair/${low}/${high}/ssid` }] : [];
+      return first.dummy === second.dummy && enabled in values
+        ? [{ first, second, enabled, ssid: `pair/${low}/${high}/ssid` }]
+        : [];
     }),
   );
 }
@@ -250,18 +279,29 @@ export function digiPlaces(radios: readonly PageRadio[], values: Readonly<Record
   const rows = digipeaters(radios);
   const several = enabledRadios(radios).length > 1;
   const offered = pairs(radios, values);
-  const keys = [...rows.map((row) => row.key), ...offered.flatMap((pair) => (values[pair.enabled] === "true" ? [pair.enabled, pair.ssid] : [pair.enabled]))];
+  const keys = [
+    ...rows.map((row) => row.key),
+    ...offered.flatMap((pair) => (values[pair.enabled] === "true" ? [pair.enabled, pair.ssid] : [pair.enabled])),
+  ];
   const boxes: Record<string, Legend> = {
     ...(several ? Object.fromEntries(rows.map((row) => [row.key, legend(boxTitle(row.radio, true))])) : {}),
     ...Object.fromEntries(
-      offered.map((pair) => [pair.enabled, legend(t("settings.pair.legend", { first: boxTitle(pair.first, true), second: boxTitle(pair.second, true) }))]),
+      offered.map((pair) => [
+        pair.enabled,
+        legend(t("settings.pair.legend", { first: boxTitle(pair.first, true), second: boxTitle(pair.second, true) })),
+      ]),
     ),
   };
   const status = Object.fromEntries([
-    ...rows.filter((row) => values[row.key] === "true").map((row): [string, DigiStatus] => [row.key, { tnc: row.radio.row }]),
+    ...rows
+      .filter((row) => values[row.key] === "true")
+      .map((row): [string, DigiStatus] => [row.key, { tnc: row.radio.row }]),
     ...offered
       .filter((pair) => values[pair.enabled] === "true")
-      .map((pair): [string, DigiStatus] => [pair.ssid, { pair: { first: pairEnd(pair.first), second: pairEnd(pair.second) } }]),
+      .map((pair): [string, DigiStatus] => [
+        pair.ssid,
+        { pair: { first: pairEnd(pair.first), second: pairEnd(pair.second) } },
+      ]),
   ]);
   return { keys, boxes, status };
 }

@@ -51,8 +51,16 @@ describe("sections", () => {
 
   it("puts rows heard at the same moment in the order of the sender and the slot", () => {
     const same = ago(60);
-    const rows = [bulletin("BLN2", { last_heard: same }), bulletin("BLN1", { sender: "OH2ZZZ", last_heard: same }), bulletin("BLN1", { last_heard: same })];
-    expect(sections(rows)[0]?.rows.map((r) => `${r.sender}/${r.slot}`)).toEqual(["OH2XYZ/BLN1", "OH2XYZ/BLN2", "OH2ZZZ/BLN1"]);
+    const rows = [
+      bulletin("BLN2", { last_heard: same }),
+      bulletin("BLN1", { sender: "OH2ZZZ", last_heard: same }),
+      bulletin("BLN1", { last_heard: same }),
+    ];
+    expect(sections(rows)[0]?.rows.map((r) => `${r.sender}/${r.slot}`)).toEqual([
+      "OH2XYZ/BLN1",
+      "OH2XYZ/BLN2",
+      "OH2ZZZ/BLN1",
+    ]);
   });
 });
 
@@ -65,12 +73,20 @@ describe("targetOf and heardText", () => {
   it("counts the hearings in words, with how long ago the last was", () => {
     const now = Date.parse("2026-10-24T12:00:00Z");
     const last = "2026-10-24T11:57:00Z";
-    expect([1, 2, 12].map((n) => heardText(n, last, now))).toEqual(["heard once, 3 min ago", "heard 2 times, 3 min ago", "heard 12 times, 3 min ago"]);
+    expect([1, 2, 12].map((n) => heardText(n, last, now))).toEqual([
+      "heard once, 3 min ago",
+      "heard 2 times, 3 min ago",
+      "heard 12 times, 3 min ago",
+    ]);
   });
 });
 
 describe("newCount and newestFirstHeard", () => {
-  const rows = [bulletin("BLN1", { first_heard: ago(600) }), bulletin("BLN2", { first_heard: ago(300) }), bulletin("BLN3", { first_heard: ago(30) })];
+  const rows = [
+    bulletin("BLN1", { first_heard: ago(600) }),
+    bulletin("BLN2", { first_heard: ago(300) }),
+    bulletin("BLN3", { first_heard: ago(30) }),
+  ];
   it("counts the rows whose text was first heard after the time that was seen", () => {
     expect(newCount(rows, 0)).toBe(3);
     expect(newCount(rows, Date.parse(ago(400)))).toBe(2);
@@ -86,7 +102,13 @@ describe("newCount and newestFirstHeard", () => {
 
 describe("ownEntries and ownMeta", () => {
   it("writes our bulletins as rows of the board under our call, with what the daemon says of them kept", () => {
-    const own = ownBulletin("BLN3HAMS", { kind: "group", group: "HAMS", sent: 3, last_sent_at: ago(30), posted_at: ago(900) });
+    const own = ownBulletin("BLN3HAMS", {
+      kind: "group",
+      group: "HAMS",
+      sent: 3,
+      last_sent_at: ago(30),
+      posted_at: ago(900),
+    });
     const [entry] = ownEntries([own], "OH2GBA");
     expect(entry).toMatchObject({
       sender: "OH2GBA",
@@ -107,7 +129,10 @@ describe("ownEntries and ownMeta", () => {
   });
 
   it("sorts with the rest of the board, into its section", () => {
-    const rows = [bulletin("BLN1", { last_heard: ago(900) }), ...ownEntries([ownBulletin("BLN2", { last_sent_at: ago(60) })], "OH2GBA")];
+    const rows = [
+      bulletin("BLN1", { last_heard: ago(900) }),
+      ...ownEntries([ownBulletin("BLN2", { last_sent_at: ago(60) })], "OH2GBA"),
+    ];
     expect(sections(rows)[0]?.rows.map((r) => r.slot)).toEqual(["BLN2", "BLN1"]);
   });
 
@@ -120,7 +145,13 @@ describe("ownEntries and ownMeta", () => {
 });
 
 describe("posting", () => {
-  const draft = (extra: Partial<PostDraft> = {}): PostDraft => ({ kind: "bulletin", id: "1", group: "", text: "Road closed", ...extra });
+  const draft = (extra: Partial<PostDraft> = {}): PostDraft => ({
+    kind: "bulletin",
+    id: "1",
+    group: "",
+    text: "Road closed",
+    ...extra,
+  });
 
   it("has the three kinds, a bulletin and a group bulletin numbered and an announcement lettered", () => {
     expect(POST_KINDS.map((k) => k.kind)).toEqual(["bulletin", "announcement", "group"]);
@@ -144,10 +175,21 @@ describe("posting", () => {
   });
 
   it("takes printable ASCII up to 67 characters without | ~ {", () => {
-    expect([textOk("Snow expected in Tampa RSN"), textOk("x".repeat(67)), textOk(" padded ")]).toEqual([true, true, true]);
-    expect([textOk(""), textOk("   "), textOk("x".repeat(68)), textOk("a|b"), textOk("a~b"), textOk("a{b"), textOk("åäö"), textOk("a\tb")]).toEqual(
-      Array<boolean>(8).fill(false),
-    );
+    expect([textOk("Snow expected in Tampa RSN"), textOk("x".repeat(67)), textOk(" padded ")]).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    expect([
+      textOk(""),
+      textOk("   "),
+      textOk("x".repeat(68)),
+      textOk("a|b"),
+      textOk("a~b"),
+      textOk("a{b"),
+      textOk("åäö"),
+      textOk("a\tb"),
+    ]).toEqual(Array<boolean>(8).fill(false));
     expect([charsLeft(""), charsLeft("x".repeat(60)), charsLeft("x".repeat(70))]).toEqual([67, 7, -3]);
   });
 

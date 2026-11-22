@@ -12,7 +12,13 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useElementWidth } from "@/composables/useElementWidth";
 import { t } from "@/i18n";
 
-const props = defineProps<{ id?: string; label: string; settingKey: string; level: number | null; form: SettingsFormState }>();
+const props = defineProps<{
+  id?: string;
+  label: string;
+  settingKey: string;
+  level: number | null;
+  form: SettingsFormState;
+}>();
 const { connection } = useDaemonContext();
 /** The narrowest control column that fits the slider beside the Receive level's bar: 40 % of it
  * leaves a track of about 70 px after the bar, number, (i) and gaps. */

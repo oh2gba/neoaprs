@@ -24,7 +24,17 @@ const props = withDefaults(
     pathless?: string;
     reply?: string;
   }>(),
-  { rfOnly: () => new Set<string>(), heard: null, radios: () => [], choice: null, auto: null, fixed: false, pathShown: true, pathless: undefined, reply: "" },
+  {
+    rfOnly: () => new Set<string>(),
+    heard: null,
+    radios: () => [],
+    choice: null,
+    auto: null,
+    fixed: false,
+    pathShown: true,
+    pathless: undefined,
+    reply: "",
+  },
 );
 const emit = defineEmits<{
   path: [call: string, path: string];
@@ -36,7 +46,12 @@ const emit = defineEmits<{
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);
 const button = ref<HTMLButtonElement | null>(null);
-const changed = computed(() => props.choice !== null || effectivePath(props.paths, props.fallbackPath, props.call).own || props.rfOnly.has(props.call));
+const changed = computed(
+  () =>
+    props.choice !== null ||
+    effectivePath(props.paths, props.fallbackPath, props.call).own ||
+    props.rfOnly.has(props.call),
+);
 
 /** Esc closes the box and is not passed on (on a narrow page it would also go back to the list). */
 const popup = usePopup({ open, root, trigger: button, close: () => (open.value = false), stopEscape: true });

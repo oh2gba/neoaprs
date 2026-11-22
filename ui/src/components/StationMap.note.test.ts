@@ -9,7 +9,15 @@ import { mountStationMap } from "@/test/stationmap";
 
 // What stands over the map when it cannot be drawn well: the daemon always has a world map, so the
 // notes are for a file that is gone or unreadable, and for the detailed map that is not there yet.
-const props = { stations: new Map(), selected: null, focus: null, home: { lat: 60.17, lon: 24.94 }, now: 0, dark: false, aging: { defaultMin: 0 } };
+const props = {
+  stations: new Map(),
+  selected: null,
+  focus: null,
+  home: { lat: 60.17, lon: 24.94 },
+  now: 0,
+  dark: false,
+  aging: { defaultMin: 0 },
+};
 
 async function mounted(files: { archive: boolean; world: boolean }) {
   fakeState.archive = files.archive;
@@ -36,7 +44,8 @@ describe("the note over the map", () => {
   it("is not hidden by a rule of the style sheets: the first-run guide neither hides it nor sits over it", async () => {
     const { readFileSync } = await import("node:fs");
     const { resolve } = await import("node:path");
-    const css = (name: string): string => readFileSync(resolve(__dirname, "../styles", name), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const css = (name: string): string =>
+      readFileSync(resolve(__dirname, "../styles", name), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     expect(css("setup.css")).not.toMatch(/\.mapnote\s*\{[^}]*display:\s*none/);
     expect(css("map.css")).toMatch(/\.mapnote\s*\{[^}]*z-index:\s*5/); // the guide is z-index 4
     expect(css("setup.css")).toMatch(/\.setup\s*\{[^}]*z-index:\s*4/);
@@ -63,7 +72,10 @@ describe("the note over the map", () => {
 
   it("says the files cannot be read when the engine cannot open their archives, and takes it back when the files are made again", async () => {
     const { wrapper } = await mounted({ archive: false, world: true });
-    FakeMap.last().fire("error", { sourceId: WORLD_SOURCE, error: new Error("Wrong magic number for PMTiles archive") });
+    FakeMap.last().fire("error", {
+      sourceId: WORLD_SOURCE,
+      error: new Error("Wrong magic number for PMTiles archive"),
+    });
     await flushPromises();
     expect(wrapper.find(".mapnote span").text()).toBe("The map file cannot be read");
     expect(wrapper.find(".mapnote button").exists()).toBe(false); // (a detailed map would not mend the world's file)

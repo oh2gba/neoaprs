@@ -21,7 +21,13 @@ export function addAlohaLayers(map: MapLibreMap, data: AlohaCollection): void {
   const halo = paletteColor("--map-halo", "rgba(255, 255, 255, 0.9)");
   map.addSource(ALOHA_SOURCE, { type: "geojson", data });
   const layout = { "line-join": "round", "line-cap": "butt" } as const;
-  map.addLayer({ id: "aloha-halo", type: "line", source: ALOHA_SOURCE, layout, paint: { "line-color": halo, "line-width": 3.5, "line-opacity": 0.7 } });
+  map.addLayer({
+    id: "aloha-halo",
+    type: "line",
+    source: ALOHA_SOURCE,
+    layout,
+    paint: { "line-color": halo, "line-width": 3.5, "line-opacity": 0.7 },
+  });
   map.addLayer({
     id: "aloha-line",
     type: "line",

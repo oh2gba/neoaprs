@@ -16,7 +16,12 @@ defineProps<{
   changed: (key: string) => boolean;
   picking: boolean;
 }>();
-const emit = defineEmits<{ type: [key: string, text: string]; commit: [key: string, next: EventTarget | null]; cancel: [key: string]; pick: [] }>();
+const emit = defineEmits<{
+  type: [key: string, text: string];
+  commit: [key: string, next: EventTarget | null];
+  cancel: [key: string];
+  pick: [];
+}>();
 
 /**
  * The key a part of the control is about: the locator is typed as both coordinates, sent together.

@@ -16,7 +16,12 @@ import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
 import { linkedValues } from "@/lib/settinglinks";
 import type { Command, ConfigValues } from "@/protocol/protocol";
 
-export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean, radios?: RadioNames) {
+export function useSettings(
+  config: Ref<ConfigValues | null>,
+  lastError: Ref<Toast | null>,
+  send: (command: Command) => boolean,
+  radios?: RadioNames,
+) {
   const draft = reactive<Record<string, string>>({});
   const errors = reactive<Record<string, string>>({});
   const feedback = useSettingsFeedback();
@@ -60,7 +65,9 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
    */
   function commit(keys: readonly string[], revert = false): void {
     for (const key of keys) delete errors[key];
-    const problems = keys.map((key) => [key, problemOf(key, draft[key] ?? "")] as const).filter(([, problem]) => problem !== "");
+    const problems = keys
+      .map((key) => [key, problemOf(key, draft[key] ?? "")] as const)
+      .filter(([, problem]) => problem !== "");
     for (const [key, problem] of problems) errors[key] = problem;
     const incomplete = problems.length > 0 ? {} : pairProblems(keys, draft);
     Object.assign(errors, incomplete);
@@ -77,7 +84,15 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     commit(Object.keys(choices), true);
   }
 
-  useSettingsAnswers(whole, lastError, draft, queue, feedback, (request, reason, key) => refuse(request, reason, key), radios);
+  useSettingsAnswers(
+    whole,
+    lastError,
+    draft,
+    queue,
+    feedback,
+    (request, reason, key) => refuse(request, reason, key),
+    radios,
+  );
 
   return {
     draft,
@@ -101,5 +116,9 @@ function withRadios(config: ConfigValues): ConfigValues {
   const radioValues = config.radio_values ?? {};
   const radioDefaults = config.radio_defaults ?? {};
   if (Object.keys(radioValues).length === 0 && Object.keys(radioDefaults).length === 0) return config;
-  return { ...config, values: { ...config.values, ...radioValues }, defaults: { ...config.defaults, ...radioDefaults } };
+  return {
+    ...config,
+    values: { ...config.values, ...radioValues },
+    defaults: { ...config.defaults, ...radioDefaults },
+  };
 }

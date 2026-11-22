@@ -27,16 +27,22 @@ const group = (props: Record<string, unknown> = {}) => {
   return wrapper;
 };
 const arrow = (wrapper: ReturnType<typeof group>) => wrapper.get("legend button.groupfold");
-const bodyShown = (wrapper: ReturnType<typeof group>) => (wrapper.get(".group-body").element as HTMLElement).style.display !== "none";
+const bodyShown = (wrapper: ReturnType<typeof group>) =>
+  (wrapper.get(".group-body").element as HTMLElement).style.display !== "none";
 
 function form() {
   const daemon = fakeDaemon({ config: configValues({ "digi/enabled": "true" }) });
-  const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
+  const wrapper = mount(SettingsForm, {
+    props: { scope: "settings" },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
   mounted.push(wrapper);
   const named = (title: string) => wrapper.findAll("form > fieldset").find((f) => f.find("legend").text() === title);
   return { wrapper, daemon, named };
 }
-const shown = (fieldset: ReturnType<ReturnType<typeof form>["named"]>) => (fieldset?.get(".group-body").element as HTMLElement).style.display !== "none";
+const shown = (fieldset: ReturnType<ReturnType<typeof form>["named"]>) =>
+  (fieldset?.get(".group-body").element as HTMLElement).style.display !== "none";
 
 describe("a group of the Settings tab", () => {
   it("is open, with its name as the button of the arrow in its legend, which says what it opens", () => {
@@ -149,7 +155,10 @@ describe("the Settings tab", () => {
     expect(titles).toContain("Help");
     expect(titles).toContain("About");
     expect(wrapper.findAll("form > fieldset > legend > button.groupfold")).toHaveLength(titles.length);
-    const station = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(fakeDaemon({ config: configValues() })) });
+    const station = mount(SettingsForm, {
+      props: { scope: "beacon" },
+      global: withDaemon(fakeDaemon({ config: configValues() })),
+    });
     expect(station.findAll("button.groupfold")).toHaveLength(0);
     wrapper.unmount();
   });
@@ -174,9 +183,16 @@ describe("the Settings tab", () => {
     expect(shown(named("Radio"))).toBe(false);
     await wrapper.find("#set-radio-1-baud").setValue("4800");
     await wrapper.find("#set-radio-1-baud").trigger("keydown", { key: "Enter" });
-    await tell(daemon, { lastError: toastOf("set_config: radio/1/baud: 4800 is not one of 9600", "setting.not_among", { value: 4800, choices: "9600" }) });
+    await tell(daemon, {
+      lastError: toastOf("set_config: radio/1/baud: 4800 is not one of 9600", "setting.not_among", {
+        value: 4800,
+        choices: "9600",
+      }),
+    });
     expect(shown(named("Radio"))).toBe(true);
-    expect(wrapper.find("#set-radio-1-baud").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("4800 is not one of 9600");
+    expect(
+      wrapper.find("#set-radio-1-baud").element.closest(".field")?.querySelector(".field-error")?.textContent,
+    ).toBe("4800 is not one of 9600");
     wrapper.unmount();
   });
 

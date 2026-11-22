@@ -43,7 +43,11 @@ async function keepAsset(cache, url) {
 async function keepAssetsOf(html) {
   const cache = await caches.open(ASSETS);
   const names = new Set(html.match(/\.\/assets\/[^"'()\s]+/g) ?? []);
-  await Promise.all([...names].filter((name) => HASHED.test(name.slice(2))).map((name) => keepAsset(cache, new URL(name, self.registration.scope).href)));
+  await Promise.all(
+    [...names]
+      .filter((name) => HASHED.test(name.slice(2)))
+      .map((name) => keepAsset(cache, new URL(name, self.registration.scope).href)),
+  );
 }
 
 async function cacheFirst(request) {
@@ -82,7 +86,8 @@ self.addEventListener("install", () => void self.skipWaiting());
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      for (const name of await caches.keys()) if (name.startsWith("neoaprs-") && name !== PAGE && name !== ASSETS) await caches.delete(name);
+      for (const name of await caches.keys())
+        if (name.startsWith("neoaprs-") && name !== PAGE && name !== ASSETS) await caches.delete(name);
       await self.clients.claim();
       try {
         const answer = await fetch(self.registration.scope);

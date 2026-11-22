@@ -12,7 +12,12 @@ describe("the choices", () => {
       [true, true],
       [false, true],
     ]);
-    expect([modeOf(true, true), modeOf(true, false), modeOf(false, true), modeOf(false, false)]).toEqual(["both", "sound", "popup", "sound"]);
+    expect([modeOf(true, true), modeOf(true, false), modeOf(false, true), modeOf(false, false)]).toEqual([
+      "both",
+      "sound",
+      "popup",
+      "sound",
+    ]);
   });
 });
 
@@ -96,7 +101,11 @@ describe("the migration of the three switches of an earlier page", () => {
     keep("on", "on", "off");
     expect(storedMode(false, undefined)).toBe("sound");
     expect(readStored("alert.mode")).toBe("sound");
-    expect([readStored("alert.web"), readStored("alert.sound"), readStored("alert.notify")]).toEqual([null, null, null]);
+    expect([readStored("alert.web"), readStored("alert.sound"), readStored("alert.notify")]).toEqual([
+      null,
+      null,
+      null,
+    ]);
     writeStored("alert.web", "off");
     expect(storedMode(false, undefined)).toBe("sound");
   });

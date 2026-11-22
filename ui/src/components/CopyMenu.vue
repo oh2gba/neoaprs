@@ -16,7 +16,14 @@ const { say } = useDaemonContext();
 
 const list = ref<HTMLElement | null>(null);
 const buttons = ref<HTMLElement[]>([]);
-const menu = useContextMenu({ x: () => props.x, y: () => props.y, trigger: () => props.trigger, list, buttons, close: () => emit("close") });
+const menu = useContextMenu({
+  x: () => props.x,
+  y: () => props.y,
+  trigger: () => props.trigger,
+  list,
+  buttons,
+  close: () => emit("close"),
+});
 
 function label(item: CopyItem): string {
   switch (item.kind) {

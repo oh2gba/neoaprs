@@ -32,7 +32,11 @@ async function refused(file: string, before: string[], cases: Case[], after: str
   const lines = [...before, ...cases.map(([line]) => line), ...after];
   const [result] = await eslint.lintText(lines.join("\n") + "\n", { filePath: file });
   expect(result.messages.filter((message) => message.fatal || message.ruleId === "vue/no-parsing-error")).toEqual([]);
-  const hit = new Set(result.messages.filter((message) => message.severity === 2 && RULES.includes(message.ruleId ?? "")).map((message) => message.line));
+  const hit = new Set(
+    result.messages
+      .filter((message) => message.severity === 2 && RULES.includes(message.ruleId ?? ""))
+      .map((message) => message.line),
+  );
   return lines.filter((_line, index) => hit.has(index + 1));
 }
 
@@ -122,7 +126,9 @@ it(
 it(
   "refuses the same in the service worker, which is linted without the types",
   async () => {
-    expect(await refused("sw/sw.js", ['self.addEventListener("message", (event) => {'], WORKER, ["});"])).toEqual(expected(WORKER));
+    expect(await refused("sw/sw.js", ['self.addEventListener("message", (event) => {'], WORKER, ["});"])).toEqual(
+      expected(WORKER),
+    );
   },
   SLOW,
 );

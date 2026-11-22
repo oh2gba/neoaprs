@@ -15,7 +15,16 @@ const bodyId = computed(() => `settings-box-${props.foldId ?? ""}`);
 <template>
   <fieldset v-if="title" ref="root" class="subbox" :class="{ folded: folds && !open }">
     <legend :title="hover || undefined">
-      <button v-if="folds" type="button" class="groupfold" :aria-expanded="open" :aria-controls="bodyId" @click="open = !open">{{ title }}</button>
+      <button
+        v-if="folds"
+        type="button"
+        class="groupfold"
+        :aria-expanded="open"
+        :aria-controls="bodyId"
+        @click="open = !open"
+      >
+        {{ title }}
+      </button>
       <template v-else>{{ title }}{{ " " }}</template>
       <slot name="legend"></slot>
     </legend>

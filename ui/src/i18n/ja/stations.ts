@@ -15,7 +15,8 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.card.label": "局",
   "station.card.qrz_title": "このコールサインのQRZページを開く",
-  "station.card.size_title": "ドラッグしてカードを移動、端をドラッグしてサイズ変更（Alt+矢印キーでフォーカス中のカードを移動、Ctrl+Alt+矢印キーでサイズ変更）",
+  "station.card.size_title":
+    "ドラッグしてカードを移動、端をドラッグしてサイズ変更（Alt+矢印キーでフォーカス中のカードを移動、Ctrl+Alt+矢印キーでサイズ変更）",
   "station.card.drag_title": "ドラッグしてカードを移動（Alt+矢印キーでフォーカス中のカードを移動）",
   "station.card.edit": "編集",
   "station.card.kill": "キル",
@@ -136,7 +137,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter": "絞り込み",
   "station.table.filter_title": "コールサイン、シンボル、コメント、パス",
   "station.table.about_label": "局について",
-  "station.table.about1": "受信したすべての局を、自局からの距離と方向つきで表示します。クリックすると地図で見つけられます。",
+  "station.table.about1":
+    "受信したすべての局を、自局からの距離と方向つきで表示します。クリックすると地図で見つけられます。",
   "station.table.about2": "コールサインの後ろのチェックは、デジピーターを介さず直接受信した局です。",
   "station.table.filter_label": "局を絞り込む",
   "station.table.hide_timed_out": "時間切れを隠す",
@@ -164,7 +166,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.menu.ask_heard": "直接受信している局を問い合わせる",
   "station.menu.ask_trace": "経路をたどる",
   "station.menu.ask_weather": "気象を問い合わせる",
-  "station.menu.ask_weather_title": "?WX? はAPRS仕様では特定局あての問い合わせではありません。応答しない局も多くあります",
+  "station.menu.ask_weather_title":
+    "?WX? はAPRS仕様では特定局あての問い合わせではありません。応答しない局も多くあります",
   "station.menu.show_map": "地図で表示",
   "station.menu.show_card": "カードを開く",
   "station.menu.copy": "コールサインをコピー",
@@ -199,7 +202,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.query.label": "{call}への独自の問い合わせ",
   "station.query.placeholder": "?APRSO",
   "station.query.ask": "問い合わせ",
-  "station.query.title": "? で始まる独自の問い合わせ: ?APRSO そのオブジェクト、?APRSM あなた宛ての未配信メッセージ、?APRSH OH2XYZ その局を受信した時刻、?PING?",
+  "station.query.title":
+    "? で始まる独自の問い合わせ: ?APRSO そのオブジェクト、?APRSM あなた宛ての未配信メッセージ、?APRSH OH2XYZ その局を受信した時刻、?PING?",
   "station.query.problem.form": "問い合わせは ? で始まり、その後に内容を書きます",
   "station.query.problem.long": "{max}文字まで",
   "station.query.problem.chars": "ASCII文字のみ (| ~ {{ は不可)",

@@ -33,12 +33,20 @@ const KEPT: Record<string, string> = {
 function corners(): { name: string; value: string }[] {
   return files(SRC)
     .map((path) => relative(SRC, path).replaceAll("\\", "/"))
-    .filter((name) => /\.(vue|css|ts)$/.test(name) && !/\.test\.ts$/.test(name) && !name.startsWith("test/") && name !== "styles/tokens.css")
+    .filter(
+      (name) =>
+        /\.(vue|css|ts)$/.test(name) &&
+        !/\.test\.ts$/.test(name) &&
+        !name.startsWith("test/") &&
+        name !== "styles/tokens.css",
+    )
     .flatMap((name) =>
-      [...strip(readFileSync(join(SRC, name), "utf-8")).matchAll(/border(?:-[a-z]+)*-radius\s*:\s*([^;"'}]+)/gi)].map((m) => ({
-        name,
-        value: (m[1] ?? "").trim(),
-      })),
+      [...strip(readFileSync(join(SRC, name), "utf-8")).matchAll(/border(?:-[a-z]+)*-radius\s*:\s*([^;"'}]+)/gi)].map(
+        (m) => ({
+          name,
+          value: (m[1] ?? "").trim(),
+        }),
+      ),
     );
 }
 
@@ -54,8 +62,12 @@ describe("the corners of the page", () => {
     const all = corners();
     expect(all.length).toBeGreaterThan(50);
     const numbers = all.filter(({ value }) => !value.split(/\s+/).every((part) => PART.test(part)));
-    expect(numbers.filter(({ name, value }) => KEPT[name] !== value).map(({ name, value }) => `${name}: ${value}`)).toEqual([]);
-    expect(Object.entries(KEPT).filter(([name, value]) => !numbers.some((c) => c.name === name && c.value === value))).toEqual([]);
+    expect(
+      numbers.filter(({ name, value }) => KEPT[name] !== value).map(({ name, value }) => `${name}: ${value}`),
+    ).toEqual([]);
+    expect(
+      Object.entries(KEPT).filter(([name, value]) => !numbers.some((c) => c.name === name && c.value === value)),
+    ).toEqual([]);
   });
 
   it("give the tag round ends: the pill", () => {
@@ -65,7 +77,8 @@ describe("the corners of the page", () => {
   });
 
   it("put a control's corner on the controls and a box's on the groups, cards and menus", () => {
-    for (const control of [".btn", ".input"]) expect(cssRule(control), control).toContain("border-radius: var(--radius);");
+    for (const control of [".btn", ".input"])
+      expect(cssRule(control), control).toContain("border-radius: var(--radius);");
     for (const box of [".card", ".tabmenu-list", ".settings fieldset", ".bubble", ".toast"])
       expect(cssRule(box), box).toContain("border-radius: var(--radius-box);");
   });

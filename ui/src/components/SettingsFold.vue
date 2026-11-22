@@ -30,7 +30,9 @@ defineProps<{
         :model-value="settings.draft[key] ?? ''"
         :error="settings.errors[key] ?? ''"
         :changed="form.changed(key)"
-        :recommended="recommendedPath(settings.draft['station/symbol_table'] ?? '', settings.draft['station/symbol_code'] ?? '')"
+        :recommended="
+          recommendedPath(settings.draft['station/symbol_table'] ?? '', settings.draft['station/symbol_code'] ?? '')
+        "
         :disabled="disabled?.(key)"
         @update:model-value="settings.edit(key, $event)"
         @choose="form.choose({ [key]: $event })"

@@ -29,7 +29,11 @@ function fit(tabs: Record<TabId, number>, space: number, open: TabId, order: rea
     used += tabs[id];
   }
   if (!shown.includes(open)) {
-    for (let last = shown[shown.length - 1]; last !== undefined && used + tabs[open] > space; last = shown[shown.length - 1]) {
+    for (
+      let last = shown[shown.length - 1];
+      last !== undefined && used + tabs[open] > space;
+      last = shown[shown.length - 1]
+    ) {
       shown.pop();
       used -= tabs[last];
     }
@@ -44,7 +48,13 @@ function fit(tabs: Record<TabId, number>, space: number, open: TabId, order: rea
  * first tab on. The tab on show is always in the row. `order` is the offered tabs (all unless
  * said).
  */
-export function splitTabs(sizes: TabSizes, room: number, open: TabId, counts: Partial<Record<TabId, number>>, order: readonly TabId[] = TAB_IDS): TabSplit {
+export function splitTabs(
+  sizes: TabSizes,
+  room: number,
+  open: TabId,
+  counts: Partial<Record<TabId, number>>,
+  order: readonly TabId[] = TAB_IDS,
+): TabSplit {
   if (order.reduce((sum, id) => sum + sizes.tabs[id], 0) <= room) return { shown: [...order], hidden: [] };
   const plain = fit(sizes.tabs, room - sizes.more, open, order);
   if (!plain.hidden.some((id) => (counts[id] ?? 0) > 0)) return plain;

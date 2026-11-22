@@ -26,7 +26,15 @@ afterEach(() => document.body.replaceChildren());
 
 describe("stations far outside the map's radius", () => {
   it("are drawn on the map as the near ones are", async () => {
-    mountStationMap({ stations: stations(), selected: null, focus: null, home: { lat: 60.17, lon: 24.94 }, now: NOW, dark: false, aging: { defaultMin: 0 } });
+    mountStationMap({
+      stations: stations(),
+      selected: null,
+      focus: null,
+      home: { lat: 60.17, lon: 24.94 },
+      now: NOW,
+      dark: false,
+      aging: { defaultMin: 0 },
+    });
     await flushPromises();
     const drawn = FakeMarker.live().map((m) => m.element.textContent);
     expect(drawn).toEqual(expect.arrayContaining(["OH2NEAR", "VK2FM", "W6HF"]));
@@ -35,7 +43,9 @@ describe("stations far outside the map's radius", () => {
   it("are in the table of stations", () => {
     const wrapper = mount(StationsTable, {
       props: { selected: null },
-      global: withDaemon(fakeDaemon({ config: configValues({ "map/radius_km": "10" }), stations: stations(), aging: { defaultMin: 0 } })),
+      global: withDaemon(
+        fakeDaemon({ config: configValues({ "map/radius_km": "10" }), stations: stations(), aging: { defaultMin: 0 } }),
+      ),
     });
     const calls = wrapper.findAll("tbody tr td.call .callname").map((td) => td.text());
     expect(calls).toEqual(expect.arrayContaining(["OH2NEAR", "VK2FM", "W6HF"]));

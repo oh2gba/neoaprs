@@ -18,7 +18,16 @@ import { isWeatherStation } from "@/lib/weather";
 import type { Point } from "@/lib/chart";
 import { enabledRadios, type PageRadio } from "@/lib/radios";
 import { channelLines, dayHourLines, ownLines, throughLines } from "@/lib/packetstats";
-import type { IgateState, MapState, PacketHistoryMessage, PacketRow, PacketStatsMessage, StationRow, StatusMessage, TncStats } from "@/protocol/protocol";
+import type {
+  IgateState,
+  MapState,
+  PacketHistoryMessage,
+  PacketRow,
+  PacketStatsMessage,
+  StationRow,
+  StatusMessage,
+  TncStats,
+} from "@/protocol/protocol";
 
 export interface StatLine {
   label: MessageId;
@@ -63,7 +72,15 @@ export interface StatsInput {
 /** How many of a list are named (devices, digipeaters, stations). */
 const TOP = 3;
 const BUSIEST = 5;
-const KINDS = ["position", "message", "object", "item", "status", "other", "undecoded"] as const satisfies readonly PacketRow["kind"][];
+const KINDS = [
+  "position",
+  "message",
+  "object",
+  "item",
+  "status",
+  "other",
+  "undecoded",
+] as const satisfies readonly PacketRow["kind"][];
 
 const whole = (n: number): string => formatNumber(n, 0);
 /** A heard station: not ourselves, not our objects. */
@@ -81,7 +98,9 @@ function topText(counts: ReadonlyMap<string, number>, top = TOP): string {
 
 /** The row farthest from us among `rows`, as "OH2XYZ, 87 km"; null when none has a distance. */
 function farthestText(rows: readonly StationRow[]): string | null {
-  const far = rows.filter((row) => row.distance_km !== null).sort((a, b) => (b.distance_km ?? 0) - (a.distance_km ?? 0) || a.call.localeCompare(b.call))[0];
+  const far = rows
+    .filter((row) => row.distance_km !== null)
+    .sort((a, b) => (b.distance_km ?? 0) - (a.distance_km ?? 0) || a.call.localeCompare(b.call))[0];
   return far === undefined ? null : t("stats.station_km", { call: far.call, km: distanceText(far.distance_km) });
 }
 
@@ -98,7 +117,10 @@ function stationLines(rows: readonly StationRow[], aging: Aging, now: number): S
   for (const row of stations) if (row.device !== "") devices.set(row.device, (devices.get(row.device) ?? 0) + 1);
   return [
     ...line("stats.stations", whole(stations.length)),
-    ...line("stats.on_map", whole(rows.filter((row) => heard(row) && hasPosition(row) && !timedOut(aging, row, now)).length)),
+    ...line(
+      "stats.on_map",
+      whole(rows.filter((row) => heard(row) && hasPosition(row) && !timedOut(aging, row, now)).length),
+    ),
     ...line("stats.direct", whole(stations.filter((row) => onAir(row) && row.heard_direct > 0).length)),
     ...some("stats.internet_only", stations.filter(internetOnly).length),
     ...some("stats.objects", rows.filter((row) => heard(row) && row.kind !== "station").length),
@@ -160,7 +182,9 @@ function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly P
   const byKind = KINDS.filter((kind) => kinds.has(kind))
     .map((kind) => t("stats.kind_count", { n: whole(kinds.get(kind) ?? 0), kind: t(`stats.kind.${kind}`) }))
     .join(" · ");
-  const byChannel = [...channels.values()].map(({ label, n }) => t("stats.kind_count", { n: whole(n), kind: label })).join(" · ");
+  const byChannel = [...channels.values()]
+    .map(({ label, n }) => t("stats.kind_count", { n: whole(n), kind: label }))
+    .join(" · ");
   const onRadio = rows.filter((row) => row.via === "rf" || row.via === "dummy");
   const direct = onRadio.filter((row) => row.route === "direct").length;
   const times = rows.map((row) => Date.parse(row.heard_at)).filter((ms) => !Number.isNaN(ms));
@@ -168,7 +192,10 @@ function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly P
   return [
     ...line("stats.by_kind", byKind, { n: whole(rows.length) }),
     ...line("stats.by_channel", byChannel),
-    ...line("stats.direct_share", onRadio.length > 0 ? t("stats.percent_of_radio", { percent: Math.round((100 * direct) / onRadio.length) }) : null),
+    ...line(
+      "stats.direct_share",
+      onRadio.length > 0 ? t("stats.percent_of_radio", { percent: Math.round((100 * direct) / onRadio.length) }) : null,
+    ),
     ...line("stats.rate", spanMin >= 1 ? t("stats.per_minute", { n: formatNumber(rows.length / spanMin, 1) }) : null),
   ];
 }
@@ -176,7 +203,9 @@ function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly P
 function packetLines(rows: readonly StationRow[], status: StatusMessage | null): StatLine[] {
   const stations = rows.filter(heard);
   const hour = stations.reduce((sum, row) => sum + row.packets_hour, 0);
-  const busiest = new Map(stations.filter((row) => row.packets_hour > 0).map((row) => [row.call, row.packets_hour] as const));
+  const busiest = new Map(
+    stations.filter((row) => row.packets_hour > 0).map((row) => [row.call, row.packets_hour] as const),
+  );
   return [
     ...line("stats.packets_total", status === null ? null : whole(status.packets)),
     ...line("stats.packets_hour", whole(hour)),
@@ -190,7 +219,13 @@ type Totals = Pick<TncStats, "frames_in" | "rejected" | "bytes_in" | "bytes_out"
 function radioTotals(counted: readonly TncStats[]): Totals | null {
   if (counted.length === 0) return null;
   const sum = (field: keyof Totals): number => counted.reduce((n, one) => n + one[field], 0);
-  return { frames_in: sum("frames_in"), rejected: sum("rejected"), bytes_in: sum("bytes_in"), bytes_out: sum("bytes_out"), digipeated: sum("digipeated") };
+  return {
+    frames_in: sum("frames_in"),
+    rejected: sum("rejected"),
+    bytes_in: sum("bytes_in"),
+    bytes_out: sum("bytes_out"),
+    digipeated: sum("digipeated"),
+  };
 }
 
 function sinceLines(status: StatusMessage | null, stats: Totals | null, now: number): StatLine[] {
@@ -198,9 +233,16 @@ function sinceLines(status: StatusMessage | null, stats: Totals | null, now: num
     ...line("stats.running", status === null ? null : ageText(status.started_at, now)),
     ...line(
       "stats.frames",
-      stats === null ? null : stats.rejected > 0 ? t("stats.frames_value", { n: whole(stats.frames_in), bad: whole(stats.rejected) }) : whole(stats.frames_in),
+      stats === null
+        ? null
+        : stats.rejected > 0
+          ? t("stats.frames_value", { n: whole(stats.frames_in), bad: whole(stats.rejected) })
+          : whole(stats.frames_in),
     ),
-    ...line("stats.bytes", stats === null ? null : t("stats.in_out", { in: bytesText(stats.bytes_in), out: bytesText(stats.bytes_out) })),
+    ...line(
+      "stats.bytes",
+      stats === null ? null : t("stats.in_out", { in: bytesText(stats.bytes_in), out: bytesText(stats.bytes_out) }),
+    ),
   ];
 }
 
@@ -214,7 +256,10 @@ export function mapStats(input: StatsInput): StatSection[] {
   const sections: StatSection[] = [
     { title: "stats.section.stations", lines: stationLines(rows, input.aging, input.now) },
     { title: "stats.section.reach", lines: reachLines(rows, input.map, radios) },
-    { title: "stats.section.packets", lines: [...packetLines(rows, input.status), ...dayHourLines(day), ...latestLines(input.packets, radios)] },
+    {
+      title: "stats.section.packets",
+      lines: [...packetLines(rows, input.status), ...dayHourLines(day), ...latestLines(input.packets, radios)],
+    },
     { title: "stats.section.day", lines: channelLines(day, radios, igate?.enabled ?? false) },
     { title: "stats.section.own", lines: ownLines(day) },
     {

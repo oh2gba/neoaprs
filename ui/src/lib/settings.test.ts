@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { portRow, radioRow } from "@/test/fixtures";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { BEACON_FOLDS, FIELDS, SUBGROUPS, fieldFor, groupKeys, reasonOf, shownByValues, storedFor, valueFor } from "@/lib/settings";
+import {
+  BEACON_FOLDS,
+  FIELDS,
+  SUBGROUPS,
+  fieldFor,
+  groupKeys,
+  reasonOf,
+  shownByValues,
+  storedFor,
+  valueFor,
+} from "@/lib/settings";
 import {
   boxKeys,
   boxTitle,
@@ -36,7 +46,13 @@ describe("groupKeys", () => {
     expect(groups[2]?.keys).toEqual([]);
     expect(groups[4]?.title).toBe("Notifications");
     expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[5]?.keys).toEqual(["map/radius_km", "map/aircraft", "map/aircraft_host", "map/ships", "map/ships_host"]);
+    expect(groups[5]?.keys).toEqual([
+      "map/radius_km",
+      "map/aircraft",
+      "map/aircraft_host",
+      "map/ships",
+      "map/ships_host",
+    ]);
   });
   it("gives the My station tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
@@ -65,7 +81,13 @@ describe("groupKeys", () => {
       ["beacon", "Antenna", 4],
       ["beacon", "Advanced", 1],
     ]);
-    expect(groups[2]?.keys).toEqual(["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"]);
+    expect(groups[2]?.keys).toEqual([
+      "status/source",
+      "status/interval_min",
+      "station/status",
+      "status/rigctld",
+      "status/template",
+    ]);
   });
   it("has no Mobile group: the position choice and what it needs are in the Station group, Travelling in the Beacon group, and the old keys are gone", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
@@ -73,8 +95,15 @@ describe("groupKeys", () => {
     const keys = groups.flatMap((g) => g.keys);
     expect(keys).not.toContain("beacon/mobile");
     expect(keys.filter((k) => k.startsWith("smart/"))).toEqual([]);
-    expect((CONFIG_KEYS as readonly string[]).filter((k) => k === "beacon/mobile" || k.startsWith("smart/"))).toEqual([]);
-    expect(groups[0]?.keys.filter((k) => k.startsWith("gps/"))).toEqual(["gps/source", "gps/host", "gps/device", "gps/baud"]);
+    expect((CONFIG_KEYS as readonly string[]).filter((k) => k === "beacon/mobile" || k.startsWith("smart/"))).toEqual(
+      [],
+    );
+    expect(groups[0]?.keys.filter((k) => k.startsWith("gps/"))).toEqual([
+      "gps/source",
+      "gps/host",
+      "gps/device",
+      "gps/baud",
+    ]);
     expect(groups[1]?.keys).toContain("beacon/travel");
     const settings = groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys);
     expect(settings).not.toContain("gps/source");
@@ -119,7 +148,10 @@ describe("groupKeys", () => {
   it("heads the daemon's own alert in the Notifications group with a line that says where it runs", () => {
     expect(SUBGROUPS["messages/alert"]?.text).toBe("On the NeoAPRS computer");
     expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert", "map/aircraft"]);
-    expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Notify me", "Command"]);
+    expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual([
+      "Notify me",
+      "Command",
+    ]);
   });
   it("heads the map's layers with the word Layers, no (i) and no hover text", () => {
     expect(SUBGROUPS["map/aircraft"]).toMatchObject({ text: "Layers", title: "", tipLabel: "", tip: [] });
@@ -212,13 +244,27 @@ describe("groupKeys", () => {
   });
   it("shows the status fields its source needs and the antenna's figures once there is a power", () => {
     const shown = (values: Record<string, string>) =>
-      ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"].filter((k) => shownByValues(k, values));
+      ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"].filter((k) =>
+        shownByValues(k, values),
+      );
     expect(shown({})).toEqual(["status/source"]);
     expect(shown({ "status/source": "text" })).toEqual(["status/source", "status/interval_min", "station/status"]);
-    expect(shown({ "status/source": "rig" })).toEqual(["status/source", "status/interval_min", "status/rigctld", "status/template"]);
-    expect(shown({ "status/rigctld": "127.0.0.1:4532" })).toEqual(["status/source", "status/interval_min", "status/rigctld", "status/template"]);
+    expect(shown({ "status/source": "rig" })).toEqual([
+      "status/source",
+      "status/interval_min",
+      "status/rigctld",
+      "status/template",
+    ]);
+    expect(shown({ "status/rigctld": "127.0.0.1:4532" })).toEqual([
+      "status/source",
+      "status/interval_min",
+      "status/rigctld",
+      "status/template",
+    ]);
     expect(shown({ "station/status": "QRV" })).toEqual(["status/source", "status/interval_min", "station/status"]);
-    expect(shown({ "status/source": "off", "station/status": "QRV", "status/rigctld": "127.0.0.1:4532" })).toEqual(["status/source"]);
+    expect(shown({ "status/source": "off", "station/status": "QRV", "status/rigctld": "127.0.0.1:4532" })).toEqual([
+      "status/source",
+    ]);
     const antenna = (power: string) =>
       ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"].filter((k) =>
         shownByValues(k, { "beacon/power_w": power }),
@@ -227,14 +273,16 @@ describe("groupKeys", () => {
     expect(antenna("5")).toHaveLength(4);
   });
   it("shows the GPS fields its source needs: the address for gpsd, the port and speed for a serial receiver, nothing for Fixed", () => {
-    const gps = (values: Record<string, string>) => ["gps/source", "gps/host", "gps/device", "gps/baud"].filter((k) => shownByValues(k, values));
+    const gps = (values: Record<string, string>) =>
+      ["gps/source", "gps/host", "gps/device", "gps/baud"].filter((k) => shownByValues(k, values));
     expect(gps({ "gps/source": "off" })).toEqual(["gps/source"]);
     expect(gps({})).toEqual(["gps/source"]);
     expect(gps({ "gps/source": "gpsd" })).toEqual(["gps/source", "gps/host"]);
     expect(gps({ "gps/source": "serial" })).toEqual(["gps/source", "gps/device", "gps/baud"]);
   });
   it("shows the station's place (latitude and longitude) for a fixed station only, not while a GPS is chosen", () => {
-    const place = (values: Record<string, string>) => ["station/lat", "station/lon"].filter((k) => shownByValues(k, values));
+    const place = (values: Record<string, string>) =>
+      ["station/lat", "station/lon"].filter((k) => shownByValues(k, values));
     expect(place({ "gps/source": "off" })).toEqual(["station/lat", "station/lon"]);
     expect(place({})).toEqual(["station/lat", "station/lon"]);
     expect(place({ "gps/source": "gpsd" })).toEqual([]);
@@ -274,13 +322,19 @@ describe("groupKeys", () => {
     ]);
     expect(FIELDS["beacon/travel"]?.tip).toHaveLength(1);
     expect(FIELDS["gps/baud"]?.unit).toBe("baud");
-    expect(["beacon/mobile", "smart/fast_kmh", "smart/turn_slope"].map((k) => FIELDS[k])).toEqual([undefined, undefined, undefined]);
+    expect(["beacon/mobile", "smart/fast_kmh", "smart/turn_slope"].map((k) => FIELDS[k])).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
     const tip = (key: string) => (FIELDS[key]?.tip ?? []).join(" ");
     expect(tip("gps/host")).toContain("host:port");
   });
   it("gives a unit to the keys that are counted in one", () => {
     expect(["map/radius_km"].map((k) => FIELDS[k]?.unit)).toEqual(["km"]);
-    expect(["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db"].map((k) => FIELDS[k]?.unit)).toEqual(["W", "m", "dB"]);
+    expect(["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db"].map((k) => FIELDS[k]?.unit)).toEqual(
+      ["W", "m", "dB"],
+    );
   });
   it("offers the status every 30 or 60 minutes or every 2 hours, and a stored interval that is none of them in words", () => {
     const info = FIELDS["status/interval_min"];
@@ -309,16 +363,26 @@ describe("groupKeys", () => {
 describe("reasonOf", () => {
   it("gives the reason without the command and the setting in front, from the catalogue by its code", () => {
     const text = "set_config: station/lat: 95 is not between -90 and 90";
-    expect(reasonOf({ cmd: "set_config", key: "station/lat", text, code: "setting.range", params: { value: 95, min: -90, max: 90 } })).toBe(
-      "95 is not between -90 and 90",
-    );
-    expect(reasonOf({ cmd: "alert_test", key: null, text: "alert_test: no alert command", code: "alert.no_command" })).toBe("no alert command");
+    expect(
+      reasonOf({
+        cmd: "set_config",
+        key: "station/lat",
+        text,
+        code: "setting.range",
+        params: { value: 95, min: -90, max: 90 },
+      }),
+    ).toBe("95 is not between -90 and 90");
+    expect(
+      reasonOf({ cmd: "alert_test", key: null, text: "alert_test: no alert command", code: "alert.no_command" }),
+    ).toBe("no alert command");
   });
   it("never gives the daemon's English: a refusal without a code the page has is its plain words of a failure", () => {
     expect(reasonOf({ cmd: "", key: null, text: "Not connected to the daemon." })).toBe(
       "That did not work; try again. If it keeps happening, send the logs (Settings → Help).",
     );
-    expect(reasonOf({ cmd: "set_config", key: "station/lat", text: "something else", code: "other" })).not.toContain("something else");
+    expect(reasonOf({ cmd: "set_config", key: "station/lat", text: "something else", code: "other" })).not.toContain(
+      "something else",
+    );
   });
 });
 
@@ -337,7 +401,16 @@ describe("shownFor", () => {
 });
 
 describe("shownByRadios", () => {
-  const keys = ["beacon/interval_min", "beacon/path", "gps/source", "gps/host", "gps/device", "gps/baud", "beacon/travel", "station/comment"];
+  const keys = [
+    "beacon/interval_min",
+    "beacon/path",
+    "gps/source",
+    "gps/host",
+    "gps/device",
+    "gps/baud",
+    "beacon/travel",
+    "station/comment",
+  ];
   const radioOf = (id: number, type: string, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, type, extra));
   const shown = (radios: readonly ReturnType<typeof radioOf>[]) => keys.filter((k) => shownByRadios(k, radios));
   it("leaves nothing out while a radio with SmartBeaconing is on", () => {
@@ -345,7 +418,9 @@ describe("shownByRadios", () => {
     expect(shown([radioOf(1, "kiss"), radioOf(2, "mercury")])).toEqual(keys);
   });
   it("keeps the one Beacon choice and the Position's keys while only radios without SmartBeaconing and paths are on, and leaves out Travelling and the Path", () => {
-    expect(shown([radioOf(2, "mercury"), radioOf(1, "kiss", { enabled: false })])).toEqual(keys.filter((k) => k !== "beacon/travel" && k !== "beacon/path"));
+    expect(shown([radioOf(2, "mercury"), radioOf(1, "kiss", { enabled: false })])).toEqual(
+      keys.filter((k) => k !== "beacon/travel" && k !== "beacon/path"),
+    );
   });
   it("shows no Beacon choice while no radio is on, nor before the daemon has told one", () => {
     const none = keys.filter((k) => k !== "beacon/travel" && k !== "beacon/interval_min" && k !== "beacon/path");
@@ -376,7 +451,12 @@ describe("portOptions", () => {
     ]);
   });
   it("lists a port once whichever way it is known", () => {
-    expect(portOptions(ports(), "/dev/ttyUSB0", "/dev/ttyUSB0").map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "/dev/ttyACM0", PORT_OTHER]);
+    expect(portOptions(ports(), "/dev/ttyUSB0", "/dev/ttyUSB0").map((c) => c.value)).toEqual([
+      "",
+      "/dev/ttyUSB0",
+      "/dev/ttyACM0",
+      PORT_OTHER,
+    ]);
     expect(portOptions(null, "", "").map((c) => c.label)).toEqual(["find automatically", "Other..."]);
   });
   it("lists a paired Bluetooth device by its name, after the serial ports, and keeps a typed bt:// address with a channel", () => {
@@ -390,7 +470,13 @@ describe("portOptions", () => {
       radio: null,
     };
     const options = portOptions(listed, "bt://AA:BB:CC:DD:EE:01/2", "");
-    expect(options.map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "bt://AA:BB:CC:DD:EE:01", "bt://AA:BB:CC:DD:EE:01/2", PORT_OTHER]);
+    expect(options.map((c) => c.value)).toEqual([
+      "",
+      "/dev/ttyUSB0",
+      "bt://AA:BB:CC:DD:EE:01",
+      "bt://AA:BB:CC:DD:EE:01/2",
+      PORT_OTHER,
+    ]);
     expect(options[2].label).toBe("bt://AA:BB:CC:DD:EE:01 - Bluetooth: TH-D74");
   });
   it("calls the empty port not set for a port that is never searched for, whether the daemon searches or not", () => {
@@ -399,7 +485,10 @@ describe("portOptions", () => {
     expect(portOptions(null, "", "", true).map((c) => c.label)).toEqual(["not set", "Other..."]);
   });
   it("labels each listed port with what the system calls it, where that says more than the port", () => {
-    const listed = { ...ports(), ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a"), row("COM1", "COM1")] };
+    const listed = {
+      ...ports(),
+      ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a"), row("COM1", "COM1")],
+    };
     expect(portOptions(listed, "", "").slice(1, -1)).toEqual([
       { value: "/dev/ttyUSB0", label: "/dev/ttyUSB0 - FT232R USB UART" },
       { value: "/dev/ttyS0", label: "/dev/ttyS0" },
@@ -416,7 +505,8 @@ describe("portOptions", () => {
       ],
     };
     const names = (id: number) => ({ 1: "FM", 2: "Mobile" })[id];
-    const listedOf = (own: number, current = "") => portOptions(held, current, "", false, holderOf(own, names)).slice(1, -1);
+    const listedOf = (own: number, current = "") =>
+      portOptions(held, current, "", false, holderOf(own, names)).slice(1, -1);
     expect(listedOf(1)).toEqual([
       { value: "/dev/ttyUSB0", label: "Mobile: /dev/ttyUSB0 - FT232R", disabled: true },
       { value: "/dev/ttyACM0", label: "GPS: /dev/ttyACM0", disabled: true },
@@ -458,8 +548,16 @@ describe("the beacon being Off", () => {
   const statusKeys = ["status/source", "status/rigctld", "status/template", "status/interval_min", "station/status"];
 
   it("is an interval of 0 or empty, for a fixed and a moving station alike, and not a settings list that lacks the interval", () => {
-    expect([beaconOff(off), beaconOff({ "beacon/interval_min": " 0 " }), beaconOff({ "beacon/interval_min": "" })]).toEqual([true, true, true]);
-    expect([beaconOff({ "beacon/interval_min": "30" }), beaconOff({ "beacon/interval_min": "20" }), beaconOff({})]).toEqual([false, false, false]);
+    expect([
+      beaconOff(off),
+      beaconOff({ "beacon/interval_min": " 0 " }),
+      beaconOff({ "beacon/interval_min": "" }),
+    ]).toEqual([true, true, true]);
+    expect([
+      beaconOff({ "beacon/interval_min": "30" }),
+      beaconOff({ "beacon/interval_min": "20" }),
+      beaconOff({}),
+    ]).toEqual([false, false, false]);
     // One interval for both radios: Off switches both beacons off
     expect(beaconOff({ "beacon/interval_min": "0", "hf/enabled": "true", "fm/enabled": "false" })).toBe(true);
   });
@@ -487,31 +585,37 @@ describe("the beacon being Off", () => {
     ]) {
       expect([...beaconKeys, ...statusKeys].filter((key) => !disabledByValues(key, values))).toEqual([]);
       expect(
-        ["station/call", "station/lat", "gps/source", "beacon/interval_min", "station/symbol_code"].filter((key) => disabledByValues(key, values)),
+        ["station/call", "station/lat", "gps/source", "beacon/interval_min", "station/symbol_code"].filter((key) =>
+          disabledByValues(key, values),
+        ),
       ).toEqual([]);
     }
   });
   it("greys nothing while the beacon is On", () => {
     for (const interval of ["30", "60", "180"]) {
-      expect([...beaconKeys, ...statusKeys].filter((key) => disabledByValues(key, { "beacon/interval_min": interval }))).toEqual([]);
+      expect(
+        [...beaconKeys, ...statusKeys].filter((key) => disabledByValues(key, { "beacon/interval_min": interval })),
+      ).toEqual([]);
     }
   });
   it("gives a fixed station the intervals and a moving one Off and On (SmartBeaconing), with the interval it keeps shown as On", () => {
-    expect(fieldFor("beacon/interval_min", { "gps/source": "off" }).choices).toEqual(FIELDS["beacon/interval_min"]?.choices);
-    expect((fieldFor("beacon/interval_min", { "gps/source": "off" }).choices ?? []).map((c) => (typeof c === "string" ? c : c.label))).toEqual([
-      "Off",
-      "Every 30 min",
-      "Every 60 min",
-      "Every 3 hours",
-    ]);
+    expect(fieldFor("beacon/interval_min", { "gps/source": "off" }).choices).toEqual(
+      FIELDS["beacon/interval_min"]?.choices,
+    );
+    expect(
+      (fieldFor("beacon/interval_min", { "gps/source": "off" }).choices ?? []).map((c) =>
+        typeof c === "string" ? c : c.label,
+      ),
+    ).toEqual(["Off", "Every 30 min", "Every 60 min", "Every 3 hours"]);
     for (const source of ["gpsd", "serial"]) {
       const moving = fieldFor("beacon/interval_min", { "gps/source": source });
       expect(moving).toMatchObject({ label: "Beacon", kind: "bool", name: "Beacon interval" });
       expect(valueFor("beacon/interval_min", { "gps/source": source, "beacon/interval_min": "180" })).toBe("true");
       expect(valueFor("beacon/interval_min", { "gps/source": source, "beacon/interval_min": "0" })).toBe("false");
-      expect([storedFor("beacon/interval_min", { "gps/source": source }, "true"), storedFor("beacon/interval_min", { "gps/source": source }, "false")]).toEqual(
-        ["30", "0"],
-      );
+      expect([
+        storedFor("beacon/interval_min", { "gps/source": source }, "true"),
+        storedFor("beacon/interval_min", { "gps/source": source }, "false"),
+      ]).toEqual(["30", "0"]);
     }
     expect(valueFor("beacon/interval_min", { "gps/source": "off", "beacon/interval_min": "180" })).toBe("180");
     expect(storedFor("beacon/interval_min", { "gps/source": "off" }, "60")).toBe("60");
@@ -524,10 +628,15 @@ describe("the beacon being Off", () => {
 // Digipeater group do.
 describe("the radios' own settings in the form", () => {
   it("are in no group: the radios' places show them", () => {
-    const groups = groupKeys([...CONFIG_KEYS, "radio/3/port", "radio/3/digipeat", "radio/1/port", "email/radio"], "settings");
+    const groups = groupKeys(
+      [...CONFIG_KEYS, "radio/3/port", "radio/3/digipeat", "radio/1/port", "email/radio"],
+      "settings",
+    );
     expect(groups.flatMap((g) => g.keys).filter((k) => k.startsWith("radio/") || k === "email/radio")).toEqual([]);
     expect(groups.map((g) => g.id)).not.toContain("other");
-    expect(groupKeys(["station/call", "email/radio", "radio/3/beacon"], "beacon").flatMap((g) => g.keys)).toEqual(["station/call"]);
+    expect(groupKeys(["station/call", "email/radio", "radio/3/beacon"], "beacon").flatMap((g) => g.keys)).toEqual([
+      "station/call",
+    ]);
   });
 
   it("say what the same field of the radios of before says", () => {
@@ -546,9 +655,16 @@ describe("the radios' own settings in the form", () => {
         .filter((c) => flat.has(c.value))
         .map((c) => c.label),
     );
-    expect(FIELDS["hf/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.value))).toEqual(["mercury", "dummy-hf"]);
+    expect(FIELDS["hf/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.value))).toEqual([
+      "mercury",
+      "dummy-hf",
+    ]);
     expect(typeChoices().map((c) => c.value)).toEqual(RADIO_TYPES.map((type) => type.key));
-    expect([typeText("kiss-tcp"), typeText("dummy-hf"), typeText("nothing")]).toEqual(["Your own Direwolf or soundmodem", "Dummy Mercury radio", "nothing"]);
+    expect([typeText("kiss-tcp"), typeText("dummy-hf"), typeText("nothing")]).toEqual([
+      "Your own Direwolf or soundmodem",
+      "Dummy Mercury radio",
+      "nothing",
+    ]);
     // Every type the daemon lists has its name in the catalogue: no type's key on the page.
     for (const type of RADIO_TYPES) expect(typeText(type.key), type.key).not.toBe(type.key);
   });
@@ -586,21 +702,35 @@ describe("the keys of a radio's box", () => {
       boxTitle(radioOf(3, "kiss", { name: "Mobile" }), true),
       boxTitle(radioOf(3, "kiss", { name: "Mobile" }), false),
     ]).toEqual(["FM radio", "Mercury radio", "Mercury radio 3", "Mobile", "FM radio"]);
-    expect([unnamed(radioOf(3, "kiss", { name: "Mobile", number: 2 })), unnamed(radioOf(1, "kiss"))]).toEqual(["FM 2", "FM"]);
+    expect([unnamed(radioOf(3, "kiss", { name: "Mobile", number: 2 })), unnamed(radioOf(1, "kiss"))]).toEqual([
+      "FM 2",
+      "FM",
+    ]);
   });
 
   it("put a Digipeater Enable for each radio that may repeat and is on, with a legend while several radios are on", () => {
-    const radios = [radioOf(1, "kiss"), radioOf(2, "mercury"), radioOf(3, "kiss", { name: "Mobile" }), radioOf(4, "dummy", { enabled: false })];
+    const radios = [
+      radioOf(1, "kiss"),
+      radioOf(2, "mercury"),
+      radioOf(3, "kiss", { name: "Mobile" }),
+      radioOf(4, "dummy", { enabled: false }),
+    ];
     const both = digiPlaces(radios, { "radio/1/digipeat": "false", "radio/3/digipeat": "true" });
     expect(both.keys).toEqual(["radio/1/digipeat", "radio/3/digipeat"]);
     expect(Object.values(both.boxes).map((b) => b.text)).toEqual(["FM radio", "Mobile"]);
     // The status row only under an Enable that is on
     expect(both.status).toEqual({ "radio/3/digipeat": { tnc: radios[2]?.row } });
     // Radio 3 the only radio on
-    const one = digiPlaces([radioOf(1, "kiss", { enabled: false }), radioOf(2, "mercury", { enabled: false }), radios[2]], {});
+    const one = digiPlaces(
+      [radioOf(1, "kiss", { enabled: false }), radioOf(2, "mercury", { enabled: false }), radios[2]],
+      {},
+    );
     expect([one.keys, one.boxes, one.status]).toEqual([["radio/3/digipeat"], {}, {}]);
     // A radio that may repeat, beside another radio that is on, shows its radio name.
-    const other = digiPlaces([radioOf(1, "kiss", { enabled: false }), radios[2], radioOf(4, "dummy-hf", { kind: "hf", number: 2 })], {});
+    const other = digiPlaces(
+      [radioOf(1, "kiss", { enabled: false }), radios[2], radioOf(4, "dummy-hf", { kind: "hf", number: 2 })],
+      {},
+    );
     expect([other.keys, Object.values(other.boxes).map((b) => b.text)]).toEqual([["radio/3/digipeat"], ["Mobile"]]);
   });
 });
@@ -608,7 +738,8 @@ describe("the keys of a radio's box", () => {
 describe("the pairs of radios of the Digipeater group", () => {
   const radioOf = (id: number, type: string, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, type, extra));
   /** The daemon's values of the pairs of these radio ids, every pair off. */
-  const told = (...pairs: [number, number][]) => Object.fromEntries(pairs.map(([low, high]) => [`pair/${low}/${high}/enabled`, "false"]));
+  const told = (...pairs: [number, number][]) =>
+    Object.fromEntries(pairs.map(([low, high]) => [`pair/${low}/${high}/enabled`, "false"]));
   const pairKeys = (places: ReturnType<typeof digiPlaces>) => places.keys.filter((key) => key.startsWith("pair/"));
   const FM = radioOf(1, "kiss");
   const HF = radioOf(2, "mercury");
@@ -616,13 +747,22 @@ describe("the pairs of radios of the Digipeater group", () => {
   it("give two radios that can send one box, named by both, with its Enable", () => {
     const places = digiPlaces([FM, HF], told([1, 2]));
     expect(pairKeys(places)).toEqual(["pair/1/2/enabled"]);
-    expect(places.boxes["pair/1/2/enabled"]).toEqual({ text: "FM radio and Mercury radio", title: "", tipLabel: "", tip: [] });
+    expect(places.boxes["pair/1/2/enabled"]).toEqual({
+      text: "FM radio and Mercury radio",
+      title: "",
+      tipLabel: "",
+      tip: [],
+    });
     expect(places.status).toEqual({});
   });
 
   it("give three radios three boxes and four radios six, in the order of the radios' boxes", () => {
     const LORA = radioOf(3, "lora-tcp");
-    expect(pairKeys(digiPlaces([FM, HF, LORA], told([1, 2], [1, 3], [2, 3])))).toEqual(["pair/1/2/enabled", "pair/1/3/enabled", "pair/2/3/enabled"]);
+    expect(pairKeys(digiPlaces([FM, HF, LORA], told([1, 2], [1, 3], [2, 3])))).toEqual([
+      "pair/1/2/enabled",
+      "pair/1/3/enabled",
+      "pair/2/3/enabled",
+    ]);
     const four = [radioOf(4, "kiss", { position: 0, number: 2 }), FM, HF, LORA];
     const all = told([1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]);
     expect(pairKeys(digiPlaces(four, all))).toEqual([
@@ -665,12 +805,11 @@ describe("the pairs of radios of the Digipeater group", () => {
     expect(pairKeys(on)).toEqual(["pair/1/2/enabled", "pair/1/2/ssid"]);
     expect(Object.keys(on.status)).toEqual(["pair/1/2/ssid"]);
     const link = on.status["pair/1/2/ssid"];
-    expect(link !== undefined && "pair" in link ? [link.pair.first.id, link.pair.first.name, link.pair.second.id, link.pair.second.name] : null).toEqual([
-      1,
-      "FM radio",
-      2,
-      "Mercury radio",
-    ]);
+    expect(
+      link !== undefined && "pair" in link
+        ? [link.pair.first.id, link.pair.first.name, link.pair.second.id, link.pair.second.name]
+        : null,
+    ).toEqual([1, "FM radio", 2, "Mercury radio"]);
     expect(link !== undefined && "pair" in link ? link.pair.second.stats : null).toEqual(HF.row.stats);
   });
 
@@ -685,7 +824,9 @@ describe("the pairs of radios of the Digipeater group", () => {
 
   it("say what lib/settingspair.ts says of them", () => {
     const values = { "station/call": "OH2GBA", "pair/1/2/enabled": "true", "pair/1/2/ssid": "12" };
-    expect(fieldFor("pair/1/2/enabled", values)).toEqual(expect.objectContaining({ label: "Enable", kind: "bool", name: "Pair of radios" }));
+    expect(fieldFor("pair/1/2/enabled", values)).toEqual(
+      expect.objectContaining({ label: "Enable", kind: "bool", name: "Pair of radios" }),
+    );
     expect(fieldFor("pair/1/2/ssid", values)).toEqual(expect.objectContaining({ label: "Call", kind: "choice" }));
     expect(fieldFor("pair/2/1/ssid", values)).toEqual({ label: "pair/2/1/ssid" });
   });

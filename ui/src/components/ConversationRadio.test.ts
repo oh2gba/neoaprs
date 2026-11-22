@@ -35,8 +35,16 @@ const SIX = radiosTopic(
 );
 
 function header(call: string, rows: StationRow[], thread: MessageRow[] = [], given: Given = {}) {
-  const daemon = fakeDaemon({ radios: BOTH, stations: shallowRef(new Map(rows.map((row) => [row.call, row]))), ...given });
-  return mount(ConversationView, { props: { selected: call, narrow: false, thread }, global: withDaemon(daemon), attachTo: document.body });
+  const daemon = fakeDaemon({
+    radios: BOTH,
+    stations: shallowRef(new Map(rows.map((row) => [row.call, row]))),
+    ...given,
+  });
+  return mount(ConversationView, {
+    props: { selected: call, narrow: false, thread },
+    global: withDaemon(daemon),
+    attachTo: document.body,
+  });
 }
 type Wrapper = ReturnType<typeof header>;
 const tag = (wrapper: Wrapper) => wrapper.find(".convo-head .convo-radio .tag");
@@ -63,16 +71,30 @@ describe("the radio of a conversation", () => {
 
   it("is the radio of a message on its way that keeps Mercury though the station is now messaged over FM, and the station's once it is done", () => {
     const row = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_now: 1 });
-    expect(named(header("OH2RDG", [row], [message(4, { to_call: "OH2RDG", state: "sending", radio_now: 2 })]))).toBe("Mercury");
-    expect(named(header("OH2RDG", [row], [message(4, { to_call: "OH2RDG", state: "queued", radio_now: 2 })]))).toBe("Mercury");
-    expect(named(header("OH2RDG", [row], [message(4, { to_call: "OH2RDG", state: "acked", radio_now: null })]))).toBe("FM");
+    expect(named(header("OH2RDG", [row], [message(4, { to_call: "OH2RDG", state: "sending", radio_now: 2 })]))).toBe(
+      "Mercury",
+    );
+    expect(named(header("OH2RDG", [row], [message(4, { to_call: "OH2RDG", state: "queued", radio_now: 2 })]))).toBe(
+      "Mercury",
+    );
+    expect(named(header("OH2RDG", [row], [message(4, { to_call: "OH2RDG", state: "acked", radio_now: null })]))).toBe(
+      "FM",
+    );
   });
 
   it("follows the operator's choice at once while a message is on its way, which takes the radio chosen from its next attempt", () => {
     const pressedFm = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_choice: 1, radio_now: 1 });
     const sending = message(4, { to_call: "OH2RDG", state: "sending", radio_id: 2, radio_now: 2 });
     expect(named(header("OH2RDG", [pressedFm], [sending]))).toBe("FM");
-    expect(named(header("OH2RDG", [{ ...pressedFm, radio_choice: 2, radio_now: 2 }], [{ ...sending, radio_id: 1, radio_now: 1 }]))).toBe("Mercury");
+    expect(
+      named(
+        header(
+          "OH2RDG",
+          [{ ...pressedFm, radio_choice: 2, radio_now: 2 }],
+          [{ ...sending, radio_id: 1, radio_now: 1 }],
+        ),
+      ),
+    ).toBe("Mercury");
   });
 
   it("is, for a call nothing is known of and for a row that names none, the radio the daemon names for a call no radio heard", async () => {
@@ -82,7 +104,13 @@ describe("the radio of a conversation", () => {
     const path = hf.find<HTMLInputElement>(".route-box .pathbox input[type='text']");
     expect([path.element.disabled, path.attributes("title")]).toEqual([true, "Mercury: no path"]);
     expect(named(header("OH2NEW", [], [], { status: status({ unheard_radio: 1 }) }))).toBe("FM");
-    expect(named(header("OH2NET", [station("OH2NET", { can_message: false, radio_now: null })], [], { status: status({ unheard_radio: 2 }) }))).toBe("Mercury");
+    expect(
+      named(
+        header("OH2NET", [station("OH2NET", { can_message: false, radio_now: null })], [], {
+          status: status({ unheard_radio: 2 }),
+        }),
+      ),
+    ).toBe("Mercury");
   });
 
   it('shows in Route, before Send, which radio Automatic gives a call no radio heard: the row greyed on "Automatic: NAME", in the page\'s own words', async () => {
@@ -91,10 +119,22 @@ describe("the radio of a conversation", () => {
       await wrapper.find(".route-button").trigger("click");
       const list = wrapper.find<HTMLSelectElement>(".route-box select.route-radio-pick");
       if (!list.exists()) return null;
-      return [list.element.disabled, list.element.selectedOptions[0]?.text, list.findAll("option").map((option) => option.text())];
+      return [
+        list.element.disabled,
+        list.element.selectedOptions[0]?.text,
+        list.findAll("option").map((option) => option.text()),
+      ];
     };
-    expect(await route({ status: status({ unheard_radio: 2 }) })).toEqual([true, "Automatic: Mercury", ["Automatic: Mercury", "FM", "Mercury"]]);
-    expect(await route({ status: status({ unheard_radio: 1 }) })).toEqual([true, "Automatic: FM", ["Automatic: FM", "FM", "Mercury"]]);
+    expect(await route({ status: status({ unheard_radio: 2 }) })).toEqual([
+      true,
+      "Automatic: Mercury",
+      ["Automatic: Mercury", "FM", "Mercury"],
+    ]);
+    expect(await route({ status: status({ unheard_radio: 1 }) })).toEqual([
+      true,
+      "Automatic: FM",
+      ["Automatic: FM", "FM", "Mercury"],
+    ]);
     expect((await route({ radios: SIX, status: status({ unheard_radio: 6 }) }))?.[1]).toBe("Automatic: 80 m");
     expect(await route({ radios: HF_OFF, status: status({ unheard_radio: 1 }) })).toBeNull();
   });
@@ -112,9 +152,14 @@ describe("the radio of a conversation", () => {
 
   it("is any radio the daemon says, a third one too, by the name the operator gave it", () => {
     const wrapper = header("OH2MOB", [station("OH2MOB", { radio_now: 3 })], [], { radios: SIX });
-    expect([named(wrapper), tag(wrapper).attributes("title")]).toEqual(["Mobile", "Messages to this station go on radio Mobile"]);
+    expect([named(wrapper), tag(wrapper).attributes("title")]).toEqual([
+      "Mobile",
+      "Messages to this station go on radio Mobile",
+    ]);
     expect(named(header("OH2DX", [station("OH2DX", { radio_now: 4 })], [], { radios: SIX }))).toBe("40 m");
-    expect(tag(header("OH2DX", [station("OH2DX", { radio_now: 4 })], [], { radios: SIX })).classes()).toContain("tag-dummy");
+    expect(tag(header("OH2DX", [station("OH2DX", { radio_now: 4 })], [], { radios: SIX })).classes()).toContain(
+      "tag-dummy",
+    );
   });
 
   it("is not named while one radio is on: the header is today's, FM or Mercury alone", () => {
@@ -122,14 +167,22 @@ describe("the radio of a conversation", () => {
       [HF_OFF, 1],
       [FM_OFF, 2],
     ] as const) {
-      const wrapper = header("OH2RDG", [station("OH2RDG", { heard: heardBy([1, 3], [2, 3, null]), radio_now: now })], [], { radios: values });
+      const wrapper = header(
+        "OH2RDG",
+        [station("OH2RDG", { heard: heardBy([1, 3], [2, 3, null]), radio_now: now })],
+        [],
+        { radios: values },
+      );
       expect(wrapper.find(".convo-radio").exists(), String(now)).toBe(false);
     }
   });
 
   it("follows the radios as they are ticked: the tag comes with the second radio and goes with it", async () => {
     const daemon = fakeDaemon({ radios: HF_OFF, stations: shallowRef(new Map([["OH2RDG", station("OH2RDG")]])) });
-    const wrapper = mount(ConversationView, { props: { selected: "OH2RDG", narrow: false, thread: [] }, global: withDaemon(daemon) });
+    const wrapper = mount(ConversationView, {
+      props: { selected: "OH2RDG", narrow: false, thread: [] },
+      global: withDaemon(daemon),
+    });
     expect(named(wrapper)).toBe(null);
     await tell(daemon, { radios: BOTH });
     expect(named(wrapper)).toBe("FM");
@@ -156,12 +209,24 @@ describe("the radio of a conversation", () => {
       radioRow(2, "mercury", { name: "Mercury" }),
       radioRow(3, "kiss", { name: "WWWWWWWW", number: 2 }),
     );
-    const daemon = fakeDaemon({ radios: wide, stations: shallowRef(new Map([["OH2RDG", station("OH2RDG", { radio_now: 2 })]])) });
-    const wrapper = mount(ConversationView, { props: { selected: "OH2RDG", narrow: false, thread: [] }, global: withDaemon(daemon), attachTo: document.body });
+    const daemon = fakeDaemon({
+      radios: wide,
+      stations: shallowRef(new Map([["OH2RDG", station("OH2RDG", { radio_now: 2 })]])),
+    });
+    const wrapper = mount(ConversationView, {
+      props: { selected: "OH2RDG", narrow: false, thread: [] },
+      global: withDaemon(daemon),
+      attachTo: document.body,
+    });
     const room = () =>
       wrapper
         .findAll(".convo-radio .twowords > span")
-        .map((part) => [part.text(), part.classes().includes("twowords-off"), part.attributes("aria-hidden"), part.find(".tag").attributes("title") ?? null]);
+        .map((part) => [
+          part.text(),
+          part.classes().includes("twowords-off"),
+          part.attributes("aria-hidden"),
+          part.find(".tag").attributes("title") ?? null,
+        ]);
     expect(room()).toEqual([
       ["Mercury", false, "false", "Messages to this station go on radio Mercury"],
       ["FM", true, "true", null],
@@ -192,18 +257,29 @@ describe("the radio of a conversation", () => {
 });
 
 describe("Send of a conversation", () => {
-  const twoUp = (hf: RadioRow["state"]) => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { state: hf }));
+  const twoUp = (hf: RadioRow["state"]) =>
+    radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { state: hf }));
 
   it("waits for the link of the radio the daemon says, and says which radio is not connected", async () => {
-    const down = header("OH2LATE", [station("OH2LATE", { heard: heardBy([1, 30], [2, 2, null]), radio_now: 2 })], [], { radios: twoUp("waiting") });
+    const down = header("OH2LATE", [station("OH2LATE", { heard: heardBy([1, 30], [2, 2, null]), radio_now: 2 })], [], {
+      radios: twoUp("waiting"),
+    });
     expect(await sendOf(down)).toEqual([true, "Mercury: not connected"]);
-    const fm = header("OH2LATE", [station("OH2LATE", { heard: heardBy([1, 30], [2, 2, null]), radio_now: 1 })], [], { radios: twoUp("waiting") });
+    const fm = header("OH2LATE", [station("OH2LATE", { heard: heardBy([1, 30], [2, 2, null]), radio_now: 1 })], [], {
+      radios: twoUp("waiting"),
+    });
     expect(await sendOf(fm)).toEqual([false, undefined]);
   });
 
   it("waits for a sixth radio by its name", async () => {
-    expect(await sendOf(header("OH2DX", [station("OH2DX", { radio_now: 6 })], [], { radios: SIX }))).toEqual([true, "80 m: not connected"]);
-    expect(await sendOf(header("OH2DX", [station("OH2DX", { radio_now: 5 })], [], { radios: SIX }))).toEqual([false, undefined]);
+    expect(await sendOf(header("OH2DX", [station("OH2DX", { radio_now: 6 })], [], { radios: SIX }))).toEqual([
+      true,
+      "80 m: not connected",
+    ]);
+    expect(await sendOf(header("OH2DX", [station("OH2DX", { radio_now: 5 })], [], { radios: SIX }))).toEqual([
+      false,
+      undefined,
+    ]);
   });
 
   it("holds Retry while the radio is not connected, as Send, and lets it go once it is", () => {
@@ -217,14 +293,23 @@ describe("Send of a conversation", () => {
   });
 
   it("says that the TNC is not connected while the one radio on is not", async () => {
-    const down = radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
-    expect(await sendOf(header("OH2RDG", [station("OH2RDG")], [], { radios: down, connected: false }))).toEqual([true, "The radio is not connected"]);
+    const down = radiosTopic(
+      radioRow(1, "kenwood-tnc2", { state: "waiting" }),
+      radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+    );
+    expect(await sendOf(header("OH2RDG", [station("OH2RDG")], [], { radios: down, connected: false }))).toEqual([
+      true,
+      "The radio is not connected",
+    ]);
   });
 });
 
 describe("a message that came in", () => {
   const line = (m: MessageRow, given: Given = {}) =>
-    mount(ConversationThread, { props: { thread: [m], peer: "OH2RDG" }, global: withDaemon(fakeDaemon({ radios: BOTH, ...given })) }).find(".bubble-route");
+    mount(ConversationThread, {
+      props: { thread: [m], peer: "OH2RDG" },
+      global: withDaemon(fakeDaemon({ radios: BOTH, ...given })),
+    }).find(".bubble-route");
 
   it("names the radio it came on before its route words where radios are named, FM as Mercury: none is the unmarked default", () => {
     const hf = line(incoming(2, "OH2RDG", { radio_id: 2, route: "direct" }));
@@ -234,19 +319,30 @@ describe("a message that came in", () => {
       "Heard on radio Mercury",
     ]);
     expect(line(incoming(2, "OH2RDG", { radio_id: 1, route: "via OH2RCH-2" })).text()).toBe("FM via OH2RCH-2");
-    expect(line(incoming(2, "OH2RDG", { radio_id: 5, route: "direct" }), { radios: SIX }).text()).toBe("Portable direct");
+    expect(line(incoming(2, "OH2RDG", { radio_id: 5, route: "direct" }), { radios: SIX }).text()).toBe(
+      "Portable direct",
+    );
   });
 
   it("is as today with one radio on: no tag for the one radio", () => {
-    expect(line(incoming(2, "OH2RDG", { radio_id: 1, route: "via OH2RCH-2" }), { radios: HF_OFF }).text()).toBe("via OH2RCH-2");
+    expect(line(incoming(2, "OH2RDG", { radio_id: 1, route: "via OH2RCH-2" }), { radios: HF_OFF }).text()).toBe(
+      "via OH2RCH-2",
+    );
     const hfAlone = line(incoming(2, "OH2RDG", { radio_id: 2, route: "direct" }), { radios: FM_OFF });
     expect([hfAlone.text(), hfAlone.find(".tag").exists()]).toEqual(["direct", false]);
   });
 
   it("always names a radio that is not on: one switched off, one removed", () => {
-    expect(line(incoming(2, "OH2RDG", { radio_id: 2, route: "direct" }), { radios: HF_OFF }).text()).toBe("Mercury direct");
-    const removed = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(3, "kiss", { name: "Old", number: 2, removed: true, enabled: false, state: "stopped" }));
-    expect(line(incoming(2, "OH2RDG", { radio_id: 3, route: "via OH2RCH-2" }), { radios: removed }).text()).toBe("Old via OH2RCH-2");
+    expect(line(incoming(2, "OH2RDG", { radio_id: 2, route: "direct" }), { radios: HF_OFF }).text()).toBe(
+      "Mercury direct",
+    );
+    const removed = radiosTopic(
+      radioRow(1, "kenwood-tnc2"),
+      radioRow(3, "kiss", { name: "Old", number: 2, removed: true, enabled: false, state: "stopped" }),
+    );
+    expect(line(incoming(2, "OH2RDG", { radio_id: 3, route: "via OH2RCH-2" }), { radios: removed }).text()).toBe(
+      "Old via OH2RCH-2",
+    );
   });
 
   it("has no tag under a message of ours, nor under one from the internet", () => {
@@ -258,7 +354,14 @@ describe("a message that came in", () => {
 describe("the radio of email", () => {
   const mount_ = (given: Given) => {
     const daemon = fakeDaemon(given);
-    return { daemon, wrapper: mount(EmailPane, { props: { thread: [], addresses: [] }, global: withDaemon(daemon), attachTo: document.body }) };
+    return {
+      daemon,
+      wrapper: mount(EmailPane, {
+        props: { thread: [], addresses: [] },
+        global: withDaemon(daemon),
+        attachTo: document.body,
+      }),
+    };
   };
   const pane = (given: Given) => mount_(given).wrapper;
   const check = (wrapper: ReturnType<typeof pane>) => {
@@ -288,8 +391,16 @@ describe("the radio of email", () => {
     expect(offered(wrapper)).toEqual(["Shack", "20 m", "Mobile", "40 m", "Portable", "80 m"]);
     expect([list(wrapper).element.value, list(wrapper).element.selectedOptions[0]?.text]).toEqual(["3", "Mobile"]);
     const label = wrapper.find(".mail-bar .mail-radio label");
-    expect([label.text(), label.attributes("for"), label.classes()]).toEqual(["Send on", list(wrapper).attributes("id"), ["path-label"]]);
-    expect([list(wrapper).attributes("aria-label"), list(wrapper).attributes("title"), list(wrapper).classes()]).toEqual([undefined, undefined, ["input"]]);
+    expect([label.text(), label.attributes("for"), label.classes()]).toEqual([
+      "Send on",
+      list(wrapper).attributes("id"),
+      ["path-label"],
+    ]);
+    expect([
+      list(wrapper).attributes("aria-label"),
+      list(wrapper).attributes("title"),
+      list(wrapper).classes(),
+    ]).toEqual([undefined, undefined, ["input"]]);
     expect(wrapper.find(".mail-bar .mail-radio").classes()).toEqual(["pathbox", "mail-radio"]);
     expect(check(wrapper)).toEqual([false, undefined]);
     expect(wrapper.find(".mail-bar .tag").exists()).toBe(false);
@@ -309,7 +420,11 @@ describe("the radio of email", () => {
   it("shows the radio in force while the one stored is off: the list has the radios that are on, and the stored one comes back with its radio", async () => {
     const stored = configValues({}, { "email/radio": "2" });
     const { daemon, wrapper } = mount_({
-      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }), radioRow(3, "dummy-lora")),
+      radios: radiosTopic(
+        radioRow(1, "kenwood-tnc2"),
+        radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+        radioRow(3, "dummy-lora"),
+      ),
       config: stored,
       status: status({ email_radio: 1 }),
     });
@@ -323,8 +438,17 @@ describe("the radio of email", () => {
   });
 
   it("has no list with one radio that can send, a monitor beside it or not: email goes on that radio and nothing is shown", async () => {
-    for (const radios of [HF_OFF, FM_OFF, radiosTopic(radioRow(2, "mercury"), radioRow(7, "tnc-text", { name: "FTM" }))]) {
-      const wrapper = pane({ radios, status: status({ email_radio: [...radios.values()].find((row) => row.enabled && row.can.transmit)?.id ?? null }) });
+    for (const radios of [
+      HF_OFF,
+      FM_OFF,
+      radiosTopic(radioRow(2, "mercury"), radioRow(7, "tnc-text", { name: "FTM" })),
+    ]) {
+      const wrapper = pane({
+        radios,
+        status: status({
+          email_radio: [...radios.values()].find((row) => row.enabled && row.can.transmit)?.id ?? null,
+        }),
+      });
       expect([list(wrapper).exists(), wrapper.find(".mail-bar .tag").exists()]).toEqual([false, false]);
       expect(check(wrapper)).toEqual([false, undefined]);
       expect(await sendOfMail(wrapper)).toEqual([false, undefined]);
@@ -334,7 +458,10 @@ describe("the radio of email", () => {
 
   it("takes the same room whichever radio is chosen: the list beside the button, then the room, then the (i), and no line of words", async () => {
     const { daemon, wrapper } = mount_({ radios: SIX, status: status({ email_radio: 1 }) });
-    const bar = () => [...wrapper.find(".mail-bar").element.children].map((e) => `${e.tagName.toLowerCase()}.${e.className.split(" ").join(".")}`);
+    const bar = () =>
+      [...wrapper.find(".mail-bar").element.children].map(
+        (e) => `${e.tagName.toLowerCase()}.${e.className.split(" ").join(".")}`,
+      );
     const before = bar();
     expect(before).toEqual(["button.btn", "div.pathbox.mail-radio", "span.grow", "span.infotip"]);
     await list(wrapper).setValue("6");
@@ -343,26 +470,37 @@ describe("the radio of email", () => {
     expect(wrapper.find(".mail-bar").text()).toBe("Check emailSend onShack20 mMobile40 mPortable80 mi");
     const sheet = readFileSync(resolve(__dirname, "../styles/email.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const rule = sheet.match(/\.mail-radio \{([^}]*)\}/)?.[1] ?? "";
-    expect([rule.includes("flex: none"), rule.includes("flex-wrap: nowrap")], "the label and the list go as one, as wide as the longest name").toEqual([
-      true,
-      true,
-    ]);
-    expect(sheet.match(/\.mail-bar \{([^}]*)\}/)?.[1], "at 375 px the two go under the button rather than out of the screen").toContain("flex-wrap: wrap");
+    expect(
+      [rule.includes("flex: none"), rule.includes("flex-wrap: nowrap")],
+      "the label and the list go as one, as wide as the longest name",
+    ).toEqual([true, true]);
+    expect(
+      sheet.match(/\.mail-bar \{([^}]*)\}/)?.[1],
+      "at 375 px the two go under the button rather than out of the screen",
+    ).toContain("flex-wrap: wrap");
   });
 
   it("keeps Check email and Send off while its radio is not connected, saying which", async () => {
-    const wrapper = pane({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")) });
+    const wrapper = pane({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")),
+    });
     expect(check(wrapper)).toEqual([true, "FM: not connected"]);
     expect(await sendOfMail(wrapper)).toEqual([true, "FM: not connected"]);
   });
 
   it("has Send on while the radio chosen takes frames, a Mercury radio too, and off while that one is not connected though another is", async () => {
-    const up = pane({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")), status: status({ email_radio: 2 }) });
+    const up = pane({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")),
+      status: status({ email_radio: 2 }),
+    });
     expect([check(up), await sendOfMail(up)]).toEqual([
       [false, undefined],
       [false, undefined],
     ]);
-    const down = pane({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { state: "waiting" })), status: status({ email_radio: 2 }) });
+    const down = pane({
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { state: "waiting" })),
+      status: status({ email_radio: 2 }),
+    });
     expect([check(down), await sendOfMail(down)]).toEqual([
       [true, "Mercury: not connected"],
       [true, "Mercury: not connected"],
@@ -373,7 +511,9 @@ describe("the radio of email", () => {
     const thread = [message(7, { to_call: "EMAIL-2", text: "a@example.org hello", state: "failed", attempts: 2 })];
     const wrapper = mount(EmailPane, {
       props: { thread, addresses: [] },
-      global: withDaemon(fakeDaemon({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")) })),
+      global: withDaemon(
+        fakeDaemon({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")) }),
+      ),
     });
     const retry = wrapper.findAll<HTMLButtonElement>("button").find((b) => b.text() === "Retry");
     expect([retry?.element.disabled, retry?.attributes("title")]).toEqual([true, "FM: not connected"]);
@@ -381,18 +521,31 @@ describe("the radio of email", () => {
 
   it("names the radio a mail that came in came on, before its route, as a bubble does, where radios are named", async () => {
     const mail = incoming(8, "EMAIL-2", { radio_id: 3, route: "via OH2RCH-2" });
-    const wrapper = mount(EmailPane, { props: { thread: [mail], addresses: [] }, global: withDaemon(fakeDaemon({ radios: SIX })) });
+    const wrapper = mount(EmailPane, {
+      props: { thread: [mail], addresses: [] },
+      global: withDaemon(fakeDaemon({ radios: SIX })),
+    });
     await wrapper.find(".mail-body").trigger("click");
     const route = wrapper.find(".mail-detail .tag");
-    expect([route.text(), route.classes(), route.attributes("title")]).toEqual(["Mobile", expect.arrayContaining(["tag-neutral"]), "Heard on radio Mobile"]);
+    expect([route.text(), route.classes(), route.attributes("title")]).toEqual([
+      "Mobile",
+      expect.arrayContaining(["tag-neutral"]),
+      "Heard on radio Mobile",
+    ]);
     expect(wrapper.find(".mail-detail").text()).toContain("Mobile via OH2RCH-2");
   });
 
   it("names no radio under a mail with one radio on, as today", async () => {
     const mail = incoming(8, "EMAIL-2", { radio_id: 1, route: "via OH2RCH-2" });
-    const wrapper = mount(EmailPane, { props: { thread: [mail], addresses: [] }, global: withDaemon(fakeDaemon({ radios: HF_OFF })) });
+    const wrapper = mount(EmailPane, {
+      props: { thread: [mail], addresses: [] },
+      global: withDaemon(fakeDaemon({ radios: HF_OFF })),
+    });
     await wrapper.find(".mail-body").trigger("click");
-    expect([wrapper.find(".mail-detail .tag").exists(), wrapper.find(".mail-detail").text()]).toEqual([false, expect.stringContaining("via OH2RCH-2")]);
+    expect([wrapper.find(".mail-detail .tag").exists(), wrapper.find(".mail-detail").text()]).toEqual([
+      false,
+      expect.stringContaining("via OH2RCH-2"),
+    ]);
     expect(wrapper.find(".mail-detail").text()).not.toContain("FM");
   });
 
@@ -402,7 +555,10 @@ describe("the radio of email", () => {
       [false, undefined],
       [false, undefined],
     ]);
-    const none = radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
+    const none = radiosTopic(
+      radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }),
+      radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+    );
     const off = pane({ radios: none, status: status({ email_radio: null }) });
     expect(check(off)).toEqual([true, "there is no radio: add one, or turn one on"]);
     expect(await sendOfMail(off)).toEqual([true, "there is no radio: add one, or turn one on"]);
@@ -412,7 +568,9 @@ describe("the radio of email", () => {
 
 describe("a station whose position takes no messages", () => {
   it("is said above the box to write in, with the (i) that says why, and the message goes all the same", async () => {
-    const wrapper = header("OH2PLN", [station("OH2PLN", { may_not_message: true })], [], { radios: radiosTopic(radioRow(1, "kenwood-tnc2")) });
+    const wrapper = header("OH2PLN", [station("OH2PLN", { may_not_message: true })], [], {
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2")),
+    });
     const note = wrapper.find(".convo-maynot");
     expect(note.text()).toContain("This station may not take messages");
     expect(note.find(".infotip").exists()).toBe(true);

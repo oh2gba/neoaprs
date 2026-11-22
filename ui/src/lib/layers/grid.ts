@@ -59,7 +59,8 @@ export const NO_GRID: GridCollection = { type: "FeatureCollection", features: []
 const worldPx = (zoom: number): number => TILE_PX * 2 ** zoom;
 const mercY = (lat: number): number => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
 const widthPx = (degrees: number, zoom: number): number => (degrees / 360) * worldPx(zoom);
-const heightPx = (south: number, north: number, zoom: number): number => ((mercY(north) - mercY(south)) / (2 * Math.PI)) * worldPx(zoom);
+const heightPx = (south: number, north: number, zoom: number): number =>
+  ((mercY(north) - mercY(south)) / (2 * Math.PI)) * worldPx(zoom);
 
 /** A part of the view inside one copy of the world, in that copy's degrees (-180..180), and how far
  * east the copy is drawn. */
@@ -73,7 +74,8 @@ interface Piece {
 function pieces(given: GridView): Piece[] {
   const south = Math.max(-MERCATOR_LAT, given.south);
   const north = Math.min(MERCATOR_LAT, given.north);
-  if (![given.west, given.east, south, north].every(Number.isFinite) || !(given.east > given.west && north > south)) return [];
+  if (![given.west, given.east, south, north].every(Number.isFinite) || !(given.east > given.west && north > south))
+    return [];
   const out: Piece[] = [];
   for (let shift = 360 * Math.floor((given.west + 180) / 360); shift - 180 < given.east; shift += 360) {
     const west = Math.max(-180, given.west - shift);
@@ -107,13 +109,18 @@ export function namedStep(view: GridView): GridStep {
   return allowed.find((s) => cellCount(view, s.step) <= MAX_CELLS)?.step ?? "field";
 }
 
-const line = (rank: 0 | 1, coordinates: LonLat[]): GridFeature => ({ type: "Feature", properties: { rank }, geometry: { type: "LineString", coordinates } });
+const line = (rank: 0 | 1, coordinates: LonLat[]): GridFeature => ({
+  type: "Feature",
+  properties: { rank },
+  geometry: { type: "LineString", coordinates },
+});
 
 /** The lines of a step across a piece of the view, leaving out those on the lines of `skip` (drawn
  * already), in the copy of the world the piece is drawn in. */
 function lines({ view, shift }: Piece, step: Step, rank: 0 | 1, skip?: Step): GridFeature[] {
   const { c0, c1, r0, r1 } = span(view, step);
-  const on = (n: number, size: number, coarse?: number) => coarse !== undefined && Math.abs(Math.round((n * size) / coarse) - (n * size) / coarse) < 1e-6;
+  const on = (n: number, size: number, coarse?: number) =>
+    coarse !== undefined && Math.abs(Math.round((n * size) / coarse) - (n * size) / coarse) < 1e-6;
   const out: GridFeature[] = [];
   for (let c = c0 + 1; c <= c1; c++)
     if (!on(c, step.w, skip?.w))
@@ -145,10 +152,19 @@ function names({ view, shift }: Piece, step: Step, middle: { lon: number; lat: n
       const east = Math.min(view.east, -180 + (c + 1) * step.w);
       const south = Math.max(view.south, -90 + r * step.h);
       const north = Math.min(view.north, -90 + (r + 1) * step.h);
-      const holdsMiddle = middle.lon - shift >= west && middle.lon - shift <= east && middle.lat >= south && middle.lat <= north;
-      if (!holdsMiddle && (widthPx(east - west, view.zoom) < NAME_PX.w || heightPx(south, north, view.zoom) < NAME_PX.h)) continue;
+      const holdsMiddle =
+        middle.lon - shift >= west && middle.lon - shift <= east && middle.lat >= south && middle.lat <= north;
+      if (
+        !holdsMiddle &&
+        (widthPx(east - west, view.zoom) < NAME_PX.w || heightPx(south, north, view.zoom) < NAME_PX.h)
+      )
+        continue;
       const name = positionToLocator(-90 + (r + 0.5) * step.h, -180 + (c + 0.5) * step.w).slice(0, step.chars);
-      out.push({ type: "Feature", properties: { name }, geometry: { type: "Point", coordinates: [shift + (west + east) / 2, (south + north) / 2] } });
+      out.push({
+        type: "Feature",
+        properties: { name },
+        geometry: { type: "Point", coordinates: [shift + (west + east) / 2, (south + north) / 2] },
+      });
     }
   }
   return out;

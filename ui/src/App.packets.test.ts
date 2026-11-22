@@ -9,7 +9,8 @@ const harness = useAppHarness();
 
 const card = () => document.querySelector<HTMLElement>(".packetscard");
 const statsCard = () => document.querySelector<HTMLElement>(".statscard");
-const menuItem = (name: string) => document.querySelector<HTMLElement>(`.mapmenu [role='menuitem'][data-item='${name}']`);
+const menuItem = (name: string) =>
+  document.querySelector<HTMLElement>(`.mapmenu [role='menuitem'][data-item='${name}']`);
 
 async function choose(name: string): Promise<void> {
   FakeMap.last().fire("contextmenu", {
@@ -35,7 +36,12 @@ describe("App: the Packets card", () => {
     expect(card()?.querySelector(".card-head strong")?.textContent).toBe("Packets");
     expect(card()?.querySelectorAll(".packet-row")).toHaveLength(2);
     expect(card()?.querySelector("input[type='search']")).not.toBeNull();
-    socket.say({ type: "patch", topic: "packets", rev: 1, ops: [{ op: "set", key: "3", value: packet(3, { tnc2: "OH2NEW>APRS:>hello" }) }] });
+    socket.say({
+      type: "patch",
+      topic: "packets",
+      rev: 1,
+      ops: [{ op: "set", key: "3", value: packet(3, { tnc2: "OH2NEW>APRS:>hello" }) }],
+    });
     await flushPromises();
     expect(card()?.querySelectorAll(".packet-row")).toHaveLength(3);
     expect(localStorage.getItem("NeoAPRS.packets")).toBe("open");

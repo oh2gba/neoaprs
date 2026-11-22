@@ -9,7 +9,12 @@ const layers = computed(() => symbolLayers(props.table, props.code).map((layer) 
 </script>
 
 <template>
-  <span class="symicon" :class="{ 'stn-plain': layers.length === 0 }" :style="{ width: `${size}px`, height: `${size}px` }" aria-hidden="true">
+  <span
+    class="symicon"
+    :class="{ 'stn-plain': layers.length === 0 }"
+    :style="{ width: `${size}px`, height: `${size}px` }"
+    aria-hidden="true"
+  >
     <span v-for="(style, i) in layers" :key="i" class="stn-layer" :style="style"></span>
   </span>
 </template>

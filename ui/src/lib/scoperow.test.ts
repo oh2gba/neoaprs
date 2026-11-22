@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { LIMITS } from "@/protocol/lists";
-import { HISTORY_KIND, RADIO_KIND, ROW_KIND, dbOfRowByte, parseScopeFrame, parseScopeHistory, parseScopeRow, radioFrame } from "@/lib/scoperow";
+import {
+  HISTORY_KIND,
+  RADIO_KIND,
+  ROW_KIND,
+  dbOfRowByte,
+  parseScopeFrame,
+  parseScopeHistory,
+  parseScopeRow,
+  radioFrame,
+} from "@/lib/scoperow";
 
 const { rowBins } = LIMITS.scope;
 

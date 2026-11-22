@@ -11,13 +11,25 @@ import { bytesText } from "@/lib/format";
 import { blockedText, currentEstimate, isRunning } from "@/lib/mapfetch";
 import type { Command, MapState } from "@/protocol/protocol";
 
-const props = defineProps<{ map: MapState; stale: boolean; send: (command: Command) => boolean; early?: boolean; id?: string }>();
+const props = defineProps<{
+  map: MapState;
+  stale: boolean;
+  send: (command: Command) => boolean;
+  early?: boolean;
+  id?: string;
+}>();
 
 const running = computed(() => isRunning(props.map));
 const estimate = computed(() => currentEstimate(props.map));
 const idle = computed(() => !running.value && !props.stale && (props.early || props.map.blocked === ""));
 const why = computed(() =>
-  props.stale ? (props.early ? undefined : t("settings.saving")) : running.value || props.early ? undefined : blockedText(props.map) || undefined,
+  props.stale
+    ? props.early
+      ? undefined
+      : t("settings.saving")
+    : running.value || props.early
+      ? undefined
+      : blockedText(props.map) || undefined,
 );
 /** The first press was made and the size is not known yet. */
 const checking = ref(false);
@@ -93,10 +105,26 @@ const faces = computed(() => [
 </script>
 
 <template>
-  <button :id="id" class="btn mapfetch-button" :class="{ danger: asking }" type="button" :disabled="!idle || checking" :title="why" @click="press">
+  <button
+    :id="id"
+    class="btn mapfetch-button"
+    :class="{ danger: asking }"
+    type="button"
+    :disabled="!idle || checking"
+    :title="why"
+    @click="press"
+  >
     <span class="twowords"
-      ><span v-for="face in faces" :key="face" :class="{ 'twowords-off': face !== label }" :aria-hidden="face !== label">{{ face }}</span></span
+      ><span
+        v-for="face in faces"
+        :key="face"
+        :class="{ 'twowords-off': face !== label }"
+        :aria-hidden="face !== label"
+        >{{ face }}</span
+      ></span
     >
   </button>
-  <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">{{ t("settings.map.cancel") }}</button>
+  <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">
+    {{ t("settings.map.cancel") }}
+  </button>
 </template>

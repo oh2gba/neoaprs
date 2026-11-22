@@ -40,8 +40,10 @@ function codes(model: string, field: string): string[] {
   return found.filter((code) => code !== "");
 }
 
-const kindOf = (row: PacketRow): string => packetFacts(row).find((fact) => fact.label === t("packets.fact.kind"))?.text ?? "";
-const whyOf = (row: PacketRow): string => packetFacts(row).find((fact) => fact.label === t("packets.fact.why"))?.text ?? "";
+const kindOf = (row: PacketRow): string =>
+  packetFacts(row).find((fact) => fact.label === t("packets.fact.kind"))?.text ?? "";
+const whyOf = (row: PacketRow): string =>
+  packetFacts(row).find((fact) => fact.label === t("packets.fact.why"))?.text ?? "";
 
 /** Each field: its codes, the page's words for one, and the plain words of the place, which a code the page has no words for falls back to. */
 const SAID: Record<string, { codes: () => string[]; say: (code: string) => string; plain: () => string }> = {
@@ -52,36 +54,82 @@ const SAID: Record<string, { codes: () => string[]; say: (code: string) => strin
   },
   "IgateState.reason": {
     codes: () => codes("IgateState", "reason").filter((c) => c !== "unverified"), // (the state `unverified` has a line of its own: the reason is not said for it)
-    say: (c) => igateLook(igateState({ enabled: true, state: "connecting", reason: c as IgateState["reason"] }), {}, 0).line,
+    say: (c) =>
+      igateLook(igateState({ enabled: true, state: "connecting", reason: c as IgateState["reason"] }), {}, 0).line,
     plain: () => t("settings.tnc.not_connected"),
   },
-  "HttpsState.reason": { codes: () => codes("HttpsState", "reason"), say: (c) => reasonText(c as HttpsState["reason"]), plain: () => "" },
+  "HttpsState.reason": {
+    codes: () => codes("HttpsState", "reason"),
+    say: (c) => reasonText(c as HttpsState["reason"]),
+    plain: () => "",
+  },
   "MapProblem.code": {
     codes: () => codes("MapProblem", "code"),
     say: (c) =>
-      problemText(mapState({ state: "error", problem: { code: c as NonNullable<MapState["problem"]>["code"], params: { days: 10, size: 900, max: 800 } } })),
+      problemText(
+        mapState({
+          state: "error",
+          problem: { code: c as NonNullable<MapState["problem"]>["code"], params: { days: 10, size: 900, max: 800 } },
+        }),
+      ),
     plain: () => "",
   },
-  "MapState.blocked": { codes: () => codes("MapState", "blocked"), say: (c) => blockedText(mapState({ blocked: c as MapState["blocked"] })), plain: () => "" },
+  "MapState.blocked": {
+    codes: () => codes("MapState", "blocked"),
+    say: (c) => blockedText(mapState({ blocked: c as MapState["blocked"] })),
+    plain: () => "",
+  },
   "UpdateResultMsg.reason": {
     codes: () => codes("UpdateResultMsg", "reason"),
-    say: (c) => outcomeOf({ type: "update_result", outcome: "no_answer", version: "", reason: c as UpdateResultMessage["reason"] }).text,
+    say: (c) =>
+      outcomeOf({
+        type: "update_result",
+        outcome: "no_answer",
+        version: "",
+        reason: c as UpdateResultMessage["reason"],
+      }).text,
     plain: () => t("settings.update.no_answer"),
   },
   "AlertResultMsg.outcome": {
     codes: () => codes("AlertResultMsg", "outcome"),
-    say: (c) => outcomeText({ type: "alert_result", ok: c === "ran", outcome: c as AlertResultMessage["outcome"], status: 3, seconds: 20, line: "" }),
+    say: (c) =>
+      outcomeText({
+        type: "alert_result",
+        ok: c === "ran",
+        outcome: c as AlertResultMessage["outcome"],
+        status: 3,
+        seconds: 20,
+        line: "",
+      }),
     plain: () => "",
   },
   "DecodedUndecoded.code": {
     codes: () => codes("DecodedUndecoded", "code").filter((c) => c !== "damaged"), // (the plain word of the place itself)
-    say: (c) => whyOf(packet(1, { kind: "undecoded", decoded: { type: "undecoded", code: c as DecodedUndecoded["code"], text: "!60" } })),
+    say: (c) =>
+      whyOf(
+        packet(1, {
+          kind: "undecoded",
+          decoded: { type: "undecoded", code: c as DecodedUndecoded["code"], text: "!60" },
+        }),
+      ),
     plain: () => t("packets.why.damaged"),
   },
   "DecodedOther.kind": {
     codes: () => codes("DecodedOther", "kind").filter((c) => c !== "unknown"), // (the plain "Other packet" itself)
     say: (c) =>
-      kindOf(packet(1, { kind: "other", decoded: { type: "other", kind: c as DecodedOther["kind"], text: "", weather: null, items: null, timestamp: null } })),
+      kindOf(
+        packet(1, {
+          kind: "other",
+          decoded: {
+            type: "other",
+            kind: c as DecodedOther["kind"],
+            text: "",
+            weather: null,
+            items: null,
+            timestamp: null,
+          },
+        }),
+      ),
     plain: () => t("packets.kind.other"),
   },
   "AreaValues.shape": {
@@ -128,7 +176,10 @@ describe("the codes the daemon sends in place of a sentence", () => {
     const coded = Object.keys(errors).filter((code) => !["failed", "not_json", "topic.unknown"].includes(code));
     for (const locale of LOCALES) {
       setLocale(locale.code);
-      for (const code of coded) expect(errorReason({ cmd: "", key: null, code, params: {}, text: "" }), `${locale.code} ${code}`).not.toBe(failed());
+      for (const code of coded)
+        expect(errorReason({ cmd: "", key: null, code, params: {}, text: "" }), `${locale.code} ${code}`).not.toBe(
+          failed(),
+        );
     }
   });
 });

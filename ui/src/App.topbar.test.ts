@@ -17,11 +17,13 @@ const KEY = "station/transmit";
  * The settings sent again with these, a radio's own (`radio/1/digipeat`) among the radios' values.
  */
 const say = async (socket: FakeSocket, rev: number, values: Record<string, string>) => {
-  const own = (radio: boolean) => Object.fromEntries(Object.entries(values).filter(([key]) => key.startsWith("radio/") === radio));
+  const own = (radio: boolean) =>
+    Object.fromEntries(Object.entries(values).filter(([key]) => key.startsWith("radio/") === radio));
   socket.say({ type: "state", topic: "config", rev, value: configValues(own(false), own(true)) });
   await flushPromises();
 };
-const flashed = (control: string) => document.getElementById(control)?.closest("fieldset")?.classList.contains("attend");
+const flashed = (control: string) =>
+  document.getElementById(control)?.closest("fieldset")?.classList.contains("attend");
 
 describe("the Daemon mark", () => {
   it("is in a browser, between Update and Radio", async () => {
@@ -54,7 +56,12 @@ describe("the Daemon mark", () => {
 describe("a text that says RX only", () => {
   it("is a link in the Digipeater and Beacon rows, which opens Settings → Radio and flashes the RX only tickbox", async () => {
     const { wrapper, socket } = await open();
-    await say(socket, 1, { [KEY]: "false", "radio/1/digipeat": "true", "beacon/interval_min": "30", "status/source": "text" });
+    await say(socket, 1, {
+      [KEY]: "false",
+      "radio/1/digipeat": "true",
+      "beacon/interval_min": "30",
+      "status/source": "text",
+    });
     await tabButton(wrapper, "Settings")?.trigger("click");
     const digi = wrapper.findAll("#pane-settings fieldset").find((f) => f.find("legend").text() === "Digipeater");
     const line = digi?.find(".tncstatus button.linkbutton");
@@ -67,7 +74,9 @@ describe("a text that says RX only", () => {
     await rows[0]?.trigger("click");
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
     await vi.waitFor(() => expect(flashed("set-station-transmit")).toBe(true));
-    expect(document.getElementById("set-station-transmit")?.closest("fieldset")?.querySelector("legend")?.textContent).toContain("Radio");
+    expect(
+      document.getElementById("set-station-transmit")?.closest("fieldset")?.querySelector("legend")?.textContent,
+    ).toContain("Radio");
   });
 
   it("is plain words in the rows while transmitting is on", async () => {
@@ -79,7 +88,14 @@ describe("a text that says RX only", () => {
 
   it("is a link in the toast of the daemon's refusal, which leads to the same place, and not in another refusal", async () => {
     const { wrapper, socket } = await open();
-    socket.say({ type: "error", cmd: "", key: null, text: "beacon_now: receive only: transmitting is switched off", code: "transmit.off", params: {} });
+    socket.say({
+      type: "error",
+      cmd: "",
+      key: null,
+      text: "beacon_now: receive only: transmitting is switched off",
+      code: "transmit.off",
+      params: {},
+    });
     await flushPromises();
     const toast = wrapper.find(".toast");
     expect(toast.find("button.linkbutton").text()).toBe("RX only: nothing is sent");

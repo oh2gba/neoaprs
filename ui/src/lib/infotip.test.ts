@@ -25,7 +25,9 @@ describe("placeNote: the note of an (i), wholly in the window", () => {
 
   it("stays below when it does not fit anywhere better, and is not taller than the window's top", () => {
     expect(placeNote(at(700, 100), { width: 298, height: 880 }, view).top).toBe(124);
-    expect(placeNote(at(700, 30), { width: 298, height: 880 }, { width: 1440, height: 400 }).top).toBeGreaterThanOrEqual(8);
+    expect(
+      placeNote(at(700, 30), { width: 298, height: 880 }, { width: 1440, height: 400 }).top,
+    ).toBeGreaterThanOrEqual(8);
   });
 
   it("is as wide as a phone allows: 360 px leaves 344 for a note that wants 298, and a wider note is cut to it, from the margin", () => {

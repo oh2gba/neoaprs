@@ -35,11 +35,27 @@ import { heardTimes, internetOnly } from "@/lib/channels";
 import { extensionRows, frequencyText } from "@/lib/details";
 import { heardDirect, internetText, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
-import { HOUR_MS, agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
+import {
+  HOUR_MS,
+  agoWords,
+  altitudeText,
+  bearingText,
+  dateTimeText,
+  distanceText,
+  positionText,
+  speedText,
+} from "@/lib/format";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
 import { SIGNAL_HOURS, readingText } from "@/lib/signal";
 import { isMoving, tripStart } from "@/lib/speed";
-import type { AlertWhen, PacketHistoryMessage, SignalSeriesMessage, SpeedSeriesMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
+import type {
+  AlertWhen,
+  PacketHistoryMessage,
+  SignalSeriesMessage,
+  SpeedSeriesMessage,
+  StationRow,
+  WeatherSeriesMessage,
+} from "@/protocol/protocol";
 
 const radios = useRadios();
 const props = withDefaults(
@@ -108,20 +124,29 @@ const qrz = computed(() => (props.row.kind === "station" ? qrzUrl(props.row.call
 const fromUs = computed(() =>
   props.row.distance_km === null
     ? null
-    : t("station.from_us_value", { distance: distanceText(props.row.distance_km), bearing: bearingText(props.row.bearing_deg) }),
+    : t("station.from_us_value", {
+        distance: distanceText(props.row.distance_km),
+        bearing: bearingText(props.row.bearing_deg),
+      }),
 );
-const position = computed(() => (props.row.lat === null || props.row.lon === null ? null : positionText(props.row.lat, props.row.lon)));
+const position = computed(() =>
+  props.row.lat === null || props.row.lon === null ? null : positionText(props.row.lat, props.row.lon),
+);
 /** Only a moving station has a speed and course worth saying: "85 km/h, course 96° E". */
 const moving = computed(() => {
   const { speed_kmh: speed, course_deg: course } = props.row;
   if (speed === null || speed <= 0) return null;
-  return course === null ? speedText(speed) : t("station.speed_course", { speed: speedText(speed), course: bearingText(course) });
+  return course === null
+    ? speedText(speed)
+    : t("station.speed_course", { speed: speedText(speed), course: bearingText(course) });
 });
 /**
  * When it was last heard per radio and channel: "FM 3 min ago · Internet 40 s ago"; the plain age
  * for a row nothing was counted for.
  */
-const heardOn = computed(() => heardTimes(props.row, radios.all.value, props.now) || agoWords(props.row.last_heard, props.now));
+const heardOn = computed(
+  () => heardTimes(props.row, radios.all.value, props.now) || agoWords(props.row.last_heard, props.now),
+);
 /**
  * The signal of the latest packet heard direct that a radio measured, with its age ("SNR −3 dB, 5
  * min ago"); null without a reading, and for objects, items and ours.
@@ -138,7 +163,12 @@ const heardStation = computed(() => props.row.kind === "station" && !props.row.i
  * The signal graph, for a heard station whose latest reading is within the graph's day; decided
  * from the row so that its room exists before the answer.
  */
-const signalGraph = computed(() => heardStation.value && props.row.signal_at !== null && Date.parse(props.row.signal_at) >= props.now - SIGNAL_HOURS * HOUR_MS);
+const signalGraph = computed(
+  () =>
+    heardStation.value &&
+    props.row.signal_at !== null &&
+    Date.parse(props.row.signal_at) >= props.now - SIGNAL_HOURS * HOUR_MS,
+);
 const reached = computed(() => (heardStation.value ? reachedText(props.row) : null));
 /**
  * The PHG, range, DF or area the station gave, one row each; the last given is kept until another
@@ -160,16 +190,38 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
         <span class="card-call">
           <strong>{{ row.call }}</strong>
           <DirectMark v-if="heardDirect(row)" />
-          <a v-if="qrz" class="qrz" :href="qrz" target="_blank" rel="noopener noreferrer" :title="t('station.card.qrz_title')">QRZ</a>
+          <a
+            v-if="qrz"
+            class="qrz"
+            :href="qrz"
+            target="_blank"
+            rel="noopener noreferrer"
+            :title="t('station.card.qrz_title')"
+            >QRZ</a
+          >
           <AlertBell v-if="alert" :alert="alert" />
         </span>
         <span class="muted">{{ symbolLabel(row, true) }}</span>
       </div>
-      <IconButton v-if="movable" kind="pin" class="card-pin" :pressed="pinned" :label="t('iconbutton.pin')" @click="emit('pin')" />
+      <IconButton
+        v-if="movable"
+        kind="pin"
+        class="card-pin"
+        :pressed="pinned"
+        :label="t('iconbutton.pin')"
+        @click="emit('pin')"
+      />
       <IconButton kind="close" class="card-close" :label="t('iconbutton.close')" @click="emit('close')" />
     </header>
     <div class="card-body">
-      <WeatherPanel v-if="weather" :row="row" :series="weatherSeries" :now="now" :ranges="ranges" @ask="(c, h) => emit('weather', c, h)" />
+      <WeatherPanel
+        v-if="weather"
+        :row="row"
+        :series="weatherSeries"
+        :now="now"
+        :ranges="ranges"
+        @ask="(c, h) => emit('weather', c, h)"
+      />
       <dl class="card-fields">
         <template v-if="row.kind !== 'station'">
           <dt>{{ t("station.field.kind") }}</dt>
@@ -184,7 +236,8 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
         <template v-if="position !== null">
           <dt>{{ t("station.field.position") }}</dt>
           <dd>
-            {{ position }}<span v-if="timedOut(aging, row, now)" class="timedword">{{ ` - ${t("station.timed_out")}` }}</span>
+            {{ position
+            }}<span v-if="timedOut(aging, row, now)" class="timedword">{{ ` - ${t("station.timed_out")}` }}</span>
           </dd>
         </template>
         <template v-if="fromUs !== null">
@@ -266,7 +319,12 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
       </button>
     </footer>
     <footer v-else-if="canForget(row)" class="card-foot">
-      <button v-if="canMessage(row)" class="btn primary msgbtn card-message" type="button" @click="emit('message', row.call)">
+      <button
+        v-if="canMessage(row)"
+        class="btn primary msgbtn card-message"
+        type="button"
+        @click="emit('message', row.call)"
+      >
         <MessageGlyph :size="14" /> {{ t("station.card.message") }}
       </button>
       <IconButton

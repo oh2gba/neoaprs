@@ -35,7 +35,9 @@ function useOpenTrail(map: () => MapLibreMap | null): () => TrackCollection {
     const open = traffic.card.value;
     return open ? trailLines(trailKey(open.layer, open.thing.id), traffic.trail.value, page.now.value) : NO_TRAIL;
   };
-  const openKey = computed(() => (traffic.card.value ? trailKey(traffic.card.value.layer, traffic.card.value.thing.id) : null));
+  const openKey = computed(() =>
+    traffic.card.value ? trailKey(traffic.card.value.layer, traffic.card.value.thing.id) : null,
+  );
   let drawn = false;
   watch([traffic.trail, openKey], () => {
     const to = map();
@@ -102,7 +104,10 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   /** A click on the map: true if it opened a thing's card, false if it closed the open one. */
   function clicked(event?: { point?: { x: number; y: number } }): boolean {
     const to = map();
-    const hit = to && event?.point && to.getLayer(TRAFFIC_LAYER) ? thingOf(to.queryRenderedFeatures(reach(event.point), { layers: [TRAFFIC_LAYER] })[0]) : null;
+    const hit =
+      to && event?.point && to.getLayer(TRAFFIC_LAYER)
+        ? thingOf(to.queryRenderedFeatures(reach(event.point), { layers: [TRAFFIC_LAYER] })[0])
+        : null;
     if (hit === null) {
       traffic.close();
       return false;
@@ -113,7 +118,8 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   }
 
   return {
-    add: (to: MapLibreMap): void => addTrafficLayers(to, trafficFeatures(traffic.tables.value.values(), page.now.value), trail()),
+    add: (to: MapLibreMap): void =>
+      addTrafficLayers(to, trafficFeatures(traffic.tables.value.values(), page.now.value), trail()),
     listen,
     clicked,
     counts: computed(() => trafficCounts(traffic.tables.value, page.now.value)),

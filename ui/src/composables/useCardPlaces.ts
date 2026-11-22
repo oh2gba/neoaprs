@@ -20,10 +20,12 @@ function areaOf(row: HTMLElement): Area | null {
 const cardOf = (row: HTMLElement, call: string): HTMLElement | null =>
   [...row.querySelectorAll<HTMLElement>(":scope > .card")].find((card) => card.dataset.call === call) ?? null;
 
-const callsOf = (list: readonly HTMLElement[]): string[] => list.flatMap((card) => (card.dataset.call !== undefined ? [card.dataset.call] : []));
+const callsOf = (list: readonly HTMLElement[]): string[] =>
+  list.flatMap((card) => (card.dataset.call !== undefined ? [card.dataset.call] : []));
 
 export function useCardPlaces(stack: Readonly<Ref<HTMLElement | null>>, places: Ref<Places>, enabled: () => boolean) {
-  const cards = (): HTMLElement[] => (stack.value ? [...stack.value.querySelectorAll<HTMLElement>(":scope > .card")] : []);
+  const cards = (): HTMLElement[] =>
+    stack.value ? [...stack.value.querySelectorAll<HTMLElement>(":scope > .card")] : [];
 
   function current(call: string, base: Places = places.value): Place | null {
     const card = stack.value ? cardOf(stack.value, call) : null;
@@ -46,7 +48,9 @@ export function useCardPlaces(stack: Readonly<Ref<HTMLElement | null>>, places: 
   /** Places that pin the cards behind the first closing card; ask before the next render. */
   function pinAfter(closing: readonly string[], staying: readonly string[]): Places {
     if (!enabled()) return {};
-    const row = cards().filter((card) => card.dataset.call !== undefined && places.value[card.dataset.call] === undefined);
+    const row = cards().filter(
+      (card) => card.dataset.call !== undefined && places.value[card.dataset.call] === undefined,
+    );
     const first = row.findIndex((card) => closing.includes(card.dataset.call ?? ""));
     return first < 0 ? {} : pins(callsOf(row.slice(first + 1)).filter((call) => staying.includes(call)));
   }
@@ -91,7 +95,12 @@ export function useCardPlaces(stack: Readonly<Ref<HTMLElement | null>>, places: 
         const size = one.getBoundingClientRect();
         return stands ? [{ ...stands, width: size.width, height: size.height }] : [];
       });
-      base = putIn(base, call, freeSlot({ width: box.width, height: box.height }, others, { width: at.width, height: at.height })) ?? base;
+      base =
+        putIn(
+          base,
+          call,
+          freeSlot({ width: box.width, height: box.height }, others, { width: at.width, height: at.height }),
+        ) ?? base;
     }
     if (base !== places.value) places.value = base;
   }

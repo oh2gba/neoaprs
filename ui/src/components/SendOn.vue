@@ -19,7 +19,13 @@ function changed(key: string, event: Event): void {
     <span :id="id" class="field-label">{{ t("radio.send_on") }}</span>
     <div class="field-control toolbar-checks">
       <label v-for="one in ticks" :key="one.key" class="check">
-        <input :id="`set-${fieldId(one.key)}`" type="checkbox" :checked="one.on" :disabled="one.last" @change="changed(one.key, $event)" />{{ one.name }}
+        <input
+          :id="`set-${fieldId(one.key)}`"
+          type="checkbox"
+          :checked="one.on"
+          :disabled="one.last"
+          @change="changed(one.key, $event)"
+        />{{ one.name }}
       </label>
     </div>
     <p v-if="error" class="field-error" role="alert">{{ error }}</p>

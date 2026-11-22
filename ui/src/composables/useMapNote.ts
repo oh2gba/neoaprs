@@ -22,14 +22,17 @@ export function useMapNote(page: Pick<DaemonContext, "guide" | "map">) {
     if (engineFailed.value) return "map.note.no_engine";
     const { detail, world } = files.value;
     if (!detail && !world) return "map.note.no_basemap";
-    if ((!detail || unreadable.value.includes(BASE_SOURCE)) && (!world || unreadable.value.includes(WORLD_SOURCE))) return "map.note.unreadable";
+    if ((!detail || unreadable.value.includes(BASE_SOURCE)) && (!world || unreadable.value.includes(WORLD_SOURCE)))
+      return "map.note.unreadable";
     return !detail && !page.guide.open && page.map.value?.state !== "downloading" ? "map.note.no_detail" : "";
   });
   /** Whether the note has the button to where the map is made (not over the guide). */
   const offerDownload = computed(
     () =>
       !page.guide.open &&
-      (note.value === "map.note.no_basemap" || note.value === "map.note.no_detail" || (note.value === "map.note.unreadable" && files.value.detail)),
+      (note.value === "map.note.no_basemap" ||
+        note.value === "map.note.no_detail" ||
+        (note.value === "map.note.unreadable" && files.value.detail)),
   );
 
   /**
@@ -38,7 +41,12 @@ export function useMapNote(page: Pick<DaemonContext, "guide" | "map">) {
    */
   function onMapError(event: unknown): void {
     const { sourceId, tile } = event as { sourceId?: string; tile?: unknown };
-    if (sourceId && tile === undefined && [BASE_SOURCE, WORLD_SOURCE].includes(sourceId) && !unreadable.value.includes(sourceId)) {
+    if (
+      sourceId &&
+      tile === undefined &&
+      [BASE_SOURCE, WORLD_SOURCE].includes(sourceId) &&
+      !unreadable.value.includes(sourceId)
+    ) {
       unreadable.value = [...unreadable.value, sourceId];
     }
   }

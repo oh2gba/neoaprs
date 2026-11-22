@@ -11,7 +11,14 @@ const ink = computed(() => `var(${mark.value.token})`);
 </script>
 
 <template>
-  <svg class="layermark" :width="MARK_SIZE" :height="MARK_SIZE" :viewBox="markBox(mark)" aria-hidden="true" focusable="false">
+  <svg
+    class="layermark"
+    :width="MARK_SIZE"
+    :height="MARK_SIZE"
+    :viewBox="markBox(mark)"
+    aria-hidden="true"
+    focusable="false"
+  >
     <path
       :d="mark.d"
       :fill="mark.fill ? ink : 'none'"

@@ -25,13 +25,23 @@ export function useSendOn(field: SendOnField, radios: Pick<Radios, "severalSende
   const { config, settings } = useDaemonContext();
   function ticked(key: string, radio: PageRadio): boolean {
     const draft = settings.draft[key];
-    return (draft === "true" || draft === "false" ? draft : (radioValueOf(config.value, key) ?? String(radio.row.choices[field]))) === "true";
+    return (
+      (draft === "true" || draft === "false"
+        ? draft
+        : (radioValueOf(config.value, key) ?? String(radio.row.choices[field]))) === "true"
+    );
   }
-  const ticks = computed<SendOnTick[]>(() => (radios.severalSenders.value ? sendOnTicks(radios.senders.value, ticked, field) : []));
-  const on = computed(() =>
-    ticks.value.length === 0 ? [...radios.senders.value] : radios.senders.value.filter((radio) => ticks.value.some((tick) => tick.id === radio.id && tick.on)),
+  const ticks = computed<SendOnTick[]>(() =>
+    radios.severalSenders.value ? sendOnTicks(radios.senders.value, ticked, field) : [],
   );
-  const error = computed(() => ticks.value.map((tick) => settings.errors[tick.key] ?? "").find((reason) => reason !== "") ?? "");
+  const on = computed(() =>
+    ticks.value.length === 0
+      ? [...radios.senders.value]
+      : radios.senders.value.filter((radio) => ticks.value.some((tick) => tick.id === radio.id && tick.on)),
+  );
+  const error = computed(
+    () => ticks.value.map((tick) => settings.errors[tick.key] ?? "").find((reason) => reason !== "") ?? "",
+  );
   function tick(key: string, to: boolean): void {
     for (const one of ticks.value) delete settings.errors[one.key];
     settings.change({ [key]: text(to) });
@@ -56,7 +66,9 @@ export function useDraftSendOn(
   radios: Pick<Radios, "severalSenders" | "senders">,
 ): DraftSendOn {
   const ids = computed(() => radios.senders.value.map((radio) => radio.id));
-  const ticks = computed<SendOnTick[]>(() => (radios.severalSenders.value ? draftTicks(radios.senders.value, own(), name) : []));
+  const ticks = computed<SendOnTick[]>(() =>
+    radios.severalSenders.value ? draftTicks(radios.senders.value, own(), name) : [],
+  );
   const on = computed(() => {
     const shown = inForce(own(), ids.value);
     return radios.senders.value.filter((radio) => shown.includes(radio.id));

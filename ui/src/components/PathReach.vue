@@ -17,10 +17,16 @@ const pressed = computed(() => reachOf(props.hops));
 const named = computed(() => splitPath(props.hops).lead[0] ?? null);
 /** Why the tick is off: the first hop is named or the path is none of the choices; "" while on. */
 const homeOff = computed(() =>
-  named.value !== null ? t("pathbuilder.home_named", { call: named.value }) : pressed.value === null ? t("pathbuilder.home_choose") : "",
+  named.value !== null
+    ? t("pathbuilder.home_named", { call: named.value })
+    : pressed.value === null
+      ? t("pathbuilder.home_choose")
+      : "",
 );
 const choiceTitle = (count: number): string =>
-  count === 0 ? t("pathbuilder.reach_direct") : t("pathbuilder.reach_title", { n: count, path: pathOf(withReach(props.hops, count, props.home)) });
+  count === 0
+    ? t("pathbuilder.reach_direct")
+    : t("pathbuilder.reach_title", { n: count, path: pathOf(withReach(props.hops, count, props.home)) });
 
 function tick(event: Event): void {
   if (!(event.target instanceof HTMLInputElement)) return;

@@ -18,11 +18,17 @@ import { canSendAll, textRefusal } from "@/lib/recipients";
 import { bytes, leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
 
-const props = withDefaults(defineProps<{ to: readonly string[]; connected: boolean; lockable?: boolean; offline?: string }>(), {
-  lockable: false,
-  offline: undefined,
-});
-const emit = defineEmits<{ send: [to: string, text: string, locked: boolean]; sendMany: [to: string[], text: string] }>();
+const props = withDefaults(
+  defineProps<{ to: readonly string[]; connected: boolean; lockable?: boolean; offline?: string }>(),
+  {
+    lockable: false,
+    offline: undefined,
+  },
+);
+const emit = defineEmits<{
+  send: [to: string, text: string, locked: boolean];
+  sendMany: [to: string[], text: string];
+}>();
 
 /** The text being written, kept by the page so that a draft survives leaving and re-entering the
  * conversation. */
@@ -39,7 +45,11 @@ watch(
   },
 );
 /** The bytes a message holds (34 if encrypted); the field takes no more (lib/textlimit.ts). */
-const limit = computed<TextLimit>(() => ({ max: locked.value ? LIMITS.message.lockedMax : LIMITS.message.textMax, measure: bytes, kind: "bytes" }));
+const limit = computed<TextLimit>(() => ({
+  max: locked.value ? LIMITS.message.lockedMax : LIMITS.message.textMax,
+  measure: bytes,
+  kind: "bytes",
+}));
 const left = computed(() => leftOf(text.value, limit.value));
 const rxOnly = useReceiveOnly();
 const socketOpen = useSocketOpen();
@@ -50,9 +60,13 @@ const refused = computed(() => {
   return problem === null ? "" : errorReason({ cmd: "send_message", key: null, text: "", ...problem });
 });
 const ready = computed(() =>
-  locked.value ? props.connected && text.value.trim() !== "" && left.value >= 0 : canSendAll(props.connected, props.to, "", text.value),
+  locked.value
+    ? props.connected && text.value.trim() !== "" && left.value >= 0
+    : canSendAll(props.connected, props.to, "", text.value),
 );
-const sendLabel = computed(() => (props.to.length > 1 ? t("messages.send_to", { n: props.to.length }) : t("messages.send")));
+const sendLabel = computed(() =>
+  props.to.length > 1 ? t("messages.send_to", { n: props.to.length }) : t("messages.send"),
+);
 
 defineExpose({ focusText: (): void => input.value?.focus() });
 
@@ -103,7 +117,13 @@ function submit(): void {
         type="submit"
         class="btn primary"
         :disabled="!ready || rxOnly || !socketOpen"
-        :title="!socketOpen ? t('pill.daemon_offline') : rxOnly || connected ? sendBlockedReason(connected, rxOnly) : (offline ?? sendBlockedReason(connected))"
+        :title="
+          !socketOpen
+            ? t('pill.daemon_offline')
+            : rxOnly || connected
+              ? sendBlockedReason(connected, rxOnly)
+              : (offline ?? sendBlockedReason(connected))
+        "
       >
         {{ sendLabel }}
       </button>

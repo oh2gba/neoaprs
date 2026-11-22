@@ -39,7 +39,8 @@ watch(
   () => [...packets.values()].filter((row) => isTrafficOf(row, props.call)),
   (rows) => {
     const added = rows.filter((row) => !live.value.has(trafficKey(row)));
-    if (added.length > 0) live.value = new Map([...live.value, ...added.map((row): [string, PacketRow] => [trafficKey(row), row])]);
+    if (added.length > 0)
+      live.value = new Map([...live.value, ...added.map((row): [string, PacketRow] => [trafficKey(row), row])]);
   },
   { immediate: true },
 );
@@ -73,10 +74,18 @@ const stateOf = (row: PacketRow): QueryState | null => queryState(row, props.cal
   <div ref="root" class="stationtraffic">
     <PacketLines :rows="rows" :stacked="stacked" :empty="t('station.traffic.none')" :key-of="trafficKey">
       <template #note="{ row }">
-        <span v-if="stateOf(row) !== null" class="querystate twowords" :class="`query-${stateOf(row)}`" :data-state="stateOf(row)"
-          ><span v-for="state in STATES" :key="state" :class="{ 'twowords-off': state !== stateOf(row) }" :aria-hidden="state !== stateOf(row)">{{
-            t(`station.traffic.${state}`)
-          }}</span></span
+        <span
+          v-if="stateOf(row) !== null"
+          class="querystate twowords"
+          :class="`query-${stateOf(row)}`"
+          :data-state="stateOf(row)"
+          ><span
+            v-for="state in STATES"
+            :key="state"
+            :class="{ 'twowords-off': state !== stateOf(row) }"
+            :aria-hidden="state !== stateOf(row)"
+            >{{ t(`station.traffic.${state}`) }}</span
+          ></span
         >
         <span v-if="heard(row) !== null" class="signalnote muted" data-signal-note>{{ ` · ${heard(row)}` }}</span>
       </template>

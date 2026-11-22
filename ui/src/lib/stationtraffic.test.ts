@@ -3,7 +3,16 @@
 // ours, and the operator's own query held to the daemon's rule (lib/query.ts).
 import { describe, expect, it } from "vitest";
 import { customQuery } from "@/lib/query";
-import { ANSWER_WAIT_MS, answers, isTrafficOf, mergeTraffic, nextDeadline, queryAsked, queryState, TRAFFIC_SHOWN } from "@/lib/stationtraffic";
+import {
+  ANSWER_WAIT_MS,
+  answers,
+  isTrafficOf,
+  mergeTraffic,
+  nextDeadline,
+  queryAsked,
+  queryState,
+  TRAFFIC_SHOWN,
+} from "@/lib/stationtraffic";
 import { NOW, packet, packetAt as at, sentMessage as msg } from "@/test/fixtures";
 import type { PacketRow } from "@/protocol/protocol";
 
@@ -27,7 +36,12 @@ describe("two identical packets in one second", () => {
 describe("the traffic of a station", () => {
   it("is what it sent (inside a third-party packet too) and the messages we sent to it, not what it was sent by others or what we sent to others", () => {
     expect(isTrafficOf(position(1, 0), "OH2RDG")).toBe(true);
-    expect(isTrafficOf(position(2, 0, { source: "OH7JHF-1", sender: "OH2RDG", via: "rf-gated", gate: "OH7JHF-1" }), "OH2RDG")).toBe(true);
+    expect(
+      isTrafficOf(
+        position(2, 0, { source: "OH7JHF-1", sender: "OH2RDG", via: "rf-gated", gate: "OH7JHF-1" }),
+        "OH2RDG",
+      ),
+    ).toBe(true);
     expect(isTrafficOf(msg(3, "OH2GBA", "OH2RDG", "?APRSP", 0), "OH2RDG")).toBe(true);
     expect(isTrafficOf(msg(4, "OH2GBA", "OH2XYZ", "hello", 0), "OH2RDG")).toBe(false);
     expect(isTrafficOf(msg(5, "OH2XYZ", "OH2RDG", "hello", 0), "OH2RDG")).toBe(false);
@@ -76,10 +90,16 @@ describe("a directed query of ours in the traffic", () => {
     ["?PING?", msg(2, "OH2RDG", "OH2GBA", "PONG", 5), true],
     [
       "?APRST",
-      msg(2, "OH2RDG", "OH2GBA", "", 5, { decoded: { type: "message", addressee: "OH2GBA", text: "", msg_id: null, ack_id: "01", rej_id: null } }),
+      msg(2, "OH2RDG", "OH2GBA", "", 5, {
+        decoded: { type: "message", addressee: "OH2GBA", text: "", msg_id: null, ack_id: "01", rej_id: null },
+      }),
       false,
     ],
-    ["?WX?", position(2, 5, { decoded: { ...position(2, 5).decoded, weather: { temp_c: 5 } } as PacketRow["decoded"] }), true],
+    [
+      "?WX?",
+      position(2, 5, { decoded: { ...position(2, 5).decoded, weather: { temp_c: 5 } } as PacketRow["decoded"] }),
+      true,
+    ],
     ["?WX?", position(2, 5), false],
     ["?APRSO", status(2, 5), true],
   ])("%s is answered by this packet: %s", (query, reply, expected) => {
@@ -101,12 +121,19 @@ describe("a directed query of ours in the traffic", () => {
 });
 
 describe("the operator's own query", () => {
-  it.each([["APRSH OH2GBA-15"], ["?"], ["   ?   "], ["?" + "A".repeat(67)], ["?APRS{1"], ["?APRS|"], ["?APRS~"], ["?APRSÄ"], ["?APRS\tX"]])(
-    "refuses %j",
-    (text) => {
-      expect("problem" in customQuery(text)).toBe(true);
-    },
-  );
+  it.each([
+    ["APRSH OH2GBA-15"],
+    ["?"],
+    ["   ?   "],
+    ["?" + "A".repeat(67)],
+    ["?APRS{1"],
+    ["?APRS|"],
+    ["?APRS~"],
+    ["?APRSÄ"],
+    ["?APRS\tX"],
+  ])("refuses %j", (text) => {
+    expect("problem" in customQuery(text)).toBe(true);
+  });
 
   it("says what is wrong: no query, too long, a character a query cannot carry", () => {
     expect(customQuery("APRSH")).toEqual({ problem: "form" });

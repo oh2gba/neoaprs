@@ -8,26 +8,38 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.me": "Mia stazione",
   "help.picture.object":
     "Una mappa con la tua stazione in auto e due oggetti che invii, un ripetitore con la sua frequenza e un punto di ritrovo; entrambi compaiono sulle mappe di altre due stazioni.",
-  "help.picture.bulletin": "Una stazione invia un bollettino, BLN1, e lo stesso messaggio compare nella bacheca di altre tre stazioni.",
+  "help.picture.bulletin":
+    "Una stazione invia un bollettino, BLN1, e lo stesso messaggio compare nella bacheca di altre tre stazioni.",
   "help.picture.bulletingroup":
     "Una stazione invia un bollettino di gruppo, BLN3HAMS, a tre stazioni: le due che mostrano il gruppo HAMS lo mettono nella loro bacheca, la terza ha scelto altri gruppi, lo ascolta e non mostra nulla.",
-  "help.picture.beacon": "La tua stazione invia la sua posizione più volte, con un orologio tra un beacon e l’altro, e compare sulla mappa degli altri.",
+  "help.picture.beacon":
+    "La tua stazione invia la sua posizione più volte, con un orologio tra un beacon e l’altro, e compare sulla mappa degli altri.",
   "help.picture.path":
     "Il tuo pacchetto va dalla tua auto a un digipeater di riempimento, WIDE1-1, poi a uno ad ampia copertura, WIDE2-1: due salti prima che le altre stazioni lo ricevano.",
-  "help.picture.status": "Il tuo breve testo di stato, QRV 145.500, compare sulla mappa delle altre stazioni sotto il tuo nominativo.",
-  "help.picture.range": "Un digipeater con il suo cerchio di copertura: le stazioni dentro il cerchio si sentono tramite esso, quelle fuori no.",
-  "help.picture.request": "Una stazione chiede info locali e la tua stazione risponde con l’oggetto, che altrimenti non viene inviato.",
-  "help.picture.ssid": "Un nominativo, YOURCALL, per tre stazioni: quello semplice è una casa, -9 un’auto, -10 un iGate.",
-  "help.picture.symbol": "Una scelta di simboli con l’auto selezionata, e l’auto sulla mappa di un’altra stazione sotto il tuo nominativo.",
-  "help.picture.network": "Il computer su cui gira NeoAPRS, collegato in rete a un telefono, un tablet e un portatile che aprono la sua pagina.",
+  "help.picture.status":
+    "Il tuo breve testo di stato, QRV 145.500, compare sulla mappa delle altre stazioni sotto il tuo nominativo.",
+  "help.picture.range":
+    "Un digipeater con il suo cerchio di copertura: le stazioni dentro il cerchio si sentono tramite esso, quelle fuori no.",
+  "help.picture.request":
+    "Una stazione chiede info locali e la tua stazione risponde con l’oggetto, che altrimenti non viene inviato.",
+  "help.picture.ssid":
+    "Un nominativo, YOURCALL, per tre stazioni: quello semplice è una casa, -9 un’auto, -10 un iGate.",
+  "help.picture.symbol":
+    "Una scelta di simboli con l’auto selezionata, e l’auto sulla mappa di un’altra stazione sotto il tuo nominativo.",
+  "help.picture.network":
+    "Il computer su cui gira NeoAPRS, collegato in rete a un telefono, un tablet e un portatile che aprono la sua pagina.",
   "help.picture.accesskey": "Una chiave digitata una volta su un telefono, che poi resta collegato.",
-  "help.picture.igate": "Il pacchetto di un’auto va via radio a un iGate, che lo passa a internet, APRS-IS, e viceversa.",
-  "help.picture.radius": "Una mappa con la stazione al centro: la mappa dettagliata arriva fino al cerchio intorno, la mappa del mondo per il resto.",
-  "help.picture.position": "Una stazione fissa che resta al suo posto, e una stazione con GPS che si muove, con i suoi beacon lungo il percorso.",
+  "help.picture.igate":
+    "Il pacchetto di un’auto va via radio a un iGate, che lo passa a internet, APRS-IS, e viceversa.",
+  "help.picture.radius":
+    "Una mappa con la stazione al centro: la mappa dettagliata arriva fino al cerchio intorno, la mappa del mondo per il resto.",
+  "help.picture.position":
+    "Una stazione fissa che resta al suo posto, e una stazione con GPS che si muove, con i suoi beacon lungo il percorso.",
   "help.picture.digipeater":
     "Un’auto che non raggiunge direttamente il digipeater ad ampia copertura viene ripetuta dalla tua stazione, che inoltra il suo pacchetto.",
   "help.picture.logs": "Un file di log che parte allegato a una mail.",
-  "help.picture.transmit": "La nostra stazione sente le altre (la freccia in entrata) mentre ciò che manderebbe non esce: la freccia tratteggiata è barrata.",
+  "help.picture.transmit":
+    "La nostra stazione sente le altre (la freccia in entrata) mentre ciò che manderebbe non esce: la freccia tratteggiata è barrata.",
   "help.picture.beaconoff":
     "Con il beacon spento l’orologio non invia nulla, i beacon sulla linea del tempo sono vuoti; premere il pulsante ne invia comunque uno.",
   "help.picture.internet":
@@ -40,7 +52,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Una stazione lontana trasmette; la cascata mostra il suo frame come un blocco nella banda segnata, il più recente in alto, e la barra del livello di ricezione sta nell’intervallo giusto.",
   "help.picture.tworadios":
     "La tua stazione con due radio: la radio FM raggiunge l’auto e il digipeater vicini lungo il terreno, la radio Mercury raggiunge una stazione lontana con il segnale che sale e ridiscende.",
-  "help.picture.dummy": "Stazioni inventate in una cornice tratteggiata rispondono alla tua stazione, e ciò che invia non esce: le onde sono barrate.",
+  "help.picture.dummy":
+    "Stazioni inventate in una cornice tratteggiata rispondono alla tua stazione, e ciò che invia non esce: le onde sono barrate.",
   "help.picture.notifications":
     "Arriva un messaggio di una stazione, e questo dispositivo riproduce un suono, l’altoparlante, e mostra una notifica, la scheda.",
   "help.picture.encrypt":
@@ -67,7 +80,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.cert.android3": "Apri di nuovo la pagina sicura.",
   "help.cert.ios1": "Apri questa pagina in Safari, tocca Scarica il certificato e Consenti.",
   "help.cert.ios2": "Apri Impostazioni → Profilo scaricato → Installa.",
-  "help.cert.ios3": "Apri Impostazioni → Generali → Info → Impostazioni attendibilità certificati e attiva “NeoAPRS local CA”.",
+  "help.cert.ios3":
+    "Apri Impostazioni → Generali → Info → Impostazioni attendibilità certificati e attiva “NeoAPRS local CA”.",
   "help.cert.windows1": "Apri {file} → Installa certificato → Utente corrente o Computer locale → Avanti.",
   "help.cert.windows2":
     "Scegli “Inserisci tutti i certificati nel seguente archivio” → Sfoglia → Autorità di certificazione radice attendibili → Avanti → Fine.",
@@ -76,30 +90,36 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.cert.mac2": "Fai doppio clic su “NeoAPRS local CA”, apri Affidabilità e scegli Considera sempre attendibile.",
   "help.cert.mac3": "Riavvia il browser.",
   "help.cert.linux1": "Apri Impostazioni → Privacy e sicurezza → Sicurezza → Gestisci certificati → Autorità.",
-  "help.cert.linux2": "Fai clic su Importa, scegli {file} e spunta “Considera attendibile questo certificato per identificare siti web”.",
+  "help.cert.linux2":
+    "Fai clic su Importa, scegli {file} e spunta “Considera attendibile questo certificato per identificare siti web”.",
   "help.cert.linux3": "Riavvia il browser.",
   "help.cert.firefox1": "Apri Impostazioni → Privacy e sicurezza → Certificati → Mostra certificati → Autorità.",
-  "help.cert.firefox2": "Fai clic su Importa, scegli {file} e spunta “Considera attendibile questa CA per identificare siti web”.",
+  "help.cert.firefox2":
+    "Fai clic su Importa, scegli {file} e spunta “Considera attendibile questa CA per identificare siti web”.",
 
   "help.popup.title": "Attiva le notifiche",
   "help.popup.title_in": "Attiva le notifiche in {browser}",
   "help.popup.secure_page": "Apri la pagina sicura: {link}",
   "help.popup.remove_warning": "Togli l’avviso del browser",
   "help.popup.keep_http": "Oppure resta su http",
-  "help.popup.firefox1": "Apri una nuova scheda, digita {config}, premi Invio e fai clic su “Accetta il rischio e continua”.",
+  "help.popup.firefox1":
+    "Apri una nuova scheda, digita {config}, premi Invio e fai clic su “Accetta il rischio e continua”.",
   "help.popup.firefox2": "Cerca {key}.",
-  "help.popup.firefox3a": "Se non c’è, scegli “Stringa” e fai clic su “+”. Inserisci questo e fai clic sul segno di spunta:",
+  "help.popup.firefox3a":
+    "Se non c’è, scegli “Stringa” e fai clic su “+”. Inserisci questo e fai clic sul segno di spunta:",
   "help.popup.firefox3b": "Se ha già del testo, aggiungi una virgola e questo alla fine.",
   "help.popup.chromium1": "Apri una nuova scheda e incolla questo nella barra degli indirizzi:",
   "help.popup.chromium2": "Nella casella inserisci questo e imposta la scelta accanto su “Enabled”:",
   "help.popup.chromium3": "Fai clic su “Relaunch” in basso.",
   "help.popup.back": "Torna qui e {reload}",
   "help.popup.reload": "Ricarica",
-  "help.popup.phone": "I telefoni mostrano le notifiche solo per le pagine https, e questa non lo è. Il suono e l’avviso nella scheda funzionano qui.",
+  "help.popup.phone":
+    "I telefoni mostrano le notifiche solo per le pagine https, e questa non lo è. Il suono e l’avviso nella scheda funzionano qui.",
   "help.popup.other":
     "Questo browser non permette di attivare le notifiche per questo indirizzo. Il suono e l’avviso nella scheda funzionano qui. Firefox, Chrome ed Edge su un computer possono attivarle.",
   "help.popup.still": "Se la notifica ancora non compare",
-  "help.popup.flatpak": "Firefox installato come Flatpak (KDE) richiede questi due comandi in un terminale, poi un riavvio di Firefox:",
+  "help.popup.flatpak":
+    "Firefox installato come Flatpak (KDE) richiede questi due comandi in un terminale, poi un riavvio di Firefox:",
 
   "help.update.title": "NeoAPRS {version} è disponibile",
   "help.update.installed": "Hai NeoAPRS {version}",
@@ -120,12 +140,15 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.update.restarting": "NeoAPRS si riavvia tra un attimo",
   "help.update.restarting_installer": "Installazione… NeoAPRS si riavvia tra un attimo",
   "help.update.reconnecting": "NeoAPRS si sta riavviando",
-  "help.update.problem.download": "Non è stato possibile scaricare l’aggiornamento. Riprova, oppure scaricalo dalla pagina del progetto.",
+  "help.update.problem.download":
+    "Non è stato possibile scaricare l’aggiornamento. Riprova, oppure scaricalo dalla pagina del progetto.",
   "help.update.problem.unverified":
     "Non è stato possibile verificare questo aggiornamento, quindi non è stato installato nulla. Scaricalo dalla pagina del progetto.",
-  "help.update.problem.checksum": "Il download non è il file della versione pubblicata: è stato eliminato e non è stato installato nulla. Riprova.",
+  "help.update.problem.checksum":
+    "Il download non è il file della versione pubblicata: è stato eliminato e non è stato installato nulla. Riprova.",
   "help.update.problem.install": "Non è stato possibile installare l’aggiornamento. Aggiorna a mano.",
-  "help.update.problem.no_restart": "L’aggiornamento è installato, ma NeoAPRS non si è riavviato. Chiudi NeoAPRS e riaprilo.",
+  "help.update.problem.no_restart":
+    "L’aggiornamento è installato, ma NeoAPRS non si è riavviato. Chiudi NeoAPRS e riaprilo.",
   "help.update.by_hand": "Oppure aggiorna a mano",
   "help.update.steps": "Come aggiornare",
   "help.update.restart_service": "Riavvia il servizio",
@@ -143,7 +166,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.update.deb.install": "Installalo dalla cartella in cui l’hai scaricato (chiede la tua password)",
   "help.update.deb.service": "Il servizio si riavvia da solo. Se mostra ancora la vecchia versione:",
   "help.update.macos.download": "Scarica la nuova app",
-  "help.update.macos.replace": "Chiudi NeoAPRS, apri il download e trascina NeoAPRS in Applicazioni al posto della vecchia",
+  "help.update.macos.replace":
+    "Chiudi NeoAPRS, apri il download e trascina NeoAPRS in Applicazioni al posto della vecchia",
   "help.update.macos.start": "Avvia di nuovo NeoAPRS da Applicazioni",
   "help.update.source.pull": "Nella cartella del clone",
   "help.update.source.sync": "Aggiorna l’ambiente",

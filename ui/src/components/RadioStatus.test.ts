@@ -4,7 +4,8 @@ import RadioStatus from "@/components/RadioStatus.vue";
 import { clockText } from "@/lib/format";
 import { NOW, ago, fmRow, radioRow } from "@/test/fixtures";
 
-const lines = (...texts: string[]) => texts.map((text, i) => ({ at: new Date(NOW - (texts.length - i) * 1000).toISOString(), text }));
+const lines = (...texts: string[]) =>
+  texts.map((text, i) => ({ at: new Date(NOW - (texts.length - i) * 1000).toISOString(), text }));
 const radio = (row: ReturnType<typeof fmRow>) => mount(RadioStatus, { props: { row, now: NOW } });
 
 describe("RadioStatus", () => {
@@ -13,14 +14,20 @@ describe("RadioStatus", () => {
     const head = wrapper.find("summary.statushead");
     expect(head.find(".statetext").text()).toBe("connected");
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
-    expect(head.find(".tncstatus").attributes("title")).toBe("Last packet 30 s ago\n11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
+    expect(head.find(".tncstatus").attributes("title")).toBe(
+      "Last packet 30 s ago\n11 packets heard, 2.0 kB in, 0 B out, 0 digipeated",
+    );
     expect(head.find("button").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("Reconnect");
-    for (const word of ["Opened", "Bytes", "Frames", "Keep-alive", "Speed", "Last error", "Details"]) expect(wrapper.text()).not.toContain(word);
+    for (const word of ["Opened", "Bytes", "Frames", "Keep-alive", "Speed", "Last error", "Details"])
+      expect(wrapper.text()).not.toContain(word);
   });
 
   it("keeps the Terminal and what is given for the fold behind its arrow, closed unless the radio is not connected", async () => {
-    const wrapper = mount(RadioStatus, { props: { row: fmRow(), now: NOW }, slots: { default: "<p class='fields'>the fields</p>" } });
+    const wrapper = mount(RadioStatus, {
+      props: { row: fmRow(), now: NOW },
+      slots: { default: "<p class='fields'>the fields</p>" },
+    });
     const fold = wrapper.find<HTMLDetailsElement>("details.radiostatus");
     expect(fold.element.open).toBe(false);
     expect(fold.find(".fields").exists()).toBe(true);
@@ -29,12 +36,19 @@ describe("RadioStatus", () => {
     expect(wrapper.findAll<HTMLDetailsElement>("details").map((d) => d.element.open)).toEqual([false, false]);
     await wrapper.setProps({ open: true });
     expect(fold.element.open).toBe(true);
-    expect(mount(RadioStatus, { props: { row: fmRow(), now: NOW, open: true } }).find<HTMLDetailsElement>("details.radiostatus").element.open).toBe(true);
+    expect(
+      mount(RadioStatus, { props: { row: fmRow(), now: NOW, open: true } }).find<HTMLDetailsElement>(
+        "details.radiostatus",
+      ).element.open,
+    ).toBe(true);
   });
 
   it("says why it is not connected in the line, in the page's words of the daemon's code", () => {
     const wrapper = radio(
-      fmRow({ state: "waiting", problem: { code: "radio.resource_held", params: { resource: "serial", holder: "Mercury 2", held_by: 2 } } }),
+      fmRow({
+        state: "waiting",
+        problem: { code: "radio.resource_held", params: { resource: "serial", holder: "Mercury 2", held_by: 2 } },
+      }),
     );
     expect(wrapper.find(".statetext").classes()).toContain("tnc-waiting");
     expect(wrapper.find(".tncstatus").text()).not.toBe("");
@@ -42,7 +56,9 @@ describe("RadioStatus", () => {
   });
 
   it("says since when a silent radio has said nothing", () => {
-    const wrapper = radio(fmRow({ state: "silent", problem: { code: "radio.silent", params: { since: ago(7 * 60) } } }));
+    const wrapper = radio(
+      fmRow({ state: "silent", problem: { code: "radio.silent", params: { since: ago(7 * 60) } } }),
+    );
     expect(wrapper.find(".statetext").text()).toBe("silent");
     expect(wrapper.find(".statetext").classes()).toContain("tnc-silent");
     expect(wrapper.find(".tncstatus").text()).toMatch(/^nothing heard since \d\d:\d\d \(7 min\)$/);
@@ -96,7 +112,9 @@ describe("RadioStatus", () => {
 
   it("has the terminal of the Dummy radio like any radio's", () => {
     const wrapper = radio(
-      radioRow(1, "dummy", { lines: lines("NeoAPRS: opened the dummy radio", "Q1ABC>APRS:=6010.95N/02458.58E-Home station  ->  position") }),
+      radioRow(1, "dummy", {
+        lines: lines("NeoAPRS: opened the dummy radio", "Q1ABC>APRS:=6010.95N/02458.58E-Home station  ->  position"),
+      }),
     );
     expect(wrapper.find("pre.tnclines").text()).toContain("Q1ABC>APRS");
   });

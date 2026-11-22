@@ -17,7 +17,9 @@ let told = 0;
 /** The daemon tells the request it took, long enough ago to hold nothing back: the next press
  * sends. */
 const answer = (daemon: ReturnType<typeof fakeDaemon>) =>
-  tell(daemon, { qru: { ...(daemon.qru.value ?? qruState({ asked: null })), asked: qruAsked("INFO", ago(100 + ++told)) } });
+  tell(daemon, {
+    qru: { ...(daemon.qru.value ?? qruState({ asked: null })), asked: qruAsked("INFO", ago(100 + ++told)) },
+  });
 const row = (wrapper: ReturnType<typeof mount>) => wrapper.find(".qrustatus");
 const line = (wrapper: ReturnType<typeof mount>) => row(wrapper).find(".tncstatus").text();
 
@@ -53,14 +55,21 @@ describe("Local info in the Objects tab", () => {
     await answer(daemon);
     await wrapper.find("input.qru-km").setValue("");
     await ask(wrapper).trigger("click");
-    expect(daemon.send.mock.calls.map(([command]) => command)).toEqual([asked("INFO 150"), asked("INFO 120"), asked("INFO 120"), asked("INFO")]);
+    expect(daemon.send.mock.calls.map(([command]) => command)).toEqual([
+      asked("INFO 150"),
+      asked("INFO 120"),
+      asked("INFO 120"),
+      asked("INFO"),
+    ]);
   });
 
   it("has an (i) on the distance field, and a wrong distance is orange and keeps the button and the tags off", async () => {
     const { wrapper } = make({ qru: qruState({ asked: null }) });
     expect(wrapper.find("input.qru-km").attributes("aria-label")).toBe("Distance in km");
     await wrapper.find(".qru-ask button.info-toggle").trigger("click");
-    expect(wrapper.find(".qru-ask .info-text").text()).toBe("How far to look; it starts at the map radius. Empty: the servers' own, usually 50 km.");
+    expect(wrapper.find(".qru-ask .info-text").text()).toBe(
+      "How far to look; it starts at the map radius. Empty: the servers' own, usually 50 km.",
+    );
     for (const wrong of ["0", "20001", "ten", "5 km", "-3"]) {
       await wrapper.find("input.qru-km").setValue(wrong);
       expect(wrapper.find("input.qru-km").classes(), wrong).toContain("invalid");
@@ -88,10 +97,22 @@ describe("Local info in the Objects tab", () => {
     expect(line(wrapper)).toMatch(/^\d\d:\d\d · 1 server answered$/);
     expect(row(wrapper).find(".statetext").classes()).toContain("tnc-connected");
     const other = { ...qruState().servers[0], call: "W1AW", at: ago(40) };
-    await tell(daemon, { qru: qruState({ asked: qruAsked("INFO", ago(90)), servers: [...qruState().servers, other] }) });
+    await tell(daemon, {
+      qru: qruState({ asked: qruAsked("INFO", ago(90)), servers: [...qruState().servers, other] }),
+    });
     expect(line(wrapper)).toMatch(/2 servers answered$/);
-    await tell(daemon, { qru: qruState({ asked: qruAsked("INFO", ago(30)), servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })) }) });
-    await tell(daemon, { qru: qruState({ asked: qruAsked("INFO", ago(61)), servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })) }) });
+    await tell(daemon, {
+      qru: qruState({
+        asked: qruAsked("INFO", ago(30)),
+        servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })),
+      }),
+    });
+    await tell(daemon, {
+      qru: qruState({
+        asked: qruAsked("INFO", ago(61)),
+        servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })),
+      }),
+    });
     expect(line(wrapper)).toMatch(/^\d\d:\d\d · no answer$/);
     expect(row(wrapper).find(".statetext").classes()).not.toContain("tnc-connected");
   });
@@ -122,7 +143,9 @@ describe("Local info in the Objects tab", () => {
 
   it("shows the daemon's refusal of a request in the row, in the words of its code, and takes it away when the next request has been sent", async () => {
     const { wrapper, daemon } = make();
-    await tell(daemon, { lastError: toastOf("qru_ask: the same request was sent a moment ago: wait 12 s", "qru.too_soon", { seconds: 12 }) });
+    await tell(daemon, {
+      lastError: toastOf("qru_ask: the same request was sent a moment ago: wait 12 s", "qru.too_soon", { seconds: 12 }),
+    });
     expect(row(wrapper).find(".statetext").text()).toBe("Not sent");
     expect(line(wrapper)).toBe("too soon for another request for local info: wait 12 s");
     await tell(daemon, { lastError: toastOf("qru_ask: RX only", "transmit.off") });

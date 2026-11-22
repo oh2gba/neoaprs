@@ -30,7 +30,8 @@ describe("the vectors of the daemon", () => {
   });
 
   it("say which texts fit in a message as far as there being a text and its length go", () => {
-    for (const { input, ok } of vectors.message_texts) expect(input.trim() !== "" && bytesLeft(input) >= 0, JSON.stringify(input)).toBe(ok);
+    for (const { input, ok } of vectors.message_texts)
+      expect(input.trim() !== "" && bytesLeft(input) >= 0, JSON.stringify(input)).toBe(ok);
   });
 
   it("say which texts can be posted as a bulletin", () => {
@@ -54,7 +55,11 @@ describe("the vectors of the daemon", () => {
   it("say which QRU groups an object may be in, and how they are kept", () => {
     for (const { group, ok, kept } of vectors.qru_groups) {
       expect(qruProblem(group) === "", JSON.stringify(group)).toBe(ok);
-      if (ok) expect(objectCommand({ ...emptyDraft(), name: "OBJ", lat: "60.17", lon: "24.94", qru: group }, [1])?.qru_group, JSON.stringify(group)).toBe(kept);
+      if (ok)
+        expect(
+          objectCommand({ ...emptyDraft(), name: "OBJ", lat: "60.17", lon: "24.94", qru: group }, [1])?.qru_group,
+          JSON.stringify(group),
+        ).toBe(kept);
     }
   });
 
@@ -66,7 +71,8 @@ describe("the vectors of the daemon", () => {
   });
 
   it("say which values of the settings the daemon takes, for the settings the page checks", () => {
-    for (const { key, input, ok } of vectors.settings) expect(problemOf(key, input) === "", JSON.stringify([key, input])).toBe(ok);
+    for (const { key, input, ok } of vectors.settings)
+      expect(problemOf(key, input) === "", JSON.stringify([key, input])).toBe(ok);
   });
 
   it("say which elements of a path are aliases and which are markers for the iGates", () => {
@@ -77,6 +83,7 @@ describe("the vectors of the daemon", () => {
   });
 
   it("say which of two versions is the newer", () => {
-    for (const { a, b, order } of vectors.compare_versions) expect(compareVersions(a, b), JSON.stringify([a, b])).toBe(order);
+    for (const { a, b, order } of vectors.compare_versions)
+      expect(compareVersions(a, b), JSON.stringify([a, b])).toBe(order);
   });
 });

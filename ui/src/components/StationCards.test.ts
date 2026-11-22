@@ -16,7 +16,11 @@ const wx = (call: string) => weatherStation(call);
 /** The page's context of the cards just made: the weather series come from it. */
 let daemon: FakeDaemon;
 
-function make(rows: ReturnType<typeof station>[], size: SizeClass = "desktop", weatherSeries = new Map<string, ReturnType<typeof series>>()) {
+function make(
+  rows: ReturnType<typeof station>[],
+  size: SizeClass = "desktop",
+  weatherSeries = new Map<string, ReturnType<typeof series>>(),
+) {
   daemon = fakeDaemon({ aging, weatherSeries });
   return mount(StationCards, { props: { rows, size }, global: withDaemon(daemon), attachTo: document.body });
 }
@@ -133,7 +137,15 @@ describe("StationCards: several weather cards, to be compared", () => {
   /** A series whose temperature runs from `low` to `high`, its wind from 0 to `wind`. */
   function cold(call: string, low: number, high: number, wind = 6) {
     const answer = series(call, 24, 6);
-    answer.points = answer.points.map((p, i) => [p[0], i % 2 === 0 ? low : high, p[2], p[3], i % 2 === 0 ? wind : 3, p[5], p[6]]);
+    answer.points = answer.points.map((p, i) => [
+      p[0],
+      i % 2 === 0 ? low : high,
+      p[2],
+      p[3],
+      i % 2 === 0 ? wind : 3,
+      p[5],
+      p[6],
+    ]);
     return answer;
   }
   type Wrapper = ReturnType<typeof make>;

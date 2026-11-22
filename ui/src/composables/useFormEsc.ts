@@ -6,7 +6,8 @@
 import { onBeforeUnmount, onMounted } from "vue";
 import { keepsEsc } from "@/composables/useCardEsc";
 
-const inForm = (target: EventTarget | null): boolean => target instanceof HTMLElement && target.tagName !== "SELECT" && target.closest(".objform") !== null;
+const inForm = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement && target.tagName !== "SELECT" && target.closest(".objform") !== null;
 
 export interface FormEscActions {
   cancelPick: () => boolean;
@@ -20,7 +21,13 @@ export function useFormEsc({ cancelPick, closeForm, blocked }: FormEscActions): 
     wasBlocked = event.key === "Escape" && blocked();
   };
   const last = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape" || event.defaultPrevented || wasBlocked || (keepsEsc(event.target) && !inForm(event.target))) return;
+    if (
+      event.key !== "Escape" ||
+      event.defaultPrevented ||
+      wasBlocked ||
+      (keepsEsc(event.target) && !inForm(event.target))
+    )
+      return;
     if (cancelPick() || closeForm()) event.preventDefault();
   };
   onMounted(() => {

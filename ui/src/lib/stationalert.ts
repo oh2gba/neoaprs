@@ -39,8 +39,11 @@ export function alertSummary(alert: AlertWhen): string {
  * "OH2XYZ is heard direct".
  */
 export function firedText(message: Pick<StationAlertMessage, "call" | "kind" | "km">): string {
-  if (message.kind === "within") return t("station.alert.fired.within", { call: message.call, km: distanceText(message.km) });
-  return message.kind === "on_air" ? t("station.alert.fired.on_air", { call: message.call }) : t("station.alert.fired.direct", { call: message.call });
+  if (message.kind === "within")
+    return t("station.alert.fired.within", { call: message.call, km: distanceText(message.km) });
+  return message.kind === "on_air"
+    ? t("station.alert.fired.on_air", { call: message.call })
+    : t("station.alert.fired.direct", { call: message.call });
 }
 
 /**

@@ -20,7 +20,11 @@ function memory() {
   const clock = { now: START };
   const kept = new ScopeMemory(() => clock.now);
   const told: string[] = [];
-  kept.listen({ row: (k) => told.push(`row ${k.row.db[0] + 100}`), heard: (h) => told.push(`heard ${h.call}`), whole: () => told.push("whole") });
+  kept.listen({
+    row: (k) => told.push(`row ${k.row.db[0] + 100}`),
+    heard: (h) => told.push(`heard ${h.call}`),
+    whole: () => told.push("whole"),
+  });
   /** Rows as they come, one every 120 ms from now on. */
   const live = (...ns: number[]): void => {
     for (const n of ns) {
@@ -32,7 +36,8 @@ function memory() {
 }
 
 /** The daemon's kept rows, as at `now`: row `n` made at `made(n)`. */
-const aged = (ns: number[], made: (n: number) => number, now: number): AgedRow[] => ns.map((n) => ({ row: row(n), age: now - made(n) }));
+const aged = (ns: number[], made: (n: number) => number, now: number): AgedRow[] =>
+  ns.map((n) => ({ row: row(n), age: now - made(n) }));
 /** The kept rows as the daemon sends them, its clock `ahead` of this page's at `now`. */
 const sent = (rows: AgedRow[], now: number, ahead = 0): ScopeHistory => ({ rows, clock: now + ahead });
 
@@ -138,7 +143,9 @@ describe("what the page keeps of the waterfall", () => {
     }
     const keptSec = LIMITS.scope.historySec;
     expect(kept.heard.length).toBeLessThanOrEqual(keptSec + 1);
-    expect(kept.heard.map((heard) => heard.call)).toEqual(Array.from({ length: kept.heard.length }, (_, i) => `OH${2000 - kept.heard.length + i}`));
+    expect(kept.heard.map((heard) => heard.call)).toEqual(
+      Array.from({ length: kept.heard.length }, (_, i) => `OH${2000 - kept.heard.length + i}`),
+    );
   });
 
   it("places the stations told late by the daemon's clock, and again when the rows kept say it better: a reconnect after a drop, a computer whose clock is behind", () => {

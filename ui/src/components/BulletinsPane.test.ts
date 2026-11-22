@@ -12,10 +12,14 @@ const posted = (...rows: OwnBulletinRow[]) => new Map(rows.map((r) => [r.slot, r
 
 let daemon: FakeDaemon;
 beforeEach(() => (daemon = fakeDaemon()));
-const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
+const sent = (cmd: string) =>
+  daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
 
 function pane(...rows: BulletinRow[]) {
-  return mount(BulletinsPane, { props: { bulletins: board(...rows), ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });
+  return mount(BulletinsPane, {
+    props: { bulletins: board(...rows), ownBulletins: new Map<string, OwnBulletinRow>() },
+    global: withDaemon(daemon),
+  });
 }
 
 const rows = [
@@ -31,14 +35,20 @@ describe("BulletinsPane", () => {
     const bar = wrapper.find(".tab-help");
     expect((wrapper.element as HTMLElement).firstElementChild).toBe(bar.element);
     await bar.find("button.info-toggle").trigger("click");
-    expect(bar.find(".info-text").text()).toContain("A bulletin is a message to everyone, shown on every station's board.");
+    expect(bar.find(".info-text").text()).toContain(
+      "A bulletin is a message to everyone, shown on every station's board.",
+    );
     expect(bar.find(".info-text").text()).toContain("net times, events, warnings");
     expect(bar.find("svg[data-picture='bulletin']").attributes("aria-label")).toMatch(/BLN1/);
   });
 
   it("has the three sections in their order, each row newest first", () => {
     const wrapper = pane(...rows);
-    expect(wrapper.findAll(".board-title").map((t) => t.text())).toEqual(["Announcements 1", "Bulletins 1", "Group messages 2"]);
+    expect(wrapper.findAll(".board-title").map((t) => t.text())).toEqual([
+      "Announcements 1",
+      "Bulletins 1",
+      "Group messages 2",
+    ]);
     expect(wrapper.findAll(".bulletin-text").map((t) => t.text())).toEqual([
       "Club meeting on Thursday",
       "Road closed at Kaivopuisto",
@@ -48,8 +58,16 @@ describe("BulletinsPane", () => {
   });
 
   it("shows the weather service bulletins in a section of their own, last", () => {
-    const wrapper = pane(...rows, bulletin("NWS-WARN", { kind: "nws", sender: "OH2NWS", text: "Gale warning", last_heard: ago(5) }));
-    expect(wrapper.findAll(".board-title").map((t) => t.text())).toEqual(["Announcements 1", "Bulletins 1", "Group messages 2", "Weather service 1"]);
+    const wrapper = pane(
+      ...rows,
+      bulletin("NWS-WARN", { kind: "nws", sender: "OH2NWS", text: "Gale warning", last_heard: ago(5) }),
+    );
+    expect(wrapper.findAll(".board-title").map((t) => t.text())).toEqual([
+      "Announcements 1",
+      "Bulletins 1",
+      "Group messages 2",
+      "Weather service 1",
+    ]);
     expect(wrapper.findAll(".bulletin-text").at(-1)?.text()).toBe("Gale warning");
   });
 
@@ -66,7 +84,8 @@ describe("BulletinsPane", () => {
   });
 
   describe("the x of a row", () => {
-    const x = (wrapper: ReturnType<typeof pane>, i: number) => wrapper.findAll(".bulletin")[i]?.find(".bulletin-delete");
+    const x = (wrapper: ReturnType<typeof pane>, i: number) =>
+      wrapper.findAll(".bulletin")[i]?.find(".bulletin-delete");
 
     it("is a small x at the corner of every row", () => {
       const wrapper = pane(...rows);
@@ -111,7 +130,10 @@ describe("BulletinsPane", () => {
     const wrapper = pane(...rows);
     const next = board(...rows.slice(0, 2), bulletin("BLN1", { text: "Road open again", last_heard: ago(5) }));
     await wrapper.setProps({ bulletins: next });
-    expect(wrapper.findAll(".bulletin-text").map((t) => t.text())).toEqual(["Club meeting on Thursday", "Road open again"]);
+    expect(wrapper.findAll(".bulletin-text").map((t) => t.text())).toEqual([
+      "Club meeting on Thursday",
+      "Road open again",
+    ]);
   });
 
   it("has the box to post in at the bottom, and passes what is posted on", async () => {
@@ -123,16 +145,24 @@ describe("BulletinsPane", () => {
   });
 
   it("sends the radios ticked in the box with what is posted while several radios can send", async () => {
-    daemon = fakeDaemon({ ...ofRadios(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")), status: status({ new_bulletin_radios: [1, 2] }) });
+    daemon = fakeDaemon({
+      ...ofRadios(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")),
+      status: status({ new_bulletin_radios: [1, 2] }),
+    });
     const wrapper = pane(...rows);
     await wrapper.find("#post-text").setValue("Hello board");
     await wrapper.find(".bulletin-compose").trigger("submit");
-    expect(sent("bulletin_post")).toEqual([{ cmd: "bulletin_post", slot: "BLN1", text: "Hello board", radios: [1, 2] }]);
+    expect(sent("bulletin_post")).toEqual([
+      { cmd: "bulletin_post", slot: "BLN1", text: "Hello board", radios: [1, 2] },
+    ]);
   });
 
   describe("our own bulletins", () => {
     const withOurs = (...own: OwnBulletinRow[]) =>
-      mount(BulletinsPane, { props: { bulletins: board(...rows), ownBulletins: posted(...own) }, global: withDaemon(daemon) });
+      mount(BulletinsPane, {
+        props: { bulletins: board(...rows), ownBulletins: posted(...own) },
+        global: withDaemon(daemon),
+      });
     const ours = ownBulletin("BLN2", { text: "Gale warning from us", last_sent_at: ago(30), sent: 3 });
 
     it("are on the board in their section with our call, marked ours, with how often they were sent and when they go out next", () => {
@@ -140,8 +170,15 @@ describe("BulletinsPane", () => {
       const items = wrapper.findAll(".bulletin");
       const mine = items.find((b) => b.classes().includes("mine"));
       expect(items).toHaveLength(5);
-      expect(wrapper.findAll(".board-title").map((t) => t.text())).toEqual(["Announcements 1", "Bulletins 2", "Group messages 2"]);
-      expect([mine?.find(".bulletin-head strong").text(), mine?.find(".bulletin-target").text()]).toEqual(["OH2GBA", "BLN2"]);
+      expect(wrapper.findAll(".board-title").map((t) => t.text())).toEqual([
+        "Announcements 1",
+        "Bulletins 2",
+        "Group messages 2",
+      ]);
+      expect([mine?.find(".bulletin-head strong").text(), mine?.find(".bulletin-target").text()]).toEqual([
+        "OH2GBA",
+        "BLN2",
+      ]);
       expect(mine?.find(".own-mark").text()).toBe("ours");
       expect(mine?.find(".bulletin-text").text()).toBe("Gale warning from us");
       expect(mine?.find(".bulletin-meta").text()).toBe("sent 3 times, next in 18 min");
@@ -189,15 +226,23 @@ describe("BulletinsPane", () => {
 
     it("carry the tags of the radios they go out on while several radios are on, two by name and then +n, and none with one radio on", () => {
       const tags = (station: Given, own: OwnBulletinRow) =>
-        mount(BulletinsPane, { props: { bulletins: board(), ownBulletins: posted(own) }, global: withDaemon(fakeDaemon(station)) })
+        mount(BulletinsPane, {
+          props: { bulletins: board(), ownBulletins: posted(own) },
+          global: withDaemon(fakeDaemon(station)),
+        })
           .findAll(".mine .bulletin-head .own-radio")
           .map((tag) => [seen(tag), tag.attributes("title")]);
       const FM = radioRow(1, "kenwood-tnc2");
       const HF = radioRow(2, "mercury");
       expect(tags(ofRadios(FM), ownBulletin("BLN2", { radios: [1] }))).toEqual([]);
-      expect(tags(ofRadios(FM, HF), ownBulletin("BLN2", { radios: [2] }))).toEqual([["Mercury", "Sent on radio Mercury"]]);
+      expect(tags(ofRadios(FM, HF), ownBulletin("BLN2", { radios: [2] }))).toEqual([
+        ["Mercury", "Sent on radio Mercury"],
+      ]);
       expect(
-        tags(ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })), ownBulletin("BLN2", { radios: [3] })),
+        tags(
+          ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false })),
+          ownBulletin("BLN2", { radios: [3] }),
+        ),
         "ticked nowhere: no tag",
       ).toEqual([]);
       const four = ofRadios(FM, HF, radioRow(3, "kiss", { number: 2 }), radioRow(4, "lora-tcp"));
@@ -209,8 +254,13 @@ describe("BulletinsPane", () => {
     });
 
     it("are under a word for our call until the daemon says it", () => {
-      const wrapper = mount(BulletinsPane, { props: { bulletins: board(), ownBulletins: posted(ours) }, global: withDaemon(fakeDaemon({ call: null })) });
-      expect(wrapper.find(".mine .bulletin-head strong").text(), "the page's word for ourselves, in its language").toBe("you");
+      const wrapper = mount(BulletinsPane, {
+        props: { bulletins: board(), ownBulletins: posted(ours) },
+        global: withDaemon(fakeDaemon({ call: null })),
+      });
+      expect(wrapper.find(".mine .bulletin-head strong").text(), "the page's word for ourselves, in its language").toBe(
+        "you",
+      );
     });
   });
 });

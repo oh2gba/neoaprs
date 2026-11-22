@@ -29,9 +29,17 @@ const SECTIONS: readonly Kind[] = ["announcement", "bulletin", "group", "nws"];
 /** The board in four sections, each newest first by last hearing; empty sections are left out. */
 export function sections<T extends BulletinRow>(rows: Iterable<T>): Section<T>[] {
   const all = [...rows].sort((a, b) =>
-    a.last_heard === b.last_heard ? a.sender.localeCompare(b.sender) || a.slot.localeCompare(b.slot) : a.last_heard < b.last_heard ? 1 : -1,
+    a.last_heard === b.last_heard
+      ? a.sender.localeCompare(b.sender) || a.slot.localeCompare(b.slot)
+      : a.last_heard < b.last_heard
+        ? 1
+        : -1,
   );
-  return SECTIONS.map((kind) => ({ kind, title: t(`bulletins.section.${kind}`), rows: all.filter((r) => r.kind === kind) })).filter((s) => s.rows.length > 0);
+  return SECTIONS.map((kind) => ({
+    kind,
+    title: t(`bulletins.section.${kind}`),
+    rows: all.filter((r) => r.kind === kind),
+  })).filter((s) => s.rows.length > 0);
 }
 
 /** What a row is addressed to: the group of a group bulletin ("HAMS"), else the slot ("BLN1"). */

@@ -5,11 +5,17 @@ import { ringAround, type LonLat } from "@/lib/alohacircle";
 
 export interface RangeCollection {
   type: "FeatureCollection";
-  features: { type: "Feature"; properties: { call: string; km: number }; geometry: { type: "Polygon"; coordinates: LonLat[][] } }[];
+  features: {
+    type: "Feature";
+    properties: { call: string; km: number };
+    geometry: { type: "Polygon"; coordinates: LonLat[][] };
+  }[];
 }
 
 /** One polygon per circle (`km` round `lat`, `lon`); none for a circle with no radius. */
-export function rangeFeatures(circles: readonly { call: string; lat: number; lon: number; km: number }[]): RangeCollection {
+export function rangeFeatures(
+  circles: readonly { call: string; lat: number; lon: number; km: number }[],
+): RangeCollection {
   return {
     type: "FeatureCollection",
     features: circles

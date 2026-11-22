@@ -5,7 +5,11 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { useAlohaCircle } from "@/composables/useAlohaCircle";
 import { useRangeCircles } from "@/composables/useRangeCircles";
 
-export function useMapCircles(map: () => MapLibreMap | null, selected: () => string | null, aloha: () => boolean): { add: (on: MapLibreMap) => void } {
+export function useMapCircles(
+  map: () => MapLibreMap | null,
+  selected: () => string | null,
+  aloha: () => boolean,
+): { add: (on: MapLibreMap) => void } {
   const circle = useAlohaCircle(map, aloha);
   const range = useRangeCircles(map, selected);
   return {

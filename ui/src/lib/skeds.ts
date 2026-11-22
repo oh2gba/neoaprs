@@ -19,7 +19,10 @@ const HALF_HOUR = 30 * MINUTE;
 const DAY_MS = 24 * 60 * MINUTE;
 
 /** The half hours of a day, `00:00` to `23:30`: the choices of From and To. */
-export const TIMES: readonly string[] = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 === 0 ? "00" : "30"}`);
+export const TIMES: readonly string[] = Array.from(
+  { length: 48 },
+  (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 === 0 ? "00" : "30"}`,
+);
 
 /** A dial as the page names it: `7.0541 MHz USB`. */
 const DIAL = /^(\d{1,2}\.\d{3,4}) ?MHz (USB|LSB)$/i;
@@ -44,7 +47,10 @@ export function utcDay(ms: number): string {
  * 14 Nov"). */
 export function dayChoices(nowMs: number): { value: string; label: string }[] {
   const start = Date.parse(`${utcDay(nowMs)}T00:00:00Z`);
-  return Array.from({ length: DAYS }, (_, i) => ({ value: utcDay(start + i * DAY_MS), label: dayText(new Date(start + i * DAY_MS), true) }));
+  return Array.from({ length: DAYS }, (_, i) => ({
+    value: utcDay(start + i * DAY_MS),
+    label: dayText(new Date(start + i * DAY_MS), true),
+  }));
 }
 
 /** What the form holds: the UTC day, two half hours, the dial (suggested, or typed when `typed`)
@@ -153,7 +159,10 @@ export function groups(rows: Iterable<SkedRow>, nowMs: number): SkedGroup[] {
     if (row.ours) group.ours.push(row);
     found.set(key, group);
   }
-  return [...found.values()].sort((a, b) => Date.parse(a.from) - Date.parse(b.from) || Date.parse(a.to) - Date.parse(b.to) || a.dial.localeCompare(b.dial));
+  return [...found.values()].sort(
+    (a, b) =>
+      Date.parse(a.from) - Date.parse(b.from) || Date.parse(a.to) - Date.parse(b.to) || a.dial.localeCompare(b.dial),
+  );
 }
 
 /** Whether a call is on the row already (a row of our call posted elsewhere counts: Join would
@@ -172,11 +181,15 @@ export function callsOf(group: SkedGroup): string[] {
 /** The note of a row on one line: the single note, or each note with its caller; empty if none. */
 export function noteOf(group: SkedGroup): string {
   const written = group.rows.filter((r) => r.note !== "");
-  return written.length === 1 && group.rows.length === 1 ? (written[0]?.note ?? "") : written.map((r) => `${r.call}: ${r.note}`).join("; ");
+  return written.length === 1 && group.rows.length === 1
+    ? (written[0]?.note ?? "")
+    : written.map((r) => `${r.call}: ${r.note}`).join("; ");
 }
 
 const clock = (d: Date, utc: boolean): string =>
-  utc ? d.toISOString().slice(11, 16) : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  utc
+    ? d.toISOString().slice(11, 16)
+    : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
 /** The two ends for a sentence: "Sat 14 Nov 18:00" and "20:00" (with its day when it is another).
  */
@@ -184,7 +197,10 @@ function ends(from: string, to: string, utc: boolean): { from: string; to: strin
   const start = new Date(from);
   const end = new Date(to);
   const day = (d: Date): string => dayText(d, utc);
-  return { from: `${day(start)} ${clock(start, utc)}`, to: day(start) === day(end) ? clock(end, utc) : `${day(end)} ${clock(end, utc)}` };
+  return {
+    from: `${day(start)} ${clock(start, utc)}`,
+    to: day(start) === day(end) ? clock(end, utc) : `${day(end)} ${clock(end, utc)}`,
+  };
 }
 
 /** When a sked is: "Sat 14 Nov 18:00 to 20:00 UTC". */

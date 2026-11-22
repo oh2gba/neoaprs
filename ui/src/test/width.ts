@@ -32,7 +32,8 @@ export function stubWidth(width: number) {
   return {
     set(next: number): void {
       current = next;
-      for (const watcher of watchers) watcher.callback([{ contentRect: { width: next } } as ResizeObserverEntry], {} as ResizeObserver);
+      for (const watcher of watchers)
+        watcher.callback([{ contentRect: { width: next } } as ResizeObserverEntry], {} as ResizeObserver);
     },
     observing: (): number => watchers.size,
     restore(): void {

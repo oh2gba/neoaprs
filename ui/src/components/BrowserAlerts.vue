@@ -16,10 +16,13 @@ import type { HttpsState } from "@/protocol/protocol";
 
 const props = defineProps<{ alerts: BrowserAlerts; https?: HttpsState | null; say?: (text: string) => void }>();
 // Test answers go to the toast so that nothing moves.
-watch([() => props.alerts.soundStatus.value, () => props.alerts.popupStatus.value], ([sound, popup], [soundBefore, popupBefore]) => {
-  if (sound && sound !== soundBefore) props.say?.(sound);
-  if (popup && popup !== popupBefore) props.say?.(popup);
-});
+watch(
+  [() => props.alerts.soundStatus.value, () => props.alerts.popupStatus.value],
+  ([sound, popup], [soundBefore, popupBefore]) => {
+    if (sound && sound !== soundBefore) props.say?.(sound);
+    if (popup && popup !== popupBefore) props.say?.(popup);
+  },
+);
 
 const helpOpen = ref(false);
 
@@ -27,7 +30,9 @@ const on = computed(() => props.alerts.mode.value !== "off");
 const sound = computed(() => wantsSound(props.alerts.mode.value));
 const popup = computed(() => wantsPopup(props.alerts.mode.value));
 /** The choice the Alert tickbox restores when ticked again: the last one that was on. */
-const remembered = ref<AlertMode>(on.value ? props.alerts.mode.value : props.alerts.why.value === undefined ? "both" : "sound");
+const remembered = ref<AlertMode>(
+  on.value ? props.alerts.mode.value : props.alerts.why.value === undefined ? "both" : "sound",
+);
 watch(
   () => props.alerts.mode.value,
   (mode) => {
@@ -39,7 +44,8 @@ watch(
 async function choose(next: AlertMode, event: Event): Promise<void> {
   await props.alerts.choose(next);
   if (event.target instanceof HTMLInputElement)
-    event.target.checked = event.target.id === "alert-mode" ? on.value : event.target.id === "alert-sound" ? sound.value : popup.value;
+    event.target.checked =
+      event.target.id === "alert-mode" ? on.value : event.target.id === "alert-sound" ? sound.value : popup.value;
 }
 const setAlert = (event: Event): Promise<void> => choose(on.value ? "off" : remembered.value, event);
 const setSound = (event: Event): Promise<void> => choose(modeOf(!sound.value, popup.value), event);
@@ -54,7 +60,9 @@ const setPopup = (event: Event): Promise<void> => choose(modeOf(sound.value, !po
         <div class="field-control">
           <input id="alert-mode" class="check" type="checkbox" :checked="on" @change="setAlert" />
           <InfoTip :label="t('settings.about', { label: t('settings.browser.mode') })" picture="notifications">
-            <span class="info-line">{{ t(alerts.app ? "settings.browser.mode_tip_app" : "settings.browser.mode_tip") }}</span>
+            <span class="info-line">{{
+              t(alerts.app ? "settings.browser.mode_tip_app" : "settings.browser.mode_tip")
+            }}</span>
           </InfoTip>
           <span v-if="alerts.note.value" class="muted" role="status">{{ alerts.note.value }}</span>
         </div>
@@ -63,8 +71,17 @@ const setPopup = (event: Event): Promise<void> => choose(modeOf(sound.value, !po
         <div class="field">
           <label for="alert-sound">{{ t("settings.browser.sound") }}</label>
           <div class="field-control">
-            <input id="alert-sound" class="check" type="checkbox" :checked="sound" :disabled="sound && !popup" @change="setSound" />
-            <button id="alert-test-sound" class="btn" type="button" @click="alerts.testSound">{{ t("settings.browser.test_sound") }}</button>
+            <input
+              id="alert-sound"
+              class="check"
+              type="checkbox"
+              :checked="sound"
+              :disabled="sound && !popup"
+              @change="setSound"
+            />
+            <button id="alert-test-sound" class="btn" type="button" @click="alerts.testSound">
+              {{ t("settings.browser.test_sound") }}
+            </button>
           </div>
         </div>
         <div v-if="!alerts.app" class="field">
@@ -79,8 +96,17 @@ const setPopup = (event: Event): Promise<void> => choose(modeOf(sound.value, !po
               :title="alerts.why.value"
               @change="setPopup"
             />
-            <button id="alert-test-popup" class="btn" type="button" @click="alerts.testPopup">{{ t("settings.browser.test_popup") }}</button>
-            <button v-if="!alerts.secure" id="alert-enable-popups" class="linkbtn" type="button" :aria-expanded="helpOpen" @click="helpOpen = !helpOpen">
+            <button id="alert-test-popup" class="btn" type="button" @click="alerts.testPopup">
+              {{ t("settings.browser.test_popup") }}
+            </button>
+            <button
+              v-if="!alerts.secure"
+              id="alert-enable-popups"
+              class="linkbtn"
+              type="button"
+              :aria-expanded="helpOpen"
+              @click="helpOpen = !helpOpen"
+            >
               {{ t("settings.browser.enable_popups") }}
             </button>
           </div>

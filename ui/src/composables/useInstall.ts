@@ -14,7 +14,9 @@ const offered = shallowRef<InstallPrompt | null>(null);
  * Keep the browser's install offer until it is used or the app is installed; return the stop
  * function.
  */
-export function listenForInstall(target: Pick<Window, "addEventListener" | "removeEventListener"> = window): () => void {
+export function listenForInstall(
+  target: Pick<Window, "addEventListener" | "removeEventListener"> = window,
+): () => void {
   const onOffer = (event: Event): void => {
     event.preventDefault();
     offered.value = event as InstallPrompt;
