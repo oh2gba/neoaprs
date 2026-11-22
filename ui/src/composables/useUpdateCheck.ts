@@ -3,6 +3,8 @@
 import { onScopeDispose, ref, shallowRef, watch, type Ref } from "vue";
 import { t } from "@/i18n";
 import type { Toast } from "@/composables/useDaemon";
+import { endWithTheSocket } from "@/composables/useInFlight";
+import type { Connection } from "@/lib/hub";
 import { reasonOf } from "@/lib/settings";
 import type { Command, UpdateResultMessage } from "@/protocol/protocol";
 
@@ -25,7 +27,12 @@ export function outcomeOf(message: UpdateResultMessage): Outcome {
   return { text: t(id), tone: "update-failed", newer: false };
 }
 
-export function useUpdateCheck(updateResult: Ref<UpdateResultMessage | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean) {
+export function useUpdateCheck(
+  updateResult: Ref<UpdateResultMessage | null>,
+  lastError: Ref<Toast | null>,
+  send: (command: Command) => boolean,
+  connection?: Readonly<Ref<Connection>>,
+) {
   const running = ref(false);
   const outcome = shallowRef<Outcome | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -43,6 +50,8 @@ export function useUpdateCheck(updateResult: Ref<UpdateResultMessage | null>, la
   watch(lastError, (toast) => {
     if (toast && running.value && toast.cmd === "update_check") show({ text: reasonOf(toast), tone: "update-failed", newer: false });
   });
+
+  endWithTheSocket(connection, () => (running.value = false));
 
   function check(): void {
     if (running.value) return;

@@ -642,6 +642,24 @@ describe("Hub", () => {
     expect(delay).toBe(MAX_DELAY_MS);
   });
 
+  it("tries again after the wait when a socket opened and never said anything", () => {
+    const { seen, socket } = opened();
+    vi.advanceTimersByTime(QUIET_MS);
+    expect(socket.closed).toBe(true);
+    expect(seen.connection.at(-1)).toBe("closed");
+    vi.advanceTimersByTime(FIRST_DELAY_MS);
+    expect(FakeSocket.all).toHaveLength(2);
+    expect(seen.connection.at(-1)).toBe("connecting");
+  });
+
+  it("closes the first socket when it is opened twice", () => {
+    const { hub, socket } = opened();
+    hub.open();
+    expect(FakeSocket.all).toHaveLength(2);
+    expect(socket.closed).toBe(true);
+    expect(FakeSocket.last().closed).toBe(false);
+  });
+
   it("tells a frame that is a message from one that is not", () => {
     expect(parseMessage('{"type":"pong","now":"2026-10-21T00:00:00Z"}')?.type).toBe("pong");
     expect(parseMessage("{")).toBeNull();

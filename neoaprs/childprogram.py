@@ -66,13 +66,23 @@ def _listeners(tables: Sequence[str], ports: Iterable[int]) -> dict[int, set[str
 def foreign_listeners(ports: Iterable[int]) -> list[str]:
     """The listeners on these ports that are not on the loopback, as `address:port` in the kernel's hex, from the kernel's table of sockets (Linux: /proc/net/tcp and tcp6); empty where that table is not there
     (Windows, macOS: nothing can be said here; the shipped programs bind the loopback in their source), and empty when every listener is 127.0.0.1 or ::1. Reads two small files: for a thread or a quick call."""
+    return [f"{address}:{port}" for port, addresses in sorted(_listeners(_tables(), ports).items()) for address in sorted(addresses) if address not in LOOPBACK_HEX]
+
+
+def listened(ports: Iterable[int]) -> set[int]:
+    """The ports among these that a socket listens on, on any address of either family, from the same table as `foreign_listeners`: a port in it is not free for a program of ours, so that every listener
+    `foreign_listeners` finds once ours runs is ours. Empty where the table is not there."""
+    return set(_listeners(_tables(), ports))
+
+
+def _tables() -> list[str]:
     tables: list[str] = []
     for name in PROC_TCP:
         try:
             tables.append(Path(name).read_text(encoding="ascii"))
         except OSError:
             continue
-    return [f"{address}:{port}" for port, addresses in sorted(_listeners(tables, ports).items()) for address in sorted(addresses) if address not in LOOPBACK_HEX]
+    return tables
 
 
 # ---- a run left behind

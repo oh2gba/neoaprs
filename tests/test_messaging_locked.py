@@ -10,6 +10,7 @@ import pytest
 from neoaprs import cipher
 from neoaprs.message import MessagingError
 from neoaprs.messagelog import MessageLog
+from neoaprs.packet import Message, Packet
 from neoaprs.services.keyring import Keyring
 from tests.support.storedb import log_at
 from tests.test_messaging import Rig as MessagingRig
@@ -86,6 +87,15 @@ async def test_every_attempt_of_a_locked_message_sends_the_same_bytes(rig: Rig) 
     rig.m.cancel(1)
     rig.m.retry(1)
     assert rig.tnc.sent[2].info == first.info, "a retry too"
+
+
+async def test_a_digipeaters_copy_of_a_locked_message_is_linked_to_its_attempt(rig: Rig) -> None:
+    await with_peer_key(rig)
+    record = await rig.m.send("OH2RDG-7", "secret words", locked=True)
+    assert record.wire is not None and record.msg_id is not None
+    info = f":{'OH2RDG-7':<9}:{record.wire}{{{record.msg_id}".encode()
+    rig.m.on_packet(Packet(rig.clock(), "in", b"", "OH2GBA", "APZNEO", ("OH2RCH-2*", "WIDE2-1"), info, Message("OH2RDG-7", record.wire, record.msg_id)))
+    assert [seen.call for seen in rig.m.delivery.attempts_of(record.id)[0].seen] == ["OH2RCH-2"]
 
 
 @pytest.mark.parametrize(("encrypt", "key", "text", "code", "params"), [

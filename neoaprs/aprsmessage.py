@@ -89,7 +89,7 @@ def format_message(addressee: str, text: str, msg_id: str | None = None, reply_a
     padded = _check_addressee(addressee)
     if any(c in text for c in FORBIDDEN) or not text.isprintable() or not text.isascii() or len(text) > MAX_TEXT:
         raise MessageError("the text has a character a message cannot carry, or is too long", "message.bad_text")
-    if _ACK.match(text):
+    if _ACK.match(text.rstrip(_TRAILING)):
         raise MessageError("the text reads as an ack or a reject", "message.reads_as_ack")
     ident = "" if msg_id is None else "{" + _check_id(msg_id)
     if reply_ack is not None:

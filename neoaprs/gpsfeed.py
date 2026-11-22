@@ -187,7 +187,7 @@ class GpsFeed(Source):
         self.stats.bytes_in += len(line)
         try:
             report: Any = json.loads(line)
-        except ValueError:
+        except (ValueError, RecursionError):
             return self._reject()
         if not isinstance(report, dict):
             return self._reject()

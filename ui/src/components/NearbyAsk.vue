@@ -12,6 +12,7 @@ import InfoTip from "@/components/InfoTip.vue";
 import RequestPath from "@/components/RequestPath.vue";
 import SendOn from "@/components/SendOn.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useCommandInFlight } from "@/composables/useInFlight";
 import { usePersisted } from "@/composables/usePersisted";
 import { useRadios } from "@/composables/useRadios";
 import { useRequestPath } from "@/composables/useRequestPath";
@@ -68,10 +69,12 @@ watch(
   () => (refusal.value = ""),
 );
 
+const asking = useCommandInFlight("general_query", () => general.value?.asked.at(-1)?.at);
+
 function ask(): void {
   if (why.value !== undefined) return;
   refusal.value = "";
-  send({ cmd: "general_query", kind: kind.value, path: routable.value ? request.sent.value : null, rf_only: request.rfOnly.value });
+  asking.run(() => send({ cmd: "general_query", kind: kind.value, path: routable.value ? request.sent.value : null, rf_only: request.rfOnly.value }));
 }
 </script>
 
@@ -87,7 +90,13 @@ function ask(): void {
       <select v-model="kind" class="input ask-kind" :aria-label="t('nearby.ask_kind_label')" :title="queryOf(kind)">
         <option v-for="k in GENERAL_KINDS" :key="k" :value="k" :title="queryOf(k)">{{ t(`nearby.ask_kind.${k}`) }}</option>
       </select>
-      <button type="button" class="btn" :disabled="why !== undefined" :title="why || t('nearby.ask_title', { query: queryOf(kind) })" @click="ask">
+      <button
+        type="button"
+        class="btn"
+        :disabled="why !== undefined || asking.busy.value"
+        :title="why || t('nearby.ask_title', { query: queryOf(kind) })"
+        @click="ask"
+      >
         {{ t("nearby.ask_button") }}
       </button>
     </div>

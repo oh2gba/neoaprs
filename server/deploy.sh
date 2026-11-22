@@ -76,6 +76,10 @@ export BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$(grep -v '^#' "$ENVFILE" | head -1
 _all=""
 sec() { [ -n "$_all" ] || _all="$("$BWS" secret list -o json --color no)"; python3 -c "import json,sys;print([s['value'] for s in json.load(sys.stdin) if s['key']=='$1'][0])" <<<"$_all"; }
 FH=$(sec ftp_server); FU=$(sec ftp_login); FP=$(sec ftp_pw)
+# The login goes to curl as a config on stdin, never on its command line.
+quote() { local s=${1//\\/\\\\}; printf '%s' "${s//\"/\\\"}"; }
+CURL_USER="user = \"$(quote "$FU"):$(quote "$FP")\""
+fcurl() { curl -K - "$@" <<<"$CURL_USER"; }
 
 ARGS=()
 for f in "${GONE[@]}"; do ARGS+=(-Q "*rm $OLD/$f"); done
@@ -83,7 +87,7 @@ n=0
 while IFS=$'\t' read -r local remote; do ARGS+=(-T "$local" "sftp://$FH$remote"); n=$((n + 1)); done < <(manifest)
 
 echo "$n files in one session -> $OLD and $NEO"
-curl -sS --max-time 600 --ftp-create-dirs -u "$FU:$FP" "${ARGS[@]}" >/dev/null
+fcurl -sS --max-time 600 --ftp-create-dirs "${ARGS[@]}" >/dev/null
 manifest | awk -F'\t' 'NR <= 12 {printf "  -> %s\n", $2}'   # awk reads the whole list: with `| head -12` a long list ended awk by SIGPIPE and, under pipefail, the script with 141 after a complete upload
 [ "$n" -le 12 ] || echo "  ... and $((n - 12)) more"
 echo "done. Try: curl 'https://neo.oh2gba.eu/version.php?v=0.1.0&os=linux' and curl 'https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux'"

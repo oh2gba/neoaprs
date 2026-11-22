@@ -175,7 +175,7 @@ class Holding:
             return None
         self.claims.release(self.holder, "sound_card")
         self.claims.release(self.holder, "keying")
-        for claim in (Claim("sound_card", stable_alsa_id(sound_card, alsa_card_names()), self.holder), *([Claim("keying", keying_port, self.holder)] if keying_port else [])):
+        for claim in (card_claim(sound_card, self.holder), *([Claim("keying", keying_port, self.holder)] if keying_port else [])):
             if (other := self.claims.hold(claim)) is not None:
                 self.claims.release(self.holder, "sound_card")
                 return other
@@ -187,3 +187,7 @@ class Holding:
             for kind in sorted(MODEM_KINDS):
                 self.claims.release(self.holder, kind)
 
+
+def card_claim(sound_card: str, holder: RadioId) -> Claim:
+    """The claim of a sound card, by the card's name where a setting names it by its number (`stable_alsa_id`): one card is one claim whichever way a setting names it and whichever type of radio holds it."""
+    return Claim("sound_card", stable_alsa_id(sound_card, alsa_card_names()), holder)

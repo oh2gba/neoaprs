@@ -106,3 +106,17 @@ describe("trailLines", () => {
     expect(features).toHaveLength(1);
   });
 });
+
+describe("trailLines over the date line", () => {
+  it("carries the longitude on past 180", () => {
+    const points: TrailPoint[] = [
+      [179.9, 60, NOW - 120_000],
+      [-179.9, 60, NOW - 60_000],
+    ];
+    const line = trailLines(KEY, points, NOW).features[0]?.geometry.coordinates;
+    expect(line).toEqual([
+      [179.9, 60],
+      [180.1, 60],
+    ]);
+  });
+});

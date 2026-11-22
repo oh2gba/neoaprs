@@ -80,15 +80,20 @@ def _by_card(cards: Sequence[SoundCard]) -> dict[str, list[SoundCard]]:
     return groups
 
 
+def unnumbered(card: str) -> str:
+    """A card's name without the number Windows puts before one it has seen before: the two devices of one card are one card when their names are the same so, whichever of them carries a number."""
+    return _UNNUMBERED.sub("", card)
+
+
 def _join_numbered(groups: dict[str, list[SoundCard]]) -> tuple[dict[str, list[SoundCard]], dict[str, str]]:
     """The groups with the lone devices of one name without its number joined, where they are one recording and one playing device ("Speakers (2- USB Audio CODEC)" and "Microphone (USB Audio CODEC)"), and the name
     each group's pair is given: the card's, or for the joined ones the name without the number."""
     lone = {card: group for card, group in groups.items() if not _whole(group)}
-    unnumbered: dict[str, list[str]] = {}
+    by_name: dict[str, list[str]] = {}
     for card in lone:
-        unnumbered.setdefault(_UNNUMBERED.sub("", card), []).append(card)
+        by_name.setdefault(unnumbered(card), []).append(card)
     joined, named = dict(groups), {card: card for card in groups}
-    for name, cards_of in unnumbered.items():
+    for name, cards_of in by_name.items():
         devices = [g for card in cards_of for g in lone[card]]
         if len(cards_of) > 1 and sum(g.capture for g in devices) == 1 and sum(g.playback for g in devices) == 1:
             for card in cards_of:

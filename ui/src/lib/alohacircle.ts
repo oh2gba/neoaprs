@@ -1,5 +1,6 @@
 // The ALOHA circles of the map: for each radio the daemon worked one out for (`aloha` of the topic `map`: a radio that is on and shares a 1200 baud channel), the ring of points at its radius round our own position, as
 // the line the layer draws (lib/alohalayers.ts).
+import { unwrapLine } from "@/lib/dateline";
 import type { Home } from "@/lib/mapview";
 
 const EARTH_RADIUS_KM = 6371.0088; // the daemon's sphere (neoaprs/geo.py)
@@ -25,12 +26,7 @@ function destination(from: Home, km: number, bearing: number): LonLat {
 /** The closed ring of points `km` round `center`, the longitudes running on past the date line instead of wrapping, so that the ring stays one line. */
 export function ringAround(center: Home, km: number): LonLat[] {
   const ring = Array.from({ length: POINTS + 1 }, (_, i) => destination(center, km, (2 * Math.PI * i) / POINTS));
-  let shift = 0;
-  return ring.map(([lon, lat], i): LonLat => {
-    const before = ring[i - 1];
-    if (before !== undefined && Math.abs(lon - before[0]) > 180) shift += lon < before[0] ? 360 : -360; // (a jump of the longitude across the date line)
-    return [lon + shift, lat];
-  });
+  return unwrapLine(ring);
 }
 
 /** The closed ring of each circle by its radius in km, or no feature at all without a position; a circle of no radius is left out. */

@@ -10,6 +10,7 @@ import SkedCompose from "@/components/SkedCompose.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import TagMark from "@/components/TagMark.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useCommandInFlight } from "@/composables/useInFlight";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { groups, hasCall, inText, localText, mayPostAs, noteOf, whenText, type SkedGroup } from "@/lib/skeds";
@@ -22,7 +23,8 @@ const state = computed(() => skeds.value?.state ?? null);
 const listed = computed(() => state.value === "ok" || state.value === "closed");
 const canPost = computed(() => state.value === "ok" && mayPostAs(call.value));
 const remove = (g: SkedGroup): void => g.ours.forEach((row) => void send({ cmd: "sked_delete", id: row.id }));
-const join = (g: SkedGroup): boolean => send({ cmd: "sked_post", from: g.from, to: g.to, dial: g.dial, note: "" });
+const joining = useCommandInFlight("sked_post", () => skeds.value?.rows);
+const join = (g: SkedGroup): boolean => joining.run(() => send({ cmd: "sked_post", from: g.from, to: g.to, dial: g.dial, note: "" }));
 </script>
 
 <template>
@@ -61,7 +63,7 @@ const join = (g: SkedGroup): boolean => send({ cmd: "sked_post", from: g.from, t
               v-else-if="state !== 'closed' && !hasCall(g, call)"
               type="button"
               class="btn small"
-              :disabled="!canPost"
+              :disabled="!canPost || joining.busy.value"
               :title="t('skeds.join_title')"
               :aria-label="t('skeds.join_label', { calls: g.rows.map((r) => r.call).join(', '), when: whenText(g.from, g.to) })"
               @click="join(g)"

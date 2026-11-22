@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { effectScope, shallowRef } from "vue";
+import { effectScope, nextTick, shallowRef } from "vue";
 import type { Toast } from "@/composables/useDaemon";
+import type { Connection } from "@/lib/hub";
 import { outcomeOf, SHOWN_MS, useUpdateCheck } from "@/composables/useUpdateCheck";
 import type { UpdateResultMessage } from "@/protocol/protocol";
 import { toastOf } from "@/test/fixtures";
@@ -114,5 +115,22 @@ describe("useUpdateCheck", () => {
     await vi.advanceTimersByTimeAsync(0);
     scope.stop();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("Check now and the socket", () => {
+  it("stops waiting when the socket closes: the answer is lost with it", async () => {
+    const connection = shallowRef<Connection>("open");
+    const scope = effectScope();
+    const check = scope.run(() => useUpdateCheck(shallowRef(null), shallowRef(null), () => true, connection));
+    if (!check) throw new Error("no scope");
+    check.check();
+    expect(check.running.value).toBe(true);
+    connection.value = "closed";
+    await nextTick();
+    connection.value = "open";
+    await nextTick();
+    expect(check.running.value).toBe(false);
+    scope.stop();
   });
 });

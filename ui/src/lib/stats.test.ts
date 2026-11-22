@@ -154,7 +154,7 @@ describe("the statistics of the map", () => {
   it("says what the radio did since the daemon started, and what went through us since then", () => {
     const stats = lineStats({ frames_in: 2500, rejected: 12, bytes_in: 300_000, bytes_out: 2048, digipeated: 9 });
     const sections = mapStats(input({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { stats })) }));
-    expect(lines(sections, "stats.section.radio")).toEqual(["stats.running=3 h", "stats.frames=2500, 12 unreadable", "stats.bytes=293.0 kB · 2.0 kB"]);
+    expect(lines(sections, "stats.section.radio")).toEqual(["stats.running=3 h", "stats.frames=2500, 12 unreadable", "stats.bytes=300 kB · 2.0 kB"]);
     expect(lines(sections, "stats.section.through")).toEqual([
       "stats.digipeated=– in the last hour · 9 since the start",
       "stats.gated=– in the last hour · 42 since the start",
@@ -264,7 +264,7 @@ describe("the statistics of the map with several radios", () => {
   it("adds up the counters of the radios that are on, and not of one that is off", () => {
     expect(lines(mapStats(input({ radios: SIX })), "stats.section.radio").slice(1, 3)).toEqual([
       "stats.frames=130, 4 unreadable",
-      "stats.bytes=5.0 kB · 5.0 kB",
+      "stats.bytes=5.1 kB · 5.1 kB",
     ]);
     expect(lines(mapStats(input({ radios: SIX })), "stats.section.through")[0]).toBe("stats.digipeated=– in the last hour · 3 since the start");
   });

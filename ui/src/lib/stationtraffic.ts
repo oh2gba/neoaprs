@@ -1,6 +1,6 @@
 // The traffic of one station, as its panel in the Stations tab lists it (components/StationTraffic.vue): the packets it sent (its own, or inside a third-party packet: `sender`) and the messages we sent to it (a message,
 // an ack, a directed query), the newest first, at most TRAFFIC_SHOWN. They come from two places: the daemon's answer to `station_traffic` (read from the packet log, so older than the 200 of the Packets tab) and the packets
-// that come after it (the topic `packets`); the same packet in both is one line (`trafficKey`: its time, its direction and its line; their ids differ). And the state of a directed query of ours in that list: "waiting…"
+// that come after it (the topic `packets`); the same packet in both is one line (`trafficKey`: its time, its direction, its radio and its line; their ids differ). And the state of a directed query of ours in that list: "waiting…"
 // until the answer it asks for comes from the station, "answered" once it has, "no answer" after ANSWER_WAIT_MS without (`queryState`). The answer each query asks for (`answers`): ?APRSP a position, ?APRSS a status,
 // ?APRSD a message that begins "Directs=", ?APRST and ?PING? a message, ?WX? a weather report, any other query any packet of the station after it.
 import type { DecodedMessage, PacketRow } from "@/protocol/protocol";
@@ -23,7 +23,7 @@ export function isTrafficOf(row: PacketRow, call: string): boolean {
 }
 
 /** One packet whichever way it came (the log's answer has the log's numbers as ids, the topic its own). */
-export const trafficKey = (row: PacketRow): string => `${row.heard_at} ${row.direction} ${row.tnc2}`;
+export const trafficKey = (row: PacketRow): string => `${row.heard_at} ${row.direction} ${row.radio_id ?? ""} ${row.tnc2}`;
 
 /** The lines of the list: the packets of both places once each, the newest first (the order they came in where the times are equal), without those from the internet while `internet` is off, at most TRAFFIC_SHOWN. */
 export function mergeTraffic(live: Iterable<PacketRow>, logged: readonly PacketRow[], internet: boolean): PacketRow[] {

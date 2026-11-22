@@ -49,7 +49,7 @@ class Delivery:
         if not packet.on_air or message.ack_id is not None or message.rej_id is not None:
             return None
         for record in records:
-            if record.direction == "out" and record.msg_id == message.msg_id and record.text == message.text and same_call(record.to_call, message.addressee):
+            if record.direction == "out" and record.msg_id == message.msg_id and (record.wire if record.wire is not None else record.text) == message.text and same_call(record.to_call, message.addressee):
                 attempt = attempt_before(self._chains.get(record.id, []), packet.heard_at)
                 if attempt is not None and self._keep(record, attempt, packet):
                     return record

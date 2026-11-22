@@ -9,6 +9,7 @@ import pytest
 
 from neoaprs import VERSION
 from neoaprs.config import DEFAULTS, INSTALL_ID, Config
+from neoaprs.releasenotes import MAX_BYTES
 from neoaprs.services.updatecheck import ENV_SWITCH, EVERY_SEC, FIRST_SEC, WHILE_OFF_SEC, UpdateCheck
 from neoaprs.updatefetch import fetch
 from neoaprs.store import Store
@@ -141,7 +142,7 @@ async def test_what_is_new_is_the_changelog_at_the_tag_of_the_newer_version_fetc
     await service.check()
     found, problem = await service.release_notes("0.2.0")
     assert problem == "" and [(s.version, s.text) for s in found] == [("0.2.0", "- Two."), ("0.1.1", "- One and a bit.")]
-    assert changelog.asked == [("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.1.0", "linux", 262144)]
+    assert changelog.asked == [("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.1.0", "linux", MAX_BYTES)]
     assert await service.release_notes("0.2.0") == (found, "") and len(changelog.asked) == 1, "kept"
     assert await service.release_notes("0.3.0") == ([], "unknown_version") and len(changelog.asked) == 1
 
@@ -163,7 +164,7 @@ async def test_what_the_update_we_have_had_brought_is_the_changelog_at_our_own_t
     remember_stop(service.stop)
     found, problem = await service.release_notes("0.2.0")
     assert problem == "" and [(s.version, s.text) for s in found] == [("0.2.0", "- Two.")], "without `since`, our own section alone; no update check is needed"
-    assert changelog.asked == [("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.2.0", "linux", 262144)]
+    assert changelog.asked == [("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.2.0", "linux", MAX_BYTES)]
     found, problem = await service.release_notes("0.2.0", since="0.1.0")
     assert problem == "" and [s.version for s in found] == ["0.2.0", "0.1.1"] and len(changelog.asked) == 1, "every version after the one the page last saw, from the changelog kept"
     assert await service.release_notes("0.2.0", since="0.2.0") == ([], "")

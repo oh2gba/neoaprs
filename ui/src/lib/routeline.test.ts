@@ -234,3 +234,19 @@ describe("routeFeatures: a packet an iGate heard on the radio and put on the int
     ).toEqual([1]);
   });
 });
+
+describe("a route over the date line", () => {
+  it("is one short line", () => {
+    const book = table(station("FJ1AAA", { lat: -17, lon: 179.9, route_marks: [rf("FJ1RPT")] }), station("FJ1RPT", { lat: -17, lon: -179.9 }));
+    const found = routeFeatures(book.get("FJ1AAA"), book, { lat: -17, lon: -179.8 }).features.flatMap((f) =>
+      f.geometry.type === "LineString" ? [f.geometry.coordinates] : [],
+    );
+    expect(found).toEqual([
+      [
+        [179.9, -17],
+        [180.1, -17],
+        [180.2, -17],
+      ],
+    ]);
+  });
+});

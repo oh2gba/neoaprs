@@ -27,6 +27,7 @@ from tornado.iostream import IOStream
 from neoaprs.cli.logfile import PAGE_FORMAT, remove_page, write_network, write_page
 from neoaprs.config import Config
 from neoaprs.controller import Controller
+from neoaprs.tasks import every
 from neoaprs.worldmap import world_file
 
 from .access import Access, Login, NewKey, new_key, this_computer_target
@@ -35,7 +36,8 @@ from .api import Api
 from .connections import LimitedHTTPServer
 from .headers import host_name
 from .listen import listen_near
-from .pagefiles import Basemap, Page
+from .pagefiles import MAX_LOGGED_PATH, Basemap, Page
+from .pageerrors import one_line
 from .pagesnapshot import PageSnapshot
 from .pagesocket import Socket
 from .securehandlers import CA_PATH, CaCertificate, secure_target
@@ -184,7 +186,7 @@ class WebServer:
         log.info(PAGE_FORMAT, self.url())
         self._tell_the_page()
         await self._follow_secure(quiet=True)
-        self.api.tasks.spawn(self._watch_secure(), "web-https")
+        self.api.tasks.spawn(every(lambda: self.secure.retry_sec, self._recheck_secure, "the secure side check"), "web-https")
         self._say_reach()
         return True
 
@@ -244,12 +246,10 @@ class WebServer:
             if not quiet:
                 self._say_reach()
 
-    async def _watch_secure(self) -> None:
+    async def _recheck_secure(self) -> None:
         """Now and then: a new address of this computer, or a certificate close to its end, is followed by a new certificate."""
-        while True:
-            await asyncio.sleep(self.secure.retry_sec)
-            async with self._switch:
-                await self._follow_secure()
+        async with self._switch:
+            await self._follow_secure()
 
     async def _ensure_key(self) -> None:
         """The network is on and there is no key (turned on, or on in a database made without one): a key is made."""
@@ -298,7 +298,7 @@ class WebServer:
     def _log_request(handler: tornado.web.RequestHandler) -> None:
         r = handler.request
         if handler.get_status() >= 400 and not (handler.get_status() == 401 and r.path == "/access"):      # (a device asking whether it is let in is told no, which is not news)
-            log.warning("%d %s %s (%s) %.2fms", handler.get_status(), r.method, r.path, r.remote_ip, 1000.0 * r.request_time())
+            log.warning("%d %s %s (%s) %.2fms", handler.get_status(), r.method, one_line(r.path, MAX_LOGGED_PATH), r.remote_ip, 1000.0 * r.request_time())
 
     def bound_port(self) -> int:
         """The port actually bound (port 0 asks the system for one)."""

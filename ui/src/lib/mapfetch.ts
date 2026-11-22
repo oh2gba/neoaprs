@@ -1,5 +1,7 @@
 // The Map group of the Settings tab, in words: sizes, the day the map was downloaded, what the running job is doing, and which of the daemon's `map` state the button and the map may rely on.
-import { formatNumber, monthShort, t } from "@/i18n";
+import { monthShort, t } from "@/i18n";
+import { bytesText } from "@/lib/format";
+
 import type { MessageId } from "@/i18n/catalogue";
 import type { MapSizeEstimate, MapState } from "@/protocol/protocol";
 
@@ -10,19 +12,6 @@ const STEP_TEXT: Record<MapState["step"], MessageId | ""> = {
   world: "settings.map.step.world",
   area: "settings.map.step.area",
 };
-
-/** Bytes in thousands, as the sizes of the map are told: `15 kB`, `493 MB`, `1.2 GB`. */
-export function formatBytes(bytes: number): string {
-  const units = ["B", "kB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1000 && unit < units.length - 1) {
-    value /= 1000;
-    unit += 1;
-  }
-  const digits = unit === 0 || value >= 10 ? 0 : 1;
-  return `${formatNumber(value, digits)} ${units[unit]}`;
-}
 
 /** The one plain line about the map on disk: "Map downloaded 23 Oct" when there is a detailed map, else nothing. The world map ships with NeoAPRS and is not mentioned; the rest is in the log. */
 export function downloadedLine(map: MapState): string {
@@ -73,7 +62,7 @@ export function progressText(map: MapState): string {
   const step = id ? t(id) : map.state === "estimating" ? t("settings.map.estimating") : t("settings.map.working");
   return [
     map.percent === null ? step : t("settings.map.step_percent", { step, percent: map.percent }),
-    ...(map.downloaded ? [formatBytes(map.downloaded)] : []),
+    ...(map.downloaded ? [bytesText(map.downloaded)] : []),
     ...(map.retry ? [t("settings.map.retry", { attempt: map.retry.attempt, tries: map.retry.tries })] : []),
   ].join(" · ");
 }

@@ -29,3 +29,13 @@ describe("useAddressBook", () => {
     expect(useAddressBook().addresses.value).toEqual([]);
   });
 });
+
+describe("useAddressBook in two windows of one browser", () => {
+  it("keeps what the other window remembered", () => {
+    const a = useAddressBook();
+    const b = useAddressBook();
+    b.remember("jane@example.com");
+    a.remember("me");
+    expect(JSON.parse(localStorage.getItem("NeoAPRS.emailto") ?? "null")).toEqual(["me", "jane@example.com"]);
+  });
+});

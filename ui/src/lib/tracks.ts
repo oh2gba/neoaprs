@@ -3,6 +3,7 @@
 // the line of a selected station (of every open card) is marked so that it is drawn heavier, solid and above the others, and its positions are given as points too (`trackPoints`): a dot where each packet was heard,
 // which fades with the age of the position as the stretches do, so that the trail of the station picked is read at a glance, each beacon on it.
 import { timeoutMin, trailOpacity, type Aging } from "@/lib/aging";
+import { unwrapLine } from "@/lib/dateline";
 import { ageSeconds } from "@/lib/format";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -52,6 +53,7 @@ export function fadingLines<P>(call: string, points: readonly P[], selected: boo
       geometry: { type: "LineString", coordinates: [start, end] },
     });
   }
+  for (const feature of features) feature.geometry.coordinates = unwrapLine(feature.geometry.coordinates);
   return features;
 }
 

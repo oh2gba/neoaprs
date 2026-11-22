@@ -121,11 +121,15 @@ class AppActions:
         if self.quitting:
             return
         self.quitting = True
-        if not self.session.owned:
-            log.info("quitting; %s", KEEPS_RUNNING)
-        elif not stop_owned(self.session, self.daemon):
-            self.frame.tell("The NeoAPRS daemon did not stop; see neoaprs.log")
-        self.frame.quit()
+        try:
+            if not self.session.owned:
+                log.info("quitting; %s", KEEPS_RUNNING)
+            elif not stop_owned(self.session, self.daemon):
+                self.frame.tell("The NeoAPRS daemon did not stop; see neoaprs.log")
+        except Exception:
+            log.exception("the daemon could not be stopped")
+        finally:
+            self.frame.quit()
 
     def network_moved(self) -> None:
         """The daemon's page is served to the network now, or no longer is: the menu is drawn again (a toolkit that draws it only when asked)."""

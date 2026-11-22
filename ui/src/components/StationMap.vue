@@ -11,7 +11,7 @@
 // a range (PHG or RNG), has a pale circle of that range under the markers too (lib/rangecircles.ts), one at a time; when such a station is picked the map fits itself to the whole circle instead of flying to the point (composables/useMapFollow.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix (composables/useFollowMe.ts).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
-import { t } from "@/i18n";
+import { locale, t } from "@/i18n";
 import MapAttribution from "@/components/MapAttribution.vue";
 import MapLayers from "@/components/MapLayers.vue";
 import { archiveUrl, archivesPresent, glyphsUrl, loadMapEngine } from "@/lib/basemap";
@@ -300,7 +300,7 @@ watch(mapFiles, (key) => {
   seenKey = key;
   void refreshBasemap();
 });
-watch(page.dark, (dark) => map?.setStyle(styleFor(dark)));
+watch([page.dark, locale], ([dark]) => map?.setStyle(styleFor(dark)));
 
 onMounted(() => {
   if (root.value) hover = new HoverCard(root.value, stationOf, () => page.now.value, radios);

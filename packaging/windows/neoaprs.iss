@@ -42,7 +42,7 @@ OutputDir=..\..\dist-installer
 CloseApplications=no
 
 [Tasks]
-Name: "autostart"; Description: "Start NeoAPRS when I sign in"
+Name: "autostart"; Description: "Start NeoAPRS when I sign in"; Flags: checkedonce
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 
 ; The Mercury folder is made again by every install: the Mercury of 0.16.1 and before came with DLLs of its own (hamlib, libusb, the MinGW runtime) that the one built since

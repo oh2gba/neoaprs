@@ -4,6 +4,7 @@ import MapFetchButton from "@/components/MapFetchButton.vue";
 import MapFetchNotes from "@/components/MapFetchNotes.vue";
 import type { MapState } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
+import { shown } from "@/test/shown";
 import { mapFile, mapState } from "@/test/fixtures";
 
 const ESTIMATE = { bytes: 493_000_000, tiles: 41233, radius_km: 150, maxzoom: 12, box: [22.1, 58.8, 27.8, 61.5], build: "20261022" };
@@ -19,7 +20,7 @@ function make(map: MapState, stale = false, early = false) {
 describe("MapFetchButton", () => {
   it("is one plain button, Download map, on, and nothing else while no map is made (the blue is for the one main action of a form)", () => {
     const { wrapper, notes, button } = make(mapState());
-    expect(wrapper.findAll("button").map((b) => b.text())).toEqual(["Download map"]);
+    expect(wrapper.findAll("button").map((b) => shown(b))).toEqual(["Download map"]);
     expect(button().classes()).not.toContain("primary");
     expect(button().attributes("disabled")).toBeUndefined();
     expect(notes.find("progress").exists()).toBe(false);
@@ -31,10 +32,10 @@ describe("MapFetchButton", () => {
     const { wrapper, notes, send, button } = make(mapState());
     await button().trigger("click");
     expect(send.mock.calls).toEqual([[{ cmd: "map_estimate" }]]);
-    expect(button().text()).toBe("Checking size…");
+    expect(shown(button())).toBe("Checking size…");
     expect(button().attributes("disabled")).toBeDefined();
     await wrapper.setProps({ map: mapState({ state: "estimating", step: "build", percent: null }) });
-    expect(button().text()).toBe("Checking size…");
+    expect(shown(button())).toBe("Checking size…");
     await notes.setProps({ map: mapState({ state: "estimating", step: "build", percent: null }) });
     expect(notes.find(".mapfetch-progress").exists()).toBe(true);
   });
@@ -43,7 +44,7 @@ describe("MapFetchButton", () => {
     const { wrapper, send, button } = make(mapState());
     await button().trigger("click");
     await wrapper.setProps({ map: mapState({ state: "none", estimate: ESTIMATE }) });
-    expect(button().text()).toBe("Download 493 MB?");
+    expect(shown(button())).toBe("Download 493 MB?");
     expect(button().classes()).toContain("danger");
     expect(send).toHaveBeenCalledTimes(1);
     await button().trigger("click");
@@ -56,23 +57,23 @@ describe("MapFetchButton", () => {
     const { wrapper, button } = make(mapState());
     await button().trigger("click");
     await wrapper.setProps({ map: mapState({ estimate: { ...ESTIMATE, bytes: 60_000_000 } }) });
-    expect(button().text()).toBe("Download 60 MB?");
+    expect(shown(button())).toBe("Download 60 MB?");
   });
 
   it("takes the question back when the radius changes", async () => {
     const { wrapper, button } = make(mapState());
     await button().trigger("click");
     await wrapper.setProps({ map: mapState({ estimate: ESTIMATE }) });
-    expect(button().text()).toBe("Download 493 MB?");
+    expect(shown(button())).toBe("Download 493 MB?");
     await wrapper.setProps({ map: mapState({ estimate: ESTIMATE, radius_km: 200 }) });
-    expect(button().text()).toBe("Download map");
+    expect(shown(button())).toBe("Download map");
   });
 
   it("takes the question back, and shows why, when the check fails", async () => {
     const { wrapper, notes, button } = make(mapState());
     await button().trigger("click");
     await wrapper.setProps({ map: mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } } }) });
-    expect(button().text()).toBe("Download map");
+    expect(shown(button())).toBe("Download map");
     await notes.setProps({ map: mapState({ state: "error", problem: { code: "no_build", params: { days: 10 } } }) });
     expect(notes.find(".mapfetch-error").text()).toBe("no daily build of the map was found in the last 10 days (is there a connection?)");
   });
@@ -81,7 +82,7 @@ describe("MapFetchButton", () => {
     const send = vi.fn(() => false);
     const wrapper = mount(MapFetchButton, { props: { map: mapState(), stale: false, send } });
     await wrapper.find("button").trigger("click");
-    expect(wrapper.find("button").text()).toBe("Download map");
+    expect(shown(wrapper.find("button"))).toBe("Download map");
   });
 
   it("is off while a job runs, says Downloading…, and has Cancel beside it (the bar and the step are under the row)", async () => {
@@ -89,10 +90,10 @@ describe("MapFetchButton", () => {
     expect(notes.find("progress").attributes("value")).toBe("42");
     expect(notes.find(".mapfetch-progress").text()).toBe("World map 42%");
     expect(button().attributes("disabled")).toBeDefined();
-    expect(button().text()).toBe("Downloading…");
+    expect(shown(button())).toBe("Downloading…");
     await wrapper
       .findAll("button")
-      .find((b) => b.text() === "Cancel")
+      .find((b) => shown(b) === "Cancel")
       ?.trigger("click");
     expect(send).toHaveBeenCalledWith({ cmd: "map_cancel" });
   });
@@ -133,7 +134,7 @@ describe("MapFetchButton", () => {
     expect(notes.find(".mapfetch-file").classes()).toContain("muted");
     expect(wrapper.text() + notes.text()).not.toContain("World map");
     expect(wrapper.text() + notes.text()).not.toContain("zoom");
-    expect(button().text()).toBe("Download again");
+    expect(shown(button())).toBe("Download again");
     expect(button().classes()).not.toContain("primary");
   });
 
@@ -141,8 +142,8 @@ describe("MapFetchButton", () => {
     const { wrapper, notes, button } = make(mapState({ state: "none", detail: null, world: mapFile({ name: "basemap-world.pmtiles", max_zoom: 5 }) }));
     expect(notes.find(".mapfetch-file").exists()).toBe(false);
     expect(notes.text()).toBe("");
-    expect(button().text()).toBe("Download map");
-    expect(wrapper.text()).not.toContain("again");
+    expect(shown(button())).toBe("Download map");
+    expect(shown(wrapper)).not.toContain("again");
   });
 
   it("explains nothing in sentences: no hint under the button", () => {
@@ -170,5 +171,19 @@ describe("MapFetchButton", () => {
         .button()
         .attributes("disabled"),
     ).toBeDefined();
+  });
+});
+
+describe("the width of the Download button", () => {
+  it("holds every word it can say, the one said shown, so that it is as wide as the longest", async () => {
+    const send = vi.fn(() => true);
+    const wrapper = mount(MapFetchButton, { props: { map: mapState(), stale: false, send } });
+    const faces = () => wrapper.findAll(".mapfetch-button .twowords > span").map((face) => face.text());
+    const before = faces();
+    expect(before).toEqual(expect.arrayContaining(["Download map", "Download again", "Checking size…", "Downloading…", "Download 888 MB?"]));
+    expect(shown(wrapper.find(".mapfetch-button"))).toBe("Download map");
+    await wrapper.find(".mapfetch-button").trigger("click");
+    expect(shown(wrapper.find(".mapfetch-button"))).toBe("Checking size…");
+    expect(faces()).toEqual(before);
   });
 });

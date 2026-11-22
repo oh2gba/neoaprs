@@ -32,12 +32,18 @@ export function useSettingsAnswers(
   refuse: (request: Request, reason: string, key: string) => void,
   radios?: RadioNames,
 ): void {
+  // The answer carries no id, so a tell of the settings for another reason releases the request in flight too. A tell that changed none of its keys may be such a one: the request is kept as `unsure`, so that a
+  // refusal of it that comes later, while the next one is out, still reaches its field.
+  let unsure: Request | null = null;
   // a value the person has not touched follows the daemon; one being edited, or waiting in the queue, does not (what the request in flight sent is taken the way the daemon writes it)
   watch(
     config,
     (now, before) => {
       if (!now) return;
       const request = queue.release();
+      const changed = (r: Request): boolean => r.keys.some((key) => (now.values[key] ?? "") !== (before?.values[key] ?? ""));
+      if (request !== null) unsure = changed(request) ? null : request;
+      else if (unsure !== null && changed(unsure)) unsure = null;
       for (const [key, text] of Object.entries(now.values)) {
         const own = request !== null && draft[key] === request.values[key];
         if (!(key in draft) || (!queue.waiting(key) && (draft[key] === before?.values[key] || own))) draft[key] = text;
@@ -50,8 +56,16 @@ export function useSettingsAnswers(
   );
 
   watch(lastError, (toast) => {
+    if (!toast || toast.cmd !== "set_config") return;
     const request = queue.inflight.value;
-    if (!toast || !request || toast.cmd !== "set_config") return;
+    const earlier = unsure;
+    // a refusal that names a key of that request and none of the one in flight is its own: it goes to its field, and the one in flight still waits
+    if (earlier !== null && toast.key !== null && earlier.keys.includes(toast.key) && !request?.keys.includes(toast.key)) {
+      unsure = null;
+      refuse(earlier, refusalFor(toast, earlier.keys, radios).reason, toast.key);
+      return;
+    }
+    if (!request) return;
     const where = refusalFor(toast, request.keys, radios);
     queue.release();
     refuse(request, where.reason, where.key);

@@ -5,9 +5,10 @@ import re
 
 import pytest
 
-from neoaprs import direwolf, winmm
+from neoaprs import direwolf, direwolfmodem, winmm
 from neoaprs.direwolf import DeviceLists, adevice, choose_keying, command, conf_text, gain_percent, own_card
 from neoaprs.mercury import Keying, SerialPort, SoundCard, parse_sound_cards
+from neoaprs.mercurycards import pair_directions
 from neoaprs.radiotypes import type_of, unavailable_types
 from tests.test_mercury import WINDOWS_Z
 
@@ -133,6 +134,17 @@ def test_a_card_is_one_winmm_input_and_one_output_whose_names_are_its_devices_cu
     assert winmm.match("USB Audio CODEC", inputs + ["Microphone (USB Audio CODEC)"], outputs) is None, "two inputs of the card: none"
     assert winmm.match("USB Audio CODEC", inputs, outputs[:1]) is None, "no output of the card: none"
     assert winmm.devices() == ([], []), "off Windows there is no WinMM"
+
+
+def test_the_card_mercury_joins_from_two_devices_numbered_apart_is_found_among_the_winmm_devices() -> None:
+    """Windows may number one device of a card and not the other ("Speakers (2- USB Audio CODEC)"): Mercury's list joins the two into one card, and Direwolf must find that card's devices too."""
+    joined = pair_directions([SoundCard("{0.0.1.00000000}.{a}", "Microphone (USB Audio CODEC)", capture=True), SoundCard("{0.0.0.00000000}.{b}", "Speakers (2- USB Audio CODEC)", playback=True)])
+    assert [c.name for c in joined] == ["USB Audio CODEC"]
+    assert winmm.match(joined[0].name, ["Microphone (Realtek(R) Audio)", "Microphone (USB Audio CODEC)"], ["Speakers (Realtek(R) Audio)", "Speakers (2- USB Audio CODEC)"]) == (1, 1)
+    twins_in, twins_out = ["Microphone (USB Audio CODEC)", "Microphone (2- USB Audio CODEC)"], ["Speakers (USB Audio CODEC)", "Speakers (2- USB Audio CODEC)"]
+    assert winmm.match("USB Audio CODEC", twins_in, twins_out) == (0, 0), "two cards of one kind: the name as it is wins"
+    assert winmm.match("2- USB Audio CODEC", twins_in, twins_out) == (1, 1)
+    assert direwolfmodem._lone_name({"a|b": "USB Audio CODEC", "c|d": "USB Audio CODEC"}, "a|b") == "", "two listed cards of one name: WinMM cannot tell them apart"
 
 
 def test_the_type_is_an_fm_radio_on_a_sound_card_offered_where_direwolf_is_carried() -> None:

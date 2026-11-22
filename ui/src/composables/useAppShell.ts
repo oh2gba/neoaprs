@@ -234,7 +234,7 @@ export function useAppShell() {
   const { config, connection, lastError, send } = daemon;
   askPortsOnOpen(daemon);
   const derived = useDerived(daemon);
-  const guide = useSetupGuide(config, lastError, send, daemon.radios);
+  const guide = useSetupGuide(config, lastError, send, daemon.radios, connection);
   openGuideOnce(config, guide);
   const panel = usePanel();
   const tabs = useTabs(daemon, panel);
@@ -258,7 +258,7 @@ export function useAppShell() {
       return waiting;
     },
     closeForm: () => {
-      const inSight = objects.dirty && panel.tab.value === "objects" && !panel.collapsed.value && (!layout.phone.value || layout.showing.value === "panel");
+      const inSight = objects.dirty && panel.tab.value === "objects" && panel.onScreen.value;
       if (inSight) objects.cancel();
       return inSight;
     },

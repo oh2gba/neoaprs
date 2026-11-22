@@ -35,7 +35,8 @@ const FOLDER_MAX_BYTES = 200 * 1024 * 1024;                       // of the stor
 const FOLDER_MAX_FILES = 300;                                     // references: a bundle with its json, or the json of a note alone
 const KEEP_DAYS        = 30;
 const MAX_NOTE         = 2000;
-const MAX_MEMBERS      = 100;
+const MAX_MEMBERS      = 40;                                      // a bundle has the dozen fixed names, a few error files and the log with its rotated copies
+const MAX_UNPACKED     = 50 * 1024 * 1024;                        // the members' sizes once unpacked, together
 const MAX_DIRECTORY    = 256 * 1024;                              // of the zip's list of members
 const RATE_PER_ADDRESS = 5;                                        // stored files
 const RATE_IN_ALL      = 60;
@@ -210,7 +211,7 @@ function support_full_notice(string $dir, int $now): void
     if (!$mailed) support_log($dir, 'the mail that the folder is full was not sent');
 }
 
-/** The names of the members of the zip at `path`, read from its central directory (no zip extension is needed); null when it is no zip, or when the list is not what a zip of ours has. */
+/** The names of the members of the zip at `path`, read from its central directory (no zip extension is needed); null when it is no zip, when the list is not what a zip of ours has, or when the members unpack to more than MAX_UNPACKED. */
 function support_members(string $path): ?array
 {
     $size = filesize($path);
@@ -233,9 +234,12 @@ function support_members(string $path): ?array
         fclose($h);
     }
     $names = [];
+    $unpacked = 0;
     $at = 0;
     while (count($names) < $count) {
         if (substr($dir, $at, 4) !== "PK\x01\x02" || strlen($dir) < $at + 46) return null;
+        $unpacked += unpack('V', substr($dir, $at + 24, 4))[1];
+        if ($unpacked > MAX_UNPACKED) return null;
         $n = unpack('v', substr($dir, $at + 28, 2))[1];
         $extra = unpack('v', substr($dir, $at + 30, 2))[1];
         $comment = unpack('v', substr($dir, $at + 32, 2))[1];

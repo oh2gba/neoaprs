@@ -3,6 +3,7 @@ Dummy radio (dummyscene.py) to make traffic that the parser reads like a car's t
 from neoaprs.aprsposition import HUNDREDTHS_PER_DEGREE, north_as_360
 from neoaprs.units import KNOT_KMH
 
+MAX_LON_HUNDREDTHS = 180 * HUNDREDTHS_PER_DEGREE - 1       # Mic-E has no code for 180 degrees
 OFF_DUTY = (1, 1, 1)                 # the standard message bits of "Off Duty", which trackers send as a rule (index 7 of aprsmice's list); the three bits of the first three destination characters
 
 
@@ -24,7 +25,7 @@ def _destination(lat: float, lon_deg: int, west: bool, message: tuple[int, int, 
 
 def _longitude(lon: float) -> tuple[bytes, int]:
     """The three bytes of the longitude (degrees, minutes, hundredths of a minute, each plus 28, with the offsets of the specification) and the whole degrees."""
-    total = round(abs(lon) * HUNDREDTHS_PER_DEGREE)
+    total = min(round(abs(lon) * HUNDREDTHS_PER_DEGREE), MAX_LON_HUNDREDTHS)
     degrees, rest = divmod(total, HUNDREDTHS_PER_DEGREE)
     minutes, hundredths = rest // 100, rest % 100
     if degrees < 10:

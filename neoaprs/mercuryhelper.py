@@ -10,6 +10,7 @@ the modem where it left it; the modems of radios side by side are handed their p
 hold a started program to that: its ports have no password, so one that listened on every interface would let any host on the LAN key the radio. A Mercury of ours left behind by a crash of the daemon holds the sound card: its process id is written beside the configuration (and removed again by a clean stop, only while it still names
 the stopped program), and mercurystale.py ends it at the next start."""
 import asyncio
+import errno
 import logging
 import os
 import signal
@@ -61,7 +62,10 @@ def is_shipped(command: Command, tools: Path | None = None) -> bool:
 def _free(port: int) -> bool:
     """Whether nothing listens on the port of the loopback. The probe binds as Mercury does, with SO_REUSEADDR, so that a port whose last connection is in TIME_WAIT (the HF Tnc's line to a Mercury that just died) is free,
     as it is for Mercury (Linux lets a bind through a TIME_WAIT when both sockets have the option: Mercury's listener sets it and the connections it accepts inherit it); not on Windows, where that option would also take a
-    port another program listens on."""
+    port another program listens on. A port something listens on in IPv6 alone is not free either (`childprogram.listened`, and the probe of `::` where the kernel's table cannot be read): the check of a started
+    program's listeners (`foreign_listeners`) reads both families, and must find no one's but ours."""
+    if childprogram.listened([port]):
+        return False
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         if sys.platform != "win32":
             probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -69,6 +73,23 @@ def _free(port: int) -> bool:
             probe.bind(("127.0.0.1", port))
         except OSError:
             return False
+    return not socket.has_ipv6 or _free_v6(port)
+
+
+def _free_v6(port: int) -> bool:
+    """Whether no IPv6 socket listens on the port; a system without IPv6 has none."""
+    try:
+        probe = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    except OSError:
+        return True
+    with probe:
+        probe.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+        if sys.platform != "win32":
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind(("::", port))
+        except OSError as e:
+            return e.errno not in (errno.EADDRINUSE, errno.EACCES)
     return True
 
 

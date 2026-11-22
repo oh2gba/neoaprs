@@ -92,3 +92,21 @@ describe("trackLines", () => {
     });
   });
 });
+
+describe("trackLines over the date line", () => {
+  it("carries the longitudes on past 180 so that the line stays one short stretch", () => {
+    const row = station("FJ1AAA", {
+      track: [
+        [ago(600), -17, 179.9],
+        [ago(300), -17, -179.9],
+        [ago(100), -17, -179.8],
+      ],
+    });
+    const coordinates = trackLines([row], null, NOW, aging(1440)).features.flatMap((f) => f.geometry.coordinates);
+    expect(coordinates.map(([lon]) => Number(lon.toFixed(1)))).toEqual(expect.arrayContaining([179.9, 180.1]));
+    for (const [i, [lon]] of coordinates.entries()) {
+      const before = coordinates[i - 1];
+      if (before !== undefined && before[1] === coordinates[i]?.[1]) expect(Math.abs(lon - before[0])).toBeLessThan(180);
+    }
+  });
+});

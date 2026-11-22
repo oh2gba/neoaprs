@@ -1,12 +1,13 @@
 """A Mercury of ours left behind by a daemon that did not stop cleanly (a crash, a kill, Task Manager, a power cut): it holds the sound card, the keying line and its ports, and nothing ends it when its daemon
 dies. Its process id is in `mercury.pid` beside the configuration it was started with (mercuryhelper.Program writes it, a clean stop removes it), and `end_stale` ends the process of that id only when it is
-still the radio's own Mercury: on Linux its command line runs Mercury with the radio's configuration (`-C <radios/<id>/mercury.ini>`), so that the operator's own Mercury, an editor on a file named so and another
+still the radio's own Mercury: on Linux and macOS its command line runs Mercury with the radio's configuration (`-C <radios/<id>/mercury.ini>`), so that the operator's own Mercury, an editor on a file named so and another
 radio's Mercury are left alone; on Windows, which reuses ids after a reboot most of all, its program file is the one the radio runs and it was made no later than the file was written. Where that cannot be read,
 nothing is ended. mercuryclaims.end_left_behind asks it once at the daemon's start for every radio's file, and each start of a radio's modem asks it for its own."""
 import logging
 import ntpath
 import os
 import signal
+import subprocess
 import sys
 import time
 from collections.abc import Sequence
@@ -21,6 +22,7 @@ log = logging.getLogger("neoaprs.mercury")
 MADE_SLACK_SEC = 10.0              # a process made this long after its pid file was written is still the one it names (Windows: the clocks of the file and the process)
 STALE_POLL_SEC = 0.05              # how often a Mercury left behind is looked at while it ends
 FILETIME_1970 = 116444736000000000  # 1970 in Windows' FILETIME, 100 ns since 1601
+PS_TIMEOUT_SEC = 5.0
 
 
 def runs_with(argv: Sequence[str], ini: Path) -> bool:
@@ -34,8 +36,8 @@ def _is_mercury(pid: int, ini: Path, program: Sequence[str], written: float) -> 
     """Whether the process of this id is this radio's Mercury. Linux: its command line runs a Mercury with the radio's configuration (`runs_with`: the program's or the module that stands in for it). Windows (which
     reuses process ids, after a reboot most of all, and lets no one read another process's command line simply): it is running, its program file is the one this radio runs (`program`), and it was made no later than
     the file that names it was written (`written`; the file is written just after the program is started), so that another radio's Mercury that got the id after a reboot is not it. os.kill(pid, 0) there is
-    TerminateProcess, which would end whatever process has the id before anything is known of it, so the questions are asked of the process's exit code, image path and times. Where one cannot be read, the
-    answer is no."""
+    TerminateProcess, which would end whatever process has the id before anything is known of it, so the questions are asked of the process's exit code, image path and times. macOS: its command line as `ps`
+    gives it holds `-C` and the radio's configuration. Where one cannot be read, the answer is no."""
     cmdline = Path(f"/proc/{pid}/cmdline")
     if cmdline.exists():
         try:
@@ -44,12 +46,18 @@ def _is_mercury(pid: int, ini: Path, program: Sequence[str], written: float) -> 
             return False
     if sys.platform == "win32":
         return _running_windows(pid) and same_program(_windows_image(pid), program) and made_in_time(_windows_created(pid), written)
-    else:                                                          # (a system with neither /proc nor Windows: nothing is known of the process, and nothing is ended)
-        try:
-            os.kill(pid, 0)
-        except OSError:
-            return False
-        return False
+    else:                                                          # macOS, and any other system without /proc
+        command = _ps_command(pid)
+        return command is not None and any(f" -C {path} " in f" {command} " for path in {str(ini), os.path.abspath(ini)})
+
+
+def _ps_command(pid: int) -> str | None:
+    """The command line of the process of this id as `ps` writes it, its arguments joined by spaces (so a path with a space in it is compared whole, not split); None when it cannot be read."""
+    try:
+        done = subprocess.run(["/bin/ps", "-ww", "-o", "command=", "-p", str(pid)], capture_output=True, text=True, timeout=PS_TIMEOUT_SEC, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout.strip() or None if done.returncode == 0 else None
 
 
 def _windows_created(pid: int) -> float | None:

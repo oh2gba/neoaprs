@@ -48,13 +48,17 @@ if [ -z "$LOCAL" ]; then
   sec() { "$BWS" secret list -o json --color no | python3 -c \
     "import json,sys;print([s['value'] for s in json.load(sys.stdin) if s['key']=='$1'][0])"; }
   FH=$(sec ftp_server); FU=$(sec ftp_login); FP=$(sec ftp_pw)
+  # The login goes to curl as a config on stdin, never on its command line.
+  quote() { local s=${1//\\/\\\\}; printf '%s' "${s//\"/\\\"}"; }
+  CURL_USER="user = \"$(quote "$FU"):$(quote "$FP")\""
+  fcurl() { curl -K - "$@" <<<"$CURL_USER"; }
 
   mkdir -p "$ROOT/logs"
   # The page writes its log in both of its places (server/deploy.sh): the old folder, which the copies before 0.16 ask, and the project's own name, which the later ones ask. The lines of a month from both are one file here.
   NEO="${PROJECT_PAGE_REMOTE:-/public_html/neo}"
   for place in "$REMOTE" "$NEO"; do
-    for f in $(curl -sS --max-time 60 -u "$FU:$FP" "sftp://$FH$place/log/" | awk '{print $NF}' | grep -E '^starts-[0-9]{4}-[0-9]{2}\.log$'); do
-      curl -sS --max-time 120 -u "$FU:$FP" -o "$ROOT/logs/$f.part" "sftp://$FH$place/log/$f"
+    for f in $(fcurl -sS --max-time 60 "sftp://$FH$place/log/" | awk '{print $NF}' | grep -E '^starts-[0-9]{4}-[0-9]{2}\.log$'); do
+      fcurl -sS --max-time 120 -o "$ROOT/logs/$f.part" "sftp://$FH$place/log/$f"
       cat "$ROOT/logs/$f.part" >> "$ROOT/logs/$f.new" && rm -f "$ROOT/logs/$f.part"
     done
   done

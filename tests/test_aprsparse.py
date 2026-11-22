@@ -9,7 +9,7 @@ import pytest
 from neoaprs.aprsparse import DAMAGED, parse
 from neoaprs.aprsthirdparty import parse_packet
 from neoaprs.clock import iso
-from neoaprs.packet import Other, Packet, Position, Undecoded
+from neoaprs.packet import Other, Packet, Position, Status, Undecoded
 from tests.support.files import FIXTURES
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
@@ -120,3 +120,9 @@ def test_dao_is_taken_out_of_a_compressed_or_an_ambiguous_position_without_movin
     assert isinstance(plain, Position) and isinstance(with_dao, Position) and (with_dao.lat, with_dao.lon, with_dao.comment) == (plain.lat, plain.lon, "")
     vague, vague_dao = parse(b"!4903.5 N/07201.7 W-", "X", "APRS", NOW), parse(b"!4903.5 N/07201.7 W-!W12!", "X", "APRS", NOW)
     assert isinstance(vague, Position) and isinstance(vague_dao, Position) and vague_dao.ambiguity == 1 and (vague_dao.lat, vague_dao.lon, vague_dao.comment) == (vague.lat, vague.lon, "")
+
+
+@pytest.mark.parametrize("info", [b">000000zhello", b">322500zhello", b">123456zulu time"])
+def test_a_status_whose_timestamp_is_not_a_time_keeps_its_text(info: bytes) -> None:
+    decoded = parse(info, "A", "B", NOW)
+    assert isinstance(decoded, Status) and decoded.text == info[1:].decode() and decoded.timestamp is None

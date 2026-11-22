@@ -87,13 +87,16 @@ def _lost_words(e: BaseException) -> str:
     return LOST
 
 
+ERROR_ACCESS_DENIED = 5
+
+
 def _in_use(e: BaseException) -> bool:
-    """The open was refused because another program has the port: on Windows "Access is denied" (the port is always exclusive there), elsewhere the lock pyserial takes."""
-    code = getattr(e, "errno", None)
+    """The open was refused because another program has the port: on Windows ERROR_ACCESS_DENIED (the port is always exclusive there; Python makes other errors PermissionError too, such as a USB adapter
+    that is not functioning), as the error's own code or in pyserial's wording of it; elsewhere the lock pyserial takes."""
     if _on_windows():
-        text = str(e).lower()
-        return isinstance(e, PermissionError) or code == errno.EACCES or "access is denied" in text or "permissionerror" in text
-    return code in (errno.EAGAIN, errno.EBUSY)
+        text = str(e)
+        return getattr(e, "winerror", None) == ERROR_ACCESS_DENIED or re.search(r", None, 5\)", text) is not None or "access is denied" in text.lower()
+    return getattr(e, "errno", None) in (errno.EAGAIN, errno.EBUSY)
 
 
 def _build(path: str, baud: int) -> Any:
@@ -256,10 +259,15 @@ class SerialPort:
         self.dropped: Signal[[str]] = Signal("serialport.dropped")       # why the line died; the port is closed by then
         self._line: _Line | None = None
         self._opening = False
+        self._closed_while_opening = False
 
     @property
     def is_open(self) -> bool:
         return self._line is not None
+
+    @property
+    def is_opening(self) -> bool:
+        return self._opening
 
     @property
     def is_socket(self) -> bool:
@@ -269,7 +277,7 @@ class SerialPort:
         """Opens the line (in a thread: a port that does not answer must not stop the loop) and starts reading it. Raises SerialError with the reason. Cancelled, it leaves no port open."""
         if self._line is not None or self._opening:
             raise SerialError(f"{self.path}: already open")
-        self._opening = True
+        self._opening, self._closed_while_opening = True, False
         hand = _Handover()
         try:
             ser = await asyncio.to_thread(self._open_blocking, hand)
@@ -278,6 +286,9 @@ class SerialPort:
             raise
         finally:
             self._opening = False
+        if self._closed_while_opening:
+            self._close_line_of(ser)
+            raise SerialError(f"{self.path}: closed while it was being opened")
         self._line = line = _Line(ser, asyncio.get_running_loop(), self.path, self._line_data, self._line_lost)
         line.start()
 
@@ -295,14 +306,19 @@ class SerialPort:
         return ser
 
     def close(self) -> None:
+        """Closes the line; one that is being opened is closed as soon as the open is done, and that open raises."""
         line, self._line = self._line, None
         if line is None:
+            self._closed_while_opening = self._opening
             return
         line.end()
+        self._close_line_of(line.ser)
+
+    def _close_line_of(self, ser: Any) -> None:
         if self.is_socket:                                # pyserial's socket close sleeps a third of a second, so it is done off the loop (a Bluetooth link closes slowly too, and a BLE one waits for its thread)
-            threading.Thread(target=_close_quietly, args=(line.ser,), name=f"serial-close {self.path}", daemon=True).start()
+            threading.Thread(target=_close_quietly, args=(ser,), name=f"serial-close {self.path}", daemon=True).start()
         else:
-            _close_quietly(line.ser)
+            _close_quietly(ser)
 
     def let_go(self) -> None:
         """Closed for a radio whose settings name the port (tncsearch.let_go): a search of this process, or Find my radio, that has it open gives it up at once."""

@@ -1,15 +1,20 @@
 """The request of the update check (neoaprs/updatefetch.py) against a fake version page on the loopback: the query carries the version, the platform and the number of the installation and nothing else, the User-Agent says the same, and a page that
 is not there, says no or sends too much is None."""
 import asyncio
+import http.server
+import socketserver
+import threading
+import time
 import urllib.error
 import urllib.request
 from email.message import Message
+from datetime import UTC, datetime
 from io import BytesIO
 
 import pytest
 
 from neoaprs import updatefetch
-from neoaprs.updatefetch import MAX_BYTES, _NotDowngraded, fetch, fetch_url, get, request_url
+from neoaprs.updatefetch import MAX_BYTES, MAX_RETRY_AFTER_SEC, _NotDowngraded, fetch, fetch_url, get, get_answer, request_url, retry_after
 from tests.support.fakeversionpage import version_page
 
 
@@ -65,11 +70,67 @@ async def test_a_page_that_hangs_is_none_after_the_timeout() -> None:
     assert await asyncio.to_thread(get, page.url, "0.1.0", "linux", "", 0.3) is None
 
 
-async def test_only_the_first_bytes_of_a_long_answer_are_read() -> None:
+async def test_an_answer_longer_than_its_limit_is_a_failed_fetch_and_not_half_a_file() -> None:
     page = await version_page()
     page.body = b"x" * (MAX_BYTES * 4)
+    assert await fetch(page.url, "0.1.0", "linux") is None
+    page.body = b"x" * MAX_BYTES
     body = await fetch(page.url, "0.1.0", "linux")
     assert body is not None and len(body) == MAX_BYTES
+    assert await fetch_url(page.url, "0.1.0", "linux", MAX_BYTES - 1) is None
+
+
+def _dripping_server() -> tuple[socketserver.ThreadingTCPServer, str]:
+    class Drip(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Length", "4096")
+            self.end_headers()
+            try:
+                for _ in range(4096):
+                    self.wfile.write(b"x")
+                    self.wfile.flush()
+                    time.sleep(0.1)
+            except OSError:
+                pass
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Drip)
+    server.daemon_threads = True
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, f"http://127.0.0.1:{server.server_address[1]}/v.php"
+
+
+def test_a_server_that_drips_its_answer_is_given_up_on_at_the_deadline() -> None:
+    server, url = _dripping_server()
+    try:
+        began = time.monotonic()
+        assert get_answer(url, "0.1.0", "linux", timeout_sec=0.5) is None
+        assert time.monotonic() - began < 3.0
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+async def test_a_task_that_waits_for_a_stuck_thread_is_freed(monkeypatch: pytest.MonkeyPatch) -> None:
+    release = threading.Event()
+    monkeypatch.setattr(updatefetch, "TIMEOUT_SEC", 0.2)
+    monkeypatch.setattr(updatefetch, "FEED_GRACE_SEC", 0.1)
+    monkeypatch.setattr(updatefetch, "get_url", lambda *args, **kwargs: release.wait(10) and None)
+    try:
+        assert await asyncio.wait_for(fetch_url("https://example.org/c.md", "0.1.0", "linux", 100), 3.0) is None
+    finally:
+        release.set()
+
+
+def test_a_retry_after_is_read_safely_and_never_longer_than_an_hour() -> None:
+    for text in ("1" * 400, "9" * 5000, "99999999999", "\u0661\u0662"):
+        said = retry_after(text)
+        assert said is None or 0.0 <= said <= MAX_RETRY_AFTER_SEC
+    assert retry_after("1" * 400) == MAX_RETRY_AFTER_SEC and retry_after("120") == 120.0 and retry_after("\u0661\u0662") is None
+    assert retry_after("Fri, 31 Dec 9999 23:59:59 GMT", datetime(2026, 1, 1, tzinfo=UTC)) == MAX_RETRY_AFTER_SEC
 
 
 async def test_an_address_that_is_not_a_web_address_is_none() -> None:

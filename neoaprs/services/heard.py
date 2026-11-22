@@ -4,6 +4,7 @@ we send it (`owe_reply`, `reply_for`)."""
 from datetime import datetime, timedelta
 
 from neoaprs.message import MessageRecord
+from neoaprs.policy import DIGI_DUPLICATE_SEC
 
 DUPLICATE_WINDOW_SEC = 30 * 60
 ACK_AGAIN_SEC = 30                                          # a copy of a message is acked again only when it comes at least this long after our last ack of it (digipeaters drop a duplicate for 30 s)
@@ -28,12 +29,13 @@ class Heard:
         return (record.from_call, record.msg_id, record.text)
 
     def note(self, record: MessageRecord, at: datetime) -> bool:
-        """Notes that the message was heard; False when it was, less than the window before, already. A message that was not heard (one of ours) has no key and is always new."""
+        """Notes that the message was heard; False when it was, less than the window before (for one without an id, DIGI_DUPLICATE_SEC), already. A message that was not heard (one of ours) has no key and is always new."""
         key = self.key_of(record)
         if key is None:
             return True
         before = self._at.get(key)
-        if before is not None and at - before < self.window:
+        window = self.window if record.msg_id is not None else min(self.window, timedelta(seconds=DIGI_DUPLICATE_SEC))     # (one without an id is never sent again by its sender: only the copies of one transmission are repeats)
+        if before is not None and at - before < window:
             return False
         self._at[key] = at
         return True

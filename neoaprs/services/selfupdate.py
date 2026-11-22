@@ -192,4 +192,6 @@ class SelfUpdate:
 
     def _fail(self, problem: Problem, detail: str) -> None:
         log.warning("Update now failed: %s", detail)
+        if self._cancelled.is_set():
+            return                                          # (the operator cancelled it: the state stays idle)
         self._set(state="error", problem=problem, detail=detail)

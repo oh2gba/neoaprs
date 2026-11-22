@@ -16,6 +16,13 @@ const status = (id: number, seconds: number) =>
     decoded: { type: "status", text: "on", locator: null, frequency: null, timestamp: null },
   });
 
+describe("two identical packets in one second", () => {
+  it("are two lines when they came on two radios", () => {
+    const merged = mergeTraffic([position(1, 10, { radio_id: 1 }), position(2, 10, { radio_id: 2 })], [], true);
+    expect(merged).toHaveLength(2);
+  });
+});
+
 describe("the traffic of a station", () => {
   it("is what it sent (inside a third-party packet too) and the messages we sent to it, not what it was sent by others or what we sent to others", () => {
     expect(isTrafficOf(position(1, 0), "OH2RDG")).toBe(true);

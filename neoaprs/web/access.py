@@ -178,7 +178,7 @@ class Login(_Answer):
             return
         try:
             typed = json.loads(self.request.body).get("key", "")
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, RecursionError):
             typed = None
         if not isinstance(typed, str) or len(typed) > 64:
             raise tornado.web.HTTPError(400)

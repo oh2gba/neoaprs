@@ -3,6 +3,16 @@
 ## Unreleased
 
 - **Changed:** encrypted messages are no longer part of the downloads. They are for exceptional circumstances only and need a build of your own.
+- **Changed:** place names on the map follow the page's language.
+- **Fixed:** a message or e-mail you typed is no longer lost when it cannot be sent.
+- **Fixed:** pressing a button twice no longer sends twice.
+- **Fixed:** on a phone showing the map, new messages stay unread until you open them.
+- **Fixed:** a short message a station sends again later, such as a second "OK", is shown again.
+- **Fixed:** a computer clock that is set back no longer holds up sending.
+- **Fixed:** tracks that cross the date line are drawn the short way.
+- **Fixed:** on Windows, a Sound card radio starts when Windows has numbered one of its devices.
+- **Fixed:** on Windows, an update no longer switches Start at sign-in back on.
+- **Fixed:** a second program on one of the modem's ports no longer keeps a radio from starting.
 
 ## 0.22.0
 

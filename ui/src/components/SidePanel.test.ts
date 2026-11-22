@@ -155,3 +155,28 @@ describe("SidePanel", () => {
     wrapper.unmount();
   });
 });
+
+describe("SidePanel for the keyboard", () => {
+  it("is one Tab stop for the row of tabs, the tab on show, and the arrows show the tab beside it, round the row", async () => {
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global(), attachTo: document.body });
+    const tabs = wrapper.findAll("[role='tab']");
+    const ids = tabs.map((tab) => tab.attributes("id")?.replace("tab-", ""));
+    expect(tabs.map((tab) => tab.attributes("tabindex"))).toEqual(ids.map((id) => (id === "stations" ? "0" : "-1")));
+    const at = ids.indexOf("stations");
+    await tabs[at]?.trigger("keydown", { key: "ArrowRight" });
+    await tabs[at]?.trigger("keydown", { key: "ArrowLeft" });
+    await tabs[at]?.trigger("keydown", { key: "End" });
+    await tabs[at]?.trigger("keydown", { key: "a" });
+    expect(wrapper.emitted("update:tab")?.map(([id]) => id)).toEqual([ids[at + 1], ids[(at - 1 + ids.length) % ids.length], ids.at(-1)]);
+    wrapper.unmount();
+  });
+
+  it("gives the handle its width as a value", () => {
+    window.innerWidth = 1400;
+    const wrapper = mount(SidePanel, { props: { tab: "stations", collapsed: false, width: 400 }, slots, global: global() });
+    const handle = wrapper.find(".panel-handle");
+    expect(handle.attributes("aria-valuenow")).toBe("400");
+    expect(handle.attributes("aria-valuemin")).toBe("280");
+    expect(Number(handle.attributes("aria-valuemax"))).toBeGreaterThan(400);
+  });
+});

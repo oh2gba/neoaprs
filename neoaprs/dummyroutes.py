@@ -3,6 +3,7 @@ plausible streets for a town the size of Helsinki and keep every moving station 
 import math
 from dataclasses import dataclass
 
+MAX_LAT = 89.9
 KM_PER_DEGREE = 111.32                # a degree of latitude; a degree of longitude is this times the cosine of the latitude
 
 
@@ -38,7 +39,9 @@ class Route:
 def around(centre: tuple[float, float], east_km: float, north_km: float) -> tuple[float, float]:
     """The latitude and longitude of the place `east_km` and `north_km` from `centre`."""
     lat, lon = centre
-    return lat + north_km / KM_PER_DEGREE, lon + east_km / (KM_PER_DEGREE * math.cos(math.radians(lat)))
+    new_lat = max(-MAX_LAT, min(MAX_LAT, lat + north_km / KM_PER_DEGREE))
+    new_lon = lon + east_km / (KM_PER_DEGREE * math.cos(math.radians(max(-MAX_LAT, min(MAX_LAT, lat)))))
+    return new_lat, (new_lon + 180) % 360 - 180
 
 
 TOWN_LOOP = Route(((-3.0, -2.0), (-3.2, 1.5), (-1.0, 3.0), (2.5, 3.2), (4.0, 0.8), (3.2, -2.4), (0.0, -3.0)), loop=True)               # a ring of main streets, about 22 km

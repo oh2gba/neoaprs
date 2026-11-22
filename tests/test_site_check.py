@@ -70,7 +70,7 @@ class Host:
                 return
             code = host.status.get(path)
             if code is None:
-                private = path.startswith(("/private", "/log/")) or path in ("/.htaccess", "/.user.ini", "/support/.user.ini")
+                private = path.startswith(("/private", "/log/")) or path in ("/.htaccess", "/.user.ini", "/support/.user.ini", "/skeds.json.part")
                 code = 200 if path in host.files else 403 if private else 404
             body = host.files.get(path, b"") if code == 200 else b""
             handler.send_response(code)
@@ -153,6 +153,14 @@ def test_a_private_place_that_is_not_403_is_a_finding_whatever_it_answers(repo: 
     assert "not forbidden: /log/latest.json (status 404, it must be 403)" in lines
     assert "not forbidden: /support/.user.ini (status 301, it must be 403)" in lines
     assert lines[-1].endswith("3 findings")
+
+
+def test_the_places_of_the_sked_board_are_asked_too(repo: Path, host: tuple[Host, str]) -> None:
+    served, url = host
+    for place in ("/private/skeds/rate.json", "/private/skeds/salt", "/private/skeds/lock", "/private/logs/skeds.log", "/skeds.json.part"):
+        assert place in module().private_places(repo, datetime.now(UTC)), place
+    served.files["/skeds.json.part"] = b"{}"
+    assert "not forbidden: /skeds.json.part (status 200, it must be 403)" in check(url, repo).stdout
 
 
 def test_the_logs_of_the_version_page_of_this_month_and_the_last_are_asked(repo: Path, host: tuple[Host, str]) -> None:

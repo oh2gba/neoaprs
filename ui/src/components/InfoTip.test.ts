@@ -211,3 +211,28 @@ describe("InfoTip", () => {
     expect(roomy.find<HTMLElement>(".info-text").element.style.left).toBe("8px");
   });
 });
+
+describe("InfoTip unmounted while it opens", () => {
+  it("leaves no listener of the window behind", async () => {
+    const added = vi.spyOn(window, "addEventListener");
+    const removed = vi.spyOn(window, "removeEventListener");
+    const wrapper = tip();
+    wrapper.find("button").element.click();
+    await nextTick();
+    wrapper.unmount();
+    mounted.splice(mounted.indexOf(wrapper), 1);
+    await nextTick();
+    await nextTick();
+    const calls = (spy: typeof added, on: boolean) =>
+      spy.mock.calls.map((call, i) => ({ type: call[0], fn: call[1], at: spy.mock.invocationCallOrder[i] ?? 0, on }));
+    const live = new Set<unknown>();
+    for (const call of [...calls(added, true), ...calls(removed, false)].sort((a, b) => a.at - b.at))
+      if (call.type === "scroll" || call.type === "resize") {
+        if (call.on) live.add(call.fn);
+        else live.delete(call.fn);
+      }
+    expect(live.size).toBe(0);
+    added.mockRestore();
+    removed.mockRestore();
+  });
+});

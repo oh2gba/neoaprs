@@ -3,7 +3,6 @@
 The Api is the wiring of neoaprs/web/: it makes the hub and its topics (neoaprs/web/hub.py, neoaprs/web/topics.py) and the publisher (neoaprs/web/outbound.py), runs the status that is told every 10 s, opens and closes the pages
 and gives each command a page sends to the dispatcher (neoaprs/web/dispatch.py, the handlers in neoaprs/web/handlers.py).
 """
-import asyncio
 import json
 import logging
 from collections.abc import Callable
@@ -15,7 +14,7 @@ from neoaprs.beaconrule import station_interval
 from neoaprs.clock import iso
 from neoaprs.controller import Controller
 from neoaprs.radioregistry import unavailable_types
-from neoaprs.tasks import TaskSet
+from neoaprs.tasks import TaskSet, every
 
 from . import handlers, layerhandlers  # noqa: F401  (importing the modules registers the handlers)
 from .dispatch import Dispatcher
@@ -53,7 +52,7 @@ class Api:
     # ---- lifecycle
     async def start(self) -> None:
         await self.topics.start()
-        self.tasks.spawn(self._status_every_so_often(), "web-status")
+        self.tasks.spawn(every(STATUS_EVERY_SEC, self._status_round, "the status broadcast"), "web-status")
 
     async def stop(self) -> None:
         self.hub.stop()
@@ -85,11 +84,9 @@ class Api:
     async def _tell_all(self) -> None:
         self.out.broadcast(await self.status())
 
-    async def _status_every_so_often(self) -> None:
-        while True:
-            await asyncio.sleep(STATUS_EVERY_SEC)
-            if self.clients:
-                self.out.broadcast(await self.status())
+    async def _status_round(self) -> None:
+        if self.clients:
+            self.out.broadcast(await self.status())
 
     # ---- the pages
     def attach(self, client: Client, ip: str = "127.0.0.1", local: bool = False) -> None:

@@ -28,7 +28,7 @@ MAX_NOTE = 80
 MAX_LENGTH = timedelta(hours=24)                              # the longest a sked is
 MAX_AHEAD = timedelta(days=31)                                # how far ahead a row may begin for the reader to believe it (the server holds it to 30 days by its own clock)
 MAX_ENTRIES = 1000                                            # how many entries of a board's list are looked at at all
-TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", re.ASCII)
 ID = re.compile(r"^[0-9a-f]{12}$")
 TOKEN = re.compile(r"^[0-9a-f]{32}$")
 NOTE_KINDS = frozenset("LMNPS")                               # the first letters of the Unicode categories a note may hold, besides the plain space

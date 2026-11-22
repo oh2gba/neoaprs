@@ -41,6 +41,7 @@ watch(open, async (now) => {
   }
   spot.value = null;
   await nextTick();
+  if (openTip.value !== id) return; // (closed, or the tip unmounted, before the note was drawn: nothing to follow)
   place();
   window.addEventListener("scroll", place, true); // (a pane that scrolls under an open note takes the note with it)
   window.addEventListener("resize", place);

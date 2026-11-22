@@ -8,6 +8,11 @@ from neoaprs.radiotype import RadioId
 SPACING_SEC = 10.0
 
 
+def within(last: datetime, now: datetime, seconds: float) -> bool:
+    """Whether `now` is less than `seconds` after `last`. A `last` later than `now` (the clock was set back) is not: it must never hold a send until the clock is there again."""
+    return 0.0 <= (now - last).total_seconds() < seconds
+
+
 class Pace:
     def __init__(self, clock: Clock, spacing_sec: float = SPACING_SEC) -> None:
         self._clock = clock
@@ -17,7 +22,7 @@ class Pace:
     def too_soon(self, radio: RadioId) -> bool:
         """Whether the pause after the latest attempt on the radio is not over."""
         last = self._last.get(radio)
-        return last is not None and (self._clock() - last).total_seconds() < self.spacing_sec
+        return last is not None and within(last, self._clock(), self.spacing_sec)
 
     def stamp(self, radio: RadioId) -> datetime:
         """An attempt has just gone out on the radio: the time it did, which starts the pause on it."""

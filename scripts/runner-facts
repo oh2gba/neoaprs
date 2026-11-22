@@ -41,6 +41,11 @@ class Unreadable(Exception):
     """A page or an answer that could not be fetched or read, as the words that say so."""
 
 
+def escaped(text: str) -> str:
+    """The text of a workflow command with `%`, CR and LF escaped as the Actions toolkit does, so that it stays one line."""
+    return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
 class Out:
     """The lines of a run: plain for a terminal, GitHub's annotations for a runner's log."""
 
@@ -49,14 +54,14 @@ class Out:
         self.failed = False
 
     def info(self, text: str) -> None:
-        print(f"runner-facts: {text}", flush=True)
+        print(f"runner-facts: {' '.join(text.splitlines())}", flush=True)
 
     def notice(self, text: str) -> None:
-        print(f"::notice title=runner-facts::{text}" if self.github else f"runner-facts: {text}", flush=True)
+        print(f"::notice title=runner-facts::{escaped(text)}" if self.github else f"runner-facts: {text}", flush=True)
 
     def error(self, text: str) -> None:
         self.failed = True
-        print(f"::error title=runner-facts::{text}" if self.github else f"runner-facts: {text}", flush=True)
+        print(f"::error title=runner-facts::{escaped(text)}" if self.github else f"runner-facts: {text}", flush=True)
 
 
 def load_runner(file: Path = RUNNER_FILE) -> dict[str, Any]:

@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Protocol
 
 from neoaprs.cli import servicecmd, servicewindows
+from neoaprs.instancelock import is_file
 from neoaprs.paths import default_data_dir
 
 APP_NAME = "neoaprs-app"
@@ -50,10 +51,10 @@ def app_command(data: Path, platform: str | None = None, frozen: bool | None = N
 
 
 def desktop_exec(argv: list[str]) -> str:
-    """The Exec line of a desktop entry: an argument with a space or a quote is in double quotes, and the characters the specification says (`"`, `` ` ``, `$`) have a backslash, `%` is doubled. A literal backslash is four in the file: the string
-    escape of the file format (`\\\\` is one) is applied first, and the quoting rule then wants that one escaped as well."""
+    """The Exec line of a desktop entry: an argument with a space or a quote is in double quotes, and the characters the specification says (`"`, `` ` ``, `$`) have a backslash, `%` is doubled. The string
+    escape of the file format (`\\\\` is one) is applied first, so the quoting backslash is doubled in the file, and a literal backslash is four."""
     def one(arg: str) -> str:
-        arg = arg.replace("\\", "\\" * 4).replace('"', '\\"').replace("`", "\\`").replace("$", "\\$").replace("%", "%%")
+        arg = arg.replace("\\", "\\" * 4).replace('"', '\\' * 2 + '"').replace("`", '\\' * 2 + "`").replace("$", '\\' * 2 + "$").replace("%", "%%")
         return f'"{arg}"' if any(c in arg for c in " \t\n\"'\\><~|&;*?#()`$") else arg
     return " ".join(one(a) for a in argv)
 
@@ -65,19 +66,28 @@ class RunKeyAutoStart:
         self.command = subprocess.list2cmdline(command)
 
     def enabled(self) -> bool:
-        current = servicewindows.current()
+        try:
+            current = servicewindows.current()
+        except OSError:
+            return False
         return current is not None and servicewindows.ours(current) and "--tray" in current
 
     def enable(self) -> None:
-        current = servicewindows.current()
-        if current is not None and not servicewindows.ours(current):
-            raise AutoStartError(f"the Run entry {servicewindows.VALUE_NAME} exists and is not NeoAPRS's ({current}); remove it in Settings > Apps > Startup first")
-        servicewindows.write(self.command)
+        try:
+            current = servicewindows.current()
+            if current is not None and not servicewindows.ours(current):
+                raise AutoStartError(f"the Run entry {servicewindows.VALUE_NAME} exists and is not NeoAPRS's ({current}); remove it in Settings > Apps > Startup first")
+            servicewindows.write(self.command)
+        except OSError as e:
+            raise AutoStartError(f"the Run entry could not be changed: {e}") from e
 
     def disable(self) -> None:
-        current = servicewindows.current()
-        if current is not None and servicewindows.ours(current):
-            servicewindows.delete()
+        try:
+            current = servicewindows.current()
+            if current is not None and servicewindows.ours(current):
+                servicewindows.delete()
+        except OSError as e:
+            raise AutoStartError(f"the Run entry could not be changed: {e}") from e
 
 
 class DesktopFileAutoStart:
@@ -89,7 +99,7 @@ class DesktopFileAutoStart:
         self.path = Path(base) / "autostart" / DESKTOP_NAME
 
     def enabled(self) -> bool:
-        return self.path.is_file()
+        return is_file(self.path)
 
     def enable(self) -> None:
         text = ("[Desktop Entry]\nType=Application\nName=NeoAPRS\nComment=APRS client, in the tray\n"

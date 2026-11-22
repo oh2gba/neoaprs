@@ -167,6 +167,19 @@ def test_a_zip_whose_members_are_not_those_of_a_bundle_is_refused(endpoint: Endp
     assert not list(endpoint.stored.glob("NEO-*"))
 
 
+def test_a_zip_that_unpacks_to_more_than_50_megabytes_or_has_more_members_than_a_bundle_can_is_refused(endpoint: Endpoint) -> None:
+    endpoint.start()
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("summary.txt", "x")
+        z.writestr("logs/neoaprs.log", b"\0" * (60 * 1024 * 1024))
+    assert len(buffer.getvalue()) < 100 * 1024
+    assert endpoint.post(good(b""), {"bundle": ("a.zip", buffer.getvalue())}) == (400, {"ok": False, "reason": "not_a_bundle"})
+    many = ["summary.txt"] + [f"logs/neoaprs.log.{i}" for i in range(45)]
+    assert endpoint.post(good(b""), {"bundle": ("a.zip", zipped(many))}) == (400, {"ok": False, "reason": "not_a_bundle"})
+    assert not list(endpoint.stored.glob("NEO-*"))
+
+
 def test_the_members_of_every_part_of_a_bundle_are_accepted(endpoint: Endpoint) -> None:
     endpoint.start()
     names = ["README.txt", "summary.txt", "settings.json", "state.json", "doctor.txt", "database.txt", "packets.txt", "page.json", "page-errors.json", "logs/neoaprs.log", "logs/neoaprs.log.1", "logs/neoaprs-app.log", "logs/journal.txt", "packets.error.txt"]

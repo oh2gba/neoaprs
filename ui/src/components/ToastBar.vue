@@ -24,9 +24,12 @@ function show(next: Toast | Notice | null): void {
   shown.value = next;
   if (next) timer = setTimeout(() => (shown.value = null), (props.seconds ?? 8) * 1000);
 }
+// an error that goes (the next one is said at its field) takes only an error with it, never a notice shown since
 watch(
   () => props.toast,
-  (toast) => show(toast),
+  (toast) => {
+    if (toast !== null || (shown.value !== null && "cmd" in shown.value)) show(toast);
+  },
 );
 watch(
   () => props.notice,

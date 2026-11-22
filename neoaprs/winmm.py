@@ -8,26 +8,35 @@ two are the same name is what docs/direwolf.md says is proven on a Windows machi
 import sys
 from collections.abc import Sequence
 
+from .mercurycards import unnumbered
+
 NAME_MAX = 31                          # WinMM's szPname holds 32 bytes with the terminating zero (MAXPNAMELEN)
 
 
-def names_card(device: str, card: str) -> bool:
-    """Whether a WinMM device name is a device of the sound card `card`: its friendly name "<kind> (<card>)", whole, or cut at NAME_MAX characters."""
+def names_card(device: str, card: str, numbered: bool = True) -> bool:
+    """Whether a WinMM device name is a device of the sound card `card`: its friendly name "<kind> (<card>)", whole, or cut at NAME_MAX characters; with `numbered` False, the number Windows may put before
+    either name aside (mercurycards.unnumbered: the card Mercury's list joins from "Speakers (2- USB Audio CODEC)" and "Microphone (USB Audio CODEC)")."""
+    plain = (lambda name: name) if numbered else unnumbered
+    want = f"{plain(card)})"
     for at in range(len(device)):
         if device.startswith(" (", at):
-            rest = device[at + 2:]
-            whole = rest == f"{card})"
-            cut = len(device) >= NAME_MAX and len(rest) > 0 and f"{card})".startswith(rest)
+            rest = plain(device[at + 2:])
+            whole = rest == want
+            cut = len(device) >= NAME_MAX and len(rest) > 0 and want.startswith(rest)
             if whole or cut:
                 return True
     return False
 
 
 def match(card: str, inputs: Sequence[str], outputs: Sequence[str]) -> tuple[int, int] | None:
-    """The WinMM numbers of the card's input and output: exactly one of each way whose name is the card's (`names_card`); None for anything else (none, or more than one either way)."""
-    found_in = [n for n, name in enumerate(inputs) if names_card(name, card)]
-    found_out = [n for n, name in enumerate(outputs) if names_card(name, card)]
+    """The WinMM numbers of the card's input and output: exactly one of each way whose name is the card's (`names_card`, by the name as it is, else with the numbers aside); None for anything else (none, or more
+    than one either way)."""
+    found_in, found_out = _named(card, inputs), _named(card, outputs)
     return (found_in[0], found_out[0]) if len(found_in) == 1 and len(found_out) == 1 else None
+
+
+def _named(card: str, names: Sequence[str]) -> list[int]:
+    return [n for n, name in enumerate(names) if names_card(name, card)] or [n for n, name in enumerate(names) if names_card(name, card, numbered=False)]
 
 
 def devices() -> tuple[list[str], list[str]]:

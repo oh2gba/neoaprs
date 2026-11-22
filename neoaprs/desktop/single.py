@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from neoaprs.instancelock import APP_LOCK_NAME, AlreadyRunning, InstanceLock
+from neoaprs.instancelock import APP_LOCK_NAME, AlreadyRunning, InstanceLock, is_file
 
 log = logging.getLogger("neoaprs.desktop")
 
@@ -39,12 +39,16 @@ class SingleApp:
             self._lock.acquire()
         except AlreadyRunning:
             return False
-        self._listen()
+        try:
+            self._listen()
+        except OSError:
+            self._lock.release()
+            raise
         return True
 
     def running(self) -> bool:
         """Whether an app holds the folder (the lock is taken for a moment and let go, as for the daemon's)."""
-        if not (self.data / LOCK_NAME).is_file():
+        if not is_file(self.data / LOCK_NAME):
             return False
         probe = InstanceLock(self.data, LOCK_NAME)
         try:

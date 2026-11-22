@@ -99,7 +99,7 @@ def test_verify_fails_early_on_an_unfinished_changelog_a_page_that_is_not_the_so
 def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> None:
     assert "PrivilegesRequired=lowest" in INSTALLER and r"DefaultDirName={localappdata}\Programs\NeoAPRS" in INSTALLER
     assert "OutputBaseFilename=NeoAPRS-Setup-{#AppVersion}" in INSTALLER
-    assert 'Name: "autostart"; Description: "Start NeoAPRS when I sign in"\n' in INSTALLER, "the task is on by default"
+    assert 'Name: "autostart"; Description: "Start NeoAPRS when I sign in"; Flags: checkedonce\n' in INSTALLER, "the task is on by default, and an update keeps what the user chose"
     assert 'Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked' in INSTALLER, "the desktop shortcut is a task that is off by default"
     assert 'Name: "{group}\\NeoAPRS"; Filename: "{app}\\neoaprs-app.exe"' in INSTALLER and 'Name: "{group}\\Stop NeoAPRS"' in INSTALLER, "the Start menu's NeoAPRS is the app"
     assert 'Name: "{autodesktop}\\NeoAPRS"; Filename: "{app}\\neoaprs-app.exe"; Tasks: desktopicon' in INSTALLER
@@ -108,6 +108,7 @@ def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> Non
     assert "'NeoAPRS', 'Stop NeoAPRS', 'NeoAPRS support logs'" in WORKFLOW and 'neoaprs.exe" support --data $data --out $out' in WORKFLOW, "the workflow checks the entry and runs what it runs"
     registry = INSTALLER.split("[Registry]", 1)[1].split("[Run]", 1)[0]
     assert 'ValueName: "NeoAPRS"' in registry and '"{app}\\neoaprs-app.exe"" --tray' in registry and "Tasks: autostart" in registry and "uninsdeletevalue" in registry, "start at sign-in is the app in the tray, not the daemon"
+    assert 'Name: "autostart"; Description: "Start NeoAPRS when I sign in"; Flags: checkedonce' in INSTALLER, "an update leaves the start at sign-in as the tray set it"
     run, uninstall = INSTALLER.split("[Run]", 1)[1].split("[UninstallRun]", 1)
     assert "service install" not in run and 'Filename: "{app}\\neoaprs-app.exe"' in run and "Description: \"Open NeoAPRS now\"" in run and "postinstall" in run and "skipifsilent" in run
     uninstall = uninstall.split("[Code]", 1)[0]

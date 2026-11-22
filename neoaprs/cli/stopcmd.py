@@ -2,6 +2,7 @@
 file `neoaprs.stop` in the data folder (neoaprs/stopfile.py), which the daemon looks for, and waits until the daemon has let go of the instance lock. Exit code 0: it is not running now; 1: it did not end in time.
 This is how the Windows uninstaller and the Start menu's "Stop NeoAPRS" end it; a service manager that restarts it (systemd, launchd) starts it again: use `systemctl --user stop neoaprs` there."""
 import argparse
+import logging
 import time
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from neoaprs.paths import default_data_dir
 
 from .daemonstate import is_running
 from .output import say
+
+log = logging.getLogger("neoaprs.cli")
 
 POLL_SEC = 0.25
 
@@ -26,7 +29,11 @@ def stop_daemon(data: Path, timeout: float) -> bool:
     if not is_running(data):
         stopfile.clear(data)
         return True
-    stopfile.request(data)
+    try:
+        stopfile.request(data)
+    except OSError:
+        log.warning("the stop file could not be written in %s", data, exc_info=True)
+        return False
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         time.sleep(POLL_SEC)

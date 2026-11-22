@@ -116,6 +116,9 @@ export class FakeMap {
   hasImage(name: string): boolean {
     return this.images.has(name);
   }
+  removeImage(name: string): void {
+    this.images.delete(name);
+  }
   updateImage(name: string, image: unknown): void {
     this.images.set(name, image);
   }

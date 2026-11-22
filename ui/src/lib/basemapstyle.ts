@@ -3,6 +3,7 @@
 // (forest, parks, built-up land), the water, the roads by class, the buildings at zoom 14, the boundaries and the names of countries, places and roads. A layer a tile lacks draws nothing.
 // The world's layers are drawn first and the detailed map's on top of them, so the world shows where the detailed map has no tile (outside its area, or past the zoom it ends at). Without a file (the daemon has no world map either) the style is a blank
 // background, and the stations are drawn over it all the same.
+import { locale } from "@/i18n";
 import type { ExpressionSpecification, LayerSpecification, StyleSpecification, VectorSourceSpecification } from "maplibre-gl";
 
 /** Where the daemon serves the two files, relative to the page. */
@@ -110,7 +111,11 @@ function byZoom(stops: number[], base = 1.5): ExpressionSpecification {
   return ["interpolate", ["exponential", base], ["zoom"], ...stops];
 }
 
-const NAME: ExpressionSpecification = ["coalesce", ["get", "name:fi"], ["get", "name"]];
+/** The name of a place in the language of the page where the tiles carry one, else the local name. */
+function names(): ExpressionSpecification {
+  const language = locale.value.split("-")[0] ?? "en";
+  return ["coalesce", ["get", `name:${language}`], ["get", "name"]];
+}
 
 function fill(id: string, layer: string, filter: ExpressionSpecification | null, color: string, extra: Partial<LayerSpecification> = {}): LayerSpecification {
   return {
@@ -235,7 +240,7 @@ function placeLabel(id: string, details: string[], p: Palette, minzoom: number, 
     minzoom,
     maxzoom,
     filter: ["in", ["get", "kind_detail"], ["literal", details]],
-    layout: { "text-field": NAME, "text-font": [font], "text-size": byZoom(sizes, 1.2), "text-max-width": 8, "text-padding": 4 },
+    layout: { "text-field": names(), "text-font": [font], "text-size": byZoom(sizes, 1.2), "text-max-width": 8, "text-padding": 4 },
     paint: { "text-color": p.text, "text-halo-color": p.halo, "text-halo-width": 1.4 },
   };
 }
@@ -251,7 +256,7 @@ function countryLabel(p: Palette): LayerSpecification {
     maxzoom: 7,
     filter: ["==", ["get", "kind"], "country"],
     layout: {
-      "text-field": NAME,
+      "text-field": names(),
       "text-font": [FONT_MEDIUM],
       "text-size": byZoom([1, 9, 4, 12, 6, 15], 1.2),
       "text-max-width": 7,
@@ -273,7 +278,7 @@ function roadName(p: Palette): LayerSpecification {
     filter: ["all", kindIn(["highway", "major_road", "medium_road", "minor_road"]), ["has", "name"]],
     layout: {
       "symbol-placement": "line",
-      "text-field": NAME,
+      "text-field": names(),
       "text-font": [FONT_REGULAR],
       "text-size": byZoom([13, 10, 18, 14], 1.2),
       "symbol-spacing": 280,

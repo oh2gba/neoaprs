@@ -150,3 +150,27 @@ describe("useConversations", () => {
     expect(talk.list.value).toEqual([]);
   });
 });
+
+describe("useReadMarks in two windows of one browser", () => {
+  it("never writes a mark lower than the one another window stored, and takes it up", () => {
+    const a = useReadMarks();
+    const b = useReadMarks();
+    expect(a.readUpTo("OH2XYZ")).toBe(0);
+    b.mark("OH2XYZ", 50);
+    a.mark("OH2XYZ", 20);
+    expect(localStorage.getItem("NeoAPRS.read.OH2XYZ")).toBe("50");
+    expect(a.readUpTo("OH2XYZ")).toBe(50);
+  });
+
+  it("settles a mark above the newest id down to it, but not below what another window stored", () => {
+    const a = useReadMarks();
+    localStorage.setItem("NeoAPRS.read.OH2XYZ", "90");
+    a.settle("OH2XYZ", 40);
+    expect(localStorage.getItem("NeoAPRS.read.OH2XYZ")).toBe("40");
+    const b = useReadMarks();
+    b.readUpTo("OH2ABC");
+    localStorage.setItem("NeoAPRS.read.OH2ABC", "30");
+    b.settle("OH2ABC", 40);
+    expect(b.readUpTo("OH2ABC")).toBe(30);
+  });
+});

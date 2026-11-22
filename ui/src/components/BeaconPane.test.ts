@@ -5,6 +5,7 @@ import { t } from "@/i18n";
 import type { RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { cssRule } from "@/test/css";
+import { shown } from "@/test/shown";
 import { NOW, ago, configValues, gpsOff, gpsState, radioRow, radiosTopic, status } from "@/test/fixtures";
 
 type Opts = { connected?: boolean; picking?: boolean; status?: ReturnType<typeof status> | null; gps?: ReturnType<typeof gpsState> | null };
@@ -132,7 +133,7 @@ describe("BeaconPane", () => {
       const row = wrapper.find("#beacon-now").element.closest(".action-row");
       expect(row?.querySelector("label")?.textContent).toBe("Send now");
       expect(row?.querySelector(".infotip")).not.toBeNull();
-      expect(wrapper.find("#beacon-now").text()).toBe("Beacon now");
+      expect(shown(wrapper.find("#beacon-now"))).toBe("Beacon now");
       expect(wrapper.find("#beacon-now").classes()).toEqual(["btn"]);
       expect(wrapper.find("#status-now").exists()).toBe(false);
     });
@@ -194,12 +195,12 @@ describe("BeaconPane", () => {
       const button = wrapper.find("#beacon-now");
       await button.trigger("click");
       expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
-      expect(button.text()).toBe("Really send?");
+      expect(shown(button)).toBe("Really send?");
       expect(button.classes()).toContain("danger");
       await button.trigger("click");
       expect(send).toHaveBeenCalledTimes(1);
       expect(send).toHaveBeenCalledWith({ cmd: "beacon_now" });
-      expect(button.text()).toBe("Beacon now");
+      expect(shown(button)).toBe("Beacon now");
     });
 
     it("forgets the first click after a few seconds", async () => {
@@ -208,7 +209,7 @@ describe("BeaconPane", () => {
       await button.trigger("click");
       vi.advanceTimersByTime(5001);
       await wrapper.vm.$nextTick();
-      expect(button.text()).toBe("Beacon now");
+      expect(shown(button)).toBe("Beacon now");
       await button.trigger("click");
       expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
     });
@@ -220,7 +221,7 @@ describe("BeaconPane", () => {
       await wrapper.vm.$nextTick();
       const button = wrapper.find("#beacon-now");
       expect(button.attributes("disabled")).toBeDefined();
-      expect(button.text()).toBe("Beacon now");
+      expect(shown(button)).toBe("Beacon now");
       daemon.connected.value = true;
       await wrapper.vm.$nextTick();
       await wrapper.find("#beacon-now").trigger("click");
@@ -232,7 +233,7 @@ describe("BeaconPane", () => {
   describe("Send status now, in the Status group", () => {
     it("is not there while the status is off", () => {
       expect(rows(pane().wrapper)).toHaveLength(0);
-      expect(buttons(pane().wrapper).map((b) => b.text())).toEqual(["Beacon now"]);
+      expect(buttons(pane().wrapper).map((b) => shown(b))).toEqual(["Beacon now"]);
     });
 
     it("is the status report as a row under the Status choice with when it last went and when it may next, and the radio's state behind the arrow when a radio makes it", () => {
@@ -244,7 +245,7 @@ describe("BeaconPane", () => {
           row?.find(".statetext").text(),
           row?.find(".tncstatus").text(),
           row?.findAll(".igatefold").map((p) => p.text()),
-          wrapper.find("#status-now").text(),
+          shown(wrapper.find("#status-now")),
         ];
       };
       const text = { "status/source": "text", "station/status": "QRV 144.800 MHz FM" };
@@ -267,16 +268,16 @@ describe("BeaconPane", () => {
         string
       >[]) {
         const { wrapper, send } = pane(extra);
-        expect(buttons(wrapper).map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
+        expect(buttons(wrapper).map((b) => shown(b))).toEqual(["Beacon now", "Send status now"]);
         const status = buttons(wrapper)[1];
         await status?.trigger("click");
         expect(send).not.toHaveBeenCalledWith({ cmd: "status_now" });
-        expect(status?.text()).toBe("Really send?");
+        expect(shown(status)).toBe("Really send?");
         expect(status?.classes()).toContain("danger");
         await status?.trigger("click");
         expect(send).toHaveBeenCalledWith({ cmd: "status_now" });
         expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
-        expect(status?.text()).toBe("Send status now");
+        expect(shown(status)).toBe("Send status now");
       }
     });
 
@@ -284,8 +285,8 @@ describe("BeaconPane", () => {
       const { wrapper } = pane({ "status/source": "text" });
       await buttons(wrapper)[1]?.trigger("click");
       await buttons(wrapper)[0]?.trigger("click");
-      expect(buttons(wrapper)[1]?.text()).toBe("Send status now");
-      expect(buttons(wrapper)[0]?.text()).toBe("Really send?");
+      expect(shown(buttons(wrapper)[1])).toBe("Send status now");
+      expect(shown(buttons(wrapper)[0])).toBe("Really send?");
     });
 
     it("waits for a save: it acts on what is in force, so both buttons are off, saying Saving, while a change is on its way, and not before", async () => {
@@ -316,9 +317,9 @@ describe("BeaconPane", () => {
     it("forgets a send that waits for its second press when the pick starts", async () => {
       const { wrapper, send } = pane();
       await buttons(wrapper)[0]?.trigger("click");
-      expect(buttons(wrapper)[0]?.text()).toBe("Really send?");
+      expect(shown(buttons(wrapper)[0])).toBe("Really send?");
       await wrapper.setProps({ picking: true });
-      expect(buttons(wrapper)[0]?.text()).toBe("Beacon now");
+      expect(shown(buttons(wrapper)[0])).toBe("Beacon now");
       expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
     });
 
@@ -339,9 +340,9 @@ describe("BeaconPane", () => {
       await buttons(wrapper)[0]?.trigger("click");
       expect(wrapper.emitted("pickPosition")).toHaveLength(1);
       await wrapper.setProps({ picking: false });
-      expect(buttons(wrapper)[0]?.text()).toBe("Really send?");
+      expect(shown(buttons(wrapper)[0])).toBe("Really send?");
       await wrapper.setProps({ picking: true });
-      expect(buttons(wrapper)[0]?.text()).toBe("Beacon now");
+      expect(shown(buttons(wrapper)[0])).toBe("Beacon now");
     });
   });
 });
@@ -355,7 +356,7 @@ describe("the beacon status of a moving station", () => {
     expect(block(wrapper).find(".statetext").text()).toBe("fix");
     expect(block(wrapper).find(".statetext").classes()).toContain("gps-fix");
     expect(block(wrapper).find(".tncstatus").text()).toBe("Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago");
-    expect(wrapper.find("#beacon-now").text()).toBe("Beacon now");
+    expect(shown(wrapper.find("#beacon-now"))).toBe("Beacon now");
     expect(group(wrapper, "Mobile")).toBeUndefined();
     expect(wrapper.text()).not.toContain("Last beacon");
   });
@@ -376,7 +377,7 @@ describe("the beacon status of a moving station", () => {
     expect(block(wrapper).find(".igatefold").text()).toBe("No beacon: no GPS fix");
     expect(block(wrapper).find(".problem").exists(), "the line says there is no fix: nothing more").toBe(false);
     const button = buttons(wrapper)[0];
-    expect(button?.text()).toBe("Beacon now");
+    expect(shown(button)).toBe("Beacon now");
     await button?.trigger("click");
     await button?.trigger("click");
     expect(send).toHaveBeenCalledWith({ cmd: "beacon_now" });
@@ -451,7 +452,7 @@ describe("BeaconPane with the beacon Off", () => {
 
   it("keeps Beacon now and Send status now on: Off is no automatic beacon, and a press sends", async () => {
     const { wrapper, send } = off();
-    expect(buttons(wrapper).map((b) => [b.text(), b.attributes("disabled") !== undefined, b.attributes("title")])).toEqual([
+    expect(buttons(wrapper).map((b) => [shown(b), b.attributes("disabled") !== undefined, b.attributes("title")])).toEqual([
       ["Beacon now", false, undefined],
       ["Send status now", false, undefined],
     ]);
@@ -930,7 +931,7 @@ describe("BeaconPane with several radios", () => {
         },
       );
       await wrapper.find("#beacon-now").trigger("click");
-      expect(wrapper.find("#beacon-now").text()).toBe("Really send?");
+      expect(shown(wrapper.find("#beacon-now"))).toBe("Really send?");
       await tell(daemon, {
         radios: radiosTopic(FM(waiting), HF({ choices: { beacon: false, status: false, ask: false, local_info: false, path: null, digipeat: null } })),
       });
@@ -938,7 +939,7 @@ describe("BeaconPane with several radios", () => {
       await tell(daemon, {
         radios: radiosTopic(FM(), HF({ choices: { beacon: false, status: false, ask: false, local_info: false, path: null, digipeat: null } })),
       });
-      expect(wrapper.find("#beacon-now").text()).toBe("Beacon now");
+      expect(shown(wrapper.find("#beacon-now"))).toBe("Beacon now");
       await wrapper.find("#beacon-now").trigger("click");
       expect(send).not.toHaveBeenCalledWith({ cmd: "beacon_now" });
     });

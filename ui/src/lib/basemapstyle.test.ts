@@ -1,4 +1,5 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
+import { setLocale } from "@/i18n";
 import { describe, expect, it } from "vitest";
 import { ATTRIBUTION, DARK, FONT_MEDIUM, FONT_REGULAR, LIGHT, basemapStyle } from "@/lib/basemapstyle";
 
@@ -11,6 +12,17 @@ const NONE = { detail: null, world: null };
 function layers(style: StyleSpecification): LayerSpecification[] {
   return style.layers;
 }
+
+describe("the names on the map", () => {
+  const field = (): unknown => layers(basemapStyle(DETAIL_ONLY, false, GLYPHS)).find((l) => l.id === "place-city")?.layout?.["text-field" as never];
+  it("are in the language of the page first, then the local name", () => {
+    setLocale("nl");
+    expect(field()).toEqual(["coalesce", ["get", "name:nl"], ["get", "name"]]);
+    setLocale("pt-BR");
+    expect(field()).toEqual(["coalesce", ["get", "name:pt"], ["get", "name"]]);
+    setLocale("en");
+  });
+});
 
 describe("basemapStyle", () => {
   it("is a blank background without the archive, and has no source", () => {
@@ -77,12 +89,12 @@ describe("basemapStyle", () => {
     expect(width("road-minor")).toBeGreaterThan(width("road-path"));
   });
 
-  it("writes the labels in the two fonts the page ships, with the Finnish name first", () => {
+  it("writes the labels in the two fonts the page ships, with the page's language name first", () => {
     const style = basemapStyle(DETAIL_ONLY, false, GLYPHS);
     const fonts = new Set(layers(style).flatMap((l) => (l.type === "symbol" ? (l.layout?.["text-font"] ?? []) : [])));
     expect([...fonts].sort()).toEqual([FONT_MEDIUM, FONT_REGULAR].sort());
     const city = layers(style).find((l) => l.id === "place-city");
-    expect(JSON.stringify(city?.type === "symbol" ? city.layout?.["text-field"] : null)).toContain("name:fi");
+    expect(JSON.stringify(city?.type === "symbol" ? city.layout?.["text-field"] : null)).toContain("name:en");
   });
 
   it("is drawn from the world map alone with its borders, coastlines (water) and the names of countries from zoom 1 and of big cities from zoom 3", () => {

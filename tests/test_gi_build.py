@@ -100,3 +100,13 @@ def test_the_usage_prints() -> None:
     assert done.returncode == 0 and "usage: build-gi" in done.stdout
     for option in ("--docker", "--out", "--source"):
         assert option in done.stdout
+
+
+def test_the_output_folder_of_the_docker_build_is_given_back_whether_the_build_ends_well_or_not(build: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    seen: list[list[str]] = []
+    monkeypatch.setattr(build.shutil, "which", lambda name: "/usr/bin/docker")
+    monkeypatch.setattr(build, "cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(build.subprocess, "run", lambda command, check=False: seen.append(command) or subprocess.CompletedProcess(command, 0))
+    assert build.in_docker(tmp_path / "out", None) == 0
+    script = seen[0][-1]
+    assert re.search(r"set -e; trap 'chown -R \d+:\d+ /out' EXIT;", script) and "; chown" not in script

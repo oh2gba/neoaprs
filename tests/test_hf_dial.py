@@ -51,6 +51,16 @@ async def test_a_dial_is_kept_told_and_survives_a_restart(tmp_path: Path) -> Non
     assert again.hf_dial == "7.0443 MHz USB", "the one kept is told at the start, before the page is asked"
 
 
+async def test_check_now_takes_the_dial_too(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / "neoaprs.sqlite")
+    told: list[str] = []
+    service = UpdateCheck(lambda: _config(), "0.1.0", "linux", Page(answer(hf_dial="7.0443 MHz USB")), environ={}, memory=store)
+    remember_stop(service.stop)
+    service.dial_changed.connect(told.append)
+    await service.check_now()
+    assert told == ["7.0443 MHz USB"] and await store.setting(HF_DIAL) == "7.0443 MHz USB"
+
+
 def test_the_dial_of_the_page_is_the_forty_metre_one_of_the_box_until_the_project_has_a_list() -> None:
     """The earlier copies were told one dial, the 40 m one; the HF box of this one shows it as the suggestion for that band when the project's file (tests/test_frequencies.py) has no list."""
     assert suggested([], "7.0443 MHz USB", [], f"{DIAL_BAND} m") == [Frequency("40 m", "7.0443 MHz USB")]

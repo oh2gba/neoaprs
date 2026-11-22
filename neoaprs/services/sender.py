@@ -24,7 +24,7 @@ from neoaprs.interlock import Interlock
 from neoaprs.radiospec import in_force_set
 from neoaprs.radiotype import RadioId
 from neoaprs.services.common import ConfigSource, Radio, as_pick
-from neoaprs.services.pace import SPACING_SEC
+from neoaprs.services.pace import SPACING_SEC, within
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender, fit
 from neoaprs.services.radioset import SendError as SendError          # (services/radioset.py's, where the one fit function raises it; here under its old name)
 from neoaprs.source import Source
@@ -51,7 +51,7 @@ class Sender:
     def too_soon(self, radio: AirRadio) -> bool:
         """Whether the pause after our latest frame on the radio is not over."""
         last = self._last.get(radio.id)
-        return last is not None and (self.clock() - last).total_seconds() < self.spacing_sec
+        return last is not None and within(last, self.clock(), self.spacing_sec)
 
     def ready(self, kind: str, radio: AirRadio | None = None) -> bool:
         """May a frame of this kind (a word for the log: "object", "bulletin") go out now, on `radio`, or, when none is named, on some enabled radio (the one a frame goes to is asked again by `send`)?

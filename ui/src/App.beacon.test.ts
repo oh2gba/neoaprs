@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { ago, configValues, status } from "@/test/fixtures";
 import { open, tabButton, useAppHarness } from "@/test/app";
+import { shown } from "@/test/shown";
 
 useAppHarness();
 
@@ -22,7 +23,7 @@ describe("App: the My station tab", () => {
   it("sends the status from the My station tab after two clicks once there is a status, and not before", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "My station")?.trigger("click");
-    expect(wrapper.findAll("#pane-beacon #beacon-now, #pane-beacon #status-now").map((b) => b.text())).toEqual(["Beacon now"]);
+    expect(wrapper.findAll("#pane-beacon #beacon-now, #pane-beacon #status-now").map((b) => shown(b))).toEqual(["Beacon now"]);
     socket.say({
       type: "state",
       topic: "config",
@@ -30,7 +31,7 @@ describe("App: the My station tab", () => {
       value: configValues({ "status/source": "text", "station/status": "QRV 145.500" }),
     });
     await flushPromises();
-    expect(wrapper.findAll("#pane-beacon #beacon-now, #pane-beacon #status-now").map((b) => b.text())).toEqual(["Beacon now", "Send status now"]);
+    expect(wrapper.findAll("#pane-beacon #beacon-now, #pane-beacon #status-now").map((b) => shown(b))).toEqual(["Beacon now", "Send status now"]);
     await wrapper.find("#pane-beacon #status-now").trigger("click");
     expect(socket.sent).not.toContainEqual({ cmd: "status_now" });
     await wrapper.find("#pane-beacon #status-now").trigger("click");

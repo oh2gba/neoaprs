@@ -35,11 +35,14 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+POLE_LAT = 89.9              # the lap is flat: east-west distances stretch without end towards the pole
+
+
 def position(text: str) -> tuple[float, float]:
     """LAT,LON from the command line; ValueError when it is not a place on the earth."""
     lat, lon = (float(part) for part in text.split(","))
-    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
-        raise ValueError(f"{text!r} is not a place on the earth")
+    if not (-POLE_LAT <= lat <= POLE_LAT and -180.0 <= lon <= 180.0):
+        raise ValueError(f"{text!r} is not a place on the earth between latitude -{POLE_LAT:g} and {POLE_LAT:g}")
     return lat, lon
 
 

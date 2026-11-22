@@ -36,7 +36,7 @@ it (route.automatic_path, chosen when the attempt is sent), else `beacon/path`),
 waits, an ack is not sent, and the log says "path too long for RF only")."""
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import replace
 
 from neoaprs import ax25
@@ -45,7 +45,7 @@ from neoaprs.aprsmessage import MessageError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
+from neoaprs.message import ACK_SETTLES, MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call, our_frame
@@ -73,6 +73,11 @@ REPLY_ACK_ROOM = 5                              # the bytes a later attempt may 
 def _in_line(record: MessageRecord) -> bool:
     """A message of ours that is being sent and is expected to be acked: one of those that go to a station one at a time."""
     return record.direction == "out" and record.state == "sending" and record.msg_id is not None and record.attempts_max > UNCONFIRMED_MAX
+
+
+def _to_let_go(records: Iterable[MessageRecord]) -> MessageRecord | None:
+    """The message to drop from memory when more than MESSAGES_HELD_MAX are held: the oldest settled one, else the oldest an ack may still settle; never one being sent."""
+    return min((r for r in records if r.state != "sending"), key=lambda r: (r.state in ACK_SETTLES, r.id), default=None)
 
 
 def _pace_running(pace: Pace, radios: MessageRadios, record: MessageRecord) -> bool:
@@ -272,7 +277,7 @@ class Messaging:
         return count
 
     def _drop(self, number: int) -> None:
-        """A message the database has removed: gone from here, from its schedule and chain, and told."""
+        """A message the database has removed, or one let go from memory: gone from here, from its schedule and chain, and told."""
         gone = self._records.pop(number, None)
         self.retries.forget(number)
         self._refused.pop(number, None)
@@ -353,6 +358,8 @@ class Messaging:
         """A new or changed message: held, planned, kept in the database and told. When its state changed, the other messages being sent to the station are told again: one of them may wait, or not, now."""
         before = self._records.get(record.id)
         self._records[record.id] = record
+        if before is None and len(self._records) > MESSAGES_HELD_MAX and (oldest := _to_let_go(self._records.values())) is not None:
+            self._drop(oldest.id)                               # (it stays in the database, as after a start)
         if record.state != "sending":
             self.message_radios.forget(record.id)
         self.retries.plan(record)

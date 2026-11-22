@@ -92,7 +92,11 @@ def run(args: argparse.Namespace) -> int:
     """The daemon is attached to or started first, without waiting for it: the toolkit is looked for (imported) and the shell makes its window while the daemon comes up."""
     data = Path(args.data).expanduser().resolve()
     single = SingleApp(data)
-    if not single.acquire():
+    try:
+        first = single.acquire()
+    except OSError as e:
+        return data_unusable(data, e)
+    if not first:
         splash.done()
         if not args.tray:
             single.tell_the_other("show")
@@ -136,6 +140,12 @@ def main(argv: list[str] | None = None) -> int:
         splash.done()
 
 
+def data_unusable(data: Path, error: OSError) -> int:
+    splash.done()                               # (before the message box, which the splash would cover)
+    opencmd.tell_the_user(f"app: the data folder {data} cannot be made or used: {error.strerror or error}")
+    return 1
+
+
 def _main(argv: list[str] | None) -> int:
     args = parser().parse_args(sys.argv[1:] if argv is None else argv)
     data = Path(args.data).expanduser().resolve()
@@ -143,11 +153,9 @@ def _main(argv: list[str] | None) -> int:
         return quit_the_app(data, QUIT_WAIT_SEC)
     try:
         data.mkdir(parents=True, exist_ok=True)
+        appstate.setup_logging(data, args.debug)
     except OSError as e:
-        splash.done()                               # (before the message box, which the splash would cover)
-        opencmd.tell_the_user(f"app: the data folder {data} cannot be made or used: {e.strerror or e}")
-        return 1
-    appstate.setup_logging(data, args.debug)
+        return data_unusable(data, e)
     uncaught.install(log, chain=True)
     return run(args)
 

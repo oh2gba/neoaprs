@@ -352,3 +352,11 @@ async def test_each_dummy_radio_says_in_the_log_which_radio_it_is(fast: None, mo
         assert any(r.getMessage().startswith("FM 3: the dummy radio makes") for r in caplog.records)
     finally:
         await tnc.stop()
+
+
+def test_a_scene_near_the_date_line_or_a_pole_plays_without_an_impossible_position() -> None:
+    for centre in ((-16.8, 179.99), (60.17, -179.99), (89.99, 10.0), (-89.99, 10.0)):
+        for _, frame in play(Scene(centre, START), 3000, 5):
+            decoded = packet_of(frame).decoded
+            if isinstance(decoded, Position):
+                assert -90 <= decoded.lat <= 90 and -180 <= decoded.lon <= 180, (centre, frame.tnc2())

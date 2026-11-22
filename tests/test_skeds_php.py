@@ -190,6 +190,7 @@ def test_only_the_token_that_posted_removes_and_a_wrong_one_is_counted(endpoint:
 
 
 @pytest.mark.parametrize("over", [
+    {"token": token() + "\n"}, {"from": at(2 * HOUR) + "\n"},
     {"token": None}, {"token": "abc"}, {"token": "G" * 32}, {"token": "A" * 32}, {"token": 12345},
     {"call": None}, {"call": "N0CALL"}, {"call": "OH"}, {"call": "ABCDEF"}, {"call": "123456"}, {"call": "OH2GBA-16"}, {"call": "OH2GBA/P"}, {"call": "OH2GBAXX"}, {"call": ["OH2GBA"]},
     {"dial": None}, {"dial": "7.0541 MHz"}, {"dial": "7.0541 MHz FM"}, {"dial": "145.800 MHz USB"}, {"dial": "7,0541 MHz USB"}, {"dial": 7.0541},
@@ -207,6 +208,15 @@ def test_what_is_not_a_sked_is_a_bad_request_and_nothing_is_kept(endpoint: Endpo
 def test_a_body_that_is_no_request_is_a_bad_request(endpoint: Endpoint, body: bytes) -> None:
     endpoint.start()
     assert endpoint.post(body) == (400, {"ok": False, "reason": "bad_request"})
+
+
+def test_an_id_with_a_line_end_is_no_id(endpoint: Endpoint) -> None:
+    endpoint.start()
+    key = token()
+    sked = str(endpoint.add(key)[1]["id"])
+    code, answer = endpoint.remove(key, sked + "\n")
+    assert (code, answer.get("reason")) == (400, "bad_request")
+    assert endpoint.files() == [f"{sked}.json"]
 
 
 def test_a_note_that_is_not_utf8_is_a_bad_request(endpoint: Endpoint) -> None:

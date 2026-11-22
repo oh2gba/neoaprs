@@ -91,3 +91,21 @@ async def test_a_daemon_of_a_build_without_the_cipher_runs_and_shows_the_page_no
     assert (await page.expect("error"))["code"] == "lock.off"
     await e.stop()
     assert not (tmp_path / "message.key").exists()
+
+
+async def test_a_data_folder_with_keys_and_sealed_messages_is_read_by_a_build_without_the_cipher(tmp_path: Path) -> None:
+    from tests.test_messaging_locked import PEER_PUBLIC, Rig as LockedRig
+    log, _, clock = await log_at(tmp_path, MessageLog)
+    before = LockedRig(tmp_path, log, clock)
+    await before.start()
+    assert await before.ring.take("OH2RDG-7", PEER_PUBLIC, clock()) == "key"
+    sent = await before.m.send("OH2RDG-7", "locked text", locked=True)
+    before.m.on_packet(before.heard("OH2RDG-7", "OH2GBA", before.peer_seals("an answer"), "41"))
+    await before.settled()
+    await before.m.stop()
+    after = Rig(log, clock, keyring=NoKeys())
+    await after.start()
+    kept = {r.text: (r.seal, r.wire is not None) for r in after.m.records()}
+    assert kept == {"locked text": ("open", True), "an answer": ("open", True)}, "what was read before stays readable; nothing is opened or sealed anew"
+    assert (tmp_path / "message.key").exists(), "the key file is left alone"
+    assert sent.wire is not None and not any(sent.text.encode() in frame.info for frame in after.tnc.sent), "a retry sends the ciphertext it kept, never the text"

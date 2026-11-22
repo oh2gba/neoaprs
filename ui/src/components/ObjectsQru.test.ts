@@ -13,6 +13,10 @@ function make(given: Parameters<typeof fakeDaemon>[0] = {}) {
 const ask = (wrapper: ReturnType<typeof mount>) => wrapper.find("button.btn");
 const pills = (wrapper: ReturnType<typeof mount>) => wrapper.findAll("button.qru-group");
 const asked = (text: string) => ({ cmd: "qru_ask", text });
+let told = 0;
+/** The daemon tells the request it took, long enough ago to hold nothing back: the next press sends. */
+const answer = (daemon: ReturnType<typeof fakeDaemon>) =>
+  tell(daemon, { qru: { ...(daemon.qru.value ?? qruState({ asked: null })), asked: qruAsked("INFO", ago(100 + ++told)) } });
 const row = (wrapper: ReturnType<typeof mount>) => wrapper.find(".qrustatus");
 const line = (wrapper: ReturnType<typeof mount>) => row(wrapper).find(".tncstatus").text();
 
@@ -36,13 +40,16 @@ describe("Local info in the Objects tab", () => {
     const field = () => (wrapper.find("input.qru-km").element as HTMLInputElement).value;
     expect(field()).toBe("150");
     await ask(wrapper).trigger("click");
+    await answer(daemon);
     await tell(daemon, { config: configValues({ "map/radius_km": "200" }) });
     expect(field()).toBe("200");
     await wrapper.find("input.qru-km").setValue("120");
     await tell(daemon, { config: configValues({ "map/radius_km": "300" }) });
     expect(field()).toBe("120");
     await ask(wrapper).trigger("click");
+    await answer(daemon);
     await wrapper.find("input.qru-km").trigger("keydown", { key: "Enter" });
+    await answer(daemon);
     await wrapper.find("input.qru-km").setValue("");
     await ask(wrapper).trigger("click");
     expect(daemon.send.mock.calls.map(([command]) => command)).toEqual([asked("INFO 150"), asked("INFO 120"), asked("INFO 120"), asked("INFO")]);
@@ -161,6 +168,7 @@ describe("Local info in the Objects tab", () => {
   it("asks for a group when its tag is pressed, with the distance of the field", async () => {
     const { wrapper, daemon } = make({ qru: qruState({ asked: qruAsked("INFO", ago(90)) }) });
     await pills(wrapper)[1]?.trigger("click");
+    await answer(daemon);
     await wrapper.find("input.qru-km").setValue("200");
     await pills(wrapper)[0]?.trigger("click");
     expect(pills(wrapper)[0]?.attributes("title")).toBe("Ask DF8LS-10 for 70 cm repeater (RP70)");
@@ -205,5 +213,18 @@ describe("Local info in the Objects tab", () => {
     }
     await wrapper.find("input.qru-km").trigger("keydown", { key: "Enter" });
     expect(daemon.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("Local info in flight", () => {
+  it("sends one request for two presses before the daemon tells it, from Ask and from a group alike", async () => {
+    const { wrapper, daemon } = make({ qru: qruState({ asked: qruAsked("INFO", ago(90)) }) });
+    await pills(wrapper)[0]?.trigger("click");
+    expect(pills(wrapper)[0]?.attributes("disabled")).toBeDefined();
+    await pills(wrapper)[1]?.trigger("click");
+    expect(daemon.send.mock.calls).toHaveLength(1);
+    await answer(daemon);
+    await pills(wrapper)[1]?.trigger("click");
+    expect(daemon.send.mock.calls).toHaveLength(2);
   });
 });

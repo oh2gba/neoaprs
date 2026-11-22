@@ -256,6 +256,9 @@ export class Hub {
 
   private connect(): void {
     clearTimeout(this.timer);
+    const old = this.socket;
+    this.socket = null;
+    old?.close();
     this.store.connection("connecting");
     let socket: SocketLike;
     try {
@@ -266,6 +269,7 @@ export class Hub {
     }
     this.socket = socket;
     this.live = false;
+    this.heardAt = Date.now();
     socket.binaryType = "arraybuffer";
     socket.onmessage = (event: MessageEvent) => {
       if (this.socket !== socket) return;
@@ -295,15 +299,17 @@ export class Hub {
     this.store.connection("open");
   }
 
-  /** An open socket the daemon has said nothing on for QUIET_MS is let go (its late close is ignored) and a new one opened at once. */
+  /** A socket the daemon has said nothing on for QUIET_MS is let go (its late close is ignored): one that was talking is replaced at once, one that never said anything is tried again after the wait. */
   private dropQuiet(): void {
     const socket = this.socket;
-    if (socket === null || !this.live || Date.now() - this.heardAt < QUIET_MS) return;
+    if (socket === null || Date.now() - this.heardAt < QUIET_MS) return;
+    const spoke = this.live;
     this.socket = null;
     this.live = false;
     socket.close();
     this.store.connection("closed");
-    this.connect();
+    if (spoke) this.connect();
+    else this.retry();
   }
 
   private retry(): void {

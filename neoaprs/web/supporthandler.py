@@ -103,7 +103,7 @@ class SupportBundle(SecurityHeaders):
         try:
             body = json.loads(b"".join(self.chunks))
             page = body["page"]
-        except (ValueError, KeyError, TypeError):
+        except (ValueError, KeyError, TypeError, RecursionError):
             raise tornado.web.HTTPError(400, reason="Bad Request: the body is a JSON object with a page") from None
         if not isinstance(page, dict):
             raise tornado.web.HTTPError(400, reason="Bad Request: the page is a JSON object")

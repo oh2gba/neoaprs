@@ -13,6 +13,7 @@ import tornado.web
 from neoaprs.worldmap import WORLD_FILE
 
 from .headers import host_name, security_headers
+from .pageerrors import one_line
 from .pagesnapshot import PageFile, PageSnapshot, is_hidden
 
 log = logging.getLogger("neoaprs.web")
@@ -108,7 +109,7 @@ class TextErrors(tornado.web.RequestHandler):
         if isinstance(value, tornado.web.HTTPError):
             super().log_exception(typ, value, tb)                    # an HTTPError is logged by Tornado with its own message and no request
             return
-        log.error("Uncaught exception %s %s (%s)", self.request.method, self.request.path, self.request.remote_ip, exc_info=(typ, value, tb))
+        log.error("Uncaught exception %s %s (%s)", self.request.method, one_line(self.request.path, MAX_LOGGED_PATH), self.request.remote_ip, exc_info=(typ, value, tb))
 
 
 class SecurityHeaders(TextErrors):
@@ -130,6 +131,7 @@ class Secured(SecurityHeaders):
             send_to_this_computer(self, server)
 
 
+MAX_LOGGED_PATH = 200                                         # (a request path is the sender's; the log gets a line of it)
 PAGE_TYPES = {                                                # the types of the page's own kinds of file, the same on every system: the registry of Windows
     "js": "text/javascript; charset=UTF-8",                    # may say application/javascript, or text/plain, under which (with nosniff) a browser runs no script
     "mjs": "text/javascript; charset=UTF-8",

@@ -96,7 +96,7 @@ jobs:
           ls -l dist
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
           wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"          # 0.10.0-rc1 is 0.10.0rc1 in the names the build makes (PEP 440)
-          [ -f "dist/neoaprs-$wheel_version-py3-none-any.whl" ] && [ -f "dist/neoaprs-$wheel_version.tar.gz" ] && [ "$(ls dist | wc -l)" = 2 ]
+          [ -f "dist/neoaprs-$wheel_version-py3-none-any.whl" ] && [ -f "dist/neoaprs-$wheel_version.tar.gz" ] && [ "$(ls dist | wc -l)" = 2 ] || { echo "::error::the wheel and the sdist are not the only files in dist"; exit 1; }
       - name: Smoke test of the wheel in a fresh environment
         run: |
           uv venv "$RUNNER_TEMP/smoke-venv"
@@ -185,7 +185,7 @@ jobs:
       - name: The Direwolf of the job direwolf-windows, built from the pinned source, into bin/direwolf/ (direwolf.exe, its data and the licences), it says it is the pinned release with NeoAPRS's options, and the frozen app finds it (the type Sound card (Direwolf) is offered; the runner has no sound device for more; the VM checks the rest)
         run: |
           build-venv/Scripts/python.exe packaging/windows/bundle_tool.py direwolf dist/NeoAPRS dist-direwolf/direwolf-*-windows-x86_64.tar.gz
-          test -f dist/NeoAPRS/bin/direwolf/direwolf.exe && test -f dist/NeoAPRS/bin/direwolf/data/tocalls.yaml
+          test -f dist/NeoAPRS/bin/direwolf/direwolf.exe && test -f dist/NeoAPRS/bin/direwolf/data/tocalls.yaml || { echo "::error::bin/direwolf lacks direwolf.exe or its data"; exit 1; }
           build-venv/Scripts/python.exe packaging/windows/smoke_direwolf.py dist/NeoAPRS/bin/direwolf/direwolf.exe
           dist/NeoAPRS/neoaprs.exe db --data "$RUNNER_TEMP/direwolfdata" radios add direwolf
       - name: The world map is in the frozen app (the page has a map from the first start; scripts/smoke.py then asks the daemon for it)
@@ -402,7 +402,7 @@ jobs:
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
           [ -n "$version" ]
-          [ -f "dist-mercury-windows/mercury-$version-windows-x86_64.tar.gz" ] && [ "$(ls dist-mercury-windows/*.tar.gz | wc -l)" = 1 ]
+          [ -f "dist-mercury-windows/mercury-$version-windows-x86_64.tar.gz" ] && [ "$(ls dist-mercury-windows/*.tar.gz | wc -l)" = 1 ] || { echo "::error::the Mercury Windows archive is missing or is not the only archive"; exit 1; }
           ls -l dist-mercury-windows dist-mercury-windows/mercury
           for f in LICENSE LICENSE-freedv SOURCE.txt mercury.exe; do [ -f "dist-mercury-windows/mercury/$f" ]; done
           [ "$(ls dist-mercury-windows/mercury | wc -l)" = 6 ]
@@ -438,7 +438,7 @@ jobs:
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/direwolf.py)"
           [ -n "$version" ]
-          [ -f "dist-direwolf-windows/direwolf-$version-windows-x86_64.tar.gz" ] && [ "$(ls dist-direwolf-windows/*.tar.gz | wc -l)" = 1 ]
+          [ -f "dist-direwolf-windows/direwolf-$version-windows-x86_64.tar.gz" ] && [ "$(ls dist-direwolf-windows/*.tar.gz | wc -l)" = 1 ] || { echo "::error::the Direwolf Windows archive is missing or is not the only archive"; exit 1; }
           ls -lR dist-direwolf-windows/direwolf
           for f in LICENSE LICENSE-geotranz.txt LICENSE-misc.txt LICENSE-hidapi.txt LICENSE-regex.txt SOURCE.txt direwolf.exe data/tocalls.yaml data/symbols-new.txt; do [ -f "dist-direwolf-windows/direwolf/$f" ]; done
           file dist-direwolf-windows/direwolf/direwolf.exe
@@ -480,7 +480,7 @@ jobs:
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/direwolf.py)"
           [ -n "$version" ]
-          [ -f "dist-direwolf/direwolf-$version-linux-$(uname -m).tar.gz" ] && [ "$(ls dist-direwolf/*.tar.gz | wc -l)" = 1 ]
+          [ -f "dist-direwolf/direwolf-$version-linux-$(uname -m).tar.gz" ] && [ "$(ls dist-direwolf/*.tar.gz | wc -l)" = 1 ] || { echo "::error::the Direwolf Linux archive is missing or is not the only archive"; exit 1; }
           ls -lR dist-direwolf/direwolf
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -523,7 +523,7 @@ jobs:
           said="$(ALSA_CONFIG_PATH="$PWD/dist-mercury/mercury/share/alsa/alsa.conf" dist-mercury/mercury/mercury -V 2>&1 || true)"
           echo "mercury -V: $said"
           echo "$said" | grep -qF "$version"
-          [ -f "dist-mercury/mercury-$version-linux-$(uname -m).tar.gz" ] && [ "$(ls dist-mercury/*.tar.gz | wc -l)" = 1 ]
+          [ -f "dist-mercury/mercury-$version-linux-$(uname -m).tar.gz" ] && [ "$(ls dist-mercury/*.tar.gz | wc -l)" = 1 ] || { echo "::error::the Mercury Linux archive is missing or is not the only archive"; exit 1; }
           ls -l dist-mercury dist-mercury/mercury
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -575,7 +575,7 @@ jobs:
         run: |
           scripts/build-appimage --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-linux-x86_64.tar.gz --direwolf dist-direwolf/direwolf-*-linux-x86_64.tar.gz --out dist-appimage
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
-          [ -f "dist-appimage/NeoAPRS-$version-x86_64.AppImage" ] && [ "$(ls dist-appimage | wc -l)" = 1 ]
+          [ -f "dist-appimage/NeoAPRS-$version-x86_64.AppImage" ] && [ "$(ls dist-appimage | wc -l)" = 1 ] || { echo "::error::the AppImage is missing or is not the only file"; exit 1; }
           ls -l dist-appimage
       - name: Smoke test of the file (Tornado for scripts/smoke.py comes from the wheel, in a fresh environment)
         run: |
@@ -682,12 +682,12 @@ jobs:
           python="$(uv python find 3.13)"
           "$python" scripts/build-mercury --tar --out dist-mercury
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
-          [ -n "$version" ] && [ -f "dist-mercury/mercury-$version-macos-arm64.tar.gz" ] && [ "$(ls dist-mercury/*.tar.gz | wc -l | tr -d ' ')" = 1 ]
+          [ -n "$version" ] && [ -f "dist-mercury/mercury-$version-macos-arm64.tar.gz" ] && [ "$(ls dist-mercury/*.tar.gz | wc -l | tr -d ' ')" = 1 ] || { echo "::error::the Mercury macOS archive is missing or is not the only archive"; exit 1; }
       - name: Build the app and its disk image from the wheel and that Mercury
         run: |
           scripts/build-macos-app --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-macos-arm64.tar.gz --out dist-macos
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
-          [ -f "dist-macos/NeoAPRS-$version-arm64.dmg" ] && [ "$(ls dist-macos | wc -l | tr -d ' ')" = 1 ]
+          [ -f "dist-macos/NeoAPRS-$version-arm64.dmg" ] && [ "$(ls dist-macos | wc -l | tr -d ' ')" = 1 ] || { echo "::error::the dmg is missing or is not the only file"; exit 1; }
           ls -l dist-macos
       - name: Smoke test of the image (Tornado for scripts/smoke.py comes from the wheel, in a fresh environment)
         run: |
@@ -745,7 +745,7 @@ jobs:
         run: |
           scripts/build-deb --arch "${{ matrix.arch }}" --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-linux-*.tar.gz --direwolf dist-direwolf/direwolf-*-linux-*.tar.gz --out dist-deb
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
-          [ -f "dist-deb/neoaprs_${version}_${{ matrix.arch }}.deb" ] && [ "$(ls dist-deb | wc -l)" = 1 ]
+          [ -f "dist-deb/neoaprs_${version}_${{ matrix.arch }}.deb" ] && [ "$(ls dist-deb | wc -l)" = 1 ] || { echo "::error::the deb is missing or is not the only file"; exit 1; }
           ls -l dist-deb
           dpkg-deb --info dist-deb/*.deb
           dpkg-deb --contents dist-deb/*.deb | grep -v ' ./opt/neoaprs/lib/python3.13/'
@@ -769,9 +769,9 @@ jobs:
           said="$(ALSA_CONFIG_PATH=/opt/neoaprs/tools/mercury/share/alsa/alsa.conf /opt/neoaprs/tools/mercury/mercury -V 2>&1 || true)"
           echo "mercury -V: $said"
           echo "$said" | grep -qF "$mercury_version"
-          [ -f /opt/neoaprs/tools/mercury/LICENSE ] && [ ! -e /opt/neoaprs/tools/mercury/dev ]
+          [ -f /opt/neoaprs/tools/mercury/LICENSE ] && [ ! -e /opt/neoaprs/tools/mercury/dev ] || { echo "::error::the Mercury licence is missing or the dev folder is shipped"; exit 1; }
           ALSA_CONFIG_PATH=/opt/neoaprs/tools/direwolf/share/alsa/alsa.conf /opt/neoaprs/bin/python3 -I packaging/windows/smoke_direwolf.py /opt/neoaprs/tools/direwolf/direwolf
-          [ -f /opt/neoaprs/tools/direwolf/LICENSE ] && [ -f /opt/neoaprs/tools/direwolf/data/tocalls.yaml ] && [ ! -e /opt/neoaprs/tools/direwolf/dev ]
+          [ -f /opt/neoaprs/tools/direwolf/LICENSE ] && [ -f /opt/neoaprs/tools/direwolf/data/tocalls.yaml ] && [ ! -e /opt/neoaprs/tools/direwolf/dev ] || { echo "::error::the Direwolf licence or data is missing or the dev folder is shipped"; exit 1; }
       - name: "Mercury and Direwolf need nothing of the system: a bare Debian 12 without the ALSA library installs the package and runs them (ldd finds the bundled libraries, nothing missing)"
         run: |
           mercury_version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
@@ -797,7 +797,7 @@ jobs:
           dw=/opt/neoaprs/tools/direwolf
           ldd "$dw/direwolf" | tee /tmp/ldd-dw.txt
           if grep -q 'not found' /tmp/ldd-dw.txt; then echo "a library of direwolf is missing"; exit 1; fi
-          grep -qF "$dw/lib/libasound.so.2" /tmp/ldd-dw.txt && grep -qF "$dw/lib/libudev.so.1" /tmp/ldd-dw.txt
+          grep -qF "$dw/lib/libasound.so.2" /tmp/ldd-dw.txt && grep -qF "$dw/lib/libudev.so.1" /tmp/ldd-dw.txt || { echo "libasound or libudev of direwolf is not the bundled one"; exit 1; }
           ALSA_CONFIG_PATH="$dw/share/alsa/alsa.conf" /opt/neoaprs/bin/python3 -I /checks/smoke_direwolf.py "$dw/direwolf"
           SH
       - name: A service install writes a unit that starts the Python of the package (a HOME and a systemctl of the test's own)
@@ -817,7 +817,7 @@ jobs:
           grep -q 'keeps the old version until it is restarted' upgrade.log
           neoaprs --version
           sudo apt remove -y neoaprs
-          [ ! -e /opt/neoaprs ] && [ ! -e /usr/bin/neoaprs ] && ! dpkg -s neoaprs 2>/dev/null | grep -q 'Status: install ok installed'
+          if [ -e /opt/neoaprs ] || [ -e /usr/bin/neoaprs ] || dpkg -s neoaprs 2>/dev/null | grep -q 'Status: install ok installed'; then echo "::error::apt remove left neoaprs behind"; exit 1; fi
           [ "$(cat "$RUNNER_TEMP/keep/neoaprs.sqlite")" = data ]
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -852,7 +852,7 @@ jobs:
           url="https://github.com/oh2gba/neoaprs/releases/download/v$version/neoaprs-$wheel_version-py3-none-any.whl"
           sed -e "s|@VERSION@|$version|g" -e "s|@WHEEL_URL@|$url|g" ../packaging/install.sh.in > install.sh
           chmod +x install.sh
-          ! grep -n '@[A-Z_]*@' install.sh
+          if grep -n '@[A-Z_]*@' install.sh; then echo "::error::install.sh has an unreplaced placeholder"; exit 1; fi
           sh -n install.sh
           for f in "neoaprs-$wheel_version.tar.gz" "neoaprs-$wheel_version-py3-none-any.whl" install.sh "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "NeoAPRS-$version-arm64.dmg" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
           # the installer, the AppImage, the macOS app and the two packages also under names without the version, so that the project page can link to

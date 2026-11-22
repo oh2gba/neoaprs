@@ -11,7 +11,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 
 from neoaprs.radiotype import RadioId
-from neoaprs.route import digipeaters, is_alias, is_marker
+from neoaprs.route import digipeaters, is_alias, is_marker, used_path
 
 AT_GATE = 0                                         # the position of "a copy came back over the internet, by this iGate"
 
@@ -43,7 +43,7 @@ def hops_used(sent: tuple[str, ...], heard: tuple[str, ...]) -> list[tuple[int, 
     """(position, call) of each hop of the path `sent` (calls, no stars) that the heard path shows used, positions from 1: those up to the furthest starred one. A hop that is an alias takes the next
     starred call as its own; a hop that is a call is found by its call (calls heard between are digipeaters an alias such as WIDE2-2 brought in)."""
     sent = digipeaters(sent)                                    # (RFONLY, NOGATE, TCPIP and the q-constructs are no hops)
-    used = [address[:-1] for address in digipeaters(heard) if address.endswith("*")]
+    used = [address[:-1] for address in used_path(digipeaters(heard)) if address.endswith("*")]
     found: dict[int, str] = {}
     k = 0
     for index, hop in enumerate(sent):

@@ -9,6 +9,7 @@
 // `status.new_bulletin_radios`), the last tick greyed; Post sends the ticks with the text, so that a text for a slot that holds one of ours replaces its ticks too. The row comes and goes only with the radios (in
 // Settings), and the counter and Post stay at the foot of the box. Post is off while none of the radios ticked is connected, with that as its reason (each named while several are on), as Send is.
 import { DAEMON_KEY } from "@/composables/useDaemonContext";
+import { useCommandInFlight, useSocketOpen } from "@/composables/useInFlight";
 import { useRadios } from "@/composables/useRadios";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { useDraftSendOn } from "@/composables/useSendOn";
@@ -67,6 +68,10 @@ watch(
   },
 );
 
+const socketOpen = useSocketOpen();
+/** A post in flight until the daemon has it (its row is told) or refused it. */
+const posting = useCommandInFlight("bulletin_post", null);
+
 const asked = ref<{ slot: string; text: string; before: OwnBulletinRow | undefined } | null>(null); // what was posted, until the daemon has it
 
 watch(
@@ -75,24 +80,28 @@ watch(
     const sent = asked.value;
     if (sent === null || row === undefined || row === sent.before || row.text !== sent.text) return;
     asked.value = null;
+    posting.land();
     if (draft.text.trim() === sent.text) draft.text = "";
   },
 );
 
 function submit(): void {
-  if (offline.value !== undefined || unticked.value) return;
+  if (offline.value !== undefined || unticked.value || !socketOpen.value || posting.busy.value) return;
   const command = postCommand(draft);
   if (command === null) return;
   draft.group = groupOf(draft.group);
   asked.value = { slot: command.slot, text: command.text, before: props.ownBulletins.get(command.slot) };
-  if (several.value)
-    emit(
-      "post",
-      command.slot,
-      command.text,
-      on.value.map((radio) => radio.id),
-    );
-  else emit("post", command.slot, command.text);
+  posting.run(() => {
+    if (several.value)
+      emit(
+        "post",
+        command.slot,
+        command.text,
+        on.value.map((radio) => radio.id),
+      );
+    else emit("post", command.slot, command.text);
+    return true;
+  });
 }
 </script>
 
@@ -170,7 +179,12 @@ function submit(): void {
     </div>
     <SendOn v-if="ticks.length > 0" id="post-send-on" class="send-on" :ticks="ticks" error="" @tick="tick" />
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || unticked || offline !== undefined" :title="rxOnly ? rxOnlyReason() : offline">
+      <button
+        type="submit"
+        class="btn primary"
+        :disabled="!ready || rxOnly || unticked || offline !== undefined || !socketOpen || posting.busy.value"
+        :title="rxOnly ? rxOnlyReason() : offline"
+      >
         <TwoWords :second="replaces">
           <template #first>{{ t("bulletins.post") }}</template>
           <template #second>{{ t("bulletins.replace") }}</template>

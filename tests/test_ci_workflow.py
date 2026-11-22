@@ -88,3 +88,16 @@ def test_the_audit_is_a_weekly_workflow_of_its_own_that_runs_the_stage_and_publi
         assert uses == ["actions/checkout", "astral-sh/setup-uv"], f"nothing else runs in the job {name} (tests/test_release.py holds how an action is pinned)"
     assert len(re.findall(r"^  [\w-]+:\n", AUDIT.split("\njobs:\n", 1)[1], re.M)) == 2, "and there is no other job"
     assert "audit" in CHECK and "schedule:" not in CI, "a scheduled run of ci.yml would count as the green run of a commit that the release asks for"
+
+
+def test_no_check_of_a_workflow_step_is_one_that_bash_e_lets_fail_silently() -> None:
+    """`! cmd` and the members of an `&&` list but the last never stop a `bash -e` step."""
+    flagged = []
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            text = line.strip()
+            if text.startswith("! "):
+                flagged.append(f"{path.name}:{number}")
+            elif re.match(r"(\[ |test |grep ).*&& ", text) and "||" not in text and "; then" not in text:
+                flagged.append(f"{path.name}:{number}")
+    assert flagged == []

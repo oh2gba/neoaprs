@@ -17,7 +17,7 @@ from neoaprs.cli.supportgather import secrets_of, settings_json
 from neoaprs.clock import iso, utc
 from neoaprs.config import Config
 from neoaprs.services.skeds import ENV_SWITCH, ENV_URL, EVERY_SEC, MAX_BYTES, RETRY_SEC, SKEDS_EVERY_SEC, SkedError, Skeds
-from neoaprs.skeds import MAX_ROWS, OURS_ROW, SKED_TOKEN, SKEDS_ROW, SKEDS_URL, TOKEN, Board, board_text, clean_note, endpoint_url, kept_board, kept_ids, our_call, parse_board, plain_note, request_body, when
+from neoaprs.skeds import MAX_ROWS, OURS_ROW, SKED_TOKEN, SKEDS_ROW, SKEDS_URL, TIME, TOKEN, Board, board_text, clean_note, endpoint_url, kept_board, kept_ids, our_call, parse_board, plain_note, request_body, when
 from neoaprs.updatefetch import fetch_answer, post_board
 from neoaprs.versions import Frequency, is_dial
 from tests.support.env import remember_stop, until
@@ -135,6 +135,7 @@ def test_the_notes_form_the_calls_form_and_the_dials_form() -> None:
     assert [our_call(c) for c in ("oh2gba", " OH2GBA-0 ", "OH2GBA-7", "OH2GBA-16", "N0CALL", "", "AB", "OH2GBA/P", "ÖH2GBA")] == ["OH2GBA", "OH2GBA", "OH2GBA-7", "", "", "", "", "", ""]
     assert is_dial("7.0541 MHz USB") and not is_dial("7.0541 MHz USB\n") and not is_dial("7.0541 MHz CW")
     assert when("2026-11-14T18:00:00Z") == datetime(2026, 11, 14, 18, 0, tzinfo=UTC) and when("2026-11-14T18:00:00Z\n") is None and when("2026-02-30T00:00:00Z") is None and when(5) is None
+    assert TIME.match("2026-11-14T18:00:00Z") and not TIME.match("\u0662\u0660\u0662\u0666-11-14T18:00:00Z")
 
 
 def test_the_last_board_is_kept_as_the_server_writes_it_and_a_row_edited_by_hand_is_as_good_as_none() -> None:

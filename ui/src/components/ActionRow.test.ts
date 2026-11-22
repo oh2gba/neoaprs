@@ -5,6 +5,7 @@ import ActionRow from "@/components/ActionRow.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { mapState } from "@/test/fixtures";
+import { shown } from "@/test/shown";
 
 describe("ActionRow", () => {
   it("is a labelled row of the form's grid: the label for the button, the slot, the (i), and the notes in their own cell", () => {
@@ -34,7 +35,7 @@ describe("the action rows of the Settings tab", () => {
       .find((r) => r.get("label").text() === label);
     expect(row, label).toBeDefined();
     const control = row?.get(".field-control").element;
-    expect(control?.firstElementChild?.textContent?.trim()).toBe(button);
+    expect(shown(control?.firstElementChild ? { element: control.firstElementChild } : undefined)).toBe(button);
     expect(control?.querySelector(".infotip")).not.toBeNull();
     expect(row?.get("label").attributes("for")).toBe(control?.firstElementChild?.id);
   });

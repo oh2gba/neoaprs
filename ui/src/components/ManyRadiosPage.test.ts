@@ -843,3 +843,14 @@ describe("a station whose database has radio 1 alone", () => {
     ).toEqual(["FM radio"]);
   });
 });
+
+describe("a rename on its way", () => {
+  it("is sent once for Enter and then the blur", async () => {
+    const { box, send } = make();
+    const name = box("Mobile").find<HTMLInputElement>("#set-radio-3-name");
+    await name.setValue("Car");
+    await name.trigger("keydown", { key: "Enter" });
+    await name.trigger("blur");
+    expect(send.mock.calls.filter(([c]) => c.cmd === "radio_change" && "name" in c)).toHaveLength(1);
+  });
+});

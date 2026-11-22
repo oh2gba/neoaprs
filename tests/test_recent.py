@@ -31,3 +31,10 @@ def test_what_is_older_than_the_window_is_dropped_once_the_table_is_past_its_bou
         table.note(n, START)
     table.note(9, START + timedelta(seconds=40))
     assert len(table) == 1 and table.lately(9, START + timedelta(seconds=41))
+
+
+def test_a_step_of_the_clock_backwards_does_not_make_the_first_copy_a_duplicate() -> None:
+    table: Recent[str] = Recent(30)
+    assert not table.seen("a", START + timedelta(hours=1))
+    assert not table.seen("a", START)
+    assert table.seen("a", START + timedelta(seconds=5))

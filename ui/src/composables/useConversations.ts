@@ -8,8 +8,10 @@ import { readStoredNumber, writeStored } from "@/lib/storage";
 import type { MessageRow } from "@/protocol/protocol";
 
 const key = (call: string): string => `read.${call}`;
+const stored = (call: string): number => readStoredNumber(key(call), 0, 0, Number.MAX_SAFE_INTEGER);
 
-/** What the user has seen, by call. Reading it in a computed value makes that value follow `mark`. */
+/** What the user has seen, by call. Reading it in a computed value makes that value follow `mark`. Another window of the browser may have marked further since this one read the mark: a mark is compared with the
+ * stored one, never written lower than it. */
 export function useReadMarks() {
   const cache = new Map<string, number>();
   const changes = ref(0);
@@ -19,27 +21,31 @@ export function useReadMarks() {
     void changes.value;
     let id = cache.get(call);
     if (id === undefined) {
-      id = readStoredNumber(key(call), 0, 0, Number.MAX_SAFE_INTEGER);
+      id = stored(call);
       cache.set(call, id);
     }
     return id;
   }
 
-  function mark(call: string, id: number): void {
-    if (id <= readUpTo(call)) return;
-    cache.set(call, id);
-    writeStored(key(call), String(id));
+  /** The mark becomes `held`, written when the store has another. */
+  function hold(call: string, held: number, inStore: number): void {
+    if (held !== inStore) writeStored(key(call), String(held));
+    if (held === cache.get(call)) return;
+    cache.set(call, held);
     changes.value++;
+  }
+
+  function mark(call: string, id: number): void {
+    const inStore = stored(call);
+    hold(call, Math.max(readUpTo(call), inStore, id), inStore);
   }
 
   /** Once for each call, when its thread first has rows: a mark above every incoming id of the thread is no read mark (the database was restored or reset, or the newest messages were deleted), so it comes down to the newest id there is. */
   function settle(call: string, newest: number): void {
     if (settled.has(call)) return;
     settled.add(call);
-    if (readUpTo(call) <= newest) return;
-    cache.set(call, newest);
-    writeStored(key(call), String(newest));
-    changes.value++;
+    const inStore = stored(call);
+    hold(call, Math.min(Math.max(readUpTo(call), inStore), newest), inStore);
   }
 
   return { readUpTo, mark, settle };

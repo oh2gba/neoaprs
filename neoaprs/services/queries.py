@@ -297,7 +297,7 @@ class Queries:
         if query == "objects":
             return [our_frame(self._config(), (), info_of(o, self.clock())) for o in self._objects.records() if o.alive][:ANSWER_FRAMES_MAX]
         if query == "messages":
-            return [self._answers.message(asker, r.text, r.msg_id) for r in self._unsettled(asker)]
+            return [self._answers.message(asker, r.wire if r.wire is not None else r.text, r.msg_id) for r in self._unsettled(asker)]      # (a sealed message goes again as it went on the air, never as written)
         return [self._answers.message(asker, path_text(packet))]
 
     def _unsettled(self, asker: str) -> list[MessageRecord]:

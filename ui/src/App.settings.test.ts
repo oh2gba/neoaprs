@@ -5,6 +5,7 @@ import { type FakeSocket } from "@/test/fakesocket";
 import { openedAt } from "@/test/fakealert";
 import { configValues, errorOf, fmRow, hello, mapState, radiosValue, status } from "@/test/fixtures";
 import { open, tabButton, useAppHarness } from "@/test/app";
+import { shown } from "@/test/shown";
 
 useAppHarness();
 
@@ -115,7 +116,7 @@ describe("App: the Settings tab", () => {
     await button().trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "map_estimate" });
     expect(socket.sent).not.toContainEqual({ cmd: "map_fetch" });
-    expect(button().text()).toBe("Checking size…");
+    expect(shown(button())).toBe("Checking size…");
     socket.say({
       type: "patch",
       topic: "map",
@@ -128,7 +129,7 @@ describe("App: the Settings tab", () => {
       ],
     });
     await flushPromises();
-    expect(button().text()).toBe("Download 493 MB?");
+    expect(shown(button())).toBe("Download 493 MB?");
     await button().trigger("click");
     expect(socket.sent).toContainEqual({ cmd: "map_fetch" });
     socket.say({

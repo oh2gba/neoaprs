@@ -447,6 +447,9 @@ def main() -> int:
     if args.stations < 3:
         print("sim: at least 3 stations (a third hears the two that collide)", file=sys.stderr)
         return 2
+    if args.stations > 20:
+        print("sim: at most 20 stations (the 21st's KISS port would be the control port of the first)", file=sys.stderr)
+        return 2
     args.fm = max(0, min(args.fm, args.stations - 1))                 # (the last station is the one heard on HF alone)
     try:
         return run(args)

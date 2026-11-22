@@ -371,3 +371,24 @@ describe("useSettings: the keys of a pair that is gone", () => {
     expect(settings.draft["pair/1/3/enabled"]).toBeUndefined();
   });
 });
+
+describe("useSettings: a tell of the settings for another reason", () => {
+  it("leaves a later refusal of the request it released at that request's field, and the next one waiting", async () => {
+    const config = ref<ConfigValues | null>(configValues());
+    const lastError = ref<Toast | null>(null);
+    const send = vi.fn((_c: Command) => true);
+    const settings = useSettings(config, lastError, send);
+    settings.edit("station/comment", "Hello A");
+    settings.commit(["station/comment"]);
+    settings.edit("status/text", "Text B");
+    settings.commit(["status/text"]);
+    config.value = configValues({ ...config.value?.values, "web/key": "newkey" }); // (another device saved its own)
+    await nextTick();
+    expect(send).toHaveBeenCalledTimes(2);
+    lastError.value = toastOf("set_config: station/comment: too long", "other", {}, 1);
+    await nextTick();
+    expect(settings.errors["station/comment"]).toBeDefined();
+    expect(settings.errors["status/text"]).toBeUndefined();
+    expect(settings.saving.value).toBe(true);
+  });
+});

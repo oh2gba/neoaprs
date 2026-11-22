@@ -79,6 +79,20 @@ def _no_such_process() -> int:
     return pid
 
 
+def test_on_a_system_without_proc_the_radios_mercury_is_known_by_the_command_line_ps_gives(monkeypatch: pytest.MonkeyPatch) -> None:
+    """macOS has no /proc: a Mercury left behind there is found by its command line, or it would hold the sound card beside the new one."""
+    if sys.platform == "win32":
+        pytest.skip("Windows asks the process's program file instead")
+    pid, ini = _no_such_process(), Path("/Users/op/Library/Application Support/NeoAPRS/radios/5/mercury.ini")
+    commands = {pid: f"/Applications/NeoAPRS.app/Contents/Resources/mercury/mercury -C {ini} -m 1 -b 8100 -p 8300"}
+    monkeypatch.setattr(mercurystale, "_ps_command", commands.get)
+    assert mercurystale._is_mercury(pid, ini, ["mercury"], 0.0), "the path with its space, whole"
+    assert not mercurystale._is_mercury(pid, ini.parent.parent / "2" / "mercury.ini", ["mercury"], 0.0), "another radio's Mercury"
+    assert not mercurystale._is_mercury(pid + 1, ini, ["mercury"], 0.0), "a process ps does not know"
+    commands[pid] = f"/usr/bin/less {ini}"
+    assert not mercurystale._is_mercury(pid, ini, ["mercury"], 0.0), "the file's name is not enough"
+
+
 def _windows_with(monkeypatch: pytest.MonkeyPatch, image: str | None, made: float | None = 0.0) -> list[tuple[int, int]]:
     """A Windows on which the id from the file is a running process with this program file, made at `made` (seconds since 1970); the kills that were asked for are returned in the list (and none may be real)."""
     kills: list[tuple[int, int]] = []

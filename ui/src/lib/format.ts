@@ -103,21 +103,22 @@ export function compassPoint(deg: number): string {
 /** "123° ESE", or a dash for none. */
 export function bearingText(deg: number | null): string {
   if (deg === null) return NONE;
-  const whole = Math.round(deg) % 360;
+  const whole = ((Math.round(deg) % 360) + 360) % 360;
   return `${whole}° ${compassPoint(whole)}`;
 }
 
 /** The bearing for a hover title: "NE, 47°"; a dash for none. */
 export function bearingTitle(deg: number | null): string {
   if (deg === null) return NONE;
-  const whole = Math.round(deg) % 360;
+  const whole = ((Math.round(deg) % 360) + 360) % 360;
   return `${compassPoint(whole)}, ${whole}°`;
 }
 
 /** "60.17000 N 24.94000 E": degrees with N or S, E or W, to `decimals` decimals (5, about a metre, unless said). */
 export function positionText(lat: number | null, lon: number | null, decimals = 5): string {
   if (lat === null || lon === null) return NONE;
-  return `${formatNumber(Math.abs(lat), decimals)} ${lat < 0 ? "S" : "N"} ${formatNumber(Math.abs(lon), decimals)} ${lon < 0 ? "W" : "E"}`;
+  const negative = (x: number): boolean => x < 0 && Math.round(Math.abs(x) * 10 ** decimals) > 0;
+  return `${formatNumber(Math.abs(lat), decimals)} ${negative(lat) ? "S" : "N"} ${formatNumber(Math.abs(lon), decimals)} ${negative(lon) ? "W" : "E"}`;
 }
 
 /** A speed in whole km/h; a dash for none. */
@@ -141,9 +142,17 @@ export function pathText(path: readonly string[]): string {
   return path.length === 0 ? NONE : path.join(",");
 }
 
-/** Bytes as "1.5 kB". */
-export function bytesText(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${formatNumber(n / 1024, 1)} kB`;
-  return `${formatNumber(n / (1024 * 1024), 1)} MB`;
+const BYTE_UNITS = ["B", "kB", "MB", "GB", "TB"];
+
+/** Bytes in thousands, as every size on the page is told: `15 kB`, `1.5 MB`, `493 MB`; the unit is chosen after rounding, so that it is never `1000 kB`. */
+export function bytesText(bytes: number): string {
+  let value = Math.max(0, bytes);
+  let unit = 0;
+  const digitsOf = (v: number): number => (unit === 0 || Math.round(v * 10) / 10 >= 10 ? 0 : 1);
+  const shown = (v: number): number => Number(v.toFixed(digitsOf(v)));
+  while (unit < BYTE_UNITS.length - 1 && shown(value) >= 1000) {
+    value /= 1000;
+    unit += 1;
+  }
+  return `${formatNumber(value, digitsOf(value))} ${BYTE_UNITS[unit]}`;
 }

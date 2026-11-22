@@ -55,19 +55,23 @@ export BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$(grep -v '^#' "$ENVFILE" | head -1
 _all=""
 sec() { [ -n "$_all" ] || _all="$("$BWS" secret list -o json --color no)"; python3 -c "import json,sys;print([s['value'] for s in json.load(sys.stdin) if s['key']=='$1'][0])" <<<"$_all"; }
 FH=$(sec ftp_server); FU=$(sec ftp_login); FP=$(sec ftp_pw)
+# The login goes to curl as a config on stdin, never on its command line.
+quote() { local s=${1//\\/\\\\}; printf '%s' "${s//\"/\\\"}"; }
+CURL_USER="user = \"$(quote "$FU"):$(quote "$FP")\""
+fcurl() { curl -K - "$@" <<<"$CURL_USER"; }
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 # The stored skeds' names, only those of exactly the endpoint's form, whatever the listing says.
-names() { curl -sS --max-time 60 -u "$FU:$FP" "sftp://$FH$REMOTE/" | awk '{print $NF}' | grep -E '^[0-9a-f]{12}\.json$' | sort || true; }
+names() { fcurl -sS --max-time 60 "sftp://$FH$REMOTE/" | awk '{print $NF}' | grep -E '^[0-9a-f]{12}\.json$' | sort || true; }
 
 # Every stored sked into $WORK/skeds/, in one session.
 fetch_all() {
   mkdir -p "$WORK/skeds"
   local args=() f
   for f in $(names); do args+=(-o "$WORK/skeds/$f" "sftp://$FH$REMOTE/$f"); done
-  [ ${#args[@]} -eq 0 ] || curl -sS --max-time 300 -u "$FU:$FP" "${args[@]}"
+  [ ${#args[@]} -eq 0 ] || fcurl -sS --max-time 300 "${args[@]}"
 }
 
 # The board made again by the endpoint; prints how many skeds it holds and whether it is closed.
@@ -86,14 +90,23 @@ print("the board: %d skeds%s" % (len(board["skeds"]), ", closed" if board.get("c
 remove() {
   local args=() f
   for f in "$@"; do args+=(-Q "*rm $REMOTE/$f"); done
-  curl -sS --max-time 60 -u "$FU:$FP" "${args[@]}" "sftp://$FH$REMOTE/" >/dev/null
+  fcurl -sS --max-time 60 "${args[@]}" "sftp://$FH$REMOTE/" >/dev/null
   echo "removed: $*"
   refresh
 }
 
-# blocked.txt into $WORK/blocked.txt (empty when the server has none).
-fetch_blocked() { curl -sS --max-time 60 -u "$FU:$FP" -o "$WORK/blocked.txt" "sftp://$FH$REMOTE/blocked.txt" 2>/dev/null || : > "$WORK/blocked.txt"; }
-upload() { curl -sS --max-time 60 -u "$FU:$FP" -T "$1" "sftp://$FH$REMOTE/$2" >/dev/null; }
+# blocked.txt into $WORK/blocked.txt: empty when the server has none (curl's exit 78), a stop on any other failure.
+fetch_blocked() {
+  local code=0
+  fcurl -sS --max-time 60 -o "$WORK/blocked.txt" "sftp://$FH$REMOTE/blocked.txt" 2>/dev/null || code=$?
+  if [ "$code" -eq 78 ]; then
+    : > "$WORK/blocked.txt"
+  elif [ "$code" -ne 0 ]; then
+    echo "skeds.sh: blocked.txt could not be read (curl exit $code); nothing was changed" >&2
+    exit 1
+  fi
+}
+upload() { fcurl -sS --max-time 60 -T "$1" "sftp://$FH$REMOTE/$2" >/dev/null; }
 
 case "$command" in
   --list)
@@ -139,7 +152,7 @@ for path in sorted(pathlib.Path(sys.argv[1]).glob("*.json")):
     echo "closed: every add is refused"
     refresh ;;
   open)
-    curl -sS --max-time 60 -u "$FU:$FP" -Q "*rm $REMOTE/closed" "sftp://$FH$REMOTE/" >/dev/null
+    fcurl -sS --max-time 60 -Q "*rm $REMOTE/closed" "sftp://$FH$REMOTE/" >/dev/null
     echo "open: adds are taken"
     refresh ;;
   blocked)

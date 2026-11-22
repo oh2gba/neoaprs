@@ -81,3 +81,14 @@ describe("useBulletins", () => {
     expect(again.fresh.value).toBe(1);
   });
 });
+
+describe("useBulletins in two windows of one browser", () => {
+  it("does not write a time lower than the one another window stored", async () => {
+    const newer = Date.parse(ago(60));
+    const { panel } = setUp(board(bulletin("BLN1", { first_heard: ago(600) })), "stations");
+    localStorage.setItem("NeoAPRS.bulletinsseen", String(newer));
+    panel.show("bulletins");
+    await nextTick();
+    expect(localStorage.getItem("NeoAPRS.bulletinsseen")).toBe(String(newer));
+  });
+});

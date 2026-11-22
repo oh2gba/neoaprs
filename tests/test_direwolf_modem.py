@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import childprogram, direwolfmodem, direwolfprogram, direwolftune, modemstate, serialholders, usbtie, winmm
+from neoaprs import childprogram, direwolfmodem, direwolfprogram, direwolftune, mercuryclaims, modemstate, serialholders, usbtie, winmm
 from neoaprs.claims import Claim, Claims
 from neoaprs.coded import CodedError
 from neoaprs.direwolf import CONF_FILE, PID_FILE, adevice
@@ -461,6 +461,17 @@ async def test_two_sound_card_radios_run_side_by_side_on_two_cards_and_a_third_o
     assert (c.state, c.reason, c.problem) == ("waiting", "not_started", f"the sound card {CARD} is held by radio 3") and c.starts == 0
     for m in (a, b, c):
         await m.stop()
+
+
+def test_one_card_named_by_its_number_and_by_its_name_is_one_claim_for_both_types_of_radio(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A setting may name card 1 `plughw:1,0` and another `plughw:CARD=CODEC,DEV=0`: the second radio is told who holds the card, not started on it to fail for ever."""
+    monkeypatch.setattr(mercuryclaims, "alsa_card_names", lambda: {1: "CODEC"})
+    claims = Claims()
+    assert direwolfmodem.hold_setup(claims, 3, "plughw:1,0", Keying("vox"), False) is None
+    held = Claim("sound_card", "plughw:CARD=CODEC,DEV=0", 3)
+    assert held in claims.all()
+    assert direwolfmodem.hold_setup(claims, 4, "plughw:CARD=CODEC,DEV=0", Keying("vox"), False) == held
+    assert claims.hold(mercuryclaims.card_claim("plughw:CARD=CODEC,DEV=0", 2)) == held, "the HF modem holds a card by the same claim"
 
 
 async def test_an_fm_sound_card_radio_and_the_hf_modem_on_one_card_the_second_is_refused_with_the_holders_name(tmp_path: Path) -> None:

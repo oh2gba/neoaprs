@@ -20,7 +20,9 @@ export function reportLook(lastSent: string | null, minutes: string, beaconOff: 
   const ago = agoWords(lastSent, nowMs);
   const every = Number(minutes);
   if (beaconOff || !(every > 0)) return { ...on, line: t("beacon.status.line.untimed", { ago }) };
-  const nextAt = new Date(new Date(lastSent).getTime() + every * 60_000).toISOString();
+  const sentMs = Date.parse(lastSent);
+  if (Number.isNaN(sentMs)) return { ...on, line: t("beacon.status.line.untimed", { ago }) };
+  const nextAt = new Date(sentMs + every * 60_000).toISOString();
   return { ...on, line: t("beacon.status.line.timed", { ago, when: untilText(nextAt, nowMs), minutes: every }) };
 }
 

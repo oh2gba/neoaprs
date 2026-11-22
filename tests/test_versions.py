@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from neoaprs.versions import MAX_MESSAGE, Update, compare_versions, parse_update, platform_name
+from neoaprs.versions import MAX_MESSAGE, is_dial, Update, compare_versions, parse_update, platform_name
 
 
 @pytest.mark.parametrize("a, b, order", [
@@ -35,3 +35,8 @@ def test_an_answer_that_is_not_one_is_none(body: str | bytes) -> None:
     ("linux", "armv7l", False, "linux-arm"), ("linux", "armv6l", False, "linux-arm"), ("linux", "i686", False, "linux")])
 def test_the_platform_is_one_of_the_names_the_version_page_counts(system: str, machine: str, appimage: bool, name: str) -> None:
     assert platform_name(system, machine, appimage) == name
+
+
+def test_digits_of_other_scripts_are_not_digits_of_a_dial_or_a_version() -> None:
+    assert is_dial("7.0541 MHz USB") and not is_dial("\u0667.\u0660\u0665\u0664\u0661 MHz USB")
+    assert parse_update('{"version":"1.2.3"}') is not None and parse_update('{"version":"\u0661.\u0662.\u0663"}') is None

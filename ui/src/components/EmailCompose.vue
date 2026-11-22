@@ -1,16 +1,19 @@
 <script setup lang="ts">
 // The box to write an email in, always at the bottom of the Email tab (ComposeBar, as everywhere): To (an email address; while the box has the focus the addresses used before that match what is typed are listed under it, upward over the mail:
 // a click picks one, the trash can beside it forgets it), the text, and how many of the characters of a message the line "address text" may still have, the address and the space counting. Send, at the lower right, is off while
-// there is no radio to send on, or the radio of email is not connected (its title says so: `offline`, EmailPane's words of the link) or the address or the text is empty or the line is too long. After Send the text is empty again and the address stays, for the next mail to the same person; the focus is in the text.
+// there is no radio to send on, or the radio of email is not connected (its title says so: `offline`, EmailPane's words of the link) or the address or the text is empty or the line is too long or has a character a message cannot carry (its field is marked with the reason), and while the page has no connection to NeoAPRS. After Send the text is empty again and the address stays, for the next mail to the same person; the focus is in the text.
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
 import { useRadios } from "@/composables/useRadios";
+import { useSocketOpen } from "@/composables/useInFlight";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
+import { errorReason } from "@/i18n/errortext";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { canSendEmail, emailLine } from "@/lib/email";
+import { textRefusal } from "@/lib/recipients";
 import { bytes, leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
 
@@ -29,10 +32,22 @@ const rxOnly = useReceiveOnly();
 const radios = useRadios();
 /** No radio that can send is on: there is none for email to go on. */
 const none = computed(() => radios.email.value === null);
-/** Why Send is off: RX only, or no radio for email or its link down (`offline`); undefined when none of them. */
+const socketOpen = useSocketOpen();
+/** Why Send is off: no connection to NeoAPRS, RX only, or no radio for email or its link down (`offline`); undefined when none of them. */
 const blocked = computed(() =>
-  rxOnly.value || props.connected ? sendBlockedReason(props.connected, rxOnly.value) : (props.offline ?? sendBlockedReason(false)),
+  !socketOpen.value
+    ? t("pill.daemon_offline")
+    : rxOnly.value || props.connected
+      ? sendBlockedReason(props.connected, rxOnly.value)
+      : (props.offline ?? sendBlockedReason(false)),
 );
+/** A character the daemon would refuse in a field, the reason; "" while it has none. */
+const refusedIn = (value: string): string => {
+  const problem = textRefusal(value);
+  return problem === null ? "" : errorReason({ cmd: "send_message", key: null, text: "", ...problem });
+};
+const toRefused = computed(() => refusedIn(to.value));
+const textRefused = computed(() => refusedIn(text.value));
 const ready = computed(() => canSendEmail(props.connected, to.value, text.value));
 /** The addresses used before that match what is typed, other than the one that is typed whole. */
 const suggestions = computed(() => {
@@ -62,8 +77,9 @@ function escape(): void {
   text.value = "";
 }
 
+/** The text is cleared only once it went to the daemon: Send is off while the socket is closed, so a mail is never lost to it. */
 function submit(): void {
-  if (!ready.value || rxOnly.value || none.value) return;
+  if (!ready.value || rxOnly.value || none.value || !socketOpen.value) return;
   emit("send", to.value.trim(), text.value);
   text.value = "";
   textBox.value?.focus();
@@ -88,6 +104,8 @@ function submit(): void {
             id="mail-to"
             v-model="to"
             class="input mono"
+            :class="{ invalid: toRefused !== '' }"
+            :title="toRefused || undefined"
             type="text"
             :placeholder="t('email.field.address')"
             autocomplete="off"
@@ -113,6 +131,8 @@ function submit(): void {
           ref="textBox"
           :value="text"
           class="input"
+          :class="{ invalid: textRefused !== '' }"
+          :title="textRefused || undefined"
           type="text"
           autocomplete="off"
           @input="text = typedInto($event, text, limit)"
@@ -122,7 +142,7 @@ function submit(): void {
       </div>
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || none" :title="blocked">{{ t("email.send") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || none || !socketOpen" :title="blocked">{{ t("email.send") }}</button>
     </template>
   </ComposeBar>
 </template>

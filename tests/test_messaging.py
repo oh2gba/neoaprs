@@ -835,19 +835,19 @@ async def test_a_message_to_us_is_kept_and_answered_at_once_with_an_ack(rig: Rig
     assert await rig.log.recent() == [record] and rig.changed == [record]
 
 
-async def test_a_message_without_an_id_is_kept_and_not_acked_and_a_copy_of_it_within_half_an_hour_is_not_kept_again(rig: Rig) -> None:
+async def test_a_message_without_an_id_is_kept_and_not_acked_a_copy_of_it_within_thirty_seconds_is_not_kept_again_and_the_same_text_minutes_later_is_a_new_one(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "no id"))
     await rig.settled()
     assert rig.tnc.sent == [] and [(m.text, m.msg_id) for m in rig.m.records()] == [("no id", None)]
     rig.clock.advance(1)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "no id"))                  # (the second digipeater's copy)
     await rig.settled()
-    assert len(rig.m.records()) == 1 and rig.tnc.sent == [], "the same sender, addressee and text within half an hour is one message"
+    assert len(rig.m.records()) == 1 and rig.tnc.sent == [], "the same sender, addressee and text within the copies of one transmission is one message"
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "another text"))
     rig.m.on_packet(rig.heard("OH2XYZ", "OH2GBA", "no id"))
     await rig.settled()
     assert len(rig.m.records()) == 3
-    rig.clock.advance(31 * 60)
+    rig.clock.advance(10 * 60)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "no id"))
     await rig.settled()
     assert [m.text for m in rig.m.records()] == ["no id", "another text", "no id", "no id"]
@@ -953,7 +953,7 @@ async def test_a_message_without_an_id_is_never_acked_whatever_the_time(rig: Rig
         rig.clock.advance(seconds)
         rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "no id"))
     await rig.settled()
-    assert rig.tnc.sent == [] and len(rig.m.records()) == 2
+    assert rig.tnc.sent == [] and len(rig.m.records()) == 3, "the copy 5 s after the first is one with it"
 
 
 async def test_the_time_of_the_last_ack_is_kept_for_each_message_and_each_sender(rig: Rig) -> None:
@@ -1042,6 +1042,16 @@ async def test_a_database_with_more_than_the_most_gives_the_latest_and_a_warning
     assert [m.text for m in restarted.m.records()] == ["m2", "m3", "m4"]
     assert any("3 messages or more" in r.getMessage() for r in caplog.records)
     await restarted.m.stop()
+
+
+async def test_a_long_run_holds_no_more_than_the_most_the_oldest_settled_going_first_and_never_one_being_sent(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(messaging_module, "MESSAGES_HELD_MAX", 3)
+    ours = await rig.m.send("OH2RDG", "ours")
+    for n in range(4):
+        rig.m.on_packet(rig.heard("OH2XYZ", "OH2GBA", f"m{n}", str(n)))
+        await rig.settled()
+    assert [m.text for m in rig.m.records()] == ["ours", "m2", "m3"] and rig.m.get(ours.id) is not None and rig.m.get(ours.id).state == "sending"      # type: ignore[union-attr]
+    assert [m.text for m in rig.removed] == ["m0", "m1"] and len(await rig.log.recent()) == 5, "what leaves memory stays in the database"
 
 
 async def test_the_daily_care_forgets_the_memory_of_old_hearings_but_no_message(rig: Rig) -> None:
@@ -1300,10 +1310,15 @@ async def test_a_repeat_of_an_overheard_message_is_kept_once_within_half_an_hour
     assert [(m.from_call, m.to_call, m.text, m.msg_id) for m in rig.m.records()] == [
         ("OH2RDG", "OH2XYZ", "a", "3"), ("OH2RDG", "OH2XYZ", "b", None), ("OH2RDG", "OH2XYZ", "c", "4"), ("OH2RDG", "OH2XYZ", "a", "4"), ("OH2RDG", "OH2ABC", "a", "3"),
         ("OH2AAA", "OH2XYZ", "a", "3")]
-    rig.clock.advance(31 * 60)
+    rig.clock.advance(10 * 60)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "a", "3"))
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "b", None))
+    await rig.settled()
+    assert [m.text for m in rig.m.records()][6:] == ["b"], "a numbered one is a repeat for half an hour, one without an id only for the copies of one transmission"
+    rig.clock.advance(21 * 60)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "a", "3"))
     await rig.settled()
-    assert len(rig.m.records()) == 7
+    assert len(rig.m.records()) == 8
 
 
 async def test_the_acks_and_rejects_between_other_stations_are_not_messages_and_are_not_kept(rig: Rig) -> None:

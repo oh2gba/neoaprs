@@ -4,6 +4,7 @@
 // is composables/useAddressBook.ts.
 import { t } from "@/i18n";
 import { markOf, textBytes } from "@/lib/messages";
+import { textRefusal } from "@/lib/recipients";
 import { LIMITS } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -32,10 +33,12 @@ export function emailBytesLeft(to: string, text: string): number {
   return LIMITS.message.textMax - textBytes(emailLine(to, text));
 }
 
-/** Whether Send is on: the TNC is connected, there is an addressee (one word) and a text, and the line fits. */
+/** Whether Send is on: the TNC is connected, there is an addressee (one word) and a text, and the line fits and has only characters a message carries (lib/recipients.ts `textRefusal`). */
 export function canSendEmail(connected: boolean, to: string, text: string): boolean {
   const addressee = to.trim();
-  return connected && addressee !== "" && !/\s/.test(addressee) && text.trim() !== "" && emailBytesLeft(to, text) >= 0;
+  return (
+    connected && addressee !== "" && !/\s/.test(addressee) && text.trim() !== "" && emailBytesLeft(to, text) >= 0 && textRefusal(emailLine(to, text)) === null
+  );
 }
 
 /** Whether a message of ours to the gateway used its attempts without an ack: it is not known to have failed, since the gateway's acks need an iGate in reach of our radio. */

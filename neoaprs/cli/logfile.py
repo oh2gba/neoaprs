@@ -5,6 +5,8 @@ import os
 import re
 from pathlib import Path
 
+from neoaprs.instancelock import is_file
+
 LOG_NAME = "neoaprs.log"
 LAUNCH_NAME = "launch.log"                                  # what a daemon that was started by a command says before it has a log: a traceback
 START_LINE = " starting, data in "
@@ -46,7 +48,7 @@ def write_network(data_dir: Path, on: bool) -> None:
 
 def network_is_on(data_dir: Path) -> bool:
     """Whether the daemon says its page is served to the network (a daemon that does not say, an older one or none, is taken as not serving it)."""
-    return (data_dir / NETWORK_FILE).is_file()
+    return is_file(data_dir / NETWORK_FILE)
 
 
 def page_of_the_run_before(data_dir: Path) -> str | None:

@@ -2,27 +2,25 @@
 // (lib/storage.ts); it moves forward while the tab is on show (the Bulletins tab is the tab in front, the panel is open and the page is visible, lib/unread.ts), so a bulletin that comes while
 // the user looks at the board is seen. In a window whose store was new, the board the daemon tells first is seen (lib/firststart.ts).
 import { computed, ref, watch, type Ref } from "vue";
-import type { Panel } from "@/composables/usePanel";
-import { useVisible } from "@/composables/useVisible";
+import { useViewing, type Panel } from "@/composables/usePanel";
 import { newCount, newestFirstHeard } from "@/lib/bulletins";
 import { seenAtStart } from "@/lib/firststart";
 import { readStoredNumber, writeStored } from "@/lib/storage";
-import { isViewingTab } from "@/lib/unread";
 import type { BulletinRow } from "@/protocol/protocol";
 
 const KEY = "bulletinsseen";
 
 /** `loaded`: the daemon has told the bulletins whole. */
 export function useBulletins(bulletins: ReadonlyMap<string, BulletinRow>, panel: Panel, loaded?: Readonly<Ref<boolean>>) {
-  const visible = useVisible();
-  const viewing = computed(() => isViewingTab({ tab: panel.tab.value, collapsed: panel.collapsed.value, visible: visible.value }, "bulletins"));
+  const viewing = useViewing(panel, "bulletins");
   const seenUpTo = ref(readStoredNumber(KEY, 0, 0, Number.MAX_SAFE_INTEGER));
   const fresh = computed(() => newCount(bulletins.values(), seenUpTo.value));
 
+  /** What another window of the browser saw since is kept: the stored time is read again before it is moved. */
   function see(newest: number): void {
-    if (newest <= seenUpTo.value) return;
-    seenUpTo.value = newest;
-    writeStored(KEY, String(newest));
+    const inStore = readStoredNumber(KEY, 0, 0, Number.MAX_SAFE_INTEGER);
+    seenUpTo.value = Math.max(seenUpTo.value, inStore, newest);
+    if (seenUpTo.value > inStore) writeStored(KEY, String(seenUpTo.value));
   }
   watch(
     [viewing, () => newestFirstHeard(bulletins.values())],

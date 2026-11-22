@@ -161,7 +161,7 @@ const labelLike = (typed: string): boolean => {
 };
 function rename(): void {
   const typed = name.value.trim();
-  if (typed === props.radio.row.name) return void (name.value = typed);
+  if (typed === props.radio.row.name || typed === pending.value.name) return void (name.value = typed);
   if (typed.length > max || !/^[\x20-\x7e]*$/.test(typed)) return void (nameProblem.value = t("error.radio.name_form", { name: typed, max }));
   if (taken(typed)) return void (nameProblem.value = t("error.radio.name_taken", { name: typed }));
   if (labelLike(typed)) return void (nameProblem.value = t("error.radio.name_label", { name: typed }));

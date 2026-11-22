@@ -32,3 +32,9 @@ def test_the_comment_follows_the_symbol_and_the_symbol_table_may_be_an_overlay()
     destination, body = mice_packet(60.17, 24.94, "S", "O", 10, 10.0, "]hello=")
     read = parse_mice(destination, body[1:], NOW)
     assert read.symbol_table == "S" and body.endswith(b"OS]hello=") and "hello" in read.comment
+
+
+@pytest.mark.parametrize("lon", [180.0, -180.0, 179.99999, 89.99999])
+def test_the_longitude_at_the_date_line_is_read_back_as_the_nearest_the_code_can_say(lon: float) -> None:
+    destination, body = mice_packet(0, lon, "/", ">", 0, 0.0)
+    assert parse_mice(destination, body[1:], NOW).lon == pytest.approx(lon, abs=0.02)

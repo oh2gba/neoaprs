@@ -10,7 +10,7 @@ import urllib.parse
 from importlib import resources
 from pathlib import Path
 
-from .daemonstate import describe, page_address
+from .daemonstate import describe, is_running, page_address
 from .hostcheck import serial_group_check
 from .logfile import LOG_NAME
 from .servicecmd import REPO, Plan
@@ -117,6 +117,7 @@ def install(plan: Plan) -> int:
         scratch.write_text(unit, encoding="utf-8")
         scratch.replace(path)
         print(f"wrote {path} for {plan.clone or plan.appimage or plan.python}")
+    held_by_other = is_running(plan.data) and ask("systemctl", "--user", "is-active", UNIT_NAME) != "active"
     for step in (("daemon-reload",), ("enable", "--now", UNIT_NAME)):
         code = systemctl(*step)
         if code != 0:
@@ -125,6 +126,8 @@ def install(plan: Plan) -> int:
             return 1
     if restart and systemctl("try-restart", UNIT_NAME) == 0:
         print("the unit changed: the service was restarted")
+    if held_by_other:
+        print("note: another NeoAPRS holds the data folder, so the service could not start; it starts at the next login or boot after that one has ended")
     after_install(plan)
     return 0
 

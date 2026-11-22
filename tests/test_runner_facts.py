@@ -290,3 +290,12 @@ def test_the_runners_jobs_check_their_facts_first_and_the_weekly_job_each_latest
     latest = job("audit.yml", "latest")
     assert re.search(r"^        os: \[([^\]]*)\]$", latest, re.M).group(1).split(", ") == list(RUNNER["latest"])        # type: ignore[union-attr]
     assert 'run: uv run --no-project python scripts/runner-facts --latest "$LABEL" --github\n        env:\n          LABEL: ${{ matrix.os }}' in latest, "the label goes in by the environment, never into the shell line"
+
+
+def test_a_text_with_a_line_end_stays_one_workflow_command(facts: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
+    out = facts.Out(True)
+    out.error("title\n::warning::x 100%")
+    out.notice("a\r\n::add-mask::b")
+    out.info("c\n::stop-commands::d")
+    lines = capsys.readouterr().out.splitlines()
+    assert lines == ["::error title=runner-facts::title%0A::warning::x 100%25", "::notice title=runner-facts::a%0D%0A::add-mask::b", "runner-facts: c ::stop-commands::d"]

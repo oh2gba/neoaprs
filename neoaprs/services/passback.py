@@ -38,8 +38,9 @@ class PassedMessages:
         while len(self._passed) > PASSED_KEEP_MAX:
             del self._passed[next(iter(self._passed))]
 
-    def answer(self, sender: str, addressee: str, msg_id: str, heard_on: RadioId, now: datetime) -> Passed | None:
-        """The message an ack or rej from `sender` to `addressee` for `msg_id`, heard on `heard_on`, answers (one we passed from `addressee` to `sender` and sent on that radio, within PASS_BACK_SEC); it is taken out, so a second copy answers nothing. Calls are compared as passlimits.source_name gives them."""
+    def answer(self, sender: str, addressee: str, msg_id: str, heard_on: RadioId, now: datetime, take: bool = True) -> Passed | None:
+        """The message an ack or rej from `sender` to `addressee` for `msg_id`, heard on `heard_on`, answers (one we passed from `addressee` to `sender` and sent on that radio, within PASS_BACK_SEC); with `take`
+        it is taken out, so a second copy answers nothing (without, `forget` takes it once the copy is passed). Calls are compared as passlimits.source_name gives them."""
         key = _key(addressee, sender, msg_id)
         passed = self._passed.get(key)
         if passed is None:
@@ -49,5 +50,10 @@ class PassedMessages:
             return None
         if passed.sent_on != heard_on:
             return None
-        del self._passed[key]
+        if take:
+            del self._passed[key]
         return passed
+
+    def forget(self, passed: Passed) -> None:
+        """The ack of the message has gone back: a further copy answers nothing."""
+        self._passed.pop(_key(passed.source, passed.addressee, passed.msg_id), None)

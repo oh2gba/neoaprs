@@ -80,3 +80,8 @@ def test_the_constructor_and_replace_of_an_attempt_take_the_id() -> None:
     t = utc(2026, 11, 14, 12, 0, 0)
     assert Attempt(1, t, SENT, (), HF_ID) == Attempt(1, t, SENT, radio_id=HF_ID)
     assert replace(Attempt(1, t, SENT, radio_id=FM_ID), radio_id=HF_ID).radio_id == HF_ID and replace(Attempt(1, t, SENT, radio_id=FM_ID), radio_id=3).radio_id == 3
+
+
+def test_a_third_party_path_that_stars_only_the_last_digipeater_shows_every_hop_up_to_it_as_the_radio_does() -> None:
+    gated = internet_hops(WIDE, ("OH2RCH-2", "OH2RDG*"), "OH7JHF-1")
+    assert gated == hops_used(WIDE, ("OH2RCH-2*", "OH2RDG*")) == [(1, "OH2RCH-2"), (2, "OH2RDG")]

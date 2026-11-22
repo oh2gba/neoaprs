@@ -9,6 +9,7 @@ import pytest
 
 from neoaprs.services.selfupdate import TELL_SEC, SelfUpdate, UpdateNowError
 from neoaprs.updateasset import RELEASES, url_allowed
+from neoaprs.updatedownload import Allowed
 from neoaprs.versions import InstallInfo
 from tests.support.env import until
 from tests.support.fakerelease import BODY, NAME, FakeInstaller, FakeRelease, public
@@ -135,6 +136,31 @@ async def test_a_cancel_ends_the_download_and_leaves_nothing(tmp_path: Path) -> 
     with pytest.raises(UpdateNowError) as none:
         job.cancel()
     assert none.value.code == "update.not_running"
+
+
+class SlowSignature(FakeRelease):
+    """A release without a signature (a 404) whose signature is fetched only when `gate` opens."""
+    def __init__(self) -> None:
+        super().__init__(signature=b"")
+        self.gate = threading.Event()
+        self.entered = threading.Event()
+
+    def fetch_sums(self, url: str, allowed: Allowed) -> bytes:
+        if url.endswith(".sig"):
+            self.entered.set()
+            self.gate.wait(5)
+        return super().fetch_sums(url, allowed)
+
+
+async def test_a_cancel_while_the_signature_is_fetched_stays_a_cancel_when_that_fetch_then_fails(tmp_path: Path) -> None:
+    release = SlowSignature()
+    job, states = service(tmp_path, release)
+    job.begin("0.7.0")
+    await until(release.entered.is_set)
+    job.cancel()
+    release.gate.set()
+    await until(lambda: not job._busy)
+    assert job.status().state == "idle" and states == ["downloading", "idle"]
 
 
 async def test_an_install_after_which_neoaprs_does_not_restart_says_so(tmp_path: Path) -> None:

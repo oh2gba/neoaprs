@@ -360,11 +360,14 @@ def test_an_ack_back_falls_under_the_budget_of_hf() -> None:
     assert len(rig.hf.sent) == 4 and rig.hf.stats.passed[FM_ID].held == 1
 
 
-def test_an_ack_whose_path_would_have_more_than_eight_hops_back_sends_nothing_and_raises_nothing() -> None:
+def test_an_ack_whose_path_would_have_more_than_eight_hops_back_sends_nothing_and_raises_nothing_and_a_later_copy_goes_back() -> None:
     rig = pair_rig()
     passed_from_hf(rig)
     rig.hear(frame(",".join(f"OH2RC{n}*" for n in range(8)), source="OH2GAX", info=ACK))
     assert rig.hf.sent == [] and rig.hf.stats.passed == {}
+    rig.clock.advance(31)
+    rig.hear(frame("WIDE1-1", source="OH2GAX", info=ACK))
+    assert rig.hf.lines() == [f"OH2GAX>APRS,OH2GBA-12*:{ACK.decode()}"], "the copy refused leaves the message for the next copy of the ack"
 
 
 def test_an_ack_that_names_the_pair_call_goes_once_by_its_path() -> None:

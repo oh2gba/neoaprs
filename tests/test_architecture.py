@@ -136,6 +136,7 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
     "neoaprs/desktop/webshell.py": ("browser", "the web shell without a window: the daemon's page, a loopback address, in the system's browser"),
     "neoaprs/childprogram.py": ("program", "starts a program that ships with NeoAPRS (the Mercury modem, Direwolf) from a list of arguments the daemon made, and on Windows ends its process tree with taskkill"),
     "neoaprs/mercuryhelper.py": ("program", "asks the Mercury modem that ships with the program for the sound cards, with an argument written in the module"),
+    "neoaprs/mercurystale.py": ("program", "on a system without /proc (macOS) asks /bin/ps for the command line of the process a pid file names, from a list of arguments written in the module and the id as a number"),
     "neoaprs/mercuryspeaker.py": ("program", "the Dummy HF radio's sound: the system's player (pw-play, paplay or aplay) with arguments written in the module, fed through its standard input"),
     "neoaprs/pmtilesarchive.py": ("url", "asks build.protomaps.com which daily build is there (a HEAD request for each of the last days)"),
     "neoaprs/pmtilesrange.py": ("url", "reads the bytes of the map out of the archive of the whole world with range requests, from the address the settings or the daily build give"),

@@ -123,3 +123,23 @@ describe("useLayout: what a phone shows", () => {
     expect(layout.phone.value).toBe(false);
   });
 });
+
+describe("useLayout: whether the panel is on screen", () => {
+  it("is the phone's turn on a phone, folded or not, and the fold elsewhere", async () => {
+    const { panel, layout, guideOpen } = setUp();
+    panel.collapsed.value = true; // (kept from a wider window: a phone has no folded panel)
+    layout.view.value = "panel";
+    expect(panel.onScreen.value).toBe(true);
+    layout.view.value = "map";
+    expect(panel.onScreen.value).toBe(false);
+    layout.view.value = "panel";
+    guideOpen.value = true;
+    expect(panel.onScreen.value).toBe(false);
+    guideOpen.value = false;
+    window_(1400, 900);
+    await nextTick();
+    expect(panel.onScreen.value).toBe(false);
+    panel.collapsed.value = false;
+    expect(panel.onScreen.value).toBe(true);
+  });
+});

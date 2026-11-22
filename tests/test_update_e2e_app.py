@@ -338,3 +338,9 @@ def test_the_home_folder_is_held_for_neoaprs_own_files_alone_and_the_page_is_loo
     old = e2e.AppImageAppInstall(tmp_path / "work", Path("NeoAPRS-0.20.1-x86_64.AppImage"), Path("NeoAPRS-0.20.3-e2e-x86_64.AppImage"), False, True)
     old.data = install.data
     assert old.known_old and old.page_ports(old.data, ports, lambda: True) == ports
+
+
+def test_a_version_with_a_suffix_is_read_by_its_numbers_when_the_signature_is_decided() -> None:
+    e2e = update_e2e()
+    assert e2e.numbers("1.0.0-rc1") >= e2e.SIGNATURE_FROM and e2e.numbers("0.18.2") < e2e.SIGNATURE_FROM
+    assert 'int(n) for n in old_version.split(".")' not in (ROOT / "scripts" / "update-e2e.py").read_text(encoding="utf-8")

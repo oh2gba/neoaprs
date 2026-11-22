@@ -1,6 +1,6 @@
 // Moving the station cards over the map (components/StationCards.vue). On a tablet and a desktop a card is dragged by its head (the symbol and the call: not its buttons and links) with a mouse, a finger or a pen, or moved with Alt and the arrow keys while it has the focus,
 // and it stays where it was put while it is open. Where the cards stand, and that moving one never moves another, is composables/useCardPlaces.ts.
-import { onBeforeUnmount, type Ref } from "vue";
+import { onBeforeUnmount, watch, type Ref } from "vue";
 import { useCardPlaces, type Places } from "@/composables/useCardPlaces";
 import { DRAG_MIN, keyStep, type Place } from "@/lib/cardmove";
 
@@ -37,6 +37,7 @@ export function useCardDrag(stack: Readonly<Ref<HTMLElement | null>>, places: Re
   }
 
   function down(event: PointerEvent): void {
+    if (drag && !drag.head.isConnected) stop(); // (its card closed under the pointer: the release went nowhere)
     const pressed = enabled() && event.button <= 0 && !drag ? headPressed(stack.value, event) : null;
     const origin = pressed ? current(pressed.call) : null;
     if (!pressed || !origin) return;
@@ -82,6 +83,7 @@ export function useCardDrag(stack: Readonly<Ref<HTMLElement | null>>, places: Re
     put(call, { x: at.x + step.x, y: at.y + step.y });
   }
 
+  watch(stack, (row) => row === null && stop());
   onBeforeUnmount(stop);
   return { down, move, up, key, keepInside, pinHere, pinAfter, placeNew };
 }

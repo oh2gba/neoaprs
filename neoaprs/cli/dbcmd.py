@@ -35,6 +35,7 @@ from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
 from neoaprs.pairsetting import call_refusal
+from neoaprs.instancelock import is_file
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
 from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.packetcodec import tnc2
@@ -281,7 +282,7 @@ def before_opening(args: argparse.Namespace, path: Path) -> int | str:
     command, and for a radio's own setting (checked by its radio's field once the database is read), that the file is there; a key of before of a radio's setting is answered with where it is now,
     by the database's radios where there is a database. The text, or the exit code of the refusal."""
     if args.command in ("set", "get") and moved(args.key):
-        if path.is_file():
+        if is_file(path):
             return ""
         say(f"{PROG}: {moved(args.key, replace(DEFAULTS, radios=()))}")
         return 2
@@ -313,7 +314,7 @@ def before_opening(args: argparse.Namespace, path: Path) -> int | str:
             say(f"{PROG}: the data folder {path.parent} cannot be made or used: {e.strerror or e}")
             return 1
         return text
-    if not path.is_file():
+    if not is_file(path):
         say(f"{PROG}: there is no database at {path}" + (", so no radio" if args.command == "set" else "") + " (has the daemon run? --data DIR)")
         return 1
     return ""

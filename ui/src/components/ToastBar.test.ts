@@ -97,3 +97,16 @@ describe("ToastBar", () => {
     expect(wrapper.find(".toast.notice .standing").exists()).toBe(true);
   });
 });
+
+describe("ToastBar: an error that goes", () => {
+  it("leaves a notice shown since it came for its whole time, and takes an error shown with it", async () => {
+    const wrapper = mount(ToastBar, { props: { toast: null, notice: null } });
+    await wrapper.setProps({ toast: failure(1, "first") });
+    await wrapper.setProps({ notice: notice(1, "Copied OH2XYZ") });
+    await wrapper.setProps({ toast: null });
+    expect(wrapper.find(".toast").text()).toContain("Copied OH2XYZ");
+    await wrapper.setProps({ toast: failure(2, "second") });
+    await wrapper.setProps({ toast: null });
+    expect(wrapper.find(".toast").exists()).toBe(false);
+  });
+});

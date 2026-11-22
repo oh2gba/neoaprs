@@ -67,6 +67,7 @@ describe("Ask around in the Nearby tab", () => {
   it("sends the query chosen by the beacon's path with RF only, as the fold starts", async () => {
     const { wrapper, daemon } = make();
     await ask(wrapper).trigger("click");
+    await tell(daemon, { general: general(askedOf()) });
     await choice(wrapper).setValue("wx");
     expect(ask(wrapper).attributes("title")).toBe("Send ?WX? once, by radio");
     await ask(wrapper).trigger("click");
@@ -322,6 +323,7 @@ describe("the Send on of Ask around", () => {
     expect(fold(wrapper).find(".field").classes()).not.toContain("disabled");
     await ask(wrapper).trigger("click");
     expect(queries(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: "OH2RDK-7", rf_only: true }]);
+    await tell(daemon, { general: general(askedOf()) });
     await ticks(wrapper)[0]?.setValue(false); // (Mercury alone, which carries no path)
     expect(
       fold(wrapper)
@@ -416,5 +418,19 @@ describe("the Send on of Ask around", () => {
     expect(cssRule(".toolbar-checks")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".ask-row")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".ask-line")).toMatch(/text-overflow:\s*ellipsis/); // (a line with the radios' names in front keeps its one line)
+  });
+});
+
+describe("Ask around in flight", () => {
+  it("sends once for two clicks before the daemon tells the query, and again once it has", async () => {
+    const { wrapper, daemon } = make();
+    await ask(wrapper).trigger("click");
+    expect(ask(wrapper).attributes("disabled")).toBeDefined();
+    await ask(wrapper).trigger("click");
+    expect(sent(daemon)).toHaveLength(1);
+    await tell(daemon, { general: general(askedOf()) });
+    await choice(wrapper).setValue("wx");
+    await ask(wrapper).trigger("click");
+    expect(sent(daemon)).toHaveLength(2);
   });
 });

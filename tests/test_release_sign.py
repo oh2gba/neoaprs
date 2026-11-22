@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from neoaprs.updateasset import signed_message, sign
 from tests.support.ptyline import posix_only
-from tests.test_release_script import ASSETS, SIGNED, SUMS, TAG, VERSION, Downloads, Rig, assert_released, make_executable
+from tests.test_release_script import ASSETS, CONTENTS, SIGNED, SUMS, TAG, VERSION, Downloads, Rig, assert_released, make_executable
 from tests.support.httpthread import serve
 
 pytestmark = posix_only
@@ -117,6 +117,14 @@ def test_a_list_that_names_a_file_twice_is_not_signed(rig: Rig) -> None:
     assert done.returncode == 1 and "the draft's SHA256SUMS is not signed" in done.stdout and "twice" in done.stdout and "bws" not in rig.kinds()
 
 
+def test_a_file_of_the_draft_that_is_not_the_one_the_sums_name_stops_the_release_before_the_key_is_read(rig: Rig) -> None:
+    rig.state["release"]["files"]["install.sh"] = "another build"
+    rig.save_state()
+    done = rig.release()
+    assert done.returncode == 1 and "install.sh" in done.stdout and "not the one SHA256SUMS names" in done.stdout
+    assert "bws" not in rig.kinds() and "upload" not in rig.kinds() and "edit" not in rig.kinds()
+
+
 def test_a_draft_signed_already_is_only_published(rig: Rig) -> None:
     rig.state["release"].update(assets=SIGNED, files={"SHA256SUMS": SUMS, "SHA256SUMS.sig": sign(SUMS.encode(), VERSION, rig.seed)})
     rig.save_state()
@@ -128,7 +136,7 @@ def test_a_draft_signed_already_is_only_published(rig: Rig) -> None:
 
 @pytest.mark.parametrize("signature", [None, "another-version", "another-key"])
 def test_a_draft_whose_signature_does_not_hold_is_signed_again(rig: Rig, signature: str | None) -> None:
-    files = {"SHA256SUMS": SUMS}
+    files = {**CONTENTS, "SHA256SUMS": SUMS}
     if signature == "another-version":
         files["SHA256SUMS.sig"] = sign(SUMS.encode(), "0.9.0", rig.seed)
     elif signature == "another-key":

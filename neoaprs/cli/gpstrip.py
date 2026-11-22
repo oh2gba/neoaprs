@@ -55,8 +55,10 @@ class Trip:
         self.stopped_on_leg = False             # the stop of this leg has been made
 
     def sample(self) -> Sample:
-        lat = self.lat0 + self.north_m / METRES_PER_DEGREE
+        lat = max(-90.0, min(90.0, self.lat0 + self.north_m / METRES_PER_DEGREE))
         lon = self.lon0 + self.east_m / (METRES_PER_DEGREE * math.cos(math.radians(self.lat0)))
+        if not -180.0 <= lon < 180.0:
+            lon = (lon + 180.0) % 360.0 - 180.0
         return Sample(lat, lon, self.speed_ms, round(self.heading) % 360, ALTITUDE_M)
 
     def step(self) -> Sample:

@@ -6,6 +6,7 @@ import { CONFIG_KEYS } from "@/protocol/lists";
 import type { PortsMessage, RadioRow } from "@/protocol/protocol";
 import { setLocale } from "@/i18n";
 import { cssRule } from "@/test/css";
+import { shown } from "@/test/shown";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, mapFile, mapState, radioRow, radiosTopic, status, toastOf, portRow } from "@/test/fixtures";
 
@@ -1267,7 +1268,7 @@ describe("SettingsForm", () => {
     it("is two rows, Radius with its field and unit and then the row Detailed map with a plain Download map first in its control column, in the Map group and nowhere else", () => {
       const { wrapper } = mount_();
       const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Map");
-      expect(group?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => b.text())).toEqual(["Download map"]);
+      expect(group?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => shown(b))).toEqual(["Download map"]);
       expect(wrapper.findAll(".mapfetch-button")).toHaveLength(1);
       const row = wrapper.find("#set-map-radius_km").element.closest(".field");
       expect([...(row?.querySelector(".field-control")?.children ?? [])].map((c) => c.tagName + "." + (c.className.split(" ")[0] || "")).slice(0, 3)).toEqual([
@@ -1294,15 +1295,15 @@ describe("SettingsForm", () => {
       expect(action?.querySelector(":scope > .action-notes .mapfetch-notes")).not.toBeNull();
       expect(wrapper.find(".mapfetch-notes .mapfetch-file").text()).toBe("Map downloaded 22 Oct");
       expect(wrapper.find(".mapfetch-notes .mapfetch-file").classes()).toContain("muted");
-      expect(wrapper.find(".mapfetch-button").text()).toBe("Download again");
+      expect(shown(wrapper.find(".mapfetch-button"))).toBe("Download again");
       expect(row?.contains(wrapper.find(".mapfetch-notes").element)).toBe(false);
     });
 
     it("reads Download map, and says nothing of a map downloaded, while there is a world map and no detailed one", () => {
       const { wrapper } = mount_(mapState({ state: "none", detail: null, world: mapFile({ name: "basemap-world.pmtiles", max_zoom: 4 }) }));
-      expect(wrapper.find(".mapfetch-button").text()).toBe("Download map");
+      expect(shown(wrapper.find(".mapfetch-button"))).toBe("Download map");
       expect(wrapper.find(".mapfetch-file").exists()).toBe(false);
-      expect(wrapper.text()).not.toContain("Download again");
+      expect(shown(wrapper)).not.toContain("Download again");
     });
 
     it("has no buttons until the daemon has told the state of the map", () => {

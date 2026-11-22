@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addable, canSendAll, recipientsOf } from "@/lib/recipients";
+import { addable, canSendAll, recipientsOf, textRefusal } from "@/lib/recipients";
 
 describe("recipients", () => {
   it("adds a call that is a call, is not the gateway and is not there yet", () => {
@@ -28,5 +28,23 @@ describe("recipients", () => {
     expect(canSendAll(true, ["OH2AAA"], "", " ")).toBe(false);
     expect(canSendAll(true, ["OH2AAA"], "", "x".repeat(68))).toBe(false);
     expect(canSendAll(false, ["OH2AAA"], "", "Hi")).toBe(false);
+  });
+});
+
+describe("the characters of a message's text, by the daemon's rule", () => {
+  it("refuses | ~ { and what is not printable ASCII, as neoaprs/message.py check_text does", () => {
+    expect(textRefusal("Moi, 73!")).toBeNull();
+    expect(textRefusal("a|b{c")).toEqual({ code: "message.forbidden", params: { chars: "| {" } });
+    expect(textRefusal("tilde~")).toEqual({ code: "message.forbidden", params: { chars: "~" } });
+    expect(textRefusal("Hyvää päivää")).toEqual({ code: "message.not_ascii", params: { chars: "ä" } });
+    expect(textRefusal("zero\u200bwidth")).toEqual({ code: "message.not_ascii", params: { chars: "" } });
+    expect(textRefusal("tab\there")).toEqual({ code: "message.control", params: { chars: "" } });
+    expect(textRefusal("del\x7f")).toEqual({ code: "message.control", params: { chars: "" } });
+  });
+
+  it("keeps Send off for a text the daemon would refuse", () => {
+    expect(canSendAll(true, ["OH2RDG"], "", "Hyvää")).toBe(false);
+    expect(canSendAll(true, ["OH2RDG"], "", "a{b")).toBe(false);
+    expect(canSendAll(true, ["OH2RDG"], "", "Moi")).toBe(true);
   });
 });

@@ -686,3 +686,32 @@ async def test_the_radio_of_the_day_on_the_air_listens_on_a_port_the_system_give
         assert asked == [0] and radio.port not in MODEM_PORTS
     finally:
         await radio.stop()
+
+
+def test_sim_radios_refuses_the_data_folder_of_a_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib.machinery
+    import importlib.util
+    loader = importlib.machinery.SourceFileLoader("sim_radios", str(ROOT / "scripts" / "sim-radios"))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    sim = importlib.util.module_from_spec(spec)
+    loader.exec_module(sim)
+    (tmp_path / "neoaprs").mkdir()
+    (tmp_path / "pyproject.toml").write_text("", encoding="utf-8")
+    assert "checkout" in sim.operators_folder(tmp_path / "data")
+    assert sim.operators_folder(tmp_path / "work" / "mine") == ""
+    monkeypatch.setattr(sys, "argv", ["sim-radios", "--data", str(tmp_path / "data")])
+    assert sim.main() == 2
+
+
+def test_a_run_of_the_screenshots_into_a_folder_of_its_own_does_not_write_the_readmes_shots(tmp_path: Path) -> None:
+    shots = load_script("screenshots.py")
+    default = ROOT / "docs" / "screenshots"
+    assert shots.docs_folder(tmp_path, default).name == "none"
+    assert shots.docs_folder(ROOT / "site" / "shots", default) == default
+    assert shots.docs_folder(tmp_path, tmp_path / "docs") == tmp_path / "docs", "a folder named is written"
+
+
+def test_a_position_never_has_60_minutes() -> None:
+    scene = load_script("demoscene.py")
+    assert scene._dm(24.99999, 3, "E", "W") == "02500.00E" and scene._dm(-60.0, 2, "N", "S") == "6000.00S" and scene._dm(60.5, 2, "N", "S") == "6030.00N"

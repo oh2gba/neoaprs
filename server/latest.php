@@ -15,6 +15,7 @@ function neoaprs_get(string $url): ?string
         $c = curl_init($url);
         curl_setopt_array($c, [
             CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5, CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3,
             CURLOPT_HTTPHEADER => ['Accept: application/vnd.github+json', 'User-Agent: neoaprs-version-page'],
         ]);
         $body = curl_exec($c);
@@ -23,11 +24,14 @@ function neoaprs_get(string $url): ?string
         return $ok ? $body : null;
     }
     $context = stream_context_create(['http' => [
-        'timeout' => 5, 'ignore_errors' => true,
+        'timeout' => 5, 'ignore_errors' => true, 'follow_location' => 1, 'max_redirects' => 3,
         'header' => "Accept: application/vnd.github+json\r\nUser-Agent: neoaprs-version-page\r\n",
     ]]);
     $body = @file_get_contents($url, false, $context);
-    return $body !== false && ($http_response_header[0] ?? '') !== '' && strpos($http_response_header[0], ' 200 ') !== false ? $body : null;
+    // after a redirect the list holds the status line of every hop: the last one is the answer
+    $statuses = array_values(array_filter($http_response_header ?? [], static fn ($line) => strncmp($line, 'HTTP/', 5) === 0));
+    $last = $statuses === [] ? '' : $statuses[count($statuses) - 1];
+    return $body !== false && strpos($last, ' 200 ') !== false ? $body : null;
 }
 
 /**

@@ -20,7 +20,7 @@ import pytest_asyncio
 import serial  # type: ignore[import-untyped]
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
 
-from neoaprs import serialholders, serialport, serialprobe
+from neoaprs import serialholders, serialport, serialprobe, tncsearch
 from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, holders, port_key
 from neoaprs.serialport import SerialError, SerialPort, is_socket, normalize
@@ -314,6 +314,26 @@ async def test_an_open_that_is_cancelled_leaves_no_port_open(monkeypatch: pytest
     assert await asyncio.to_thread(ser.closed.wait, 2.0), "the thread closed what it opened when it found nobody waiting"
 
 
+async def test_a_close_while_the_port_is_being_opened_leaves_it_closed_and_a_search_lets_go_of_a_port_it_is_opening(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A radio whose settings name a port a search is opening at that moment opens it next: the search's open must not end with the port held."""
+    ser = SlowSer(0.3)
+    monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
+    port = SerialPort("COM9")
+    task = asyncio.get_running_loop().create_task(port.open())
+    await until(ser.opening.is_set)
+    port.close()
+    with pytest.raises(SerialError, match="closed while"):
+        await task
+    assert not port.is_open and ser.closed.is_set()
+    ser = SlowSer(0.3)
+    listener = serialprobe._Listener("COM8", 9600, lambda heard: False, asyncio.Event())
+    monkeypatch.setitem(serialprobe.LISTENING, port_key("COM8"), SerialPort("COM8"))          # (a search's earlier port of that name, closed)
+    task = asyncio.get_running_loop().create_task(serialprobe._open_one(listener, logging.DEBUG))
+    await until(ser.opening.is_set)
+    tncsearch.let_go("COM8")
+    assert await task is False and not listener.is_open and ser.closed.is_set()
+
+
 def test_windows_words_for_a_port_that_is_not_there_and_one_that_another_program_has(monkeypatch: pytest.MonkeyPatch) -> None:
     gone = serial.SerialException("could not open port 'COM9': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)")
     assert serialport._words("COM9", gone) == "COM9: The system cannot find the file specified"
@@ -321,7 +341,10 @@ def test_windows_words_for_a_port_that_is_not_there_and_one_that_another_program
     assert serialport._words("COM3", taken) == "COM3: Access is denied"
     assert serialport._words("socket://nohost:9000", serial.SerialException("Could not open port socket://nohost:9000: [Errno -2] Name or service not known")) == "socket://nohost:9000: Name or service not known"
     monkeypatch.setattr(serialport, "_on_windows", lambda: True)
-    assert serialport._in_use(taken) and serialport._in_use(PermissionError(13, "Permission denied")) and not serialport._in_use(gone)
+    assert serialport._in_use(taken) and serialport._in_use(serial.SerialException("could not open port 'COM3': PermissionError(13, 'Zugriff verweigert', None, 5)")) and not serialport._in_use(gone)
+    broken = serial.SerialException("could not open port 'COM5': PermissionError(13, 'A device attached to the system is not functioning.', None, 31)")
+    assert not serialport._in_use(broken), "a USB adapter in a bad state is not another program's"
+    assert serialport._words("COM5", broken) == "COM5: A device attached to the system is not functioning"
     monkeypatch.setattr(serialport, "_on_windows", lambda: False)
     assert not serialport._in_use(taken) and not serialport._in_use(PermissionError(13, "Permission denied")), "(on Linux a permission error is the user's group, not another program)"
     assert serialport._in_use(serial.SerialException(11, "Could not exclusively lock port /dev/ttyUSB0"))

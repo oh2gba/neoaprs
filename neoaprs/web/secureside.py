@@ -86,9 +86,12 @@ class SecureSide:
         if wanted:
             await self._ensure(address, plain_port, make_server)
         else:
+            server = self.server
             self._stop()
             self._certs = None
             self.state = SecureState()
+            if server is not None:
+                await _close_connections(server)
         return before != self.state
 
     async def _ensure(self, address: str, plain_port: int, make_server: ServerFactory) -> None:
@@ -164,10 +167,14 @@ class SecureSide:
         server = self.server
         self._stop()
         if server is not None:
-            try:
-                await asyncio.wait_for(server.close_all_connections(), 2.0)
-            except Exception as e:                                   # (a timeout too)
-                log.warning("the connections of the secure port did not end in time: %r", e)
+            await _close_connections(server)
+
+
+async def _close_connections(server: LimitedHTTPServer) -> None:
+    try:
+        await asyncio.wait_for(server.close_all_connections(), 2.0)
+    except Exception as e:                                       # (a timeout too)
+        log.warning("the connections of the secure port did not end in time: %r", e)
 
 
 def _bound(server: LimitedHTTPServer) -> int:

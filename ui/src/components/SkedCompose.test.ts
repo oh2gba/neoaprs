@@ -305,3 +305,16 @@ describe("SkedCompose's dials", () => {
     }
   });
 });
+
+describe("a sked post in flight", () => {
+  it("is posted once for two submits before the board is told, and again once it is", async () => {
+    const wrapper = form();
+    await wrapper.find("form").trigger("submit");
+    expect(post(wrapper).attributes("disabled")).toBeDefined();
+    await wrapper.find("form").trigger("submit");
+    expect(sent("sked_post")).toHaveLength(1);
+    await tell(daemon, { skeds: skedsState([sked("mine", { ours: true })]) });
+    await wrapper.find("form").trigger("submit");
+    expect(sent("sked_post")).toHaveLength(2);
+  });
+});

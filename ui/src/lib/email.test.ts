@@ -123,3 +123,12 @@ describe("a mail that got no ack", () => {
     expect(mailMarkOf(message(2, { direction: "in", state: "received" }))).toBeNull();
   });
 });
+
+describe("canSendEmail and the characters of the line", () => {
+  it("is off for an address or a text the daemon would refuse", () => {
+    expect(canSendEmail(true, "a@b.fi", "Hei")).toBe(true);
+    expect(canSendEmail(true, "a@b.fi", "Hyvää")).toBe(false);
+    expect(canSendEmail(true, "ä@b.fi", "Hei")).toBe(false);
+    expect(canSendEmail(true, "a@b.fi", "x|y")).toBe(false);
+  });
+});

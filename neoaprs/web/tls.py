@@ -209,6 +209,12 @@ class CertificateStore:
             raise TlsError(f"{key_file} or {cert_file} cannot be read ({e}); move the folder {self.folder} away to make new ones") from e
         if not isinstance(loaded, ec.EllipticCurvePrivateKey):
             raise TlsError(f"{key_file} is not an elliptic-curve key; move the folder {self.folder} away to make new ones")
+        if cert.not_valid_after_utc - now < timedelta(days=RENEW_BEFORE_DAYS):
+            log.warning("NeoAPRS's certificate authority in %s runs out within %d days; a new one is made, and the devices have to trust it again", self.folder, RENEW_BEFORE_DAYS)
+            key, cert = make_ca(host, now)
+            _write_private(key_file, _pem_key(key))
+            _write_private(cert_file, _pem_cert(cert))
+            return key, cert
         return loaded, cert
 
     def _server(self, ca_key: ec.EllipticCurvePrivateKey, ca: x509.Certificate, host: str, names: Names, now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:

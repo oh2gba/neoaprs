@@ -1114,7 +1114,7 @@ async def update(install: Install, data: Path, web_port: int, holder: socket.soc
     if "restarting" not in states:
         raise Failure(f"the update went {states}, never to restarting")
     asked = [r for r in release.requests if r.startswith(f"/v{new_version}/")]
-    signed = tuple(int(n) for n in old_version.split(".")[:3]) >= SIGNATURE_FROM          # (a release before it checks the file by its checksum alone and asks for no signature)
+    signed = numbers(old_version) >= SIGNATURE_FROM          # (a release before it checks the file by its checksum alone and asks for no signature)
     wanted = [f"/v{new_version}/SHA256SUMS", *([f"/v{new_version}/SHA256SUMS.sig"] if signed else []), f"/v{new_version}/{install.new.name}"]
     if asked != wanted:
         raise Failure(f"the release server was asked for {asked}, not {', '.join(w.rsplit('/', 1)[1] for w in wanted)} in that order")

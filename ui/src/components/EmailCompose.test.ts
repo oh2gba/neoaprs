@@ -184,3 +184,31 @@ describe("EmailCompose: the addresses used before", () => {
     wrapper.unmount();
   });
 });
+
+describe("EmailCompose: what a mail cannot carry, and no connection", () => {
+  it("keeps Send off for a character the daemon would refuse, marking its field", async () => {
+    const wrapper = box();
+    await wrapper.find("#mail-to").setValue("a@b.fi");
+    await wrapper.find("#mail-text").setValue("Hyvää päivää");
+    expect(send(wrapper).element.disabled).toBe(true);
+    expect(wrapper.find("#mail-text").classes()).toContain("invalid");
+    expect(wrapper.find("#mail-to").classes()).not.toContain("invalid");
+    await wrapper.find("form").trigger("submit");
+    expect(value(wrapper, "#mail-text")).toBe("Hyvää päivää");
+    expect(wrapper.emitted("send")).toBeUndefined();
+  });
+
+  it("keeps Send off and the text while the socket is closed", async () => {
+    const daemon = fakeDaemon();
+    const wrapper = mount(EmailCompose, { props: { connected: true, addresses: [] }, attachTo: document.body, global: withDaemon(daemon) });
+    await wrapper.find("#mail-to").setValue("a@b.fi");
+    await wrapper.find("#mail-text").setValue("Hello");
+    daemon.connection.value = "closed";
+    await wrapper.vm.$nextTick();
+    expect(send(wrapper).element.disabled).toBe(true);
+    expect(send(wrapper).attributes("title")).toBe("NeoAPRS: offline");
+    await wrapper.find("form").trigger("submit");
+    expect(value(wrapper, "#mail-text")).toBe("Hello");
+    wrapper.unmount();
+  });
+});

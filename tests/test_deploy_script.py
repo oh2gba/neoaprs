@@ -172,3 +172,48 @@ def test_an_upload_of_hundreds_of_files_ends_well_and_names_the_first_twelve(rep
     sent = [a for a in args if a.startswith("sftp://")]
     assert len(sent) > 600 and done.stdout.count("  -> ") == 12
     assert f"... and {len(sent) - 12} more" in done.stdout and "done." in done.stdout
+
+
+STOP_ON_LOGIN = """#!/usr/bin/env bash
+printf '%s\\n' "$@" >> "$CURL_ARGS"
+cat > "$CURL_STDIN"
+exit "${CURL_EXIT:-0}"
+"""
+
+
+def run_tool(tmp_path: Path, script: str, args: list[str], code: int = 0) -> tuple[subprocess.CompletedProcess[str], list[str], str]:
+    tools = tmp_path / "tools"
+    tools.mkdir(exist_ok=True)
+    for name, text in (("bws", BWS), ("curl", STOP_ON_LOGIN)):
+        (tools / name).write_text(text, encoding="utf-8")
+        (tools / name).chmod(0o755)
+    (tmp_path / "token.txt").write_text(f"{MADE_UP}\n", encoding="utf-8")
+    sent, login = tmp_path / "args.txt", tmp_path / "stdin.txt"
+    env = {"PATH": f"{tools}:{os.environ['PATH']}", "HOME": str(tmp_path), "SECRETS_FILE": str(tmp_path / "token.txt"), "BWS": str(tools / "bws"),
+           "CURL_ARGS": str(sent), "CURL_STDIN": str(login), "CURL_EXIT": str(code), "TMPDIR": str(tmp_path)}
+    done = subprocess.run(["bash", str(ROOT / "server" / script), *args], capture_output=True, text=True, env=env, timeout=60)
+    return done, sent.read_text(encoding="utf-8").splitlines() if sent.exists() else [], login.read_text(encoding="utf-8") if login.exists() else ""
+
+
+def test_a_blocked_list_that_could_not_be_read_is_never_replaced(tmp_path: Path) -> None:
+    done, args, _ = run_tool(tmp_path, "skeds.sh", ["block", "OH2XYZ"], code=6)
+    assert done.returncode == 1 and "could not be read" in done.stderr
+    assert "-T" not in args, "nothing was uploaded"
+
+
+def test_a_blocked_list_that_is_not_there_starts_empty(tmp_path: Path) -> None:
+    done, args, _ = run_tool(tmp_path, "skeds.sh", ["block", "OH2XYZ"], code=78)
+    assert "-T" in args and "could not be read" not in done.stderr
+
+
+@pytest.mark.parametrize(("script", "args"), [("skeds.sh", ["blocked"]), ("support-fetch.sh", ["--list"]), ("usage-report.sh", [])])
+def test_the_login_reaches_curl_on_stdin_and_never_on_its_command_line(tmp_path: Path, script: str, args: list[str]) -> None:
+    done, argv, login = run_tool(tmp_path, script, args)
+    assert argv, done.stderr
+    assert MADE_UP not in "\n".join(argv) and "user-made-up" not in "\n".join(argv)
+    assert "-K" in argv and f'user = "user-made-up:{MADE_UP}"' in login
+
+
+def test_the_deploy_sends_the_login_on_stdin_too(repo: Path, tools: Path) -> None:
+    done, args = run(repo, tools, "--site")
+    assert done.returncode == 0 and MADE_UP not in "\n".join(args) and "-K" in args

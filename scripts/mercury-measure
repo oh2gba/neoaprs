@@ -331,7 +331,7 @@ async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]
     a = Modem("A", binary, folder, channel, (args.first_port, args.first_port + 200))
     receivers = [Modem(f"R{t}", binary, folder, channel, (args.first_port + 10 * (i + 1), args.first_port + 10 * (i + 1) + 200), threshold=t) for i, t in enumerate(THRESHOLDS)]
     channel.start()
-    snrs = [float(v) for v in args.snr.split(",")] if args.snr != "0,3,6,9" else [-3.0, 0.0, 3.0, 6.0, 10.0, 20.0]
+    snrs = [float(v) for v in args.snr.split(",")] if not args.snr_default else [-3.0, 0.0, 3.0, 6.0, 10.0, 20.0]
     detection: dict[str, dict[float, int]] = {f"R{t}": {} for t in THRESHOLDS}
     quiet: dict[str, dict[str, tuple[int, float]]] = {f"R{t}": {} for t in THRESHOLDS}
     try:
@@ -679,13 +679,13 @@ def run(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="the measurements behind NeoAPRS's Mercury numbers, on the simulated channel")
     parser.add_argument("what", choices=("frame", "decode", "vox", "acks", "beacons", "busy", "autobusy"))
-    parser.add_argument("--frames", type=int, default=6, metavar="N", help="frame: how many frames (default 6); decode: frames per point (default 50); vox: frames per point (default 20)")
+    parser.add_argument("--frames", type=int, default=None, metavar="N", help="frame: how many frames (default 6); decode: frames per point (default 50); vox: frames per point (default 20)")
     parser.add_argument("--snr", metavar="DB,DB", help="decode, vox: the signal-to-noise ratios in 3 kHz to try; default 0,3,6,9 (decode), 10,3 (vox)")
     parser.add_argument("--attack-ms", default="0,20,40,60,80,100,150,200", metavar="MS,MS", help="vox: how many milliseconds of every transmission are muted, one point each; default %(default)s")
     parser.add_argument("--leadin-ms", type=int, default=0, metavar="MS", help="vox: the lead-in tone Mercury plays ahead of the preamble (`tx_leadin_ms`, the build of NeoAPRS only); default %(default)s, Mercury's own frame")
     parser.add_argument("--snr-one", type=float, default=30.0, metavar="DB", help="acks: the channel's SNR; default %(default)s")
     parser.add_argument("--fading", choices=tuple(PRESETS), help="decode, vox, acks: the Watterson preset of every link (default: a flat channel)")
-    parser.add_argument("--quiet-sec", type=float, default=90.0, metavar="SEC", help="busy: how long each noisy scene is listened to; autobusy: the quiet part (default %(default)s, 150 for autobusy)")
+    parser.add_argument("--quiet-sec", type=float, default=None, metavar="SEC", help="busy: how long each noisy scene is listened to; autobusy: the quiet part (default %(default)s, 150 for autobusy)")
     parser.add_argument("--batch", type=int, choices=(0, 1, 2, 3), default=0, help="autobusy: the first six scenes (1), the second six (2), the two with a narrow filter (3) or all (0); default %(default)s")
     parser.add_argument("--record", metavar="FILE", help="autobusy: keep what each receiver saw as FILE.N.json")
     parser.add_argument("--replay", metavar="FILE,FILE", help="autobusy: judge these recordings again instead of running the simulation")
@@ -701,11 +701,11 @@ def main() -> int:
     parser.add_argument("--report", metavar="FILE", help="write the result as JSON here too")
     parser.add_argument("--keep", action="store_true", help="keep the folder of the run")
     args = parser.parse_args()
-    if args.what == "autobusy":
-        args.frames = 3 if args.frames == 6 else args.frames
-        args.quiet_sec = 150.0 if args.quiet_sec == 90.0 else args.quiet_sec
-    if args.what in ("decode", "vox") and args.frames == 6:
-        args.frames = 50 if args.what == "decode" else 20
+    if args.frames is None:
+        args.frames = {"autobusy": 3, "decode": 50, "vox": 20}.get(args.what, 6)
+    if args.quiet_sec is None:
+        args.quiet_sec = 150.0 if args.what == "autobusy" else 90.0
+    args.snr_default = args.snr is None
     if args.snr is None:
         args.snr = "10,3" if args.what == "vox" else "0,3,6,9"
     if sys.platform == "win32" and args.what != "beacons":

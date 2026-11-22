@@ -171,3 +171,20 @@ describe("useSkeds: asking the daemon for the board", () => {
     expect(wanted(send)).toBe(1);
   });
 });
+
+describe("useSkeds: the ids kept", () => {
+  it("keeps the skeds still on the board when the oldest are dropped, and what another window saw", async () => {
+    const old = Array.from({ length: 200 }, (_, n) => `old${n}`);
+    localStorage.setItem("NeoAPRS.skedsseen", JSON.stringify(old));
+    const rows = [sked("old0"), ...Array.from({ length: 10 }, (_, n) => sked(`new${n}`))];
+    const { panel } = setUp(rows, "stations");
+    localStorage.setItem("NeoAPRS.skedsseen", JSON.stringify([...old.slice(1), "other"]));
+    panel.show("skeds");
+    await nextTick();
+    const kept = JSON.parse(localStorage.getItem("NeoAPRS.skedsseen") ?? "[]") as string[];
+    expect(kept).toHaveLength(200);
+    expect(kept).toContain("old0");
+    expect(kept).toContain("other");
+    expect(kept.slice(-11)).toEqual(rows.map((r) => r.id));
+  });
+});

@@ -7,6 +7,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useCommandInFlight } from "@/composables/useInFlight";
 import { useWhenShown } from "@/composables/useWhenShown";
 import { t } from "@/i18n";
 import { leftTitle } from "@/lib/compose";
@@ -70,11 +71,12 @@ watch(
   },
 );
 
+const posting = useCommandInFlight("sked_post", () => skeds.value?.rows);
+
 function submit(): void {
   const command = postCommand(draft, now.value);
   if (command === null || !ready.value) return;
-  asked.value = { from: command.from, to: command.to, dial: command.dial, note: command.note };
-  send(command);
+  if (posting.run(() => send(command))) asked.value = { from: command.from, to: command.to, dial: command.dial, note: command.note };
 }
 </script>
 
@@ -146,7 +148,7 @@ function submit(): void {
       </div>
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready">{{ t("skeds.post") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || posting.busy.value">{{ t("skeds.post") }}</button>
     </template>
   </ComposeBar>
 </template>

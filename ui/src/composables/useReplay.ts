@@ -5,11 +5,12 @@
 // the replay is open, the span is asked again, for the daemon answers another set (no packet from APRS-IS while it is off), and the new one plays on from the time it was at, paused if it was paused.
 import { computed, onScopeDispose, ref, shallowRef, watch } from "vue";
 import type { DaemonContext } from "@/composables/useDaemonContext";
+import { endWithTheSocket } from "@/composables/useInFlight";
 import { DEFAULT_HOURS, DEFAULT_SPEED, replayData, type ReplayData } from "@/lib/replay";
 
 const TICK_MS = 100;
 
-export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory" | "igate">) {
+export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory" | "igate"> & Partial<Pick<DaemonContext, "connection">>) {
   const hours = ref(DEFAULT_HOURS);
   const speed = ref(DEFAULT_SPEED);
   const playing = ref(false);
@@ -65,6 +66,8 @@ export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory" |
       resume = was;
     },
   );
+
+  endWithTheSocket(page.connection, () => (asked.value = null));
 
   /** Asks for the span (the one chosen, or `span`), and forgets what was played. */
   function ask(span: number = hours.value): void {

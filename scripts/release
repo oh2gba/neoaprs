@@ -24,6 +24,7 @@ stops; fix it and run the same command again.
 import argparse
 import base64
 import binascii
+import hashlib
 import json
 import os
 import re
@@ -566,9 +567,12 @@ class Release:
             raise Refusal(f"the draft {self.tag} has no {missing}: the release run did not upload every file; run it again (--rerun) and then the same command")
         sums = self.release_file(CHECKSUMS)
         try:
-            checksums(sums)
+            listed = checksums(sums)
         except Unverified as e:
             raise Refusal(f"the draft's {CHECKSUMS} is not signed: {e}") from None
+        for name, digest in sorted(listed.items()):
+            if hashlib.sha256(self.release_file(name)).hexdigest() != digest.lower():
+                raise Refusal(f"the draft {self.tag} has a {name} that is not the one {CHECKSUMS} names: upload the files of the release run again (--rerun) and then the same command; nothing is signed")
         seed = signing_seed()
         if public_half(seed) != PUBLIC_KEY:
             raise Refusal("the key read from Bitwarden is not the one whose public half the program carries (neoaprs/updateasset.py, PUBLIC_KEY): nothing is signed")

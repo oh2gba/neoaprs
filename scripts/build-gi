@@ -242,8 +242,8 @@ def in_docker(out: Path, source: Path | None) -> int:
     inner = ["python3", "/src/scripts/build-gi", "--out", "/out"] + (["--source", f"/cache/{source.name}"] if source else [])
     if source is not None:
         shutil.copy2(source, cache / source.name)
-    script = (f"set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update -qq; apt-get install -y -qq --no-install-recommends {' '.join(APT_PACKAGES)} >/dev/null; "
-              f"{' '.join(inner)}; chown -R {os.getuid()}:{os.getgid()} /out")
+    script = (f"set -e; trap 'chown -R {os.getuid()}:{os.getgid()} /out' EXIT; export DEBIAN_FRONTEND=noninteractive; apt-get update -qq; "
+              f"apt-get install -y -qq --no-install-recommends {' '.join(APT_PACKAGES)} >/dev/null; {' '.join(inner)}")
     command = ["docker", "run", "--rm", "-v", f"{ROOT}:/src:ro", "-v", f"{cache}:/cache", "-v", f"{out}:/out", "-e", "NEOAPRS_BUILD_CACHE=/cache", "-e", "NEOAPRS_GI_WORK=/tmp/gi", IMAGE, "bash", "-c", script]
     return subprocess.run(command, check=False).returncode
 

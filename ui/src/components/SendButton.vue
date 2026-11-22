@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The button that sends something now (Beacon now, Send status now): a secondary button, as the tab's one main action is the settings themselves; shared by the beacon status and the status line of the My station tab: it asks twice (`armed`: it says "Really send?", in the danger colour); the tab's useSendNow decides when it is on
+// The button that sends something now (Beacon now, Send status now): a secondary button, as the tab's one main action is the settings themselves; shared by the beacon status and the status line of the My station tab: it asks twice (`armed`: it says "Really send?", in the danger colour, as wide as before: TwoWords); the tab's useSendNow decides when it is on
 // (`disabled`, with `why` on hover) and what a press does.
+import TwoWords from "@/components/TwoWords.vue";
 import { t } from "@/i18n";
 
 defineProps<{ id?: string; label: string; armed: boolean; disabled: boolean; why?: string }>();
@@ -9,6 +10,9 @@ const emit = defineEmits<{ press: [] }>();
 
 <template>
   <button :id="id" class="btn" :class="{ danger: armed }" type="button" :disabled="disabled" :title="why" @click="emit('press')">
-    {{ armed ? t("beacon.really_send") : label }}
+    <TwoWords :second="armed"
+      ><template #first>{{ label }}</template
+      ><template #second>{{ t("beacon.really_send") }}</template></TwoWords
+    >
   </button>
 </template>

@@ -5,6 +5,8 @@
 import { computed, ref, watch, type Ref } from "vue";
 import type { useSetupAnswers } from "@/composables/useSetupAnswers";
 import type { Toast } from "@/composables/useDaemon";
+import { endWithTheSocket } from "@/composables/useInFlight";
+import type { Connection } from "@/lib/hub";
 import { reasonOf } from "@/lib/settings";
 import { KEY_OF, STEP_OF } from "@/lib/setup";
 import type { Command, ConfigValues } from "@/protocol/protocol";
@@ -16,8 +18,10 @@ export function useSetupSave(
   send: (command: Command) => boolean,
   step: Ref<number>,
   done: () => void,
+  connection?: Readonly<Ref<Connection>>,
 ) {
   const saving = ref(false);
+  endWithTheSocket(connection, () => (saving.value = false));
   /** What the daemon held, when Finish sent its save, of each key the save names: a config that holds none of them changed is the answer to another save (a radio's, sent from a box of the Radio step just before). */
   let held: Record<string, string> = {};
   const nothing = computed(() => Object.keys(answers.changes.value).length === 0);

@@ -4,6 +4,7 @@
 // small internet mark, and when the iGate has no position the line ends at the last digipeater that has one. A packet heard direct, and one that never was on the air (an app), have no line. A hop with no position (`?` or a station we have
 // not placed) is left out and the line goes on to the next. `routeHops` reads the text of a route as the daemon words it (`last_route`: "via OH2RCH-1 → OH2RCH-3", "via OH7JHF-1 (internet) → OH2RCH-3").
 import { t } from "@/i18n";
+import { unwrapLine } from "@/lib/dateline";
 import { hasPosition } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -79,7 +80,7 @@ function oneRoute(row: StationRow, mark: Mark, stations: ReadonlyMap<string, Sta
     const label = t("route.igate_label", { call: mark.gate });
     dots.push({ type: "Feature", properties: { call: mark.gate, label, previous, end: 1 }, geometry: { type: "Point", coordinates: end } });
   }
-  return [{ type: "Feature", properties: { call: row.call, previous }, geometry: { type: "LineString", coordinates: line } }, ...dots];
+  return [{ type: "Feature", properties: { call: row.call, previous }, geometry: { type: "LineString", coordinates: unwrapLine(line) } }, ...dots];
 }
 
 /** The line of the route of the station's latest packet and, apart, the one before it that came another way (`previous`, greyed); empty with no station, no place of ours or no route to draw. */

@@ -262,13 +262,15 @@ class _Listener(SerialPort):
 
 
 async def _open_one(port: _Listener, level: int) -> bool:
+    if (held := LISTENING.get(key := port_key(port.path))) is None or not (held.is_open or held.is_opening):
+        LISTENING[key] = port                                 # (before the open too: tncsearch.let_go reaches a port that is being opened)
     try:
         await port.open()
     except SerialError as e:
         log.log(level, "probe: skipping %s", e)
         return False
     port.opened_at = asyncio.get_running_loop().time()
-    LISTENING[port_key(port.path)] = port
+    LISTENING[key] = port
     return True
 
 

@@ -145,3 +145,29 @@ describe("the padlock of an encrypted message", () => {
     expect(wrapper.find(".compose-lock").attributes("aria-pressed")).toBe("false");
   });
 });
+
+describe("a text the daemon would refuse", () => {
+  it("keeps Send off and the text, and marks the field with the reason", async () => {
+    const { wrapper, text, send } = compose();
+    for (const bad of ["Hyvää päivää", "a|b", "a{b", "tilde~"]) {
+      await text.setValue(bad);
+      expect(send.element.disabled, bad).toBe(true);
+      expect(text.classes(), bad).toContain("invalid");
+      await wrapper.find("form").trigger("submit");
+      expect(text.element.value).toBe(bad);
+    }
+    expect(text.attributes("title")).toBe("the text has ~, which a message cannot carry (| ~ { are not allowed)");
+    expect(wrapper.emitted("send")).toBeUndefined();
+    await text.setValue("Moi");
+    expect(text.classes()).not.toContain("invalid");
+    expect(text.attributes("title")).toBeUndefined();
+  });
+
+  it("lets an encrypted text say ä, since it goes sealed", async () => {
+    const { wrapper, text, send } = compose({ lockable: true });
+    await wrapper.find(".compose-lock").trigger("click");
+    await text.setValue("Hyvää");
+    expect(send.element.disabled).toBe(false);
+    expect(text.classes()).not.toContain("invalid");
+  });
+});

@@ -22,8 +22,8 @@ const NAMES_FROM_ZOOM = 10;
 /** The halo's width in pixels, half of it outside the shape. */
 const HALO = 2;
 
-/** How many image pixels a pixel of the page has: the screen's density, twice at least and three times at most; read once, so that an image given again has its size. */
-const RATIO = Math.min(3, Math.max(2, Math.ceil(globalThis.devicePixelRatio || 1)));
+/** How many image pixels a pixel of the page has: the screen's density, twice at least and three times at most, read when the marks are made. */
+const pixelRatio = (): number => Math.min(3, Math.max(2, Math.ceil(globalThis.devicePixelRatio || 1)));
 
 /** The name's size in pixels, and the room between the foot of a mark and the top of its name. */
 const NAME_SIZE = 11;
@@ -38,17 +38,17 @@ const NAME_OFFSET: ExpressionSpecification = [
 ] as unknown as ExpressionSpecification;
 
 /** A shape drawn in a colour with its halo, its box fitted to the middle of a square of its side, as the map takes an image; null where the browser draws nothing (no canvas). */
-function drawShape(shape: ThingShape, fill: string, halo: string): ImageData | null {
+function drawShape(shape: ThingShape, fill: string, halo: string, ratio: number): ImageData | null {
   if (typeof Path2D === "undefined") return null;
   const canvas = document.createElement("canvas");
   const side = sideOf(shape);
-  canvas.width = Math.round(side * RATIO);
+  canvas.width = Math.round(side * ratio);
   canvas.height = canvas.width;
   const context = canvas.getContext("2d");
   if (!context) return null;
   const [x, y, width, height] = markBox(MARKS[shape]).split(" ").map(Number) as [number, number, number, number];
   const scale = side / Math.max(width, height);
-  context.scale(RATIO * scale, RATIO * scale);
+  context.scale(ratio * scale, ratio * scale);
   context.translate((Math.max(width, height) - width) / 2 - x, (Math.max(width, height) - height) / 2 - y);
   const path = new Path2D(MARKS[shape].d);
   context.lineJoin = "round";
@@ -64,13 +64,14 @@ function drawShape(shape: ThingShape, fill: string, halo: string): ImageData | n
 function addTrafficImages(map: MapLibreMap): void {
   const halo = paletteColor("--map-halo", "rgba(255, 255, 255, 0.9)");
   const colours = { plain: paletteColor("--map-layer", "#8e24aa"), bad: paletteColor("--bad", "#b9401d") };
+  const ratio = pixelRatio();
   for (const shape of THING_SHAPES) {
     for (const emergency of [false, true]) {
-      const image = drawShape(shape, emergency ? colours.bad : colours.plain, halo);
+      const image = drawShape(shape, emergency ? colours.bad : colours.plain, halo, ratio);
       if (!image) return;
       const name = imageName(shape, emergency);
-      if (map.hasImage(name)) map.updateImage(name, image);
-      else map.addImage(name, image, { pixelRatio: RATIO });
+      if (map.hasImage(name)) map.removeImage(name); // (an image keeps the ratio it was added with)
+      map.addImage(name, image, { pixelRatio: ratio });
     }
   }
 }

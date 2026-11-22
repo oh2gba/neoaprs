@@ -24,7 +24,7 @@ from .direwolf import CONF_FILE, FIRST_PORT, MODE, PID_FILE, PORT_TRIES, DeviceL
 from .direwolf import dcd_of, keying_open_error, kiss_from_client, level_of, own_card, ptt_of, ready_port, several_cm108, wrong_device
 from .direwolftune import Tuning, clamp
 from .mercury import CONTROL_OFFSET, Keying, SerialPort, SoundCard, keying_of, propose_sound_card
-from .mercuryclaims import MODEM_KINDS, HeldPorts, held_card, keying_claim
+from .mercuryclaims import MODEM_KINDS, HeldPorts, card_claim, held_card, keying_claim
 from .mercuryhelper import Command, foreign_listeners, free_ports, list_sound_cards, next_modem_ports
 from .mercuryhelper import find as mercury_program
 from .mercurymodem import system_serial_ports
@@ -137,7 +137,7 @@ class DirewolfModem(Tuning, ModemState):
         if problem:
             log.warning("Direwolf cannot be started: %s", problem)
             return self._failed(problem, reason)
-        if self.windows and (numbers := await asyncio.to_thread(_numbers_of, names.get(self.sound_card, ""))) is None:
+        if self.windows and (numbers := await asyncio.to_thread(_numbers_of, _lone_name(names, self.sound_card))) is None:
             log.warning("Direwolf cannot be started: the sound card %r is not one input and one output among the WinMM devices", self.sound_card)
             return self._failed(SOUND_CARD_NOT_FOUND, "sound_card")
         self._numbers = numbers if self.windows else None
@@ -366,6 +366,12 @@ def _numbers_of(card_name: str) -> tuple[int, int] | None:
     return winmm.match(card_name, inputs, outputs) if card_name else None
 
 
+def _lone_name(names: dict[str, str], card: str) -> str:
+    """The listed name of the card, "" when another listed card has the same name: WinMM's names could not tell the two apart."""
+    name = names.get(card, "")
+    return name if list(names.values()).count(name) == 1 else ""
+
+
 def proposal(cards: Sequence[SoundCard], ports: Sequence[PortInfo], leave: Sequence[str] = (), *, claims: Claims | None = None, holder: RadioId,
              beside: Callable[[str, Sequence[str]], list[str] | None] | None = None) -> tuple[str, str]:
     """The sound card and the keying the page proposes for a Sound card radio while its settings are empty: the card the list proposes (leaving out the others'), and `choose_keying` on its name and the serial
@@ -386,7 +392,7 @@ def hold_setup(claims: Claims | None, holder: RadioId, sound_card: str, keying: 
     claims.release(holder, "sound_card")
     claims.release(holder, "keying")
     line = keying_claim(keying, claim_value(keying.device) if keying.device else None, windows)
-    for claim in (Claim("sound_card", sound_card, holder), *([Claim("keying", line, holder)] if line else [])):
+    for claim in (card_claim(sound_card, holder), *([Claim("keying", line, holder)] if line else [])):
         if (other := claims.hold(claim)) is not None:
             claims.release(holder, "sound_card")
             return other

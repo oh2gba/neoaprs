@@ -33,6 +33,8 @@ MAX_BYTES = 8192                     # the answer is a few lines
 SEND_TIMEOUT_SEC = 60.0              # of each wait for the server while the support file goes up (a megabyte or two over a slow line)
 FEED_TIMEOUT_SEC = 10.0              # of a layer's question to its service or receiver, its whole answer included
 FEED_GRACE_SEC = 1.0                 # beyond it, the most the daemon waits for the question's thread (a server that drips its head)
+MAX_RETRY_AFTER_SEC = 3600           # the longest a `Retry-After` is believed
+POST_TOTAL_SEC = 300.0               # the most the daemon waits for a POST in all, the upload and the answer
 FEED_CHUNK = 65536                   # the answer is read in pieces of at most this, the time looked at between them
 AUTHORIZATION = "Authorization"
 PACKED = ("gzip", "x-gzip")
@@ -106,14 +108,20 @@ def request_url(base: str, version: str, platform: str, install_id: str = "") ->
 
 
 def get_answer(url: str, version: str, platform: str, timeout_sec: float = TIMEOUT_SEC, max_bytes: int = MAX_BYTES) -> tuple[int, bytes] | None:
-    """The status and the body (at most `max_bytes` of it) of the answer to a GET of `url`, whatever the status; None when the address is not http(s) or the server could not be reached."""
+    """The status and the body of the answer to a GET of `url`, whatever the status; None when the address is not http(s), the server could not be reached, the answer is longer than `max_bytes` or has not all come
+    `timeout_sec` after the start."""
     if not url.startswith(("http://", "https://")):
         return None                                  # (urllib also reads file: and ftp: addresses)
+    deadline = time.monotonic() + timeout_sec
     request = urllib.request.Request(url, headers={"User-Agent": f"NeoAPRS/{version} ({platform})"})  # noqa: S310  (http or https only: the two lines above)
     try:
         nodevices.check_url(url, level=logging.DEBUG)                # (under the no-devices switch a server that is not on this computer is not there)
         with urllib.request.build_opener(https_handler(), _NotDowngraded, *nodevices.direct()).open(request, timeout=timeout_sec) as response:
-            return int(response.status), bytes(response.read(max_bytes))
+            body = _read_by(response, max_bytes, deadline)
+            if body is None or len(body) > max_bytes:
+                log.debug("the answer of %s did not come whole within %g s or is longer than %d bytes", url, timeout_sec, max_bytes)
+                return None
+            return int(response.status), body
     except urllib.error.HTTPError as e:
         return int(e.code), b""
     except (OSError, ValueError, http.client.HTTPException) as e:
@@ -135,9 +143,12 @@ def get(base: str, version: str, platform: str, install_id: str = "", timeout_se
 
 
 async def _quietly(work: Callable[[], bytes | None], name: str) -> bytes | None:
-    """`work` on a thread of its own, awaited; an error that `get_url` did not expect is logged and is None too, as every other failure."""
+    """`work` on a thread of its own, awaited for `TIMEOUT_SEC` and a little more at most; an error that `get_url` did not expect is logged and is None too, as every other failure."""
     try:
-        return await in_thread(work, name)
+        return await asyncio.wait_for(in_thread(work, name), TIMEOUT_SEC + FEED_GRACE_SEC)
+    except TimeoutError:
+        log.debug("the update check did not end within %g s", TIMEOUT_SEC + FEED_GRACE_SEC)
+        return None
     except Exception:
         log.exception("the update check failed")
         return None
@@ -146,7 +157,10 @@ async def _quietly(work: Callable[[], bytes | None], name: str) -> bytes | None:
 async def fetch_answer(url: str, version: str, platform: str, max_bytes: int) -> tuple[int, bytes] | None:
     """`get_answer` on a thread of its own, awaited; an error it did not expect is logged and is None too."""
     try:
-        return await in_thread(lambda: get_answer(url, version, platform, max_bytes=max_bytes), "update-fetch")
+        return await asyncio.wait_for(in_thread(lambda: get_answer(url, version, platform, max_bytes=max_bytes), "update-fetch"), TIMEOUT_SEC + FEED_GRACE_SEC)
+    except TimeoutError:
+        log.debug("the update check did not end within %g s", TIMEOUT_SEC + FEED_GRACE_SEC)
+        return None
     except Exception:
         log.exception("the update check failed")
         return None
@@ -173,6 +187,20 @@ def multipart(fields: dict[str, str], files: dict[str, tuple[str, bytes]]) -> tu
     return f"multipart/form-data; boundary={boundary}", b"".join(parts) + f"--{boundary}--\r\n".encode()
 
 
+def _body_of(response: IO[bytes], max_bytes: int, timeout_sec: float) -> bytes:
+    """The first `max_bytes` of the answer, read for `timeout_sec` at most (what has come by then is the answer); the rest is not read."""
+    deadline = time.monotonic() + timeout_sec
+    pieces: list[bytes] = []
+    size = 0
+    while size < max_bytes and time.monotonic() <= deadline:
+        piece = response.read1(min(FEED_CHUNK, max_bytes - size)) if hasattr(response, "read1") else response.read(max_bytes - size)
+        if not piece:
+            break
+        pieces.append(piece)
+        size += len(piece)
+    return b"".join(pieces)
+
+
 def _post(url: str, content_type: str, body: bytes, version: str, platform: str, timeout_sec: float, max_bytes: int, server: str) -> tuple[int, bytes] | None:
     """The status and the body (at most `max_bytes`) of the answer to a POST of `body` to `url`, whatever the status (a refusal carries its reason in the body); None when the address is not http(s) or the
     server (`server`, for the log) could not be reached."""
@@ -182,10 +210,10 @@ def _post(url: str, content_type: str, body: bytes, version: str, platform: str,
     try:
         nodevices.check_url(url)                                     # (under the no-devices switch nothing is sent to a server that is not on this computer)
         with urllib.request.build_opener(https_handler(), _NotFollowed, *nodevices.direct()).open(request, timeout=timeout_sec) as response:
-            return int(response.status), bytes(response.read(max_bytes))
+            return int(response.status), _body_of(response, max_bytes, timeout_sec)
     except urllib.error.HTTPError as e:
         try:
-            return int(e.code), bytes(e.read(max_bytes))
+            return int(e.code), _body_of(e, max_bytes, timeout_sec)
         except (OSError, http.client.HTTPException):
             return int(e.code), b""
     except (OSError, ValueError, http.client.HTTPException) as e:
@@ -202,7 +230,10 @@ def post_form(url: str, fields: dict[str, str], files: dict[str, tuple[str, byte
 async def post(url: str, fields: dict[str, str], files: dict[str, tuple[str, bytes]], version: str, platform: str) -> tuple[int, bytes] | None:
     """`post_form` on a thread of its own, awaited; an error it did not expect is logged and is None too."""
     try:
-        return await in_thread(lambda: post_form(url, fields, files, version, platform), "support-send")
+        return await asyncio.wait_for(in_thread(lambda: post_form(url, fields, files, version, platform), "support-send"), POST_TOTAL_SEC)
+    except TimeoutError:
+        log.debug("sending the support logs did not end within %g s", POST_TOTAL_SEC)
+        return None
     except Exception:
         log.exception("sending the support logs failed")
         return None
@@ -216,7 +247,10 @@ def post_json(url: str, body: bytes, version: str, platform: str, timeout_sec: f
 async def post_board(url: str, body: bytes, version: str, platform: str, max_bytes: int) -> tuple[int, bytes] | None:
     """`post_json` on a thread of its own, awaited, with a limit of its own (the answer carries the whole board); an error it did not expect is logged and is None too."""
     try:
-        return await in_thread(lambda: post_json(url, body, version, platform, max_bytes=max_bytes), "sked-post")
+        return await asyncio.wait_for(in_thread(lambda: post_json(url, body, version, platform, max_bytes=max_bytes), "sked-post"), TIMEOUT_SEC * 2 + FEED_GRACE_SEC)
+    except TimeoutError:
+        log.debug("posting to the HF test board did not end within %g s", TIMEOUT_SEC * 2 + FEED_GRACE_SEC)
+        return None
     except Exception:
         log.exception("posting to the HF test board failed")
         return None
@@ -236,14 +270,14 @@ def retry_after(value: str | None, now: datetime | None = None) -> float | None:
     if not text:
         return None
     if text.isascii() and text.isdigit():
-        return float(int(text))
+        return float(MAX_RETRY_AFTER_SEC if len(text) > 12 else min(int(text), MAX_RETRY_AFTER_SEC))
     try:
         when = email.utils.parsedate_to_datetime(text)
-    except (TypeError, ValueError, IndexError):
+    except (TypeError, ValueError, IndexError, OverflowError):
         return None
     if when.tzinfo is None:
         when = when.replace(tzinfo=UTC)
-    return max(0.0, (when - (now or datetime.now(UTC))).total_seconds())
+    return min(float(MAX_RETRY_AFTER_SEC), max(0.0, (when - (now or datetime.now(UTC))).total_seconds()))
 
 
 def unpacked(body: bytes, encoding: str, max_unpacked: int) -> bytes | None:

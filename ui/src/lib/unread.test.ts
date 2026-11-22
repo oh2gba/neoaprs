@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { TAB_IDS } from "@/lib/layout";
 import { badgeText, isViewingTab, titleText, unreadText, type PanelView } from "@/lib/unread";
 
-const view = (extra: Partial<PanelView> = {}): PanelView => ({ tab: "messages", collapsed: false, visible: true, ...extra });
+const view = (extra: Partial<PanelView> = {}): PanelView => ({ tab: "messages", onScreen: true, visible: true, ...extra });
 
 describe("isViewingTab", () => {
   it("is true only with the tab on show, the panel open and the page visible", () => {
     expect(isViewingTab(view(), "messages")).toBe(true);
-    expect(isViewingTab(view({ collapsed: true }), "messages")).toBe(false);
+    expect(isViewingTab(view({ onScreen: false }), "messages")).toBe(false);
     expect(isViewingTab(view({ visible: false }), "messages")).toBe(false);
-    expect(isViewingTab(view({ collapsed: true, visible: false }), "messages")).toBe(false);
+    expect(isViewingTab(view({ onScreen: false, visible: false }), "messages")).toBe(false);
   });
 
   it("is false for every other tab", () => {
@@ -19,7 +19,7 @@ describe("isViewingTab", () => {
 
   it("is true for the Email tab only while it is on show, the panel open and the page visible", () => {
     expect(isViewingTab(view({ tab: "email" }), "email")).toBe(true);
-    expect(isViewingTab(view({ tab: "email", collapsed: true }), "email")).toBe(false);
+    expect(isViewingTab(view({ tab: "email", onScreen: false }), "email")).toBe(false);
     expect(isViewingTab(view({ tab: "email", visible: false }), "email")).toBe(false);
     expect(isViewingTab(view({ tab: "messages" }), "email")).toBe(false);
     expect(isViewingTab(view({ tab: "email" }), "messages")).toBe(false);

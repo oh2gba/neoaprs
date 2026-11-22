@@ -3,12 +3,10 @@
 // not seen yet. What was seen is the ids of the skeds that were on the board while the tab was on show, kept in the browser (lib/storage.ts), the last 200 of them. A sked of ours is never new. The tab is on show when
 // it is the tab in front, the panel is open and the page is visible (lib/unread.ts), as for the bulletins. In a window whose store was new, the first board told is seen (lib/firststart.ts).
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
-import type { Panel } from "@/composables/usePanel";
-import { useVisible } from "@/composables/useVisible";
+import { useViewing, type Panel } from "@/composables/usePanel";
 import { seenAtStart } from "@/lib/firststart";
 import { newCount } from "@/lib/skeds";
 import { readStored, writeStored } from "@/lib/storage";
-import { isViewingTab } from "@/lib/unread";
 import type { Command, SkedsState } from "@/protocol/protocol";
 
 const KEY = "skedsseen";
@@ -27,8 +25,7 @@ function stored(): Set<string> {
 }
 
 export function useSkeds(skeds: Readonly<Ref<SkedsState | null>>, panel: Panel, send: (command: Command) => boolean, live: Readonly<Ref<boolean>>) {
-  const visible = useVisible();
-  const viewing = computed(() => isViewingTab({ tab: panel.tab.value, collapsed: panel.collapsed.value, visible: visible.value }, "skeds"));
+  const viewing = useViewing(panel, "skeds");
   const seen = ref(stored());
   const rows = computed(() => skeds.value?.rows ?? []);
   const fresh = computed(() => newCount(rows.value, seen.value));
@@ -46,10 +43,14 @@ export function useSkeds(skeds: Readonly<Ref<SkedsState | null>>, panel: Panel, 
   );
   onBeforeUnmount(() => clearInterval(timer));
 
+  /** The ids another window of the browser saw since are kept (the stored list is read again), and the board's own go last, so that the oldest dropped are never ones still on it. */
   function see(board: readonly { id: string }[]): void {
-    if (board.every((r) => seen.value.has(r.id))) return;
-    seen.value = new Set([...seen.value, ...board.map((r) => r.id)].slice(-KEPT));
-    writeStored(KEY, JSON.stringify([...seen.value]));
+    const known = new Set([...stored(), ...seen.value]);
+    const live = board.map((r) => r.id);
+    if (live.every((id) => known.has(id)) && known.size === seen.value.size) return;
+    const kept = [...[...known].filter((id) => !live.includes(id)), ...live].slice(-KEPT);
+    seen.value = new Set(kept);
+    writeStored(KEY, JSON.stringify(kept));
   }
   watch(
     [viewing, rows],

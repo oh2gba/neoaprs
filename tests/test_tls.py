@@ -174,3 +174,21 @@ def test_a_folder_that_cannot_be_made_is_an_error_with_the_reason(tmp_path: Path
     (tmp_path / "tls").write_text("a file where the folder should be")
     with pytest.raises(TlsError, match="could not be written or read"):
         store(tmp_path)[0].ensure(HOST, [LAN])
+
+
+def test_an_authority_with_30_days_left_is_made_again_and_the_certificate_with_it(tmp_path: Path) -> None:
+    s, clock = store(tmp_path)
+    first = s.ensure(HOST, [LAN])
+    clock.advance(86400 * (CA_DAYS - 31))
+    assert s.ensure(HOST, [LAN]).ca_der == first.ca_der, "31 days left: the authority is kept"
+    clock.advance(86400 * 2)
+    second = s.ensure(HOST, [LAN])
+    assert second.ca_der != first.ca_der
+    assert server_cert(tmp_path).verify_directly_issued_by(ca_cert(tmp_path)) is None
+
+
+def test_an_authority_that_ran_out_is_made_again(tmp_path: Path) -> None:
+    s, clock = store(tmp_path)
+    first = s.ensure(HOST, [LAN])
+    clock.advance(86400 * (CA_DAYS + 10))
+    assert s.ensure(HOST, [LAN]).ca_der != first.ca_der

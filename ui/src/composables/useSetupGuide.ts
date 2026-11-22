@@ -7,6 +7,7 @@ import { computed, reactive, ref, watch, type Ref } from "vue";
 import { useSetupAnswers } from "@/composables/useSetupAnswers";
 import { useSetupSave } from "@/composables/useSetupSave";
 import type { Toast } from "@/composables/useDaemon";
+import type { Connection } from "@/lib/hub";
 import { LAST_STEP, RADIO_STEP } from "@/lib/setup";
 import { portsAsks } from "@/lib/radios";
 import type { Command, ConfigValues, RadioRow } from "@/protocol/protocol";
@@ -16,6 +17,7 @@ export function useSetupGuide(
   lastError: Ref<Toast | null>,
   send: (command: Command) => boolean,
   radios: Readonly<Ref<ReadonlyMap<string, RadioRow> | null>> | null = null, // (the ports are asked for by the radios that have sound cards)
+  connection?: Readonly<Ref<Connection>>,
 ) {
   const open = ref(false);
   const step = ref(0);
@@ -34,7 +36,7 @@ export function useSetupGuide(
     step.value = 0;
     reached.value = 0;
   }
-  const { saving, finish } = useSetupSave(answers, config, lastError, send, step, done);
+  const { saving, finish } = useSetupSave(answers, config, lastError, send, step, done, connection);
 
   watch(step, (now) => (reached.value = Math.max(reached.value, now)));
 

@@ -3,6 +3,10 @@ import { reportLook, statusRadioLines } from "@/lib/statusreport";
 import { NOW, ago } from "@/test/fixtures";
 
 describe("reportLook", () => {
+  it("does not throw on a time it cannot read", () => {
+    expect(reportLook("garbage", "30", false, false, false, NOW).line).toContain("Last sent");
+  });
+
   it("says when the last report went and when the next is due, in the form of the beacon's line", () => {
     expect(reportLook(ago(240), "30", false, false, false, NOW)).toEqual({
       state: "on",

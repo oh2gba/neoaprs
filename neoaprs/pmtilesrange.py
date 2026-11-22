@@ -122,6 +122,8 @@ def in_parallel[T](work: list[Callable[[], T]], halt: Halt) -> list[T]:
 
 def read(source: Source, offset: int, length: int) -> bytes:
     """A small part of the archive (the header, a directory), held whole."""
+    if length == 0:
+        return b""
     held = bytearray()
 
     def keep(at: int, piece: bytes) -> None:

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
+import type { Connection } from "@/lib/hub";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
 import { configValues, toastOf } from "@/test/fixtures";
@@ -410,5 +411,23 @@ describe("useSetupGuide: the map is asked for as the Position step is left", () 
     guide.back();
     await nextTick();
     expect(sent).toEqual([{ cmd: "map_wanted" }]); // (the step forward from the Position step, not the step back)
+  });
+});
+
+describe("useSetupGuide: Finish and the socket", () => {
+  it("stops waiting for the answer to its save when the socket closes", async () => {
+    const config = ref<ConfigValues | null>(fresh());
+    const connection = ref<Connection>("open");
+    const guide = useSetupGuide(config, ref(null), () => true, null, connection);
+    guide.show();
+    guide.edit("call", "oh2abc");
+    guide.edit("lat", "60.17");
+    guide.edit("lon", "24.94");
+    guide.go(3);
+    guide.next();
+    expect(guide.saving).toBe(true);
+    connection.value = "closed";
+    await nextTick();
+    expect(guide.saving).toBe(false);
   });
 });

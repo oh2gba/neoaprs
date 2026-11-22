@@ -166,6 +166,7 @@ class DaemonWatch:
         self.network: bool | None = None           # whether the page was served to the network at the last look (None: not looked yet)
         self.refused: str | None = None            # an address the file named that the app did not follow (said once)
         self.daemon = daemon or Daemon()
+        self.missing = 0                           # looks in a row that found the owned daemon gone
         self.every = every
         self._cancelled = threading.Event()
         self.thread = threading.Thread(target=self._run, name="neoaprs-app-watch", daemon=True)
@@ -180,20 +181,28 @@ class DaemonWatch:
         self._cancelled.set()
 
     def _run(self) -> None:
-        missing = 0
         while not self._cancelled.wait(self.every):
-            if self.session.owned:
-                again = self.daemon.restarting(self.session.data)
-                up = not again and self.daemon.running(self.session.data)          # (the lock is not looked at while the daemon starts again: the look takes it for a moment, and the new daemon that takes it then would find it held and end)
-                missing = 0 if up or again else missing + 1                       # (a daemon that starts again as a new version is waited for)
-                if missing >= GONE_AFTER:
-                    log.info("the daemon on %s has ended: the app ends too", self.session.data)
-                    self.gone()
+            try:
+                if self._look():
                     return
-                if up and self._renewed():
-                    return
-            self._follow()
-            self._follow_network()
+            except Exception:
+                log.exception("a look at the daemon on %s failed", self.session.data)
+
+    def _look(self) -> bool:
+        """One look at the daemon; True when the watch is over."""
+        if self.session.owned:
+            again = self.daemon.restarting(self.session.data)
+            up = not again and self.daemon.running(self.session.data)          # (the lock is not looked at while the daemon starts again: the look takes it for a moment, and the new daemon that takes it then would find it held and end)
+            self.missing = 0 if up or again else self.missing + 1             # (a daemon that starts again as a new version is waited for)
+            if self.missing >= GONE_AFTER:
+                log.info("the daemon on %s has ended: the app ends too", self.session.data)
+                self.gone()
+                return True
+            if up and self._renewed():
+                return True
+        self._follow()
+        self._follow_network()
+        return False
 
     def _follow_network(self) -> None:
         """Calls `network_moved` when the daemon's note on the network has changed since the last look; the first look only remembers."""

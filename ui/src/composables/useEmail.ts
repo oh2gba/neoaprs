@@ -3,18 +3,15 @@
 import { computed, shallowRef, watch, type Ref } from "vue";
 import { useAddressBook } from "@/composables/useAddressBook";
 import { useReadMarks } from "@/composables/useConversations";
-import type { Panel } from "@/composables/usePanel";
-import { useVisible } from "@/composables/useVisible";
+import { useViewing, type Panel } from "@/composables/usePanel";
 import { GET_HELD, emailLine } from "@/lib/email";
 import { seenAtStart } from "@/lib/firststart";
 import { EMAIL_GATEWAY, newestIncomingId, threadOf, threadUnread } from "@/lib/messages";
-import { isViewingTab } from "@/lib/unread";
 import type { Command, MessageRow } from "@/protocol/protocol";
 
 /** `loaded`: the daemon has told the messages whole (in a window whose store was new, what it told is seen: lib/firststart.ts). */
 export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel, send: (command: Command) => boolean, loaded?: Readonly<Ref<boolean>>) {
-  const visible = useVisible();
-  const viewing = computed(() => isViewingTab({ tab: panel.tab.value, collapsed: panel.collapsed.value, visible: visible.value }, "email"));
+  const viewing = useViewing(panel, "email");
   const marks = useReadMarks();
   const book = useAddressBook();
   const thread = computed(() => threadOf(messages.values(), EMAIL_GATEWAY));

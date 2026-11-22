@@ -48,12 +48,12 @@ const RATE_PER_ADDRESS = 10;
 const RATE_IN_ALL      = 60;
 const RATE_WINDOW_SEC  = 3600;
 const LOG_MAX_BYTES    = 256 * 1024;                              // of the log (oh2gba/SHARED-HOST.md: each application logs under its own private/logs/, each file capped at 256 KB)
-const TIME_FORM        = '/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/';
-const DIAL_FORM        = '/^\d{1,2}\.\d{3,4} MHz (USB|LSB)$/';    // as neoaprs/versions.py reads a dial and the HF box shows it
-const CALL_FORM        = '/^(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,6}(-([0-9]|1[0-5]))?$/';      // as neoaprs/callsign.py checks our own call: an amateur call with its SSID
+const TIME_FORM        = '/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/';
+const DIAL_FORM        = '/\A\d{1,2}\.\d{3,4} MHz (USB|LSB)\z/';    // as neoaprs/versions.py reads a dial and the HF box shows it
+const CALL_FORM        = '/\A(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,6}(-([0-9]|1[0-5]))?\z/';      // as neoaprs/callsign.py checks our own call: an amateur call with its SSID
 const PLACEHOLDERS     = ['N0CALL', 'NOCALL', 'MYCALL'];
-const ID_FORM          = '/^[0-9a-f]{12}$/';
-const TOKEN_FORM       = '/^[0-9a-f]{32}$/';
+const ID_FORM          = '/\A[0-9a-f]{12}\z/';
+const TOKEN_FORM       = '/\A[0-9a-f]{32}\z/';
 
 /** Answers the JSON and ends. */
 function skeds_answer(int $status, array $body, array $headers = []): never

@@ -1,5 +1,6 @@
 """What a command can find out about a daemon without starting one or talking to its socket: whether one holds the lock of the data folder, where its page is (the file the daemon writes when it has bound
 the port, and, for a daemon that did not write one, its log line "web page at ..."; neoaprs/cli/logfile.py), whether that page answers, and the end of its log."""
+import http.client
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -26,6 +27,8 @@ def is_running(data_dir: Path) -> bool:
 
 def tail(path: Path, lines: int = 50) -> list[str]:
     """The last `lines` lines of a text file (the whole file when it is short); [] when it cannot be read."""
+    if lines <= 0:
+        return []
     try:
         with path.open("rb") as f:
             f.seek(0, 2)
@@ -57,7 +60,7 @@ def page_answers(url: str) -> bool:
     try:
         with LOCAL_ONLY.open(url, timeout=PROBE_SEC) as response:
             return bool(response.status == 200)
-    except (urllib.error.URLError, OSError, ValueError):
+    except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError):
         return False
 
 

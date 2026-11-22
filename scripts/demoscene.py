@@ -105,7 +105,9 @@ def _dm(value: float, degrees_width: int, plus: str, minus: str) -> str:
     sign = plus if value >= 0 else minus
     value = abs(value)
     whole = int(value)
-    minutes = (value - whole) * 60
+    minutes = round((value - whole) * 60, 2)
+    if minutes >= 60:
+        whole, minutes = whole + 1, 0.0
     return f"{whole:0{degrees_width}d}{minutes:05.2f}{sign}"
 
 
@@ -230,9 +232,10 @@ class Scene:
             return held
 
         if ack_after_sec is None:
-            while current().state == "sending":
-                self.clock.shift += timedelta(minutes=2)
-                await asyncio.sleep(0.12)
+            async with asyncio.timeout(60):
+                while current().state == "sending":
+                    self.clock.shift += timedelta(minutes=2)
+                    await asyncio.sleep(0.12)
             return
         for attempt in range(2, tries + 1):
             self.clock.shift += timedelta(minutes=2)
@@ -428,17 +431,19 @@ async def history(data_dir: Path, radio: DemoRadio) -> int:
     ctl.ownobjects.tick_sec = ctl.ownbulletins.tick_sec = 0.03   # (our own objects and bulletins go out as soon as the moved clock says so, a few frames of the day in a second)
     ctl.sender.spacing_sec = 0.2
     await ctl.start()
-    await _until(lambda: demo_radio(ctl).state is Source.State.CONNECTED and radio.connected, 30)
-    await asyncio.sleep(3.5)                                    # (the TNC settles after the open)
-    scene = Scene(ctl, radio, clock)
-    played = 0
-    for event in events(local_hour_now):
-        clock.ago(event.ago)
-        await event.action(scene)
-        await scene.keep_schedule()
-        played += 1
-    await asyncio.sleep(0.5)
-    assert ctl.db is not None
-    await ctl.db.barrier()
-    await ctl.stop()
+    try:
+        await _until(lambda: demo_radio(ctl).state is Source.State.CONNECTED and radio.connected, 30)
+        await asyncio.sleep(3.5)                                    # (the TNC settles after the open)
+        scene = Scene(ctl, radio, clock)
+        played = 0
+        for event in events(local_hour_now):
+            clock.ago(event.ago)
+            await event.action(scene)
+            await scene.keep_schedule()
+            played += 1
+        await asyncio.sleep(0.5)
+        assert ctl.db is not None
+        await ctl.db.barrier()
+    finally:
+        await ctl.stop()
     return played

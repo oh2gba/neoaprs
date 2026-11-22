@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { blockedText, currentEstimate, downloadedLine, filesKey, formatBytes, isRunning, problemText, progressText, setupMapLine } from "@/lib/mapfetch";
+import { bytesText } from "@/lib/format";
+import { blockedText, currentEstimate, downloadedLine, filesKey, isRunning, problemText, progressText, setupMapLine } from "@/lib/mapfetch";
 import type { MapState } from "@/protocol/protocol";
 import { mapFile, mapState } from "@/test/fixtures";
 
-describe("formatBytes", () => {
+describe("bytesText", () => {
   it("writes thousands, with a digit only below ten", () => {
-    expect([0, 512, 15_000, 9_500_000, 15_400_000, 493_000_000, 1_240_000_000, 12_300_000_000].map(formatBytes)).toEqual([
+    expect([0, 512, 15_000, 9_500_000, 15_400_000, 493_000_000, 1_240_000_000, 12_300_000_000].map(bytesText)).toEqual([
       "0 B",
       "512 B",
       "15 kB",
@@ -15,6 +16,9 @@ describe("formatBytes", () => {
       "1.2 GB",
       "12 GB",
     ]);
+  });
+  it("chooses the unit after rounding", () => {
+    expect([999_600, 999_999, 9_960, 1_048_575, 1_048_000].map(bytesText)).toEqual(["1.0 MB", "1.0 MB", "10 kB", "1.0 MB", "1.0 MB"]);
   });
 });
 

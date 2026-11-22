@@ -229,3 +229,38 @@ describe("App: messages", () => {
     });
   });
 });
+
+describe("App: messages on a phone", () => {
+  it("does not count a message as seen while the map hides the Messages tab", async () => {
+    window.innerWidth = 390;
+    window.innerHeight = 844;
+    window.dispatchEvent(new Event("resize"));
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Messages")?.trigger("click");
+    await wrapper.find("#pane-messages .conv").trigger("click");
+    expect(document.title).toBe("(1) NeoAPRS");
+    await wrapper.find(".tab-map").trigger("click");
+    expect(wrapper.find(".app").classes()).toContain("view-map");
+    socket.say({ type: "patch", topic: "messages", rev: 1, ops: [{ op: "set", key: "4", value: incoming(4, "OH2PU-9", { text: "Hello?" }) }] });
+    await flushPromises();
+    expect(document.title).toBe("(2) NeoAPRS");
+  });
+});
+
+describe("App: a message while the socket is closed", () => {
+  it("keeps the typed text and Send off until the page is connected again", async () => {
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Messages")?.trigger("click");
+    await wrapper.find("#pane-messages .conv").trigger("click");
+    const input = wrapper.find<HTMLInputElement>("#msg-text");
+    await input.setValue("QSY to 145.500 please");
+    socket.hangUp();
+    await flushPromises();
+    const before = socket.sent.length;
+    expect(wrapper.find<HTMLButtonElement>("#pane-messages button[type=submit]").element.disabled).toBe(true);
+    await wrapper.find("#pane-messages form").trigger("submit");
+    await flushPromises();
+    expect(socket.sent.length).toBe(before);
+    expect(wrapper.find<HTMLInputElement>("#msg-text").element.value).toBe("QSY to 145.500 please");
+  });
+});

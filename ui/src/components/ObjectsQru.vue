@@ -13,6 +13,7 @@ import SendOn from "@/components/SendOn.vue";
 import StatusFold from "@/components/StatusFold.vue";
 import TagMark from "@/components/TagMark.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useCommandInFlight } from "@/composables/useInFlight";
 import { useRadios } from "@/composables/useRadios";
 import { useRequestPath } from "@/composables/useRequestPath";
 import { useSendOn } from "@/composables/useSendOn";
@@ -90,6 +91,9 @@ const why = computed(() => heldBy(on.value, waitOn(on.value, requestText("INFO",
 /** Why a group's button is off, or undefined when it may be pressed (RX only, the server's radio, the path, or its own wait). */
 const groupWhy = (server: QruServer, word: string): string | undefined => heldBy(toServer(server), waitOn(toServer(server), requestText(word, km.value)));
 
+/** A request in flight: no button sends another until the daemon has told it or refused it. */
+const asking = useCommandInFlight("qru_ask", () => asked.value?.at);
+
 watch(lastError, (toast) => {
   if (toast?.cmd === "qru_ask") refusal.value = errorReason(toast, radios);
 });
@@ -112,7 +116,7 @@ function ask(): void {
   const text = requestText("INFO", km.value);
   if (text === null || why.value !== undefined) return;
   refusal.value = "";
-  send(command(text, on.value, null));
+  asking.run(() => send(command(text, on.value, null)));
 }
 
 /** Sends the request for a group of a server, with the distance of the field, on the radio the server answered on, unless it is held (a group may go ten seconds after INFO, whose minute is not its own). */
@@ -120,7 +124,7 @@ function askGroup(server: QruServer, word: string): void {
   const text = requestText(word, km.value);
   if (text === null || groupWhy(server, word) !== undefined) return;
   refusal.value = "";
-  send(command(text, toServer(server), radioOf(server)));
+  asking.run(() => send(command(text, toServer(server), radioOf(server))));
 }
 
 /** Why Ask again is off (RX only, the server's radio, the path, or the wait for that request), or undefined when it may be pressed. */
@@ -130,7 +134,7 @@ const againWhy = (server: QruServer, text: string): string | undefined => heldBy
 function again(server: QruServer, text: string): void {
   if (againWhy(server, text) !== undefined) return;
   refusal.value = "";
-  send(command(text, toServer(server), radioOf(server)));
+  asking.run(() => send(command(text, toServer(server), radioOf(server))));
 }
 
 /** The Stations tab, with the row of the first of the objects that arrived flashed. */
@@ -150,7 +154,9 @@ function inStations(names: readonly string[]): void {
       </InfoTip>
     </legend>
     <div class="qru-ask">
-      <button type="button" class="btn" :disabled="why !== undefined || wrong" :title="why || undefined" @click="ask">{{ t("objects.qru_ask") }}</button>
+      <button type="button" class="btn" :disabled="why !== undefined || wrong || asking.busy.value" :title="why || undefined" @click="ask">
+        {{ t("objects.qru_ask") }}
+      </button>
       <input
         v-model="km"
         class="input mono qru-km"
@@ -192,7 +198,7 @@ function inStations(names: readonly string[]): void {
             :key="group.name"
             type="button"
             class="btn small qru-group"
-            :disabled="groupWhy(server, group.name) !== undefined || wrong"
+            :disabled="groupWhy(server, group.name) !== undefined || wrong || asking.busy.value"
             :title="groupWhy(server, group.name) || t('objects.qru_group', { server: server.call, group: groupName(group.name) })"
             @click="askGroup(server, group.name)"
           >
@@ -205,7 +211,7 @@ function inStations(names: readonly string[]): void {
             v-if="line.again"
             type="button"
             class="btn small qru-again"
-            :disabled="againWhy(server, line.again) !== undefined"
+            :disabled="againWhy(server, line.again) !== undefined || asking.busy.value"
             :title="againWhy(server, line.again) || t('objects.qru_again_title', { server: server.call, request: line.again })"
             @click="again(server, line.again)"
           >

@@ -4,7 +4,7 @@ import { LIMITS } from "@/protocol/lists";
 import type { OwnBulletinRow, RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, ofRadios, tell, withDaemon, type Given } from "@/test/context";
 import { cssRule } from "@/test/css";
-import { ownBulletin, radioRow, radiosTopic, status } from "@/test/fixtures";
+import { ownBulletin, radioRow, radiosTopic, status, toastOf } from "@/test/fixtures";
 import { shown } from "@/test/shown";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 
@@ -12,6 +12,10 @@ import BulletinCompose from "@/components/BulletinCompose.vue";
 const HOURS = LIMITS.bulletin.repeatHours;
 const DAYS = LIMITS.bulletin.announcementRepeatDays;
 const many = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
+
+/** The daemon has the post: its row is told. */
+const answer = (wrapper: { setProps: (props: { ownBulletins: Map<string, OwnBulletinRow> }) => Promise<void> }, slot: string, text: string) =>
+  wrapper.setProps({ ownBulletins: new Map([[slot, ownBulletin(slot, { text })]]) });
 
 function compose() {
   const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() } });
@@ -250,10 +254,13 @@ describe("BulletinCompose", () => {
   });
 
   it("keeps the text when the daemon refuses, and a bulletin of the slot with another text is not the answer", async () => {
-    const { wrapper, text } = compose();
+    const daemon = fakeDaemon();
+    const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });
+    const text = wrapper.find<HTMLInputElement>("#post-text");
     await text.setValue("Road closed");
     await wrapper.find("form").trigger("submit");
     await wrapper.setProps({ ownBulletins: new Map([["BLN1", ownBulletin("BLN1", { text: "an older text" })]]) });
+    await tell(daemon, { lastError: toastOf("bulletin_post: no call", "other") });
     expect(text.element.value).toBe("Road closed");
     await text.setValue("Road open");
     await wrapper.find("form").trigger("submit");
@@ -286,10 +293,12 @@ describe("BulletinCompose", () => {
     await text.setValue("Club meeting");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("post")).toEqual([["BLNA", "Club meeting"]]);
+    await answer(wrapper, "BLNA", "Club meeting");
     await id.setValue("Q");
     await text.setValue("Another");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("post")?.[1]).toEqual(["BLNQ", "Another"]);
+    await answer(wrapper, "BLNQ", "Another");
     await kind.setValue("bulletin");
     await text.setValue("Back to numbers");
     await wrapper.find("form").trigger("submit");
@@ -381,6 +390,7 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
     expect(two.post().element.disabled).toBe(false);
     await two.wrapper.find("form").trigger("submit");
     expect(two.wrapper.emitted("post")).toEqual([["BLN1", "Net tonight 20 UTC", [1, 2]]]);
+    await answer(two.wrapper, "BLN1", "Net tonight 20 UTC");
     await two.tick("Mercury");
     await two.wrapper.find("#post-text").setValue("Net moved to 21 UTC");
     await two.wrapper.find("form").trigger("submit");
@@ -438,5 +448,20 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
     const rx = on({ receiveOnly: true }, { ...FM, state: "waiting" });
     await rx.wrapper.find("#post-text").setValue("Net tonight");
     expect(rx.post().attributes("title")).toBe("RX only: nothing is sent");
+  });
+});
+
+describe("a post in flight", () => {
+  it("is posted once for two submits before the daemon has it, and again once it has", async () => {
+    const { wrapper, text, post } = compose();
+    await text.setValue("Road closed");
+    await wrapper.find("form").trigger("submit");
+    expect(post.element.disabled).toBe(true);
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("post")).toHaveLength(1);
+    await answer(wrapper, "BLN1", "Road closed");
+    await text.setValue("Road open");
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("post")).toHaveLength(2);
   });
 });

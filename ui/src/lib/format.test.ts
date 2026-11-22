@@ -107,7 +107,13 @@ describe("numbers", () => {
     expect(pathText([])).toBe("-");
     expect(bytesText(512)).toBe("512 B");
     expect(bytesText(2048)).toBe("2.0 kB");
-    expect(bytesText(3 * 1024 * 1024)).toBe("3.0 MB");
+    expect(bytesText(3 * 1024 * 1024)).toBe("3.1 MB");
+  });
+  it("wraps a negative bearing and gives the sign of a position from what is shown", () => {
+    expect(bearingText(-10)).toBe("350° N");
+    expect(bearingTitle(-10)).toBe("N, 350°");
+    expect(positionText(-0.000001, 0)).toBe("0.00000 N 0.00000 E");
+    expect(positionText(-0.00001, -0.00001)).toBe("0.00001 S 0.00001 W");
   });
 });
 

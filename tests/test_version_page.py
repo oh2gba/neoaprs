@@ -1,6 +1,7 @@
 """The version page (server/version.php) under PHP's own web server on the loopback, with a fake GitHub (tests/support/fakeversionpage.py) for the releases and a stand-in status library: the answer names the latest release, the call is logged as time, version, platform
 and the installation's id (32 lowercase hex characters, or the one character 0 of a run that is not a user's, else -), the status application is handed the call (not one with the id 0), GitHub is asked once an hour and the last good answer is kept while it fails. Skipped without `php`."""
 import asyncio
+import http.server
 import json
 import os
 import shutil
@@ -14,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from tests.support.fakeversionpage import FakeVersionPage, version_page
+from tests.support.httpthread import serve
 from tests.support.ptyline import posix_only
 
 pytestmark = posix_only
@@ -102,6 +104,13 @@ async def test_the_call_is_logged_as_time_version_platform_and_id_and_handed_to_
     assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == ["neoaprs|0.1.0|linux-arm|", "neoaprs|0.1.0b||"]
 
 
+async def test_a_months_log_stops_growing_at_5_megabytes_and_the_call_is_still_answered(page: Page) -> None:
+    full = page.folder / "site" / "log" / time.strftime("starts-%Y-%m.log", time.gmtime())
+    full.write_bytes(b"x" * (5 * 1024 * 1024))
+    assert (await page.ask("v=0.1.0&os=linux"))["version"] == "0.2.0"
+    assert full.stat().st_size == 5 * 1024 * 1024
+
+
 async def test_an_id_of_32_lowercase_hex_characters_is_the_fourth_column(page: Page) -> None:
     await page.ask(f"v=0.1.0&os=linux&id={ID}")
     assert page.log() == [[page.log()[0][0], "0.1.0", "linux", ID]]
@@ -165,3 +174,31 @@ async def test_the_status_application_is_never_handed_the_address(page: Page) ->
     await page.ask("v=0.9.2&os=windows")
     calls = (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8")
     assert calls.splitlines() == [f"neoaprs|0.9.2|windows|{ID}", "neoaprs|0.9.2|windows|"] and "127.0.0.1" not in calls
+
+
+async def test_a_redirect_of_github_is_followed(tmp_path: Path) -> None:
+    if PHP is None:
+        pytest.skip("needs php")
+    github = await version_page({"tag_name": "v0.2.0"})
+
+    class Moved(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(301)
+            self.send_header("Location", github.url)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Moved)
+    serve(server)
+    served = Page(tmp_path, github)
+    served.github = type("Moved", (), {"url": f"http://127.0.0.1:{server.server_address[1]}/repos"})()      # type: ignore[assignment]
+    served.start()
+    try:
+        assert (await served.ask())["version"] == "0.2.0"
+    finally:
+        served.stop()
+        server.shutdown()
+        server.server_close()

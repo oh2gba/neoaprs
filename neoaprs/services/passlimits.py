@@ -8,6 +8,7 @@ from neoaprs.callsign import normal_name
 from neoaprs.mercury import FRAME_SEC
 from neoaprs.packet import Message, Packet
 from neoaprs.radiotype import RadioId
+from neoaprs.services.pace import within
 
 BURST_MAX = 4                      # frames a fast radio sends again in any BURST_WINDOW_SEC, the fill-in's and the pairs' together (L1)
 BURST_WINDOW_SEC = 10.0
@@ -32,7 +33,7 @@ class Burst:
     def full(self, radio: RadioId, now: datetime) -> bool:
         """Whether the radio has sent `most` frames again in the last `window` seconds."""
         sent = self._sent.setdefault(radio, deque(maxlen=self.most))
-        while sent and (now - sent[0]).total_seconds() >= self.window:
+        while sent and not within(sent[0], now, self.window):
             sent.popleft()
         return len(sent) >= self.most
 

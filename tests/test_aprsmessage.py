@@ -114,3 +114,9 @@ def test_a_message_id_with_a_line_end_after_it_is_no_id() -> None:
     for wrong in ("01\n", "", "123456", "a b"):
         with pytest.raises(MessageError, match="bad message id"):
             format_message("WU2Z", "Testing", wrong)
+
+
+@pytest.mark.parametrize("text", ["ack12", "ack12 ", "rej7\r\n", "ack1}  "])
+def test_format_refuses_a_text_that_the_receiver_reads_as_an_ack_even_with_blanks_after_it(text: str) -> None:
+    with pytest.raises(MessageError):
+        format_message("OH2GBA", text)

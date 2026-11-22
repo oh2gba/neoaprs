@@ -29,8 +29,11 @@ class Ear(SerialPort):
         self.given_up = False                    # (let go for a radio whose settings name the port)
 
     async def open(self) -> None:
+        key = port_key(self.path)
+        if (held := LISTENING.get(key)) is None or not (held.is_open or held.is_opening):
+            LISTENING[key] = self
         await super().open()
-        LISTENING[port_key(self.path)] = self
+        LISTENING[key] = self
 
     def let_go(self) -> None:
         self.given_up = True

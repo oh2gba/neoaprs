@@ -86,7 +86,7 @@ def let_go(path: str) -> None:
     """Another radio's search that has the device open closes it at once (serialprobe.LISTENING): the radio whose settings name it opens it now, so it is not told that another program has its port, and
     the search leaves it out from then on (`Others`). Find my radio's try of the port ends too (radioprobe.Ear), and it looks again before each port it tries (radiofinder.py)."""
     listener = serialprobe.LISTENING.get(serialprobe.port_key(path))
-    if listener is not None and listener.is_open:
+    if listener is not None and (listener.is_open or listener.is_opening):
         log.info("probe: %s is let go: a radio is set to it", listener.path)
         listener.let_go()
 

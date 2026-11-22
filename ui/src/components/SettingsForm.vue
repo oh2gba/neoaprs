@@ -56,7 +56,7 @@ import { computed, watch } from "vue";
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; notes: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, keys, local } = useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, keys, local, connection } = useDaemonContext();
 const newMessageKey = useSure<string>(); // (the New key of encrypted messages asks twice: the stations that have the old key must be sent the new one)
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
@@ -67,8 +67,9 @@ const alertTest = useAlertTest(
   send,
   draft,
   computed(() => config.value?.values[ALERT_KEY]),
+  connection,
 );
-const updateCheck = useUpdateCheck(updateResult, lastError, send);
+const updateCheck = useUpdateCheck(updateResult, lastError, send, connection);
 const newKey = useNewKey();
 const RADIUS_KEY = "map/radius_km";
 const SYMBOL_TABLE = "station/symbol_table";

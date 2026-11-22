@@ -12,7 +12,7 @@ import type { PhoneView } from "@/composables/useLayout";
 import { useRadios } from "@/composables/useRadios";
 import { useTabsFit } from "@/composables/useTabsFit";
 import { t } from "@/i18n";
-import { TAB_IDS, offeredTabs, tabTitle, clampWidth, type SizeClass, type TabId } from "@/lib/layout";
+import { PANEL_MIN, TAB_IDS, offeredTabs, tabTitle, clampWidth, panelMax, type SizeClass, type TabId } from "@/lib/layout";
 import { unreadText } from "@/lib/unread";
 
 const props = withDefaults(
@@ -101,6 +101,19 @@ function drag(event: PointerEvent): void {
   handle.addEventListener("pointercancel", stop);
 }
 
+/** The arrows (and Home, End) of the row of tabs move to the tab beside and show it; the row is one stop of Tab, the tab on show. */
+function arrow(event: KeyboardEvent, id: TabId): void {
+  const list = split.value.shown;
+  const at = list.indexOf(id);
+  const keys: Record<string, number> = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: list.length - 1 };
+  const next = keys[event.key];
+  const to = next === undefined ? undefined : list[(next + list.length) % list.length];
+  if (to === undefined) return;
+  event.preventDefault();
+  pick(to);
+  void nextTick(() => document.getElementById(`tab-${to}`)?.focus());
+}
+
 function nudge(event: KeyboardEvent): void {
   const step = event.key === "ArrowLeft" ? KEY_STEP : event.key === "ArrowRight" ? -KEY_STEP : 0;
   if (step === 0) return;
@@ -135,6 +148,9 @@ function nudge(event: KeyboardEvent): void {
         role="separator"
         aria-orientation="vertical"
         :aria-label="t('panel.width')"
+        :aria-valuemin="PANEL_MIN"
+        :aria-valuemax="panelMax(pageWidth)"
+        :aria-valuenow="shown"
         tabindex="0"
         @pointerdown.prevent="drag"
         @keydown="nudge"
@@ -163,7 +179,9 @@ function nudge(event: KeyboardEvent): void {
               :class="{ active: id === tab && paneOn }"
               :aria-selected="id === tab && paneOn"
               :aria-controls="`pane-${id}`"
+              :tabindex="id === tab ? 0 : -1"
               @click="pick(id)"
+              @keydown="arrow($event, id)"
             >
               {{ tabTitle(id) }}
               <TabBadge :tab="id" :count="badges[id]" />

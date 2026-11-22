@@ -13,10 +13,12 @@ export function useAddressBook() {
     writeStored(KEY, JSON.stringify(list));
   }
 
+  /** The list as stored now: another window of the browser may have changed it since. */
+  const now = (): string[] => parseAddresses(readStored(KEY));
   /** Puts the addressee first in the list. */
-  const remember = (to: string): void => keep(rememberAddress(addresses.value, to));
+  const remember = (to: string): void => keep(rememberAddress(now(), to));
   /** Takes the addressee out of the list. */
-  const forget = (name: string): void => keep(forgetAddress(addresses.value, name));
+  const forget = (name: string): void => keep(forgetAddress(now(), name));
 
   return { addresses, remember, forget };
 }

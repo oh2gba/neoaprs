@@ -58,4 +58,4 @@ def test_the_sections_between_two_versions_and_the_section_of_one() -> None:
 
 def test_the_changelog_is_read_at_the_tag_of_the_release() -> None:
     assert changelog_url("0.10.2") == "https://raw.githubusercontent.com/oh2gba/neoaprs/v0.10.2/CHANGELOG.md"
-    assert MAX_BYTES >= 100_000
+    assert MAX_BYTES >= 1_000_000

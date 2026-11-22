@@ -9,6 +9,7 @@ were when the daemon connects again. With --loop the file starts again when it e
 --pty (Linux and macOS) plays on a pseudo-terminal instead and prints its path."""
 import argparse
 import asyncio
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -107,6 +108,9 @@ class Replay:
 
 def main(argv: list[str]) -> int:
     args = parser().parse_args(argv)
+    if args.pty and sys.platform == "win32":
+        say("replay: --pty is not available on Windows")
+        return 2
     ctrl_break_is_ctrl_c()
     source = Path(args.file) if args.file else SAMPLE
     try:

@@ -27,14 +27,7 @@ const open = ref(false);
         </template>
       </p>
     </div>
-    <button
-      class="attrib-toggle"
-      type="button"
-      :aria-expanded="open"
-      :title="open ? t('map.credits.hide') : t('map.credits.show')"
-      :aria-label="t('map.credits.show')"
-      @click="open = !open"
-    >
+    <button class="attrib-toggle" type="button" :aria-expanded="open" :aria-label="open ? t('map.credits.hide') : t('map.credits.show')" @click="open = !open">
       i
     </button>
   </div>

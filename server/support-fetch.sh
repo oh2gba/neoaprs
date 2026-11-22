@@ -31,10 +31,14 @@ export BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$(grep -v '^#' "$ENVFILE" | head -1
 sec() { "$BWS" secret list -o json --color no | python3 -c \
   "import json,sys;print([s['value'] for s in json.load(sys.stdin) if s['key']=='$1'][0])"; }
 FH=$(sec ftp_server); FU=$(sec ftp_login); FP=$(sec ftp_pw)
+# The login goes to curl as a config on stdin, never on its command line.
+quote() { local s=${1//\\/\\\\}; printf '%s' "${s//\"/\\\"}"; }
+CURL_USER="user = \"$(quote "$FU"):$(quote "$FP")\""
+fcurl() { curl -K - "$@" <<<"$CURL_USER"; }
 
 mkdir -p "$LOCAL"
 # A file counts once its json is there: the server writes the json last. Only names of exactly that form are used, whatever the listing says.
-refs=$(curl -sS --max-time 60 -u "$FU:$FP" "sftp://$FH$REMOTE/" | awk '{print $NF}' | grep -E '^NEO-[0-9]{8}-[0-9]{4}-[0-9A-F]{4,8}\.json$' | sed 's/\.json$//' | sort || true)
+refs=$(fcurl -sS --max-time 60 "sftp://$FH$REMOTE/" | awk '{print $NF}' | grep -E '^NEO-[0-9]{8}-[0-9]{4}-[0-9A-F]{4,8}\.json$' | sed 's/\.json$//' | sort || true)
 
 # Whether the json at $1 says a file came with the note (a note alone has "file": false and no zip).
 has_file() { python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1], encoding="utf-8")).get("file", True) else 1)' "$1"; }
@@ -59,13 +63,13 @@ for ref in $refs; do
     continue
   fi
   if [ "$list_only" = 1 ]; then
-    curl -sS --max-time 60 -u "$FU:$FP" -o "$LOCAL/$ref.json" "sftp://$FH$REMOTE/$ref.json"
+    fcurl -sS --max-time 60 -o "$LOCAL/$ref.json" "sftp://$FH$REMOTE/$ref.json"
     echo "new:"; show "$ref"; rm -f "$LOCAL/$ref.json"
     continue
   fi
-  curl -sS --max-time 60 -u "$FU:$FP" -o "$LOCAL/$ref.json.part" "sftp://$FH$REMOTE/$ref.json"
+  fcurl -sS --max-time 60 -o "$LOCAL/$ref.json.part" "sftp://$FH$REMOTE/$ref.json"
   if has_file "$LOCAL/$ref.json.part"; then
-    curl -sS --max-time 300 -u "$FU:$FP" -o "$LOCAL/$ref.zip.part" "sftp://$FH$REMOTE/$ref.zip"
+    fcurl -sS --max-time 300 -o "$LOCAL/$ref.zip.part" "sftp://$FH$REMOTE/$ref.zip"
     mv "$LOCAL/$ref.zip.part" "$LOCAL/$ref.zip"
   fi
   mv "$LOCAL/$ref.json.part" "$LOCAL/$ref.json"

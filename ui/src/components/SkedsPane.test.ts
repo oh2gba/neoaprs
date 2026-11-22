@@ -182,3 +182,18 @@ describe("SkedsPane", () => {
     });
   });
 });
+
+describe("a Join in flight", () => {
+  it("posts once for two presses before the board is told, and again once it is", async () => {
+    const row = sked("a", { call: "OH2XYZ" });
+    const wrapper = pane([row]);
+    const join = () => wrapper.find(".sked-actions .btn");
+    await join().trigger("click");
+    expect(join().attributes("disabled")).toBeDefined();
+    await join().trigger("click");
+    expect(sent("sked_post")).toHaveLength(1);
+    await tell(daemon, { skeds: skedsState([row, sked("b", { call: "OH2ABC" })]) });
+    await join().trigger("click");
+    expect(sent("sked_post")).toHaveLength(2);
+  });
+});

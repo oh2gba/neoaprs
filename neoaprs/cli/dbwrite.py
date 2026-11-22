@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from neoaprs.instancelock import LOCK_NAME, AlreadyRunning, InstanceLock, is_held
+from neoaprs.instancelock import LOCK_NAME, AlreadyRunning, InstanceLock, is_file, is_held
 from neoaprs.migrations import SCHEMA_VERSION, hold_for_writing, let_go
 from neoaprs.stopfile import migrating
 from neoaprs.supportsql import live_version
@@ -57,7 +57,7 @@ def _turn(folder: Path, wait_ms: int) -> InstanceLock | None:
 def older_beside_daemon(path: Path) -> bool:
     """Whether a daemon holds the data folder while the file is of an older version than this NeoAPRS. The version is SQLite's, through the write-ahead log (the file's header can be older than a
     migration that has not reached a checkpoint yet); a file that is not there or cannot be read says no (the open says what is wrong)."""
-    if not path.is_file() or not is_held(path.parent, LOCK_NAME):
+    if not is_file(path) or not is_held(path.parent, LOCK_NAME):
         return False
     version = live_version(path)
     return version is not None and version < SCHEMA_VERSION

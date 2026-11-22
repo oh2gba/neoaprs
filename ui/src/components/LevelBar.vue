@@ -10,7 +10,17 @@ defineProps<{ id: string; label: string; percent: number; zone: string; good: re
     <label :for="id">{{ label }}</label>
     <div class="field-control scope-level">
       <slot name="control" />
-      <div :id="id" class="levelbar" :class="{ held }" role="meter" :aria-label="label">
+      <div
+        :id="id"
+        class="levelbar"
+        :class="{ held }"
+        role="meter"
+        :aria-label="label"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-valuenow="Math.round(percent)"
+        :aria-valuetext="value"
+      >
         <span class="levelgood" :style="{ left: `${good[0]}%`, width: `${good[1] - good[0]}%` }"></span>
         <span class="levelfill" :class="zone" :style="{ width: `${percent}%` }"></span>
       </div>

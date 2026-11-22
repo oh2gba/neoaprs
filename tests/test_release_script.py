@@ -33,6 +33,7 @@ VERSION = "0.9.1"
 TAG = f"v{VERSION}"
 ASSETS = sorted([f"neoaprs-{VERSION}.tar.gz", f"neoaprs-{VERSION}-py3-none-any.whl", "install.sh", f"NeoAPRS-Setup-{VERSION}.exe", f"NeoAPRS-{VERSION}-x86_64.AppImage", f"NeoAPRS-{VERSION}-arm64.dmg", f"neoaprs_{VERSION}_amd64.deb", f"neoaprs_{VERSION}_arm64.deb",
                  "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg", "neoaprs_amd64.deb", "neoaprs_arm64.deb", "SHA256SUMS"])      # what the release run uploads to the draft
+CONTENTS = {name: name for name in ASSETS if name != "SHA256SUMS"}                                                                      # the made-up files: each holds its own name, which SUMS hashes
 SIGNED = sorted([*ASSETS, "SHA256SUMS.sig"])                                                                                          # and the release once it is signed
 SUMS = "".join(f"{hashlib.sha256(name.encode()).hexdigest()}  {name}\n" for name in ASSETS if name != "SHA256SUMS")
 SECRET_ID = "00000000-0000-4000-8000-000000000001"          # (made up: the form of an id, nothing of a real one)
@@ -180,7 +181,7 @@ class Rig:
         self.state: dict[str, Any] = {"auth": True, "appear_after": 1, "looks": {}, "runs": [], "rate_limited": 0, "api": switches_on(), "base": base, "log": "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:00Z FAILED tests/test_flaky.py::test_it - assert 1 == 2\n"
                                       "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:01Z 1 failed, 3000 passed\npython (ubuntu-latest)\tpytest\t2026-10-26T08:00:02Z uploading cache",
                                       "ci.yml": {"plan": ["success"]}, "release.yml": {"plan": ["success"]}, "release": {"made": False, "draft": True, "assets": ASSETS,
-                                                                                                                    "files": {"SHA256SUMS": SUMS}}}
+                                                                                                                    "files": {**CONTENTS, "SHA256SUMS": SUMS}}}
         self.save_state()
         make_executable(self.bin / "gh", FAKE_GH.format(python=sys.executable, state=self.state_file, log=self.log))
         make_executable(self.bin / "bws", FAKE_BWS.format(python=sys.executable, log=self.log, secret_id=SECRET_ID, seed_file=self.seed_file))
@@ -308,7 +309,7 @@ def rig(tmp_path: Path, downloads: str) -> Rig:
     return Rig(tmp_path, downloads)
 
 
-SIGN = ["release view", "download SHA256SUMS", "bws", "upload", "download SHA256SUMS", "download SHA256SUMS.sig", "edit"]
+SIGN = ["release view", "download SHA256SUMS", *[f"download {name}" for name in ASSETS if name != "SHA256SUMS"], "bws", "upload", "download SHA256SUMS", "download SHA256SUMS.sig", "edit"]
 VERIFY = ["release view", "download SHA256SUMS", "download SHA256SUMS.sig"]
 FULL_RUN = ["check", "push master", "list ci.yml", "list ci.yml", "watch ci.yml", f"push tag {TAG}", "release view", "list release.yml", "list release.yml", "watch release.yml", *SIGN, *VERIFY]
 

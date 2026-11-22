@@ -460,3 +460,14 @@ async def test_a_receiver_that_says_it_has_no_fix_twice_is_told_once_and_one_tha
     idle, _, _ = feed_of("serial", "/dev/ttyUSB1")
     idle._no_fix()
     assert idle.problem == "", "(a feed that is not connected is not blamed for a fix it never waited for)"
+
+
+async def test_json_nested_beyond_what_the_parser_takes_is_rejected_and_the_feed_goes_on() -> None:
+    gpsd = await fake_gpsd()
+    feed, fixes, _ = feed_of("gpsd", gpsd.address)
+    await feed.start()
+    await until(lambda: gpsd.watching)
+    gpsd.send_raw(b"[" * 60000 + b"\n")
+    gpsd.send(tpv(60.43, 24.145))
+    await until(lambda: fixes)
+    assert feed.stats.rejected == 1

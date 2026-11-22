@@ -25,7 +25,7 @@ from dataclasses import replace
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs.mercurycontrol import EMPTY, HELD, ControlLine
-from neoaprs import bundled, mercuryhelper, mercurymodem, modemstate
+from neoaprs import bundled, childprogram, mercuryhelper, mercurymodem, modemstate
 from neoaprs.mercuryhelper import environment, find, free_ports, list_sound_cards, pair_free
 from neoaprs.mercurystale import end_stale
 from neoaprs.claims import Claim, Claims
@@ -617,6 +617,21 @@ def test_a_port_whose_last_connection_is_in_time_wait_counts_as_free_as_it_does_
         holder.bind(("127.0.0.1", port))
         holder.listen()
         assert not mercuryhelper._free(port), "a port something listens on is not"
+
+
+def test_a_port_another_program_listens_on_in_ipv6_alone_is_not_free_so_our_modem_is_never_taken_for_one_open_to_the_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The listeners of a started modem are read in both families: a pair chosen beside another program's IPv6 listener would make our own modem look as if it listened on the network."""
+    if not socket.has_ipv6:
+        pytest.skip("no IPv6 here")
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as other:
+        other.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+        other.bind(("::", 0))
+        other.listen()
+        port = other.getsockname()[1]
+        assert not mercuryhelper._free(port)
+        monkeypatch.setattr(childprogram, "PROC_TCP", ())                  # (a system without the kernel's table: the probe of :: says it)
+        assert not mercuryhelper._free(port)
+    assert mercuryhelper._free(port)
 
 
 async def tnc_on(m: Mercury) -> Tnc:

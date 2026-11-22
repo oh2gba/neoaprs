@@ -112,3 +112,24 @@ describe("the clock of the bar", () => {
     expect(replayClock(t, ...twoDays)).toBe("10-21 09:05:07");
   });
 });
+
+describe("across the date line", () => {
+  it("glides the short way and keeps the longitude in range", () => {
+    const data = replayData({
+      type: "position_history",
+      hours: 1,
+      start: START,
+      end: at(60),
+      stations: {
+        FJ: [
+          [at(0), -17, 179.9],
+          [at(10), -17, -179.9],
+        ],
+      },
+    });
+    const [, , lon] = placesAt(data, T0 + 2.5 * MIN)[0] ?? [];
+    expect(lon).toBeCloseTo(179.95, 6);
+    const [, , middle] = placesAt(data, T0 + 5 * MIN)[0] ?? [];
+    expect(Math.abs(middle ?? 0)).toBeCloseTo(180, 6);
+  });
+});

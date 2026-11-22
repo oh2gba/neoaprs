@@ -17,6 +17,7 @@ from neoaprs.config import Config
 from neoaprs.configradios import radios_from_rows
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
+from neoaprs.instancelock import is_file
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
 from neoaprs.paths import default_data_dir
 from neoaprs.radiospec import RadioSpec, log_name
@@ -50,7 +51,11 @@ def check_python() -> Finding:
 
 
 def check_data_folder(data: Path) -> Finding:
-    if not data.exists():
+    try:
+        there = data.exists()
+    except OSError as e:
+        return Finding("fail", f"data folder {data} cannot be looked into: {e.strerror or e}", "give it back to your user (chown, chmod), or give another folder with --data")
+    if not there:
         return Finding("ok", f"data folder {data} does not exist yet; the daemon makes it when it first starts")
     if not data.is_dir():
         return Finding("fail", f"{data} is not a folder", "give another folder with --data, or move the file away")
@@ -93,7 +98,7 @@ def check_database(data: Path) -> tuple[Finding, Config | None, str, bool]:
     """The database's line, the settings in force in it (None when there is no file or it cannot be read), why its radios could not be read ("" when they could), and whether the file is older than
     the radios' rows (its radios are made by the migration at the daemon's next start)."""
     path = data / DB_NAME
-    if not path.is_file():
+    if not is_file(path):
         return Finding("ok", "no database yet; the daemon makes it when it first starts"), None, "", False
     try:
         found = asyncio.run(read_database(path))
@@ -189,7 +194,7 @@ def check_daemon(data: Path) -> Finding:
 
 
 def check_map(data: Path) -> Finding:
-    sizes = {name: (data / name).stat().st_size for name in MAP_FILES if (data / name).is_file()}
+    sizes = {name: (data / name).stat().st_size for name in MAP_FILES if is_file(data / name)}
     if not sizes:
         return Finding("warn", "no base map yet: the page shows no map", "make it on the page (Settings tab, Map, Download) or with `neoaprs map`")
     text = ", ".join(f"{name} {size / 1e6:.0f} MB" for name, size in sizes.items())

@@ -187,5 +187,6 @@ class UpdateCheck:
             answer, reason = await self._ask()
             if answer is None:
                 return CheckResult("no_answer", reason=reason)
+            await self._take_dial(answer.hf_dial)
             newer = self._take(answer)
             return CheckResult("newer", newer.version) if newer is not None else CheckResult("current", self.version)

@@ -3,6 +3,7 @@
 // at its last; between two positions that are near in time it is moved along the line between them, as far as the time has gone, so that a moving station drives and does not hop; across a longer gap (it was not
 // heard for a while) it waits where it was and jumps. The spans are the hours of the Stations tab's On map for and then days, up to the week the daemon keeps.
 import { t } from "@/i18n";
+import { eastOf, wrapLon } from "@/lib/dateline";
 import { pad2 } from "@/lib/format";
 import { fadingLines, type TrackCollection } from "@/lib/tracks";
 import { STATION_HOURS, trailOpacity } from "@/lib/aging";
@@ -75,7 +76,7 @@ function headAt(points: readonly ReplayPoint[], t: number): { index: number; hea
   const to = points[index + 1];
   if (to === undefined || to[0] - from[0] > GLIDE_MAX_MS) return { index, head: [t, from[1], from[2]] };
   const part = (t - from[0]) / (to[0] - from[0]);
-  return { index, head: [t, from[1] + (to[1] - from[1]) * part, from[2] + (to[2] - from[2]) * part] };
+  return { index, head: [t, from[1] + (to[1] - from[1]) * part, wrapLon(from[2] + eastOf(from[2], to[2]) * part)] };
 }
 
 /** Where each station that has been heard by `t` is at `t`: [call, lat, lon]. */

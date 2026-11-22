@@ -184,7 +184,7 @@ class Passer:
         decoded, answered = packet.decoded, _answered(packet)
         if not isinstance(decoded, Message) or answered is None:
             return
-        passed = self._passed.answer(packet.source, decoded.addressee, answered, heard_on, now)
+        passed = self._passed.answer(packet.source, decoded.addressee, answered, heard_on, now, take=False)       # (taken only by a copy that goes: one refused below leaves it for the next)
         if passed is None:
             return
         config = self._config()
@@ -199,6 +199,7 @@ class Passer:
             return
         out = replace(heard, path=path)
         raw = spliced(packet.raw, heard, out) if heard.path else ax25.encode(out)    # (a source that ended the address field must lose that mark)
+        self._passed.forget(passed)
         self._offer(_Offer(row, out, raw, packet, _key(packet), heard.path_text), now)
 
     # ---- one offer, through the checks in order

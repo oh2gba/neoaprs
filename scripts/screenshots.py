@@ -1202,6 +1202,11 @@ EXTRA_DAEMONS = {"updating": ("update", "update-dark"), "receiving": ("beacon-rx
                  "skeds": ("hf-tests", "hf-tests-dark"), "layered": ("layers", "layers-dark")}       # the shots each extra daemon is for (a copy of the day's folder with its three radios, set otherwise)
 
 
+def docs_folder(out: Path, docs: Path) -> Path:
+    """`docs`, or `none` when `out` is a folder of the run's own and `docs` is the default: such a run never writes the repository's README shots."""
+    return Path("none") if out.resolve() != (SITE / "shots").resolve() and docs == ROOT / "docs" / "screenshots" else docs
+
+
 async def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=ROOT / "site" / "shots", help="where the PNG files go (default %(default)s)")
@@ -1213,6 +1218,7 @@ async def main(argv: list[str]) -> int:
     parser.add_argument("--keep", action="store_true", help="keep the temporary data folders and say where they are")
     parser.add_argument("--check", action="store_true", help="take nothing: say what of site/shots/ and docs/screenshots/ is missing and which picture of site/ is declared at another size than its file; exit 1 for any")
     args = parser.parse_args(argv)
+    args.docs = docs_folder(args.out, args.docs)
     docs = None if args.docs.name == "none" else args.docs
     if args.check:
         found = [*missing_files(args.out, docs), *wrong_sizes(SITE)]

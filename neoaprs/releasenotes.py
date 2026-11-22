@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from neoaprs.versions import compare_versions
 
 CHANGELOG_URL = "https://raw.githubusercontent.com/oh2gba/neoaprs/v{version}/CHANGELOG.md"
-MAX_BYTES = 262144                   # the whole changelog, with room to grow
+MAX_BYTES = 2 * 1024 * 1024          # the whole changelog, with room to grow; a longer answer is a failed fetch
 _HEADING = re.compile(r"^## +(.*?)\s*$", re.M)
-_VERSION = re.compile(r"(?<![\w.])(\d+(?:\.\d+){1,3}(?:[-+][0-9A-Za-z.]+)?)(?![\w.])")
+_VERSION = re.compile(r"(?<![\w.])(\d+(?:\.\d+){1,3}(?:[-+][0-9A-Za-z.]+)?)(?![\w.])", re.ASCII)
 
 
 @dataclass(frozen=True)

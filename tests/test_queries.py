@@ -406,6 +406,15 @@ async def test_aprsm_sends_again_our_messages_to_the_asker_that_no_ack_settled_a
     assert len(rig.tnc.sent) == 3, "nothing is owed to a station we never wrote to: no answer"
 
 
+async def test_aprsm_sends_a_sealed_message_as_it_went_on_the_air_never_its_plaintext() -> None:
+    sealed = MessageRecord(1, FixedClock()(), "out", "OH2GBA", "OH2RDG", "meet at 5 behind the shed", "01", "sending", seal="open", wire="!Eabcdefciphertextxyz")
+    rig = paced_rig(messages=(sealed,))
+    rig.ask("OH2RDG", "?APRSM")
+    await until(lambda: len(rig.tnc.sent) == 1)
+    await idle_for(0.1)
+    assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :!Eabcdefciphertextxyz{01}"]
+
+
 async def test_aprso_gives_an_object_that_is_sent_only_when_asked_as_well() -> None:
     now = FixedClock()()
     held = make_object(now, "PUB", "object", 60.17, 24.94, "/", "r", qru_group="FOOD", on_request=True)

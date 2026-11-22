@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick, shallowRef } from "vue";
 import { useReplay } from "@/composables/useReplay";
+import type { Connection } from "@/lib/hub";
 import type { Command, IgateState, PositionHistoryMessage } from "@/protocol/protocol";
 import { igateState } from "@/test/fixtures";
 
@@ -153,5 +154,20 @@ describe("the replay's clock", () => {
     expect(replay.playing.value).toBe(false);
     scope.stop();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("the replay and the socket", () => {
+  it("stops loading when the socket closes before the answer came", async () => {
+    const connection = shallowRef<Connection>("open");
+    const scope = effectScope();
+    const replay = scope.run(() => useReplay({ send: () => true, positionHistory: shallowRef(null), igate: shallowRef(null), connection }));
+    if (!replay) throw new Error("no replay");
+    replay.ask(6);
+    expect(replay.loading.value).toBe(true);
+    connection.value = "closed";
+    await nextTick();
+    expect(replay.loading.value).toBe(false);
+    scope.stop();
   });
 });

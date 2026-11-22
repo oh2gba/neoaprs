@@ -322,3 +322,21 @@ async def test_a_task_that_is_cancelled_stops_the_cut_and_waits_for_its_thread(t
         await task
     await until_started(lambda: server.holding == 0 and not [t for t in threading.enumerate() if t.name == "map-cut"])
     assert not list(tmp_path.glob("out*"))
+
+
+def test_a_cut_that_holds_no_tile_is_refused_and_leaves_the_map_in_place(tmp_path: Path) -> None:
+    (tmp_path / "source.pmtiles").write_bytes(archive({(3, 0, 7): b"far"}))
+    target = tmp_path / "out.pmtiles"
+    target.write_bytes(b"GOOD MAP")
+    with pytest.raises(CutError, match="no tiles"):
+        Cutting(str(tmp_path / "source.pmtiles"), target, BOX, 6, pauses=NOW).estimate()
+    with pytest.raises(CutError, match="no tiles"):
+        Cutting(str(tmp_path / "source.pmtiles"), target, BOX, 6, pauses=NOW).run()
+    assert target.read_bytes() == b"GOOD MAP" and not part_of(target).exists()
+
+
+async def test_an_archive_with_no_metadata_is_cut_from_a_server(tmp_path: Path) -> None:
+    data = archive({(0, 0, 0): b"tile"}, metadata=b"")
+    server = await range_server(data)
+    await asyncio.to_thread(Cutting(server.url, tmp_path / "out.pmtiles", None, 0, pauses=NOW).run)
+    assert every_tile((tmp_path / "out.pmtiles").read_bytes()) == {tile_id(0, 0, 0): b"tile"}

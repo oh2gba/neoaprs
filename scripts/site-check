@@ -32,6 +32,7 @@ PUBLIC_PHP = ("api/v1/view.php", "support/send.php", "api/v1/skeds.php")
 # Places that must answer 403 whatever the repository holds: the stored support files and their log, PHP's settings, the folder of the version page's log and cache.
 PRIVATE = (
     "/private/", "/private/support/", "/private/support/rate.json", "/private/support/salt", "/private/logs/support.log", "/private/.htaccess",
+    "/private/skeds/", "/private/skeds/rate.json", "/private/skeds/salt", "/private/skeds/lock", "/private/logs/skeds.log", "/skeds.json.part",
     "/.htaccess", "/.user.ini", "/support/.user.ini", "/log/", "/log/.htaccess", "/log/latest.json",
 )
 

@@ -41,7 +41,12 @@ if (!is_string($id) || !preg_match('/\A(?:[0-9a-f]{32}|0)\z/', $id)) {
 }
 
 $line = gmdate('Y-m-d\TH:i') . "Z\t" . ($version ?: '-') . "\t" . ($os ?: '-') . "\t" . ($id !== '' ? $id : '-') . "\n";
-@file_put_contents(__DIR__ . '/log/starts-' . gmdate('Y-m') . '.log', $line, FILE_APPEND | LOCK_EX);
+$log = __DIR__ . '/log/starts-' . gmdate('Y-m') . '.log';
+// a month's file stops growing at 5 MB, whoever asks and however often
+clearstatcache(true, $log);
+if (!is_file($log) || (int) filesize($log) < 5 * 1024 * 1024) {
+    @file_put_contents($log, $line, FILE_APPEND | LOCK_EX);
+}
 
 // The version, the platform and the number also go to the status application on this account,
 // which shows them on status.oh2gba.eu. Its library connects with its own

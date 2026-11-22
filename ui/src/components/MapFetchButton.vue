@@ -6,7 +6,8 @@
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
-import { blockedText, currentEstimate, formatBytes, isRunning } from "@/lib/mapfetch";
+import { bytesText } from "@/lib/format";
+import { blockedText, currentEstimate, isRunning } from "@/lib/mapfetch";
 import type { Command, MapState } from "@/protocol/protocol";
 
 const props = defineProps<{ map: MapState; stale: boolean; send: (command: Command) => boolean; early?: boolean; id?: string }>();
@@ -67,18 +68,33 @@ const label = computed(() =>
   checking.value || props.map.state === "estimating"
     ? t("settings.map.checking")
     : asking.value && estimate.value
-      ? t("settings.map.download_size", { size: formatBytes(estimate.value.bytes) })
+      ? t("settings.map.download_size", { size: bytesText(estimate.value.bytes) })
       : props.map.state === "downloading"
         ? t("settings.map.downloading")
         : props.map.detail
           ? t("settings.map.download_again")
           : t("settings.map.download"),
 );
+/** A size of three digits, to keep the room of "Download 493 MB?" before the estimate is known. */
+const ROOM_BYTES = 888_000_000;
+/** Every word the button can say, all in the page in one place with the one not said hidden (`.twowords`, as TwoWords does for two), so that it is as wide as the longest and nothing moves when its words change under the pointer. */
+const faces = computed(() => [
+  ...new Set([
+    t("settings.map.download"),
+    t("settings.map.download_again"),
+    t("settings.map.checking"),
+    t("settings.map.downloading"),
+    t("settings.map.download_size", { size: bytesText(ROOM_BYTES) }),
+    label.value,
+  ]),
+]);
 </script>
 
 <template>
   <button :id="id" class="btn mapfetch-button" :class="{ danger: asking }" type="button" :disabled="!idle || checking" :title="why" @click="press">
-    {{ label }}
+    <span class="twowords"
+      ><span v-for="face in faces" :key="face" :class="{ 'twowords-off': face !== label }" :aria-hidden="face !== label">{{ face }}</span></span
+    >
   </button>
   <button v-if="running" class="btn" type="button" @click="send({ cmd: 'map_cancel' })">{{ t("settings.map.cancel") }}</button>
 </template>

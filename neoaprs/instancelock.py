@@ -53,9 +53,17 @@ class InstanceLock:
             os.close(fd)
 
 
+def is_file(path: Path) -> bool:
+    """Whether `path` is a file; False, and no exception, when a folder on the way cannot be looked into."""
+    try:
+        return path.is_file()
+    except OSError:
+        return False
+
+
 def is_held(data_dir: Path, name: str = LOCK_NAME) -> bool:
     """Whether a program holds the lock `name` of the data folder (the lock is taken for a moment, and let go, to find out; a folder with no lock file has no such program)."""
-    if not (data_dir / name).is_file():
+    if not is_file(data_dir / name):
         return False
     lock = InstanceLock(data_dir, name)
     try:

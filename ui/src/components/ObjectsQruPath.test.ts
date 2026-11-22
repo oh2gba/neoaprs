@@ -21,6 +21,10 @@ const fold = (wrapper: Wrapper) => wrapper.find("details.disclosure");
 const pathField = (wrapper: Wrapper) => fold(wrapper).find("input[type='text']");
 const rfOnly = (wrapper: Wrapper) => fold(wrapper).find("input[type='checkbox']");
 const sent = (daemon: ReturnType<typeof make>["daemon"]) => daemon.send.mock.calls.map(([command]) => command);
+let told = 0;
+/** The daemon tells the request it took, long enough ago to hold nothing back: the next press sends. */
+const answer = (daemon: ReturnType<typeof make>["daemon"]) =>
+  tell(daemon, { qru: { ...(daemon.qru.value ?? qruState({ asked: null })), asked: qruAsked("INFO", ago(100 + ++told)) } });
 
 beforeEach(() => localStorage.clear());
 
@@ -64,8 +68,10 @@ describe("the path of a request for local info", () => {
     const { wrapper, daemon } = make();
     await pathField(wrapper).setValue("OH2RDK-7,OH2RCH-2");
     await ask(wrapper).trigger("click");
+    await answer(daemon);
     await rfOnly(wrapper).setValue(false);
     await pills(wrapper)[0]?.trigger("click");
+    await answer(daemon);
     await pathField(wrapper).setValue("");
     expect(sent(daemon)).toEqual([
       { cmd: "qru_ask", text: "INFO 150", path: "OH2RDK-7,OH2RCH-2", rf_only: true },
@@ -135,6 +141,7 @@ describe("the Send on of Local info", () => {
       expect(tags(wrapper)).toEqual([]);
       expect(line(wrapper)).not.toMatch(/FM:|Mercury:/);
       await ask(wrapper).trigger("click");
+      await answer(daemon);
       await pills(wrapper)[0]?.trigger("click");
       expect(sent(daemon)).toEqual([
         { cmd: "qru_ask", text: "INFO 150" },
@@ -184,6 +191,7 @@ describe("the Send on of Local info", () => {
     expect(Object.keys(localStorage).filter((key) => /qru\.\d/.test(key))).toEqual([]);
     await ask(wrapper).trigger("click");
     expect(requests(daemon)).toEqual([{ cmd: "qru_ask", text: "INFO 150", path: "OH2RDK-7", rf_only: true }]);
+    await answer(daemon);
     await ticks(wrapper)[0]?.setValue(false); // (Mercury alone, which carries no path)
     expect(
       fold(wrapper)
@@ -249,6 +257,7 @@ describe("the Send on of Local info", () => {
     expect(wrapper.find("li.qru-server .qru-call").text()).toBe("DF8LS-10Mercury");
     expect(wrapper.find("li.qru-server .qru-call .mono").text()).toBe("DF8LS-10");
     await pills(wrapper)[0]?.trigger("click");
+    await answer(daemon);
     await wrapper.find("button.qru-again").trigger("click");
     expect(requests(daemon)).toEqual([
       { cmd: "qru_ask", text: "RP70 150", radio: 2 },

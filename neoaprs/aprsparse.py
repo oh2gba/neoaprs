@@ -63,7 +63,10 @@ def _status(info: bytes, source: str, destination: str, now: datetime) -> Decode
     body = info[1:]
     if len(body) >= 7 and body[:6].isdigit() and body[6:7] == b"z":
         text, frequency = split_frequency(decode_text(body[7:]).strip())
-        return Status(text, resolve_timestamp(body[:7], now), frequency=frequency)
+        try:
+            return Status(text, resolve_timestamp(body[:7], now), frequency=frequency)
+        except PositionError:
+            pass
     text = decode_text(body)
     locator, rest = split_locator(text)                  # (a report with a locator has no timestamp)
     text, frequency = split_frequency((rest if locator else text).strip())

@@ -2,6 +2,8 @@
 import { computed, ref, watch, type Ref } from "vue";
 import { t } from "@/i18n";
 import type { Toast } from "@/composables/useDaemon";
+import { endWithTheSocket } from "@/composables/useInFlight";
+import type { Connection } from "@/lib/hub";
 import { reasonOf } from "@/lib/settings";
 import type { AlertResultMessage, Command } from "@/protocol/protocol";
 
@@ -30,6 +32,7 @@ export function useAlertTest(
   send: (command: Command) => boolean,
   draft: Readonly<Record<string, string>>,
   saved: Ref<string | undefined>,
+  connection?: Readonly<Ref<Connection>>,
 ) {
   const running = ref(false);
   const result = ref<AlertOutcome | null>(null);
@@ -49,6 +52,7 @@ export function useAlertTest(
     () => draft[ALERT_KEY],
     () => (result.value = null),
   );
+  endWithTheSocket(connection, () => (running.value = false));
 
   function test(): void {
     if (running.value || stale.value) return;
