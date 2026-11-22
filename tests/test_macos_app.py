@@ -573,11 +573,11 @@ def test_a_build_without_mercury_must_say_so_and_the_tarball_must_be_the_macs(tm
     assert refused.returncode == 2 and "--mercury TARBALL" in refused.stderr and "--no-mercury" in refused.stderr, (
         "a release can never silently lack Mercury"
     )
-    tarball = tmp_path / "mercury-1.9.24-macos-arm64.tar.gz"
+    tarball = tmp_path / "mercury-1.9.25-macos-arm64.tar.gz"
     tarball.write_bytes(b"")
     both = build("--mercury", str(tarball), "--no-mercury")
     assert both.returncode == 2 and "exclude each other" in both.stderr
-    linux = tmp_path / "mercury-1.9.24-linux-aarch64.tar.gz"
+    linux = tmp_path / "mercury-1.9.25-linux-aarch64.tar.gz"
     linux.write_bytes(b"")
     wrong = build("--mercury", str(linux))
     assert wrong.returncode == 2 and "macos-arm64" in wrong.stderr, "the program is for the machine the app is for"

@@ -23,10 +23,10 @@ from .mercurycards import (
 )
 
 # the pinned Mercury (scripts/build-mercury, docs/MAINTAINING.md)
-VERSION = "1.9.24"
-SOURCE_COMMIT = "1b13fab15ac477a1987b6308df7203593f1965e4"  # v1.9.24
+VERSION = "1.9.25"
+SOURCE_COMMIT = "33efac4e3089f64f493fde1232b8e96305d15185"  # v1.9.25
 SOURCE_URL = f"https://github.com/Rhizomatica/mercury/archive/{SOURCE_COMMIT}.tar.gz"
-SOURCE_SHA256 = "3f5c016239b4c3983df985f8af6ced83c749ebd3a49da7e9b6aa742c1336b03d"
+SOURCE_SHA256 = "d2d88357bbbc9586ed11b25a7ddfb3362126b8dcd203a72e567d8093e734d266"
 
 MODE = "DATAC3"
 MODE_INDEX = 1
@@ -50,6 +50,15 @@ BUSY_THRESHOLD_DB = 14
 BUSY_HOLD_MAX_SEC = 20.0
 # VOX lead-in tone before the preamble
 LEADIN_MS = 150
+# Mercury's own level is 4 dB over the one the operator's gain is counted from (a frame peaking at -6 dBFS)
+TX_GAIN_TRIM_DB = -4
+MODEM_GAIN_LIMIT_DB = 20
+
+
+def modem_gain(gain_db: float) -> float:
+    """Return the gain Mercury is given for the operator's gain, within Mercury's limits."""
+    return max(-MODEM_GAIN_LIMIT_DB, min(MODEM_GAIN_LIMIT_DB, gain_db + TX_GAIN_TRIM_DB))
+
 
 # (band in metres, dial in MHz), USB; proposals in the IARU Region 1 digimode segments
 FREQUENCIES: tuple[tuple[int, str], ...] = (
@@ -204,7 +213,7 @@ def ini_text(keying: Keying, tx_gain_db: int = 0, ui_port: int = 0) -> str:
         f"line = {line}\n"
         f"{ui}"
         "[audio]\n"
-        f"tx_gain_db = {tx_gain_db}\n"
+        f"tx_gain_db = {modem_gain(tx_gain_db):g}\n"
         f"{leadin}"
         "[channel]\n"
         "busy_detect = true\n"

@@ -22,7 +22,7 @@ MAX_FILE = 64_000_000
 @dataclass(frozen=True)
 class Tool:
     name: str  # folder in the tarball and in bin/
-    title: str  # how its source offer names it first: "Mercury 1.9.24,"
+    title: str  # how its source offer names it first: "Mercury 1.9.25,"
     pins: ModuleType  # module with VERSION, SOURCE_COMMIT and SOURCE_SHA256
     data: tuple[str, ...] = ()
 

@@ -190,8 +190,8 @@ class FakeUi:
         elif name == "set_tx_gain":
             number = float(value) if value else 0.0
             self.gain_db = max(-20.0, min(20.0, number if math.isfinite(number) else 0.0))
-            # As if a frame had been sent at the new gain: Mercury's frames peak at -6.4 dBFS
-            self.peak_dbfs = -6.4 + self.gain_db
+            # As if a frame had been sent at the new gain: Mercury's frames peak at -2.4 dBFS at 0 dB
+            self.peak_dbfs = -2.4 + self.gain_db
         else:
             return '{"status":"error","code":-1}'
         return '{"status":"ok"}'

@@ -114,9 +114,10 @@ def test_the_commands_are_what_mercury_takes() -> None:
         "any value but off turns the feed on"
     )
     assert (
-        json.loads(ms.tx_gain_command(-3)) == {"command": "set_tx_gain", "value": "-3"}
-        and json.loads(ms.tx_gain_command(2.5))["value"] == "2.5"
-    )
+        json.loads(ms.tx_gain_command(-3)) == {"command": "set_tx_gain", "value": "-7"}
+        and json.loads(ms.tx_gain_command(2.5))["value"] == "-1.5"
+        and json.loads(ms.tx_gain_command(-20))["value"] == "-20"
+    ), "Mercury's gain is 4 dB under the operator's, within its limits"
 
 
 def test_the_gain_is_a_whole_number_between_mercurys_limits() -> None:

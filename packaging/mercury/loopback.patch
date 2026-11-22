@@ -1,6 +1,6 @@
-Mercury's TCP listeners bound to the loopback. Mercury 1.9.24 binds its control port and its ARQ data port (open_listener_socket, used for both) and its KISS broadcast port
+Mercury's TCP listeners bound to the loopback. Mercury binds its control port and its ARQ data port (open_listener_socket, used for both) and its KISS broadcast port
 (tcp_server_thread) on INADDR_ANY, every network interface, and has no bind option on its command line or in its configuration file; nothing on those ports asks for a
-password (1.9.24 takes one host at a time on the control and data ports, but the first to connect is any host). Any host on the LAN could write `TUNE -15` to the control port and key the transmitter for a minute, or hand a KISS frame to the broadcast port and have it sent on HF, past
+password (it takes one host at a time on the control and data ports, but the first to connect is any host). Any host on the LAN could write `TUNE -15` to the control port and key the transmitter for a minute, or hand a KISS frame to the broadcast port and have it sent on HF, past
 every interlock of NeoAPRS (the page's access key, RX only, the call). NeoAPRS reaches the Mercury it starts on this computer alone, so the two binds become INADDR_LOOPBACK. The code is the same
 on every system (Winsock has the same bind and the same constant): the patch is applied to the build for Linux, macOS and Windows alike, and there is no firewall rule to stand in for it. The third place
 Mercury binds a socket, the websocket of its UI interface and web page (ui_transport_init, off unless the ini says ui_enabled or Mercury is started with -G: NeoAPRS turns it on for the spectrum scope, the transmit level
@@ -12,7 +12,7 @@ that moves these lines fails the build loudly, which is right.
 
 --- a/data_interfaces/tcp_interfaces.c
 +++ b/data_interfaces/tcp_interfaces.c
-@@ -277,7 +277,7 @@
+@@ -370,7 +370,7 @@
  
      memset(&local_addr, 0, sizeof(local_addr));
      local_addr.sin_family = AF_INET;
@@ -21,7 +21,7 @@ that moves these lines fails the build loudly, which is right.
      local_addr.sin_port = htons(port);
  
      if (bind(fd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
-@@ -2005,7 +2005,7 @@
+@@ -2359,7 +2359,7 @@
  
      memset(&local_addr, 0, sizeof(local_addr));
      local_addr.sin_family = AF_INET;

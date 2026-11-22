@@ -1,4 +1,4 @@
-A lead-in tone for a radio that keys itself on the audio (VOX). Mercury 1.9.24 keys and plays a frame with ptt_on(), a sleep of `tx_delay_ms`, and the frame's audio, which begins with the DATAC3
+A lead-in tone for a radio that keys itself on the audio (VOX). Mercury keys and plays a frame with ptt_on(), a sleep of `tx_delay_ms`, and the frame's audio, which begins with the DATAC3
 preamble (110 ms: five OFDM symbols of 22 ms) that the receiver acquires on. A radio on VOX starts to transmit only after it has heard audio for its attack time, so the first milliseconds of the preamble
 are never on the air, and a frame whose preamble is cut that far is not received (docs/mercury.md, "What scripts/mercury-measure vox measured"). This adds the `[audio]` key `tx_leadin_ms` (0 to 1000,
 default 0: Mercury's behaviour unchanged): when above 0, send_modulated_data plays that many milliseconds of a steady 1 kHz tone, the pitch of the TUNE command, at the RMS level of the frame, with a raised-cosine
@@ -14,10 +14,10 @@ the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves thes
  #define CFG_KEY_TX_GAIN_DB          "audio:tx_gain_db"
  #define CFG_KEY_TX_DELAY_MS         "audio:tx_delay_ms"
 +#define CFG_KEY_TX_LEADIN_MS        "audio:tx_leadin_ms"
+ #define CFG_KEY_PULSE_KEEPALIVE     "audio:pulse_keepalive"
  #define CFG_KEY_TNC_KEEPALIVE_S     "tnc:keepalive_s"
  #define CFG_KEY_TNC_BUFFER_REPORT_MS "tnc:buffer_report_ms"
- #define CFG_KEY_ARQ_RETRY_STAGGER_MS          "arq:retry_stagger_ms"
-@@ -152,6 +153,13 @@
+@@ -154,6 +155,13 @@
                                      * slow external PTT more time to key up
                                      * before the signal starts. Clamped
                                      * 0..2000. */
@@ -28,40 +28,39 @@ the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves thes
 +                                    * lose the start of the preamble to
 +                                    * its attack time. Default 0 (none).
 +                                    * Range 0..1000. */
-     int      tnc_keepalive_s;       /* IAMALIVE interval on the TNC control
-                                     * port. Default 60, clamped 5..600.   */
-     int      tnc_buffer_report_ms;  /* BUFFER report interval on the TNC
+     bool     pulse_keepalive;       /* PulseAudio: keep playback fed with
+                                     * silence between transmissions (#591);
+                                     * costs idle CPU, so off by default. */
 --- a/common/cfg_utils.c
 +++ b/common/cfg_utils.c
-@@ -69,6 +69,7 @@
-     cfg->tnc_buffer_report_ms = 1000;
+@@ -70,6 +70,7 @@
+     cfg->tnc_absorb_idle_disconnect_s = 0;
      cfg->tx_gain_db            = 0.0f;
      cfg->tx_delay_ms           = 10;
 +    cfg->tx_leadin_ms          = 0;
+     cfg->pulse_keepalive       = false;
      cfg->retry_stagger_ms            = ARQ_RETRY_STAGGER_MS_DEFAULT;
      cfg->silence_fallback_s          = ARQ_SILENCE_FALLBACK_S_DEFAULT;
-     cfg->call_max_s                  = ARQ_CALL_MAX_S_DEFAULT;
-@@ -475,6 +476,9 @@
+@@ -480,6 +481,8 @@
+ 
      i = iniparser_getint(ini, CFG_KEY_TX_DELAY_MS, cfg->tx_delay_ms);
      if (i >= 0 && i <= 2000) cfg->tx_delay_ms = i;
- 
 +    i = iniparser_getint(ini, CFG_KEY_TX_LEADIN_MS, cfg->tx_leadin_ms);
 +    if (i >= 0 && i <= 1000) cfg->tx_leadin_ms = i;
-+
-     cfg->store_enabled = (bool) iniparser_getboolean(ini, CFG_KEY_STORE_ENABLED,
-                                                      cfg->store_enabled ? 1 : 0);
+     cfg->pulse_keepalive = (bool) iniparser_getboolean(ini, CFG_KEY_PULSE_KEEPALIVE,
+                                                        cfg->pulse_keepalive ? 1 : 0);
  
-@@ -625,6 +629,7 @@
+@@ -633,6 +636,7 @@
      fprintf(f, "\n[audio]\n");
      fprintf(f, "tx_gain_db = %.2f\n", cfg->tx_gain_db);
      fprintf(f, "tx_delay_ms = %d\n", cfg->tx_delay_ms);
 +    fprintf(f, "tx_leadin_ms = %d\n", cfg->tx_leadin_ms);
+     fprintf(f, "pulse_keepalive = %s\n", cfg->pulse_keepalive ? "true" : "false");
  
      fprintf(f, "\n[tnc]\n");
-     fprintf(f, "keepalive_s = %d\n", cfg->tnc_keepalive_s);
 --- a/common/mercury_engine.c
 +++ b/common/mercury_engine.c
-@@ -195,6 +195,7 @@
+@@ -197,6 +197,7 @@
      arq_set_max_keydown_s(cfg->max_keydown_s);
      modem_set_tx_gain(powf(10.0f, cfg->tx_gain_db / 20.0f));
      modem_set_tx_delay_ms(cfg->tx_delay_ms);
@@ -71,9 +70,9 @@ the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves thes
                         (uint32_t)cfg->busy_on_debounce_ms,
 --- a/mercury.ini.example
 +++ b/mercury.ini.example
-@@ -165,6 +165,16 @@
- ; Range: 0 .. 2000 (values outside are clamped).
- tx_delay_ms = 10
+@@ -183,6 +183,16 @@
+ ; card from suspending.  ALSA and the other sound systems ignore it.
+ pulse_keepalive = false
  
 +; Lead-in tone in milliseconds (default: 0, none): a steady 1 kHz tone at the
 +; level of the frame, with a ramp of 5 ms at each end, played just ahead of
@@ -108,7 +107,7 @@ the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves thes
  // burst, so a return value above 0 dBFS means the burst clipped by that many
 --- a/modem/modem.c
 +++ b/modem/modem.c
-@@ -187,6 +187,21 @@
+@@ -193,6 +193,21 @@
      return atomic_load(&g_tx_delay_ms);
  }
  
@@ -130,7 +129,7 @@ the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves thes
  float modem_get_tx_peak_dbfs(void)
  {
      return atomic_load(&g_tx_peak_dbfs);
-@@ -1499,6 +1514,31 @@
+@@ -1619,6 +1634,31 @@
      arq_modem_ptt_off();
  }
  
@@ -162,7 +161,7 @@ the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves thes
  /* Samples of silence ahead of the first preamble: gives the radio RX->TX relay
   * and the peer's audio path time to settle before the preamble arrives. */
  #define TX_HEAD_SILENCE_MS   100
-@@ -1535,9 +1575,10 @@
+@@ -1655,9 +1695,10 @@
              samples_silence = fsk_settle_samples;
      }
      int samples_head = FREEDV_FS_8000 * TX_HEAD_SILENCE_MS / 1000;
@@ -175,7 +174,7 @@ the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves thes
      int32_t *tx_buffer = (int32_t *)malloc(max_samples * sizeof(int32_t));
      int16_t *mod_out_short = (int16_t *)malloc(burst_scratch_samples(&codec) * sizeof(int16_t));
      if (!tx_buffer || !mod_out_short)
-@@ -1566,8 +1607,14 @@
+@@ -1686,8 +1727,14 @@
  
      for (int i = 0; i < samples_head; i++)
          tx_buffer[total_samples++] = 0;

@@ -417,7 +417,7 @@ def test_the_configuration_switches_the_busy_detector_on_names_the_line_and_keep
 
 
 def test_the_configuration_has_the_lead_in_tone_for_vox_and_for_no_other_keying() -> None:
-    assert f"[audio]\ntx_gain_db = 0\ntx_leadin_ms = {mercury.LEADIN_MS}\n" in mercury.ini_text(mercury.Keying("vox"))
+    assert f"[audio]\ntx_gain_db = -4\ntx_leadin_ms = {mercury.LEADIN_MS}\n" in mercury.ini_text(mercury.Keying("vox"))
     assert mercury.LEADIN_MS > 0
     for keying in (mercury.Keying("rts", "/dev/ttyUSB0"), mercury.Keying("dtr", "COM3"), mercury.Keying("cm108")):
         text = mercury.ini_text(keying)
@@ -735,11 +735,11 @@ def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the
     paused._plan(30)
     assert paused.next_due == clock() + timedelta(minutes=30) + timedelta(seconds=150), "the interval, then the pause"
     fm_only = replace(moving, gps_source="off", hf_enabled=False, fm_enabled=True, beacon_interval_min=20)
-    unpaused = Beacon(radio_of(fm_only, FM_ID), lambda: fm_only, clock)
-    unpaused.jitter = lambda most: 999.0
-    unpaused.last_sent, unpaused._started = clock(), clock()
-    unpaused._plan(20)
-    assert unpaused.next_due == clock() + timedelta(minutes=20), "the FM radio has no pause"
+    fm = Beacon(radio_of(fm_only, FM_ID), lambda: fm_only, clock)
+    fm.jitter = lambda most: 999.0
+    fm.last_sent, fm._started = clock(), clock()
+    fm._plan(20)
+    assert fm.next_due == clock() + timedelta(minutes=20, seconds=30), "the FM radio's pause is 30 s at most"
     assert (
         HF_LIMITS.beacon_min_min == 30
         and HF_LIMITS.beacon_jitter_sec == 300
@@ -751,7 +751,7 @@ def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the
         FM_ALLOWED.paths
         and FM_ALLOWED.digipeat
         and FM_ALLOWED.smart_beacon
-        and FM_LIMITS.beacon_jitter_sec == 0
+        and FM_LIMITS.beacon_jitter_sec == 30
         and FM_LIMITS.max_frame is None
     )
 

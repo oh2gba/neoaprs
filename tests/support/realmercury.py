@@ -15,7 +15,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from neoaprs.mercury import BUSY_THRESHOLD_DB
+from neoaprs.mercury import BUSY_THRESHOLD_DB, modem_gain
 
 RATE = 8000  # samples a second of Mercury's fifo backend
 SAMPLE_BYTES = 4  # s32le: the 16-bit sample in the top half of each word
@@ -46,13 +46,11 @@ def mercury_ini(
     detector (the one carrier sense of the plane, with the threshold the daemon writes,
     `BUSY_THRESHOLD_DB`, unless a bench tries another), no message store, and, when `leadin_ms` is
     above 0, the lead-in tone of a VOX keying (what the daemon writes is `LEADIN_MS`); with a
-    `ui_port` the UI interface on it, the spectrum feed off, as the daemon writes it, and the
-    transmit gain."""
+    `ui_port` the UI interface on it, the spectrum feed off, as the daemon writes it; and the
+    transmit gain as the daemon gives it to Mercury (`modem_gain`)."""
     threshold = f"busy_threshold_db = {BUSY_THRESHOLD_DB if busy_threshold_db is None else busy_threshold_db}\n"
-    audio = (
-        f"[audio]\ntx_gain_db = {tx_gain_db}\n" + (f"tx_leadin_ms = {leadin_ms}\n" if leadin_ms else "")
-        if (leadin_ms or tx_gain_db)
-        else ""
+    audio = f"[audio]\ntx_gain_db = {modem_gain(tx_gain_db):g}\n" + (
+        f"tx_leadin_ms = {leadin_ms}\n" if leadin_ms else ""
     )
     ui = f"[main]\nui_enabled = true\nui_port = {ui_port}\nwaterfall_enabled = false\n" if ui_port else ""
     return f"{ui}{audio}[channel]\nbusy_detect = {'true' if busy_detect else 'false'}\n{threshold}[store]\nenabled = false\n"

@@ -24,7 +24,7 @@ def test_the_patch_binds_both_listeners_to_the_loopback_and_the_build_applies_an
     assert (
         text.count("-    local_addr.sin_addr.s_addr = INADDR_ANY;") == 2
         and text.count("+    local_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);") == 2
-    ), "the two binds of Mercury 1.9.24, and nothing else"
+    ), "the two binds of Mercury, and nothing else"
     assert (
         text.count("--- a/data_interfaces/tcp_interfaces.c") == 1 and "+++ b/data_interfaces/tcp_interfaces.c" in text
     )

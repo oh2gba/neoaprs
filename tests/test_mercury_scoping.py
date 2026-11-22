@@ -61,7 +61,7 @@ async def test_the_ini_has_the_gain_and_the_ui_interface_on_its_own_port_with_th
     await m.start(replace(HF, mercury_tx_gain_db=-4))
     try:
         ini = (tmp_path / INI_FILE).read_text()
-        assert m.tx_gain_db == -4 and "[audio]\ntx_gain_db = -4\n" in ini
+        assert m.tx_gain_db == -4 and "[audio]\ntx_gain_db = -8\n" in ini, "Mercury is given the gain 4 dB lower"
         assert (
             f"[main]\nui_enabled = true\nui_port = {m.broadcast_port + UI_NEAR}\nwaterfall_enabled = false\n" in ini
             and m.ui_port == m.broadcast_port + UI_NEAR
@@ -169,13 +169,13 @@ async def test_the_gain_is_sent_to_the_running_program_and_the_peak_it_says_is_t
         await until_started(lambda: m.scope and m.state == "running")
         assert m.live_gain and m.tx_peak_dbfs is None, "Mercury says -120 before anything was transmitted"
         m.set_tx_gain(7)
-        await until_started(lambda: "set_tx_gain 7" in sent(tmp_path))
+        await until_started(lambda: "set_tx_gain 3" in sent(tmp_path))
         assert m.tx_gain_db == 7
         # -6.4 dBFS at gain 0, +7 dB: 0.6, whole dB
         await until_started(lambda: m.tx_peak_dbfs == 1)
         m.set_tx_gain(99)
-        await until_started(lambda: "set_tx_gain 20" in sent(tmp_path))
-        assert m.tx_gain_db == 20, "Mercury's own limit"
+        await until_started(lambda: "set_tx_gain 16" in sent(tmp_path))
+        assert m.tx_gain_db == 20, "the limit"
         before = len(sent(tmp_path))
         m.set_tx_gain(20)
         await asyncio.sleep(0.1)

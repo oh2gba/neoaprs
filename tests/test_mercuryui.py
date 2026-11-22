@@ -215,8 +215,8 @@ async def test_the_gain_is_sent_while_the_link_is_open_and_refused_while_it_is_n
     try:
         await until(lambda: link.ui.connected)
         assert link.ui.tx_gain(-4) is True
-        await until(lambda: fake.gain_db == -4.0)
-        assert ("set_tx_gain", "-4") in fake.commands
+        await until(lambda: fake.gain_db == -8.0)
+        assert ("set_tx_gain", "-8") in fake.commands
     finally:
         await link.ui.stop()
         await fake.aclose()

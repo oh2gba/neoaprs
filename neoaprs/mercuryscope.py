@@ -12,6 +12,8 @@ from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from .mercury import modem_gain
+
 SPECTRUM_MAGIC = 0x4D435259
 SPECTRUM_HEADER = struct.Struct("<IHH")
 SPECTRUM_MAX_BINS = 4096
@@ -110,7 +112,7 @@ def waterfall_command(on: bool) -> str:
 
 
 def tx_gain_command(db: float) -> str:
-    return json.dumps({"command": "set_tx_gain", "value": f"{db:g}"})
+    return json.dumps({"command": "set_tx_gain", "value": f"{modem_gain(db):g}"})
 
 
 def clamp_gain(db: float) -> int:

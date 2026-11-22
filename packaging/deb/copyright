@@ -29,8 +29,8 @@ Files: opt/neoaprs/tools/mercury/*
 Copyright: Rhizomatica and the authors of Mercury, the modem that NeoAPRS starts for the radio type "Mercury modem (sound card)"
 License: GPL-3.0-or-later
 Comment: Mercury is built for this package from the source at
- https://github.com/Rhizomatica/mercury/archive/1b13fab15ac477a1987b6308df7203593f1965e4.tar.gz
- (SHA-256 3f5c016239b4c3983df985f8af6ced83c749ebd3a49da7e9b6aa742c1336b03d),
+ https://github.com/Rhizomatica/mercury/archive/33efac4e3089f64f493fde1232b8e96305d15185.tar.gz
+ (SHA-256 d2d88357bbbc9586ed11b25a7ddfb3362126b8dcd203a72e567d8093e734d266),
  which /opt/neoaprs/tools/mercury/SOURCE.txt names as well. Its licence is in
  /opt/neoaprs/tools/mercury/LICENSE.
 

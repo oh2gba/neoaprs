@@ -13,6 +13,7 @@ import pytest
 
 from neoaprs import kiss
 from neoaprs.channelbusy import OccupancyBusy
+from neoaprs.mercury import modem_gain
 from neoaprs.mercuryhelper import find, foreign_listeners
 from neoaprs.mercuryscope import ROW_BINS, ROW_OFFSET_DB, ROW_STEP_DB, RowMeter, bands_db, parse_spectrum, parse_status
 from neoaprs.mercuryui import MercuryUi
@@ -69,7 +70,7 @@ async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level
         )
         await until(lambda: any(parse_status(t) for t in texts), timeout_sec=10.0)
         status = next(s for s in map(parse_status, texts) if s is not None)
-        assert status.tx_gain_db == 0.0 and status.audio_ok
+        assert status.tx_gain_db == modem_gain(0) and status.audio_ok
         await asyncio.sleep(1.0)
         assert spectra == [], "the ini turned the waterfall off: no spectrum until it is asked for"
         ui.waterfall(True)
@@ -101,7 +102,7 @@ async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level
         assert len(spectra) <= seen + 1, "and no spectrum once it is switched off"
         assert ui.tx_gain(6)
         await until(
-            lambda: any((s := parse_status(t)) is not None and s.tx_gain_db == 6.0 for t in texts[-6:]),
+            lambda: any((s := parse_status(t)) is not None and s.tx_gain_db == modem_gain(6) for t in texts[-6:]),
             timeout_sec=10.0,
         )
         control_reader, control_writer = await asyncio.open_connection("127.0.0.1", ports[1])

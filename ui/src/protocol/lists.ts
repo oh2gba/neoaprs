@@ -97,6 +97,7 @@ export const CONFIG_KEYS = [
   "gps/device",
   "gps/baud",
   "beacon/travel",
+  "units/non_metric",
 ] as const;
 
 /** The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`. */
@@ -1387,7 +1388,7 @@ export const LIMITS = {
   alert: { kmMin: 1, kmMax: 1000 },
   history: { maxHours: 168 },
   object: { nameMax: 9, itemNameMin: 3, nameForbidden: "!_|~", commentMax: 43, commentMaxMotion: 36, courseMax: 359, speedMaxKmh: 1850, qruGroupMax: 8, qruReserved: ["INFO", "NEXT"] },
-  bulletin: { groupMax: 5, repeatHours: 4, announcementRepeatDays: 3 },
+  bulletin: { groupMax: 5, postedMax: 36, hours: [1, 2, 4, 8, 12], announcementHours: [24, 72, 168], defaultHours: 4, defaultAnnouncementHours: 72 },
   qru: { kmMax: 20000, askEverySec: 60, askGapSec: 10 },
   general: {
     askEverySec: 60,
@@ -1399,7 +1400,7 @@ export const LIMITS = {
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
   scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, historySec: 120 },
   radio: { nameMax: 8, frequenciesMax: 4 },
-  mercury: { version: "1.9.24", mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[80, "3.5850"], [40, "7.0541"], [30, "10.1462"], [20, "14.1070"], [6, "50.6200"]] },
+  mercury: { version: "1.9.25", mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[80, "3.5850"], [40, "7.0541"], [30, "10.1462"], [20, "14.1070"], [6, "50.6200"]] },
   soundCard: { version: "1.8.1", levelMax: 200, levelLow: 5, levelHigh: 110, levelGood: [30, 70], txGainMinDb: -20, txGainMaxDb: 0 },
   layers: { aircraftReceiverAgeSec: 60, aircraftServiceAgeSec: 90, shipsAgeSec: 1800, aisPort: 10110 },
 } as const;
