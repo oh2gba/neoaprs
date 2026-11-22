@@ -1,8 +1,8 @@
 DirectSound loaded on first use instead of linked. Mercury 1.9.24's Windows build links dsound.dll (the Makefile's
 FFAUDIO_LINKFLAGS), so Windows loads it before the program starts. On a Windows without the Media Feature Pack (the
 "N" editions) dsound.dll needs ResampleDmo.dll, which is not there: Windows then stops the program at load time with a
-"ResampleDmo.DLL was not found" dialog, and `mercury -z` and the modem hang until NeoAPRS gives up on them (John's
-Windows 11 VM, 3 Nov 2026, on 0.16.3). WASAPI, the backend Mercury uses by default and NeoAPRS uses, needs neither.
+"ResampleDmo.DLL was not found" dialog, and `mercury -z` and the modem hang until NeoAPRS gives up on them.
+WASAPI, the backend Mercury uses by default and NeoAPRS uses, needs neither.
 
 This drops -ldsound from the link (dxguid, a static library of GUIDs, stays) and has ffaudio's DirectSound backend
 (audioio/ffaudio/ffaudio/dsound.c) load dsound.dll with LoadLibrary the first time it is used, with Windows's error
