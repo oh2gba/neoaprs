@@ -38,7 +38,7 @@ def test_pygobject_is_the_pinned_3_50_2_and_meson_a_fixed_version(build: ModuleT
         and build.PYGOBJECT_URL.startswith("https://files.pythonhosted.org/")
     )
     assert build.PYGOBJECT_SHA256 == "ece6b860aab77cb649fdfc6e88d8a83765e7a62f7ffd39a628d6e2a0d397a7ff", (
-        "the digest of PyPI's file (aprs-reference/window-plan.md, 2.3)"
+        "the digest of PyPI's file"
     )
     assert re.search(r"/meson-\d+\.\d+\.\d+-py3-none-any\.whl$", build.MESON_URL) and build.MESON_URL.startswith(
         "https://"

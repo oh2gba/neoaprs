@@ -1,4 +1,4 @@
-// A radio's name stands in a text in two forms only, so that no language has to inflect it (en/radio.ts, the plan's section "Texts"): the name and a colon ("{name}: {line}"), or after the language's noun for a radio,
+// A radio's name stands in a text in two forms only, so that no language has to inflect it (en/radio.ts): the name and a colon ("{name}: {line}"), or after the language's noun for a radio,
 // which carries the grammar ("Heard on radio {name}", "das Funkgerät {name}", "無線機「{name}」"). This holds, in every catalogue, every text whose value is a radio's name: the refusals that name a radio (the daemon
 // passes its id, `radio` or `held_by`) and the words of the radios. A text not translated yet (untranslated.json) is the English, and holds the English noun.
 import { describe, expect, it } from "vitest";

@@ -211,7 +211,7 @@ class Topics:
     def _replies_of(self, call: str) -> dict[RadioId, tuple[str, ...]]:
         """Return our message or ack path to the station, without RFONLY.
 
-        One entry per live radio that carries no path (M1).
+        One entry per live radio that carries no path.
         """
         live = self.ctl.config.live_radios
         return {

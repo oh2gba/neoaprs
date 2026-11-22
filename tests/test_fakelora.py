@@ -1,5 +1,5 @@
-"""Tests for the fake LoRa board (tests/support/fakelora.py) against the firmwares' own bytes
-(aprs-reference/lora-plan.md): KISS encoding and decoding in both directions, callsign cutting,
+"""Tests for the fake LoRa board (tests/support/fakelora.py) against the firmwares' own bytes:
+KISS encoding and decoding in both directions, callsign cutting,
 input limits, dropped own frames and keying with Tx off.
 """
 
@@ -11,7 +11,7 @@ from neoaprs.tnc2line import frame_of, text_of
 from tests.support.fakelora import HEADER, Board, decode_kiss, encode_kiss, q_element, sanitize
 
 # OH2GBA-7>APLRT1,WIDE1-1:!6010.00N/02456.00E> as the iGate writes it to a KISS client, byte for
-# byte (lora-plan.md step L1): the destination APLRT1 first (each letter shifted left, SSID byte
+# byte: the destination APLRT1 first (each letter shifted left, SSID byte
 # 0x60), the source OH2GBA-7 (0x6E), WIDE1-1 as the last address (0x62 | 1), control 0x03, PID 0xF0,
 # the text.
 TEXT = b"OH2GBA-7>APLRT1,WIDE1-1:!6010.00N/02456.00E>"

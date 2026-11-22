@@ -1,4 +1,4 @@
-"""Settings of the radio pairs (cross-radio-digipeat-plan.md section 4.1).
+"""Settings of the radio pairs.
 
 Rows `pair/<low>/<high>/enabled` and `.../ssid`; a pair's call is the base call plus its SSID.
 """

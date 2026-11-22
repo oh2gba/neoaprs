@@ -1,6 +1,6 @@
 """No main radio is left: not one `main_radio`, `mainRadio`, `MainRadio` or "main radio" (any case,
 any separator) in neoaprs/, ui/src/, docs/manual/ or site/. Excepted: the frozen migration steps,
-the built page (neoaprs/page/), the changelog's released sections and aprs-reference/.
+the built page (neoaprs/page/) and the changelog's released sections.
 """
 
 import re

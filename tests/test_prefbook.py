@@ -433,7 +433,7 @@ async def test_a_station_with_no_path_on_a_radio_gets_that_radios_own_path(rig: 
     assert r.book.path_for("OH2RDG", None, SECOND_FM) == ("WIDE2-1",), "the second FM radio's own path"
     assert r.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-2"), "radio 1's is beacon/path"
     assert r.book.path_for("OH2RDG", None, HF_ID) == (), (
-        "a radio of a type without a path setting: the reply through a gateway, none without one (M1)"
+        "a radio of a type without a path setting: the reply through a gateway, none without one"
     )
     assert r.book.path_for("OH2RDG", None, UNKNOWN) == ("WIDE1-1", "WIDE2-2"), (
         "a radio the settings do not have: as before"

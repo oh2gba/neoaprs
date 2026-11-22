@@ -67,7 +67,7 @@ The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters
 OH2GBA>APZNEO,WIDE2-2:=6010.20N/02456.40E-NeoAPRS
 ```
 
-A station that stays sends the plain uncompressed form, which every receiver reads; a moving station sends a compressed position ([Mobile operation](#mobile-operation)). `APZNEO` is in the experimental range of destination calls. Every frame NeoAPRS sends carries it: the beacon, status, messages and their acks, answers to queries, objects and bulletins.
+A station that stays sends the plain uncompressed form, which every receiver reads; a moving station sends a compressed position ([Mobile operation](#mobile-operation)). `APZNEO` is in the experimental range of destination calls; a registered one is requested. Every frame NeoAPRS sends carries it: the beacon, status, messages and their acks, answers to queries, objects and bulletins.
 
 The **path** (Advanced) is one choice, for each radio that may carry a path (with several radios on, one row for each, labelled by its name):
 

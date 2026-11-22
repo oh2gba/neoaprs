@@ -11,15 +11,15 @@ from neoaprs.packet import Message, Packet
 from neoaprs.radiotype import RadioId
 from neoaprs.services.pace import within
 
-# L1: frames a fast radio sends again per window.
+# Frames a fast radio sends again per window.
 BURST_MAX = 4
 BURST_WINDOW_SEC = 10.0
-# L2: frames a slow radio takes from the pairs per window.
+# Frames a slow radio takes from the pairs per window.
 SLOW_PASS_MAX = 4
 SLOW_PASS_OTHER_MAX = 2
 SLOW_PASS_PER_SOURCE = 2
 SLOW_PASS_WINDOW_SEC = 300.0
-# L4: least time between two frames handed to a slow radio.
+# Least time between two frames handed to a slow radio.
 SLOW_HANDOVER_SEC = FRAME_SEC
 
 PassKind = Literal["message", "ack", "other"]
@@ -27,7 +27,7 @@ HoldReason = Literal["budget", "share", "floor"]
 
 
 class Burst:
-    """At most `most` frames sent again per radio per `window` seconds (L1)."""
+    """At most `most` frames sent again per radio per `window` seconds."""
 
     def __init__(self, most: int, window: float) -> None:
         self.most = most
@@ -67,7 +67,7 @@ def source_name(source: str) -> str:
 
 
 class SlowBudget:
-    """What one slow radio takes from the pairs: the window limits (L2) and the floor (L3)."""
+    """What one slow radio takes from the pairs: the window limits and the floor."""
 
     def __init__(self, floor_min: int) -> None:
         self._floor = timedelta(minutes=floor_min)

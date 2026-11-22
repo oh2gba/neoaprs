@@ -131,12 +131,12 @@ class Passer:
         self._burst = burst
         self._counted = counted
         self._clock = clock
-        # Per radio: packets heard and sent lately (N3); packets its limits held lately.
+        # Per radio: packets heard and sent lately; packets its limits held lately.
         self._tables: dict[RadioId, Recent[DuplicateKey]] = {}
         self._kept: dict[RadioId, Recent[DuplicateKey]] = {}
-        # Per radio: when the latest frame was handed to it (L4 gap).
+        # Per radio: when the latest frame was handed to it.
         self._handed: dict[RadioId, datetime] = {}
-        # Per slow radio: the one frame waiting for it (L4); floor and budget (L2, L3).
+        # Per slow radio: the one frame waiting for it; floor and budget.
         self._waiting: dict[RadioId, _Offer] = {}
         self._budgets: dict[RadioId, tuple[int, SlowBudget]] = {}
         self._passed = PassedMessages()
@@ -144,7 +144,7 @@ class Passer:
         self._told: set[tuple[RadioId, RadioId, str]] = set()
 
     def table(self, radio: RadioId) -> Recent[DuplicateKey]:
-        """Return the radio's table of packets heard and sent lately (N3)."""
+        """Return the radio's table of packets heard and sent lately."""
         return self._tables.setdefault(radio, Recent(DIGI_DUPLICATE_SEC))
 
     def _held_table(self, radio: RadioId) -> Recent[DuplicateKey]:
@@ -152,7 +152,7 @@ class Passer:
 
     def on_packet(self, packet: Packet) -> None:
         """Note an on-air packet in its radio's table; pass a heard one or send its ack back."""
-        # A packet with no radio is no request (N8).
+        # A packet with no radio is no request.
         if not packet.on_air or packet.radio_id is None:
             return
         now = self._clock()
@@ -168,13 +168,13 @@ class Passer:
             self._back(packet.radio_id, heard, packet, now)
 
     def sent_on(self, radio: AirRadio, frame: ax25.Frame, raw: bytes, packet: Packet) -> None:
-        """Offer a frame sent on the radio to its rows as if heard there (P6, not M2)."""
+        """Offer a frame sent on the radio to its rows as if heard there."""
         # A packet from the internet was never on air, so nothing of it crosses.
         if packet.on_air:
             self._request(radio.id, frame, raw, packet, self._clock())
 
     def tick(self) -> None:
-        """Send each waiting frame once its radio can take it (L4), or drop or hold it."""
+        """Send each waiting frame once its radio can take it, or drop or hold it."""
         now = self._clock()
         for radio in list(self._waiting):
             if (offer := self._waiting.get(radio)) is not None:
@@ -185,7 +185,7 @@ class Passer:
         self._waiting.clear()
 
     def _request(self, heard_on: RadioId, frame: ax25.Frame, raw: bytes, packet: Packet, now: datetime) -> bool:
-        """Offer the frame to the row whose call is its first unused hop (P1); return if one did."""
+        """Offer the frame to the row whose call is its first unused hop; return if one did."""
         config = self._config()
         ours = _calls(own_calls(config.station_call, config.pairs))
         for row in rows_in_force(config, self._radios.senders()):
@@ -195,7 +195,7 @@ class Passer:
         return False
 
     def _back(self, heard_on: RadioId, heard: ax25.Frame, packet: Packet, now: datetime) -> None:
-        """Send an ack or rej for a passed message back once to the radio it came from (M2)."""
+        """Send an ack or rej for a passed message back once to the radio it came from."""
         decoded, answered = packet.decoded, _answered(packet)
         if not isinstance(decoded, Message) or answered is None:
             return
@@ -236,7 +236,7 @@ class Passer:
         self._offer(_Offer(row, out, raw, packet, _key(packet), heard.path_text), now)
 
     def _offer(self, offer: _Offer, now: datetime) -> None:
-        """Check an offer (N6, N9, N3, N7, L1 to L3), then send, wait or hold it (L4)."""
+        """Check an offer, then send, wait or hold it."""
         row, packet = offer.row, offer.packet
         target = self._radios.get(row.sent)
         if target is None:
@@ -315,7 +315,7 @@ class Passer:
             )
 
     def _duplicate(self, radio: RadioId, key: DuplicateKey, now: datetime) -> bool:
-        """Return whether the radio heard, sent, holds or awaits the packet lately (N3)."""
+        """Return whether the radio heard, sent, holds or awaits the packet lately."""
         waiting = self._waiting.get(radio)
         return (
             self.table(radio).lately(key, now)
@@ -383,7 +383,7 @@ class Passer:
         self.sent_on(target, offer.frame, offer.raw, packet)
 
     def _remember(self, offer: _Offer, now: datetime) -> None:
-        """Keep a passed message for its ack (M2); a passed ack or rej uses up the entry."""
+        """Keep a passed message for its ack; a passed ack or rej uses up the entry."""
         packet, decoded = offer.packet, offer.packet.decoded
         if not isinstance(decoded, Message):
             return

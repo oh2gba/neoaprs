@@ -147,12 +147,12 @@ def test_heard_on_two_radios_at_once_the_request_goes_out_once() -> None:
     rig.hear(frame("OH2GBA-12", info=msg()))
     rig.clock.advance(0.5)
     rig.hear(frame("OH2GBA-12", info=msg()), radio_id=3)
-    assert len(rig.line(2).sent) == 1, "P2: only the pair's other radio"
+    assert len(rig.line(2).sent) == 1, "only the pair's other radio"
     rig = own_rig(THREE, PairSpec(1, 3, True, 11))
     rig.hear(frame("OH2GBA-11", info=msg()))
     rig.clock.advance(0.5)
     rig.hear(frame("OH2GBA-11", info=msg()), radio_id=3)
-    assert len(rig.line(3).sent) == 1 and rig.line(1).sent == [], "N3: FM heard it itself"
+    assert len(rig.line(3).sent) == 1 and rig.line(1).sent == [], "FM heard it itself"
 
 
 def test_our_own_packet_and_our_passed_frame_heard_back_are_not_passed() -> None:

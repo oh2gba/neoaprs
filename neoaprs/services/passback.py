@@ -1,4 +1,4 @@
-"""Recently passed messages, so an ack heard on the far radio goes back once (digipeat plan M2)."""
+"""Recently passed messages, so an ack heard on the far radio goes back once."""
 
 from dataclasses import dataclass
 from datetime import datetime

@@ -1,6 +1,4 @@
-"""Rules for passing a packet between two radios of the station when its path asks for it.
-
-The rule labels (P1, N1, M1 ...) refer to aprs-reference/cross-radio-digipeat-plan.md section 3."""
+"""Rules for passing a packet between two radios of the station when its path asks for it."""
 
 from collections.abc import Collection, Sequence
 from dataclasses import replace
@@ -13,7 +11,7 @@ from neoaprs.packet import Message, Packet
 from neoaprs.radiotype import Limits
 from neoaprs.route import INTERNET_MARKERS, is_marker, parse_alias, used_path
 
-# The hop after a gateway's call when the station reached it through a digipeater (M1).
+# The hop after a gateway's call when the station reached it through a digipeater.
 REPLY_WIDE = "WIDE2-1"
 
 
@@ -29,7 +27,7 @@ def first_unused(frame: ax25.Frame) -> int | None:
 def cross(frame: ax25.Frame, call: tuple[str, int], ours: Collection[tuple[str, int]]) -> ax25.Frame | None:
     """Return the frame as it goes out on the other radio of the pair with call `call`, or None.
 
-    First unused hop = the pair call (P1); it is marked used, nothing else changes (P4)."""
+    The first unused hop must be the pair call; it is marked used and nothing else changes."""
     if not frame.is_ui or (frame.source.call, frame.source.ssid) in ours:
         return None
     path = frame.path
@@ -55,7 +53,7 @@ def not_to_pass(packet: Packet, ours: Collection[str], target_paths: bool) -> bo
 
 
 def message_id(packet: Packet) -> str | None:
-    """Return the id of a message an ack can answer, else None (M2)."""
+    """Return the id of a message an ack can answer, else None."""
     decoded = packet.decoded
     if not isinstance(decoded, Message) or not decoded.msg_id or not decoded.text:
         return None
@@ -82,7 +80,7 @@ def _is_call(hop: str) -> bool:
 
 
 def reply_path(last_path: Sequence[str], ours: Collection[str]) -> tuple[str, ...]:
-    """Return the path of our message or ack on a radio that carries no path (M1), or ()."""
+    """Return the path of our message or ack on a radio that carries no path, or ()."""
     used = [hop[:-1] for hop in used_path(tuple(last_path)) if hop.endswith("*") and not is_marker(hop)]
     if not used or not _is_call(used[-1]) or any(same_call(used[-1], call) for call in ours):
         return ()

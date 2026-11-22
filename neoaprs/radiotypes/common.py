@@ -60,7 +60,7 @@ LORA_LIMITS = Limits(
     LORA_MAX_FRAME, LORA_BEACON_MIN_MIN, LORA_BEACON_JITTER_SEC, LORA_RETRY_JITTER_SEC, MAX_TEXT, max_kiss=LORA_MAX_KISS
 )
 LORA_ALLOWED = Allowed(paths=True, digipeat=False, smart_beacon=True, gateway_heard=True, shared_channel=False)
-# the LoRa networks' path, which their iGates repeat (aprs-reference/lora-plan.md 2.5)
+# the LoRa networks' path, which their iGates repeat
 LORA_PATH = "WIDE1-1"
 
 
