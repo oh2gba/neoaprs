@@ -33,7 +33,7 @@ Choosing an interval, or **On**, turns it all on again. Choosing **On** for a mo
 With one radio on, the beacon goes out on it and nothing here applies. With several radios on that can send:
 
 - **Send on**, under the Beacon choice, has a tick for each radio that is on and can send, by its name (a radio that only receives has none, [radio.md](radio.md#what-each-radio-does-and-what-the-station-does-once)). The beacon goes out on every radio that is ticked, and a change applies at once. The last tick that is ticked is greyed, so that the beacon is switched off by the Beacon choice alone; a radio switched off or removed can leave the beacon ticked for none of those that are on, and then it goes on none until you tick one. A new radio is ticked.
-- **The interval** is the one you chose, raised for each radio to that radio's own floor. A fixed station's beacon on a Mercury or a LoRa radio goes every 30 minutes at the most often, each with a random pause of up to five minutes; a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval chosen: 20 minutes is 20 minutes on FM, beside a Mercury radio that sends every 30.
+- **The interval** is the one you chose, raised for each radio to that radio's own floor. A fixed station's beacon on a Mercury or a LoRa radio goes every 30 minutes at the most often, a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval chosen: 20 minutes is 20 minutes on FM, beside a Mercury radio that sends every 30. The random pause ([below](#the-random-pause)) is the radio's own.
 - **The state of the beacon** says the latest and the soonest of the radios, and behind its arrow a line for each radio, by its name, with its last and next beacon and its own interval.
 - **SmartBeaconing** is one plan for the station, the GPS's. It applies on each radio that allows it (FM and LoRa); a Mercury radio sends the timed beacon with the latest fix, at the stored interval (On stores 30 minutes), and nothing without a fresh fix.
 - **The path** is each radio's own: under Advanced there is a **Path** row for each radio that may carry one, labelled by its name ("FM: path"). A Mercury radio has none: every frame of it goes direct.
@@ -54,7 +54,7 @@ This is the timed beacon of a fixed station (**Position** at **Fixed**); a movin
 
 Set the beacon to [Off](#beacon-off), or to every 30 minutes, every 60 minutes or every 3 hours. The setting `beacon/interval_min` takes 0 (off) or 20 to 1440: 20 minutes is the net cycle of the APRS specification for a path of two hops, and 30 is routine operation. A stored value that the page does not offer, such as 20 or 45, is shown as one more choice until you pick another, and one below 20 is raised to 20 (the log says so).
 
-The first beacon goes out 30 seconds after the daemon starts, so that the radio and the TNC settle first. After that one goes out every interval, counted from the latest beacon, however it was sent.
+The first beacon goes out 30 seconds after the daemon starts, so that the radio and the TNC settle first, plus the random pause ([below](#the-random-pause)). After that one goes out every interval, counted from the latest beacon, however it was sent.
 
 - **A restart does not send another.** The time of each beacon is kept. A daemon that starts less than an interval after the last beacon sends its first one an interval after that one, not 30 seconds after the start.
 - **A beacon that falls due while the radio is away is not skipped.** If a radio is not connected or is silent (switched off at night), the beacon stays due on it. The log says once `the beacon is due and the radio is silent: it goes out when the radio is back`. The first second the radio is usable again one beacon goes out on it, however many intervals went by, and the next is an interval after it.
@@ -89,6 +89,12 @@ The same path is what status reports, objects without a path of their own, bulle
 The **comment** is printable ASCII without `|` and `~`, at most 43 characters, and 36 when the PHG extension is sent. Right of the field the counter says how many are left, as in the box of a message, and the field takes no more: a paste is cut at the limit. A comment that is already longer (a power was set after it) is shown as it is, the counter says how many are over, and it can only be shortened. A save that breaks this is refused with the reason, and a beacon whose comment is too long is not sent.
 
 Your own row on the map is your settings (position, symbol and comment), or the GPS fix for a moving station, never what a packet says. A packet with your own call that you hear back (the TNC may echo what it sends, a digipeater repeats it) only updates the time you were last heard.
+
+### The random pause
+
+What goes out by the clock waits a random time first, drawn anew each time, so that stations that keep the same time do not send together: the beacon, the status, the repeats of your objects and bulletins, and the first beacon after a start. The pause is up to 30 seconds on an FM radio and up to 5 minutes on a Mercury or a LoRa radio. The next send is an interval after the slot, not after the pause, so the interval holds on average.
+
+Beacon now, Send status now and the first packet of a new or changed object or post go at once, with no pause.
 
 ## Power, height and gain (PHG)
 

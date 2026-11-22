@@ -216,6 +216,10 @@ class OwnObjects(Repeater[str]):
         planned = self._last(key, obj.last_sent_at) + timedelta(seconds=wait)
         return self._paused(key, planned, radios, obj.sent, wait, None)
 
+    def _ids(self, key: str) -> tuple[RadioId, ...] | None:
+        obj = self._objects.get(key)
+        return None if obj is None else obj.radios
+
     def _live_wait(self, obj: OwnObject) -> int:
         """Return the wait after the latest packet: the longest over the radios of one round."""
         config = self._config()

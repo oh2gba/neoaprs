@@ -38,6 +38,10 @@ log = logging.getLogger("neoaprs.ownbulletins")
 
 # the random pause ends this long before a bulletin's end, for the tick that is late
 END_MARGIN_SEC = 5
+# a clock further back than a send's time by more than this was set back
+CLOCK_BACK_SEC = 5
+# a clock set back by more than this is taken as not yet set: nothing is sent until it is right again
+CLOCK_BACK_MAX_SEC = 86400
 
 
 def hours_of(text: str | None) -> dict[Kind, int]:
@@ -194,13 +198,19 @@ class OwnBulletins(Repeater[str]):
     def _keys(self) -> list[str]:
         return list(self._posted)
 
+    def _ids(self, key: str) -> tuple[RadioId, ...] | None:
+        bulletin = self._posted.get(key)
+        return None if bulletin is None else bulletin.radios
+
     def _due(self, key: str) -> datetime | None:
         bulletin = self._posted.get(key)
         if bulletin is None:
             return None
         radios = self._sender.radios_for(bulletin.radios)
         if bulletin.sent == 0:
-            return self._paused(key, first_due(bulletin.created_at, bulletin.last_sent_at), radios, 0, None, None)
+            return self._paused(
+                key, first_due(min(bulletin.created_at, self.clock()), bulletin.last_sent_at), radios, 0, None, None
+            )
         first, last = bulletin.first_sent_at, bulletin.last_sent_at
         assert first is not None and last is not None
         slot = self._last(key, last)
@@ -209,7 +219,8 @@ class OwnBulletins(Repeater[str]):
         end = first + timedelta(seconds=bulletin.plan.lasts)
         if wait is None or now > end:
             return None  # over, also when its hours passed while the station was off
-        if last > now:
+        back = (last - now).total_seconds()
+        if CLOCK_BACK_SEC < back <= CLOCK_BACK_MAX_SEC:
             return now  # a clock set back: send now, and the hours count from then
         planned = slot + timedelta(seconds=wait)
         return self._paused(key, planned, radios, bulletin.sent, wait, end - timedelta(seconds=END_MARGIN_SEC))

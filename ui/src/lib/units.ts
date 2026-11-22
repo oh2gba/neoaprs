@@ -3,6 +3,7 @@
 // types stay metric; only the text changes. Numbers follow the page language (`formatNumber`).
 import { readonly, ref } from "vue";
 import { formatNumber } from "@/i18n";
+import type { Bounds } from "@/lib/chart";
 import { NONE } from "@/lib/format";
 import { readStored, removeStored, writeStored } from "@/lib/storage";
 
@@ -150,22 +151,23 @@ interface ChartUnit {
   decimals: number;
   /** half the axis of a series with a single value */
   pad: number;
+  bounds: Bounds;
 }
 
 const METRIC_CHARTS: Record<ChartQuantity, ChartUnit> = {
-  temp: { unit: "°C", of: (c) => c, decimals: 1, pad: 1 },
-  pressure: { unit: "hPa", of: (hpa) => hpa, decimals: 1, pad: 1 },
-  wind: { unit: "km/h", of: (kmh) => kmh, decimals: 1, pad: 1 },
-  rain: { unit: "mm", of: (mm) => mm, decimals: 1, pad: 1 },
-  speed: { unit: "km/h", of: (kmh) => kmh, decimals: 0, pad: 1 },
+  temp: { unit: "°C", of: (c) => c, decimals: 1, pad: 1, bounds: {} },
+  pressure: { unit: "hPa", of: (hpa) => hpa, decimals: 1, pad: 1, bounds: {} },
+  wind: { unit: "km/h", of: (kmh) => kmh, decimals: 1, pad: 1, bounds: {} },
+  rain: { unit: "mm", of: (mm) => mm, decimals: 1, pad: 1, bounds: { floor: 0 } },
+  speed: { unit: "km/h", of: (kmh) => kmh, decimals: 0, pad: 1, bounds: {} },
 };
 
 const OTHER_CHARTS: Record<ChartQuantity, ChartUnit> = {
-  temp: { unit: "°F", of: (c) => (c * 9) / 5 + 32, decimals: 0, pad: 2 },
-  pressure: { unit: "inHg", of: (hpa) => hpa / INHG_HPA, decimals: 2, pad: 0.03 },
-  wind: { unit: "mph", of: (kmh) => kmh / MPH_KMH, decimals: 1, pad: 1 },
-  rain: { unit: "in", of: (mm) => mm / INCH_MM, decimals: 2, pad: 0.04 },
-  speed: { unit: "mph", of: (kmh) => kmh / MPH_KMH, decimals: 0, pad: 1 },
+  temp: { unit: "°F", of: (c) => (c * 9) / 5 + 32, decimals: 0, pad: 2, bounds: {} },
+  pressure: { unit: "inHg", of: (hpa) => hpa / INHG_HPA, decimals: 2, pad: 0.03, bounds: {} },
+  wind: { unit: "mph", of: (kmh) => kmh / MPH_KMH, decimals: 1, pad: 1, bounds: {} },
+  rain: { unit: "in", of: (mm) => mm / INCH_MM, decimals: 2, pad: 0.04, bounds: { floor: 0, least: 0.03 } },
+  speed: { unit: "mph", of: (kmh) => kmh / MPH_KMH, decimals: 0, pad: 1, bounds: {} },
 };
 
 const chart = (q: ChartQuantity): ChartUnit => (on.value ? OTHER_CHARTS : METRIC_CHARTS)[q];
@@ -177,3 +179,5 @@ export const chartUnit = (q: ChartQuantity): string => chart(q).unit;
 export const chartDecimals = (q: ChartQuantity): number => chart(q).decimals;
 /** How far the axis reaches either side of a series with one value. */
 export const chartPad = (q: ChartQuantity): number => chart(q).pad;
+/** The limits of the graph's value axis. */
+export const chartBounds = (q: ChartQuantity): Bounds => chart(q).bounds;

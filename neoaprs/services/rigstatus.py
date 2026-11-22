@@ -11,7 +11,7 @@ from typing import Literal
 
 from neoaprs import ax25, pause
 from neoaprs.beaconrule import beacon_interval, send_on_radios
-from neoaprs.clock import Clock, utcnow
+from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.coded import Reason
 from neoaprs.config import STATUS_SENT, STATUS_TEXT, Config, radio_state_key
 from neoaprs.configstatus import MAX_STATUS, fill_template
@@ -74,6 +74,9 @@ class RigStatus:
         self._read = read
         self.jitter: pause.Draw = pause.draw
         self._started: datetime | None = None
+        self._steps = StepWatch()
+        # when each radio was first seen usable in this run
+        self._up_at: dict[RadioId, datetime] = {}
         # by radio: the drawn pause of the current wait as a share of the most, the wait's slot and
         # how late in it the report may go, the slot of the latest timed report, no new try before a time
         self._shares: dict[RadioId, float] = {}
@@ -115,6 +118,7 @@ class RigStatus:
                 ):
                     self.sent_on[spec.id] = at
         self._started = self.clock()
+        self._steps.forward(self.clock, self._started)
         self._tasks.spawn(self._run(), "rigstatus")
         self._tasks.spawn(every(self.tick_sec, self._tick, "the status timer"), "rigstatus-tick")
 
@@ -166,13 +170,21 @@ class RigStatus:
         now = self.clock()
         if self._started is None or now < self._started:  # a clock set back starts the wait anew
             self._started = now
+            self._up_at.clear()
         since = self._counts_from(id)
         slot = self._started if since is None else max(since + timedelta(minutes=minutes), self._started)
         most = 0 if radio is None else radio.limits.beacon_jitter_sec
         if most > 0 and id not in self._shares:
             self._shares[id] = pause.share(self.jitter, most)
+        delay = pause.capped(self._shares.get(id, 0.0), most, minutes * 60)
+        if radio is not None and radio.usable:
+            self._up_at.setdefault(id, now)
+        if (
+            came := self._up_at.get(id)
+        ) is not None and came > slot + delay:  # it came up late: the pause counts from then
+            slot = came
         self._slots[id] = (slot, min(most, minutes * 60))
-        return slot + pause.capped(self._shares.get(id, 0.0), most, minutes * 60)
+        return slot + delay
 
     def on_radio(self, id: RadioId) -> tuple[datetime | None, datetime | None, int]:
         """Return the radio's last send, its next timed send, and its interval in minutes.
@@ -263,6 +275,8 @@ class RigStatus:
             # beacon off means no automatic status; send_now still sends
             return
         now, targets = self.clock(), self._targets(c)
+        if (step := self._steps.forward(self.clock, now)) and self._started is not None:
+            self._started += step  # a clock stepped forward: what waits from the start keeps its wait
         for gone in self._joined.keys() - {id for id, _, _ in targets}:
             # a radio that left joins again at the next interval, not at once
             del self._joined[gone]

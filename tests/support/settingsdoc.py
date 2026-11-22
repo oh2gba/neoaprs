@@ -17,6 +17,7 @@ from neoaprs.pairsetting import PAIR_FIELDS, default_of, pair_key
 from neoaprs.policy import GPS_STALE_SEC, INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.radiotype import (
     FM_BEACON_MIN_MIN,
+    FM_BEACON_JITTER_SEC,
     HF_BEACON_JITTER_SEC,
     HF_BEACON_MIN_MIN,
     HF_MAX_FRAME,
@@ -319,7 +320,7 @@ def fixed() -> str:
         f"A GPS fix older than {GPS_STALE_SEC} seconds is not used: a moving station sends no beacon on it, and never the home position instead.",
         f"At most {MAX_OBJECTS} objects and items, and {MAX_POSTED} bulletins, of your own at once. A bulletin is sent for {_choices(SENT_FOR['bulletin'])} hours and an announcement for {_choices(SENT_FOR['announcement'], 24)} days, as chosen under Sent for ({DEFAULT_HOURS['bulletin']} hours and {DEFAULT_HOURS['announcement'] // 24} days until you choose).",
         f"The update check asks the version page every {updates} hours.",
-        f"A beacon interval below a radio's floor is raised to it: {HF_BEACON_MIN_MIN} minutes on a Mercury radio, {LORA_BEACON_MIN_MIN} on a LoRa radio, {FM_BEACON_MIN_MIN} on an FM radio. The beacon of a Mercury or a LoRa radio waits a random extra time after each interval (up to {HF_BEACON_JITTER_SEC} seconds on a Mercury radio, {LORA_BEACON_JITTER_SEC} on LoRa), so that stations started together do not key up together.",
+        f"A beacon interval below a radio's floor is raised to it: {HF_BEACON_MIN_MIN} minutes on a Mercury radio, {LORA_BEACON_MIN_MIN} on a LoRa radio, {FM_BEACON_MIN_MIN} on an FM radio. Everything a radio sends by the clock waits a random extra time first (up to {HF_BEACON_JITTER_SEC} seconds on a Mercury radio, {LORA_BEACON_JITTER_SEC} on LoRa, {FM_BEACON_JITTER_SEC} on FM), so that stations started together do not key up together.",
         f"A frame on a Mercury radio is at most {HF_MAX_FRAME} bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.",
     ]
     return "\n".join(f"- {item}" for item in items) + "\n"

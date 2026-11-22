@@ -1,10 +1,13 @@
 """Time, always UTC and always aware. A clock is a function so that tests can set the time."""
 
+import time as _time
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Callable
 
 Clock = Callable[[], datetime]
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+# a clock that moves this much more than the monotonic time between two looks was stepped
+STEP_SEC = 5.0
 
 
 def utcnow() -> datetime:
@@ -40,3 +43,25 @@ def iso(t: datetime | None) -> str | None:
 
 def days(n: int) -> timedelta:
     return timedelta(days=n)
+
+
+def monotonic_of(clock: Clock) -> Callable[[], float]:
+    """Return the monotonic seconds that go with `clock`: its own if it keeps them (a test's), else the system's."""
+    own = getattr(clock, "monotonic", None)
+    return own if callable(own) else _time.monotonic
+
+
+class StepWatch:
+    """Tells how far the clock was stepped forward between two looks, beyond the monotonic time."""
+
+    def __init__(self) -> None:
+        self._last: tuple[datetime, float] | None = None
+
+    def forward(self, clock: Clock, now: datetime) -> timedelta:
+        """Return the step since the last look, or zero when it is under STEP_SEC (the first look too)."""
+        mono = monotonic_of(clock)()
+        last, self._last = self._last, (now, mono)
+        if last is None:
+            return timedelta(0)
+        step = now - last[0] - timedelta(seconds=mono - last[1])
+        return step if step > timedelta(seconds=STEP_SEC) else timedelta(0)

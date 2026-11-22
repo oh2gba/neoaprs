@@ -45,18 +45,26 @@ describe("the Day and night layers", () => {
     }
   });
 
-  it("lie before the first layer of names of the base map, and on top when it has none", () => {
-    const names = fakeMap([
+  it("lie over every fill of the base map and before the names above them, else on top", () => {
+    const both = fakeMap([
+      { id: "world-land", type: "fill" },
+      { id: "world-names", type: "symbol" },
       { id: "land", type: "fill" },
       { id: "roads", type: "line" },
       { id: "places", type: "symbol" },
       { id: "water-names", type: "symbol" },
     ]);
-    addDayNightLayers(names.map, NO_DAYNIGHT);
-    expect(names.added.map((one) => one.before)).toEqual(["places", "places"]);
+    addDayNightLayers(both.map, NO_DAYNIGHT);
+    expect(both.added.map((one) => one.before)).toEqual(["places", "places"]);
     const bare = fakeMap([{ id: "land", type: "fill" }]);
     addDayNightLayers(bare.map, NO_DAYNIGHT);
     expect(bare.added.map((one) => one.before)).toEqual([undefined, undefined]);
+  });
+
+  it("are drawn without antialiasing, so that polygons meeting at the date line leave no seam", () => {
+    const { map, added } = fakeMap([]);
+    addDayNightLayers(map, NO_DAYNIGHT);
+    for (const { layer } of added) expect(layer.paint["fill-antialias"]).toBe(false);
   });
 
   it("are made once for a style", () => {
@@ -73,13 +81,13 @@ describe("the Day and night layers", () => {
       "rgba(11, 26, 58, 0.1)",
       "rgba(11, 26, 58, 0.14)",
     ]);
-    document.documentElement.style.setProperty("--map-twilight", "rgba(0, 0, 0, 0.25)");
-    document.documentElement.style.setProperty("--map-night", "rgba(0, 0, 0, 0.4)");
+    document.documentElement.style.setProperty("--map-twilight", "rgba(0, 6, 30, 0.25)");
+    document.documentElement.style.setProperty("--map-night", "rgba(0, 6, 30, 0.45)");
     const dark = fakeMap([]);
     addDayNightLayers(dark.map, NO_DAYNIGHT);
     expect(dark.added.map((one) => one.layer.paint["fill-color"])).toEqual([
-      "rgba(0, 0, 0, 0.25)",
-      "rgba(0, 0, 0, 0.4)",
+      "rgba(0, 6, 30, 0.25)",
+      "rgba(0, 6, 30, 0.45)",
     ]);
   });
 

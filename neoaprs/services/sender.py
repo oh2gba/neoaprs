@@ -9,7 +9,7 @@ from datetime import datetime
 from neoaprs import ax25
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.radiospec import in_force_set
+from neoaprs.radiospec import in_force_set, transmits
 from neoaprs.radiotype import RadioId
 from neoaprs.services.common import ConfigSource, Radio, as_pick
 from neoaprs.services.pace import SPACING_SEC, within
@@ -71,6 +71,15 @@ class Sender:
         if not found and len(on) == 1 and not any(spec.id in on for spec in config.radios):
             return list(on.values())
         return found
+
+    def pause_most(self, ids: Iterable[RadioId]) -> float:
+        """Return the largest random pause of the radios these ids are set to send on, running or not."""
+        config = self._config()
+        wanted = set(ids) | set(in_force_set(ids, config.radios))
+        specs = [s for s in config.radios if s.id in wanted and not s.removed and transmits(s)]
+        if not specs:
+            return max((radio.limits.beacon_jitter_sec for radio in self.radios_for(ids)), default=0)
+        return max(s.rtype.limits.beacon_jitter_sec for s in specs)
 
     def frame(self, info: bytes, path: tuple[str, ...] | None, radio: AirRadio | None = None) -> ax25.Frame:
         """Return our frame for `radio` (default: first sender) by `path` (None: the radio's own).

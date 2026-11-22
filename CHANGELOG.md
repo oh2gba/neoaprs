@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **New:** a bulletin has a Sent for list: 1 to 12 hours, an announcement 1 to 7 days.
+- **New:** a bulletin takes the next free number or letter by itself.
+- **New:** non-metric units: Settings.
+- **New:** day and night on the map, for a station with an HF radio.
+- **Changed:** everything sent by the clock waits a random moment first.
+- **Changed:** Mercury is updated to 1.9.25.
 - **Changed:** encrypted messages are no longer in the downloads.
 - **Changed:** place names on the map follow the page's language.
 - **Fixed:** several issues.

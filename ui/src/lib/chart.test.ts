@@ -281,3 +281,13 @@ describe("the point under the pointer", () => {
     expect(lastIndex([])).toBe(-1);
   });
 });
+
+describe("extent bounds", () => {
+  it("keeps an all-zero series from going below the floor", () => {
+    expect(extent([0, 0], true, 0.04, { floor: 0 })).toEqual([0, 0.04]);
+  });
+  it("widens a tiny span to the least", () => {
+    expect(extent([0, 0.01], true, 0.04, { floor: 0, least: 0.03 })).toEqual([0, 0.03]);
+    expect(extent([0, 0.05], true, 0.04, { floor: 0, least: 0.03 })).toEqual([0, 0.05]);
+  });
+});

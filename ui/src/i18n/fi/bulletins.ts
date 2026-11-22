@@ -30,8 +30,8 @@ export const bulletins: Record<keyof typeof source, Message> = {
   "bulletins.group": "Ryhmä",
   "bulletins.group_placeholder": "Nimi",
   "bulletins.text": "Teksti",
-  "bulletins.tip.hours": { one: "{n} tunnin", other: "{n} tunnin" },
-  "bulletins.tip.days": { one: "{n} päivän", other: "{n} päivän" },
+  "bulletins.tip.hours": { one: "{n} tunti", other: "{n} tuntia" },
+  "bulletins.tip.days": { one: "{n} päivä", other: "{n} päivää" },
   "bulletins.tip.kinds1":
     "Tiedote ja ilmoitus näkyvät jokaisella asemalla, joka kuulee ne: tiedote asialle, joka on tärkeä nyt, ilmoitus asialle, joka pysyy voimassa päiviä.",
   "bulletins.tip.kinds2":

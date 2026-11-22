@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 
 from neoaprs import pause
-from neoaprs.clock import Clock, utcnow
+from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.radiotype import RadioId
 from neoaprs.services.radioset import AirRadio, SendError
 from neoaprs.services.sender import Sender
@@ -49,6 +49,9 @@ class Repeater[K](ABC):
         # things made or sent in this run; the others were loaded at the start
         self._fresh: set[K] = set()
         self._started: datetime | None = None
+        self._steps = StepWatch()
+        # when each radio was first seen usable in this run
+        self._up_at: dict[RadioId, datetime] = {}
 
     @abstractmethod
     def _keys(self) -> list[K]: ...
@@ -58,6 +61,10 @@ class Repeater[K](ABC):
 
     @abstractmethod
     def _transmit(self, key: K, now: datetime) -> bool: ...
+
+    def _ids(self, key: K) -> tuple[RadioId, ...] | None:
+        """Return the radios the thing is set to be sent on; None to size the pause by the running ones."""
+        return None
 
     def _new_round(self, key: K) -> None:
         """Start the thing's next round afresh for every radio, with a new pause."""
@@ -79,20 +86,36 @@ class Repeater[K](ABC):
 
         The first packet of a thing made in this run goes at once. A thing loaded at the start waits
         from the start. The pause is drawn once per send and never longer than `wait` or past `end`."""
-        most = max((radio.limits.beacon_jitter_sec for radio in radios), default=0)
-        loaded = key not in self._fresh
-        if most <= 0 or (sent == 0 and not loaded):
-            return planned
         now = self.clock()
         if self._started is None or now < self._started:  # a clock set back starts the wait anew
             self._started = now
+            self._up_at.clear()
+        for radio in radios:
+            if radio.usable:
+                self._up_at.setdefault(radio.id, now)
+        ids = self._ids(key)
+        most = (
+            self._sender.pause_most(ids)
+            if ids is not None
+            else max((radio.limits.beacon_jitter_sec for radio in radios), default=0)
+        )
+        loaded = key not in self._fresh
+        if most <= 0 or (sent == 0 and not loaded):
+            return planned
         base = max(planned, self._started) if loaded else planned
         if key not in self._shares:
             self._shares[key] = pause.share(self.jitter, most)
-        rooms = (pause.latest(base, end),) if wait is None else (wait, pause.latest(base, end))
-        delay = pause.capped(self._shares[key], most, *rooms)
+        delay = self._delay(key, most, base, wait, end)
+        came = min((self._up_at[radio.id] for radio in radios if radio.id in self._up_at), default=None)
+        if came is not None and came > base + delay:  # its radio came up late: the pause counts from then
+            base = came
+            delay = self._delay(key, most, base, wait, end)
         self._slots[key] = (base, 0.0 if wait is None else min(most, wait))
         return base + delay
+
+    def _delay(self, key: K, most: float, base: datetime, wait: float | None, end: datetime | None) -> timedelta:
+        rooms = (pause.latest(base, end),) if wait is None else (wait, pause.latest(base, end))
+        return pause.capped(self._shares[key], most, *rooms)
 
     def _round(
         self, key: K, radios: list[AirRadio], info: bytes, path: tuple[str, ...] | None, now: datetime
@@ -122,6 +145,7 @@ class Repeater[K](ABC):
         if self._started is None:
             self._started = self.clock()
         if not self._tasks:
+            self._steps.forward(self.clock, self.clock())
             self._tasks.spawn(self._run(), self.kind)
 
     async def stop_ticker(self) -> None:
@@ -133,6 +157,8 @@ class Repeater[K](ABC):
     def tick(self) -> bool:
         """Send what is due, longest overdue first; return whether something went out."""
         now = self.clock()
+        if (step := self._steps.forward(self.clock, now)) and self._started is not None:
+            self._started += step  # a clock stepped forward: what waits from the start keeps its wait
         due = [(when, key) for key in self._keys() if (when := self._due(key)) is not None and when <= now]
         due.sort(key=lambda pair: pair[0])
         for _, key in due:

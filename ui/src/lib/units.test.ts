@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { setLocale } from "@/i18n";
+import { formatNumber, setLocale } from "@/i18n";
+import { extent, niceTicks, tickDecimals } from "@/lib/chart";
 import {
   aircraftAltitudeText,
   aircraftSpeedText,
+  chartBounds,
   chartDecimals,
   chartPad,
   chartUnit,
@@ -257,5 +259,22 @@ describe("takeUnits", () => {
     vi.resetModules();
     expect((await import("@/lib/units")).nonMetric.value).toBe(false);
     read.mockRestore();
+  });
+});
+
+describe("the rain axis", () => {
+  it("has bounds and short labels for a tiny or empty series in both settings", () => {
+    for (const nonMetric of [false, true]) {
+      takeUnits(nonMetric ? NON_METRIC : {});
+      for (const mm of [[0, 0], [0, 0.1], [0.1], [0, 0.2]]) {
+        const values = mm.map((x) => chartValue("rain", x));
+        const [lo, hi] = extent(values, true, chartPad("rain"), chartBounds("rain"));
+        const a = niceTicks(lo, hi, 4);
+        expect(a.min).toBeGreaterThanOrEqual(0);
+        expect(a.ticks.length).toBeGreaterThanOrEqual(2);
+        for (const t of a.ticks) expect(formatNumber(t, tickDecimals(a.step)).length).toBeLessThanOrEqual(4);
+      }
+    }
+    takeUnits({});
   });
 });

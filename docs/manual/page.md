@@ -28,7 +28,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 
 The table has the symbol, the call, the distance from you, the bearing as a small arrow with north up ("NE, 47°" is its hover text) and **Last heard**, the newest time of anything the station sent, with the full time as hover text. Every row is one line high and the table fills the panel, as every tab does; the column of the tags takes the free width and the others fit what they hold, so that the tags start at one place. The Nearby tab's lists have the same columns.
 
-- The columns Call, km and Last heard sort on a click. Your own station is on top.
+- The columns Call, km (mi with Non-metric units) and Last heard sort on a click. Your own station is on top.
 - A small check mark right after a call means the station was heard direct, on any radio ("Heard direct", also on its card).
 - In a column of its own after the call, as a small quiet tag, is how the station was heard: the **radio** that heard it (on the air, direct or by digipeaters), **iGate** (on the radio, from an iGate that took it from the internet), **Internet** (received over the internet, not on the radio) or two side by side, such as **FM** and **Internet** for a station heard both ways. **Dummy** is a station made up by the Dummy radio.
 - A radio's tag is its name, in the tone of its kind, with one radio on as with several: **FM**, **Mercury**, **LoRa** for a radio with no name of its own, else the name you gave it, **20 m** (hover text: "Heard on radio 20 m"). The row has the tags of the two radios that heard the station last, then **+1**, **+2** and so on, a tag whose hover text lists the other radios with their times; on a narrow table, one radio's tag and the +. iGate, Internet and Local info are not counted among them.
@@ -116,7 +116,7 @@ A beacon, message or answer you sent is in the log as a packet with direction `o
 
 The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group folds by the arrow in front of its name, and the page remembers in this browser which ones you folded. A group opens by itself when it has an error to show, and when the page leads you to a setting in it (a mark in the header). The boxes of the radios in the Radio group fold the same way, each by the arrow in front of its name, and are remembered the same way. From the top it has:
 
-- **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
+- **Language**, **Non-metric units** (miles, feet, mph, °F, inHg and inches on every page of this station; aircraft in feet and knots, ships in knots; what you type and what is sent stay metric), and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
 - **Radio**: the **RX only** tickbox first (ticked sends nothing, [beacon.md](beacon.md#rx-only)), a box for each radio, and **Add radio** last ([radio.md](radio.md#the-radio-group));
   - a box has its **Enable** tickbox, its **Name** and **Remove** once the station has more than one box, and while the radio is on its status line with **Reconnect**;
   - behind the arrow of the status line are the **Radio type**, the fields of that type (a **Port** and **Speed**, an **Address** and **Port**, a **Sound card** and **Keying**) and what the type can do (**Find my radio**, **Suggested frequencies**, **Tune**, **Transmit level**, **Receive level**, **Spectrum**, **Terminal**);
@@ -170,12 +170,17 @@ The **Layers** button is in the map's top left corner, under + and −. It opens
 | **Locator grid** | the Maidenhead grid, below | no |
 | **Aircraft** | the aircraft, below | no |
 | **Ships** | the ships, below | no |
+| **Day and night** | the night and the twilight, below; only on a station with an HF radio | no |
 
 ### The locator grid
 
 Lines of the Maidenhead locator cells, with the name of each cell in it. The names are the ones **Copy locator** gives. The grid has three steps: fields (two letters, 20 by 10 degrees) while the map is zoomed out, squares (four characters) from zoom 5, and subsquares (six characters) from zoom 10.
 
 At most 400 cells are named at a time; when more would be in view the grid uses the next coarser step. Between zoom 7 and 9 the subsquares are too many to name, and their lines are drawn without names once they are wide enough on the screen to be told apart. The cell under the middle of the map always has its name in sight.
+
+### Day and night
+
+A station with an HF radio has the row **Day and night**. Ticked, the night is a soft shade over the map, with a lighter band for the twilight, where the sun is up to 6 degrees below the horizon. It moves with the sun and is redrawn every minute. It shows only while the map is zoomed out, to zoom 6; closer in, it is gone.
 
 ### Aircraft and ships
 

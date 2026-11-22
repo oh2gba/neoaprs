@@ -18,6 +18,7 @@ import {
   linearScale,
   nearestIndex,
   niceTicks,
+  type Bounds,
   tickDecimals,
   timeTicks,
   usualGap,
@@ -45,6 +46,8 @@ const props = withDefaults(
     zero?: boolean;
     /** how far the axis reaches either side of a series with one value */
     pad?: number;
+    /** the least the axis may reach down and the least span it has */
+    bounds?: Bounds;
     tone: "temp" | "pressure" | "wind" | "rain" | "packets" | "speed" | "signal";
     /** the decimals of the value in the heading (1 for a weather reading; 0 for a count) */
     valueDecimals?: number;
@@ -59,6 +62,7 @@ const props = withDefaults(
     parts: () => [],
     zero: false,
     pad: 1,
+    bounds: () => ({}),
     range: undefined,
     valueDecimals: 1,
     numberText: formatNumber,
@@ -76,7 +80,7 @@ const hover = ref<number | null>(null);
 
 const values = computed(() => [...props.main, ...props.band].flatMap((p) => (p.v === null ? [] : [p.v])));
 const axis = computed(() => {
-  const [lo, hi] = props.range ?? extent(values.value, props.zero, props.pad);
+  const [lo, hi] = props.range ?? extent(values.value, props.zero, props.pad, props.bounds);
   return niceTicks(lo, hi, 4);
 });
 const x = computed(() => linearScale([props.from, props.to], [LEFT, RIGHT]));

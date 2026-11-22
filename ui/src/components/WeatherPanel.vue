@@ -11,7 +11,17 @@ import TrendChart from "@/components/TrendChart.vue";
 import { useWxSpan } from "@/composables/useWxSpan";
 import { t } from "@/i18n";
 import { agoWords, bearingText, dateTimeText } from "@/lib/format";
-import { chartDecimals, chartPad, chartUnit, pressureText, rainText, snowText, speedText, tempText } from "@/lib/units";
+import {
+  chartBounds,
+  chartDecimals,
+  chartPad,
+  chartUnit,
+  pressureText,
+  rainText,
+  snowText,
+  speedText,
+  tempText,
+} from "@/lib/units";
 import { arrowAngle, columnOf, hasValues, humidityText, type Ranges } from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
@@ -161,6 +171,7 @@ const windNote = computed(() => {
         :unit="chartUnit('rain')"
         :value-decimals="chartDecimals('rain')"
         :pad="chartPad('rain')"
+        :bounds="chartBounds('rain')"
         :from="from"
         :to="to"
         :main="charts.rain"

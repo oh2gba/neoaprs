@@ -492,7 +492,7 @@ async def test_an_object_with_no_radio_up_at_the_start_still_waits_from_the_star
     rig = await again(first, draws, 2 * 3600, fm_enabled=False, hf_enabled=False)
     start = rig.clock()
     rig.timed(10)
-    assert draws.calls == [], "nothing drawn while no radio is up"
+    assert draws.calls == [300], "the pause of the radio it is set for, drawn while no radio is up"
     rig.set(hf_enabled=True)
     for shape in rig.shapes:
         shape.spec, shape.specs = rig.config.radio(shape.id) or shape.spec, rig.config.radios
@@ -537,8 +537,8 @@ class BulletinRig(OwnRig):
         super().__init__(log, clock, **{"fm_enabled": True, "hf_enabled": True, **changes})
         self.hf = StubTnc()
         lines = {FM_ID: self.tnc, HF_ID: self.hf}
-        shapes = [LiveShape(spec, self.config.radios, lines[spec.id]) for spec in self.config.radios]  # type: ignore[arg-type]
-        self.sender = Sender(RegistryShape(shapes), lambda: self.config, clock, spacing_sec=0.0)
+        self.shapes = [LiveShape(spec, self.config.radios, lines[spec.id]) for spec in self.config.radios]  # type: ignore[arg-type]
+        self.sender = Sender(RegistryShape(self.shapes), lambda: self.config, clock, spacing_sec=0.0)
         self.posts = OwnBulletins(self.sender, lambda: self.config, log, clock, tick_sec=3600.0)
 
     def timed(self, seconds: int) -> list[int]:
@@ -602,3 +602,85 @@ async def test_the_pause_ends_before_the_end_of_the_bulletin(tmp_path: Path, mon
     assert rig.timed(800) == [0, 240, 400 - END_MARGIN_SEC], (
         "the last slot at 6 minutes, 40 s before the end: its pause is the room left, less the margin"
     )
+
+
+# ---- a clock stepped forward, a radio that comes up late, the page's time -------------------------
+
+
+async def test_a_clock_stepped_forward_keeps_the_first_beacons_pause() -> None:
+    rig = await BeaconRig(HF_ID, beacon_interval_min=30).started(Draws(0.5))
+    rig.run(10)
+    rig.clock.step(3600)
+    assert rig.run(400) == [3600 + 30 + 150], "the start's 30 s and the drawn 150 s, counted on from the step"
+
+
+async def test_a_clock_stepped_forward_keeps_the_first_status_pause() -> None:
+    rig = await StatusRig(both=True).watch().started(Draws(0.5))
+    rig.run(5)
+    rig.clock.step(7200)
+    rig.run(400)
+    assert (rig.at(rig.tnc), rig.at(rig.hf)) == ([7200 + 15], [7200 + 150])
+
+
+async def test_a_clock_stepped_forward_keeps_the_pause_of_an_object_loaded_at_the_start(tmp_path: Path) -> None:
+    first = await objects_at(tmp_path, Draws(0.0))
+    first.make("HFONLY", (HF_ID,))
+    first.timed(4000)
+    rig = await again(first, Draws(0.5), 2 * 3600)
+    rig.timed(5)
+    rig.clock.step(3 * 3600)
+    assert rig.timed(200)["hf"] == [145], "150 s from the start, the start moved on by the step"
+
+
+async def test_a_beacon_whose_radio_comes_up_after_its_pause_waits_the_pause_from_then() -> None:
+    rig = await BeaconRig(HF_ID, beacon_interval_min=30).started(Draws(0.5))
+    rig.tnc.state = rig.tnc.state.WAITING
+    rig.run(400)
+    rig.tnc.state = rig.tnc.state.CONNECTED
+    assert rig.run(200) == [400 + 150]
+
+
+async def test_a_status_whose_radio_comes_up_after_its_pause_waits_the_pause_from_then() -> None:
+    rig = StatusRig(both=True).watch()
+    rig.hf.state = rig.hf.state.WAITING
+    await rig.started(Draws(0.5))
+    rig.run(400)
+    rig.hf.state = rig.hf.state.CONNECTED
+    rig.run(200)
+    assert (rig.at(rig.tnc), rig.at(rig.hf)) == ([15], [401 + 150])
+
+
+async def test_an_object_whose_radio_comes_up_after_its_pause_waits_the_pause_from_then(tmp_path: Path) -> None:
+    first = await objects_at(tmp_path, Draws(0.0))
+    first.make("HFONLY", (HF_ID,))
+    first.timed(4000)
+    rig = await again(first, Draws(0.5), 2 * 3600, fm_enabled=False, hf_enabled=False)
+    rig.timed(400)
+    rig.set(hf_enabled=True)
+    for shape in rig.shapes:
+        shape.spec, shape.specs = rig.config.radio(shape.id) or shape.spec, rig.config.radios
+    assert rig.objects.next_at("HFONLY") == rig.clock() + timedelta(seconds=150)
+    assert rig.timed(200)["hf"] == [150]
+
+
+async def test_the_next_time_of_an_object_does_not_move_when_one_of_its_radios_drops(tmp_path: Path) -> None:
+    rig = await objects_at(tmp_path, Draws(1.0))
+    rig.make("BOTH", (FM_ID, HF_ID))
+    rig.timed(5)
+    shown = rig.objects.next_at("BOTH")
+    for hf in (False, True):
+        rig.set(hf_enabled=hf)
+        for shape in rig.shapes:
+            shape.spec, shape.specs = rig.config.radio(shape.id) or shape.spec, rig.config.radios
+        assert rig.objects.next_at("BOTH") == shown, "HF's pause holds while HF is away"
+
+
+async def test_the_next_time_of_a_bulletin_does_not_move_when_one_of_its_radios_drops(tmp_path: Path) -> None:
+    rig = await bulletins_at(tmp_path, Draws(1.0))
+    posted = rig.posts.post("bulletin", "NET TONIGHT", hours=4, radios=(FM_ID, HF_ID))
+    rig.timed(5)
+    shown = rig.posts.next_at(posted.slot)
+    rig.set(hf_enabled=False)
+    for shape in rig.shapes:
+        shape.spec, shape.specs = rig.config.radio(shape.id) or shape.spec, rig.config.radios
+    assert rig.posts.next_at(posted.slot) == shown

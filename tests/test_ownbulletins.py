@@ -412,3 +412,35 @@ async def test_the_bulletins_are_kept_with_their_text_hours_and_the_times_of_wha
         kept.first_sent_at,
         kept.last_sent_at,
     ) == ("HAMS", "group", 2, 2, rig.begin, rig.begin + timedelta(seconds=120))
+
+
+async def test_a_clock_set_back_far_and_right_again_leaves_a_fresh_post_live(rig: Rig) -> None:
+    rig.posts.post("bulletin", "x")
+    rig.run(400)
+    before = len(rig.sent)
+    rig.clock.advance(-20 * 365 * 86400)
+    rig.posts.tick()
+    assert len(rig.sent) <= before + 1
+    rig.clock.advance(20 * 365 * 86400)
+    next_at = rig.posts.next_at("BLN0")
+    assert next_at is not None and next_at > rig.clock()
+    rig.run(1500, step=60)
+    assert len(rig.sent) <= before + 2, "the schedule goes on"
+    assert rig.posts.next_at("BLN0") is not None
+
+
+async def test_a_never_sent_post_goes_out_when_the_clock_is_set_back_before_its_creation(rig: Rig) -> None:
+    rig.posts.post("bulletin", "x")
+    rig.clock.advance(-3 * 3600)
+    assert rig.posts.next_at("BLN0") == rig.clock()
+
+
+async def test_a_step_back_of_a_second_just_after_a_send_does_not_repeat_the_packet(rig: Rig) -> None:
+    rig.posts.post("bulletin", "x")
+    rig.run(125)
+    sent = len(rig.sent)
+    rig.clock.advance(-6)
+    next_at = rig.posts.next_at("BLN0")
+    assert next_at is not None and next_at > rig.clock()
+    rig.posts.tick()
+    assert len(rig.sent) == sent

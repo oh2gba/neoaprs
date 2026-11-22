@@ -2,7 +2,7 @@
 
 ## Weather stations
 
-A weather station sends its readings in a position packet with the weather symbol `_`, or in a positionless weather report. NeoAPRS shows them in metric units: wind and gusts in km/h (to 0.1), temperature in degrees C, rain in mm, pressure in hPa, humidity in per cent, the wind direction in degrees.
+A weather station sends its readings in a position packet with the weather symbol `_`, or in a positionless weather report. NeoAPRS shows them in metric units: wind and gusts in km/h (to 0.1), temperature in degrees C, rain in mm, pressure in hPa, humidity in per cent, the wind direction in degrees. With **Non-metric units** (Settings) they are in mph, degrees F, inches of rain and inHg; the packets you send do not change.
 
 A field the report did not have is left out. A report whose fields are all missing is no weather. An object or item with the weather symbol carries weather too.
 

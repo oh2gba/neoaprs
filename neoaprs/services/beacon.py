@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from neoaprs import ax25, coded, pause
 from neoaprs.aprsposition import uncompressed_position as uncompressed_position  # re-export
 from neoaprs.beaconrule import beacon_interval, beacon_radios, ticked
-from neoaprs.clock import Clock, utcnow
+from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.config import BEACON_SENT, Config, radio_state_key
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
@@ -90,6 +90,8 @@ class Beacon:
         self._anchor: datetime | None = None
         self.problem = ""
         self._started: datetime | None = None
+        self._steps = StepWatch()
+        self._up = False
         self._earlier: datetime | None = None
         self._remembered = Remembered(memory)
         self._memory_key = BEACON_SENT if self._old else memory_key_of(self._radio.id)
@@ -170,7 +172,8 @@ class Beacon:
             return
         now = self.clock()
         self._earlier = await self._remembered.get_time(self._memory_key, now)
-        self._started = now
+        self._started, self._up = now, False
+        self._steps.forward(self.clock, now)
         if (spec := self._config().radio(self._radio.id)) is not None:
             ticked(spec, say=True)  # logs an invalid stored Send on once
         self._plan(self.interval_min)
@@ -281,9 +284,22 @@ class Beacon:
         self.next_due = decision.next_due
         return decision.reason
 
+    def _hold_first(self, now: datetime, usable: bool) -> None:
+        """Keep the first beacon's drawn pause across a clock stepped forward and after a radio that came up late."""
+        if self.last_sent is not None or self._slot is None or self.next_due is None or self._mobile(self._config()):
+            self._up = self._up or usable
+            return
+        shift = self._steps.forward(self.clock, now)
+        if usable and not self._up and now > self.next_due + shift:
+            shift = now - self._slot
+        self._up = self._up or usable
+        if shift and self._started is not None:
+            self._started, self._slot, self.next_due = self._started + shift, self._slot + shift, self.next_due + shift
+
     def _tick(self) -> None:
         now = self.clock()
         usable = self._radio.usable
+        self._hold_first(now, usable)
         if usable:
             self._skip_told = False
         reason = self._due_reason(now)

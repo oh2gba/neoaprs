@@ -81,8 +81,8 @@ Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`,
 | `--map-plate` | `rgba(255, 255, 255, 0.88)` | `rgba(255, 255, 255, 0.88)` | as it was | the map: the plate under a symbol in the dark theme |
 | `--map-track` | `#2f80ed` | `#2f80ed` | as it was | the map: a track |
 | `--map-layer` | `#8e24aa` | `#ce93d8` | the map's own | the map: an aircraft or a ship, and its mark in the Layers box |
-| `--map-twilight` | `rgba(11, 26, 58, 0.1)` | `rgba(0, 0, 0, 0.25)` | the map's own | the map: the shade where the sun is down |
-| `--map-night` | `rgba(11, 26, 58, 0.14)` | `rgba(0, 0, 0, 0.4)` | the map's own | the map: the shade added where the sun is more than 6° down |
+| `--map-twilight` | `rgba(11, 26, 58, 0.1)` | `rgba(0, 6, 30, 0.25)` | the map's own | the map: the shade where the sun is down |
+| `--map-night` | `rgba(11, 26, 58, 0.14)` | `rgba(0, 6, 30, 0.45)` | the map's own | the map: the shade added where the sun is more than 6° down |
 | `--map-control-ink` | `#333333` | `#333333` | the map engine's own | the map: the drawing on its buttons, white in both themes (the Layers button's as the zoom buttons') |
 | `--wx-temp` | `#d84315` | `#ff8a65` | as it was | the weather graphs: temperature |
 | `--wx-pressure` | `#7b1fa2` | `#ce93d8` | as it was | the weather graphs: pressure |

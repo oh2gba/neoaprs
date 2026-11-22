@@ -2,7 +2,7 @@
 // `weather_series` message cut into the points of one graph.
 import { NONE } from "@/lib/format";
 import { extent, type Point } from "@/lib/chart";
-import { chartPad, chartValue, tempText, type ChartQuantity } from "@/lib/units";
+import { chartBounds, chartPad, chartValue, tempText, type ChartQuantity } from "@/lib/units";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 /** The columns of a point after its time. */
@@ -51,7 +51,11 @@ export function sharedRanges(all: readonly (WeatherSeriesMessage | null)[], hour
     const values = used.flatMap((series) =>
       columns.flatMap((column) => columnOf(series, column).flatMap((p) => (p.v === null ? [] : [p.v]))),
     );
-    if (values.length > 0) out[quantity] = extent(values, zero, quantity === "humidity" ? 1 : chartPad(quantity));
+    if (values.length > 0)
+      out[quantity] =
+        quantity === "humidity"
+          ? extent(values, zero, 1)
+          : extent(values, zero, chartPad(quantity), chartBounds(quantity));
   }
   return out;
 }
