@@ -27,7 +27,7 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with as many radios as you have side by side: any KISS TNC on VHF, LoRa APRS boards, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["Any number of radios side by side: FM, HF and LoRa APRS","APRS over HF with the Mercury modem","LoRa APRS boards on the network, USB or Bluetooth","Sound-card radios with Direwolf built in","A receive-only radio type for the Yaesu FTM and TNCs without KISS","HF tests: a board of planned tests on HF","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Aircraft and ships on the map, beside the stations","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","nl","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=33">
+<link rel="stylesheet" href="style.css?v=34">
 <script src="site.js?v=12" defer></script>
 </head>
 <body>
@@ -213,21 +213,24 @@
 <section class="sec" id="radios">
   <div class="wrap">
     <h2>Radios: FM, Mercury and LoRa</h2>
+    <section class="note-card ready top">
+      <h3>Any radio with a sound card</h3>
+      <p>Yaesu, Icom or any radio with a sound-card interface (Digirig, AIOC, SignaLink): the APRS modem is built in, on Windows and Linux. <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#sound-card">Setup</a></p>
+    </section>
     <div class="cols">
       <dl class="rlist">
         <div><dt>Kenwood TH-D7, TM-D700, TS-2000; TNC-2 clones (MFJ-1270B, 1274, 1278, TAPR)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d7-and-tm-d700">serial, 9600</a></dd></div>
         <div><dt>Kenwood TM-D710, TH-D72</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-tm-d710-and-th-d72">serial or USB</a></dd></div>
         <div><dt>Kenwood TH-D74, TH-D75</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d74-and-th-d75">USB or Bluetooth</a></dd></div>
         <div><dt>Mobilinkd TNC3, TNC4</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB, Bluetooth or Bluetooth LE</a></dd></div>
-        <div><dt>BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></dd></div>
-        <div><dt>Yaesu FTM-100, 400, 500 (FTM-300 <i>untested</i>); a TNC without KISS (TAPR TNC-2, PK-232) <i>(receive only)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only">serial: what it hears, on the map</a></dd></div>
-        <div><dt>PicoAPRS V4 <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></dd></div>
+        <div><dt>BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></dd></div>
+        <div><dt>Yaesu FTM-100, 300, 400, 500; a TNC without KISS (TAPR TNC-2, PK-232) <i>(receive only)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only">serial: what it hears, on the map</a></dd></div>
+        <div><dt>PicoAPRS V4</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></dd></div>
       </dl>
       <dl class="rlist">
-        <div><dt>LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU, esp32_loraprs <i>(not yet tried on a board)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-boards">on the network, USB or Bluetooth</a></dd></div>
+        <div><dt>LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU, esp32_loraprs</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-boards">on the network, USB or Bluetooth</a></dd></div>
         <div><dt>NinoTNC, TNC-Pi, TNC-X, any TNC in KISS mode</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></dd></div>
         <div><dt>Kantronics KPC-3+</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kantronics-kpc-3">RS-232</a></dd></div>
-        <div><dt>Yaesu, Icom or any radio with a sound-card interface (Digirig, AIOC, SignaLink)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#sound-card">Sound card, modem built in (Windows, Linux)</a></dd></div>
         <div><dt>Yaesu FTX-1, over its own USB cable</dt><dd><a href="yaesu-ftx-1.html">Sound card: the tech note</a></dd></div>
         <div><dt>Mercury: a radio with a USB sound card or an interface (Digirig, SignaLink)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mercury-modem">Mercury modem, built in</a></dd></div>
         <div><dt>A GPS receiver</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#a-gps-receiver">gpsd or serial</a></dd></div>

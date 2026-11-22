@@ -327,6 +327,8 @@ footer p { margin: 0; }
 .note-card h3 { margin: 0 0 6px; font-size: 1.1rem; }
 .note-card p { margin: 0; color: var(--ink-2); font-size: 0.97rem; }
 .note-card.ready { border-left: 4px solid var(--hf); }
+.note-card.top { margin: 0 0 24px; }
+.note-card.top h3 { font-size: 1.3rem; }
 .note-card.ready h3 { color: var(--hf); }
 @media (max-width: 860px) { .pair { grid-template-columns: minmax(0, 1fr); } }
 
