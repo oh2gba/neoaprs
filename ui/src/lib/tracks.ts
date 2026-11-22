@@ -1,7 +1,9 @@
-// The tracks of the stations as one GeoJSON collection of lines for the map. A track fades with age along its length: each stretch between two points has the opacity of its older point's age against
-// the timeout of the station (lib/aging.ts), the newest stretch full and the oldest faint. Neighbouring stretches of the same opacity are one line, so that the joins are not drawn twice over each other;
-// the line of a selected station (of every open card) is marked so that it is drawn heavier, solid and above the others, and its positions are given as points too (`trackPoints`): a dot where each packet was heard,
-// which fades with the age of the position as the stretches do, so that the trail of the station picked is read at a glance, each beacon on it.
+// The stations' tracks as one GeoJSON collection of lines for the map. A track fades with age along
+// its length: each stretch between two points has the opacity of its older point's age against the
+// station's timeout (lib/aging.ts). Neighbouring stretches of equal opacity are one line, so joins
+// are not drawn twice. The selected station's line (of every open card) is marked to be drawn
+// heavier, solid and on top, and its positions are also given as points (`trackPoints`) that fade
+// with the position's age.
 import { timeoutMin, trailOpacity, type Aging } from "@/lib/aging";
 import { unwrapLine } from "@/lib/dateline";
 import { ageSeconds } from "@/lib/format";
@@ -31,10 +33,16 @@ export interface PointCollection {
 
 const picked = (selected: string | null | readonly string[]): readonly string[] => (typeof selected === "string" ? [selected] : (selected ?? []));
 
-/** A point of a trail as the lines are made of it: its place, [lon, lat], and the opacity of the stretch that begins at it (the age of the point against the time the trail fades over). */
+/**
+ * A trail point as the lines are made from it: its place [lon, lat] and the opacity of the stretch
+ * that begins at it.
+ */
 type TrailPoint<P> = (point: P) => { at: [number, number]; opacity: number };
 
-/** The lines of one trail, the points the oldest first: a run of stretches of one opacity each, the oldest first. The live tracks are made with it, and so are the trails of the map's replay (lib/replay.ts). */
+/**
+ * The lines of one trail, oldest point first: runs of stretches of one opacity. Also used for the
+ * replay's trails (lib/replay.ts).
+ */
 export function fadingLines<P>(call: string, points: readonly P[], selected: boolean, of: TrailPoint<P>): TrackFeature[] {
   const features: TrackFeature[] = [];
   for (let i = 0; i + 1 < points.length; i++) {
@@ -57,13 +65,15 @@ export function fadingLines<P>(call: string, points: readonly P[], selected: boo
   return features;
 }
 
-/** The lines of one station's track. */
 function stationLines(row: StationRow, selected: boolean, nowMs: number, aging: Aging): TrackFeature[] {
   const minutes = timeoutMin(aging, row);
   return fadingLines(row.call, row.track, selected, ([at, lat, lon]) => ({ at: [lon, lat], opacity: trailOpacity(ageSeconds(at, nowMs), minutes) }));
 }
 
-/** `selected` is the call of the selected station, or the calls of all the stations whose cards are open. */
+/**
+ * `selected` is the call of the selected station, or the calls of all stations whose cards are
+ * open.
+ */
 export function trackLines(rows: Iterable<StationRow>, selected: string | null | readonly string[], nowMs: number, aging: Aging): TrackCollection {
   const calls = picked(selected);
   const features: TrackFeature[] = [];
@@ -71,7 +81,10 @@ export function trackLines(rows: Iterable<StationRow>, selected: string | null |
   return { type: "FeatureCollection", features };
 }
 
-/** The positions of the selected stations' tracks (those that have a line: more than one point), each with the opacity of its age, the oldest first. */
+/**
+ * The positions of the selected stations' tracks (those with more than one point), each with the
+ * opacity of its age, oldest first.
+ */
 export function trackPoints(rows: Iterable<StationRow>, selected: string | null | readonly string[], nowMs: number, aging: Aging): PointCollection {
   const calls = picked(selected);
   const features: PointFeature[] = [];

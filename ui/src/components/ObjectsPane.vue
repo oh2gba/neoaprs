@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// The Objects tab, three group boxes one under the other (an (i) at the top, TabHelp, says what an object is), the tab scrolling as a whole: **Add an object** first, so that it is always within reach (components/ObjectForm.vue, always there;
-// "Edit NAME" while an object is being changed), **My objects**, the objects and items of ours, oldest first, each with its symbol, its name, what kind it is, its category as a tag in a column of its own, how often it was sent and when it goes out next
-// (or that it is sent only when asked) and its comment; while more than one radio is on, the radios it goes out on as tags beside its category, as Stations' "Heard on" names a station's radios (the first two by their names,
-// then "+n" whose hover names the rest; with one radio on no row has one, and with several every row has its own, so none is the unmarked default); the delete button at its corner kills it (two presses, the second after "sure?": the killed form goes out three times and it is forgotten); and **Local info** last, where QRU is asked (components/ObjectsQru.vue),
-// as the form's category is what offers an object to those who ask. The rows are selectable like the rows of the Nearby tab (a click or Enter highlights the row and says `select`, which selects the object on the map as a click there does), and the
-// form changes the selected object: Save; with none selected it adds a new object: Add; selecting a row scrolls the tab up to the form. An object whose kill is going out is not selectable and has no delete.
+// The Objects tab: three group boxes, the tab scrolling as a whole: **Add an object**
+// (ObjectForm.vue), **My objects** (ours, oldest first, with category tag, send count, next send
+// and, while several radios are on, the radios it goes out on as tags like Stations' "Heard on")
+// and **Local info** (ObjectsQru.vue). The delete button kills the object (second press after
+// "sure?"; the kill form goes out three times and the object is forgotten). Rows are selectable
+// like Nearby rows: a click or Enter emits `select`, and the form then edits that object. An
+// object whose kill is going out cannot be selected and has no delete.
 import { computed, nextTick, ref, watch } from "vue";
 import TagMark from "@/components/TagMark.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
@@ -29,9 +30,11 @@ import type { OwnObjectRow } from "@/protocol/protocol";
 const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: OwnObjectsView }>();
 const emit = defineEmits<{ select: [name: string, multi?: boolean] }>();
 const { now } = useDaemonContext();
-/** The radio tags of a row are there while several radios are on: the radios it goes out on now (its own that are on; none while none of them is). */
+/** Radio tags on rows show while several radios are on: the radios it goes out on now (its own
+ * that are on; none if none is). */
 const { severalSenders: several, senders: enabled, byId } = useRadios();
-/** The tags of each row's radios, by the object's name: the first two by name, then "+n" whose hover names the rest; none with one radio on. */
+/** The radio tags per row, by object name: first two by name, then "+n" with the rest in the
+ * hover; none with one radio on. */
 const radioTags = computed(() => {
   const on = enabled.value.map((radio) => radio.id);
   return new Map(
@@ -45,7 +48,7 @@ const NONE = { shown: [], rest: [] } as const;
 const tagsOf = (row: OwnObjectRow): { readonly shown: readonly PageRadio[]; readonly rest: readonly PageRadio[] } => radioTags.value.get(row.name) ?? NONE;
 /** The hover words of a radio's tag: "Sent on radio 20 m". */
 const sentOn = (radio: PageRadio): string => t("objects.sent_on", { name: radio.name });
-const sure = useSure<string>(); // (the name of a row)
+const sure = useSure<string>();
 /** The copy menu of a row: the name of the object. */
 const copy = useCopyMenu((item) => (item.dataset["name"] === undefined ? [] : [{ kind: "name", text: item.dataset["name"] }]));
 const rows = computed(() =>
@@ -53,7 +56,8 @@ const rows = computed(() =>
 );
 const scroller = ref<HTMLElement | null>(null);
 
-/** A click, Enter or Space on a row (not on the buttons in it, whose Space is theirs: the key is only the row's own, and so is kept from scrolling the page): the form takes the object, and the map selects it; with Ctrl (Cmd on a Mac) its card is added to the open ones. */
+/** A click, Enter or Space on a row (not on its buttons, whose Space is theirs): the form takes
+ * the object and the map selects it; Ctrl (Cmd on a Mac) adds its card to the open ones. */
 function select(event: MouseEvent | KeyboardEvent, row: OwnObjectRow): void {
   if (event instanceof KeyboardEvent && event.target !== event.currentTarget) return;
   if (event instanceof KeyboardEvent && event.key === " ") event.preventDefault();
@@ -62,7 +66,7 @@ function select(event: MouseEvent | KeyboardEvent, row: OwnObjectRow): void {
   emit("select", row.name, event.ctrlKey || event.metaKey);
 }
 
-// the object that is selected (here, or from its card) is in the form, which is brought into sight
+// the selected object (here or from its card) goes into the form, which is scrolled into sight
 watch(
   () => props.form.editing,
   (name) => {

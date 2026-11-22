@@ -57,7 +57,8 @@ describe("useCardEsc", () => {
 
   it("leaves the key to what takes it first (the guide, the update panel), even when that has closed itself on the same key", () => {
     const { closeAll, state } = setUp(true);
-    document.addEventListener("keydown", () => (state.blocked = false), { once: true }); // (the guide closes with Esc: it is not open any more when this listener comes)
+    // The guide closes with Esc: it is not open any more when this listener comes.
+    document.addEventListener("keydown", () => (state.blocked = false), { once: true });
     press(document.body);
     expect(closeAll).not.toHaveBeenCalled();
     press(document.body);
@@ -66,7 +67,8 @@ describe("useCardEsc", () => {
 
   it("does not take a key that was handled already, and stops listening when it is gone", () => {
     const { closeAll, wrapper } = setUp();
-    document.addEventListener("keydown", (event) => event.preventDefault(), { once: true, capture: true }); // (something took it before)
+    // Something took it before.
+    document.addEventListener("keydown", (event) => event.preventDefault(), { once: true, capture: true });
     press(document.body);
     expect(closeAll).not.toHaveBeenCalled();
     wrapper.unmount();

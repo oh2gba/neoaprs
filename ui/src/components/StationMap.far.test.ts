@@ -8,7 +8,8 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { mountStationMap } from "@/test/stationmap";
 import { NOW, ago, configValues, station, table } from "@/test/fixtures";
 
-// A station heard on a radio is shown wherever it is: the map's Radius sets the download and the Internet stations, never what a radio hears.
+// A station heard on a radio is shown wherever it is: the map's Radius sets the download and the
+// Internet stations, never what a radio hears.
 const stations = () =>
   table(
     station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, distance_km: null, symbol_code: "-" }),

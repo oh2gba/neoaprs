@@ -1,4 +1,5 @@
-// The Web group of the settings form: the switch for network access, the access key and the code a phone opens the page from.
+// The Web group of the settings form: the switch for network access, the access key and the code a
+// phone opens the page from.
 import { flushPromises, mount } from "@vue/test-utils";
 import { shown } from "@/test/shown";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -167,7 +168,8 @@ describe("turning the network access off", () => {
     await wrapper.find("#set-web-network").setValue(true);
     await wrapper.find("#set-radio-1-digipeat").setValue(true);
     expect(wrapper.find(".confirm-row").exists()).toBe(false);
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } }); // (the next waits for its answer)
+    // the next waits for its answer
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } });
   });
 
   it("asks before the secure connection (https) is switched on or off on a page opened from another device, and not on this computer", async () => {

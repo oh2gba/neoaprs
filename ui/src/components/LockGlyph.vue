@@ -1,5 +1,7 @@
 <script setup lang="ts">
-// The small picture of an encrypted message (a padlock) and of a key announcement (a key), in the line of the marks of a message (MessageMark: 12 by 12, the colour of the text, round ends). `title` says what it means.
+// The small picture of an encrypted message (a padlock) or a key announcement (a key), in the
+// marks line of a message (MessageMark): 12 by 12, text colour, round ends. `title` says what it
+// means.
 withDefaults(defineProps<{ kind: "lock" | "key"; title: string; size?: number }>(), { size: 12 });
 </script>
 

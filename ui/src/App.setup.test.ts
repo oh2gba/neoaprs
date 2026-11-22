@@ -70,7 +70,7 @@ describe("App: the first-run guide", () => {
     expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2GBA");
   });
 
-  /** A fresh install: no call, no position, radio 1 alone (the daemon's topic `radios`: the Radio step waits for it), and the guide open on the first step. */
+  /** A fresh install: no call, no position, radio 1 alone, and the guide open on the first step. */
   async function fresh() {
     const { wrapper, socket } = await open();
     socket.say({
@@ -129,7 +129,8 @@ describe("App: the first-run guide", () => {
     await flushPromises();
     expect(configs()).toEqual([]);
     await next();
-    // the place goes on its own as Next leaves the Position step, so that the daemon can make the map round it
+    // The place goes on its own as Next leaves the Position step, so that the daemon can make the
+    // map round it.
     expect(configs()).toEqual([{ cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } }]);
     socket.say({
       type: "state",
@@ -141,7 +142,8 @@ describe("App: the first-run guide", () => {
     await wrapper.findAll(".setup-symbol")[1]?.trigger("click"); // the car
     await next();
     expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
-    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(2); // when the socket opened, and when the guide came to its radio
+    // When the socket opened, and when the guide came to its radio.
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(2);
     socket.say({
       type: "ports",
       sound_cards: [],
@@ -154,7 +156,8 @@ describe("App: the first-run guide", () => {
     await flushPromises();
     await wrapper.find("#setup-radio-1-port").setValue("/dev/ttyUSB0");
     expect(configs()).toHaveLength(2);
-    expect(configs()[1]).toEqual({ cmd: "set_config", values: { "radio/1/port": "/dev/ttyUSB0" } }); // (at once, as from the Settings tab)
+    // At once, as from the Settings tab.
+    expect(configs()[1]).toEqual({ cmd: "set_config", values: { "radio/1/port": "/dev/ttyUSB0" } });
     await next();
     expect(configs()[2]).toEqual({
       cmd: "set_config",
@@ -177,7 +180,8 @@ describe("App: the first-run guide", () => {
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(false);
     expect(configs()).toHaveLength(3);
-    expect(wrapper.find(".appheader").text()).not.toContain("OH2ABC"); // (our call is in the settings and the status, not in the header)
+    // Our call is in the settings and the status, not in the header.
+    expect(wrapper.find(".appheader").text()).not.toContain("OH2ABC");
     expect(wrapper.find(".appheader .nocall").exists()).toBe(false);
   });
 
@@ -202,7 +206,9 @@ describe("App: the first-run guide", () => {
     await wrapper.find("#setup-lon").setValue("24.94");
     for (let i = 0; i < 2; i++) await wrapper.find("form").trigger("submit");
     const commands = () => socket.sent.map((c) => (c as { cmd: string }).cmd);
-    expect(commands().filter((c) => c === "set_config")).toHaveLength(1); // (the place, sent as the Position step was left; the daemon makes the map round a new place by itself)
+    // The place, sent as the Position step was left; the daemon makes the map round a new place by
+    // itself.
+    expect(commands().filter((c) => c === "set_config")).toHaveLength(1);
     expect(commands()).not.toContain("map_wanted");
     expect(commands()).not.toContain("map_estimate");
     expect(wrapper.find(".setup .mapfetch-button").exists()).toBe(false);
@@ -223,7 +229,10 @@ describe("App: the first-run guide", () => {
     expect(wrapper.find(".setup .setup-mapline").exists()).toBe(false);
   });
 
-  /** A station with no radio on the Radio step: the guide's call and place given, the topic `radios` empty; `type` added from its one box, and the daemon's answer and row (`row`), with the new radio's own values. */
+  /**
+   * A station with no radio on the Radio step: the guide's call and place given, the topic `radios`
+   * empty; `type` is added from its one box, with the daemon's answer and row.
+   */
   async function firstRadio(type: string, row: Partial<RadioRow>, values: Record<string, string>) {
     const { wrapper, socket } = await fresh();
     socket.say({ type: "state", topic: "radios", rev: 1, value: {} });
@@ -262,7 +271,8 @@ describe("App: the first-run guide", () => {
     expect(box.find(".radiostatus .tncstatus").text()).toContain("Not connected");
     expect(box.text()).not.toMatch(/127\.0\.0\.1|8001 |socket|tcp:/);
     expect(wrapper.find(".toast").exists()).toBe(false);
-    expect(wrapper.find(".appheader .rxonly").exists()).toBe(false); // (a board that sends: the station is no RX only one)
+    // A board that sends: the station is no RX only one.
+    expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
     await wrapper.find(".setup #setup-radio-3-tcp_host").setValue("192.168.1.20");
     await wrapper.find(".setup #setup-radio-3-tcp_host").trigger("keydown", { key: "Enter" });
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config").at(-1)).toEqual({
@@ -285,7 +295,8 @@ describe("App: the first-run guide", () => {
     expect(wrapper.find(".toast").exists()).toBe(false);
     await wrapper.find(".setup-close").trigger("click");
     const beaconNow = wrapper.findAll<HTMLButtonElement>("#pane-beacon button").find((button) => button.text() === "Beacon now");
-    expect(beaconNow === undefined || beaconNow.element.disabled).toBe(true); // (My station's Beacon now: greyed, or not there)
+    // My station's Beacon now: greyed, or not there.
+    expect(beaconNow === undefined || beaconNow.element.disabled).toBe(true);
     expect(commands().filter((cmd) => ["beacon_now", "status_now", "send_message", "find_radio"].includes(cmd))).toEqual([]);
   });
 
@@ -307,6 +318,7 @@ describe("App: the first-run guide", () => {
     const configs = socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
     expect(configs.at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/baud": "4800" } });
     await wrapper.find(".setup-close").trigger("click");
-    expect(wrapper.find<HTMLInputElement>("#pane-settings #set-radio-1-baud").element.value).toBe("4800"); // (the same settings: nothing waits for Finish)
+    // The same settings: nothing waits for Finish.
+    expect(wrapper.find<HTMLInputElement>("#pane-settings #set-radio-1-baud").element.value).toBe("4800");
   });
 });

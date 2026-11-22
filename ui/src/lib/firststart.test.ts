@@ -13,7 +13,8 @@ import { EMAIL_GATEWAY } from "@/lib/messages";
 import type { BulletinRow, MessageRow, SkedsState } from "@/protocol/protocol";
 import { ago, bulletin, incoming, sked, skedsState } from "@/test/fixtures";
 
-// Whether the window's store was new when the page started is fixed when lib/firststart.ts is first evaluated; here it is the test's (`startedNew`), and the rest of the module is the real one.
+// Whether the window's store was new when the page started is fixed when lib/firststart.ts is
+// first evaluated; here the test sets it (`startedNew`) and the rest of the module is real.
 const startedNew = vi.hoisted(() => ({ value: true }));
 vi.mock("@/lib/firststart", async (importOriginal) => {
   const real = await importOriginal<typeof firststart>();
@@ -25,18 +26,23 @@ vi.mock("@/lib/firststart", async (importOriginal) => {
   };
 });
 
-// The user agents of the four windows (WebKitGTK and WKWebView as pywebview leaves them; Qt 6's QtWebEngine; Edge's WebView2).
+// The user agents of the four windows (WebKitGTK and WKWebView as pywebview leaves them, Qt 6's
+// QtWebEngine, Edge's WebView2).
 const WEBKITGTK = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
 const WKWEBVIEW = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)";
 const QT_WINDOW = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.12.0 Chrome/130.0.6723.192 Safari/537.36";
 const WEBVIEW2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0";
-// A phone that read the code of Settings, Web page: Safari on an iPhone is WebKit too, and names no Chrome.
+// A phone that read the Settings, Web page code: Safari on an iPhone is WebKit too and names no
+// Chrome.
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
 
 const table = (...rows: MessageRow[]) => shallowReactive(new Map(rows.map((r) => [String(r.id), r])));
 const board = (...rows: BulletinRow[]) => shallowReactive(new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])));
 
-/** `make` inside a component, with the panel as `usePanel` makes it and the Stations tab in front (nothing is seen by being looked at). */
+/**
+ * `make` inside a component, with the panel as `usePanel` makes it and the Stations tab in
+ * front.
+ */
 function inComponent<T>(make: (panel: ReturnType<typeof usePanel>) => T): T {
   let made: T | undefined;
   mount(
@@ -53,7 +59,10 @@ function inComponent<T>(make: (panel: ReturnType<typeof usePanel>) => T): T {
   return made;
 }
 
-/** The daemon telling the messages whole, as useDaemon's `fill` does: the rows, then the mark that they are all there. */
+/**
+ * The daemon telling the messages whole, as useDaemon's `fill` does: the rows, then the mark
+ * that they are all there.
+ */
 function fill(into: Map<string, MessageRow>, loaded: Ref<boolean>, ...rows: MessageRow[]): void {
   for (const row of rows) into.set(String(row.id), row);
   loaded.value = true;
@@ -117,9 +126,11 @@ describe("the window's store at the start", () => {
     agent.mockRestore();
     const markAll = vi.fn();
     evaluated.seenAtStart(ref(true), markAll);
-    expect(markAll).not.toHaveBeenCalled(); // (the phone's messages unread stay unread: it is a browser, not the app's window)
+    // a phone's unread messages stay unread: it is a browser, not the app's window
+    expect(markAll).not.toHaveBeenCalled();
     expect(takeKey()).toBe("k7m2-x9pq-4hrt");
-    expect([location.hash, heldNothing(() => localStorage)]).toEqual(["", true]); // (the key is in no address and in no store)
+    // the key is in no address and in no store
+    expect([location.hash, heldNothing(() => localStorage)]).toEqual(["", true]);
     history.replaceState(null, "", "#app");
     expect([takeKey(), location.hash]).toEqual(["", "#app"]);
   });

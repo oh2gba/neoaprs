@@ -1,13 +1,11 @@
 <script setup lang="ts">
-// The fields of one radio of the Radio group, each worked as in the form: a typed one is sent when it is left or Enter is pressed, a choice at once (the form's `settings` and `form`). An FM radio's are the type of TNC, the port (SettingsPort, with the port the search found beside it), the speed, or the host and port of a TNC reached over TCP;
-// an HF radio's are its type, the sound card, a plain choice among what the daemon found (the system's name for each, its id the hover title; Refresh beside it), and the keying, a choice made of the ports the daemon lists (lib/mercury.ts), and beside the
-// keying the Test button, which keys the radio for a second so that the operator sees it go to transmit and come back (composables/useHfTests.ts); the status line says Keyed meanwhile.
-// Neither offers "find automatically": the daemon's proposal (`pick` of a sound card, `keying` of the ports message) is preselected and stored as the setting while it is empty, the card first and the keying once that is answered, so that
-// the settings name a card and a keying as soon as the HF radio is on. (An empty setting stays legal for the daemon, and a station that has one runs as before; the page never offers it.)
-// The keys are the radio's own (`radio/3/port`, `radio/3/keying`): a field is known by the field of the radio it is (lib/settingsradio.ts `fieldOfKey`), and its id is its key's (`set-radio-3-port`). Refresh asks the daemon
-// for the ports of the radio of the box (`radio`). The sound cards and the proposals are read from the answer for this radio alone (`portsByRadio`): another radio's answer has its own card and keying, and an FM radio's has
-// no card; the ports are the latest list whoever asked. A proposal the daemon refuses (a card another radio holds now) is not stored again from the same answer: the refusal stands under the field until the radio's
-// list is asked again or the operator chooses.
+// The fields of one radio, each worked as in the form: a typed field is sent when left or on Enter,
+// a choice at once. FM radios have TNC type, port, speed or TCP host and port; HF radios have type,
+// sound card and keying with a Test button (useHfTests).
+// The daemon's proposal for the sound card and keying (`pick`, `keying`) is preselected and stored
+// while the setting is empty. Keys are the radio's own (`radio/3/port`). Sound cards and proposals
+// are read from the answer for this radio only (`portsByRadio`). A proposal the daemon refused is
+// not stored again from the same answer.
 import { computed, watchEffect } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
@@ -33,24 +31,24 @@ const props = withDefaults(
   },
 );
 const { config, send, ports, portsByRadio } = useDaemonContext();
-/** The ids of the place the fields are in (the Settings tab's, or the setup guide's: lib/settingsradio.ts BOX_IDS). */
+/** The ids of the place the fields are in (the Settings tab or the setup guide). */
 const ids = boxIds();
 const radios = useRadios();
-/** Who holds a port or a card, for this radio's box: another radio by its name, the GPS receiver by its word. */
+/** Who holds a port or a card: another radio by name, the GPS receiver by its word. */
 const holder = computed(() => holderOf(props.radio?.id ?? -1, (id) => radios.byId(id)?.name));
 
 const isCard = (key: string): boolean => fieldOfKey(key) === "sound_card";
 const isKeying = (key: string): boolean => fieldOfKey(key) === "keying";
 const isPort = (key: string): boolean => fieldOfKey(key) === "port";
-/** A speed's placeholder follows the radio's type of TNC. */
+/** A speed's placeholder follows the radio's TNC type. */
 const fallback = (key: string) => (fieldOfKey(key) === "baud" ? speedFallback(props.radio?.type, defaultOf(key)) : defaultOf(key));
-/** The default of a key, from the form's or the settings' own. */
+/** The default of a key, from the form or the settings. */
 const defaultOf = (key: string): string => props.defaults[key] ?? props.settings.defaults.value[key] ?? "";
 const cardKey = computed(() => props.keys.find(isCard));
 const keyingKey = computed(() => props.keys.find(isKeying));
-/** The answer to `list_ports` for this radio: its sound cards and the daemon's proposals for it; null until one came. */
+/** The answer to `list_ports` for this radio (null until one came). */
 const own = computed<PortsMessage | null>(() => (props.radio === null ? null : (portsByRadio.value.get(props.radio.id) ?? null)));
-/** The daemon's proposals, which the field shows as chosen while the setting is empty and which the page then stores. */
+/** The daemon's proposals, shown as chosen while the setting is empty and then stored. */
 const pick = (key: string): string => (isCard(key) ? soundCardPick(own.value) : (own.value?.keying ?? ""));
 const valueOf = (key: string): string => (props.settings.draft[key] ?? "") || (isCard(key) || isKeying(key) ? pick(key) : "");
 const cardInfo = computed<FieldInfo>(() => ({
@@ -58,10 +56,13 @@ const cardInfo = computed<FieldInfo>(() => ({
   kind: "choice",
   choices: soundCardChoices(own.value, holder.value, props.settings.expected(cardKey.value ?? "")),
 }));
-/** Where the radio's sound card sits on the USB (`usb_group`), which the keying lines of the ports with it are offered first by; null where it is not known. */
+/**
+ * The USB group of the radio's sound card (`usb_group`), which orders the keying ports; null if
+ * unknown.
+ */
 const cardGroup = computed<string | null>(() => {
   const now = valueOf(cardKey.value ?? "");
-  const id = soundCardWith(own.value, now) || now; // (a card a setting made before names by its number is the card it means now)
+  const id = soundCardWith(own.value, now) || now;
   return own.value?.sound_cards.find((c) => c.id === id)?.usb_group ?? null;
 });
 const keyingInfo = computed<FieldInfo>(() => ({
@@ -69,12 +70,15 @@ const keyingInfo = computed<FieldInfo>(() => ({
   kind: "choice",
   choices: keyingChoices(ports.value, valueOf(keyingKey.value ?? ""), cardGroup.value),
 }));
-/** A field's words: its kind's own where they differ (a LoRa board's address). */
+/** A field's words: the kind's own where they differ. */
 const wordsOf = (key: string): FieldInfo => fieldFor(key, {}, props.radio?.kind);
 const infoOf = (key: string): FieldInfo => (isCard(key) ? cardInfo.value : isKeying(key) ? keyingInfo.value : wordsOf(key));
-/** The port the search found last, beside an automatic port: the daemon's memory of radio 1 (`serial/last_port`); another radio's is not told. */
+/**
+ * The port the search found last, shown beside an automatic port (`serial/last_port`, radio 1
+ * only).
+ */
 const found = (key: string): string => (radioFieldOf(key)?.id === 1 ? (config.value?.values["serial/last_port"] ?? "") : "");
-/** Whether the proposal was stored from this answer already, by this box or another copy of it, and refused (its key has an error): it is not stored again from that answer. */
+/** Whether the proposal was already stored from this answer and refused (its key has an error). */
 const refusedAgain = (key: string, value: string): boolean =>
   own.value !== null && proposedFrom(own.value, key, value) && (props.settings.errors[key] ?? "") !== "";
 function store(key: string, value: string): void {
@@ -82,7 +86,8 @@ function store(key: string, value: string): void {
   if (own.value !== null) proposing(own.value, key, value);
   props.form.choose({ [key]: value });
 }
-// An empty setting takes the proposal: the card first, the keying when nothing is out any more (the form sends one change at a time). A card stored as one of its two Windows devices becomes the whole card first.
+// An empty setting takes the proposal: the card first, then the keying once nothing is pending.
+// A card stored as one of its two Windows devices becomes the whole card first.
 watchEffect(() => {
   const card = cardKey.value;
   const now = card === undefined ? "" : (props.settings.draft[card] ?? "");
@@ -97,12 +102,15 @@ watchEffect(() => {
   }
 });
 const tests = useHfTests(() => props.radio);
-/** A typed field follows the typing; a choice is made by `choose` (it also says the text it has, which is not typing). */
+/** A typed field follows the typing; a choice is made by `choose`. */
 function typed(key: string, text: string): void {
   const kind = infoOf(key).kind;
   if (kind !== "bool" && kind !== "choice") props.settings.edit(key, text);
 }
-/** A typed field was finished: it is sent with the fields it is sent together with (the host and the port of a TNC over TCP), unless focus only went to one of them, by the ids of the place. */
+/**
+ * A typed field is finished: it is sent with the fields it belongs to, unless focus only moved to
+ * one of them.
+ */
 function finish(key: string, next: EventTarget | null): void {
   const together = togetherOf(key);
   const within = next instanceof Element && together.some((other) => other !== key && next.id === ids(inputId(other)));

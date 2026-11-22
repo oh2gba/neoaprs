@@ -92,6 +92,7 @@ describe("the ALOHA circles", () => {
       }),
     });
     expect(drawn().features.map((feature) => feature.properties)).toEqual([{ km: 42 }, { km: 12.3 }]);
-    expect(FakeMap.last().layers.filter((layer) => layer.startsWith("aloha"))).toEqual(["aloha-halo", "aloha-line"]); // (one source, one look for all)
+    // one source, one look for all
+    expect(FakeMap.last().layers.filter((layer) => layer.startsWith("aloha"))).toEqual(["aloha-halo", "aloha-line"]);
   });
 });

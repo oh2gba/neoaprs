@@ -252,7 +252,7 @@ describe("the same box in the desktop app's own window", () => {
       stubBrowser({ notifications: !name.includes("WKWebView") });
       const { wrapper } = inApp(APP_WINDOWS[name]);
       expect(wrapper.find("fieldset.subbox > legend").text(), name).toBe("In this window");
-      expect(box(wrapper, "alert-mode").element.checked, name).toBe(true); // (the sound from the start: the daemon's command has nothing to run on a Mac)
+      expect(box(wrapper, "alert-mode").element.checked, name).toBe(true);
       await flushPromises();
       expect(
         wrapper.findAll("label").map((l) => l.text()),

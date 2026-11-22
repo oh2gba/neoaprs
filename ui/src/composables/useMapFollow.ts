@@ -1,10 +1,11 @@
-// The map follows what the page picked (components/StationMap.vue): a station picked in the table (`focus`) is flown to, ending clear of the cards over the map, and the marker of a station picked on the map is moved out from under them. Both run after the page is drawn,
-// so that the cards are there to keep clear of, and make the map the size of its box first (a phone that has just brought the map back from under the tab). A map that follows us (`follow`, the place of the GPS fix while the person
-// has asked for it, else null) is eased to each new place of it.
-// so that the cards are there to keep clear of, and make the map the size of its box first (a phone that has just brought the map back from under the tab).
-// A digipeater that gave a range (`circle`: its range circle, which the map draws while it is selected) is not flown to but fitted: the map zooms in or out so that the whole circle is in view, whether it was picked in the table (`focus`) or by a click on its marker (`pick`),
-// ending clear of the cards the same way. Any other station is flown to (the table) or left where it is (the marker) as before. The fit takes the place of the flight, and the pan that follows a selection leaves a map that is on its way alone, so that the two do not fight.
-// Letting go of the selection moves nothing.
+// The map follows what the page picked: a station picked in the table (`focus`) is flown to,
+// ending clear of the cards, and the marker of a station picked on the map is moved out from under
+// them. Both run after the page is drawn so that the cards are there, and make the map the size of
+// its box first. A map that follows us (`follow`, the GPS fix, else null) eases to each new place.
+// A digipeater with a range (`circle`) is fitted instead of flown to: the map zooms so that the
+// whole circle is in view, whether picked in the table (`focus`) or on its marker (`pick`), ending
+// clear of the cards. The fit replaces the flight, and the pan that follows a selection leaves a
+// map on its way alone, so the two do not fight. Letting go of the selection moves nothing.
 import { watch } from "vue";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { useClearOfCard } from "@/composables/useClearOfCard";
@@ -15,10 +16,14 @@ import { hasPosition } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 const FLY_ZOOM = 11;
-/** Following a moving station: at least this close, and the map eases to each fix in this time (the fixes come about once a second). */
+/**
+ * Following a moving station: the map eases to each fix in this time (fixes come about once a
+ * second).
+ */
 const FOLLOW_ZOOM = 14;
 const FOLLOW_MS = 800;
-const FIT_PADDING = 40; // px between a range circle and the edge of the map when the map is fitted to it
+// Pixels between a range circle and the edge of the map when the map is fitted to it.
+const FIT_PADDING = 40;
 
 export function useMapFollow(
   map: () => MapLibreMap | null,
@@ -29,13 +34,15 @@ export function useMapFollow(
     station: (call: string) => StationRow | undefined;
     marker: (call: string) => { lon: number; lat: number } | undefined;
     follow: () => { lon: number; lat: number } | null;
-    /** The marker that was clicked last (`n` counts up, as `focus` does). */
     pick: () => Focus | null;
-    /** The range circle of a station, when it is a digipeater that gave a range and has a position; null for any other. */
     circle: (call: string) => RangeCircle | null;
   },
 ): void {
-  /** The map goes to the whole circle, `FIT_PADDING` px from the edges. With a card over a corner the middle of the circle goes where a flight to a station would put it (`flightOffset`), and the padding grows by that much on both sides, as the fit makes room for the offset only on one. */
+  /**
+   * Fit the map to the whole circle, `FIT_PADDING` px from the edges. With a card over a corner the
+   * circle's middle goes where a flight would put it (`flightOffset`) and the padding grows by that
+   * much on both sides.
+   */
   function fit(on: MapLibreMap, circle: RangeCircle): void {
     const bounds = circleBounds(circle);
     if (bounds === null) return;
@@ -64,7 +71,7 @@ export function useMapFollow(
     (pick) => {
       const on = map();
       on?.resize();
-      const circle = pick !== null && what.selected() === pick.call ? what.circle(pick.call) : null; // (a Ctrl+click that closed the card picked nothing)
+      const circle = pick !== null && what.selected() === pick.call ? what.circle(pick.call) : null;
       if (on && circle) fit(on, circle);
     },
     { flush: "post" },

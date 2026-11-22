@@ -46,7 +46,8 @@ describe("UpdateDialog", () => {
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "release_notes", version: "0.4.0" });
     expect(wrapper.find(".updatedialog-news [role=status]").text()).toBe("Fetching what is new…");
     expect(wrapper.find(".updatedialog-news a.btn").exists()).toBe(false);
-    expect(box.element.lastElementChild?.classList.contains("updatedialog-hand")).toBe(true); // (the steps are the end of the dialog: no line under them)
+    // The steps end the dialog: no line under them.
+    expect(box.element.lastElementChild?.classList.contains("updatedialog-hand")).toBe(true);
     expect(wrapper.find(".updatedialog-backdrop").exists()).toBe(true);
   });
 
@@ -307,12 +308,14 @@ describe("the box of Update now keeps its shape", () => {
     expect(cssRule(".updatedialog-act progress")).toMatch(/min-width:\s*0/);
     expect(cssRule(".updatedialog-act .btn")).toMatch(/flex:\s*none/);
     expect(cssRule(".updatedialog-now")).toMatch(/flex-direction:\s*column/);
-    expect(cssRule(".updatedialog-problem")).not.toMatch(/(^|;)\s*(min-height|height|margin|padding|font[a-z-]*|line-height)\s*:/); // (a failure only colours the line)
+    // A failure only colours the line.
+    expect(cssRule(".updatedialog-problem")).not.toMatch(/(^|;)\s*(min-height|height|margin|padding|font[a-z-]*|line-height)\s*:/);
     expect(cssRule(".updatedialog")).toMatch(/width:\s*min\(540px, 100%\)/);
   });
 
-  // The room was measured with the widest of the usual fonts (DejaVu Sans, 14 px): in the box of the dialog (480 px) every text below takes at most two lines, at 375 px (317 px) at most three.
-  // A text longer than the longest of then is a new measure: these are the lengths it was made for.
+  // The room was measured with the widest of the usual fonts (DejaVu Sans, 14 px): in the dialog's
+  // box (480 px) every text below takes at most two lines, at 375 px (317 px) at most three.
+  // A longer text needs a new measurement: these are the lengths the room was made for.
   const TEXTS: MessageId[] = [
     "help.update.downloading",
     "help.update.downloading_size",

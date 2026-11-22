@@ -3,7 +3,7 @@ import { choicesFor, firstHops, hopsOf, nextHops, pathOf, reversedRoute, typedHo
 import type { StationRow } from "@/protocol/protocol";
 import { ago, station } from "@/test/fixtures";
 
-/** A station of which no route is known, but what a test gives. */
+/** A station with no known route except what a test gives. */
 const quiet = (call: string, extra: Partial<StationRow> = {}): StationRow =>
   station(call, { heard_via: [], last_route: "", best_route: "", route_marks: [], suggested_path: null, ...extra });
 const digi = (call: string, extra: Partial<StationRow> = {}): StationRow => quiet(call, { symbol_table: "/", symbol_code: "#", ...extra });

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The one picture for "message" (an envelope), drawn in SVG with the colour of the text, so that it follows the light or dark scheme: the Message button of a row of the Stations table (IconButton kind "message", which uses it), the "Message OH2XYZ" button
-// under an empty result, and the mark on the messages not seen in the header are all this one. For a new place that says "message" use this (or IconButton kind="message" for a small button) and not a character or a picture of its own. It is decoration: the
-// button or the text beside it names the thing (aria-hidden).
+// The one picture for "message" (an envelope), drawn in SVG in the text colour. IconButton kind
+// "message", the Message button under an empty result and the unseen-count mark in the header
+// all use it; a new place that means "message" should too. It is decoration (aria-hidden).
 withDefaults(defineProps<{ size?: number }>(), { size: 16 });
 </script>
 

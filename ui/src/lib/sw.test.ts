@@ -1,4 +1,6 @@
-// The service worker (ui/sw/sw.js) run against fakes of what a worker has: its listeners, the Cache API and fetch. What it takes into its caches, what it leaves to the browser, and what it does when the daemon is away.
+// The service worker (ui/sw/sw.js) run against fakes of what a worker has: listeners, the Cache API
+// and fetch. What it caches, what it leaves to the browser, and what it does when the daemon is
+// away.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
@@ -14,7 +16,10 @@ interface Rig {
   stores: Map<string, Map<string, Response>>;
   claim: ReturnType<typeof vi.fn>;
   skip: ReturnType<typeof vi.fn>;
-  /** A fetch event: the answer the worker gave, or undefined when it left the request to the browser; `settle` waits for what it went on to do. */
+  /**
+   * A fetch event: the worker's answer, or undefined when it left the request to the browser;
+   * `settle` waits for what it went on to do.
+   */
   ask: (url: string, init?: { method?: string; range?: string; mode?: string }) => Promise<{ answer: Response | undefined; settle: () => Promise<void> }>;
   activate: () => Promise<void>;
   install: () => void;
@@ -45,7 +50,7 @@ function rig(build = "1.2.3"): Rig {
     skipWaiting: skip,
     addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
   };
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call -- the worker is a script that is run here with the globals of a worker, which are fakes
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call -- runs the worker script with fake globals
   new Function("self", "caches", "fetch", SOURCE.replaceAll("__PAGE_BUILD__", build))(self, caches, fetcher);
   return {
     fetch: fetcher,
@@ -194,7 +199,7 @@ describe("a reload after the daemon was upgraded", () => {
     r.fetch.mockImplementation(daemon(OLD_HTML));
     await (await r.ask(SCOPE, { mode: "navigate" })).settle();
     expect(await (await r.ask(`${SCOPE}assets/index-OldOld11.js`)).answer?.text()).toBe(`code of ${SCOPE}assets/index-OldOld11.js`);
-    r.fetch.mockImplementation(daemon(NEW_HTML)); // NeoAPRS is upgraded and restarted; the page left open reloads
+    r.fetch.mockImplementation(daemon(NEW_HTML)); // NeoAPRS is upgraded and restarted; the open page reloads
     const navigation = await r.ask(SCOPE, { mode: "navigate" });
     expect(await navigation.answer?.text()).toBe(NEW_HTML);
     await navigation.settle();

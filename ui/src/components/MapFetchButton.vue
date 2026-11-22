@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The button of the Detailed map row of the Map group of the Settings tab (components/ActionRow.vue), a plain one: **Download map**. The first press runs the estimate (a dry run) and says "Checking size…"; when the size is known
-// the button asks "Download 493 MB?", and the second press downloads (the world map if it is not there, then the detailed map). Cancel beside it while a job runs; the progress, what a job failed with and the line "Map downloaded 23 Oct" are under the row (components/MapFetchNotes.vue).
-// With a detailed map (basemap.pmtiles; the world map that ships with the program does not count) the button says "Download again". The daemon does the work for the radius and the detail it has in force; a setting that is still being saved (`stale`) disables the button for the moment, unless the form saves it before it sends the command (`early`,
-// the first-run guide), in which case the daemon having no position yet does not disable it either. A change of the radius takes the question back.
+// The button of the Detailed map row of the Map group in Settings (ActionRow.vue): **Download
+// map**. The first press runs the estimate; then it asks "Download 493 MB?" and the second press
+// downloads. Progress and results are under the row (MapFetchNotes.vue). A setting still being
+// saved (`stale`) disables it, unless the form saves first (`early`, the setup guide). A radius
+// change takes the question back.
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
 import { useSure } from "@/composables/useSure";
@@ -18,9 +19,10 @@ const idle = computed(() => !running.value && !props.stale && (props.early || pr
 const why = computed(() =>
   props.stale ? (props.early ? undefined : t("settings.saving")) : running.value || props.early ? undefined : blockedText(props.map) || undefined,
 );
-/** The first press has been made and the size is not known yet. */
+/** The first press was made and the size is not known yet. */
 const checking = ref(false);
-/** The size is known and the button asks "Download 493 MB?": the second press sends the download (it asks until it is answered or the question is taken back, no time limit). */
+/** The size is known and the button asks "Download 493 MB?"; the second press downloads. It asks
+ * until answered or taken back. */
 const sure = useSure<"download">(null);
 const asking = computed(() => sure.armed.value !== null);
 const reset = (): void => {
@@ -28,7 +30,7 @@ const reset = (): void => {
   sure.disarm();
 };
 watch([() => props.map.radius_km, () => props.map.maxzoom], reset);
-// a setting that starts to be saved takes the question back (not the wait for the size: the first-run guide saves its answers as the first press is made)
+// A setting that starts saving takes the question back, but not the wait for the size.
 watch(
   () => props.stale,
   (now) => {
@@ -42,7 +44,6 @@ watch(
     else if (state === "error") checking.value = false;
   },
 );
-// the estimate that answers the press
 watch(estimate, (now) => {
   if (now && checking.value && !running.value) {
     checking.value = false;
@@ -75,9 +76,10 @@ const label = computed(() =>
           ? t("settings.map.download_again")
           : t("settings.map.download"),
 );
-/** A size of three digits, to keep the room of "Download 493 MB?" before the estimate is known. */
+/** Three digits, reserving the room of "Download 493 MB?" before the estimate is known. */
 const ROOM_BYTES = 888_000_000;
-/** Every word the button can say, all in the page in one place with the one not said hidden (`.twowords`, as TwoWords does for two), so that it is as wide as the longest and nothing moves when its words change under the pointer. */
+/** Every word the button can say, stacked with the unused ones hidden (`.twowords`), so that its
+ * width never changes. */
 const faces = computed(() => [
   ...new Set([
     t("settings.map.download"),

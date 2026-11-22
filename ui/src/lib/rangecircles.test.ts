@@ -37,10 +37,10 @@ describe("the box round a range circle", () => {
   it("has the circle's ring inside it, touching all four sides", () => {
     const box = circleBounds({ lat: 60.2, lon: 24.9, km: 21.4 });
     const [[west = 0, south = 0] = [], [east = 0, north = 0] = []] = box ?? [];
-    expect(north - south).toBeCloseTo((2 * 21.4) / 111.2, 1); // (a degree of latitude is 111.2 km)
+    expect(north - south).toBeCloseTo((2 * 21.4) / 111.2, 1); // a degree of latitude is 111.2 km
     expect((north + south) / 2).toBeCloseTo(60.2, 2);
     expect((east + west) / 2).toBeCloseTo(24.9, 2);
-    expect(east - west).toBeGreaterThan(north - south); // (a degree of longitude is shorter at 60 N)
+    expect(east - west).toBeGreaterThan(north - south); // a degree of longitude is shorter at 60 N
   });
 
   it("runs on past the date line instead of wrapping, and is none for a range of nothing", () => {

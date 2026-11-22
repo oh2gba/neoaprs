@@ -17,7 +17,8 @@ describe("attend", () => {
     const group = document.getElementById("g");
     expect((Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mock.contexts).toContain(group);
     expect(document.activeElement?.id).toBe("control");
-    expect(group?.classList.contains("attend")).toBe(false); // (the tab first, the flash a moment later)
+    // The tab first, the flash a moment later.
+    expect(group?.classList.contains("attend")).toBe(false);
     vi.advanceTimersByTime(PAUSE_MS);
     expect(group?.classList.contains("attend")).toBe(true);
     vi.advanceTimersByTime(ATTEND_MS + 1);

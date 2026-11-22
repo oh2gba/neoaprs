@@ -1,4 +1,6 @@
-// What a path means hop by hop (lib/pathreach.ts): the Hops choice and the tick that make the aliases, how they go with the digipeaters named, the hops in all, and which paths are more than the network allows or no path.
+// What a path means hop by hop (lib/pathreach.ts): the Hops choice and the tick that make the
+// aliases, how they go with the digipeaters named, the hops in all, and which paths are more
+// than the network allows or no path.
 import { describe, expect, it } from "vitest";
 import { aliasesFor, homeFirst, meaningOf, reachOf, splitPath, withCall, withReach } from "@/lib/pathreach";
 

@@ -1,5 +1,8 @@
-// Add radio's list of every type, in groups under their headings: FM, Mercury, LoRa (each kind's word, which is the tag of an unnamed radio too; each kind's real types in the order of the daemon's list, those that only receive last), and Without a radio (the Dummy types, by the type's own fact `dummy`); the
-// placeholder first, outside the groups; a type this installation does not carry left out, and a group with nothing in it not drawn; choosing a type and Add still add that type.
+// Add radio's list of every type, in groups under headings: FM, Mercury, LoRa (the kind's word,
+// also the tag of an unnamed radio; types in the daemon's order, receive-only last) and Without a
+// radio (the Dummy types, by the type's own fact `dummy`). The placeholder comes first, outside the
+// groups; a type this installation does not carry is left out, and an empty group is not drawn.
+// Choosing a type and Add still add that type.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import RadioAdd from "@/components/RadioAdd.vue";
@@ -16,7 +19,10 @@ function make(unavailable: string[] = []) {
   return { wrapper, send: daemon.send };
 }
 
-/** The list as it is drawn: each child of the select, an option by its words, a group by its heading with its options' words. */
+/**
+ * The list as drawn: each child of the select, an option by its words, a group by its heading and
+ * its options.
+ */
 const drawn = (wrapper: VueWrapper) =>
   [...wrapper.find<HTMLSelectElement>("select").element.children].map((child) =>
     child instanceof HTMLOptGroupElement ? { [child.label]: [...child.children].map((o) => o.textContent?.trim()) } : child.textContent?.trim(),

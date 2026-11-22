@@ -1,6 +1,8 @@
-// Asking around (the first box of the Nearby tab, NearbyAsk.vue): the kinds of general query the page offers, the query each sends, how long Ask waits after a query of a kind, and the two quiet lines under it. The daemon sends the
-// query (services/generalask.py) and holds a kind to one a minute; the answers are ordinary packets, so the lines say where they arrive, and the second counts the stations that were quiet before the query and spoke after it
-// (the topic `general`: most are answers, but nothing tells an answer from a beacon that fell then, and the line says no more than it knows).
+// Asking around (NearbyAsk.vue): the kinds of general query, the query each sends, how long Ask
+// waits after one, and the two quiet lines under it. The daemon sends the query
+// (services/generalask.py) and limits a kind to one a minute. Answers are ordinary packets; the
+// second line counts stations that were quiet before the query and spoke after it (topic
+// `general`), without claiming they are answers.
 import { t } from "@/i18n";
 import { hourMinuteText } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
@@ -8,13 +10,19 @@ import type { GeneralAsked, GeneralState } from "@/protocol/protocol";
 
 export type GeneralKind = GeneralAsked["kind"];
 
-/** The kinds, in the order the choice offers them: who is around (?APRS?), the iGates (?IGATE?), the weather stations (?WX?). */
+/**
+ * The kinds in the order offered: who is around (?APRS?), iGates (?IGATE?), weather stations
+ * (?WX?).
+ */
 export const GENERAL_KINDS: readonly GeneralKind[] = ["aprs", "igate", "wx"];
 
 /** The query a kind sends, as the daemon writes it (`?APRS?`). */
 export const queryOf = (kind: GeneralKind): string => LIMITS.general.queries[kind];
 
-/** The seconds before a query of the kind may go on these radios, 0 when it may: one a minute of each kind on each radio, and a query waits for every radio it would go on (the daemon's rule; no radio given: any). */
+/**
+ * The seconds before a query of this kind may go out on these radios, 0 if it may now. The daemon
+ * allows one a minute per kind per radio and waits for every radio (no radios given: any).
+ */
 export function generalWait(state: GeneralState | null, kind: GeneralKind, radios: readonly number[], nowMs: number): number {
   const sent = (state?.by_radio ?? []).filter((one) => one.kind === kind && (radios.length === 0 || radios.includes(one.radio)));
   const latest = Math.max(0, ...sent.map((one) => Date.parse(one.at)));
@@ -22,21 +30,24 @@ export function generalWait(state: GeneralState | null, kind: GeneralKind, radio
 }
 
 export interface AskLines {
-  /** what was asked, when and by what path (no path while its radios went by their own, and those differ), and where the answers arrive; before a query what Ask does; a refusal with its reason */
+  /**
+   * what was asked, when, by what path and where answers arrive; before a query, what Ask
+   * does; or a refusal
+   */
   line: string;
-  /** the hover of the first line: the query and the whole path, RFONLY included (the query alone while the radios went by their own paths) */
+  /** the first line's hover: the query and the whole path, RFONLY included */
   title: string;
   /** the first line is a refusal */
   refused: boolean;
-  /** how many stations that were quiet before the query spoke after it; "" before a query */
+  /** how many quiet stations spoke after the query; "" before a query */
   count: string;
-  /** the hover of the count: their calls, and what the count can and cannot tell */
+  /** the count's hover: their calls, and what the count can and cannot tell */
   countTitle: string;
 }
 
 const RF_ONLY = LIMITS.path.rfOnly;
 
-/** The two lines under Ask: the latest query of any kind (the topic lists the last of each, the oldest first), or the refusal of the last Ask while there is one. */
+/** The two lines under Ask: the latest query of any kind, or the refusal of the last Ask. */
 export function askLines(state: GeneralState | null, refusal: string, nowMs: number): AskLines {
   const latest = state?.asked.at(-1);
   if (refusal !== "") return { line: t("nearby.ask_refused", { reason: refusal }), title: refusal, refused: true, count: "", countTitle: "" };
@@ -46,7 +57,7 @@ export function askLines(state: GeneralState | null, refusal: string, nowMs: num
   const n = latest.new.length;
   const quiet = { n, min: LIMITS.general.quietMin, after: Math.round(LIMITS.general.countSec / 60) };
   const counting = Date.parse(latest.until) > nowMs;
-  // (path null: each radio went by its own path, and those differ; the line then names no path, and the hover is the query alone)
+  // path null: each radio used its own path and they differ, so the line names none.
   const line =
     latest.path === null
       ? t(`nearby.ask_sent_own.${latest.kind}`, { time })

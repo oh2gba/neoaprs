@@ -1,5 +1,6 @@
-// The traffic of one station (lib/stationtraffic.ts): which packets are its, the two places they come from made one list, the answer each directed query asks for, and the state of a query of ours. And the operator's own
-// query held to the daemon's rule (lib/query.ts).
+// The traffic of one station (lib/stationtraffic.ts): which packets are its, the two places they
+// come from made one list, the answer each directed query asks for, and the state of a query of
+// ours, and the operator's own query held to the daemon's rule (lib/query.ts).
 import { describe, expect, it } from "vitest";
 import { customQuery } from "@/lib/query";
 import { ANSWER_WAIT_MS, answers, isTrafficOf, mergeTraffic, nextDeadline, queryAsked, queryState, TRAFFIC_SHOWN } from "@/lib/stationtraffic";
@@ -34,7 +35,8 @@ describe("the traffic of a station", () => {
 
   it("is one list of the log's answer and what came after, each packet once, the newest first, at most the latest 50", () => {
     const logged = [position(900, -10), position(901, -20)];
-    const live = [position(5, -10), position(6, 5)]; // (the first is the log's first: the same time, direction and line, another id)
+    // The first is the log's first: the same time, direction and line, another id.
+    const live = [position(5, -10), position(6, 5)];
     expect(mergeTraffic(live, logged, true).map((r) => r.heard_at)).toEqual([at(5), at(-10), at(-20)]);
     const many = Array.from({ length: TRAFFIC_SHOWN + 5 }, (_, i) => position(i + 1, i));
     const merged = mergeTraffic(many, [], true);

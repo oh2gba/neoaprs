@@ -7,7 +7,8 @@ import { open, stations, useAppHarness } from "@/test/app";
 
 useAppHarness();
 
-// How long a station stays on the map is one setting of the daemon (map/station_hours), chosen in the Stations tab: the map, the dimming of the table and the trails follow it.
+// How long a station stays on the map is one daemon setting (map/station_hours), chosen in the
+// Stations tab: the map, the table dimming and the trails follow it.
 describe("App: the time a station stays on the map", () => {
   const before = (seconds: number) => new Date(Date.now() - seconds * 1000).toISOString();
   const shown = () => FakeMarker.live().map((m) => m.element.textContent);

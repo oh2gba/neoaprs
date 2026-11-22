@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// One symbol as a button that chooses it: the picture and its name, pressed (`active`) for the one in use. The grids of the symbol picker and of the setup guide give it their class, which is the look.
+// One symbol as a button: picture and name, pressed (`active`) for the one in use. The grids
+// of the symbol picker and the setup guide style it through their own class.
 import SymbolIcon from "@/components/SymbolIcon.vue";
 
 defineProps<{ table: string; code: string; name: string; active: boolean }>();

@@ -1,4 +1,5 @@
-// The pictures of the (i) notes (help/): one name for each, which is also the end of the id of its description (`help.picture.<name>`, the alt text).
+// The (i) note pictures (help/): one name each, also the end of the id of its description
+// (`help.picture.<name>`, the alt text).
 export const PICTURE_NAMES = [
   "object",
   "bulletin",

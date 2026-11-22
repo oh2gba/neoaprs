@@ -1,10 +1,12 @@
 <script setup lang="ts">
-// What the page shows instead of itself when the daemon is of another protocol or serves another build of the page (lib/reload.ts): one sentence, in the page's language, and a button that loads the page again. The page's socket stays closed meanwhile.
+// Shown instead of the page when the daemon speaks another protocol or serves another build
+// (lib/reload.ts): one sentence and a button that reloads. The page's socket stays closed.
 import { t } from "@/i18n";
 import type { Mismatch } from "@/lib/reload";
 
 defineProps<{ mismatch: Mismatch }>();
-const reload = (): void => location.reload(); // (the guard of lib/reload.ts stays: a mismatch that is still there after this load is told at once, and a daemon that changed meanwhile gets its own load)
+// lib/reload.ts keeps its guard: a mismatch that persists after this load is reported at once.
+const reload = (): void => location.reload();
 </script>
 
 <template>

@@ -1,8 +1,11 @@
-// The settings as they apply while they are changed (no Save button): a draft of every value that starts as the daemon's, and a change that is made (a choice at once, a typed field on Enter or when it is left) goes to the daemon
-// as a `set_config` of just the keys that differ, after the page's own check of the text. One save is out at a time (useSettingsQueue); what the person sees of it is useSettingsFeedback. The daemon's reason for a refusal is
-// shown under the key it names. A value the person has not touched follows the daemon when it changes (another device, the radio found); a field being edited, or one the daemon refused, keeps what was typed.
-// One of these is shared by the Settings tab and the My station tab, so that there is one queue; the keys each tab shows are `useSettingsForm`. The radios' own settings (`radio/3/port`) and the station's of the radios
-// (`email/radio`), which the daemon tells apart in `config.radio_values`, are settings like the others here: saved, held and refused the same way (`set_config` takes them beside the rest).
+// The settings as they apply while changed (no Save button): a draft of every value, starting as
+// the daemon's. A change (a choice at once, a typed field on Enter or blur) goes as a
+// `set_config` of the changed keys after the page's own check. One save is out at a time
+// (useSettingsQueue); the person's view of it is useSettingsFeedback. A refusal shows under the
+// key it names. An untouched value follows the daemon; a field being edited or refused keeps what
+// was typed. The Settings and My station tabs share one instance, so there is one queue; each
+// tab's keys are `useSettingsForm`. Radio settings (`radio/3/port`, `email/radio`) from
+// `config.radio_values` are saved, held and refused like the rest.
 import { computed, getCurrentScope, onScopeDispose, reactive, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { RadioNames } from "@/i18n/errortext";
@@ -17,11 +20,9 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
   const draft = reactive<Record<string, string>>({});
   const errors = reactive<Record<string, string>>({});
   const feedback = useSettingsFeedback();
-  /** The settings as the form works them: those of before and the radios' own, together. */
   const whole = computed<ConfigValues | null>(() => (config.value === null ? null : withRadios(config.value)));
   const values = computed(() => whole.value?.values ?? {});
 
-  /** The request was not saved: the reason under the key, and a refused choice shows the value in force again. */
   function refuse(request: Request, reason: string, key = request.keys[0] ?? ""): void {
     errors[key] = reason;
     for (const k of request.revert) if (!queue.waiting(k)) draft[k] = values.value[k] ?? "";
@@ -29,19 +30,20 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
   const queue = useSettingsQueue(send, () => values.value, refuse);
   if (getCurrentScope()) onScopeDispose(queue.dispose);
 
-  /** The key is being edited: the draft is the typing, nothing is sent. */
   function edit(key: string, text: string): void {
     draft[key] = text;
     delete errors[key];
   }
 
-  /** Esc: the value the key has (or will have) comes back. */
   function cancel(key: string): void {
     draft[key] = queue.expected(key);
     delete errors[key];
   }
 
-  /** The keys whose draft differs from what they have (or will have), with their texts; the draft of one that does not is put back as it is written. */
+  /**
+   * The keys whose draft differs from the value they have or will have; others are put back as
+   * written.
+   */
   function differing(keys: readonly string[]): Record<string, string> {
     const sent: Record<string, string> = {};
     for (const key of keys) {
@@ -52,7 +54,10 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     return sent;
   }
 
-  /** Checks the keys as typed and sends those that differ from what they have, together in one request (`revert`: a refused choice shows the old value again). Nothing is sent when the page finds a problem with any of them. */
+  /**
+   * Check the typed keys and send those that differ in one request; `revert` shows the old value of
+   * a refused choice. Nothing is sent if any key has a problem.
+   */
   function commit(keys: readonly string[], revert = false): void {
     for (const key of keys) delete errors[key];
     const problems = keys.map((key) => [key, problemOf(key, draft[key] ?? "")] as const).filter(([, problem]) => problem !== "");
@@ -67,7 +72,6 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     if (names.length > 0) queue.enqueue({ values: sent, keys: names, revert: revert ? names : [] });
   }
 
-  /** A choice made at once: the keys take these texts and are sent. */
   function change(choices: Readonly<Record<string, string>>): void {
     for (const [key, text] of Object.entries(choices)) edit(key, text);
     commit(Object.keys(choices), true);
@@ -79,7 +83,6 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     draft,
     errors,
     values,
-    /** the defaults of the settings with the radios' own, for the placeholders of the radios' fields */
     defaults: computed(() => whole.value?.defaults ?? {}),
     announcement: feedback.announcement,
     saving: queue.saving,
@@ -93,7 +96,7 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
 
 export type Settings = ReturnType<typeof useSettings>;
 
-/** The settings with the radios' own beside them: the values and the defaults of `radio_values` and `radio_defaults` in `values` and `defaults` (a daemon of before tells none). */
+/** The settings with the radios' own beside them (`radio_values`, `radio_defaults`). */
 function withRadios(config: ConfigValues): ConfigValues {
   const radioValues = config.radio_values ?? {};
   const radioDefaults = config.radio_defaults ?? {};

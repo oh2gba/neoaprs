@@ -44,7 +44,8 @@ describe("StationCards: the row of a tablet and a desktop", () => {
     expect(wrapper.findAll(".card .card-foot")).toHaveLength(3); // (the buttons of a whole card)
     expect(wrapper.findAll(".card").every((card) => card.text().includes("Details"))).toBe(true);
     expect(wrapper.find(".card-more").exists()).toBe(false);
-    expect(wrapper.findAll(".card .wx-span")).toHaveLength(2); // (the switch of the graphs: a weather card is the whole weather card)
+    // the switch of the graphs: a weather card is the whole weather card
+    expect(wrapper.findAll(".card .wx-span")).toHaveLength(2);
     expect(wrapper.find(".cardstack .cards-actions").exists()).toBe(false); // (Close all is not in the row)
     await wrapper.findAll(".card")[1]?.find("button[aria-label='Close']").trigger("click");
     expect(wrapper.emitted("close")).toEqual([["OH2ZWB"]]);

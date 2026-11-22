@@ -1,9 +1,10 @@
-// The radio a conversation's messages go on, as the daemon says it (composables/useStationRadio.ts): that of a message on its way, else the station's radio now, else for a call the book does not hold the radio the daemon
-// names for a call no radio heard (`status.unheard_radio`), which Route shows as what Automatic gives before Send; the
-// operator's choice in force comes before all, as it holds for a message on its way from its next attempt. Where more than one radio is on the header names it with a tag (the room of a name of eight characters kept), Send
-// waits for its link and says so with its name, and the bubbles of messages that came in name theirs; with one radio on none is named, and a message that came on a radio that is not on (off, removed) always is. The Email
-// tab goes on the daemon's email radio, which a list beside Check email chooses while several radios that can send are on (every such radio, of any kind; `email/radio`), and is off with its reason while that radio is not
-// connected or there is none; a mail that came in names the radio it came on as a bubble does.
+// The radio a conversation's messages go on, as the daemon says it
+// (composables/useStationRadio.ts): that of a message on its way, else the station's radio now,
+// else the one the daemon names for a call no radio heard (`status.unheard_radio`); the
+// operator's choice in force comes first. With more than one radio on, the header, Send and the
+// incoming bubbles name the radio; with one radio on none is named. The Email tab goes on the
+// daemon's email radio, chosen by a list beside Check email while several sending radios are on
+// (`email/radio`).
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { mount } from "@vue/test-utils";
@@ -22,7 +23,8 @@ afterEach(() => document.body.replaceChildren());
 const BOTH = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
 const FM_OFF = radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury"));
 const HF_OFF = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
-/** Six radios of the names an operator gives, the longest of eight characters: radio 1 FM, 2 HF, then two more of each kind. */
+/** Six radios of the names an operator gives, the longest of eight characters: radio 1 FM, 2 HF,
+ * then two more of each kind. */
 const SIX = radiosTopic(
   radioRow(1, "kenwood-tnc2", { name: "Shack" }),
   radioRow(2, "mercury", { name: "20 m" }),
@@ -94,7 +96,7 @@ describe("the radio of a conversation", () => {
     expect(await route({ status: status({ unheard_radio: 2 }) })).toEqual([true, "Automatic: Mercury", ["Automatic: Mercury", "FM", "Mercury"]]);
     expect(await route({ status: status({ unheard_radio: 1 }) })).toEqual([true, "Automatic: FM", ["Automatic: FM", "FM", "Mercury"]]);
     expect((await route({ radios: SIX, status: status({ unheard_radio: 6 }) }))?.[1]).toBe("Automatic: 80 m");
-    expect(await route({ radios: HF_OFF, status: status({ unheard_radio: 1 }) })).toBeNull(); // (one radio that can send: no row)
+    expect(await route({ radios: HF_OFF, status: status({ unheard_radio: 1 }) })).toBeNull();
   });
 
   it("names the radio of a text to CQ, which is no station, as it does a call no radio heard", async () => {

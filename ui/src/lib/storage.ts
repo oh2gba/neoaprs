@@ -1,7 +1,7 @@
-// What the page remembers in the browser (the panel's width and tab, the map's view): per-viewer conveniences only, so every access is in try/catch and the page works without it
-// (a private window, blocked site data).
+// What the page keeps in the browser (panel width and tab, map view): per-viewer conveniences only,
+// so every access is in try/catch and the page works without it (private window, blocked data).
 
-/** What every key of the page begins with. */
+/** The prefix of every key the page stores. */
 export const STORE_PREFIX = "NeoAPRS.";
 
 export function readStored(key: string): string | null {
@@ -16,7 +16,7 @@ export function writeStored(key: string, value: string): void {
   try {
     localStorage.setItem(STORE_PREFIX + key, value);
   } catch {
-    // nowhere to keep it: the page goes on
+    // Storage is unavailable; carry on without it.
   }
 }
 
@@ -24,11 +24,11 @@ export function removeStored(key: string): void {
   try {
     localStorage.removeItem(STORE_PREFIX + key);
   } catch {
-    // nothing to remove
+    // Storage is unavailable; nothing to remove.
   }
 }
 
-/** The stored text of `key` as a number inside [min, max], else `fallback`. */
+/** The stored text of `key` as a number within [min, max], else `fallback`. */
 export function readStoredNumber(key: string, fallback: number, min: number, max: number): number {
   const text = readStored(key);
   if (text === null || text.trim() === "") return fallback;

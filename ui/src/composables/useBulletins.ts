@@ -1,6 +1,7 @@
-// The Bulletins tab as the page runs it: how many bulletins are new since the tab was last on show. What was seen is the time the newest text on the board was first heard, kept in the browser
-// (lib/storage.ts); it moves forward while the tab is on show (the Bulletins tab is the tab in front, the panel is open and the page is visible, lib/unread.ts), so a bulletin that comes while
-// the user looks at the board is seen. In a window whose store was new, the board the daemon tells first is seen (lib/firststart.ts).
+// The Bulletins tab state: how many bulletins are new since the tab was last shown. The seen mark
+// is the first-heard time of the newest bulletin, kept in the browser; it moves forward while the
+// tab is shown, so a bulletin arriving then counts as seen. In a window with a new store, the
+// first board the daemon sends counts as seen.
 import { computed, ref, watch, type Ref } from "vue";
 import { useViewing, type Panel } from "@/composables/usePanel";
 import { newCount, newestFirstHeard } from "@/lib/bulletins";
@@ -10,13 +11,12 @@ import type { BulletinRow } from "@/protocol/protocol";
 
 const KEY = "bulletinsseen";
 
-/** `loaded`: the daemon has told the bulletins whole. */
 export function useBulletins(bulletins: ReadonlyMap<string, BulletinRow>, panel: Panel, loaded?: Readonly<Ref<boolean>>) {
   const viewing = useViewing(panel, "bulletins");
   const seenUpTo = ref(readStoredNumber(KEY, 0, 0, Number.MAX_SAFE_INTEGER));
   const fresh = computed(() => newCount(bulletins.values(), seenUpTo.value));
 
-  /** What another window of the browser saw since is kept: the stored time is read again before it is moved. */
+  // Another browser window may have moved the stored time: read it again before moving it.
   function see(newest: number): void {
     const inStore = readStoredNumber(KEY, 0, 0, Number.MAX_SAFE_INTEGER);
     seenUpTo.value = Math.max(seenUpTo.value, inStore, newest);

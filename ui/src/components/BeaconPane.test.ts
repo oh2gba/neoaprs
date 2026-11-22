@@ -25,7 +25,8 @@ type Wrapper = ReturnType<typeof pane>["wrapper"];
 const labels = (wrapper: Wrapper) => wrapper.findAll("form .field:not(.action-row) label").map((l) => l.text());
 const group = (wrapper: Wrapper, title: string) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
 const rows = (wrapper: Wrapper) => wrapper.findAll("#status-now");
-/** The buttons that send now, in the order of the page: Beacon now under the Beacon choice, then Send status now. */
+/** The buttons that send now, in the order of the page: Beacon now under the Beacon choice, then
+ * Send status now. */
 const buttons = (wrapper: Wrapper) => wrapper.findAll("#beacon-now, #status-now");
 /** The state of the beacon: the row under the Beacon choice. */
 const block = (wrapper: Wrapper) => group(wrapper, "Beacon")?.find(".beaconstatus") ?? wrapper.find(".beaconstatus");
@@ -534,7 +535,7 @@ describe("BeaconPane with the beacon Off", () => {
 });
 
 describe("BeaconPane with several radios", () => {
-  // the radios as the daemon tells them, and their own settings in radio_values (as the daemon sends them beside the settings of before)
+  // the radios as the daemon tells them, and their own settings in radio_values
   const later = (seconds: number) => new Date(NOW + seconds * 1000).toISOString();
   const FM = (extra: Partial<RadioRow> = {}) => radioRow(1, "kenwood-tnc2", extra);
   const HF = (extra: Partial<RadioRow> = {}) => radioRow(2, "mercury", extra);
@@ -630,7 +631,8 @@ describe("BeaconPane with several radios", () => {
         [false, false],
         [false, false],
       ]);
-      // the daemon takes both: the ticks are what it says from then on, also when another page changes them again
+      // the daemon takes both: the ticks are what it says from then on, also when another page
+      // changes them again
       const base = daemon.config.value;
       if (base === null) throw new Error("no config");
       await tell(daemon, { config: { ...base, radio_values: { ...base.radio_values, "radio/2/beacon": "false", "radio/3/beacon": "false" } } });
@@ -687,7 +689,8 @@ describe("BeaconPane with several radios", () => {
         [false, false],
         [false, false],
       ]);
-      // FM is switched off: the beacon is ticked for no radio that is on, so it goes nowhere and every tick is free
+      // FM is switched off: the beacon is ticked for no radio that is on, so it goes nowhere and
+      // every tick is free
       await tell(daemon, {
         radios: radiosTopic(FM({ enabled: false }), HF(hfNone), FM3(none)),
         status: status({ unheard_radio: 2, beacon_interval_min: 20 }),
@@ -1118,7 +1121,7 @@ describe("BeaconPane: the comment and the status count what is left, as a messag
 
   it("counts a status made from the radio as the daemon checks it, the frequency and the mode at their widest", async () => {
     const { wrapper } = pane({ "status/source": "rig", "status/rigctld": "127.0.0.1:4532" });
-    expect(counterOf(wrapper, "#set-status-template")?.textContent).toBe("32 left"); // (QRV {freq} {mode}: 4 + 12 + 1 + 6)
+    expect(counterOf(wrapper, "#set-status-template")?.textContent).toBe("32 left");
     expect(await typeInto(wrapper, "#set-status-template", "QRV {freq} {mode} " + "x".repeat(40))).toBe("QRV {freq} {mode} " + "x".repeat(31));
     expect(counterOf(wrapper, "#set-status-template")?.textContent).toBe("0 left");
   });

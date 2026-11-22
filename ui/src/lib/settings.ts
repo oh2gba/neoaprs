@@ -1,6 +1,7 @@
-// The settings form's logic: which key goes in which group, what each field says of itself, and which field an error of the daemon is about.
-// The keys and their order come from the daemon (CONFIG_KEYS of the generated lists); a key this file does not know is shown under its own name.
-// What a field says of itself is words of the catalogue (i18n/en/settings.ts), made when they are read: `FIELDS[key].label` is in the language the page has at that moment, so a template that reads it follows a change of language.
+// The settings form's logic: which key goes in which group, what each field says of itself, and
+// which field a daemon error is about. Keys and their order come from the daemon (CONFIG_KEYS); an
+// unknown key shows under its own name. Field words come from the catalogue (i18n/en/settings.ts)
+// when read, so they follow the language.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type Failure, type RadioNames } from "@/i18n/errortext";
@@ -35,39 +36,55 @@ type FieldKind = "text" | "bool" | "readonly" | "choice" | "password" | "call";
 
 export interface FieldInfo {
   label: string;
-  /** What the toast calls the setting after a change ("Beacon interval changed"), when the label alone does not say it. */
+  /**
+   * What the toast calls the setting after a change ("Beacon interval changed"), when the label
+   * alone does not say it.
+   */
   name?: string;
-  /** After the input: "min", "W", "km/h". */
+  /** Shown after the input: "min", "W", "km/h". */
   unit?: string;
-  /** The placeholder of a field whose empty value means something ("none", "auto", "direct"); else the placeholder is the default. */
+  /**
+   * Placeholder for a field whose empty value means something ("none", "auto"); else the default.
+   */
   empty?: string;
-  /** On hover: the one thing a word cannot say. */
+  /** Hover text: the one thing a word cannot say. */
   title?: string;
-  /** The text of the (i) beside the field, one paragraph for each entry: what the setting is for, what to pick, an example. Only for a field a non-developer may not understand. */
+  /**
+   * Text of the (i) beside the field, one paragraph per entry. Only for fields a non-developer may
+   * not understand.
+   */
   tip?: readonly string[];
-  /** What the (i) is called for a screen reader and on hover; else "About" and the label. */
+  /** The (i)'s label for screen readers and hover; else "About" and the label. */
   tipLabel?: string;
-  /** The picture the note of the (i) shows under its text (help/), when a picture says it better. */
+  /** The picture shown under the (i) note (help/). */
   picture?: PictureName;
   kind?: FieldKind;
-  /** The values a `choice` offers: the text of the setting, or the text with the words it is shown as. */
+  /**
+   * The values a `choice` offers: the setting's text, or the text with the words it is shown as.
+   */
   choices?: readonly (string | Choice)[];
-  /** The words for a value that is none of the choices (a setting stored from the shell): "Every 20 min"; else the value itself. */
+  /**
+   * Words for a value that is none of the choices (stored from the shell): "Every 20 min"; else the
+   * value itself.
+   */
   other?: (value: string) => string;
-  /** The most characters a typed field takes (a radio's Name): the input stops there. */
+  /** The most characters a typed field takes; the input stops there. */
   maxLength?: number;
 }
 
-/** A text of the page: the id of a message, the id with its values, or a function that makes the words (for what is no message: a port, an address). */
+/**
+ * A page text: a message id, an id with values, or a function making the words (for a port, an
+ * address).
+ */
 type Say = MessageId | readonly [MessageId, Params] | (() => string);
 const said = (say: Say): string => (typeof say === "function" ? say() : typeof say === "string" ? t(say) : t(say[0], say[1]));
-/** Words that are the same in every language and are no message. */
+/** Words that are the same in every language. */
 const plain =
   (text: string): Say =>
   () =>
     text;
 
-/** What a field is, in ids: the words are looked up when they are read. */
+/** A field as ids; the words are looked up when read. */
 export interface FieldSpec {
   label: Say;
   name?: Say;
@@ -82,7 +99,6 @@ export interface FieldSpec {
   other?: (value: string) => string;
 }
 
-/** The field of a spec, with its words as getters. */
 function field(spec: FieldSpec): FieldInfo {
   const info = {} as FieldInfo;
   const words = (key: "label" | "name" | "empty" | "title" | "tipLabel", say: Say | undefined): void => {
@@ -105,7 +121,10 @@ function field(spec: FieldSpec): FieldInfo {
 
 const GAIN = LIMITS.range["beacon/antenna_gain_db"];
 
-/** The Radio type of every box, of either kind: one (i) for the one list of types (plan section 6). */
+/**
+ * The Radio type field of every box, of either kind: one (i) for the one list of types (plan
+ * section 6).
+ */
 const RADIO_TYPE: FieldSpec = {
   label: "settings.profile.label",
   kind: "choice",
@@ -180,7 +199,7 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.lora_enabled.tip_label",
     tip: ["settings.lora_enabled.tip1", "settings.fm_enabled.tip2"],
   },
-  "tnc/profile": { ...RADIO_TYPE, choices: () => typeChoices("fm").filter((choice) => TNC_PROFILES.some((p) => p.key === choice.value)) }, // (in the order of the one list of types, lib/settingsradio.ts)
+  "tnc/profile": { ...RADIO_TYPE, choices: () => typeChoices("fm").filter((choice) => TNC_PROFILES.some((p) => p.key === choice.value)) },
   "hf/profile": { ...RADIO_TYPE, choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })) },
   "serial/port": {
     name: "settings.port.name",
@@ -315,7 +334,10 @@ const SPECS: Record<string, FieldSpec> = {
   "beacon/travel": { label: "settings.travel.label", kind: "choice", choices: travelChoices, tip: ["settings.travel.tip1"] },
 };
 
-/** The beacon of a station that moves, in place of the interval of a fixed one: a tickbox (ticked is On, SmartBeaconing, which stores the interval 30 that a moving station does not use; unticked is Off). */
+/**
+ * The beacon of a moving station, in place of the interval: a tickbox (ticked is On,
+ * SmartBeaconing, which stores interval 30 that a moving station does not use; unticked is Off).
+ */
 const MOVING_BEACON = field({
   name: "settings.beacon_interval.name",
   label: "settings.beacon_interval.label",
@@ -323,25 +345,36 @@ const MOVING_BEACON = field({
   tip: ["settings.beacon_interval.tip_moving"],
 });
 
-/** What each setting says of itself (words in the language of the page, made when they are read); a key this page does not know has none. */
+/** What each setting says of itself, in the page's language when read; none for an unknown key. */
 export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entries(SPECS).map(([key, spec]) => [key, field(spec)]));
 
-/** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
+/**
+ * The daemon's own alert settings, which the Notifications group shows beside the browser's alert.
+ */
 const ALERT = ["messages/alert", "messages/alert_command"];
-/** Whether the Internet switch (Enable, in the group Internet stations: the stations of APRS-IS on the map) is on in these values; it is off unless the values say so. */
+/**
+ * Whether the Internet switch (Enable, in the Internet stations group) is on in these values; off
+ * unless they say so.
+ */
 export const igateOn = (values: Readonly<Record<string, string>>): boolean => values["igate/enabled"] === "true";
 
-/** Whether a setting that depends on a switch is shown: the alert's command (and its Test button) only while the alert is on; an alert the values do not mention is the daemon's default, on. */
+/**
+ * Whether a setting that depends on a switch is shown: the alert's command and Test button only
+ * while the alert is on (default on).
+ */
 const shownBySwitch = (key: string, values: Readonly<Record<string, string>>): boolean =>
   key !== "messages/alert_command" || values["messages/alert"] !== "false";
 
-/** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert (lib/alertlegend.ts) and the map's layers (Aircraft and Ships, and a later layer's rows after them). */
+/** The legend of the box that starts at a key inside its group (components/SettingsBox.vue). */
 export const SUBGROUPS: Record<
   string,
   { readonly text: string; readonly title: string; readonly tipLabel: string; readonly tip: readonly string[]; readonly picture?: PictureName }
 > = { "messages/alert": alertLegend, "map/aircraft": lazyText({ title: "", tipLabel: "", tip: [] }, { text: () => t("settings.map.layers") }) };
 
-/** What the My station tab keeps behind a closed heading in the Beacon group: the antenna (the PHG part of the beacon, which only a fixed station has) and the path. */
+/**
+ * What the My station tab keeps behind a closed heading in the Beacon group: the antenna (PHG) and
+ * the path.
+ */
 export const BEACON_FOLDS: readonly { readonly group: string; readonly title: string; readonly keys: readonly string[] }[] = [
   lazyText({ group: "beacon", keys: ANTENNA }, { title: () => t("settings.fold.antenna") }),
   lazyText({ group: "beacon", keys: ["beacon/path"] }, { title: () => t("settings.fold.advanced") }),
@@ -355,7 +388,7 @@ interface Group {
 
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
   { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment", "station/transmit"] },
-  { id: "serial", title: "settings.group.tnc", prefixes: ["serial/"], also: ["station/transmit"] }, // (RX only; the radios' own fields are their boxes')
+  { id: "serial", title: "settings.group.tnc", prefixes: ["serial/"], also: ["station/transmit"] },
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
@@ -365,15 +398,22 @@ const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[
   { id: "status", title: "settings.group.status", prefixes: ["status/"], also: ["station/status"] },
 ];
 
-/** Which settings a form shows: the My station tab has what the beacon says and sends, the Settings tab the rest (and any key this file does not know), so that no key is in two places. */
+/**
+ * Which settings a form shows: My station has the beacon settings, Settings the rest, so no key is
+ * in two places.
+ */
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
   settings: ["serial", "igate", "digi", "web", "notifications", "map"],
 };
 
-/** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, the APRS-IS server and the passcode of the Internet switch (igate/server, whose default is the round-robin name of the volunteer servers, and igate/password, which only a person who gates for the radio sets), which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
- * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build). The map download uses the stored values, so a custom source or detail still works. */
+/**
+ * Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the update-check
+ * address, the APRS-IS server and passcode, the serial ports the radio search looks at, the page's
+ * own port and host names, and the map's detail and source. The map download uses the stored
+ * values.
+ */
 const NOT_ON_THE_PAGE: readonly string[] = [
   "update/url",
   "serial/pattern",
@@ -386,10 +426,16 @@ const NOT_ON_THE_PAGE: readonly string[] = [
   "map/source",
 ];
 
-/** Settings that are on the page, but in another tab than the Settings tab: the time stations stay on the map (map/station_hours) is chosen in the Stations tab. */
+/**
+ * Settings on the page but in another tab: how long stations stay on the map (map/station_hours) is
+ * in Stations.
+ */
 const IN_ANOTHER_TAB: readonly string[] = [STATION_HOURS_KEY];
 
-/** The keys in the order of the daemon's list (a key it did not list last; the TNC and Status groups in their own order), in the groups of the form `scope` shows. */
+/**
+ * The keys in the daemon's order (unlisted keys last; the TNC and Status groups in their own
+ * order), grouped as `scope` shows.
+ */
 export function groupKeys(keys: readonly string[], scope: Scope = "settings"): Group[] {
   const order = (key: string): number => {
     const at = (CONFIG_KEYS as readonly string[]).indexOf(key);
@@ -408,15 +454,23 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
   const known = new Set(groups.flatMap((g) => g.keys));
   groups.push({ id: "other", title: t("settings.group.other"), keys: sorted.filter((k) => !known.has(k)) });
   const shown = scope === "beacon" ? SCOPE_GROUPS.beacon : [...SCOPE_GROUPS.settings, "other"];
-  // the Digipeater group's fields are its radios' (radio/<id>/digipeat, kept out of the groups above): SettingsForm draws it while a radio may repeat
+  // The Digipeater group's fields are its radios' (radio/<id>/digipeat); SettingsForm draws them.
   return shown.flatMap((id) => groups.filter((g) => g.id === id && (g.keys.length > 0 || g.id === "digi")));
 }
 
-/** What is wrong, without the command and the setting in front: the page's sentence for the refusal's code, else the daemon's English one, whose sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). `radios`: the page's, by which a radio the refusal names is said in the page's words. */
+/**
+ * What is wrong, without the command and setting in front: the page's sentence for the refusal's
+ * code, else the daemon's English sentence "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py).
+ * `radios` names a radio in the refusal.
+ */
 export const reasonOf = (error: Failure, radios?: RadioNames): string => errorReason(error, radios);
 
-/** What the field of a key says of itself for these settings: the beacon choice of a station that moves is Off or On (SmartBeaconing), else the field's own; a radio's own setting (`radio/3/port`) says what the same field of the
- * radios of before says (`serial/port`), in the words every radio's port has, or its kind's own where they differ (`kind`: a LoRa board's address); a pair's setting (`pair/1/2/ssid`) says what lib/settingspair.ts gives for these values; a key this page does not know is its own label. */
+/**
+ * What the field of a key says of itself for these settings. A moving station's beacon choice is
+ * Off or On (SmartBeaconing). A radio's setting (`radio/3/port`) uses the shared radio-field words,
+ * or its kind's (`kind`). A pair's setting (`pair/1/2/ssid`) uses lib/settingspair.ts. An unknown
+ * key is its own label.
+ */
 export function fieldFor(key: string, values: Readonly<Record<string, string>> = {}, kind?: PageRadio["kind"]): FieldInfo {
   const flat = flatKeyOf(radioFieldOf(key)?.field ?? "", kind);
   return key === "beacon/interval_min" && isMoving(values)
@@ -424,24 +478,35 @@ export function fieldFor(key: string, values: Readonly<Record<string, string>> =
     : (FIELDS[key] ?? pairField(key, values) ?? (flat === null ? undefined : FIELDS[flat]) ?? { label: key });
 }
 
-/** The tickbox RX only is the setting `station/transmit` the other way round: ticked is `false` (nothing is transmitted), unticked `true`. */
+/** The RX only tickbox is the setting `station/transmit` the other way round: ticked is `false`. */
 export const RX_ONLY_KEY = "station/transmit";
 
-/** The value a field shows: the beacon of a station that moves is "0" (Off) or the one On, whatever interval is stored. */
+/**
+ * The value a field shows: a moving station's beacon is "0" (Off) or the one On, whatever interval
+ * is stored.
+ */
 export function valueFor(key: string, values: Readonly<Record<string, string>>): string {
   const text = values[key] ?? "";
   if (key === RX_ONLY_KEY) return String(text === "false");
   return key === "beacon/interval_min" && isMoving(values) ? String(!beaconOff(values)) : text;
 }
 
-/** What is stored for what the field says: the tickbox of a moving station's beacon says true or false, which is the interval On stores, or 0; the tickbox RX only says it the other way round; any other field is as it says. */
+/**
+ * What is stored for what the field says: a moving station's beacon tickbox stores the interval On,
+ * or 0; the RX only tickbox is inverted; any other field is as it says.
+ */
 export function storedFor(key: string, values: Readonly<Record<string, string>>, said: string): string {
   if (key === RX_ONLY_KEY) return said === "true" ? "false" : "true";
   return key === "beacon/interval_min" && isMoving(values) ? (said === "true" ? MOVING_BEACON_ON : "0") : said;
 }
 
-/** Whether a field of the My station tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS; the station's place only for a fixed station, with a GPS the place stays stored and the daemon uses it until the first fix); a station that moves
- * (a GPS is chosen) has the Travelling choice, and no antenna, which is a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it); the Beacon choice is shown to both, with other choices (an interval, or Off and On). */
+/**
+ * Whether a field of the My station tab is shown for the values the form holds. The Status group
+ * shows what its source needs. The position fields follow its choice (gpsd address; port and speed
+ * for a serial GPS; the place only for a fixed station, kept stored with a GPS). A moving station
+ * has Travelling and no antenna (the antenna only makes the PHG code). The Beacon choice is shown
+ * to both.
+ */
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
   if (!shownBySwitch(key, values)) return false;
   if (key.startsWith("status/") || key === "station/status") return statusShown(key, statusSource(values));

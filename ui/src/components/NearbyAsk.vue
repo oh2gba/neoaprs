@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// Ask around, the first box of the Nearby tab: one general query of APRS sent to the stations in radio range (the daemon's services/generalask.py), chosen in plain words (Who is around ?APRS?, iGates ?IGATE?, Weather stations ?WX?,
-// each with its query in its hover title), and **Ask**. Under it, while several radios that can send are on, Send on (SendOn.vue, the beacon's row: a tick for each radio, `radio/<id>/ask`, applied at once),
-// then the closed fold of the request's Path and RF only (RequestPath.vue; one fold for every radio: empty is each radio's own path; remembered by this browser for this box apart from
-// Local info's; its placeholder the path its radios share, else the page's word for the default; there only while some radio that is on may carry a path, and greyed with its values kept while no ticked radio carries one), then two quiet lines of a height that is always kept, so that nothing moves when
-// their words change: what was asked, when and by what path, and that the answers arrive on the map and in Stations (before a query what Ask does, after a refusal the reason), and how many stations that had been quiet for
-// ten minutes spoke in the two minutes after (their calls in the hover; they are likely answers, and the line does not say more). The query goes once on each ticked radio that is connected; the first line names the radios the
-// latest query went on while several are on, and with one radio on there is no row and nothing is named. Ask is off, with the reason in its title, in RX only, while none of its radios is connected, while the path is wrong,
-// and for the minute after a query of the same kind on one of its radios.
+// Ask around, the first box of the Nearby tab: one general APRS query to the stations in radio
+// range (the daemon's services/generalask.py), chosen in plain words, and **Ask**. While several
+// sending radios are on, Send on follows (SendOn.vue, `radio/<id>/ask`), then the closed fold of
+// the request's Path and RF only (RequestPath.vue, shared with Local info). Two quiet lines of
+// fixed height follow: what was asked, when and by what path, and how many stations that had
+// been quiet for ten minutes spoke in the two minutes after. The query goes once on each ticked
+// connected radio. Ask is off, with the reason in its title, in RX only, while no radio of it is
+// connected, while the path is wrong and for the minute after a query of the same kind.
 import { computed, ref, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import RequestPath from "@/components/RequestPath.vue";
@@ -26,17 +26,19 @@ const { general, receiveOnly, send, lastError, now } = useDaemonContext();
 const radios = useRadios();
 const { told, allowsPath, byId, named, sharedPath } = radios;
 const kind = usePersisted("ask.kind", GENERAL_KINDS[0] ?? "aprs", GENERAL_KINDS);
-/** Ask around's Send on: its ticks, and the radios the query goes on as they stand. */
+/** Ask around's Send on: its ticks and the radios the query goes on. */
 const { ticks, radios: on, error: tickError, tick } = useSendOn("ask", radios);
-/** The path and RF only of the query, remembered by this browser apart from Local info's: one for every radio. */
+/** The query's path and RF only, remembered by this browser apart from Local info's: one for all
+ * radios. */
 const request = useRequestPath("ask");
-/** Whether the query has a path and RF only to set: some radio that is on may carry one (else the fold is not there), and one of those it goes on does (else it is greyed). */
+/** Whether the query has a path and RF only to set: some radio that is on may carry one (else no
+ * fold), and one it goes on does (else greyed). */
 const routable = computed(() => allowsPath.value && (on.value.length === 0 || on.value.some((radio) => radio.carriesPath)));
-/** The path the query goes by with none typed: the one its radios share (each goes by its own); null while theirs differ. */
+/** The path used when none is typed: the one the radios share; null while they differ. */
 const usual = computed(() => sharedPath(on.value));
-const refusal = ref(""); // (why the daemon refused the last Ask, until the next query)
+const refusal = ref("");
 
-/** The wait of a kind is each radio's, and Ask waits for every radio the query would go on. */
+/** The wait of a kind is per radio; Ask waits for every radio the query would go on. */
 const wait = computed(() =>
   generalWait(
     general.value,
@@ -45,16 +47,18 @@ const wait = computed(() =>
     now.value,
   ),
 );
-/** Why nothing may go: none of its radios is connected (named where several are on), or there is none; undefined before the daemon has told its radios. */
+/** Why nothing may go: no radio of it is connected, or none exist; undefined until radios are
+ * known. */
 const offline = computed(() => radiosBlockedReason(on.value, named, told.value));
-/** Why Ask is off: "" while it is ticked for no radio that is on (the row of ticks shows it), else the reason; undefined while it may go. */
+/** Why Ask is off: "" while ticked for no radio that is on (the ticks show it), else the reason;
+ * undefined when it may go. */
 const why = computed(() => {
   const problem = routable.value ? request.problem.value : "";
   if (receiveOnly.value) return t("error.transmit.off");
   if (ticks.value.length > 0 && on.value.length === 0) return "";
   return offline.value ?? (problem !== "" ? problem : wait.value > 0 ? t("nearby.ask_wait", { seconds: wait.value }) : undefined);
 });
-/** The two lines; the first names the radios the latest query went on where a radio is named. */
+/** The two lines; the first names the radios the latest query went on where radios are named. */
 const lines = computed(() => {
   const found = askLines(general.value, refusal.value, now.value);
   const name = found.refused ? "" : radiosNamed(general.value?.asked.at(-1)?.radios ?? [], byId, named);

@@ -1,4 +1,5 @@
-// The top bar says how things stand (the Daemon mark in a browser, the Radio mark everywhere), and a text that says RX only leads to the tickbox.
+// The top bar says how things stand (the Daemon mark in a browser, the Radio mark everywhere); a
+// text that says RX only leads to the tickbox.
 import "@/test/mockmap";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
@@ -12,7 +13,9 @@ afterEach(() => {
 });
 
 const KEY = "station/transmit";
-/** The settings told again with these, a radio's own (`radio/1/digipeat`) among the radios' values. */
+/**
+ * The settings sent again with these, a radio's own (`radio/1/digipeat`) among the radios' values.
+ */
 const say = async (socket: FakeSocket, rev: number, values: Record<string, string>) => {
   const own = (radio: boolean) => Object.fromEntries(Object.entries(values).filter(([key]) => key.startsWith("radio/") === radio));
   socket.say({ type: "state", topic: "config", rev, value: configValues(own(false), own(true)) });

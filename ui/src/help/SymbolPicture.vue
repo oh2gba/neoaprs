@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The symbol: the choice among many (a car is picked) and the same symbol on the map of the others, under our call.
+// The symbol: the choice among many (a car is picked) and the same symbol on the map of the
+// others, under our call.
 import { arrow } from "@/help/draw";
 import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";

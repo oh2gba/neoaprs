@@ -1,4 +1,5 @@
-// The words of the map engine's own controls in the page's language (it has English only): the zoom buttons and the label of its canvas. `label` says them once; they are said again when the language changes.
+// The map controls' labels (zoom buttons, canvas) in the page's language; said again when the
+// language changes.
 import { watch, type Ref } from "vue";
 import { t } from "@/i18n";
 

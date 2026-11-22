@@ -1,6 +1,7 @@
-// Up and Down on a row of a list of stations (the Stations table) go to the station before or after it, selecting it as a click on it does (with Ctrl, Cmd on a Mac, adding its card to the open ones); Home and End go to
-// the first and the last. The rows are the component's: `calls` gives them in the order shown, and the row of a call is the element `stationRowId` names, which takes the focus. Only a key on the row itself counts, not one
-// on a button in it. `select` is what a click does.
+// Up and Down on a row of the Stations table select the previous or next station as a click does
+// (with Ctrl or Cmd adding its card); Home and End go to the first and last. `calls` gives the
+// rows in order and `stationRowId` names the row element that takes the focus. Only a key on the
+// row itself counts, not one on a button in it. `select` is what a click does.
 import { stationRowId } from "@/lib/stations";
 
 const JUMP: Record<string, number> = { ArrowDown: 1, ArrowUp: -1, Home: -Infinity, End: Infinity };

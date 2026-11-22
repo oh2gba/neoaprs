@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; where more than one radio is on, the tag of the radio its messages go on; "Route" for the radio,
-// the path and RF only; "Key" for the station's key while encrypted messages are on, KeyMenu), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose: the text, "12 left" and Send, no To:
-// the conversation is the station) fixed at the bottom; the tag keeps the room of the longest name of the radios that are on. The radio is the one the daemon says the messages go on (composables/useStationRadio.ts): Send waits for its link, and Route shows its path. An overheard pair has no
-// Route and no box to write in (the messages are not ours: only the bubbles, and the delete in the list). It is the page's to put a new one in place of this when another conversation is picked (a `key`), and on a narrow
-// page it takes the focus when it appears, so that Esc goes back. The header is not text to select; a right-click on the call offers to copy it (CopyMenu).
+// One conversation of the Messages tab: a header (back arrow on a narrow page, the call, the
+// radio's tag where several radios are on, "Route", and "Key" while encrypted messages are on),
+// the bubbles (ConversationThread) and the compose box (MessageCompose). The radio is the one
+// the daemon says the messages go on (composables/useStationRadio.ts). An overheard pair has no
+// Route or compose box. The page remounts it per conversation (`key`).
 import { computed, onMounted, ref } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
@@ -44,19 +44,21 @@ const { over, named, offline, shown, paths, fallback, choices, choice, auto, fix
   () => row.value,
   () => props.thread,
 );
-/** The tags the radio's tag keeps the room of: its own first, then every other radio that is on, all in one place and the others hidden (`.twowords`), so that the call and Route stay where they are whichever radio it names. */
+/** The tags that reserve the radio tag's width: its own first, then every other radio, stacked
+ * with the others hidden (`.twowords`), so that the call and Route do not move. */
 const radios = useRadios();
 const room = computed(() => (over.value === null ? [] : [over.value, ...radios.senders.value.filter((radio) => radio.id !== over.value?.id)]));
-/** Its position says it takes no messages and it never sent one: a message may not be read there (it can be sent all the same). */
+/** The station's position says it takes no messages and it never sent one, so a message may go
+ * unread. */
 const mayNot = computed(() => row.value?.may_not_message === true);
 const { rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);
 const heard = computed(() => isOverheard(props.selected));
-/** The station's key, for the Key menu; and whether a message to it can be locked. */
+/** The station's key for the Key menu, and whether a message to it can be locked. */
 const theirs = computed(() => keys.of(replyTo(props.selected)));
 const lockable = computed(() => keys.canLock(replyTo(props.selected)));
-/** The copy menu of the title: the call, or the two calls of an overheard pair. */
+/** The copy menu of the title: the call, or both calls of an overheard pair. */
 const copy = useCopyMenu(() => (overheardPair(props.selected) ?? [props.selected]).map((text) => ({ kind: "call" as const, text })));
 
 onMounted(() => {

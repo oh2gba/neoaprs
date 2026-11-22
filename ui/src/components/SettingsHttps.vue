@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// What the Settings tab's Web page group adds under the switch for the secure connection: why it is not working when it was asked for and could not start (the daemon's reason, in the page's words), and, while it is, a
-// heading that opens the guide to install the certificate on a device (HttpsGuide).
+// The Web page group's addition under the secure connection switch: the daemon's reason when https
+// was asked for and could not start, and a heading with the guide to install the certificate
+// (HttpsGuide).
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import HttpsGuide from "@/components/HttpsGuide.vue";
 import { t } from "@/i18n";

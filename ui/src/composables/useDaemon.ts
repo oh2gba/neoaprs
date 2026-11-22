@@ -1,5 +1,5 @@
-// The daemon as the page sees it: the topics as reactive state (the stations' own paths, RF only and alerts are `stationPrefs`), the status, the latest alert of a station that fired (`stationAlert`), the latest table of each layer of aircraft or ships (`layer_things`), the latest answer to `weather_series`, to `alert_test`, to `list_ports` and to `radio_add`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
-// closes it when it is unmounted. The conversation itself is lib/hub.ts.
+// The daemon as the page sees it: the topics as reactive state, the status, the latest answers,
+// the connection state and `send`. Opens the socket on mount and closes it on unmount.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
   BulletinRow,
@@ -32,30 +32,27 @@ import { probe } from "@/lib/access";
 import { fillTable, Hub, type Connection, type Store } from "@/lib/hub";
 import { describeMismatch, reloadForDaemon, type Mismatch } from "@/lib/reload";
 
-/** The page's own socket: beside the page, so that it works from any path. */
 export function socketUrl(): string {
   const url = new URL("ws", document.baseURI);
   url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();
 }
 
-/** An `error` of the daemon, or of the page itself (`cmd` empty, `code` `not_connected`): the page goes by `cmd`, `key` and `code`, and shows `text`. */
+/** An `error` of the daemon or of the page itself (`cmd` empty, `code` `not_connected`). */
 export interface Toast extends Omit<ErrorMessage, "type"> {
-  /** counts up, so that the same text twice is two toasts */
+  /** Counts up, so that the same text twice is two toasts. */
   n: number;
 }
 
-/** Replaces what a keyed topic holds with the rows the daemon told; `done` is set once it has. */
 function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boolean>): void {
   fillTable(into, rows);
   if (done) done.value = true;
 }
 
-/** The topics that are held as one value each: those told whole (the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around)),
- * the radios (useRadioTopic) and the tables of the map's layers looked at (composables/useLayerThings.ts). */
+/** The topics held as one value each: those told whole, the radios and the layer tables. */
 function useWholeTopics() {
   const radios = useRadioTopic();
-  const layers = useLayerTables(); // (the aircraft and ships of the layers this page looks at: composables/useLayerThings.ts)
+  const layers = useLayerTables();
   const refs = {
     layerTables: { told: layers.told, forget: layers.forget },
     radios: radios.radios,
@@ -101,8 +98,10 @@ function useWholeTopics() {
   return { refs, handlers };
 }
 
-/** The topic `radios`, by the radio's id as text: null until the daemon has told it (a daemon of the wire of before never does). A change makes a new map, as the radios are few. And the answer to this page's
- * `radio_add`, the id of the radio it made (its row comes with the topic's next patch), and the receive level of each Sound card radio this page asked for (`radio_level`), the latest by the radio's id. */
+/**
+ * The topic `radios` by radio id as text, null until the daemon has sent it; a change makes a new
+ * map. Also the id from `radio_add` and the receive level of each Sound card radio (`radio_level`).
+ */
 function useRadioTopic() {
   const radios = shallowRef<ReadonlyMap<string, RadioRow> | null>(null);
   const radioAdded = shallowRef<RadioAddedMessage | null>(null);
@@ -117,14 +116,20 @@ function useRadioTopic() {
   return { radios, radioAdded, radioLevels, handlers };
 }
 
-/** A hello of a daemon that the page does not go with, after the load that was made for it (lib/reload.ts): the notice is set and the socket closed for good, so that nothing the daemon sends reaches the page and it is not opened again. */
+/**
+ * A hello of a daemon the page does not go with, after the reload: set the notice and close the
+ * socket for good.
+ */
 function refuseMismatch(hello: HelloMessage, mismatch: Ref<Mismatch | null>, close: () => void): void {
   if (reloadForDaemon(hello) !== "stale") return;
   mismatch.value = describeMismatch(hello);
   close();
 }
 
-/** What the daemon's hello says of it: its version, how it was installed, and whether this page is on the computer it runs on (until the hello has said so, it is not). */
+/**
+ * What the daemon's hello says: its version, how it was installed, and whether this page is on its
+ * computer.
+ */
 function useHello() {
   const version = ref("");
   const install = shallowRef<InstallInfo | null>(null);
@@ -137,17 +142,16 @@ function useHello() {
   return { hello, refs: { version, install, local } };
 }
 
-/** The bulletins, and whether the daemon has told them once (`bulletins` is then what was there, not a part of it). */
 function useBulletinTable() {
   return { bulletins: shallowReactive(new Map<string, BulletinRow>()), bulletinsLoaded: ref(false) };
 }
 
 export function useDaemon(url: () => string = socketUrl) {
   const stations = shallowReactive(new Map<string, StationRow>());
-  const stationsLoaded = ref(false); // the daemon has told the stations once: `stations` is then what was there, not a part of it
+  const stationsLoaded = ref(false);
   const packets = shallowReactive(new Map<string, PacketRow>());
   const messages = shallowReactive(new Map<string, MessageRow>());
-  const messagesLoaded = ref(false); // the daemon has told the messages once: `messages` is then what was there, not a part of it
+  const messagesLoaded = ref(false);
   const board = useBulletinTable();
   const own = useOwnTables();
   const station = useStationTables();
@@ -158,8 +162,10 @@ export function useDaemon(url: () => string = socketUrl) {
   const connection = ref<Connection>("connecting");
   const lastError = shallowRef<Toast | null>(null);
   const said = useHello();
-  const mismatch = shallowRef<Mismatch | null>(null); // the daemon is another protocol or serves another build of the page, and a load did not help: the page does not run against it (refuseMismatch)
-  const stationAlert = shallowRef<StationAlertMessage | null>(null); // the latest alert of a station that fired: each is a message of its own, so the same words twice are two (composables/useStationAlerts.ts)
+  // The daemon speaks another protocol or serves another build and a reload did not help.
+  const mismatch = shallowRef<Mismatch | null>(null);
+  // Each alert is a message of its own, so the same words twice are two alerts.
+  const stationAlert = shallowRef<StationAlertMessage | null>(null);
   let toasts = 0;
 
   const store: Store = {
@@ -187,14 +193,14 @@ export function useDaemon(url: () => string = socketUrl) {
     delMessage: (key) => void messages.delete(key),
     delBulletin: (key) => void board.bulletins.delete(key),
   };
-  // a socket that closes before it has heard anything may have been refused for want of a login: if the daemon says so, the page loads again and shows the key screen
+  // A socket that closes before hearing anything may have been refused for want of a login: if
+  // the daemon says so, reload and show the key screen.
   const refused = (): void => void probe().then((access) => access === "locked" && location.reload());
   const hub = new Hub(store, { url, onHello: (hello) => refuseMismatch(hello, mismatch, () => hub.close()), refused });
 
-  /** Sends a command; the toast says so when the socket is not open. */
   function send(command: Parameters<Hub["send"]>[0]): boolean {
     const sent = hub.send(command);
-    if (!sent) store.error({ type: "error", cmd: "", key: null, code: "not_connected", params: {}, text: "Not sent: there is no connection to NeoAPRS" }); // (the page says it in its language: error.not_connected)
+    if (!sent) store.error({ type: "error", cmd: "", key: null, code: "not_connected", params: {}, text: "Not sent: there is no connection to NeoAPRS" });
     return sent;
   }
 
@@ -227,7 +233,10 @@ export function useDaemon(url: () => string = socketUrl) {
   };
 }
 
-/** A phone that slept, or a network that came back: the page in front again looks at its socket at once (OH2GAX: the phone showed old messages until it was reloaded). */
+/**
+ * A phone that slept or a network that came back: check the socket at once when the page is in
+ * front.
+ */
 function wakeWithThePage(hub: Hub): void {
   const wake = (): void => {
     if (document.visibilityState === "visible") hub.wake();

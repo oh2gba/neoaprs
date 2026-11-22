@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Local info (QRU): this station asks for local info by radio, and a server station near it answers with objects (a repeater and an event), which appear on the map.
+// Local info (QRU): this station asks for local info by radio, and a nearby server station
+// answers with objects (a repeater and an event) that appear on the map.
 import { CALLS } from "@/help/calls";
 import HelpBubble from "@/help/HelpBubble.vue";
 import { t } from "@/i18n";

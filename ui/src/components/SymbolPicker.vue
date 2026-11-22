@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// The symbol picker: every symbol of the APRS set as a picture with its name, the usual ones first, searchable by words ("house", "car", "digi", "wx"). A click on a symbol chooses it and closes the picker;
-// Esc, the Close button or a click outside closes it without a choice; the focus goes to the search box and stays inside (Tab goes round: useDialogFocus). The symbol now in use is marked. It says nothing of tables and codes: the choice is the table and the code, written as the settings write them.
+// The symbol picker: every APRS symbol as a picture with its name, usual ones first, searchable
+// by words. A click chooses and closes; Esc, Close or a click outside closes without a choice.
+// Focus goes to the search box and stays inside (useDialogFocus). The symbol in use is marked.
+// The choice is written as table and code, as the settings write it.
 import { computed, ref } from "vue";
 import SymbolButton from "@/components/SymbolButton.vue";
 import { useDialogFocus } from "@/composables/useDialogFocus";

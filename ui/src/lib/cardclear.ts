@@ -1,5 +1,6 @@
-// Where a marker has to stand so that the card over the map does not cover it: the card sits at the bottom left of the map, so the marker of the station that was picked goes above it, or at its right when there is room there.
-// Pure geometry in the pixels of the map; components/StationMap.vue asks it after a station is picked and moves the map by the answer.
+// Where a marker must stand so the card over the map does not cover it. The card sits at the
+// bottom left, so a picked station's marker goes above it, or to its right if there is room. Pure
+// geometry in map pixels; components/StationMap.vue moves the map by the answer.
 
 /** A rectangle in the pixels of the map, the origin at its top left corner. */
 export interface Box {
@@ -14,15 +15,18 @@ export interface Point {
   y: number;
 }
 
-/** The marker is 26 px wide and has its call under it; the room it needs round its centre, and the room to keep from the card. */
+/** The marker is 26 px wide with its call under it: the room it needs round its centre. */
 const ROOM_SIDE = 22;
 const ROOM_ABOVE = 16;
 const ROOM_BELOW = 40;
-/** The map's buttons are along its top (zoom, Follow me, Close all): a marker is not put higher than this. */
+/** The map's buttons run along its top (zoom, Follow me, Close all); a marker is not put higher. */
 const TOP_FREE = 84;
-/** The Layers button stands under the zoom buttons in the top left corner (to 141 px where a finger sizes them; the station cards' row begins at 150 px there, styles/responsive.css): a marker is not put in this corner. */
+/**
+ * The Layers button stands under the zoom buttons in the top left (to 141 px where a finger sizes
+ * them; the station cards' row starts at 150 px there, styles/responsive.css): keep markers out.
+ */
 const CORNER = { right: 72, bottom: 150 };
-/** The marker stands this far from the card once moved, and from the edge of the map. */
+/** The distance of the moved marker from the card and from the map edge. */
 const GAP = 40;
 const EDGE = 30;
 
@@ -31,7 +35,10 @@ export function covers(card: Box, marker: Point): boolean {
   return marker.x >= card.left - ROOM_SIDE && marker.x <= card.right + ROOM_SIDE && marker.y >= card.top - ROOM_ABOVE && marker.y <= card.bottom + ROOM_BELOW;
 }
 
-/** How far the marker has to move on the screen (to the right, downwards) so that the card does not cover it: the shorter of the ways above the card and at its right, the ones that leave the marker on the map and clear of the zoom buttons; null when it is not covered, or when no way is left. */
+/**
+ * How far the marker must move (right, down) to clear the card: the shorter of above the card or
+ * to its right, staying on the map and clear of the zoom buttons; null if not covered or no way.
+ */
 export function moveClearOf(card: Box, marker: Point, view: Box): Point | null {
   if (!covers(card, marker)) return null;
   const ways: Point[] = [];

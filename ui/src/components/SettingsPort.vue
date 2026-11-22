@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// A serial port as one control (the TNC's and the GPS receiver's): a choice of "find automatically" (the empty port; "not set" for the GPS, which is never searched for; `first` for other words), the ports the system lists and "Other..." for a path or a socket address typed. When the port is automatic and the daemon has found the radio before, that
-// port is told beside the control (it is the daemon's own memory, `serial/last_port`, and not a field). Refresh asks the system for its ports again. A port picked from the list is a choice (`choose`, at once); a path typed applies on Enter or when
-// the field is left (`commit`), and Esc (`cancel`) puts the port in force back.
+// A serial port as one control: "find automatically" (the empty port; "not set" for the GPS), the
+// ports the system lists, and "Other..." for a typed path or socket address. When automatic and the
+// daemon knows the radio, the last port is shown beside it (`serial/last_port`). A listed port is a
+// choice (`choose`); a typed path applies on Enter or blur (`commit`); Esc (`cancel`) restores it.
 import { computed, ref, watch } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
@@ -15,10 +16,13 @@ const props = defineProps<{
   modelValue: string;
   /** serial/last_port as the daemon has it */
   found: string;
-  /** the empty port is "not set", not "find automatically": the port of the GPS receiver */
+  /** the empty port means "not set", not "find automatically" (the GPS receiver) */
   unset?: boolean;
   ports: PortsMessage | null;
-  /** who holds each port, for this box (a port another radio or the GPS receiver holds is greyed with its name) */
+  /**
+   * who holds each port, for this box (a port held by another radio or the GPS is greyed with its
+   * name)
+   */
   holder?: HolderOf;
   error: string;
   changed: boolean;
@@ -49,7 +53,7 @@ function escape(event: KeyboardEvent): void {
   typing.value = false;
 }
 
-// a path the daemon refused stays in the field it was typed in
+// a path the daemon refused stays in the field
 watch(
   () => props.error,
   (now) => {

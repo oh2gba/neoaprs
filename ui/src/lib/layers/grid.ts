@@ -1,7 +1,11 @@
-// The locator grid for the part of the map in view: the lines of the Maidenhead cells and one name in each (lib/locator.ts gives the names, so they are what Copy locator gives). Fields (20 by 10 degrees) far out,
-// squares (2 by 1) from zoom 5, subsquares (5 by 2.5 minutes) from zoom 10; never more than 400 named cells, else the next coarser step. A square is wider than the view near zoom 8 and 9, where its subsquares are
-// too many to name: their lines are drawn there without names, once a subsquare is wide enough on the screen to be told apart. Each name stands in the middle of the part of its cell that is in view, so the cell
-// under the middle of the view always has its name in sight; a sliver of a cell at the edge has none. A view across the date line is gridded in both copies of the world it shows.
+// The locator grid for the part of the map in view: Maidenhead cell lines with one name in each
+// (names from lib/locator.ts, so they match Copy locator). Fields (20 by 10 degrees) far out,
+// squares (2 by 1) from zoom 5, subsquares (5 by 2.5 minutes) from zoom 10; never more than 400
+// named cells, else the next coarser step. Near zoom 8 and 9 a square is wider than the view but
+// its subsquares are too many to name: their lines are drawn without names once a subsquare is
+// wide enough on screen. Each name sits in the middle of the part of its cell in view, so the cell
+// under the middle of the view always has its name; a sliver at the edge has none. A view across
+// the date line is gridded in both copies of the world it shows.
 import { positionToLocator } from "@/lib/locator";
 
 /** The part of the map in view, in degrees, and its zoom. */
@@ -17,12 +21,12 @@ export type GridStep = "field" | "square" | "subsquare";
 
 interface Step {
   step: GridStep;
-  /** degrees of longitude and of latitude */
+  /** Degrees of longitude and of latitude. */
   w: number;
   h: number;
-  /** the characters of the locator that name a cell */
+  /** The characters of the locator that name a cell. */
   chars: number;
-  /** the zoom it is named from */
+  /** The zoom it is named from. */
   from: number;
 }
 
@@ -33,11 +37,12 @@ const STEPS: readonly Step[] = [
 ];
 
 export const MAX_CELLS = 400;
-/** the narrowest a cell of lines without names is drawn, in pixels */
+/** The narrowest a cell of lines without names is drawn, in pixels. */
 const LINE_PX = 12;
-/** the least of a cell that is given its name, in pixels (a sliver at the edge has none) */
+/** The least of a cell that is given its name, in pixels (a sliver at the edge has none). */
 const NAME_PX = { w: 36, h: 16 };
-const TILE_PX = 512; // the map engine's
+// The map engine's tile size.
+const TILE_PX = 512;
 const MERCATOR_LAT = 85.0511;
 
 type LonLat = [number, number];
@@ -56,13 +61,15 @@ const mercY = (lat: number): number => Math.log(Math.tan(Math.PI / 4 + (lat * Ma
 const widthPx = (degrees: number, zoom: number): number => (degrees / 360) * worldPx(zoom);
 const heightPx = (south: number, north: number, zoom: number): number => ((mercY(north) - mercY(south)) / (2 * Math.PI)) * worldPx(zoom);
 
-/** A part of the view inside one copy of the world, in that copy's degrees (-180..180), and how far east of it the copy is drawn. */
+/** A part of the view inside one copy of the world, in that copy's degrees (-180..180), and how far
+ * east the copy is drawn. */
 interface Piece {
   view: GridView;
   shift: number;
 }
 
-/** The view cut into its parts inside the copies of the world it shows (the map repeats the world sideways, and a view across the date line shows two of them) and inside the mercator's latitudes. */
+/** The view cut into its parts inside each copy of the world it shows (the map repeats the world
+ * sideways) and inside the mercator latitudes. */
 function pieces(given: GridView): Piece[] {
   const south = Math.max(-MERCATOR_LAT, given.south);
   const north = Math.min(MERCATOR_LAT, given.north);
@@ -76,7 +83,7 @@ function pieces(given: GridView): Piece[] {
   return out;
 }
 
-/** The first and the last column and row of a step's cells that the view touches. */
+/** The first and last column and row of a step's cells that the view touches. */
 function span(view: GridView, step: Step): { c0: number; c1: number; r0: number; r1: number } {
   const last = (count: number) => count - 1;
   const col = (lon: number) => Math.min(last(360 / step.w), Math.floor((lon + 180) / step.w + 1e-9));
@@ -93,7 +100,8 @@ export function cellCount(view: GridView, step: GridStep): number {
   }, 0);
 }
 
-/** The step whose cells are named: the finest the zoom allows that has at most 400 cells in view (in all the copies of the world it shows together). */
+/** The step whose cells are named: the finest the zoom allows with at most 400 cells in view (all
+ * copies of the world together). */
 export function namedStep(view: GridView): GridStep {
   const allowed = STEPS.filter((s) => view.zoom >= s.from).reverse();
   return allowed.find((s) => cellCount(view, s.step) <= MAX_CELLS)?.step ?? "field";
@@ -101,7 +109,8 @@ export function namedStep(view: GridView): GridStep {
 
 const line = (rank: 0 | 1, coordinates: LonLat[]): GridFeature => ({ type: "Feature", properties: { rank }, geometry: { type: "LineString", coordinates } });
 
-/** The lines of a step across a piece of the view, those on the lines of `skip` left out (they are drawn already), in the copy of the world the piece is drawn in. */
+/** The lines of a step across a piece of the view, leaving out those on the lines of `skip` (drawn
+ * already), in the copy of the world the piece is drawn in. */
 function lines({ view, shift }: Piece, step: Step, rank: 0 | 1, skip?: Step): GridFeature[] {
   const { c0, c1, r0, r1 } = span(view, step);
   const on = (n: number, size: number, coarse?: number) => coarse !== undefined && Math.abs(Math.round((n * size) / coarse) - (n * size) / coarse) < 1e-6;
@@ -125,7 +134,8 @@ function lines({ view, shift }: Piece, step: Step, rank: 0 | 1, skip?: Step): Gr
   return out;
 }
 
-/** A name in each cell of a piece, in the middle of its part in view; none on a sliver, but the cell under the middle of the view (`middle`, in the view's degrees) always has its name. */
+/** A name in each cell of a piece, in the middle of its part in view; none on a sliver, except the
+ * cell under `middle` (in the view's degrees), which always has its name. */
 function names({ view, shift }: Piece, step: Step, middle: { lon: number; lat: number }): GridFeature[] {
   const { c0, c1, r0, r1 } = span(view, step);
   const out: GridFeature[] = [];
@@ -144,8 +154,11 @@ function names({ view, shift }: Piece, step: Step, middle: { lon: number; lat: n
   return out;
 }
 
-/** What the grid draws for a view: the lines and names of its named step, and the subsquares' lines without names where squares are named and a subsquare is wide enough to be seen. A view across the date line
- * is drawn piece by piece, each in the copy of the world it shows, and the date line between two pieces is a line of every step. */
+/** What the grid draws for a view: the lines and names of its named step, and the subsquares' lines
+ * without names where squares are named and a subsquare is wide enough to be seen. A view across
+ * the
+ * date line is drawn piece by piece, each in its copy of the world; the date line between two
+ * pieces is a line of every step. */
 export function gridFeatures(view: GridView): GridCollection {
   const parts = pieces(view);
   const first = parts[0];

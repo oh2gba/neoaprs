@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Our digipeater (this station): a station that cannot reach the wide-area digipeater by itself (crossed) is repeated by ours, which passes the packet on.
+// Our digipeater (this station): a station that cannot reach the wide-area digipeater by itself
+// is repeated by ours, which passes the packet on.
 import { CALLS } from "@/help/calls";
 import { arrow } from "@/help/draw";
 import { t } from "@/i18n";

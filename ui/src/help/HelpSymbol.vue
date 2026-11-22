@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// An APRS symbol in a picture, cut out of the same sheets as the map's markers (lib/symbols.ts), `size` px wide and centred on (x, y).
+// An APRS symbol in a picture, cut from the same sheets as the map markers (lib/symbols.ts),
+// `size` px wide and centred on (x, y).
 import { computed } from "vue";
 import { SPRITE_COLUMNS, SPRITE_PX, SPRITE_ROWS, sheetUrl, symbolLayers } from "@/lib/symbols";
 

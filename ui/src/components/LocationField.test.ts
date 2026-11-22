@@ -77,7 +77,7 @@ describe("LocationField", () => {
     expect(wrapper.emitted("update:lat")).toEqual([["60.1875"]]);
     expect(wrapper.emitted("update:lon")).toEqual([["24.7083"]]);
     await wrapper.setProps({ lat: "60.1875", lon: "24.7083", place: "x" });
-    expect(wrapper.find<HTMLInputElement>("#loc-locator").element.value).toBe("kp20ie"); // (as typed, while it names the place)
+    expect(wrapper.find<HTMLInputElement>("#loc-locator").element.value).toBe("kp20ie");
     await wrapper.setProps({ lat: "61.5", lon: "25.5" });
     expect(wrapper.find<HTMLInputElement>("#loc-locator").element.value).toBe("KP21sm");
     await wrapper.find("#loc-locator").setValue("KP20");

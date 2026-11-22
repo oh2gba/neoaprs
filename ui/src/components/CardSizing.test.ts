@@ -1,5 +1,7 @@
-// The Packets card and the Monitor card are sized by their edges and corners and by Ctrl and Alt with the arrow keys (composables/useCardSize.ts, components/CardSizer.vue), within the least the content can be read at and the map's room;
-// the size is kept beside the place, and a window made smaller brings the card back inside. The statistics card has no handles: its content has its size.
+// The Packets and Monitor cards are sized by their edges and corners and by Ctrl and Alt with
+// the arrow keys (composables/useCardSize.ts, CardSizer.vue), within the least size the content
+// can be read at and the map's room. The size is kept with the position, and a smaller window
+// brings the card back inside. The statistics card has no handles.
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MonitorCard from "@/components/MonitorCard.vue";
@@ -11,7 +13,8 @@ const rect = (x: number, y: number, w: number, h: number) =>
   ({ x, y, left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, toJSON: () => ({}) }) as DOMRect;
 const MAP = { width: 1200, height: 800 };
 
-/** The map is 1200 by 800; a card stands where its style puts it, else at the bottom right at 560 by 480. */
+/** The map is 1200 by 800; a card stands where its style puts it, else at the bottom right at
+ * 560 by 480. */
 function standIn(): void {
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
     if (!/card/.test(this.className) || this.className.includes("card-")) return rect(0, 0, MAP.width, MAP.height);

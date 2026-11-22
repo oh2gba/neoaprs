@@ -1,5 +1,8 @@
-// The place of the Layers button among the map's own controls: a control of the map engine's whose box stands under the zoom buttons, in their group's look, and into which the page puts the button and its box
-// (components/MapLayers.vue, by a Teleport). `place` holds the box while the control is on the map, null before and after.
+// The place of the Layers button among the map's own controls: a control of the map engine whose
+// box
+// stands under the zoom buttons, in their group's look, and into which the page puts the button and
+// its box (components/MapLayers.vue, by a Teleport). `place` holds the box while the control is on
+// the map, null before and after.
 import type { Ref } from "vue";
 import type { IControl } from "maplibre-gl";
 

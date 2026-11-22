@@ -1,6 +1,7 @@
-// The conversations of the Messages tab: the messages grouped by the other station, which one is open, and how many messages the user has not seen. What was seen is the highest message id of
-// each conversation, kept in the browser (lib/storage.ts) per call: a conversation counts as seen while the Messages tab is on show with it open, and every one counts as seen once in a window whose
-// store was new (lib/firststart.ts).
+// The conversations of the Messages tab: messages grouped by the other station, which one is open
+// and how many are unseen. The seen mark is the highest message id per call, kept in the browser;
+// a conversation counts as seen while the tab is shown with it open, and all count as seen in a
+// window with a new store.
 import { computed, ref, watch, type Ref } from "vue";
 import { seenAtStart } from "@/lib/firststart";
 import { conversations, newestIncomingByCall, newestIncomingId, threadOf, unreadTotal } from "@/lib/messages";
@@ -10,8 +11,10 @@ import type { MessageRow } from "@/protocol/protocol";
 const key = (call: string): string => `read.${call}`;
 const stored = (call: string): number => readStoredNumber(key(call), 0, 0, Number.MAX_SAFE_INTEGER);
 
-/** What the user has seen, by call. Reading it in a computed value makes that value follow `mark`. Another window of the browser may have marked further since this one read the mark: a mark is compared with the
- * stored one, never written lower than it. */
+/**
+ * What the user has seen, by call. Another window may have marked further: a mark is compared with
+ * the stored one and never written lower.
+ */
 export function useReadMarks() {
   const cache = new Map<string, number>();
   const changes = ref(0);
@@ -27,7 +30,6 @@ export function useReadMarks() {
     return id;
   }
 
-  /** The mark becomes `held`, written when the store has another. */
   function hold(call: string, held: number, inStore: number): void {
     if (held !== inStore) writeStored(key(call), String(held));
     if (held === cache.get(call)) return;
@@ -40,7 +42,10 @@ export function useReadMarks() {
     hold(call, Math.max(readUpTo(call), inStore, id), inStore);
   }
 
-  /** Once for each call, when its thread first has rows: a mark above every incoming id of the thread is no read mark (the database was restored or reset, or the newest messages were deleted), so it comes down to the newest id there is. */
+  /**
+   * Once per call, when its thread first has rows: a mark above every incoming id is stale
+   * (database restored or newest messages deleted) and comes down to the newest id.
+   */
   function settle(call: string, newest: number): void {
     if (settled.has(call)) return;
     settled.add(call);
@@ -51,7 +56,10 @@ export function useReadMarks() {
   return { readUpTo, mark, settle };
 }
 
-/** `viewing` is true while the Messages tab is on show; `showOverheard` lists the messages we only heard as conversations of their own; `loaded`, that the daemon has told the messages whole. */
+/**
+ * `viewing`: the tab is shown; `showOverheard`: list overheard messages as conversations; `loaded`:
+ * the daemon sent all messages.
+ */
 export function useConversations(
   messages: ReadonlyMap<string, MessageRow>,
   viewing: Ref<boolean>,

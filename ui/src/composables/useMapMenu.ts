@@ -1,22 +1,20 @@
-// The map's own menu (components/MapMenu.vue) as the map opens it: where it was asked for and the place under the pointer there. A right-click is MapLibre's `contextmenu` event, with the place in it (the browser's own menu is
-// not shown); a finger held on the map (`on`, the listeners of the map's root: useLongPress) is the same for the place under it, which the map is asked for (`unproject`; the browser gives no right-click there, and where it
-// does, the second asking replaces the first). `key` makes a menu asked for again a new one, in its new place. The map's hover card is hidden as the menu opens.
+// The map's own menu: where it was asked for and the place under the pointer. A right-click is
+// MapLibre's `contextmenu` event; a finger held on the map (`on`, the listeners of the map's root)
+// asks the map for the place (`unproject`). `key` makes a menu asked for again a new one.
 import { ref, type Ref } from "vue";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useLongPress } from "@/composables/useLongPress";
 
-/** A card the map's menu opens over the map: the statistics card, the Packets card, the monitor (composables/useAppShell.ts keeps which are open). */
 export type MapCard = "stats" | "packets" | "monitor";
 
 export interface MapMenuState {
   lat: number;
   lon: number;
-  /** where the menu stands, in the window's pixels */
+  /** Where the menu stands, in window pixels. */
   x: number;
   y: number;
 }
 
-/** What MapLibre's `contextmenu` event carries, as far as the menu needs it. */
 export interface MapMenuEvent {
   lngLat?: { lat: number; lng: number };
   point?: { x: number; y: number };
@@ -24,7 +22,6 @@ export interface MapMenuEvent {
   preventDefault?: () => void;
 }
 
-/** What the map lends the menu: the map itself (for the place under a finger), and its hover card, hidden as the menu opens. */
 export interface MapParts {
   map: MapLibreMap | null;
   hover: { hide(): void } | null;
@@ -40,13 +37,12 @@ export function useMapMenu(host: Readonly<Ref<HTMLElement | null>>, parts: () =>
     key.value++;
   }
 
-  /** A pixel of the map in the window's coordinates. */
   function pageXY(point?: { x: number; y: number }): { x: number; y: number } {
     const box = host.value?.getBoundingClientRect();
     return { x: (box?.left ?? 0) + (point?.x ?? 0), y: (box?.top ?? 0) + (point?.y ?? 0) };
   }
 
-  /** The right button on the map: the menu for the place, and no browser menu. Nothing without a place. */
+  /** The right button on the map: open the menu for the place, with no browser menu. */
   function onContextMenu(event?: MapMenuEvent): void {
     if (!event?.lngLat) return;
     event.preventDefault?.();
@@ -67,7 +63,6 @@ export function useMapMenu(host: Readonly<Ref<HTMLElement | null>>, parts: () =>
     menu.value = null;
   }
 
-  /** The listeners of the map's root (`v-on="on"`): the finger held on the map. */
   const on = { pointerdown: press.down, pointermove: press.move, pointerup: press.up, pointercancel: press.cancel };
 
   return { menu, key, onContextMenu, on, close };

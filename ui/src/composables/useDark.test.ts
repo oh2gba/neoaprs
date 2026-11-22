@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, h, nextTick } from "vue";
 import { useDark } from "@/composables/useDark";
 
-/** The viewer's colour scheme as a media query that the test changes: what `window.matchMedia` gives for `(prefers-color-scheme: dark)`. */
+/**
+ * The colour scheme as a media query the test changes: what `window.matchMedia` gives for
+ * `(prefers-color-scheme: dark)`.
+ */
 class FakeScheme {
   listeners = new Set<(event: MediaQueryListEvent) => void>();
   constructor(public matches: boolean) {}

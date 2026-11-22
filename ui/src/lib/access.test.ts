@@ -51,7 +51,7 @@ describe("takeKey", () => {
     const loc = { hash: url.hash, pathname: url.pathname, search: url.search } as Location;
     const replaceState = (state: unknown, _: string, to: string) => {
       replaced.push(`${JSON.stringify(state)} ${to}`);
-      loc.hash = new URL(to, url).hash; // (as a browser does: the address is the new one at once)
+      loc.hash = new URL(to, url).hash; // as a browser does: the address is the new one at once
     };
     const hist = { state: { kept: 1 }, replaceState } as unknown as History;
     return { key: takeKey(loc, hist), replaced };

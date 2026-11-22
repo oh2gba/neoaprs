@@ -1,21 +1,26 @@
-// The shapes an aircraft is drawn with on the map, in the hover box and in its card's head, each a flat outline seen from above with its nose to the north, as SVG path data on its own viewBox, and the size in
-// pixels the map draws its longest side at (17 to 30, about a station's symbol's 26, in the proportions tar1090 draws the kinds in, so that they can be told apart). lib/layers/aircraftkinds.ts says which an aircraft gets.
+// Aircraft shapes for the map, hover box and card head: flat outlines seen from above, nose north,
+// as SVG path data on their own viewBox, with the pixel size of the longest side on the map (17 to
+// 30, in tar1090's proportions so that kinds can be told apart). lib/layers/aircraftkinds.ts picks
+// the shape.
 //
-// Every shape is from tar1090 by Matthias Wirth (https://github.com/wiedehopf/tar1090, html/markers.js; "licensed under the GPL, v2 or later", itself based on FlightAware's dump1090, GPL 2 or later), taken
-// unchanged, the name tar1090 gives it at each. Only the general shapes are taken, none of the single types and none that carries an author or a licence of its own in tar1090's file (the A320 and B737 family,
-// the C-130, the fast jet). The map's credits (components/MapAttribution.vue) name tar1090 while the aircraft are drawn.
+// Every shape is from tar1090 by Matthias Wirth (https://github.com/wiedehopf/tar1090,
+// html/markers.js; GPL v2 or later, based on FlightAware's dump1090), unchanged, under tar1090's
+// name. Only general shapes are used, none that carries an author or licence of its own in
+// tar1090's file (the A320 and B737 family, the C-130, the fast jet). The map's credits
+// (components/MapAttribution.vue) name tar1090 while aircraft are drawn.
 
-/** A shape: its path, the box it is drawn in, how large the map draws it, and whether it is turned to where the aircraft heads. */
+/**
+ * A shape: its path, its box, its size on the map, and whether it turns to the aircraft's heading.
+ */
 export interface AircraftOutline {
   readonly viewBox: string;
-  /** the longest side on the map, in pixels */
+  /** The longest side on the map, in pixels. */
   readonly size: number;
-  /** turned to the heading (a balloon has no direction of its own) */
+  /** Turned to the heading (a balloon has no direction of its own). */
   readonly turns: boolean;
   readonly d: string;
 }
 
-/** The shapes, by our name. */
 export type AircraftShape = "airliner" | "heavy" | "heavy4" | "bizjet" | "twin" | "light" | "helicopter" | "glider" | "balloon" | "drone" | "unknown";
 
 export const AIRCRAFT_SHAPES: Readonly<Record<AircraftShape, AircraftOutline>> = {

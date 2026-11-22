@@ -1,7 +1,11 @@
 <script setup lang="ts">
-// The weather of a weather station at the top of its card: the latest readings (temperature large, the wind as an arrow with its speed and gusts, humidity, pressure, rain over the hour, 24 hours and since midnight,
-// luminosity and snow when they are sent) with how long ago they were heard, and under them the trend graphs of the last 24 hours or the last 7 days (the switch is remembered): temperature, pressure, wind with its
-// gusts as a lighter band, and rain as bars. The daemon is asked for the series when the card opens, when the switch changes and when a new observation comes (`ask`). With several weather cards open `ranges` is the value axes they share (lib/weather.ts `sharedRanges`): each graph is on the axis it is given.
+// The weather of a weather station at the top of its card: the latest readings (temperature,
+// wind arrow with speed and gusts, humidity, pressure, rain over the hour, 24 hours and since
+// midnight, luminosity and snow when sent) with their age, and trend graphs for the last 24
+// hours or 7 days (the switch is remembered): temperature, pressure, wind with gusts as a
+// lighter band, rain as bars. The daemon is asked for the series when the card opens, the
+// switch changes or a new observation arrives (`ask`). `ranges` are the value axes shared by
+// several open weather cards (lib/weather.ts `sharedRanges`).
 import { computed, watch } from "vue";
 import TrendChart from "@/components/TrendChart.vue";
 import { useWxSpan } from "@/composables/useWxSpan";
@@ -18,7 +22,8 @@ const spans = computed(() => [
   { hours: "24" as const, label: t("time.span.h", { n: 24 }) },
   { hours: "168" as const, label: t("weather.span.days", { n: 7 }) },
 ]);
-const span = useWxSpan(); // (the one of all the open cards, when there are several)
+// One span for all open cards.
+const span = useWxSpan();
 const hours = computed(() => Number(span.value));
 
 watch(
@@ -29,7 +34,7 @@ watch(
 
 const wx = computed(() => props.row.weather);
 const angle = computed(() => arrowAngle(wx.value?.wind_dir ?? null));
-// the series the card asked for (an answer for another station or span is not shown), drawn up to the minute
+// The series the card asked for; answers for another station or span are ignored.
 const mine = computed(() => (props.series !== null && props.series.call === props.row.call && props.series.hours === hours.value ? props.series : null));
 const to = computed(() => Math.floor(props.now / 60_000) * 60_000);
 const from = computed(() => to.value - hours.value * 3_600_000);
@@ -41,7 +46,7 @@ const charts = computed(() => ({
   rain: columnOf(mine.value, "rain"),
 }));
 const heard = computed(() => (props.row.weather_at === null ? "" : agoWords(props.row.weather_at, props.now)));
-/** "from 123° ESE gusts 20 km/h": the direction the wind comes from and its gusts, as far as they are known. */
+/** The wind direction and gusts as far as known, e.g. "from 123° ESE gusts 20 km/h". */
 const windNote = computed(() => {
   const w = wx.value;
   if (w === null) return "";

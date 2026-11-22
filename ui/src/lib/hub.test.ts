@@ -346,7 +346,8 @@ describe("Hub", () => {
   it("asks the socket for binary frames as buffers and hands the rows of the waterfall and the rows kept in them to the store, the frames of another kind or size and those that name no radio it lets go", () => {
     const { seen, socket } = opened();
     expect(socket.binaryType).toBe("arraybuffer");
-    /** A frame of radio 2's scope, as the daemon sends it: the kind, the radio's id (little-endian), then the frame whole. */
+    /** A frame of radio 2's scope, as the daemon sends it: the kind, the radio's id
+     * (little-endian), then the frame whole. */
     const named = (inner: Uint8Array): Uint8Array => {
       const out = new Uint8Array(5 + inner.length);
       out[0] = 3;
@@ -357,7 +358,7 @@ describe("Hub", () => {
     const frame = new Uint8Array(3 + 307);
     frame.set([1, 1, 256 - 41, 0, 2, 255], 0);
     socket.sayBytes(named(frame));
-    socket.sayBytes(frame); // (a frame that names no radio)
+    socket.sayBytes(frame); // A frame that names no radio
     socket.sayBytes(named(Uint8Array.of(9, 0, 0)));
     socket.sayBytes(named(frame.subarray(0, 300)));
     const kept = new Uint8Array(9 + 313);
@@ -546,7 +547,8 @@ describe("Hub", () => {
     socket.hangUp();
     vi.advanceTimersByTime(FIRST_DELAY_MS);
     const second = FakeSocket.last();
-    second.say(patch("packets", 1, [{ op: "set", key: "2", value: packet(2) }])); // a new run of the daemon counts from 0 again
+    // A new run of the daemon counts from 0 again
+    second.say(patch("packets", 1, [{ op: "set", key: "2", value: packet(2) }]));
     expect(second.sent).toEqual([{ cmd: "subscribe", topics: ["packets"] }]);
     second.say(state("packets", 0, { "2": packet(2) }));
     expect([...seen.packets.keys()]).toEqual(["2"]);
@@ -584,7 +586,7 @@ describe("Hub", () => {
     expect(FakeSocket.all).toHaveLength(2);
     expect(socket.closed).toBe(true);
     expect(seen.connection.slice(-2)).toEqual(["closed", "connecting"]);
-    socket.hangUp(); // its late close changes nothing
+    socket.hangUp(); // Its late close changes nothing
     vi.advanceTimersByTime(FIRST_DELAY_MS * 4);
     expect(FakeSocket.all).toHaveLength(2);
   });
@@ -603,7 +605,7 @@ describe("Hub", () => {
     socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
     hub.wake();
     expect(FakeSocket.all).toHaveLength(1);
-    vi.setSystemTime(Date.now() + QUIET_MS); // the phone slept: no timer ran
+    vi.setSystemTime(Date.now() + QUIET_MS); // The phone slept: no timer ran
     hub.wake();
     expect(FakeSocket.all).toHaveLength(2);
     for (let i = 0; i < 4; i++) {

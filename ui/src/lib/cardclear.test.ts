@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { covers, moveClearOf, type Box } from "@/lib/cardclear";
 
-// a phone: a map 390 wide and 380 high, the card at its bottom with its top 130 px down (the most the card may be)
+// a phone: a map 390 wide and 380 high, the card at its bottom with its top 130 px down (the
+// most the card may be)
 const phone: Box = { left: 0, top: 0, right: 390, bottom: 380 };
 const phoneCard: Box = { left: 10, top: 130, right: 380, bottom: 370 };
 // a desktop: a map 960 wide and 860 high, the card 340 wide at its bottom left corner

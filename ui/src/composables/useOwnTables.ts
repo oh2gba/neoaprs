@@ -1,4 +1,5 @@
-// The two topics of what we send of our own accord as tables of rows the page reads: `own_objects` (by name) and `own_bulletins` (by slot), and what the hub (lib/hub.ts) does with them: replace the whole table, set a row, delete one.
+// The tables of rows the page reads of what we send of our own accord: `own_objects` (by name) and
+// `own_bulletins` (by slot).
 import { shallowReactive } from "vue";
 import { fillTable, type Store } from "@/lib/hub";
 import type { OwnBulletinRow, OwnObjectRow } from "@/protocol/protocol";

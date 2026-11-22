@@ -9,7 +9,7 @@ describe("characters and bytes", () => {
   it("count as the daemon does: a character is a code point (Python's len), a byte one of its UTF-8", () => {
     expect(characters("abc")).toBe(3);
     expect(characters("ä")).toBe(1);
-    expect(characters("😀")).toBe(1); // (two UTF-16 units in JavaScript, one character to Python)
+    expect(characters("😀")).toBe(1); // two UTF-16 units in JavaScript, one character in Python
     expect(bytes("ä")).toBe(2);
     expect(bytes("😀")).toBe(4);
   });
@@ -55,12 +55,13 @@ describe("typedInto", () => {
     expect(typedInto(input(target, true), "abcにほ", limit)).toBe("abc日本語");
     expect(target.value).toBe("abc日本語");
     target.value = "abc日本語";
-    expect(typedInto(new CompositionEvent("compositionend"), "abc日本語", limit)).toBe("abc日本語"); // (an event of no field changes nothing)
+    // an event with no field changes nothing
+    expect(typedInto(new CompositionEvent("compositionend"), "abc日本語", limit)).toBe("abc日本語");
     const end = new CompositionEvent("compositionend");
     target.dispatchEvent(end);
     expect(typedInto(end, "abc日本語", limit)).toBe("abc日本");
     expect(target.value).toBe("abc日本");
-    expect(typedInto(input(target), "abc日本", limit)).toBe("abc日本"); // (the input event that follows in some browsers)
+    expect(typedInto(input(target), "abc日本", limit)).toBe("abc日本"); // the input event that follows in some browsers
     target.remove();
   });
 });

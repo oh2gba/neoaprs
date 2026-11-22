@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// A symbol as a field: the symbol's picture and its name are the control, a click opens the symbol picker (the accessible name is "Change symbol"), and, only for a symbol that can carry one, a small "Letter or digit on it". The symbol is the two characters
-// the settings write (the table and the code); the user never sees them. Used by the My station tab, the first-run guide and the Objects form. The guide gives `more`: it has its grid of the common symbols above, so here the symbol in force is plain text and the button
-// beside it, "More symbols…", opens the picker. `update:symbol` follows the field as it is changed (the letter is typed);
-// `commit` says a symbol is final: one picked from the picker, or the letter when its field is left or Enter is pressed (the My station tab applies it then).
+// A symbol as a field: its picture and name open the symbol picker ("Change symbol"); a symbol
+// that can carry one also shows a "Letter or digit on it" field. The symbol is the table and
+// code characters the settings write. With `more` (setup guide) the symbol is plain text and
+// a "More symbols…" button opens the picker. `update:symbol` follows each edit; `commit` marks
+// a final symbol: picked, or the letter after blur or Enter.
 import { computed, nextTick, ref, useId } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
@@ -26,7 +27,7 @@ const change = ref<HTMLButtonElement | null>(null);
 const nameId = useId();
 
 function pick(newTable: string, newCode: string): void {
-  // a symbol that takes a letter or a digit keeps the one that was on the symbol before it
+  // Keep the earlier letter or digit on a symbol that takes one.
   const kept = newTable !== "/" && takesOverlay("\\", newCode) ? overlayOf(table.value) : "";
   emit("update:symbol", `${kept || newTable}${newCode}`);
   emit("commit");

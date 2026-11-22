@@ -1,12 +1,19 @@
-/* The page for the size of the window: phone, tablet, desktop (lib/layout.ts decides which, composables/useViewport.ts keeps it up to date, and App.vue puts it on the root as `size-phone`, `size-tablet` or `size-desktop`; a phone
-   also has `view-map` or `view-panel`: what it shows now). The rules here use that class and not media queries of their own, so that the script and the style never disagree; only what belongs to the kind of device (a finger, the notch)
-   is a media query. The sheets before this one have the page as it is on a desktop: the map, and at its right the panel the user can drag wider.
+/* The page for the size of the window: phone, tablet, desktop (lib/layout.ts decides,
+   composables/useViewport.ts keeps it current, and App.vue puts it on the root as `size-phone`,
+   `size-tablet` or `size-desktop`; a phone also has `view-map` or `view-panel`: what it shows
+   now). The rules here use that class and not media queries of their own, so that script and
+   style never disagree; only what belongs to the kind of device (a finger, the notch) is a media
+   query. The sheets before this one have the page as on a desktop: the map, and at its right
+   the panel the user can drag wider.
 
-   phone   (under 700 px, or a short window under 1000 px: a phone held sideways)  one view at a time: the open tab fills the screen under a compact header, or the map does; the Map button begins the tab bar
-   tablet  (700 to 1100 px)                                                        the map and the panel side by side, the panel 380 to 420 px wide
-   desktop (from 1100 px)                                                          as the sheets before this one have it, the panel's width the user's */
+   phone   (under 700 px, or a short window under 1000 px: a phone held sideways)
+           one view at a time: the open tab fills the screen under a compact header, or the map
+           does; the Map button begins the tab bar
+   tablet  (700 to 1100 px)  the map and the panel side by side, the panel 380 to 420 px wide
+   desktop (from 1100 px)    as the sheets before this one have it, the panel's width the user's */
 
-/* every size: the page is the window and does not scroll; the notch and the home bar of a phone are left alone */
+/* every size: the page is the window and does not scroll; the notch and the home bar of a phone
+   are left alone */
 html,
 body {
   overflow: hidden;
@@ -33,10 +40,14 @@ button,
   touch-action: manipulation;
 }
 
-/* the station cards: a row over the map, from its left, side by side, the oldest at the left; every card is the whole card, as it is alone (its body scrolls if the map is too low for it), and none is made narrower: when the row does not fit
-   the map the page closes the oldest card. "Close all" and "Message these 3" are at the top left of the map, beside the zoom buttons. */
+/* the station cards: a row over the map from its left, side by side, the oldest at the left;
+   every card is whole, as when alone (its body scrolls if the map is too low), and none is made
+   narrower: when the row does not fit the map the page closes the oldest card. "Close all" and
+   "Message these 3" are at the top left of the map, beside the zoom buttons. */
 .cardstack {
-  /* the top of the map stays free for its zoom buttons and the Layers button under them (they end at 108 px, at 141 px where a finger sizes them 40 px high; lib/cardclear.ts keeps a marker below them too) */
+  /* the top of the map stays free for its zoom buttons and the Layers button under them (they end
+     at 108 px, at 141 px where a finger sizes them 40 px high; lib/cardclear.ts keeps a marker
+     below them too) */
   --row-top: 120px;
   position: absolute;
   top: var(--row-top);
@@ -59,12 +70,17 @@ button,
   max-height: 100%;
   min-height: 0;
 }
-/* a card the user has dragged (or moved with Alt and the arrows), and every other open card with it, is out of the row, where the script has put it (left and top, in the row's pixels): no card moves for another. Its head is the handle: not the buttons and links on it.
-   A phone's sheet has none of this (the script gives no place there, and the head is not a handle). */
+/* a card the user has dragged (or moved with Alt and the arrows), and every other open card with
+   it, is out of the row, where the script has put it (left and top, in the row's pixels): no card
+   moves for another. Its head is the handle, not the buttons and links on it. A phone's sheet has
+   none of this (the script gives no place there, and the head is not a handle). */
 .cardstack .card.moved {
   position: absolute;
-  bottom: auto; /* (not the card's own bottom: 30px, which would stretch it from its top to there) */
-  /* it may be as tall as the map (the row is the map less its top above and 30 px below): a card that grows where it stands is moved up by the script until it fits, and only a card taller than the map scrolls */
+  /* not the card's own bottom: 30px, which would stretch it from its top to there */
+  bottom: auto;
+  /* it may be as tall as the map (the row is the map less its top above and 30 px below): a card
+     that grows where it stands is moved up by the script until it fits, and only a card taller
+     than the map scrolls */
   max-height: calc(100% + var(--row-top) + 30px);
   z-index: 1;
 }
@@ -93,7 +109,7 @@ button,
   box-shadow: var(--shadow);
 }
 
-/* tablet: the panel has the width of its size, a fixed one (there is no mouse to drag the handle with) */
+/* tablet: the panel has a fixed width for its size (there is no mouse to drag the handle) */
 .size-tablet .panel {
   width: clamp(380px, 40%, 420px);
 }
@@ -101,7 +117,8 @@ button,
   width: 34px;
 }
 
-/* phone: one view at a time. The panel is the tab bar and, in its turn, the open tab under it; the map is the rest of the screen */
+/* phone: one view at a time. The panel is the tab bar and, in its turn, the open tab under it; the
+   map is the rest of the screen */
 .size-phone .appheader {
   gap: 10px;
   padding-right: 10px;
@@ -125,7 +142,7 @@ button,
 }
 .size-phone .panel-body {
   min-height: 0;
-  /* (the bottom of the tab keeps clear of the home bar) */
+  /* the bottom of the tab keeps clear of the home bar */
   padding-bottom: env(safe-area-inset-bottom);
 }
 .size-phone .tabbar {
@@ -143,7 +160,8 @@ button,
 .size-phone .toolbar .filterbox {
   flex: 1 1 100%;
 }
-/* the Stations table on a phone: the row has room for two buttons, Message and the "..." of the menu (which has Forget too), so that the table does not scroll sideways */
+/* the Stations table on a phone: the row has room for two buttons, Message and the "..." of the
+   menu (which has Forget too), so that the table does not scroll sideways */
 .size-phone .grid.stations th,
 .size-phone .grid.stations td {
   padding-right: 4px;
@@ -158,12 +176,12 @@ button,
 .size-phone .grid.stations td.actions .forgetbtn {
   display: none;
 }
-/* the station panel takes less of a phone's tab, so that the list above keeps a few rows (it scrolls inside itself) */
+/* the station panel takes less of a phone's tab, so the list above keeps a few rows */
 .size-phone .composebar.stationpanel {
   flex-basis: 40%;
 }
 
-/* on a phone the button of an action row fills the control column, as the inputs of the other rows do */
+/* on a phone the button of an action row fills the control column, as other rows' inputs do */
 .size-phone .action-row .field-control > .btn:first-child {
   flex: 1;
 }
@@ -173,19 +191,25 @@ button,
   flex: 1;
 }
 
-/* the button of the update check keeps its size on a phone: the version and the answer are beside it, or under it when they do not fit */
+/* the update check button keeps its size on a phone: the version and the answer are beside it, or
+   under it when they do not fit */
 .size-phone .action-row .field-control:has(.updateline) > .btn:first-child {
   flex: none;
 }
 
-/* the sliders of the sound card's own levels on a phone, and in a control column too narrow for them beside the bar (components/CardSlider.vue, `narrow`): each with its percent has the control's line but the
-   room of the (i) at its end, the same length in the Transmit and the Receive level rows; the Receive level has the bar, its number and the (i) first and the slider's line under it, which is there, empty, where
-   the card has no capture control (nothing moves when the slider comes). A wider column has the Receive level in one line, its slider's room never more than the bar, its number and the (i) leave */
+/* the sliders of the sound card's own levels on a phone, and in a control column too narrow for
+   them beside the bar (components/CardSlider.vue, `narrow`): each with its percent has the
+   control's line but the room of the (i) at its end, the same length in the Transmit and Receive
+   level rows; the Receive level has the bar, its number and the (i) first and the slider's line
+   under it, which is there, empty, where the card has no capture control (nothing moves when the
+   slider comes). A wider column has the Receive level in one line, its slider's room never more
+   than the bar, its number and the (i) leave */
 .size-phone .field-control > .cardslider,
 .field-control > .cardslider.narrow {
   flex-basis: calc(100% - 28px); /* the (i), 20 px, and the gap before it */
 }
-/* there the percent has the room of the bar's number (components/LevelBar.vue `.levelvalue`), so that the sliders are as long as the bar over them and end where it ends */
+/* there the percent has the room of the bar's number (components/LevelBar.vue `.levelvalue`),
+   so the sliders are as long as the bar over them and end where it ends */
 .size-phone .cardslider > .cardslider-value,
 .cardslider.narrow > .cardslider-value {
   width: 9ch;
@@ -198,7 +222,8 @@ button,
   order: 1;
 }
 
-/* the access key on a phone has the whole line, with its button under it: the key is long, and a longer word for the button (in another language) would leave it a few letters */
+/* the access key on a phone has the whole line with its button under it: the key is long, and a
+   longer button word in another language would leave it a few letters */
 .size-phone .field-control:has(#set-web-key) {
   flex-wrap: wrap;
 }
@@ -206,7 +231,8 @@ button,
   flex: 1 1 100%;
 }
 
-/* phone: the station card is a bottom sheet, part of the screen: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it (and closes the folded one) */
+/* phone: the station card is a bottom sheet: folded to its head and the first facts; a tap or a
+   swipe up on its grip opens it, a swipe down folds it (and closes the folded one) */
 .size-phone .cardstack {
   top: auto;
   right: 0;
@@ -282,7 +308,9 @@ button,
   box-shadow: var(--shadow);
 }
 
-/* phone: the bar of the map's replay is at the top of the map, under its zoom buttons and the Layers button, the width of the map less 16 px each side; the station's sheet and the credits are at the bottom */
+/* phone: the map replay bar is at the top of the map, under its zoom buttons and the Layers
+   button, the map's width less 16 px each side; the station's sheet and the credits are at the
+   bottom */
 .size-phone .replaybar {
   top: 150px;
   right: 16px;
@@ -292,7 +320,8 @@ button,
   transform: none;
 }
 
-/* phone: the first-run guide is the whole screen (the map behind it, which "Choose on map" folds it to its head to show) */
+/* phone: the first-run guide is the whole screen (the map behind it, which "Choose on map" folds
+   it to its head to show) */
 .size-phone.guide-open .appheader,
 .size-phone.guide-open .panel {
   display: none;
@@ -313,7 +342,7 @@ button,
 .size-phone .setup form {
   flex: 1;
 }
-/* (the steps are a line of their own: five round buttons the width of a finger do not go beside the title) */
+/* the steps have a line of their own: five finger-wide round buttons do not fit beside the title */
 .size-phone .setup-head {
   flex-wrap: wrap;
 }
@@ -397,13 +426,17 @@ button,
   .cardstack {
     --row-top: 150px;
   }
-  /* a finger needs more: the handles of a card that is sized (composables/useCardSize.ts) are thicker, and the ones at the top right stay clear of the close cross (40 px) */
+  /* a finger needs more: the handles of a sized card (composables/useCardSize.ts) are thicker,
+     and the ones at the top right stay clear of the close cross (40 px) */
   .card {
     --sizer: 12px;
     --sizer-corner: 24px;
     --sizer-clear: 48px;
   }
-  /* a long press on a row of the Stations table opens its menu, one on a row, a bubble or a head that has a copy menu (CopyMenu) opens that, and one on the monitor card's body (its picture and its receive level) opens the card's menu: the page does not select text or show the system's callout instead (not in the field under a row, whose path field is typed in) */
+  /* a long press on a Stations table row opens its menu; one on a row, bubble or head with a copy
+     menu (CopyMenu) opens that; one on the monitor card's body (its picture and receive level)
+     opens the card's menu: the page does not select text or show the system's callout instead
+     (not in the field under a row, whose path field is typed in) */
   .grid.stations tbody tr:not(.detail),
   .copysource,
   .monitorcard .card-body {
@@ -414,7 +447,7 @@ button,
   .headmail,
   .nocall,
   .brand {
-    /* the small things of the header are as high as the header, which is the height of a finger and a bit */
+    /* the small things of the header are as high as the header, a finger's height and a bit */
     position: relative;
     overflow: visible;
   }
@@ -434,7 +467,8 @@ button,
   .sheet-grip::before {
     inset: -14px 0 -4px;
   }
-  /* the little (i) is drawn 20 px and answers to 40: its box is that, over its neighbours' edges, and its circle is the middle of it */
+  /* the little (i) is drawn 20 px and answers to 40: its box is that, over its neighbours' edges,
+     and its circle is the middle of it */
   .info-toggle,
   .attrib-toggle {
     position: relative;

@@ -82,7 +82,8 @@ describe("the range circle of the selected digipeater", () => {
     expect(drawn()?.features.map((f) => [f.properties.call, f.properties.km])).toEqual([["OH2RCH-2", 21.4]]);
     expect(drawn()?.features[0]?.geometry.coordinates[0]?.length).toBeGreaterThan(60);
     await wrapper.setProps({ selected: "OH2RCH-4" });
-    expect(drawn()?.features.map((f) => [f.properties.call, f.properties.km])).toEqual([["OH2RCH-4", 12]]); // (the PHG one is not kept)
+    // the PHG one is not kept
+    expect(drawn()?.features.map((f) => [f.properties.call, f.properties.km])).toEqual([["OH2RCH-4", 12]]);
     await wrapper.setProps({ selected: null });
     expect(drawn()?.features).toEqual([]);
   });
@@ -166,7 +167,8 @@ describe("the map and the range circle of a station that is picked", () => {
   });
 
   it("fits itself to the circle when the marker of the selected digipeater is clicked, and leaves a plain station's marker alone", async () => {
-    // (the page makes the clicked marker the selected station in the same tick; here the selection is told first)
+    // (the page makes the clicked marker the selected station in the same tick; here the selection
+    // is told first)
     const { wrapper } = await mounted({ selected: "OH2RCH-2" });
     click("OH2RCH-2");
     await flushPromises();

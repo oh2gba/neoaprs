@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The list of conversations of the Messages tab, the one with the newest message first: the call (or the pair of an overheard one), the age, the last text on one line ("You: " before one of ours) and the number of messages not seen. "Show overheard" (with an (i)) is at its top; the open conversation is the filled row, one with something not seen that is not the open one has its call in bold and a bar at its left. A row is a button that opens the conversation; the trash at the right end of it deletes the whole conversation
-// (or the overheard pair) after "sure?": the one way to delete, a single message has no button. A right-click on a row (a long press on a touch screen) offers to copy its call, both of a pair (CopyMenu).
+// The Messages tab's conversation list, newest first: call (or overheard pair), age, last text
+// and unseen count. The trash button deletes the whole conversation after "sure?"; a single
+// message has no button. Right-click copies the call (CopyMenu).
 import TagMark from "@/components/TagMark.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -23,15 +24,15 @@ const emit = defineEmits<{
   deleteOverheard: [from: string, to: string];
 }>();
 
-const sure = useSure<string>(); // (the call of a conversation, the pair of an overheard one)
-/** The copy menu of a row: its call, or the two calls of an overheard pair. */
+const sure = useSure<string>();
+/** The copy menu of a row: its call, or both calls of an overheard pair. */
 const copy = useCopyMenu((row) => {
   const call = row.dataset["call"];
   if (call === undefined) return [];
   return (overheardPair(call) ?? [call]).map((text) => ({ kind: "call" as const, text }));
 });
 
-/** The last text on a row: ours has "You: " before it, a query we sent is the note of it ("You asked for its status"). */
+/** The last text on a row: "You: " before ours, or the note for a query we sent. */
 function preview(row: Conversation["last"]): string {
   const asked = askedNote(row);
   if (asked !== null) return asked;
@@ -39,7 +40,7 @@ function preview(row: Conversation["last"]): string {
   return row.direction === "out" ? t("messages.last_out", { text }) : text;
 }
 
-/** The delete of a row: the conversation goes, or the overheard pair. */
+/** The delete of a row: the conversation, or the overheard pair. */
 function remove(call: string): void {
   const pair = overheardPair(call);
   if (pair === null) emit("deleteConversation", call);

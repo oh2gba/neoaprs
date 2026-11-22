@@ -1,8 +1,7 @@
 <script setup lang="ts">
-// The part of the replay's bar (components/ReplayBar.vue) that moves with the clock: the slider over the span, which seeks, and the time of the replay as a clock. They are a component of their own so that
-// the clock's ten steps a second draw these two and nothing else: the rest of the bar is drawn again only when a choice, play or pause or the span changes. (Drawn with the clock, the bar's selects were patched
-// at each step, Vue writing the `value` of each select and of each of its options again, and the browser redrew them: they flickered while the replay played.) Two elements and no box of their own, so that
-// the bar lays them out as before, the slider on a line of its own where the bar is narrow.
+// The part of the replay bar that follows the clock: the seeking slider and the clock text. It is a
+// separate component so that the clock's steps redraw only these two; redrawing the bar's selects
+// at each step made them flicker. It has no box of its own so the bar can lay the two out.
 import { computed } from "vue";
 import type { Replay } from "@/composables/useReplay";
 import { t } from "@/i18n";

@@ -1,6 +1,8 @@
-// The page's made-up rows against the daemon's own. tests/fixtures/wire/rows.json is what the daemon's views make of a world with a row of every kind, and tests/test_wire_rows.py holds it to those views and to
-// the models; so a maker of ui/src/test/fixtures.ts that gives a field the daemon does not send, or lacks one it sends, fails here, and the one source of the radios (lib/radios.ts) is tried on the daemon's
-// topic `radios` and its settings as they come.
+// The page's made-up rows against the daemon's own. tests/fixtures/wire/rows.json is what the
+// daemon's views make of a world with a row of every kind, and tests/test_wire_rows.py holds it to
+// those views and to the models; so a maker in ui/src/test/fixtures.ts that gives a field the
+// daemon does not send, or lacks one it sends, fails here, and the radios' source (lib/radios.ts)
+// is tried on the daemon's topic `radios` and settings.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,7 +30,10 @@ const ROWS = JSON.parse(readFileSync(FILE, "utf8")) as Record<string, Record<str
 /** The daemon's rows of a topic: a keyed topic's values, a whole one's list. */
 const rows = (topic: string): Record<string, unknown>[] => Object.values(ROWS[topic] ?? []) as Record<string, unknown>[];
 const keys = (row: object): string[] => Object.keys(row).sort();
-/** The keys of an object field that has the same keys in every row (a radio's `can`, its `stats`), as `field.key`; the fields keyed by a radio or a call are left out. */
+/**
+ * The keys of an object field with the same keys in every row (a radio's `can`, `stats`), as
+ * `field.key`.
+ */
 const inner = (row: Record<string, unknown>, fields: readonly string[]): string[] =>
   fields
     .flatMap((field) => {

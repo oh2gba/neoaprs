@@ -1,10 +1,9 @@
 <script setup lang="ts">
-// The path a message to a station, and the ack of one from it, goes by way of: the digipeaters, separated by commas. Left empty the choice is automatic and the line under the field says what it is: the first two attempts of a
-// message go by the path that has lately been heard to reach the station (`heard`, the daemon's), the others by the beacon's path (`fallback`). A path typed is the station's own and is used for every attempt ("Your path:"); the word
-// DIRECT is an own path with no digipeaters. It is saved when the field is changed and left, or Enter is pressed (the browser's change event), and the x (or an empty field) gives the choice back to the automatic one. What is put
-// in the slot (the RF only tickbox) sits beside it. The path builder's button (PathBuilder) beside the field builds a path to put in it, from the path in force, with "As its packets come" (the station's best route turned round); Use saves
-// it as Enter would. `pathless` greys the row while the radio in force carries no path (the look of a greyed field, `.disabled`), with that as the title of each greyed control; the line still says what the messages go by, which on such a radio
-// is the reply through a gateway the daemon gives (`reply`), else direct.
+// Path field for messages to one station. Empty means automatic: the first two attempts use the
+// path last heard to reach the station (`heard`), the rest use the beacon path (`fallback`).
+// DIRECT is an own path with no digipeaters. Saved on change or Enter; the clear button
+// restores the automatic choice. `pathless` greys the row while the radio in force carries no
+// path; the line then shows the gateway reply path (`reply`) or direct.
 import { computed, ref, useId, watch } from "vue";
 import PathBuilder from "@/components/PathBuilder.vue";
 import { t } from "@/i18n";
@@ -24,7 +23,7 @@ const emit = defineEmits<{ set: [call: string, path: string]; clear: [call: stri
 
 const id = useId();
 const effective = computed(() => effectivePath(props.paths, props.fallback, props.call));
-/** The station's own path as the field writes it: empty when it has none, DIRECT for one with no digipeaters. */
+/** The station's own path as the field writes it; DIRECT when it has no digipeaters. */
 const own = computed(() => (!effective.value.own ? "" : effective.value.text === "" ? DIRECT : effective.value.text));
 const draft = ref(own.value);
 const setting = computed(() => parsePathSetting(draft.value));
@@ -54,7 +53,7 @@ function save(): void {
   if (text !== own.value) emit("set", props.call, text);
 }
 
-/** The path built in the path builder: into the field, and saved. */
+/** Put the built path into the field and save it. */
 function build(path: string): void {
   draft.value = path;
   save();

@@ -1,7 +1,9 @@
-// A radio's box keeps its shape while the radio receives and sends (a report from a Sound card radio on Windows, the panel 447 px wide: "Lines are jumping ... buttons also changing their position vertically"):
-// the status line of a connected radio is drawn in the same parts, each on a line of its own that never wraps, through listening, a busy channel, transmitting, the tune tone and the keying test, an age of seconds, of
-// minutes and none yet, in every language of the page; the numbers of the receive level and the transmit peak have their room; the radio's log is as high with one line as with many. jsdom lays nothing out: the
-// parts and their classes are held here, the rules that keep them are read from the sheets, and work/par/r6/jumps/measure.py measures the built page in a browser.
+// A radio's box keeps its shape while the radio receives and sends: the status line of a connected
+// radio is drawn in the same parts, each on a line that never wraps, through listening, a busy
+// channel, transmitting, the tune tone and the keying test, with ages in seconds, minutes and none,
+// in every language. The receive level and transmit peak numbers have their room, and the radio's
+// log is as high with one line as with many. jsdom lays nothing out: the parts and their classes
+// are checked here and the rules that keep them are read from the style sheets.
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -19,7 +21,10 @@ const SETTINGS = readFileSync(join(HERE, "..", "styles", "settings.css"), "utf8"
 const TABLES = readFileSync(join(HERE, "..", "styles", "tables.css"), "utf8");
 const LEVELBAR = readFileSync(join(HERE, "LevelBar.vue"), "utf8");
 const TXLEVEL = readFileSync(join(HERE, "HfLevelRow.vue"), "utf8");
-/** The body of the last rule of `selector` in a sheet's or a component's source (the one of its own, after any it shares with others). */
+/**
+ * The body of the last rule of `selector` in a sheet or component source (its own, after any
+ * shared).
+ */
 function rule(source: string, selector: string): string {
   const at = source.lastIndexOf(`\n${selector} {`);
   if (at < 0) throw new Error(`no rule ${selector}`);

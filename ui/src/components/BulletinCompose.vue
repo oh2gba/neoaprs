@@ -1,13 +1,10 @@
 <script setup lang="ts">
-// The group box to post to the message board, at the bottom of the Bulletins tab (ComposeBar, as everywhere; the fields are rows like those of the Objects form). Each row has its (i) after the control, as the object form's rows have (InfoTip): what the kind, the place, the group and the text are, the kind's and the group's with a small picture.
-// The kind is a choice whose options say what each does (a bulletin and an announcement differ in how long they are repeated, a group bulletin in whom it is for: lib/bulletins.ts `kindTitle`, with the daemon's own
-// numbers); under it the number the post has (a capital letter for an announcement, the same row), the group of a group bulletin (its row is always there, greyed for the other kinds, so that choosing a kind moves
-// nothing) and the text, with the characters it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits; it says Replace while the
-// number, letter or group chosen holds a post of ours, which the new text replaces (both words are in the button, TwoWords: it is as wide as the longer). The text is
-// cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. Under the text, while several radios that can send are on, Send on (SendOn.vue, the beacon's
-// row, bound to the draft and applied by Post, as the object form's by Save): a tick for each radio, those the bulletin goes out on ticked, a new draft as the bulletin posted last (the daemon's
-// `status.new_bulletin_radios`), the last tick greyed; Post sends the ticks with the text, so that a text for a slot that holds one of ours replaces its ticks too. The row comes and goes only with the radios (in
-// Settings), and the counter and Post stay at the foot of the box. Post is off while none of the radios ticked is connected, with that as its reason (each named while several are on), as Send is.
+// The box to post to the message board, at the bottom of the Bulletins tab (ComposeBar): kind,
+// number, group (always present, greyed for other kinds so that nothing moves) and text with its
+// counter. Post reads Replace when the slot holds a post of ours. The text clears when the
+// daemon has the bulletin (topic `own_bulletins`); a refused one stays. While several sending
+// radios are on, Send on ticks (SendOn.vue) choose the radios, applied by Post, which is off
+// while none ticked is connected.
 import { DAEMON_KEY } from "@/composables/useDaemonContext";
 import { useCommandInFlight, useSocketOpen } from "@/composables/useInFlight";
 import { useRadios } from "@/composables/useRadios";
@@ -33,32 +30,35 @@ const props = defineProps<{ ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>
 const emit = defineEmits<{ post: [slot: string, text: string, radios?: RadioId[]] }>();
 const about = (field: MessageId) => t("settings.about", { label: t(field) });
 const forbidden = [...LIMITS.message.forbidden].join(" ");
-/** How long a bulletin and an announcement are sent, in the words of the page (the daemon's own numbers). */
+/** How long a bulletin and an announcement are sent, in the page's words. */
 const hours = computed(() => t("bulletins.tip.hours", { n: LIMITS.bulletin.repeatHours }));
 const days = computed(() => t("bulletins.tip.days", { n: LIMITS.bulletin.announcementRepeatDays }));
 const draft = reactive<PostDraft>({ kind: "bulletin", id: "1", group: "", text: "" });
 
-/** The characters of a message; the field takes no more (lib/textlimit.ts, as every field with a counter). */
+/** The message length limit (lib/textlimit.ts). */
 const limit: TextLimit = { max: LIMITS.message.textMax, measure: trimmedCharacters, kind: "characters" };
 const left = computed(() => leftOf(draft.text, limit));
 const rxOnly = useReceiveOnly();
 const page = inject(DAEMON_KEY, null);
 const radios = useRadios();
 const { told, named, severalSenders: several, all } = radios;
-/** The radios ticked in the draft; null until a tick is pressed: a new draft starts as the bulletin posted last, as the daemon says it. */
+/** The draft's ticked radios; null until a tick is pressed, so a new draft follows the last
+ * post. */
 const chosen = ref<RadioId[] | null>(null);
 const own = (): readonly RadioId[] =>
   chosen.value ?? (page?.status.value?.new_bulletin_radios ?? []).filter((id) => all.value.some((radio) => radio.id === id && !radio.removed));
-/** Send on, bound to the draft: the ticks, and the radios the bulletin goes out on as they stand. */
+/** Send on, bound to the draft. */
 const { ticks, radios: on, tick } = useDraftSendOn(own, (ids) => (chosen.value = ids), "post", radios);
-/** No tick is ticked (the radios ticked are off): Post is off until one is, with no title (the row of ticks shows it). */
+/** No ticked radio is on: Post is off until one is. */
 const unticked = computed(() => several.value && on.value.length === 0);
-/** Why nothing may go on the radios ticked: none of them is connected (each named where several are on), or there is none; undefined before the daemon has told its radios. */
+/** Why no ticked radio can send (none connected, or none exist); undefined until radios are
+ * known. */
 const offline = computed(() => (unticked.value ? undefined : radiosBlockedReason(on.value, named, told.value)));
 const ready = computed(() => canPost(draft));
 const grouped = computed(() => draft.kind === "group");
 const badGroup = computed(() => grouped.value && draft.group.trim() !== "" && !groupOk(draft.group));
-/** Whether the number, letter or number and group chosen holds a post of ours: the new text takes its place. A group bulletin without its group is for no place yet (its number alone is a bulletin's, which it never replaces). */
+/** Whether the chosen slot holds a post of ours, which the new text replaces. A group bulletin
+ * without a group has no slot yet. */
 const replaces = computed(() => (!grouped.value || groupOk(draft.group)) && props.ownBulletins.has(slotOf(draft)));
 
 watch(
@@ -69,10 +69,10 @@ watch(
 );
 
 const socketOpen = useSocketOpen();
-/** A post in flight until the daemon has it (its row is told) or refused it. */
+/** A post in flight until the daemon has it or refuses it. */
 const posting = useCommandInFlight("bulletin_post", null);
 
-const asked = ref<{ slot: string; text: string; before: OwnBulletinRow | undefined } | null>(null); // what was posted, until the daemon has it
+const asked = ref<{ slot: string; text: string; before: OwnBulletinRow | undefined } | null>(null);
 
 watch(
   () => (asked.value === null ? undefined : props.ownBulletins.get(asked.value.slot)),

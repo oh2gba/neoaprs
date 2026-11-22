@@ -1,55 +1,67 @@
-// A row of a radio's waterfall as the daemon sends it: a binary frame of the page's socket (PROTOCOL.md, Binary frames; neoaprs/mercuryscope.py makes it), and the frame of the rows the daemon kept, which a page is sent when it
-// begins to look, with the daemon's clock and each row with its age. The bins are bytes on the modem's own scale, which is the scale lib/waterfallfloor.ts reads: this turns them into the modem's dB. Each comes in a frame
-// that names its radio (`RADIO_KIND`: the kind, the radio's id, then a frame of the two kinds above, whole).
+// A waterfall row as the daemon sends it: a binary frame of the page's socket (PROTOCOL.md, Binary
+// frames; neoaprs/mercuryscope.py), and the frame of rows the daemon kept, each with its age and
+// the
+// daemon's clock. Bins are bytes on the modem's scale (read by lib/waterfallfloor.ts); this turns
+// them into dB. Each frame comes wrapped in a frame naming its radio (`RADIO_KIND`).
 import type { RadioId } from "@/lib/radios";
 import { LIMITS } from "@/protocol/lists";
 
 const { rowBins, rowOffsetDb, rowStepDb } = LIMITS.scope;
 
-/** The kind of frame a row is: the first byte. A frame of another kind is not a row. */
+/** The kind of frame a row is: the first byte. Another kind is not a row. */
 export const ROW_KIND = 1;
-/** The kind of frame the rows kept are. */
+/** The kind of frame the kept rows are. */
 export const HISTORY_KIND = 2;
-/** A frame of one radio's scope: the kind, the radio's id (a little-endian 32-bit number), then a frame of the kinds above, whole. */
+/**
+ * A frame of one radio's scope: the kind, the radio id (little-endian uint32), then a whole frame
+ * of the kinds above.
+ */
 export const RADIO_KIND = 3;
 const RADIO_HEADER_BYTES = 5;
 const HEADER_BYTES = 3;
-const HISTORY_HEADER_BYTES = 9; // the kind and the daemon's clock (milliseconds since 1970, a little-endian float64) of the rows kept
-const KEPT_HEADER_BYTES = 6; // the flags, the level and the age (four bytes, little-endian) of a row kept
+// kind, then the daemon's clock (ms since 1970, little-endian float64)
+const HISTORY_HEADER_BYTES = 9;
+// flags, level, then the age (little-endian uint32)
+const KEPT_HEADER_BYTES = 6;
 const TX_FLAG = 1;
 
-/** One row: the passband's bins in the modem's dB (the first is the modem's bin `rowFirstBin`), the level of the passband in dBFS, and whether the radio transmitted (the row is then of our own signal). */
+/**
+ * One row: the passband's bins in modem dB (the first is `rowFirstBin`), its level in dBFS, and
+ * `tx` (our own signal).
+ */
 export interface ScopeRow {
   db: Float32Array;
   level: number;
   tx: boolean;
 }
 
-/** A row kept by the daemon, and how many milliseconds before the frame was made it was made. */
+/** A row kept by the daemon and its age in ms when the frame was made. */
 export interface AgedRow {
   row: ScopeRow;
   age: number;
 }
 
-/** The rows kept, oldest first (none: forget what is held), and the daemon's clock when it sent them, milliseconds since 1970. */
+/**
+ * The kept rows, oldest first (none: forget what is held), and the daemon's clock in ms since 1970.
+ */
 export interface ScopeHistory {
   rows: AgedRow[];
   clock: number;
 }
 
-/** What a binary frame holds: a row, or the rows kept, and the radio whose scope it is. */
+/** What a binary frame holds: a row or the kept rows, and the radio they belong to. */
 export type ScopeFrame = ({ row: ScopeRow } | { history: ScopeHistory }) & { radio: RadioId };
 
-/** The modem's dB a byte of a row stands for. */
+/** The modem dB a row byte stands for. */
 export const dbOfRowByte = (byte: number): number => rowOffsetDb + byte * rowStepDb;
 
-/** The row whose flags and level stand at `at` and whose bins begin at `bins`. */
+/** The row whose flags and level are at `at` and whose bins start at `bins`. */
 function rowAt(view: DataView, at: number, bins: number): ScopeRow {
   const bytes = new Uint8Array(view.buffer, view.byteOffset + bins, rowBins);
   return { db: Float32Array.from(bytes, dbOfRowByte), level: view.getInt8(at + 1), tx: (view.getUint8(at) & TX_FLAG) !== 0 };
 }
 
-/** The row in a frame, or null for a frame that is no row: of another kind or of another size. */
+/** The row in a frame; null if the frame is of another kind or size. */
 export function parseScopeRow(data: ArrayBuffer): ScopeRow | null {
   if (data.byteLength !== HEADER_BYTES + rowBins) return null;
   const view = new DataView(data);
@@ -57,7 +69,7 @@ export function parseScopeRow(data: ArrayBuffer): ScopeRow | null {
   return rowAt(view, 1, HEADER_BYTES);
 }
 
-/** The rows kept in a frame and the daemon's clock, or null for a frame that is not of them: of another kind, or not a whole number of rows. */
+/** The kept rows and the daemon's clock; null if of another kind or not a whole number of rows. */
 export function parseScopeHistory(data: ArrayBuffer): ScopeHistory | null {
   const size = KEPT_HEADER_BYTES + rowBins;
   if (data.byteLength < HISTORY_HEADER_BYTES || (data.byteLength - HISTORY_HEADER_BYTES) % size !== 0) return null;
@@ -69,7 +81,7 @@ export function parseScopeHistory(data: ArrayBuffer): ScopeHistory | null {
   return { rows, clock: view.getFloat64(1, true) };
 }
 
-/** The radio and the frame inside a frame of a radio's scope; null for a frame of another kind. */
+/** The radio and the inner frame of a radio scope frame; null for another kind. */
 export function radioFrame(data: ArrayBuffer): { radio: RadioId; frame: ArrayBuffer } | null {
   if (data.byteLength <= RADIO_HEADER_BYTES) return null;
   const view = new DataView(data);
@@ -77,7 +89,9 @@ export function radioFrame(data: ArrayBuffer): { radio: RadioId; frame: ArrayBuf
   return { radio: view.getUint32(1, true), frame: data.slice(RADIO_HEADER_BYTES) };
 }
 
-/** What a binary frame holds and whose scope it is, or null for a frame of a kind this page does not know (one that names no radio too): more may come, and it is let go. */
+/**
+ * What a binary frame holds and whose scope it is; null for an unknown kind or no radio (ignored).
+ */
 export function parseScopeFrame(data: ArrayBuffer): ScopeFrame | null {
   const named = radioFrame(data);
   if (named === null) return null;

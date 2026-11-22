@@ -1,14 +1,16 @@
-// The two ways out of the support file. Download logs (About's last line) asks the daemon for the file with the facts of this page in the request (lib/support.ts), saves the answer as a download and keeps what the line says after it: the name of the file, or why there is none.
-// Send feedback / logs (the Help group) asks the daemon to send the same file to the project, with the words the person wrote in the dialog, and keeps the reference the project answers with, or why it was not sent; the dialog's file is downloaded by `collect` too, and
-// taken off there the words go alone (`send` with `file` false). Each
-// says the outcome of its latest try, and waits while it works (the daemon makes one file at a time, and says so to a second one); `clear` takes the words of that outcome back.
+// The two ways out of the support file. Download logs asks the daemon for the file with this
+// page's facts in the request (lib/support.ts), saves it as a download and keeps the file name or
+// the reason there is none. Send feedback / logs asks the daemon to send the same file to the
+// project with the person's words, and keeps the reference answered or the reason it was not sent;
+// the dialog's file is downloaded by `collect` too, and if taken off there the words go alone
+// (`send` with `file` false). Each keeps its latest outcome and waits while it works; `clear`
+// takes that outcome back.
 import { ref, shallowRef, type Ref } from "vue";
 import { pageErrors } from "@/lib/pageerrors";
 import type { Connection } from "@/lib/hub";
 import { pageInfo, requestBundle, requestSend, saveFile, type SendProblem, type SentFile } from "@/lib/support";
 import { t } from "@/i18n";
 
-/** What the group needs of the page. */
 export interface SupportGiven {
   call: Readonly<Ref<string | null>>;
   connection: Readonly<Ref<Connection>>;
@@ -42,14 +44,13 @@ export function useSupportLogs(given: SupportGiven, fetcher: typeof fetch = (...
       errors: pageErrors.entries(),
     });
 
-  /** Takes the words of the last outcome back. */
   function clear(): void {
     saved.value = null;
     sentRef.value = null;
     problem.value = "";
   }
 
-  /** Says whether a new try may start, and takes the words of the last outcome back when it may. */
+  /** Say whether a new try may start; clear the last outcome if it may. */
   function begin(): boolean {
     if (running.value || sending.value) return false;
     clear();

@@ -19,7 +19,8 @@ describe("hoverRows", () => {
     const labelled = (extra: Parameters<typeof station>[1], radio = radioRow(1, "kenwood-tnc2")) =>
       hoverRows(station("OH2PU-9", extra), NOW, one(radio)).find((r) => r.label === "Heard on")?.text;
     expect(labelled({})).toBeUndefined();
-    expect(labelled({}, radioRow(1, "mercury"))).toBeUndefined(); // (an HF radio alone as an FM one: every station was heard on it)
+    // An HF radio alone, treated as an FM one: every station was heard on it.
+    expect(labelled({}, radioRow(1, "mercury"))).toBeUndefined();
     expect(labelled({ heard_is: 2 })).toBe("FM · Internet");
     expect(labelled({ heard_is: 2 }, radioRow(1, "kenwood-tnc2", { name: "2 m" }))).toBe("2 m · Internet");
     expect(labelled({ heard_rf: 0, heard_rf_gated: 1 })).toBe("iGate");

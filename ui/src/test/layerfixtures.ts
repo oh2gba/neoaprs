@@ -1,15 +1,14 @@
-// Made-up things of the map's layers of traffic for the tests, round the demo's Espoo (60.2231 N 24.7152 E): every field present, the ones a test cares about given.
+// Made-up traffic layer things for the tests, round Espoo (60.2231 N 24.7152 E): every field
+// present.
 import type { LayerThing, LayerThingsMessage, MapLayer } from "@/protocol/protocol";
 import { AIRCRAFT_SOURCES, SHIP_SOURCES } from "@/protocol/lists";
 
 const AT = "2026-10-21T12:00:00Z";
 
-/** One layer of the topic `map`: no source chosen, and every source offered (Fintraffic reaches Espoo). */
 export function mapLayer(layer: MapLayer["layer"], extra: Partial<MapLayer> = {}): MapLayer {
   return { layer, source: "none", offered: [...(layer === "aircraft" ? AIRCRAFT_SOURCES : SHIP_SOURCES)], receiver: null, ...extra };
 }
 
-/** An aircraft north-east of Espoo, flying south-west. */
 export function aircraft(extra: Partial<LayerThing> = {}): LayerThing {
   return {
     id: "461f2a",
@@ -36,7 +35,6 @@ export function aircraft(extra: Partial<LayerThing> = {}): LayerThing {
   };
 }
 
-/** A ship off Helsinki, under way to the south. */
 export function ship(extra: Partial<LayerThing> = {}): LayerThing {
   return {
     id: "230123456",
@@ -63,7 +61,6 @@ export function ship(extra: Partial<LayerThing> = {}): LayerThing {
   };
 }
 
-/** The message `layer_things` with a layer's whole table, from the own receiver unless the test says another source. */
 export function layerThings(layer: MapLayer["layer"], things: LayerThing[], extra: Partial<LayerThingsMessage> = {}): LayerThingsMessage {
   return { type: "layer_things", layer, source: "receiver", away: false, things, ...extra };
 }

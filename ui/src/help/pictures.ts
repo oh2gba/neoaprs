@@ -1,4 +1,5 @@
-// The pictures of the (i) notes by name: each is a component that draws one small picture (HelpFrame), so that InfoTip can show the one a note asks for.
+// The (i) note pictures by name: each is a component drawing one small picture (HelpFrame), so
+// InfoTip can show the one a note asks for.
 import type { Component } from "vue";
 import BeaconPicture from "@/help/BeaconPicture.vue";
 import BulletinPicture from "@/help/BulletinPicture.vue";

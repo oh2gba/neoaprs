@@ -1,4 +1,5 @@
-// The guide to install NeoAPRS's certificate, the Web page group's part of it (switch, (i), link, problem) and the notification guide's first step while the daemon serves https.
+// The guide to install NeoAPRS's certificate, the Web page group's part of it (switch, (i), link,
+// problem) and the notification guide's first step while the daemon serves https.
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import HttpsGuide from "@/components/HttpsGuide.vue";

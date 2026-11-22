@@ -1,5 +1,7 @@
-// Every tab drawn in the pseudo-locale (src/i18n/pseudo.ts, English made long and accented): a text of the page that comes through the catalogue is bracketed and accented, so any text node or attribute that still equals a message of the
-// English catalogue was written into the page instead. The test grows with the conversion: it looks for the ids that exist, and what is not yet converted is not an id.
+// Every tab drawn in the pseudo-locale (src/i18n/pseudo.ts, English made long and accented): a text
+// that comes through the catalogue is bracketed and accented, so any text node or attribute that
+// still equals an English catalogue message was written into the page instead. The test looks for
+// the ids that exist; what is not yet converted is not an id.
 import "@/test/mockmap";
 import { flushPromises } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
@@ -13,11 +15,16 @@ import { configValues, fmRow, hfRow, radiosValue, status } from "@/test/fixtures
 useAppHarness();
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** Each English text of the catalogue as what it would look like on the page: a value is any text. A message of less than three letters is not looked for (a symbol, a unit), nor one made mostly of values ("{span} ago" would be any text that ends in "ago"). */
+/**
+ * Each English catalogue text as it would look on the page; a value is any text. A message under
+ * three letters, or made mostly of values ("{span} ago"), is not looked for.
+ */
 const ENGLISH = Object.values(en as Record<string, Message>)
   .flatMap(texts)
   .filter((text) => text.replace(/\{\w+\}/g, "").trim().length >= (/\{\w+\}/.test(text) ? 8 : 3))
-  .filter((text) => text !== "NeoAPRS") // (the program's name, which no language translates: the station's own words, its comment, may be it too)
+  // The program's name, which no language translates: the station's own words, its comment, may be
+  // it too.
+  .filter((text) => text !== "NeoAPRS")
   .map((text) => ({
     text,
     re: new RegExp(
@@ -28,13 +35,17 @@ const ENGLISH = Object.values(en as Record<string, Message>)
     ),
   }));
 
-/** Words of components that are not converted yet (src/i18n/unconverted.json) that are the same as a message that is: they show in English in the pseudo-locale. Whoever converts the component takes its word out; a word that no tab shows any more fails the test. */
+/**
+ * Words of components not converted yet (src/i18n/unconverted.json) that equal a converted message:
+ * they show in English in the pseudo-locale. Whoever converts a component takes its words out; a
+ * word no tab shows any more fails the test.
+ */
 const STILL_ENGLISH: string[] = [];
 const shown = new Set<string>();
 
 const ATTRIBUTES = ["title", "aria-label", "placeholder", "alt", "label"];
 
-/** The text nodes and the attributes of a page that read as an English message of the catalogue. */
+/** The text nodes and attributes of a page that read as an English catalogue message. */
 function untranslated(root: HTMLElement): string[] {
   const found: string[] = [];
   const seen = (text: string): void => {
@@ -56,11 +67,13 @@ describe("the page in the pseudo-locale", () => {
       const fm = fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } } });
       const hf = hfRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "Mercury", radio: 2 } } });
       const off = fmRow({ enabled: false, state: "stopped" });
-      socket.say({ type: "state", topic: "radios", rev: 5, value: tab === "skeds" ? radiosValue(off, hf) : radiosValue(fm) }); // (the HF tests tab is there while an HF radio is on; one radio on, one Radio mark)
+      // The HF tests tab is there while an HF radio is on; one radio on, one Radio mark.
+      socket.say({ type: "state", topic: "radios", rev: 5, value: tab === "skeds" ? radiosValue(off, hf) : radiosValue(fm) });
       socket.say({ type: "state", topic: "config", rev: 5, value: configValues({ "station/call": "" }) });
       socket.say(status({ update: { version: "9.9.9", message: "", url: "https://example.org/" } }));
       await flushPromises();
-      expect(wrapper.findAll("[role='tab']").length).toBe(tab === "skeds" ? TAB_IDS.length : TAB_IDS.length - 1); // (no HF radio, no HF tests tab)
+      // No HF radio, no HF tests tab.
+      expect(wrapper.findAll("[role='tab']").length).toBe(tab === "skeds" ? TAB_IDS.length : TAB_IDS.length - 1);
       expect(wrapper.findAll("[role='tab']").every((b) => b.text().startsWith("[!!"))).toBe(true);
       expect(wrapper.find(".appheader button.nocall").text()).toMatch(/^\[!! /);
       for (const mark of ["daemon", "radio"]) {

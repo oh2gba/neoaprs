@@ -1,4 +1,5 @@
-// The phone code: the QR code of its link as one path on a white field, in a box of one size whatever the link; an image named by the row's label, with no words of its own.
+// The phone code: the QR code of its link as one path on a white field, in a box of one size
+// whatever the link; an image named by the row's label, with no words of its own.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

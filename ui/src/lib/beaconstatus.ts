@@ -1,10 +1,14 @@
-// What the beacon status at the top of the My station tab says (components/BeaconStatus.vue), in the look of the radio status: a label, one coloured pill and plain lines. A fixed station says when the last beacon went and when the timer sends the next
-// ("Last beacon 4 min ago · next in 56 min (every 60 min)"); a moving station says the GPS (the pill is the state of the GPS, the line the fix or why there is none) and, under it, what SmartBeaconing does (lib/gpsstatus.ts has those words).
-// While the beacon is Off (the interval is 0) a fixed station has the label Beacon, the pill off and the line "no automatic beacon · Beacon now still sends"; a moving station keeps showing the GPS (the pill and the fix line, so that the fix can be watched) and says the same on the line under it, where SmartBeaconing's words would be.
-// In RX only (nothing is sent) the pill is off in the warn colour and the line "RX only: nothing is sent", as the Digipeater's; a moving station keeps the GPS and says it under it.
-// While several radios are on, behind the arrow is a line for each radio the beacon goes out on, by its name, with its own interval ("HF: last beacon 2 min ago · next in 29 min (every 30 min)"). The end of the file is the rest
-// of the Beacon group's radios (BeaconPane.vue, SettingsPath.vue): the radios the beacon goes out on, the ticks of Send on, and a Path row for each radio that may carry a path; the status's Send on, Ask around's and
-// Local info's are the same ticks of their own field (`radio/<id>/status`, `ask`, `local_info`), and the radios each goes out on are read as the beacon's (`sendOnRadios`).
+// The beacon status at the top of the My station tab (components/BeaconStatus.vue): a label, one
+// coloured pill and plain lines.
+// A fixed station shows when the last beacon went and when the timer sends the next. A moving
+// station shows the GPS (pill: GPS state, line: the fix or why there is none) and, under it, what
+// SmartBeaconing does (words in lib/gpsstatus.ts).
+// With the beacon Off (interval 0) a fixed station shows the pill off and "no automatic beacon";
+// a moving station keeps showing the GPS. In RX only the pill is off in the warn colour.
+// With several radios on, a line per radio shows its own interval. The end of the file serves the
+// Beacon group's radios (BeaconPane.vue, SettingsPath.vue): Send on ticks and Path rows. The Send
+// on ticks of status, ask and local info are the same per-radio fields, read through
+// `sendOnRadios`.
 import { t } from "@/i18n";
 import { dateTimeText, agoWords, untilText } from "@/lib/format";
 import { beaconOff } from "@/lib/beaconoff";
@@ -12,7 +16,10 @@ import { gpsProblem, gpsStateText, gpsStatus, isMoving, mobileBeaconText } from 
 import type { PageRadio, RadioId } from "@/lib/radios";
 import type { ConfigValues, GpsState, RadioBeaconState, StatusMessage } from "@/protocol/protocol";
 
-/** A radio the beacon goes out on, as its line behind the arrow says it: its name, its own beacon timer (the row of the topic `radios`) and whether it does SmartBeaconing (a moving station's beacon there follows the GPS, not an interval). */
+/**
+ * A radio the beacon goes out on, as its line shows it. `smart`: the beacon follows the GPS, not an
+ * interval.
+ */
 export interface BeaconRadio {
   name: string;
   beacon: RadioBeaconState;
@@ -24,30 +31,35 @@ export interface BeaconBlock {
   moving: boolean;
   /** "Beacon" for a fixed station, "GPS" for a moving one */
   label: string;
-  /** the word on the pill and the class that colours it; null while the daemon has not told yet */
+  /** the pill's text and tone class; null until the daemon has reported */
   pill: { text: string; tone: string } | null;
   /** the first line */
   line: string;
-  /** the full time of the last beacon, on hover, for a fixed station that has sent one */
+  /** the full time of the last beacon (hover), for a fixed station that has sent one */
   hover: string | undefined;
   /** the SmartBeaconing line of a moving station */
   smart: string | null;
-  /** one quiet line for each radio the beacon goes out on ("FM: last beacon 4 min ago · next in 26 min (every 20 min)"), only while several radios are on: the row's line is the latest and the soonest of them, these are the detail, each with its own interval */
+  /** a line per radio the beacon goes out on, only while several radios are on */
   radios: string[];
   /** why there is no fix, when the line does not say it */
   problem: string;
-  /** set when the line is "RX only: nothing is sent", which leads to the setting */
+  /** set when the line is "RX only: nothing is sent"; it links to the setting */
   rxOnly?: true;
 }
 
-/** The earlier of two times of the wire, the later (null for none). A time that is not one is left out. */
+/**
+ * The latest (`later`) or earliest of the given wire times; times that do not parse are ignored.
+ */
 function pick(times: readonly (string | null)[], later: boolean): string | null {
   const found = times.filter((time): time is string => time !== null && !Number.isNaN(Date.parse(time)));
   if (found.length === 0) return null;
   return found.reduce((best, time) => (Date.parse(time) > Date.parse(best) === later ? time : best));
 }
 
-/** The beacons the daemon told. While several radios are on, the radios' own (`radios`, each its row's timer); else the status's (`beacon_*`: the latest on any radio and the next due on any). The row's line is the latest beacon on any radio and the next due on any radio. */
+/**
+ * The last and next beacon times. With several radios on they come from the radios' own timers,
+ * else from the status (the latest on any radio and the next due on any).
+ */
 function times(status: StatusMessage, radios: readonly BeaconRadio[]): { last: string | null; next: string | null } {
   if (radios.length > 0)
     return {
@@ -66,10 +78,12 @@ function times(status: StatusMessage, radios: readonly BeaconRadio[]): { last: s
   };
 }
 
-/** Whether the timer will send a beacon: the interval is not 0 and the daemon has a time for the next. */
+/** Whether the timer will send a beacon: the interval is not 0 and a next time is known. */
 const timed = (status: StatusMessage, radios: readonly BeaconRadio[]): boolean => status.beacon_interval_min > 0 && times(status, radios).next !== null;
 
-/** The line of a fixed station: the last beacon and the timer, "Last beacon 4 min ago · next in 56 min (every 60 min)" (the interval is the shortest of the radios the beacon goes out on, as the daemon tells it). */
+/**
+ * The line of a fixed station: last beacon and timer (the interval is the shortest of the radios).
+ */
 function fixedLine(status: StatusMessage, radios: readonly BeaconRadio[], nowMs: number): string {
   const { last, next } = times(status, radios);
   const ago = agoWords(last, nowMs);
@@ -79,8 +93,10 @@ function fixedLine(status: StatusMessage, radios: readonly BeaconRadio[], nowMs:
   return never ? t("beacon.line.timed_none", values) : t("beacon.line.timed", { ago, ...values });
 }
 
-/** The line of one radio's beacon, with the interval in force on it: "last beacon 4 min ago · next in 26 min (every 30 min)". A radio whose beacon follows the GPS (`smart`: a moving station's radio with SmartBeaconing) has
- * no interval: its next is the one by time that SmartBeaconing says. */
+/**
+ * The line of one radio's beacon with its interval. A `smart` radio (SmartBeaconing) has no
+ * interval; its next time is the one SmartBeaconing gives.
+ */
 function radioLine(beacon: RadioBeaconState, nowMs: number, smart: boolean): string {
   const { last_sent: last, next_due: next, interval_min: minutes } = beacon;
   const ago = agoWords(last, nowMs);
@@ -92,12 +108,14 @@ function radioLine(beacon: RadioBeaconState, nowMs: number, smart: boolean): str
   return last === null ? t("beacon.fold.untimed_none") : t("beacon.fold.untimed", { ago });
 }
 
-/** The lines behind the arrow while several radios are on: each radio's beacon, by its name (`moving`: the radios with SmartBeaconing follow the GPS, the others keep their interval). */
+/** The per-radio lines; with `moving`, radios with SmartBeaconing follow the GPS. */
 const radioLines = (radios: readonly BeaconRadio[], nowMs: number, moving = false): string[] =>
   radios.map((radio) => t("radio.line", { name: radio.name, line: radioLine(radio.beacon, nowMs, moving && radio.smart) }));
 
-/** The block of a moving station: the GPS, and under it SmartBeaconing's words, or why nothing is sent (`quiet`, empty when something is); while several radios are on, a line for each radio the beacon goes out on, for a radio
- * without SmartBeaconing sends the timed beacon with the latest fix (plan rule 3.1). */
+/**
+ * The block of a moving station: the GPS, then SmartBeaconing's words or `quiet` (why nothing is
+ * sent). A radio without SmartBeaconing sends the timed beacon with the latest fix.
+ */
 function movingBlock(
   gps: GpsState | null,
   values: Readonly<Record<string, string>>,
@@ -117,7 +135,7 @@ function movingBlock(
   };
 }
 
-/** The block of a fixed station whose beacon is not Off: on or off by the timer, the line of the latest and the next beacon, the full time of the latest on hover, and a line for each radio while several are on. */
+/** The block of a fixed station whose beacon is not Off. */
 function fixedBlock(status: StatusMessage | null, radios: readonly BeaconRadio[], nowMs: number): BeaconBlock {
   const base = { moving: false, label: t("beacon.label"), smart: null, problem: "" };
   if (status === null) return { ...base, pill: null, line: t("settings.no_word"), hover: undefined, radios: [] };
@@ -132,8 +150,11 @@ function fixedBlock(status: StatusMessage | null, radios: readonly BeaconRadio[]
   };
 }
 
-/** The block for the status the daemon last told (`status`), the GPS topic (`gps`), the settings in force (`values`), the time now and, while several radios are on, the radios the beacon goes out on (`radios`, none
- * while one is); `receiveOnly`: nothing is sent (RX only, or no radio that is on can send: the page's `receiveOnly`). A station moves when the daemon says its beacon follows the GPS, before it has told when the settings say so. */
+/**
+ * The block for the last `status`, the `gps` topic and the settings in force (`values`). `radios`
+ * lists the radios the beacon goes out on (empty with one radio). `receiveOnly`: nothing is sent.
+ * A station moves when the daemon says its beacon follows the GPS, else when the settings say so.
+ */
 export function beaconBlock(
   status: StatusMessage | null,
   gps: GpsState | null,
@@ -162,25 +183,29 @@ export function beaconBlock(
   return fixedBlock(status, radios, nowMs);
 }
 
-// ---- the radios of the Beacon group: the beacon's, the ticks of Send on, the Path rows
+// ---- the radios of the Beacon group: Send on ticks and Path rows
 
-/** The field of a radio a Send on ticks: the beacon's, the status's, Ask around's or Local info's. */
+/** The per-radio field a Send on tick sets. */
 export type SendOnField = "beacon" | "status" | "ask" | "local_info";
 
-/** The radios a thing with a Send on goes out on, as the daemon has them in force (neoaprs/beaconrule.py): with one radio on, that one whatever its tick says; else those whose tick of the thing is ticked, none while
- * none is (ticked nowhere is not sent). */
+/**
+ * The radios a thing with a Send on goes out on, as the daemon applies it (neoaprs/beaconrule.py):
+ * with one radio on, that one; else the radios whose tick is set, none if none is.
+ */
 function sendOnRadios(field: SendOnField, enabled: readonly PageRadio[]): PageRadio[] {
   if (enabled.length <= 1) return [...enabled];
   return enabled.filter((radio) => radio.row.choices[field]);
 }
 
-/** The radios the beacon goes out on (plan rule 3.1). */
+/** The radios the beacon goes out on. */
 export const beaconRadios = (enabled: readonly PageRadio[]): PageRadio[] => sendOnRadios("beacon", enabled);
 
 /** The radios the status report goes out on. */
 export const statusRadios = (enabled: readonly PageRadio[]): PageRadio[] => sendOnRadios("status", enabled);
 
-/** Why a button that sends on these radios is off while none of them is connected: "FM: not connected", a line for each; undefined while one is. */
+/**
+ * Why a send button is off when none of `radios` is connected (one line per radio); else undefined.
+ */
 export function notConnectedWhy(radios: readonly PageRadio[]): string | undefined {
   if (radios.some((radio) => radio.connected)) return undefined;
   return radios.map((radio) => t("radio.not_connected", { name: radio.name })).join("\n") || undefined;
@@ -189,7 +214,9 @@ export function notConnectedWhy(radios: readonly PageRadio[]): string | undefine
 /** The key of a radio's own setting (`radio/3/beacon`). */
 const radioKey = (id: RadioId, key: string): string => `radio/${id}/${key}`;
 
-/** One tick of Send on: the radio, its setting, its name, whether it is ticked, and whether it is the last tick that is (greyed, so that the thing goes out somewhere). */
+/**
+ * One Send on tick. `last` is the only ticked one (greyed so the thing still goes out somewhere).
+ */
 export interface SendOnTick {
   id: RadioId;
   key: string;
@@ -198,8 +225,10 @@ export interface SendOnTick {
   last: boolean;
 }
 
-/** The ticks of Send on, one for each radio that is on, in the order of the boxes; `ticked` says whether a radio's is ticked as it is being set (`radio/<id>/beacon`, or another thing's, `radio/<id>/status`: `field`). They show what
- * is in force: while none is ticked (the radios it was ticked for are off or removed) no tick is ticked and none is greyed. */
+/**
+ * One Send on tick per enabled radio, in box order. `ticked` says whether a radio's tick is set as
+ * it is being edited. If none is ticked, no tick is ticked or greyed.
+ */
 export function sendOnTicks(enabled: readonly PageRadio[], ticked: (key: string, radio: PageRadio) => boolean, field: SendOnField = "beacon"): SendOnTick[] {
   const ticks = enabled.map((radio) => {
     const key = radioKey(radio.id, field);
@@ -209,24 +238,24 @@ export function sendOnTicks(enabled: readonly PageRadio[], ticked: (key: string,
   return on.length === 1 ? ticks.map((tick) => (tick.on ? { ...tick, last: true } : tick)) : ticks;
 }
 
-/** One Path row of the Advanced fold: the setting it writes, its radio, and the radio's name (null while one radio is on, so that the row is "Path" as it was). */
+/** One Path row: its setting key, its radio and the radio's name (null with one radio on). */
 export interface PathRow {
   key: string;
   radio: RadioId;
   name: string | null;
 }
 
-/** The setting of a radio's path: its own `radio/<id>/path`. */
+/** The setting key of a radio's path. */
 export const pathKey = (radio: Pick<PageRadio, "id">): string => radioKey(radio.id, "path");
 
-/** The Path rows: one for each radio that is on and may carry a path, named while several radios are on (one radio's row is "Path", as it was). */
+/** One Path row per enabled radio that can carry a path; named only while several radios are on. */
 export function pathRows(enabled: readonly PageRadio[]): PathRow[] {
   const carrying = enabled.filter((radio) => radio.carriesPath);
   const several = enabled.length > 1;
   return carrying.map((radio) => ({ key: pathKey(radio), radio: radio.id, name: several ? radio.name : null }));
 }
 
-/** A radio's own setting as the page has it in force: in the settings' values once they hold the radios' keys, else in `config.radio_values`; undefined for none. */
+/** A radio's own setting in force: from the settings' values, else `config.radio_values`. */
 export function radioValueOf(config: Pick<ConfigValues, "values" | "radio_values"> | null, key: string): string | undefined {
   return config?.values[key] ?? config?.radio_values[key];
 }

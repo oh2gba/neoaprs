@@ -1,10 +1,8 @@
 <script setup lang="ts">
-// The packets as lines, newest first as they are given, the one look of the Packets tab (PacketsLog) and of a station's traffic in its panel (StationTraffic): the time, whether it was heard ("in") or sent by us ("out"), the
-// way it came by (the radio that heard it by its name, "FM", "HF", "20 m"; iGate, saying in its title which radio heard it; Internet: lib/channels.ts `packetTag`; ours by the radio they went on), the packet as a TNC2 line, the route it came by ("via OH2RCH-2", "direct", "via OH7JHF-1 (internet)" for a packet an iGate put on the air; empty for
-// one we sent) and what the daemon made of it, after which the slot `note` may add a word of the line's own (the state of a query in a station's traffic). A route breaks between its words, never inside a callsign. A click on
-// a packet (or Enter) opens it under its line in plain facts (components/PacketDetail.vue), with what the parser decoded of it, as JSON, under "Raw"; again closes it. With `stacked` (the parent measures its width against
-// PACKETS_TABLE, lib/layout.ts) each packet is one block (the time, the direction and the channel, the packet line, then the route and the summary in small text) and the header row is for a screen reader only. A right-click
-// on a packet (a long press on a touch screen) offers to copy its line and the call that sent it (CopyMenu). `keyOf` tells the lines apart (the id, by default); the empty list says `empty`.
+// The packets as lines, newest first, shared by the Packets tab and a station's traffic panel. Each
+// line shows time, direction, channel, the TNC2 text, the route and the daemon's summary. A click
+// or Enter opens PacketDetail under the line; a right-click offers to copy the line and call. With
+// `stacked` each packet is one block and the header row is for screen readers only.
 import TagMark from "@/components/TagMark.vue";
 import { ref } from "vue";
 import CopyMenu from "@/components/CopyMenu.vue";
@@ -27,7 +25,7 @@ const tagOf = (row: PacketRow) => packetTag(row, radios.all.value);
 defineSlots<{ note?: (props: { row: PacketRow }) => unknown }>();
 
 const open = ref<string | null>(null);
-/** The copy menu of a line: the packet as its line of monitor text, and the call that sent it. */
+/** The copy menu of a line: the packet as monitor text, and the call that sent it. */
 const copy = useCopyMenu((line) => {
   const packet = props.rows.find((p) => props.keyOf(p) === line.dataset["key"]);
   return packet === undefined

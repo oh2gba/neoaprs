@@ -1,4 +1,4 @@
-// The range circle of the selected station on the map, when it is a digipeater of the Nearby tab that gave a range: the layers made with the others, the circle drawn again when the selection or the station's row changes (and gone with the selection).
+// The range circle of the selected station when it is a digipeater of the Nearby tab with a range.
 import { watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -15,7 +15,7 @@ export function useRangeCircles(map: () => MapLibreMap | null, selected: () => s
   };
 
   let drawn = "";
-  /** Sets the data of the source, unless the circle is the one already there (the rows are told again for every packet). */
+  /** Set the source data unless the circle is already there; rows arrive again for every packet. */
   function draw(): void {
     const data = features();
     const key = JSON.stringify(data);

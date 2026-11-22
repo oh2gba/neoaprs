@@ -44,7 +44,11 @@ describe("a row of the waterfall", () => {
 
 const CLOCK = Date.UTC(2026, 10, 14, 12, 0, 0) + 0.25;
 
-/** A frame of the rows kept as neoaprs/mercuryscope.py `history_frame` makes it: the kind and the daemon's clock (a little-endian float64), then each row its flags, its level, its age (four bytes, little-endian) and its bins. */
+/**
+ * A frame of the kept rows as neoaprs/mercuryscope.py `history_frame` makes it: the kind, the
+ * daemon's clock (little-endian float64), then each row's flags, level, age (four bytes,
+ * little-endian) and bins.
+ */
 function history(rows: { flags: number; level: number; age: number; bin: number }[]): ArrayBuffer {
   const size = 6 + rowBins;
   const bytes = new Uint8Array(9 + rows.length * size);
@@ -73,7 +77,7 @@ describe("the rows the daemon kept", () => {
       [120, -12, true, 0, 0, 307],
     ]);
     expect(parseScopeHistory(history([]))).toEqual({ rows: [], clock: CLOCK });
-    expect(parseScopeHistory(Uint8Array.of(HISTORY_KIND).buffer)).toBeNull(); // (the kind without the clock)
+    expect(parseScopeHistory(Uint8Array.of(HISTORY_KIND).buffer)).toBeNull(); // the kind without the clock
   });
 
   it("are null for a frame that is not a whole number of them, or of another kind", () => {
@@ -86,7 +90,10 @@ describe("the rows the daemon kept", () => {
   });
 });
 
-/** A frame of one radio's scope, as neoaprs/web/scopefeed.py makes it: the kind, the radio's id (little-endian uint32), then the frame whole. */
+/**
+ * A frame of one radio's scope, as neoaprs/web/scopefeed.py makes it: the kind, the radio's id
+ * (little-endian uint32), then the whole frame.
+ */
 function named(radio: number, inner: ArrayBuffer): ArrayBuffer {
   const bytes = new Uint8Array(5 + inner.byteLength);
   bytes[0] = RADIO_KIND;
@@ -105,8 +112,9 @@ describe("a frame of one radio's scope", () => {
     });
     expect(parseScopeFrame(frame(0, -41))).toBeNull();
     expect(radioFrame(frame(0, -41))).toBeNull();
-    expect(radioFrame(Uint8Array.of(RADIO_KIND, 1, 0, 0, 0).buffer)).toBeNull(); // (a radio with no frame in it)
-    expect(parseScopeFrame(named(3, Uint8Array.of(9).buffer))).toBeNull(); // (a frame of a kind this page does not know, inside)
+    expect(radioFrame(Uint8Array.of(RADIO_KIND, 1, 0, 0, 0).buffer)).toBeNull(); // a radio with no frame in it
+    // a frame of a kind this page does not know, inside
+    expect(parseScopeFrame(named(3, Uint8Array.of(9).buffer))).toBeNull();
   });
 });
 
@@ -120,6 +128,7 @@ describe("a binary frame", () => {
     other[0] = 9;
     expect(parseScopeFrame(named(2, other.buffer))).toBeNull();
     expect(parseScopeFrame(Uint8Array.of(9).buffer)).toBeNull();
-    expect(parseScopeRow(history([{ flags: 0, level: -30, age: 7, bin: 0 }]))).toBeNull(); // (the parser of a row alone, which is all a page of the version before has: it takes the rows kept for no row)
+    // the parser of a single row, which is all an older page has: rows kept give no row
+    expect(parseScopeRow(history([{ flags: 0, level: -30, age: 7, bin: 0 }]))).toBeNull();
   });
 });

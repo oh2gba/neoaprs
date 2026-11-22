@@ -1,5 +1,7 @@
-// The details of a position or a station that the daemon decodes beyond where it is: the data extensions (PHG, range, DF, area), the Maidenhead locator, the telemetry channels, the voice frequency with its
-// tone, offset and range, the storm data of a hurricane object, and the time a packet carries (which may be the sender's local time).
+// The details of a position or station that the daemon decodes beyond where it is: data extensions
+// (PHG, range, DF, area), the Maidenhead locator, telemetry channels, the voice frequency with its
+// tone, offset and range, the storm data of a hurricane object, and the time a packet carries
+// (which may be the sender's local time).
 import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { bearingTitle, dateTimeText, distanceText, pad2, positionText, speedText } from "@/lib/format";
@@ -17,7 +19,7 @@ import type {
   TelemetryValues,
 } from "@/protocol/protocol";
 
-/** Where an antenna favours, to be drawn as an arrow (a circle for omni); `title` says it in words, the compass point and the degrees. */
+/** Where an antenna favours, drawn as an arrow (a circle for omni); `title` says it in words. */
 interface Directivity {
   deg: number | null;
   title: string;
@@ -26,13 +28,14 @@ interface Directivity {
 interface DetailRow {
   label: string;
   text: string;
-  /** The antenna's direction, drawn after the text; none for a row that has no antenna. */
+  /** The antenna's direction, drawn after the text; none for a row with no antenna. */
   direction?: Directivity;
 }
 
 const directivity = (deg: number | null): Directivity => ({ deg, title: deg === null ? t("station.ext.omni") : bearingTitle(deg) });
 
-/** One row for each data extension a position had: "PHG", "Range", "DF signal", "DF bearing", "Area". */
+/** One row for each data extension a position had: "PHG", "Range", "DF signal", "DF bearing",
+ * "Area". */
 export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
   if (ext === null) return [];
   const rows: DetailRow[] = [];
@@ -78,7 +81,8 @@ export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
   return rows;
 }
 
-/** The shapes and the colours of an area object in the page's words: the daemon names each by the specification's word (`AreaValues`), which the catalogue has an id for. */
+/** The shapes and colours of an area object in the page's words: the daemon names each by the
+ * specification's word (`AreaValues`), which the catalogue has an id for. */
 const SHAPE_WORDS: Record<AreaValues["shape"], MessageId> = {
   "open circle": "station.area.shape.open_circle",
   line: "station.area.shape.line",
@@ -111,14 +115,15 @@ const COLOUR_WORDS: Record<AreaValues["colour"], MessageId> = {
   unknown: "station.area.colour.unknown",
 };
 
-/** The shape and the colour of an area object, as the values of `station.ext.area_value`; a word the page does not know (a daemon of another build) is said as an area and an unknown colour. */
+/** The shape and colour of an area object, as the values of `station.ext.area_value`; a word the
+ * page does not know is shown as an area and an unknown colour. */
 export function areaWords(area: Pick<AreaValues, "shape" | "colour">): { shape: string; colour: string } {
   const shape = SHAPE_WORDS[area.shape] as MessageId | undefined;
   const colour = COLOUR_WORDS[area.colour] as MessageId | undefined;
   return { shape: t(shape ?? "station.ext.area"), colour: t(colour ?? "station.area.colour.unknown") };
 }
 
-/** "IO91sx, 51.97917 N 0.45833 W": the grid square and the centre of it; a dash for none. */
+/** "IO91sx, 51.97917 N 0.45833 W": the grid square and its centre; a dash for none. */
 export function locatorText(loc: LocatorValues | null): string {
   return loc === null ? "-" : `${loc.grid}, ${positionText(loc.lat, loc.lon)}`;
 }
@@ -128,14 +133,16 @@ function valueText(v: number): string {
   return String(Math.round(v * 100) / 100);
 }
 
-/** "#5: Battery 10.35 V, Temp 24 deg.F": the analog channels with the names and units the station defined (or A1 to A5). */
+/** "#5: Battery 10.35 V, Temp 24 deg.F": the analog channels with the names and units the station
+ * defined (or A1 to A5). */
 export function telemetryText(telemetry: TelemetryValues | null): string {
   if (telemetry === null) return "-";
   const channels = telemetry.channels.map((c) => `${c.name} ${valueText(c.value)}${c.unit === "" ? "" : ` ${c.unit}`}`).join(", ");
   return telemetry.sequence === null ? channels : t("station.telemetry.numbered", { number: telemetry.sequence, channels });
 }
 
-/** "Camera on, Chute off": the digital channels, named as the station defined them (or B1 to B8). */
+/** "Camera on, Chute off": the digital channels, named as the station defined them (or B1 to B8).
+ */
 export function telemetryBitsText(telemetry: TelemetryValues | null): string {
   return telemetry === null ? "-" : telemetry.bits.map((b) => t("station.telemetry.bit", { name: b.name, state: b.on ? "on" : "off" })).join(", ");
 }
@@ -145,7 +152,8 @@ function offsetText(khz: number): string {
   return t("station.freq.offset", { khz: khz > 0 ? `+${khz}` : String(khz) });
 }
 
-/** A voice frequency with the fields it was sent with: "145.775 MHz, tone 118 Hz, -600 kHz, range 40 km"; only what the sender said. */
+/** A voice frequency with the fields it was sent with: "145.775 MHz, tone 118 Hz, -600 kHz, range
+ * 40 km"; only what the sender said. */
 export function frequencyText(f: FrequencyValues): string {
   const parts = [t("station.freq.mhz", { mhz: formatNumber(f.mhz, 3) })];
   if (f.tone_hz !== null) parts.push(t(f.tone_both ? "station.freq.tone_both" : "station.freq.tone", { hz: f.tone_hz }));
@@ -159,7 +167,8 @@ export function frequencyText(f: FrequencyValues): string {
   return parts.join(", ");
 }
 
-/** The storm data in words: "Hurricane, wind 278 km/h, gusts 370 km/h, pressure 980 hPa, hurricane winds out to 167 km, ..."; only the fields the report had. */
+/** The storm data in words: "Hurricane, wind 278 km/h, gusts 370 km/h, pressure 980 hPa, ..."; only
+ * the fields the report had. */
 export function stormText(s: StormValues): string {
   const parts = [t("station.storm.kind", { kind: s.storm_type })];
   if (s.wind_kmh !== null) parts.push(t("station.storm.wind", { speed: speedText(s.wind_kmh) }));
@@ -173,7 +182,8 @@ export function stormText(s: StormValues): string {
 
 type Timed = DecodedPosition | DecodedObject | DecodedStatus | DecodedOther;
 
-/** The time a packet carries and whether it was sent as local time (`/`): then it is shown as sent, in the sender's clock, not converted to ours. */
+/** The time a packet carries, and whether it was sent as local time (`/`): then it is shown as
+ * sent, not converted to ours. */
 function carried(row: PacketRow): { at: string; local: boolean } | null {
   const d = row.decoded as Timed | { type: string };
   if (d.type === "object") {
@@ -187,7 +197,8 @@ function carried(row: PacketRow): { at: string; local: boolean } | null {
   return null;
 }
 
-/** The time that the packet itself carries, for its detail: "2026-10-21 14:03:12" in our time, or "09 23:45 local" for a time the sender gave in its local time; null when it carries none. */
+/** The time the packet itself carries, for its detail: "2026-10-21 14:03:12" in our time, or "09
+ * 23:45 local" for a sender's local time; null if none. */
 export function sentTimeText(row: PacketRow): string | null {
   const sent = carried(row);
   if (sent === null) return null;

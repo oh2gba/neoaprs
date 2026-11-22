@@ -1,11 +1,10 @@
 <script setup lang="ts">
-// The receive level of a Sound card radio, a row of its box: the level Direwolf hears now, on Direwolf's own scale (lib/soundcardlevel.ts), on the bar of components/LevelBar.vue. While the row is in view
-// (composables/useWhenShown.ts `useInView`) the page asks for the level ten times a second (`radio_level`, counted with the other panes in composables/useRadioAsks.ts) and the bar follows it; else, and until the
-// first one comes, the bar is the modem's `rx_level` of the radio's row, every two seconds and at each packet.
-// The row is there while Direwolf does not run, with its room kept, so that nothing moves when the level comes; the bar is dimmed while the radio transmits (or is tuned), when the level is the last one heard. Its (i) is
-// the receive level's of the HF box: the same words hold for both. Where the radio's sound card has a capture level of its own (the row's `card.rx`, once its levels are known: `card.read`) its slider stands
-// before the bar (components/CardSlider.vue, the radio's `rx_card`): the slider sets what the card takes from the radio, the bar shows what comes out. The slider's room is there whatever the card has, so
-// that the bar never changes its width or place when the slider comes.
+// The receive level of a Sound card radio, shown on the Direwolf scale (lib/soundcardlevel.ts) on a
+// LevelBar. While the row is in view the page asks for the level ten times a second
+// (`radio_level`); otherwise, and until the first answer, the bar shows the radio row's `rx_level`.
+// The row is always present so that nothing moves when the level arrives. The bar is dimmed while
+// the radio transmits. Where the card has its own capture level (`card.rx`), a CardSlider stands
+// before the bar; its room is reserved whether or not the card has one.
 import { computed, ref, useId } from "vue";
 import CardSlider from "@/components/CardSlider.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -27,7 +26,7 @@ lookers.look(
   () => props.radio.id,
 );
 const modem = computed(() => props.radio.row.modem);
-/** The level ten times a second while it is asked for and has come; else the row's. */
+/** The level ten times a second while asked for and received; else the row's. */
 const level = computed(
   () => (lookers.asked.value.includes(props.radio.id) ? radioLevels.value.get(props.radio.id) : undefined) ?? modem.value?.rx_level ?? null,
 );

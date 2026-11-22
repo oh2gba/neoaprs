@@ -1,4 +1,5 @@
-// The HF radio's levels (lib/hflevel.ts): the zones of the receive level, the bar, and the numbers as text.
+// The HF radio's levels (lib/hflevel.ts): the receive level's zones, the bar, and the numbers as
+// text.
 import { describe, expect, it } from "vitest";
 import { GOOD_PERCENT, clips, dbText, gainText, levelPercent, levelZone } from "@/lib/hflevel";
 import { LIMITS } from "@/protocol/lists";

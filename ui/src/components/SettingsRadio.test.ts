@@ -8,8 +8,10 @@ import type { ModemState, PortsMessage, RadioRow, RadioSearchMessage } from "@/p
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, fmRow, hfRow, portRow, radioRow, radioSearch, radiosTopic, soundCard } from "@/test/fixtures";
 
-// The Radio group of the Settings tab for a station of an FM radio (radio 1, a serial TNC) and an HF radio (radio 2, the Mercury modem): each worked by its own row of the topic `radios` and its own settings
-// (`radio/<id>/<key>`), its Enable and type by `radio_change`. The station of many radios is ManyRadiosPage.test.ts's.
+// The Radio group of the Settings tab for a station with an FM radio (radio 1, a serial TNC) and an
+// HF radio (radio 2, the Mercury modem): each worked by its own row of the topic `radios` and its
+// own settings (`radio/<id>/<key>`), with Enable and type sent by `radio_change`. Many radios:
+// ManyRadiosPage.test.ts.
 const ports = (find = true): PortsMessage => ({
   type: "ports",
   sound_cards: [],
@@ -75,14 +77,15 @@ describe("the Radio group of the Settings tab", () => {
       expect(first.find("label").text()).toBe("Enable");
       expect(first.find("input").attributes("type")).toBe("checkbox");
       expect(first.find("input").attributes("id")).toBe(id);
-      // (with both radios on, each box has its Name and Remove between its Enable and its status: plan section 6, "In each: Enable; Name and Remove, outside the status fold")
+      // with both radios on, each box has its Name and Remove between its Enable and its status
       const name = first.element.nextElementSibling;
       expect(name?.querySelector("label")?.textContent).toBe("Name");
       expect(name?.nextElementSibling).toBe(box.find("details.radiostatus").element);
     }
     expect(group.find<HTMLInputElement>("#set-radio-1-enabled").element.checked).toBe(true);
     expect(group.find<HTMLInputElement>("#set-radio-2-enabled").element.checked).toBe(true);
-    expect(group.find(".group-body").element.firstElementChild).toBe(group.find(".field").element); // (the RX only tickbox is the first row)
+    // the RX only tickbox is the first row
+    expect(group.find(".group-body").element.firstElementChild).toBe(group.find(".field").element);
   });
 
   it("has an (i) on each Enable, with the picture of the two radios", async () => {
@@ -97,7 +100,9 @@ describe("the Radio group of the Settings tab", () => {
   it("is, while the Mercury radio is not ticked, the FM radio as it was and the Mercury box as its Enable row and its Name alone, and the Enable of the only radio is greyed with a title that says why", () => {
     const { group } = make();
     expect(hf(group).find("details").exists()).toBe(false);
-    // (plan section 6: "Name and Remove, outside the status fold, so that a radio that is off can be renamed and removed": the HF radio that is off has them, and its Remove works; the FM radio's, the only one on, is off)
+    // Name and Remove are outside the status fold so that a radio that is off can be renamed and
+    // removed: the HF radio that is off has them and its Remove works; the FM radio, the only one
+    // on, has Remove off
     expect(
       hf(group)
         .findAll("select, input")
@@ -110,7 +115,8 @@ describe("the Radio group of the Settings tab", () => {
     expect(fm(group).find<HTMLInputElement>("#set-radio-1-enabled").element.disabled).toBe(true);
     expect(fm(group).find("#set-radio-1-enabled").element.closest(".field")?.getAttribute("title")).toBe(ONLY);
     expect(fm(group).find("#set-radio-1-enabled").element.closest(".field")?.classList.contains("disabled")).toBe(true);
-    expect(fm(group).find("#set-radio-1-enabled").element.closest(".field")?.querySelector(".info-toggle")).not.toBeNull(); // (the (i) still opens)
+    // the (i) still opens
+    expect(fm(group).find("#set-radio-1-enabled").element.closest(".field")?.querySelector(".info-toggle")).not.toBeNull();
   });
 
   it("is, while only the Mercury radio is ticked, the FM box as its Enable row and its Name alone and the Mercury Enable greyed", () => {
@@ -120,7 +126,7 @@ describe("the Radio group of the Settings tab", () => {
       fm(group)
         .findAll("select, input")
         .map((e) => e.attributes("id")),
-    ).toEqual(["set-radio-1-enabled", "set-radio-1-name"]); // (plan section 6: the Name of a radio that is off, outside the fold)
+    ).toEqual(["set-radio-1-enabled", "set-radio-1-name"]); // the Name of a radio that is off, outside the fold
     expect(fm(group).find<HTMLInputElement>("#set-radio-1-enabled").element.disabled).toBe(false);
     expect(hf(group).find<HTMLInputElement>("#set-radio-2-enabled").element.disabled).toBe(true);
     expect(hf(group).find("#set-radio-2-enabled").element.closest(".field")?.getAttribute("title")).toBe(ONLY);
@@ -141,7 +147,8 @@ describe("the Radio group of the Settings tab", () => {
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(head.find("button").exists()).toBe(false);
     for (const id of ["#set-radio-1-type", "#set-radio-1-port", "#set-radio-1-baud", "#set-radio-1-find"]) expect(fold(group).find(id).exists(), id).toBe(true);
-    expect(outside(fm(group), fold(group).element)).toEqual(["set-radio-1-enabled", "set-radio-1-name"]); // (its Name is outside the fold: plan section 6)
+    // its Name is outside the fold
+    expect(outside(fm(group), fold(group).element)).toEqual(["set-radio-1-enabled", "set-radio-1-name"]);
   });
 
   it("is open when the FM radio is not connected, and opens when it stops being connected", async () => {
@@ -365,7 +372,8 @@ describe("the Mercury radio's box in the Radio group", () => {
     const { group, send, daemon } = make({ ports: cards() }, BOTH, on);
     await group.find<HTMLSelectElement>("#set-radio-2-sound_card").setValue("plughw:0,0");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "radio/2/sound_card": "plughw:0,0" } });
-    await tell(daemon, { config: configValues({}, { ...on, "radio/2/sound_card": "plughw:0,0" }) }); // (the daemon's answer: the form sends one change at a time)
+    // the daemon's answer: the form sends one change at a time
+    await tell(daemon, { config: configValues({}, { ...on, "radio/2/sound_card": "plughw:0,0" }) });
     await group.find<HTMLSelectElement>("#set-radio-2-keying").setValue("rts:/dev/ttyUSB0");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "radio/2/keying": "rts:/dev/ttyUSB0" } });
   });

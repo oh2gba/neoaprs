@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The digipeaters the path builder (PathBuilder.vue) offers as the next hop (lib/pathbuilder.ts): for the first hop the ones we hear direct ("Digipeaters heard"), for a later one those seen next to the hop before it in the routes
-// ("Next to OH2RDK-7"). A line a choice, a click adds it to the path: the call, how often it was seen (packets it repeated for us, or stations whose routes have it there; the hover title says which), when it was last heard direct
-// and how far it is. The list has a height of its own, the same whatever it holds, and scrolls; "-" for none.
+// The digipeaters the path builder offers as the next hop: for the first hop those heard direct,
+// for later hops those seen next to the hop before. One line per choice with call, count, last
+// heard and distance; a click adds it. The list has a fixed height and scrolls.
 import { computed } from "vue";
 import { t } from "@/i18n";
 import { ageText, distanceText, NONE } from "@/lib/format";

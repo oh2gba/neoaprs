@@ -16,7 +16,7 @@ function setUp(initial: ConfigValues | null = fresh()) {
   const sent: Command[] = [];
   const send = vi.fn((command: Command) => (sent.push(command), true));
   const guide = useSetupGuide(config, lastError, send);
-  /** The daemon tells the settings again, as it does after a save. */
+  /** The daemon sends the settings again, as after a save. */
   const told = async (extra: Record<string, string> = {}) => {
     const now = config.value ?? fresh();
     config.value = {
@@ -47,7 +47,8 @@ describe("useSetupGuide: the steps", () => {
     const { guide } = setUp();
     expect(guide.open).toBe(false);
     expect(guide.step).toBe(0);
-    expect(guide.fields).toEqual({ call: "", lat: "", lon: "", symbol: "/-" }); // (the Radio step has no answers: it is live, plan section 6)
+    // The Radio step has no answers: it is live.
+    expect(guide.fields).toEqual({ call: "", lat: "", lon: "", symbol: "/-" });
     expect(guide.valid).toEqual([false, false, true, true]);
   });
 
@@ -158,8 +159,8 @@ describe("useSetupGuide: the steps", () => {
   });
 });
 
-// The Radio step's boxes are the Settings tab's (plan section 6: "live, as the Settings group is"): they list the ports and the sound cards of every type of radio, so the guide asks for them each time the step comes on the
-// screen, whatever the radios' types (before, only for a serial TNC: the step had the FM radio's fields alone).
+// The Radio step's boxes are the Settings tab's: they list the ports and sound cards of every type
+// of radio, so the guide asks for them each time the step shows, whatever the radios' types.
 describe("useSetupGuide: the radio", () => {
   it("asks for the ports and the sound cards each time the Radio step comes on the screen, so that a radio plugged in meanwhile is listed", async () => {
     const { guide, sent, fill } = setUp(fresh({ "tnc/profile": "kiss-tcp" }));
@@ -383,7 +384,8 @@ describe("useSetupGuide: the map is asked for as the Position step is left", () 
     guide.next();
     await nextTick();
     expect(sent).toEqual([{ cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } }, { cmd: "map_wanted" }]);
-    const again = setUp(fresh({ "station/lat": "60.17", "station/lon": "24.94" })); // the guide run again on a station that has a place
+    // The guide run again on a station that has a place.
+    const again = setUp(fresh({ "station/lat": "60.17", "station/lon": "24.94" }));
     again.fill();
     again.guide.next();
     await nextTick();

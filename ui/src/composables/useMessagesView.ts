@@ -1,4 +1,6 @@
-// The Messages tab as the page runs it: the conversations (a message is seen only while the tab is in front of the user, lib/unread.ts), whether the overheard ones are listed (remembered), the group compose (one text to several stations: `group`, opened by `openGroup`), and the ways to the tab: the Message button of a station's card, the mail in the header, a message sent, a conversation deleted.
+// The Messages tab state: the conversations, whether overheard messages are listed, the group
+// compose (`group`, `openGroup`), and the ways to the tab (a card's Message button, the header
+// mail, a sent message, a deleted conversation).
 import { ref, watch, type Ref } from "vue";
 import { useViewing, type Panel } from "@/composables/usePanel";
 import { usePersistedFlag } from "@/composables/usePersisted";
@@ -12,7 +14,7 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
   const viewing = useViewing(panel, "messages");
   const showOverheard = usePersistedFlag("overheard", ["on", "off"], false);
   const talk = useConversations(messages, viewing, showOverheard, loaded);
-  /** The calls of the group compose that is open, null when there is none. It and an open conversation exclude each other. */
+  /** The calls of the open group compose, null if none; it excludes an open conversation. */
   const group = ref<string[] | null>(null);
 
   watch(talk.selected, (call) => {
@@ -20,8 +22,8 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
   });
 
   /**
-   * One text to several stations: the Messages tab, unfolded, with the group compose for `calls` (the card stack's "Message these 3"). The open conversation is left (nothing is seen while the group is open), and a call that is no call, the email gateway or a duplicate is left out;
-   * with none left nothing is opened. It takes the place of a group that is open.
+   * Open the group compose for `calls`. The open conversation is left, and an invalid call, the
+   * email gateway or a duplicate is dropped; with none left nothing opens.
    */
   function openGroup(calls: readonly string[]): void {
     const list = calls.reduce<string[]>((kept, call) => (addable(call, kept) ? [...kept, normalizeCall(call)] : kept), []);
@@ -31,7 +33,7 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
     panel.show("messages");
   }
 
-  /** The "Message" button of a station's card: the Messages tab, open on that station (the Email tab for the email gateway, which has no conversation here). */
+  /** Open the Messages tab on that station (the Email tab for the email gateway). */
   function writeTo(call: string): void {
     if (isGateway(call)) {
       panel.show("email");
@@ -41,7 +43,7 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
     panel.show("messages");
   }
 
-  /** The mail in the header: the Messages tab, on the newest conversation with something not seen unless the one open has. */
+  /** Open the newest conversation with something unseen, unless the open one has. */
   function openMessages(): void {
     const open = talk.list.value.find((c) => c.call === talk.selected.value);
     const fresh = talk.list.value.find((c) => c.unread > 0);
@@ -49,22 +51,19 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
     panel.show("messages");
   }
 
-  /** Deletes the whole conversation with a station; its thread closes if it was the open one. */
   function deleteConversation(call: string): void {
     if (send({ cmd: "conversation_delete", call }) && talk.selected.value === call) talk.selected.value = null;
   }
 
-  /** Deletes every overheard message of a pair ("OH2AAA>OH2BBB"); its thread closes if it was the open one. */
   function deleteOverheard(from: string, to: string): void {
     if (send({ cmd: "overheard_delete", from_call: from, to_call: to }) && talk.selected.value === `${from}>${to}`) talk.selected.value = null;
   }
 
-  /** Sends a message (`locked`: encrypted with the station's key) and opens the conversation it belongs to. */
   function sendMessage(to: string, text: string, locked = false): void {
     if (send(locked ? { cmd: "send_message", to, text, locked: true } : { cmd: "send_message", to, text })) talk.selected.value = to;
   }
 
-  /** Sends the same text to several stations, a message to each (the daemon spaces them), exactly as if sent one by one; the group compose that sent them closes itself. */
+  /** Send the same text to several stations, one message each, and close the group compose. */
   function sendMessages(to: readonly string[], text: string): void {
     for (const call of to) send({ cmd: "send_message", to: call, text });
   }

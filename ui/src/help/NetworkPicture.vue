@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Network access: the computer NeoAPRS runs on and, over the network, the phone, the tablet and the laptop that open its page.
+// Network access: the computer NeoAPRS runs on and, over the network, the phone, the tablet and
+// the laptop that open its page.
 import { arrow, waves } from "@/help/draw";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpSymbol from "@/help/HelpSymbol.vue";

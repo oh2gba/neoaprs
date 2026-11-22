@@ -1,4 +1,6 @@
-// The pictures of the (i) notes: each draws, says what it shows to a screen reader, has no words of a language in it, and is made of the page's own colours (classes of helppictures.css that are variables of tokens.css, which are defined for light and for dark), so that it follows the theme.
+// The pictures of the (i) notes: each draws, describes what it shows for a screen reader, has no
+// words of a language in it, and is made of the page's own colours (classes of helppictures.css
+// that are variables of tokens.css, defined for light and dark), so that it follows the theme.
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,7 +53,8 @@ describe("the pictures of the (i) notes", () => {
       const words = mount(PICTURES[name])
         .findAll("text")
         .map((text) => text.text());
-      expect(words.filter((word) => word !== t("help.me") && !/^[A-Z0-9][A-Z0-9 .,-]*$/.test(word))).toEqual([]); // (the one word is what our own station is called, in the language of the page)
+      // The one word is what our own station is called, in the page's language.
+      expect(words.filter((word) => word !== t("help.me") && !/^[A-Z0-9][A-Z0-9 .,-]*$/.test(word))).toEqual([]);
     }
   });
 

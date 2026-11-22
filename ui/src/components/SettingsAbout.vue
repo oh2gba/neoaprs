@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The About group, after Help, the last of the Settings tab: what NeoAPRS is and which version this is (the daemon's), who made it and when, the licence and the source as plain links, the HF modem with its
-// version and, where this installation carries it (the status does not name its type among the unavailable ones), the sound card modem with its version, a thanks to everyone, and as the quiet last line Download logs, which saves the support file (Help's Send feedback / logs is the way to reach the project, and the line before it names that button). Text and links only; no control. A call in running text stays in the body font (the monospace font has another height, and a selection of it looks cut).
+// The About group, last of the Settings tab: the version, authors, licence, source links, the HF
+// modem and (where installed) the sound card modem with versions, and Download logs as the last
+// line.
 import { computed } from "vue";
 import { t } from "@/i18n";
 import SettingsGroup from "@/components/SettingsGroup.vue";
@@ -12,7 +13,7 @@ import { LIMITS } from "@/protocol/lists";
 
 const { version, call, connection, panel, status } = useDaemonContext();
 const logs = useSupportLogs({ call, connection, daemonVersion: version, panelWidth: panel.width });
-/** Whether this installation carries Direwolf: known from the status, as the list of types knows it. */
+/** Whether this installation carries Direwolf, known from the status. */
 const direwolf = computed(() => status.value !== null && !status.value.unavailable_types.includes("direwolf"));
 const downloadLabel = computed(() => (logs.running.value ? t("settings.help.collecting") : t("settings.help.download")));
 </script>

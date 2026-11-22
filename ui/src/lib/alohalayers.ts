@@ -1,10 +1,16 @@
-// The layers of the ALOHA circle (lib/alohacircle.ts): a thin dashed line in the map label colour with a pale halo under it. The colours are the page's own (ui/src/styles/tokens.css), read when the layers are made, which is again whenever the style is set (the colour scheme changed).
+// The layers of the ALOHA circle (lib/alohacircle.ts): a thin dashed line in the map label
+// colour with a pale halo under it. The colours are the page's own (ui/src/styles/tokens.css),
+// read when the layers are made, which happens again whenever the style is set (the colour
+// scheme changed).
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { AlohaCollection } from "@/lib/alohacircle";
 
 export const ALOHA_SOURCE = "aloha";
 
-/** A colour of the page's palette (`--map-label`), else the one given where the style sheet is not there. */
+/**
+ * A colour of the page's palette (`--map-label`), else the one given where the style sheet is
+ * not there.
+ */
 export function paletteColor(name: string, fallback: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }

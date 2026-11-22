@@ -7,7 +7,9 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { cssRule } from "@/test/css";
 import { station } from "@/test/fixtures";
 
-// The map is 1200 by 800 pixels; the row of cards (`.cardstack`) is inside it from (10, 84) to (1190, 770); a card is 340 by 300 and, in the row, stands at its bottom, the cards side by side from the row's left.
+// The map is 1200 by 800 pixels; the row of cards (`.cardstack`) is inside it from (10, 84) to
+// (1190, 770); a card is 340 by 300 and stands at the row's bottom, the cards side by side from its
+// left.
 const rect = (left: number, top: number, width: number, height: number): DOMRect => ({
   left,
   top,
@@ -34,7 +36,8 @@ function make(rows = [A, B], size: SizeClass = "desktop", extra: { pinned?: stri
   wrap = document.createElement("div");
   wrap.className = "mapwrap";
   document.body.append(wrap);
-  // (the places are the page's, as in the page: a write comes back as the prop only when the page has been drawn again, so a second write at once does not see the first)
+  // (the places are the page's, as in the page: a write comes back as the prop only when the page
+  // has been drawn again, so a second write at once does not see the first)
   const wrapper: Wrapper = mount(StationCards, {
     props: { rows, size, ...extra, places: {}, "onUpdate:places": (places: Places) => void wrapper.setProps({ places }) },
     global: withDaemon(fakeDaemon()),
@@ -61,7 +64,10 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-/** A pointer event of the mouse, a finger or a pen (the events of a pointer have no pointer id here: the same one, so, for all). */
+/**
+ * A pointer event of the mouse, a finger or a pen (the events of a pointer have no pointer id here:
+ * the same one, so, for all).
+ */
 const pointer = (type: string, x: number, y: number, target: Element) =>
   target.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
 const card = (wrapper: Wrapper, call: string) => wrapper.find(`.card[data-call="${call}"]`);
@@ -83,7 +89,8 @@ describe("StationCards: moving a card by its head", () => {
     expect(wrapper.find(".card-head").attributes("title")).toContain("Drag to move");
     expect(cssRule(".cardstack:not(.sheet) .card-head")).toContain("cursor: grab");
     expect(cssRule(".cardstack:not(.sheet) .card-head")).toContain("touch-action: none");
-    expect(cssRule(".card-head")).toContain("user-select: none;"); // (the head of every card, the sheet's too: the page's chrome is not text to select)
+    // the head of every card, the sheet's too: the page's chrome is not text to select
+    expect(cssRule(".card-head")).toContain("user-select: none;");
     expect(cssRule(".card-dragging *")).toContain("cursor: grabbing");
     expect(cssRule(".cardstack .card.moved")).toContain("position: absolute");
     expect(cssRule(".cardstack .card.moved")).toContain("bottom: auto");
@@ -91,7 +98,8 @@ describe("StationCards: moving a card by its head", () => {
 
   it("moves the card by the distance of the pointer, and the other card stays where it stands (pinned there)", async () => {
     const wrapper = make();
-    drag(wrapper, "OH2ZWB", [400, 500], [460, 440]); // (the second card stood at x = 358 - 10 = 348 of the row, y = 386)
+    // the second card stood at x = 358 - 10 = 348 of the row, y = 386
+    drag(wrapper, "OH2ZWB", [400, 500], [460, 440]);
     await wrapper.vm.$nextTick();
     expect(card(wrapper, "OH2ZWB").classes()).toContain("moved");
     expect(style(wrapper, "OH2ZWB")).toEqual({ left: "408px", top: "326px" });
@@ -152,10 +160,12 @@ describe("StationCards: moving a card by its head", () => {
     const wrapper = make([A]);
     drag(wrapper, "OH2ZWA", [100, 600], [-900, -900]);
     await wrapper.vm.$nextTick();
-    expect(style(wrapper, "OH2ZWA")).toEqual({ left: "-10px", top: "-84px" }); // (the map's top left corner: the row begins at (10, 84))
+    // the map's top left corner: the row begins at (10, 84)
+    expect(style(wrapper, "OH2ZWA")).toEqual({ left: "-10px", top: "-84px" });
     drag(wrapper, "OH2ZWA", [100, 100], [5000, 5000]);
     await wrapper.vm.$nextTick();
-    expect(style(wrapper, "OH2ZWA")).toEqual({ left: "850px", top: "416px" }); // (the card's right edge at the map's: 1200 - 340 - 10; the bottom at 800: 800 - 300 - 84)
+    // the card's right edge at the map's: 1200 - 340 - 10; the bottom at 800: 800 - 300 - 84
+    expect(style(wrapper, "OH2ZWA")).toEqual({ left: "850px", top: "416px" });
   });
 
   it("keeps a moved card inside the map as the map is now: a map that got smaller holds it at its edge", async () => {
@@ -183,7 +193,8 @@ describe("StationCards: moving a card by its head", () => {
     const full = make([A, B, C, D]);
     await full.vm.$nextTick();
     await full.vm.$nextTick();
-    expect(full.emitted("overflow")).toBeDefined(); // (4 cards of 340 and 3 gaps are wider than the 1160 px the row has)
+    // 4 cards of 340 and 3 gaps are wider than the 1160 px the row has
+    expect(full.emitted("overflow")).toBeDefined();
     document.body.replaceChildren();
     const wrapper = make([A, B, C]);
     drag(wrapper, "OH2ZWA", [100, 600], [300, 300]);
@@ -202,7 +213,8 @@ describe("StationCards: moving a card never moves another", () => {
     drag(wrapper, "OH2ZWA", [100, 600], [700, 300]);
     await wrapper.vm.$nextTick();
     expect(spot(wrapper, "OH2ZWA")).toEqual({ left: "600px", top: "86px", moved: true });
-    expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px", moved: true }); // (where it stood in the row: x = 358 - 10)
+    // where it stood in the row: x = 358 - 10
+    expect(spot(wrapper, "OH2ZWB")).toEqual({ left: "348px", top: "386px", moved: true });
   });
 
   it("drag the second: the first stays where it was", async () => {
@@ -301,7 +313,9 @@ describe("StationCards: moving a card with the keyboard", () => {
     const left = key(wrapper, "OH2ZWA", { key: "ArrowLeft", altKey: true });
     await wrapper.vm.$nextTick();
     expect(left.defaultPrevented).toBe(true);
-    expect(style(wrapper, "OH2ZWA")).toEqual({ left: "-10px", top: "386px" }); // (the first step is from where the card stands in the row, x = 0, and the map's left edge is 10 px left of the row's)
+    // the first step is from where the card stands in the row, x = 0, and the map's left edge is 10
+    // px left of the row's
+    expect(style(wrapper, "OH2ZWA")).toEqual({ left: "-10px", top: "386px" });
     key(wrapper, "OH2ZWA", { key: "ArrowUp", altKey: true });
     await wrapper.vm.$nextTick();
     expect(style(wrapper, "OH2ZWA").top).toBe("362px");
@@ -326,7 +340,8 @@ describe("StationCards: the bottom sheet of a phone", () => {
   it("cannot be dragged: the head is not a handle, has no hint, and no card is moved", async () => {
     const wrapper = make([A], "phone");
     expect(wrapper.find(".card-head").attributes("title")).toBeUndefined();
-    expect(cssRule(".cardstack:not(.sheet) .card-head")).not.toBe(""); // (the handle's style is for the row only: the sheet is excluded by the selector)
+    // the handle's style is for the row only: the sheet is excluded by the selector
+    expect(cssRule(".cardstack:not(.sheet) .card-head")).not.toBe("");
     drag(wrapper, "OH2ZWA", [100, 600], [200, 400]);
     card(wrapper, "OH2ZWA").element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true }));
     await wrapper.vm.$nextTick();
@@ -381,7 +396,8 @@ describe("StationCards: a card that grows where it stands", () => {
 
   it("is moved up as far as it needs to be whole inside the map, and not further", async () => {
     const wrapper = make([A]);
-    drag(wrapper, "OH2ZWA", [100, 600], [300, 590]); // (a card at the bottom: top 376 of the row, 460 of the map, its bottom at 760 of 800)
+    // a card at the bottom: top 376 of the row, 460 of the map, its bottom at 760 of 800
+    drag(wrapper, "OH2ZWA", [100, 600], [300, 590]);
     await wrapper.vm.$nextTick();
     expect(style(wrapper, "OH2ZWA").top).toBe("376px");
     await grow(wrapper, 400);

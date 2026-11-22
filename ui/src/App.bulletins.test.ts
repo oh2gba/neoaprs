@@ -27,7 +27,7 @@ describe("App: the Bulletins tab", () => {
         "Nearby",
         "Email",
         "Bulletins",
-        "Objects", // (no radio of the kind HF on: no HF tests tab, John's decision "THE SKEDS ARE HF TESTS")
+        "Objects",
         "My station",
         "Packets",
         "Settings",
@@ -63,7 +63,7 @@ describe("App: the Bulletins tab", () => {
       await flushPromises();
       expect(badge(wrapper)?.text()).toBe("1");
       await wrapper.find(".panel-fold").trigger("click");
-      // the handle counts the messages not seen, as the header does: a new bulletin is not one
+      // The handle counts unseen messages, as the header does; a new bulletin is not one.
       expect(wrapper.find(".fold-badge").text()).toBe("2");
       expect(wrapper.find(".fold-badge").attributes("title")).toBe("2 messages not seen yet");
       expect(wrapper.find(".headmail").text()).toContain("2");

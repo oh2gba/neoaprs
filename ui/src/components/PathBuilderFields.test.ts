@@ -1,5 +1,6 @@
-// The path builder from each field a path is typed in: a station's Route (StationPath, in a conversation and in the Stations tab's panel), the beacon's path (SettingsPath), the Path of Ask around and of Local info (RequestPath) and
-// the path of an object (ObjectForm). Use puts the path into the field, which saves it as it saves what is typed; Cancel leaves the field as it was.
+// The path builder from each field a path is typed in: a station's Route, the beacon's path,
+// the Path of Ask around and Local info, and the path of an object. Use puts the path into the
+// field, which saves it as it saves typed text; Cancel leaves the field as it was.
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";

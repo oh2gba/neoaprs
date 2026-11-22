@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// A row of the Settings tab and of the setup guide whose control is an action button (Download map, Check now, Download logs): its own label, the button at the left edge of the control column like the fields', the (i) after it, and the quiet lines of its
-// outcome (progress, "Map downloaded 21 Oct", "Saved FILE.") under it in the same column. A button that belongs to a field (the Test of the command, Refresh of the port, the new access key) stays beside that field and is not a row.
+// A Settings row whose control is an action button, with its (i) and the quiet lines of its
+// outcome (progress, result) under it in the same column. A button that belongs to a field stays
+// beside that field and is not a row.
 import InfoTip from "@/components/InfoTip.vue";
 import type { PictureName } from "@/help/names";
 

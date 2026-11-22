@@ -1,5 +1,8 @@
-// The settings area drawn in the pseudo-locale (src/i18n/pseudo.ts): every word of the Settings tab, the My station tab's settings, the first-run guide, the guides for pop-ups, the certificate and the update, and the small panels, with the
-// parts that show only sometimes switched on (the access key, the secure connection, the search for the radio, a map on disk). A text that still equals an English message of the catalogue was written by hand, not taken from it.
+// The settings area drawn in the pseudo-locale (src/i18n/pseudo.ts): every word of the Settings
+// tab, the My station tab's settings, the first-run guide, the guides for pop-ups, the certificate
+// and the update, and the small panels, with the conditional parts switched on (access key, secure
+// connection, radio search, a map on disk). A text that still equals an English catalogue message
+// was written by hand.
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
@@ -29,10 +32,13 @@ import type { HttpsState, PortsMessage } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon, type FakeDaemon } from "@/test/context";
 import { configValues, mapFile, mapState, radioRow, radiosTopic, status, portRow } from "@/test/fixtures";
 
-/** The words that come from the daemon or the user, or are the same in every language: they are what the page shows besides the catalogue's words. */
+/** The words that come from the daemon or the user, or are the same in every language. */
 const ATTRIBUTES = ["title", "aria-label", "placeholder", "label"];
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** The English texts of the catalogue of the areas of this file, as what they look like on the page (a value is any text); one of fewer than three letters is not looked for. */
+/**
+ * The English texts of the catalogue for this file's areas as they look on the page (a value is any
+ * text); a text of fewer than three letters is not looked for.
+ */
 const ENGLISH = Object.entries(en as Record<string, Message>)
   .filter(([id]) => /^(settings|beacon|setup|help)\./.test(id))
   .flatMap(([, message]) => texts(message))
@@ -46,7 +52,7 @@ const ENGLISH = Object.entries(en as Record<string, Message>)
           .join("")}$`,
       ),
   );
-/** Words of the page that are the same as a message and come from elsewhere: the names of the symbols, a call, a unit. */
+/** Words of the page that equal a message but come from elsewhere: symbol names, a call, a unit. */
 const ELSEWHERE = [
   "House",
   "Car",
@@ -125,7 +131,9 @@ describe("the settings area in the pseudo-locale", () => {
     mounted.push(wrapper);
     setLocale("en-XA");
     await flushPromises();
-    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(13); // (the nine groups, the two boxes of Notifications, the Layers box of Map and the radio's box of the Radio group)
+    // the nine groups, the two boxes of Notifications, the Layers box of Map and the radio's box of
+    // the Radio group
+    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(13);
     expect(wrapper.findAll("legend").every((l) => l.text().startsWith("[!! "))).toBe(true);
     expect(wrapper.find("#set-web-key").exists()).toBe(true);
     expect(wrapper.find(".radiostatus").exists()).toBe(true);
@@ -153,9 +161,11 @@ describe("the settings area in the pseudo-locale", () => {
     context.guide.show();
     expect(untranslated(draw(SetupGuide, context))).toEqual([]);
     for (const step of [SetupCall, SetupPosition, SetupSymbol, SetupRadio]) expect(untranslated(draw(step, context)), step.__name).toEqual([]);
-    context.radios.value = radiosTopic(radioRow(1, "kiss-tcp"), radioRow(2, "mercury")); // (the Radio step is live: its radios follow the daemon's rows)
+    // the Radio step is live: its radios follow the daemon's rows
+    context.radios.value = radiosTopic(radioRow(1, "kiss-tcp"), radioRow(2, "mercury"));
     expect(untranslated(draw(SetupRadio, context))).toEqual([]);
-    expect(untranslated(draw(SetupRadio, daemon({}, { radios: radiosTopic() })))).toEqual([]); // (a station with no radio: the box of the one being added)
+    // a station with no radio: the box of the one being added
+    expect(untranslated(draw(SetupRadio, daemon({}, { radios: radiosTopic() })))).toEqual([]);
     context.guide.edit("lat", "x");
     await flushPromises();
     expect(untranslated(draw(SetupPosition, context))).toEqual([]);

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-// A station with two radios: the FM radio reaches the car and the digipeater nearby by short waves along the ground, the HF radio a distant station by the signal that goes up and comes down (the Mercury picture's arc over the dashed line).
+// A station with two radios: the FM radio reaches the car and the nearby digipeater by short
+// waves along the ground, the HF radio a distant station by the signal that goes up and comes
+// down (the Mercury picture's arc over the dashed line).
 import { CALLS } from "@/help/calls";
 import { waves } from "@/help/draw";
 import { t } from "@/i18n";

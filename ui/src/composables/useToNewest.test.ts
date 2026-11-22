@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick, ref } from "vue";
 import { useToNewest } from "@/composables/useToNewest";
 
-// happy-dom does no layout: the sizes of the scrolling box are set by hand, and ResizeObserver is a fake whose callback the test calls
+// happy-dom does no layout: the scrolling box's sizes are set by hand, and ResizeObserver is a fake
+// whose callback the test calls.
 let resized: (() => void) | null = null;
 
 class FakeResizeObserver {

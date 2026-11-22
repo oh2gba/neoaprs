@@ -1,7 +1,11 @@
-// The controls that carry a path follow the radios (plan section 6): Route of a conversation and of the station panel holds the station's radio as its first row where more than one radio is on (the radios and
-// "Automatic", which names the radio it gives), then Path and RF only, which are there while a radio that is on may carry a path and greyed, the value kept, while the radio in force carries none. A path is the radio's
-// it was set on. The station panel's queries go on the station's radio: off while it is not connected, Trace the route greyed while it carries no path and left out while no radio that is on may carry one. Advanced of Ask
-// around and of Local info is there while the FM radio is on.
+// The controls that carry a path follow the radios. Route of a conversation and of the station
+// panel holds the station's radio as its first row where more than one radio is on (with
+// "Automatic", which names the radio it gives), then Path and RF only: present while a radio that
+// is on may carry a path, greyed with the value kept while the radio in force carries none. A path
+// belongs to the radio it was set on. The station panel's queries go on the station's radio: off
+// while it is not connected, Trace the route greyed while it carries no path and left out while no
+// radio that is on may carry one. Advanced of Ask around and Local info is there while the FM radio
+// is on.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { mount, type VueWrapper } from "@vue/test-utils";
@@ -19,7 +23,10 @@ beforeEach(() => localStorage.clear());
 afterEach(() => document.body.replaceChildren());
 
 const off = { enabled: false, state: "stopped" } as const;
-/** The radios on: the FM radio (radio 1) alone, both it and the HF radio (radio 2), the HF radio alone. */
+/**
+ * The radios on: the FM radio (radio 1) alone, both it and the HF radio (radio 2), the HF radio
+ * alone.
+ */
 const FM: Given = { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", off)) };
 const BOTH: Given = { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) };
 const FM_OFF: Given = { radios: radiosTopic(radioRow(1, "kenwood-tnc2", off), radioRow(2, "mercury")) };
@@ -267,7 +274,8 @@ describe("Route in the station panel", () => {
   });
 
   it("shows the radio of the email gateway greyed and chooses nothing: its radio is chosen in the Email tab, and a thing is offered once", () => {
-    const gateway = station("EMAIL-2", { heard: heardBy([1, 3]), radio_choice: 1, radio_now: 2 }); // (a choice Route kept in 0.20.1: it says nothing)
+    // a stale choice: it says nothing
+    const gateway = station("EMAIL-2", { heard: heardBy([1, 3]), radio_choice: 1, radio_now: 2 });
     const wrapper = panel(BOTH, gateway, { status: status({ email_radio: 2 }) });
     const list = wrapper.find<HTMLSelectElement>(".stationpanel-settings .route-radio select");
     expect([list.element.disabled, list.element.selectedOptions[0]?.text, wrapper.find(".stationpanel-settings .route-radio").classes()]).toEqual([

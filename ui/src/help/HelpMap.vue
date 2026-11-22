@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// A piece of map in a picture: the page's background with two faint roads, cut off at its frame; what is drawn in its slot is in the picture's own coordinates.
+// A piece of map in a picture: the page's background with two faint roads, cut off at its
+// frame; the slot is drawn in the picture's own coordinates.
 defineProps<{ x: number; y: number; w: number; h: number }>();
 </script>
 

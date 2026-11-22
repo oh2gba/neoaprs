@@ -43,7 +43,8 @@ describe("App: the Nearby tab", () => {
   it("has no Show range tickbox, and keeps nothing of it in the browser", async () => {
     const { wrapper } = await open();
     await tabButton(wrapper, "Nearby")?.trigger("click");
-    expect(wrapper.find("#pane-nearby .nearby-section:not(.nearby-ask) input[type='checkbox']").exists()).toBe(false); // (the one tickbox is Ask around's RF only)
+    // The one tickbox is Ask around's RF only.
+    expect(wrapper.find("#pane-nearby .nearby-section:not(.nearby-ask) input[type='checkbox']").exists()).toBe(false);
     expect(wrapper.find("#pane-nearby").text()).not.toContain("Show range");
     expect(localStorage.getItem("NeoAPRS.ranges")).toBeNull();
   });

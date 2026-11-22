@@ -1,6 +1,7 @@
-// The counting of who looks at a radio's scope (composables/useScopeLooks.ts): the rows are asked for while at least one pane looks, the page is in front, the radio has a scope (on, its type has one, its modem the interface) and
-// the socket is open, and not otherwise; every radio looked at at once, in frames that name their radio; the page keeps each radio's rows apart (composables/useScopeRows.ts), and the monitor card's radio is the one
-// chosen while it has a scope, else the first.
+// The counting of who looks at a radio's scope: rows are asked for while at least one pane looks,
+// the page is in front, the radio has a scope and the socket is open, and not otherwise; every
+// radio looked at is asked for at once, in frames that name their radio; the monitor card's radio
+// is the one chosen while it has a scope, else the first.
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick, shallowReactive, shallowRef } from "vue";
@@ -91,7 +92,7 @@ describe("who looks at the scope", () => {
   });
 });
 
-/** A Mercury radio whose modem has the interface (or has not, `scope` false). */
+/** A Mercury radio whose modem has the interface (or not, `scope` false). */
 const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow => {
   return radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
 };
@@ -157,7 +158,8 @@ describe("the scope by radio", () => {
     await nextTick();
     expect(looks.asked.value).toEqual([2, 5]);
     expect(looks.lookers.value).toBe(2);
-    expect(asked().slice(1)).toEqual([{ cmd: "radio_scope", radio: 5, on: true }]); // (radio 2's go on: nothing is asked again)
+    // Radio 2's go on: nothing is asked again.
+    expect(asked().slice(1)).toEqual([{ cmd: "radio_scope", radio: 5, on: true }]);
     b.value = false;
     await nextTick();
     expect(asked().slice(2)).toEqual([{ cmd: "radio_scope", radio: 5, on: false }]);

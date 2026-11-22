@@ -1,5 +1,8 @@
-// The FM radio's box and the HF radio's box of the Radio group fold by the arrow in their legends, as the groups of the Settings tab do (SettingsBox with a foldId, the fold of composables/useFold.ts): the state is kept in this browser for each box, they are open at
-// first, they open by themselves for a complaint of the daemon about one of their settings, for a page that leads to a control inside them and for a radio that is ticked and not connected, and the fold under the status line inside each box is as it was.
+// The FM radio's box and the HF radio's box of the Radio group fold by the arrow in their legends,
+// like the groups of the Settings tab (SettingsBox with a foldId, useFold): the state is kept in
+// this browser per box and they start open. They open by themselves for a daemon complaint about
+// one of their settings, when the page leads to a control inside them, and for a radio that is
+// ticked and not connected. The fold under the status line inside each box is unchanged.
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
@@ -18,7 +21,10 @@ afterEach(() => {
 
 const KEY = (id: string) => `NeoAPRS.settings.fold.${id}`;
 const HF_VALUES = { "radio/2/beacon": "true", "radio/2/sound_card": "plughw:1,0", "radio/2/keying": "vox", "radio/2/tx_gain_db": "0" };
-/** The topic `radios` of the FM radio (radio 1) and the HF radio (radio 2), both on unless a row says otherwise. */
+/**
+ * The topic `radios` of the FM radio (radio 1) and the HF radio (radio 2), both on unless a row
+ * says otherwise.
+ */
 const two = (fm: Partial<RadioRow> = {}, hf: Partial<RadioRow> = {}) => radiosTopic(fmRow(fm), hfRow(hf));
 
 function make(more: Given = {}) {

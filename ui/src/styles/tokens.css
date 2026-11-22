@@ -1,19 +1,36 @@
-/* THE PALETTE: the only place in ui/src where a colour is written (ui/src/styles/palette.test.ts fails for a colour literal anywhere else, but for the map's style, lib/basemapstyle.ts, and the map layers that read these tokens, lib/*layers.ts). The colour scheme follows the system (prefers-color-scheme);
-   every token has a value for light and one for dark. What each is for, and the swatches, are in CONVENTIONS.md ("The palette") and docs/palette.md.
+/* The palette: the only place in ui/src where a colour is written. palette.test.ts fails for a
+   colour literal elsewhere, except the map's style (lib/basemapstyle.ts) and the map layers that
+   read these tokens (lib/*layers.ts). The colour scheme follows prefers-color-scheme; every token
+   has a light and a dark value. Swatches and use are in CONVENTIONS.md ("The palette") and
+   docs/palette.md.
 
-   The colours are the project page's (site/style.css): petrol #0a2a3d, #0e1f2c, #182a34; white, #eff0f2, #5d5d5d; mint #a6d7d4, sage #91c1b9; sky #bbdaed, blue #60addb, #2972a3; lime #dbf93a; orange #fb6432, #e54615.
-   A tone is one of them, or one of them mixed toward another ("x% toward"), or laid on the theme's own ground, white or petrol, at a lower alpha ("x% on"): written here as the solid result, its recipe in the comment, so that the test reads hex.
-   The palette has no green, no amber and no red: ok is the plain text (the check mark says it), warn is a plate of lime (petrol on it in the light theme, lime on a dark lime plate in the dark), bad is the orange.
+   The colours are the project page's (site/style.css): petrol #0a2a3d, #0e1f2c, #182a34; white,
+   #eff0f2, #5d5d5d; mint #a6d7d4, sage #91c1b9; sky #bbdaed, blue #60addb, #2972a3; lime
+   #dbf93a; orange #fb6432, #e54615. A tone is one of them, mixed toward another ("x% toward"),
+   or laid on the theme's ground (white or petrol) at a lower alpha ("x% on"). It is written as
+   the solid result with its recipe in the comment, so the test reads hex. The palette has no
+   green, amber or red: ok is the plain text (the check mark says it), warn is a lime plate
+   (petrol on it in the light theme, lime on a dark lime plate in the dark), bad is orange.
 
-   - Neutrals: --bg (the page behind), --panel (a surface), --raised (what stands over a surface: a note, a menu), --text, --muted (quiet text), --border, --row-hover, --row-selected, --selection (a drag across text), --input-bg.
-   - One accent, the blue: --accent and the --accent-text that is read on it (a primary button, the selected tab, a link).
-   - Four meanings, ok, warn, bad and info, each in a STRONG form (--ok, --warn, --bad, --info: a line, a word, a loud fill with --on-strong on it, as Daemon offline; --warn itself is never a word, only a line or a plate: a warn word is its soft pair) and a SOFT pair for a tag
-     (--ok-soft-bg with --ok-soft-fg, and so on, AA-readable at 11 px), and the accent, the neutral and the LoRa radio have a soft pair too (--accent-soft-*, --neutral-soft-*, --lora-soft-*). The HF radio's tag is the site's inverse pill (--hf-soft-*: a petrol plate in the light theme,
-     a mint one in the dark), told from every soft tone by its lightness; the FM radio's tag is the neutral.
-   - The shapes: --radius (a control), --radius-box (a group, a card, a menu), --radius-pill (the tag); the fonts --font and --mono; --shadow, petrol.
-   - What the map draws with: --map-* and --wx-* (the map keeps its own colours: the palette does not reach it). The receive level bar: --level-*, an instrument's scale, as it was.
-   - The HF scope's waterfall: --waterfall-*, a rig's colour scale from the floor to the strongest, the same in both themes.
-   - The phone code (Settings, Web page): --code-field and --code-dark, dark modules on white in both themes, as a camera reads them. */
+   - Neutrals: --bg (page), --panel (surface), --raised (note, menu), --text, --muted,
+     --border, --row-hover, --row-selected, --selection (a drag across text), --input-bg.
+   - One accent, the blue: --accent and --accent-text, read on it (primary button, selected
+     tab, link).
+   - Four meanings, ok, warn, bad and info, each in a strong form (--ok, --warn, --bad, --info:
+     a line, a word or a loud fill with --on-strong on it; --warn is never a word, only a line
+     or a plate) and a soft pair for a tag (--ok-soft-bg with --ok-soft-fg, and so on, AA at
+     11 px). The accent, the neutral and the LoRa radio have a soft pair too (--accent-soft-*,
+     --neutral-soft-*, --lora-soft-*). The HF radio's tag is the site's inverse pill
+     (--hf-soft-*: petrol plate in light, mint in dark), told from every soft tone by its
+     lightness; the FM radio's tag is the neutral.
+   - Shapes: --radius (control), --radius-box (group, card, menu), --radius-pill (tag); fonts
+     --font and --mono; --shadow, petrol.
+   - Map drawing: --map-* and --wx-* (the map keeps its own colours). The receive level bar:
+     --level-*, an instrument's scale.
+   - The HF scope's waterfall: --waterfall-*, a rig's colour scale from the floor to the
+     strongest, the same in both themes.
+   - The phone code (Settings, Web page): --code-field and --code-dark, dark modules on white in
+     both themes, as a camera reads them. */
 :root {
   color-scheme: light dark;
   --bg: #eff0f2; /* the site's grey */
@@ -40,7 +57,7 @@
   --ok-soft-fg: #0a2a3d; /* petrol */
   --warn-soft-bg: #dbf93a; /* lime */
   --warn-soft-fg: #0a2a3d; /* petrol */
-  --attention-bg: #f1fdb0; /* the flash of a group a link brought into view (lib/attention.ts): lime 40% on white */
+  --attention-bg: #f1fdb0; /* lime 40% on white */
   --bad-soft-bg: #fee0d6; /* orange #fb6432 20% on white */
   --bad-soft-fg: #a33e21; /* orange #e54615 30% toward petrol */
   --info-soft-bg: #bbdaed; /* sky */
@@ -85,24 +102,28 @@
   --map-select-wash: rgba(255, 109, 0, 0.18);
   --map-plate: rgba(255, 255, 255, 0.88);
   --map-track: #2f80ed;
-  --map-layer: #8e24aa; /* the map: an aircraft or a ship (lib/layers/marks.ts), and its mark in the Layers box */
-  --map-control-ink: #333333; /* the map: the drawing on its own buttons (white in both themes), the Layers button's as the zoom buttons' */
+  --map-layer: #8e24aa; /* the map: an aircraft or a ship (lib/layers/marks.ts) */
+  --map-control-ink: #333333; /* the drawing on the map's own buttons (white in both themes) */
   --wx-temp: #d84315;
   --wx-pressure: #7b1fa2;
   --wx-wind: #00838f;
   --wx-rain: #1565c0;
   --speed: #2e7d32; /* the speed graph of a moving station's card */
   --signal: #ad1457; /* the signal graph of a station's card */
-  --code-field: #ffffff; /* the phone code (components/PhoneCode.vue): white, the same in both themes, for every camera */
+  --code-field: #ffffff; /* the phone code (components/PhoneCode.vue): white in both themes */
   --code-dark: #0a2a3d; /* the phone code's dark modules: petrol, the same in both themes */
   --radius: 4px; /* a control: a button, an input, a small box in a line */
   --radius-box: 6px; /* a group, a card, a menu, a dialog, a bubble */
   --radius-pill: 999px; /* the tag, a grip: round ends whatever the height */
   --control-h: 32px; /* every text button, input and select of a form or a toolbar */
-  --control-h-small: 24px; /* .btn.small: the compact button inside a list row, a bubble or a line of text */
-  --action-w: 11em; /* the least width of the button that is the action of a row: Beacon now, Test sound, Check now, Find my radio, Choose on map; the button at the end of a row after a field (Test, Download map) is as wide as its words */
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Ubuntu, Cantarell, sans-serif; /* the site's */
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; /* the page's own: every column of figures is measured in it */
+  --control-h-small: 24px; /* .btn.small: compact button in a list row, bubble or line of text */
+  /* Least width of a row's action button (Beacon now, Test sound, Check now, Choose on map); a
+     button after a field (Test, Download map) is as wide as its words. */
+  --action-w: 11em;
+  /* The site's font stack. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Ubuntu, Cantarell, sans-serif;
+  /* The font every column of figures is measured in. */
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 @media (prefers-color-scheme: dark) {

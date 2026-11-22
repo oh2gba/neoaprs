@@ -1,13 +1,12 @@
 <script setup lang="ts">
-// The Transmit level of an HF radio, a row under Tune: the gain the modem sends its audio to the radio with, in whole dB (the radio's setting `radio/<id>/tx_gain_db`, the key given), lowered and raised by the two buttons, each press saved at once. The modem takes it while it runs, and
-// the tune tone follows it, so the operator presses Tune and watches the radio's ALC while the level moves. Beside it the peak of the latest transmission in dBFS (the modem's own reading), which turns orange at 0 or over, where the sound card clips.
-// The room of the number is kept, so that nothing moves when it changes. The range is the field's of the radio's type, the modem the radio's row. A modem that says no peak (a Sound card radio's Direwolf: `can.scope` is the modem giving its audio) has the row without it.
-// Where the radio's sound card has a playback level of its own (the row's `card.tx`) and the modem's gain is at its start (0), the row has the card's slider in the place of the two buttons (components/CardSlider.vue,
-// the radio's `tx_card`, with its percent), and the modem's gain is not offered: one transmit level, the card's, which is set without a restart. A gain that is not 0 keeps the
-// two buttons, and the daemon then leaves the card's playback level as it is: nothing changes the level out of sight. The row keeps its shape while it is in sight: a gain that was not 0 when the row came
-// into sight, or since, keeps the buttons when + or - reaches 0 under the pointer; the slider comes the next time the row is seen (its fold or tab opened again, composables/useWhenShown.ts `useInView`).
-// Until the card's levels are known (`card.read`) the row has neither, at its height. The slider, or the two buttons, start where the control column starts, as the Receive level's slider does, and the (i) stands at
-// the column's end, where the Receive level's has its own.
+// The Transmit level of an HF radio, a row under Tune: the modem's audio gain in whole dB
+// (`radio/<id>/tx_gain_db`), lowered and raised by two buttons, each press saved at once, with
+// the latest transmission's peak in dBFS beside it (orange at 0 or over, where the sound card
+// clips). Where the sound card has a playback level (`card.tx`) and the gain is 0, the slider
+// (CardSlider.vue, `tx_card`) replaces the buttons; a non-zero gain keeps the buttons and the
+// daemon leaves the card's level alone. A gain that was non-zero keeps the buttons until the row
+// is seen again (useWhenShown.ts `useInView`), so the row does not change shape under the
+// pointer. Until the card's levels are known (`card.read`) the row shows neither.
 import CardSlider from "@/components/CardSlider.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { computed, ref, watch } from "vue";
@@ -19,7 +18,7 @@ import { clips, dbText, gainText } from "@/lib/hflevel";
 import { typeOf, type PageRadio } from "@/lib/radios";
 
 const props = defineProps<{ id: string; settings: Settings; form: SettingsFormState; radio: PageRadio; settingKey: string }>();
-/** The range of the gain: the field's of the radio's type (none: the level is not moved). */
+/** The gain range from the radio type's field (none: the level is not moved). */
 const range = computed(() => typeOf(props.radio)?.fields.find((field) => field.key === "tx_gain_db")?.range ?? [0, 0]);
 const min = computed(() => range.value[0]);
 const max = computed(() => range.value[1]);
@@ -31,7 +30,7 @@ const gain = computed(() => {
   return Number.isFinite(stored) ? stored : (modem.value?.tx_gain_db ?? 0);
 });
 const peak = computed(() => modem.value?.tx_peak_dbfs ?? null);
-/** Whether the gain was not 0 while the row was in sight: it keeps the two buttons until the row is out of sight. */
+/** Whether the gain was non-zero while in sight: the buttons stay until the row is out of sight. */
 const stepped = ref(gain.value !== 0);
 watch(gain, (value) => {
   if (value !== 0) stepped.value = true;
@@ -41,12 +40,12 @@ const inView = useInView(row);
 watch(inView, (shown) => {
   if (!shown) stepped.value = gain.value !== 0;
 });
-/** Whether the card's levels are known: until then the row draws neither the slider nor the buttons. */
+/** Whether the card's levels are known; until then neither slider nor buttons are drawn. */
 const known = computed(() => props.radio.row.card.read);
-/** The card's own playback level, where it has one and the gain is the card's: the slider's. */
+/** The card's playback level, for the slider, where it has one and the gain is the card's. */
 const card = computed(() => (stepped.value ? null : props.radio.row.card.tx));
 const cardKey = computed(() => `radio/${props.radio.id}/tx_card`);
-/** Whether the modem says the peak of what it sends: one that gives its audio (the HF modem, whose scope and peak come the same way); a Sound card radio's Direwolf gives none. */
+/** Whether the modem reports the peak of what it sends (the HF modem does; Direwolf does not). */
 const peakShown = computed(() => props.radio.row.can.scope);
 
 function move(by: number): void {
@@ -100,9 +99,9 @@ function move(by: number): void {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: var(--control-h); /* the row is as high with the card's slider as with the two buttons, and with neither */
+  min-height: var(--control-h); /* as high with the slider, the buttons or neither */
 }
-/* the two steps are small buttons, not the width of an action button that the first button of a row has */
+/* the two steps are small buttons, not the width of an action button */
 .field-control > .btn.stepbtn:first-child,
 .btn.stepbtn {
   min-width: 0;
@@ -116,7 +115,7 @@ function move(by: number): void {
   white-space: nowrap;
   text-align: center;
 }
-/* the peak stands under the control, in its column, and keeps its line whatever it says */
+/* the peak sits under the control, in its column, and keeps its line */
 .txlevel-peak {
   grid-column: 2;
   min-height: 1.4em;

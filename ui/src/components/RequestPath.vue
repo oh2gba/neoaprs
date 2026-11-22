@@ -1,11 +1,9 @@
 <script setup lang="ts">
-// The closed fold under an Ask (Ask around in the Nearby tab, Local info in the Objects tab), as the object form's Advanced: the **Path** the request goes by and **RF only**. The path is calls or aliases separated by commas (an explicit
-// OH2RDK-7,OH2RCH-2 for a station that a fill-in digipeater relays only when it is named, WIDE1-1,WIDE2-1) or DIRECT for none; empty is each radio's own path (`usual`: the one path the radios of the request share,
-// empty for direct; null while theirs differ), which the placeholder shows (while they differ the page's word for the default). The path
-// builder's button (PathBuilder) beside the field builds one to put in it, held to the same rule. RF only (ticked unless the person
-// unticks it) puts RFONLY after the path, so that the iGates keep the request off the internet. A path that cannot go is orange with the reason in its title, as the other path fields are, and the caller keeps Ask off with the same
-// reason. The fold starts open when either is not the default, so that what will be sent is in sight; its title never changes. While the radio the request goes on carries no path (`disabled`), both rows are greyed in their places (`pathless` their title, "HF: no path", as Route's)
-// with their values kept, as Route's are, and nothing in them is marked wrong.
+// The closed fold under an Ask: the request's Path and RF only. The path is calls or aliases
+// separated by commas, or DIRECT for none; empty is each radio's own path (`usual`, null while the
+// radios differ). RF only adds RFONLY after the path. An invalid path is orange with the reason in
+// its title. The fold starts open when either value is not the default. While the radio carries no
+// path (`disabled`) both rows are greyed with their values kept.
 import { useId } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import InfoTip from "@/components/InfoTip.vue";

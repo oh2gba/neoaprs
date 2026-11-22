@@ -1,5 +1,9 @@
-// The marker of a station on the map as DOM nodes (the call is text, never markup): the APRS symbol as sprite layers, the call under it, the characters a signpost shows on its sign, classes for our own station and our own objects, the selected one and
-// how dim it is, a ring for a station heard direct within the hour and a dotted outline with an italic call for a station known from the internet alone. The map (components/StationMap.vue) puts the element at the station's position; styles are in ui/src/styles/map.css.
+// The marker of a station on the map as DOM nodes (the call is text, never markup): the APRS symbol
+// as sprite layers, the call under it, the characters a signpost shows on its sign, classes for our
+// own station and objects, the selected one and how dim it is, a ring for a station heard direct
+// within the hour, and a dotted outline with an italic call for a station known from the internet
+// alone. components/StationMap.vue puts the element at the station's position; styles are in
+// ui/src/styles/map.css.
 import { t } from "@/i18n";
 import type { StationRow } from "@/protocol/protocol";
 import { MARKER_STEPS } from "@/lib/aging";
@@ -13,17 +17,20 @@ const MARKER_PX = 26;
 export interface MarkerDom {
   root: HTMLElement;
   icon: HTMLElement;
-  /** the 1 to 3 characters a signpost shows over its symbol; empty (and so not shown) for any other station */
+  /** The 1 to 3 characters a signpost shows over its symbol; empty (not shown) for any other
+   * station. */
   sign: HTMLElement;
   label: HTMLElement;
-  /** the symbol the icon shows now (null before the first paint), so that its layers are made again only when it changes */
+  /** The symbol the icon shows now (null before the first paint), so its layers are rebuilt only on
+   * change. */
   symbol: string | null;
 }
 
 export function buildMarkerDom(): MarkerDom {
   const root = document.createElement("div");
   root.className = "stn";
-  root.setAttribute("role", "button"); // the hover card (lib/hovercard.ts) is the tooltip, so the name is for a screen reader
+  // The hover card (lib/hovercard.ts) is the tooltip, so the name is for a screen reader.
+  root.setAttribute("role", "button");
   const icon = document.createElement("div");
   icon.className = "stn-icon";
   const sign = document.createElement("span");
@@ -35,14 +42,15 @@ export function buildMarkerDom(): MarkerDom {
 }
 
 interface MarkerState {
-  /** how dim the marker is, 0 fresh to MARKER_STEPS - 1 nearest the timeout (lib/aging.ts) */
+  /** How dim the marker is, 0 fresh to MARKER_STEPS - 1 nearest the timeout (lib/aging.ts). */
   fade: number;
   selected: boolean;
-  /** a packet of the station was heard direct within the last hour (lib/routes.ts): a ring round the symbol */
+  /** A packet of the station was heard direct within the last hour (lib/routes.ts): a ring round
+   * the symbol. */
   direct: boolean;
 }
 
-/** The symbol of the icon, its layers made again only when it changes; a symbol that is none is a plain dot. */
+/** The symbol of the icon, its layers rebuilt only when it changes; no symbol is a plain dot. */
 function paintSymbol(dom: MarkerDom, table: string, code: string): void {
   const symbol = `${table}${code}`;
   if (symbol === dom.symbol) return;
@@ -78,8 +86,10 @@ export function paintMarker(dom: MarkerDom, row: StationRow, state: MarkerState)
   for (let step = 1; step < MARKER_STEPS; step++) dom.root.classList.toggle(`stn--fade-${step}`, state.fade === step);
 }
 
-/** A marker of the map's replay (composables/useMapReplay.ts): the station's symbol as the station book has it now (a plain dot for one it no longer has) and its call, and nothing of a live marker's state. It is
- * no button (the replay is watched, not clicked), and its class `stn--replay` keeps it in sight while the live markers give way (styles/map.css). */
+/** A marker of the map's replay (composables/useMapReplay.ts): the station's current symbol (a
+ * plain
+ * dot if the station book no longer has it) and its call, with none of a live marker's state. It is
+ * no button, and its class `stn--replay` keeps it in sight while live markers give way. */
 export function paintReplayMarker(dom: MarkerDom, call: string, row: StationRow | undefined): void {
   paintSymbol(dom, row?.symbol_table ?? "", row?.symbol_code ?? "");
   dom.label.textContent = call;

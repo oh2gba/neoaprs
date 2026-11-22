@@ -1,15 +1,28 @@
-// The order of the fields inside the groups of the Settings and My station tabs that have one of their own (the daemon lists the keys in its order; these groups put theirs the way the eye wants them): the Radio group, the
-// Status group, the Beacon group and the Station group. `rank` is where a key stands in an order, after every listed one when it is not there.
+// The order of fields inside the Settings and My station groups that have their own (the daemon
+// lists keys in its order; these groups use the order the eye wants): Radio, Status, Beacon and
+// Station. `rank` is a key's place in an order, after every listed one when it is not there.
 import { ANTENNA } from "@/lib/beaconoff";
 
-/** The order of the Radio group's own rows: the RX only tickbox (the radios' boxes follow it: components/SettingsRadio.vue), and the port radio 1's search found last (no field). */
+/**
+ * The Radio group's own rows: the RX only tickbox (the radios' boxes follow:
+ * components/SettingsRadio.vue), then the port radio 1's search found (no field).
+ */
 const TNC_ORDER = ["station/transmit", "serial/last_port"];
 
-/** The Status group: the choice first, then Every (as the Beacon group has the interval with its choice), then what the chosen source needs. */
+/**
+ * The Status group: the choice, then Every (as the Beacon group has the interval with its choice),
+ * then what the chosen source needs.
+ */
 const STATUS_ORDER = ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"];
-/** The Beacon group: the Beacon choice (the interval of a fixed station, Off or On for a moving one), what it travels as (a moving station), what it says, then the folds (the antenna, the path). */
+/**
+ * The Beacon group: the Beacon choice (a fixed station's interval, Off or On for a moving one),
+ * what it travels as, what it says, then the folds (antenna, path).
+ */
 const BEACON_ORDER = ["beacon/interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
-/** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (only for a fixed station: with a GPS chosen the stored place is kept and not shown) and the symbol. */
+/**
+ * The Station group: the call, where the position comes from and what that needs (gpsd address, or
+ * serial port and speed), the place (only for a fixed station) and the symbol.
+ */
 const STATION_ORDER = [
   "station/call",
   "gps/source",

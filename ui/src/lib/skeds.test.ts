@@ -98,7 +98,8 @@ describe("the days of the form", () => {
       const last = dayChoices(now).at(-1)?.value ?? "";
       expect(tooFar(draft({ day: last, from: "23:30", to: "00:30" }), now)).toBe(false);
     }
-    expect(tooFar(draft({ day: "2026-11-20", from: "12:30" }), NOW)).toBe(true); // (the day after the last the form offers, half an hour past the 30 days)
+    // The day after the last the form offers, half an hour past the 30 days.
+    expect(tooFar(draft({ day: "2026-11-20", from: "12:30" }), NOW)).toBe(true);
     expect(tooFar(draft({ day: "2026-11-20", from: "12:00" }), NOW)).toBe(false);
   });
 });
@@ -166,12 +167,13 @@ describe("whether the form is right", () => {
     expect(ended(draft({ day: "2026-10-21", from: "08:00", to: "10:00" }), NOW)).toBe(true);
     expect(draftOk(draft({ day: "2026-10-21", from: "08:00", to: "10:00" }), NOW)).toBe(false);
     expect(draftOk(draft({ day: "2026-10-21", from: "08:00", to: "13:00" }), NOW)).toBe(true);
-    expect(draftOk(draft({ day: "2026-10-21", from: "08:00", to: "12:00" }), NOW)).toBe(false); // (it ends this moment)
+    expect(draftOk(draft({ day: "2026-10-21", from: "08:00", to: "12:00" }), NOW)).toBe(false); // It ends this moment
   });
 
   it("takes To at or before From of today as the next day, which has not ended", () => {
     expect(draftOk(draft({ day: "2026-10-21", from: "18:00", to: "02:00" }), NOW)).toBe(true);
-    expect(draftOk(draft({ day: "2026-10-21", from: "08:00", to: "08:00" }), NOW)).toBe(true); // (24 hours from 08:00 reaches 08:00 tomorrow)
+    // 24 hours from 08:00 reaches 08:00 tomorrow
+    expect(draftOk(draft({ day: "2026-10-21", from: "08:00", to: "08:00" }), NOW)).toBe(true);
   });
 
   it("is not right with a dial that is not of the form, a typed one included, or a note over 80", () => {

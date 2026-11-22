@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The operator's own directed query in the station panel of the Stations tab, under its query buttons: a box and Ask, in one line. The text is held to the daemon's rule (lib/query.ts: "?" and something after it, printable
-// ASCII without | ~ {, at most 67 characters, which the box takes no more of); while it breaks it the box has the orange edge of every field that is wrong and Ask is off, and why is said only in the box's hover title, so that no
-// line comes and goes under it. Ask (or Enter) sends it upper-cased (`ask`) and empties the box. The hover title of the box names the other directed queries of the specification. With RX only both are off; while the radio
-// the query would go on is not connected (`offline`, its words) Ask is off and its title says so, and the box may still be written in.
+// Directed query box and Ask button for a station panel. The text must match the daemon's rule
+// (lib/query.ts): "?" followed by printable ASCII without | ~ {, at most 67 characters. A
+// breaking text marks the box and turns Ask off; the reason is only in the title, so no line
+// appears and disappears. Ask or Enter sends it upper-cased and empties the box. With RX only,
+// or while the radio is not connected (`offline`), Ask is off; the box stays editable.
 import { computed, ref } from "vue";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { t } from "@/i18n";
@@ -15,7 +16,7 @@ const rxOnly = useReceiveOnly();
 
 const text = ref("");
 const checked = computed(() => customQuery(text.value));
-/** Something was typed and it is no query: the box is marked. An empty box is not wrong, only not ready. */
+/** Something was typed and it is not a query. An empty box is not wrong. */
 const wrong = computed(() => text.value.trim() !== "" && "problem" in checked.value);
 const title = computed(() => {
   if (rxOnly.value) return rxOnlyReason();
@@ -23,7 +24,7 @@ const title = computed(() => {
   return wrong.value && "problem" in found ? t(`station.query.problem.${found.problem}`, { max: QUERY_MAX }) : t("station.query.title");
 });
 
-/** Why Ask is off besides a text that is no query: RX only, or the radio not connected. */
+/** Why Ask is off besides an invalid text: RX only or the radio not connected. */
 const blocked = computed(() => (rxOnly.value ? rxOnlyReason() : props.offline));
 
 function submit(): void {

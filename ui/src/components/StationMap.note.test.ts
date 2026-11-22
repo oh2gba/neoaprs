@@ -7,7 +7,8 @@ import { tell } from "@/test/context";
 import { mapFile, mapState } from "@/test/fixtures";
 import { mountStationMap } from "@/test/stationmap";
 
-// What stands over the map when it cannot be drawn well, and where: the daemon always has a world map, so the notes are for a file that is gone or cannot be read, and for the detailed map that is not there yet.
+// What stands over the map when it cannot be drawn well: the daemon always has a world map, so the
+// notes are for a file that is gone or unreadable, and for the detailed map that is not there yet.
 const props = { stations: new Map(), selected: null, focus: null, home: { lat: 60.17, lon: 24.94 }, now: 0, dark: false, aging: { defaultMin: 0 } };
 
 async function mounted(files: { archive: boolean; world: boolean }) {
@@ -27,7 +28,8 @@ describe("the note over the map", () => {
     daemon.guide.show();
     await flushPromises();
     expect(wrapper.find(".mapnote span").text()).toBe("No base map");
-    expect(wrapper.find(".stationmap .mapnote").exists()).toBe(false); // (the map is a layer of its own, under the guide; the note is not in it)
+    // the map is a layer of its own, under the guide; the note is not in it
+    expect(wrapper.find(".stationmap .mapnote").exists()).toBe(false);
     expect(wrapper.find(".mapnote button").exists()).toBe(false); // (the guide makes the map itself)
   });
 

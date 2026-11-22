@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// An APRS symbol as a picture: the sprite of the table and code, with the overlay character over it for an overlay table. A symbol that is none is a small dot.
+// An APRS symbol as a picture: the sprite for its table and code, with the overlay character
+// on top for an overlay table. No symbol draws a small dot.
 import { computed } from "vue";
 import { layerStyle, symbolLayers } from "@/lib/symbols";
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The small (i) that explains what a control is for: closed until it is pressed, then a note that opens under it (above it where there is no room below), fixed in the window and kept wholly inside it (moved sideways where it would run off an edge, as on a phone; lib/infotip.ts `placeNote`), above the map and not clipped by the panel: the slot (the sentences of the note, one `info-line` each). One note is open at a time; Esc, a click or tap outside
-// it, or the focus moving away closes it. The note is text, not a tooltip: it works with a finger and with the keyboard. `label` is the name of the button for a screen reader ("About Path"). `picture` adds a small
-// drawing under the text (help/pictures.ts; its description for a screen reader is in the catalogue), for a note that a picture explains better than words.
+// The small (i) that explains a control: a note opens under it (above where there is no room),
+// fixed in the window and kept inside it (lib/infotip.ts `placeNote`). The slot holds the
+// sentences, one `info-line` each. One note is open at a time; Esc, a click outside or the focus
+// moving away closes it. `picture` adds a small drawing (help/pictures.ts).
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { usePopup } from "@/composables/usePopup";
 import type { PictureName } from "@/help/names";
@@ -15,7 +16,7 @@ const root = ref<HTMLElement | null>(null);
 const button = ref<HTMLButtonElement | null>(null);
 const note = ref<HTMLElement | null>(null);
 const open = computed(() => openTip.value === id);
-/** Where the note stands, in the window: it is fixed, so that the panel, the pane and the map do not clip it, and it is above the map. */
+/** The note's position in the window; fixed so that panels and the map do not clip it. */
 const spot = ref<{ left: number; top: number; width: number } | null>(null);
 
 function place(): void {
@@ -41,9 +42,9 @@ watch(open, async (now) => {
   }
   spot.value = null;
   await nextTick();
-  if (openTip.value !== id) return; // (closed, or the tip unmounted, before the note was drawn: nothing to follow)
+  if (openTip.value !== id) return;
   place();
-  window.addEventListener("scroll", place, true); // (a pane that scrolls under an open note takes the note with it)
+  window.addEventListener("scroll", place, true); // follow a pane that scrolls under an open note
   window.addEventListener("resize", place);
 });
 onBeforeUnmount(() => {

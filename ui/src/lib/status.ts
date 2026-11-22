@@ -1,12 +1,16 @@
-// Where our status report comes from, as the Status group of the My station tab shows it: nothing, a text of our own, or the frequency and mode of the radio (rigctld). The daemon keeps this in `status/source`;
-// while that is empty it is what the other settings say, as the daemon works it out (Config.status_choice of neoaprs/config.py): the radio when `status/rigctld` is set, else the text when there is one, else nothing.
+// Where our status report comes from, as the Status group of the My station tab shows it: nothing,
+// a
+// text of our own, or the frequency and mode of the radio (rigctld). The daemon keeps this in
+// `status/source`; while that is empty it follows the other settings (Config.status_choice in
+// neoaprs/config.py): the radio when `status/rigctld` is set, else the text if there is one, else
+// nothing.
 
 import { t } from "@/i18n";
 import { lazyText } from "@/lib/lazytext";
 
 export type StatusSource = "off" | "text" | "rig";
 
-/** The sources the status can come from, each with the words it is shown as. */
+/** The sources the status can come from, each with its displayed words. */
 export const STATUS_CHOICES: readonly { value: StatusSource; readonly label: string }[] = [
   lazyText({ value: "off" as const }, { label: () => t("settings.status_source.off") }),
   lazyText({ value: "text" as const }, { label: () => t("settings.status_source.text") }),
@@ -22,7 +26,8 @@ export function statusSource(values: Readonly<Record<string, string>>): StatusSo
   return (values["station/status"] ?? "").trim() !== "" ? "text" : "off";
 }
 
-/** Whether a setting of the Status group is shown for the source: the text for a text, the radio's address and the template for a radio, the interval for either. */
+/** Whether a setting of the Status group is shown for the source: the text for a text, the radio's
+ * address and template for a radio, the interval for either. */
 export function statusShown(key: string, source: StatusSource): boolean {
   if (key === "station/status") return source === "text";
   if (key === "status/rigctld" || key === "status/template") return source === "rig";

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// A box inside a group of the Settings tab, in the style of the group boxes: a fieldset with its legend (`title`; the slot `legend` is what stands after it, an (i)), so that it is plain which device a part of the Notifications group is for ("On the NeoAPRS computer", "In this browser"). Without a title it is only its content.
-// With `foldId` the box folds as the groups do (the same fold, composables/useFold.ts, SettingsGroup.vue): the title is the button of an arrow in the legend, only what is under the legend closes, the state is kept in this browser (`settings.fold.ID`), the box is open at first,
-// and it opens by itself when `show` turns true (a complaint of the daemon about one of its fields, a radio that is not connected) and when the page leads to a control inside it.
+// A box inside a group of the Settings tab: a fieldset with a legend (`title`; the slot `legend`
+// follows it). With `foldId` the box folds like a group and the state is kept in this browser; it
+// opens by itself when `show` turns true or when the page leads to a control inside it.
 import { computed, ref } from "vue";
 import { useFold } from "@/composables/useFold";
 

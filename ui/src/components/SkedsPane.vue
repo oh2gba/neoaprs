@@ -1,9 +1,12 @@
 <script setup lang="ts">
-// The Skeds tab: the board of when stations will be on the air (the project's board on neo.oh2gba.eu, read by the daemon: the topic `skeds`), the nearest first. A row is a time, a dial and the calls that will be there: skeds with the same
-// times and dial are one row (lib/skeds.ts). The time is written in UTC with how long until it ("in 3 h", "now" while it runs), and the viewer's own time is its title; the note is one line, the whole of it in the title. A row with a sked of ours
-// has Delete (two presses, "sure?": it takes the sked off the board for everybody); any other row has Join, which posts a sked of ours with the same times and dial. The column of these two keeps its width in every row, and Join is off, not gone,
-// while a post is not possible, so that nothing moves when that changes. A board that cannot be reached shows the skeds last read and says nothing; a closed board shows the skeds without the form. An (i) at the top (TabHelp) says that the board is public
-// and not sent by radio. The form is fixed at the bottom of the tab (components/SkedCompose.vue), as the box of every tab.
+// The Skeds tab: the board of when stations will be on the air (the project's board, read by the
+// daemon: topic `skeds`), nearest first. Skeds with the same times and dial are one row
+// (lib/skeds.ts). Times are UTC with the time until it ("in 3 h", "now"); the viewer's own time is
+// the title; the note is one line with the whole text in the title. A row with a sked of ours has
+// Delete (two presses); other rows have Join, which posts a sked with the same times and dial. That
+// column keeps its width and Join is off, not gone, while a post is not possible. An unreachable
+// board shows the skeds last read; a closed board shows the skeds without the form. The form is
+// fixed at the bottom (SkedCompose).
 import { computed } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import SkedCompose from "@/components/SkedCompose.vue";
@@ -16,10 +19,13 @@ import { t } from "@/i18n";
 import { groups, hasCall, inText, localText, mayPostAs, noteOf, whenText, type SkedGroup } from "@/lib/skeds";
 
 const { skeds, call, now, send } = useDaemonContext();
-const sure = useSure<string>(); // (the key of a row)
+const sure = useSure<string>();
 const shown = computed(() => groups(skeds.value?.rows ?? [], now.value));
 const state = computed(() => skeds.value?.state ?? null);
-/** The empty board is said only where the board was read or is closed: a board that could not be reached is not "empty". */
+/**
+ * The empty board is said only where the board was read or is closed: an unreachable board is not
+ * "empty".
+ */
 const listed = computed(() => state.value === "ok" || state.value === "closed");
 const canPost = computed(() => state.value === "ok" && mayPostAs(call.value));
 const remove = (g: SkedGroup): void => g.ours.forEach((row) => void send({ cmd: "sked_delete", id: row.id }));

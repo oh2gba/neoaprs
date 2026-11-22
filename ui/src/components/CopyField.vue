@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// A text the person has to type somewhere else (an address, a command), in a box that selects with one click, with a Copy button that says Copied for a moment.
+// A text to type elsewhere (an address, a command) in a box that selects on one click, with a
+// Copy button.
 import { onBeforeUnmount, ref } from "vue";
 import { t } from "@/i18n";
 import { copyText } from "@/lib/clipboard";

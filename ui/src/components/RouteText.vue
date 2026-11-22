@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A route in words ("via OH2RCH-2", "via a repeater → OH2RCH-2"): the line may break between its words and never inside a callsign.
+// A route in words: the line may break between words, never inside a callsign.
 import { computed } from "vue";
 
 const props = defineProps<{ text: string }>();

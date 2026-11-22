@@ -8,7 +8,8 @@ import { ownBulletin, radioRow, radiosTopic, status, toastOf } from "@/test/fixt
 import { shown } from "@/test/shown";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 
-/** How long the daemon repeats a bulletin (hours) and an announcement (days): the numbers the page has from it (neoaprs/decay.py, by scripts/gen-protocol.py). */
+/** How long the daemon repeats a bulletin (hours) and an announcement (days): the numbers the
+ * page has from it (neoaprs/decay.py, by scripts/gen-protocol.py). */
 const HOURS = LIMITS.bulletin.repeatHours;
 const DAYS = LIMITS.bulletin.announcementRepeatDays;
 const many = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
@@ -27,7 +28,8 @@ function compose() {
   return { wrapper, kind, id, group, text, post };
 }
 
-/** The rows of the form as they stand: the label of each, the control it is for, and whether it is greyed. */
+/** The rows of the form as they stand: the label of each, the control it is for, and whether it
+ * is greyed. */
 function rows(wrapper: ReturnType<typeof compose>["wrapper"]) {
   return wrapper.findAll(".composebar-fields > .field").map((row) => ({
     label: row.find("label").text(),
@@ -44,7 +46,7 @@ describe("BulletinCompose", () => {
       ["announcement", `Announcement (sent for ${many(DAYS, "day")})`],
       ["group", `Group bulletin (to one group, sent for ${many(HOURS, "hour")})`],
     ]);
-    expect([HOURS, DAYS]).toEqual([4, 3]); // (today's plan: a bulletin for 4 hours, an announcement for 72)
+    expect([HOURS, DAYS]).toEqual([4, 3]); // a bulletin for 4 hours, an announcement for 72
     expect(kind.element.value).toBe("bulletin");
   });
 
@@ -134,11 +136,14 @@ describe("BulletinCompose", () => {
       ["Text", false],
     ]);
     expect(group.element.disabled).toBe(true);
-    // the choice is as wide as its row, whatever its options say, and a greyed row keeps its height: the label and the control are dimmed, not hidden
+    // the choice is as wide as its row, whatever its options say, and a greyed row keeps its
+    // height: the label and the control are dimmed, not hidden
     expect(cssRule(".field-control .input")).toMatch(/flex:\s*1/);
-    // and no wider than its row on a phone, in the language with the longest words: the choice, its row and the box may all be narrower than the longest option, which the browser then cuts off in the closed choice (the open list has it whole), as it does the long types of radio
+    // and no wider than its row on a phone, in the language with the longest words: the choice, its
+    // row and the box may all be narrower than the longest option, which the browser then cuts off
+    // in the closed choice (the open list has it whole), as it does the long types of radio
     for (const selector of [".input", ".field-control", "fieldset.composebox"]) expect(cssRule(selector), selector).toMatch(/min-width:\s*0/);
-    expect(cssRule(".field")).toMatch(/grid-template-columns:\s*minmax\(7em, min\(36%, 15em\)\) 1fr/); // (the label's column is a share of the row, not as wide as the label: "Number" and "Letter" change nothing)
+    expect(cssRule(".field")).toMatch(/grid-template-columns:\s*minmax\(7em, min\(36%, 15em\)\) 1fr/);
     expect(cssRule(".input:disabled")).toMatch(/opacity/);
     expect(cssRule(".input:disabled")).not.toMatch(/display|visibility|height/);
   });
@@ -209,7 +214,7 @@ describe("BulletinCompose", () => {
     expect(shown(post)).toBe("Replace");
     await kind.setValue("group");
     expect(id.element.value).toBe("3");
-    expect(shown(post)).toBe("Post"); // (no group: nothing is posted, and BLN3 is not what a group bulletin would replace)
+    expect(shown(post)).toBe("Post");
     await group.setValue("a b");
     expect(shown(post)).toBe("Post");
     await group.setValue("hams");
@@ -368,7 +373,7 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
     expect(one.post().element.disabled).toBe(false);
     expect(one.post().attributes("title")).toBeUndefined();
     await one.wrapper.find("form").trigger("submit");
-    expect(one.wrapper.emitted("post")).toEqual([["BLN1", "Net tonight 20 UTC"]]); // (no radios: the daemon puts it on its one radio)
+    expect(one.wrapper.emitted("post")).toEqual([["BLN1", "Net tonight 20 UTC"]]);
   });
 
   it("has a tick for each radio that can send while several are, under the text, ticked as the bulletin posted last; Post goes while one ticked is connected and sends the ticks", async () => {

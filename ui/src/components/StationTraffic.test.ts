@@ -1,5 +1,7 @@
-// The traffic of a station in its panel (StationTraffic): the daemon is asked for it, it is laid out as the Packets tab's lines (the same table, columns, cells, block layout and detail), the packets that come after the answer
-// are added once each, none from the internet while Internet stations is off, and a query of ours says "waiting…", "answered" or "no answer" in the same room.
+// The traffic of a station in its panel (StationTraffic): the daemon is asked for it, it is laid
+// out as the Packets tab's lines (same table, columns, cells, block layout and detail), packets
+// arriving after the answer are added once each, none from the internet while Internet stations
+// is off, and a query of ours says "waiting…", "answered" or "no answer" in the same room.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, shallowReactive, shallowRef } from "vue";

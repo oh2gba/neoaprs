@@ -1,5 +1,5 @@
-// Rows of the protocol for the tests: every field present, the ones a test cares about given. A field the daemon works out of others (a row's radio by its id beside its word of before) is made from them, as the
-// daemon of the station of before sends it (radio 1 the FM radio, radio 2 the HF radio), unless the test gives it.
+// Rows of the protocol for the tests: every field present, the ones a test cares about given. A
+// field the daemon works out of others is made from them unless the test gives it.
 import type {
   AttemptRow,
   BulletinRow,
@@ -39,13 +39,15 @@ export function ago(seconds: number): string {
   return new Date(NOW - seconds * 1000).toISOString();
 }
 
-/** An `error` the way the daemon sends it for a sentence "<cmd>: [<key>: ]<reason>": its command and its setting are the first words, as the daemon's handlers put them there; `code` and `params` say what is wrong. */
+/**
+ * An `error` as the daemon sends it for "<cmd>: [<key>: ]<reason>"; `code` and `params` say what is
+ * wrong.
+ */
 export function errorOf(text: string, code = "other", params: Record<string, string | number> = {}): ErrorMessage {
-  const found = /^([a-z_]+): (?:([a-z_]+\/(?:\d+\/)?[a-z_]+): )?/.exec(text); // (a station's key, `station/call`, or a radio's own, `radio/3/port`)
+  const found = /^([a-z_]+): (?:([a-z_]+\/(?:\d+\/)?[a-z_]+): )?/.exec(text);
   return { type: "error", cmd: found?.[1] ?? "", key: found?.[2] ?? null, code, params, text };
 }
 
-/** The same as the page keeps it for the toast. */
 export function toastOf(text: string, code = "other", params: Record<string, string | number> = {}, n = 1): Toast {
   const { cmd, key } = errorOf(text);
   return { cmd, key, code, params, text, n };
@@ -53,14 +55,14 @@ export function toastOf(text: string, code = "other", params: Record<string, str
 
 type StationRadios = Pick<StationRow, "heard" | "last_path_radio" | "last_direct_any_at" | "radio_choice" | "radio_now" | "paths" | "replies">;
 
-/** The later of two times; null for neither. */
 const latest = (a: string | null, b: string | null): string | null => (a === null ? b : b === null || a >= b ? a : b);
 
-/** The radio 2 of the fixtures (an HF radio: what it hears is heard direct). */
 const HF_RADIO = "2";
 
-/** What a station's row says of the radios: what each radio heard of it (`heard`; unless a test gives it, radio 1 heard what was heard on the air), the one that heard it last, the choice, and the radio a message to it
- * goes on (the choice, else radio 2 for a station radio 2 alone heard, else radio 1; none for a station that takes no message), and when any radio heard it direct. */
+/**
+ * What a station's row says of the radios: what each radio heard, the choice and the radio a
+ * message goes on.
+ */
 function stationRadios(row: Omit<StationRow, keyof StationRadios>, extra: Partial<StationRow>): StationRadios {
   const heard: StationRow["heard"] = extra.heard ?? (row.heard_rf > 0 ? { "1": { count: row.heard_rf, last_at: row.last_rf_at } } : {});
   const ids = Object.keys(heard);
@@ -78,7 +80,10 @@ function stationRadios(row: Omit<StationRow, keyof StationRadios>, extra: Partia
   };
 }
 
-/** What each radio heard of a station (`heard`), from [radio's id, how many packets, when the latest came] (the time the fixtures' minute ago where none is given). */
+/**
+ * What each radio heard of a station, from [radio id, packet count, latest time] (a minute ago if
+ * none).
+ */
 export function heardBy(...entries: readonly (readonly [number, number, (string | null)?])[]): StationRow["heard"] {
   return Object.fromEntries(
     entries.filter(([, count]) => count > 0).map(([id, count, at]) => [String(id), { count, last_at: at === undefined ? ago(60) : at }]),
@@ -147,10 +152,9 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     ...extra,
     last_rf_at: extra.last_rf_at !== undefined ? extra.last_rf_at : extra.heard_rf === 0 ? null : (extra.last_heard ?? ago(60)),
   };
-  return { ...stationRadios(row, extra), ...row }; // (a field of the radios that the test gave is in `row`, and stays)
+  return { ...stationRadios(row, extra), ...row };
 }
 
-/** The latest observation of a weather station: a calm-weather report of OH2MUI, with what a test gives. */
 export function weather(extra: Partial<WeatherValues> = {}): WeatherValues {
   return {
     wind_dir: 107,
@@ -168,12 +172,14 @@ export function weather(extra: Partial<WeatherValues> = {}): WeatherValues {
   };
 }
 
-/** A weather station heard `heardAgo` seconds ago. */
 export function weatherStation(call = "OH2MUI", extra: Partial<StationRow> = {}, heardAgo = 600): StationRow {
   return station(call, { symbol_code: "_", weather: weather(), weather_at: ago(heardAgo), ...extra });
 }
 
-/** The answer to `weather_series`: an observation every `every` seconds for `count` observations ending `last` seconds ago, the values given by `value` of the index. */
+/**
+ * The answer to `weather_series`: `count` observations every `every` seconds, the last `last`
+ * seconds ago.
+ */
 export function series(call: string, hours: number, count: number, every = 600, last = 600): WeatherSeriesMessage {
   const points = Array.from({ length: count }, (_, i): WeatherSeriesMessage["points"][number] => {
     const age = last + (count - 1 - i) * every;
@@ -182,12 +188,11 @@ export function series(call: string, hours: number, count: number, every = 600, 
   return { type: "weather_series", call, hours, points };
 }
 
-/** The time of a packet `seconds` from NOW, as the daemon writes it (whole seconds). */
 export function packetAt(seconds: number): string {
   return new Date(NOW + seconds * 1000).toISOString().replace(/\.\d+Z$/, "Z");
 }
 
-/** A message packet `from` sent to `to` (ours, from OH2GBA, go out), `seconds` from NOW, with no message id. */
+/** A message packet `from` sent to `to`, `seconds` from NOW, with no message id. */
 export function sentMessage(id: number, from: string, to: string, text: string, seconds: number, extra: Partial<PacketRow> = {}): PacketRow {
   return packet(id, {
     source: from,
@@ -243,8 +248,7 @@ export function packet(id: number, extra: Partial<PacketRow> = {}): PacketRow {
   };
 }
 
-/** A message we sent, being sent by default; `incoming` makes one that came in. One of ours on its way that went on a radio (`radio`) keeps it for its next attempt (`radio_now`); one that has not gone yet takes the
- * station's radio now, which a test that cares gives. */
+/** A message we sent, being sent by default; `incoming` makes one that came in. */
 export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow {
   const onItsWay = (extra.direction ?? "out") === "out" && ["sending", "queued"].includes(extra.state ?? "sending");
   return {
@@ -272,7 +276,6 @@ export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow
   };
 }
 
-/** An attempt of a message of ours: sent at the fixtures' time on the FM radio, by no digipeater, not acked. */
 export function attemptRow(extra: Partial<AttemptRow> = {}): AttemptRow {
   return { sent_at: "2026-10-22T12:00:00Z", hops: [], internet: null, acked: false, radio_id: 1, ...extra };
 }
@@ -291,7 +294,6 @@ export function incoming(id: number, from: string, extra: Partial<MessageRow> = 
   });
 }
 
-/** A bulletin of the message board: a bulletin from OH2XYZ heard a minute ago, once. */
 export function bulletin(slot: string, extra: Partial<BulletinRow> = {}): BulletinRow {
   return {
     sender: "OH2XYZ",
@@ -306,7 +308,6 @@ export function bulletin(slot: string, extra: Partial<BulletinRow> = {}): Bullet
   };
 }
 
-/** A sked on the board: OH2XYZ on 7.0541 MHz USB from two hours after the fixtures' time for two hours, not ours. */
 export function sked(id: string, extra: Partial<SkedRow> = {}): SkedRow {
   return {
     id,
@@ -320,7 +321,6 @@ export function sked(id: string, extra: Partial<SkedRow> = {}): SkedRow {
   };
 }
 
-/** The topic `skeds` as the daemon tells it: the board read, the four suggested dials, the rows given. */
 export function skedsState(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}): SkedsState {
   return {
     state: "ok",
@@ -336,8 +336,7 @@ export function skedsState(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}
   };
 }
 
-/** An object of ours: a live object "LEADER" sent twice, the next one in 3 minutes. Its `radios` are those of its `radio` with both radios on; a test with a radio off gives them (the daemon sends those on, none while
- * none of them is). */
+/** An object of ours: a live object "LEADER" sent twice, the next one in 3 minutes. */
 export function ownObject(name: string, extra: Partial<OwnObjectRow> = {}): OwnObjectRow {
   return {
     name,
@@ -363,7 +362,6 @@ export function ownObject(name: string, extra: Partial<OwnObjectRow> = {}): OwnO
   };
 }
 
-/** A bulletin of ours: a bulletin in the slot, sent twice, the next one in 18 minutes. */
 export function ownBulletin(slot: string, extra: Partial<OwnBulletinRow> = {}): OwnBulletinRow {
   return {
     slot,
@@ -379,7 +377,6 @@ export function ownBulletin(slot: string, extra: Partial<OwnBulletinRow> = {}): 
   };
 }
 
-/** What a radio's line counted since the daemon started: a line that has been open a while. */
 export function lineStats(extra: Partial<TncStats> = {}): TncStats {
   return {
     opens: 1,
@@ -400,7 +397,6 @@ export function lineStats(extra: Partial<TncStats> = {}): TncStats {
   };
 }
 
-/** The Mercury HF modem of a radio, running; a test gives what it cares about. */
 export function modemState(extra: Partial<ModemState> = {}): ModemState {
   return {
     state: "running",
@@ -428,7 +424,7 @@ export function modemState(extra: Partial<ModemState> = {}): ModemState {
   };
 }
 
-/** The GPS topic with a fresh fix (60.4295 N 24.1452 E, 48 km/h, course 215, 103 m, 9 satellites, 2 s old) of a station whose beacon follows it (`mobile`: the source is not off); a test gives what it cares about. */
+/** The GPS topic with a fresh fix of a station whose beacon follows it (`mobile`). */
 export function gpsState(extra: Partial<GpsState> = {}): GpsState {
   return {
     source: "gpsd",
@@ -449,7 +445,7 @@ export function gpsState(extra: Partial<GpsState> = {}): GpsState {
   };
 }
 
-/** The topic `igate`: connected to T2FINLAND with 1234 packets gated, the latest 12 s ago and some left out; a test gives what it cares about. */
+/** The topic `igate`: connected to T2FINLAND, 1234 packets gated, some left out. */
 export function igateState(extra: Partial<IgateState> = {}): IgateState {
   return {
     enabled: true,
@@ -463,8 +459,7 @@ export function igateState(extra: Partial<IgateState> = {}): IgateState {
   };
 }
 
-/** The topic `qru`: a request for INFO 20 s ago, and the server DF8LS-10 that answered it with two groups and has sent the closing line of one (five objects, all of which arrived); a test gives what it cares about. */
-/** A request for local info that went on the FM radio, or on the radios given. */
+/** The topic `qru`: a request for INFO answered by the server DF8LS-10 with two groups. */
 export const qruAsked = (text: string, at: string, ...radios: number[]): QruAsked => ({ text, at, radios: radios.length > 0 ? radios : [1] });
 
 export function qruState(extra: Partial<QruState> = {}): QruState {
@@ -494,7 +489,6 @@ export function qruState(extra: Partial<QruState> = {}): QruState {
   };
 }
 
-/** The GPS topic of a daemon with no GPS source set: a fixed station, whose beacon does not follow the GPS. */
 export function gpsOff(): GpsState {
   return gpsState({
     source: "off",
@@ -570,7 +564,7 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
   };
 }
 
-/** The radios' own settings as the daemon tells them (`radio_values`): radio 1's, an FM radio's (radiosOf), and the station's (`RADIO_STATION_KEYS`) unset. */
+/** The radios' own settings as the daemon sends them (`radio_values`), the station's unset. */
 function radioValuesOf(): Record<string, string> {
   return {
     "radio/1/port": "",
@@ -584,7 +578,6 @@ function radioValuesOf(): Record<string, string> {
   };
 }
 
-/** A map file of the daemon: the detailed map round Helsinki by default. */
 export function mapFile(extra: Partial<MapFileInfo> = {}): MapFileInfo {
   return {
     name: "basemap.pmtiles",
@@ -598,7 +591,6 @@ export function mapFile(extra: Partial<MapFileInfo> = {}): MapFileInfo {
   };
 }
 
-/** The topic `map` with no map and no job: the state of a fresh install that has a position. */
 export function mapState(extra: Partial<MapState> = {}): MapState {
   return {
     state: "none",
@@ -621,10 +613,9 @@ export function mapState(extra: Partial<MapState> = {}): MapState {
   };
 }
 
-/** The version the daemon of the tests says it is: the page has none of its own, so any is as good as another. */
 export const DAEMON_VERSION = "1.2.3";
 
-/** The daemon's `hello` for a page of this build: the same protocol and no build to compare, so that the page does not load itself again. */
+/** The daemon's `hello` for a page of this build: same protocol, so the page does not reload. */
 export function hello(extra: Partial<HelloMessage> = {}): HelloMessage {
   return {
     type: "hello",
@@ -668,22 +659,19 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
   };
 }
 
-/** The map of a station table: call to row. */
 export function table(...rows: StationRow[]): Map<string, StationRow> {
   return new Map(rows.map((r) => [r.call, r]));
 }
 
-/** A port the system lists, held by no radio of ours. */
 export function portRow(device: string, description: string, extra: Partial<PortRow> = {}): PortRow {
   return { device, description, hwid: "n/a", vid: null, pid: null, held_by: null, ...extra };
 }
 
-/** A sound card the system lists, held by no modem of ours. */
 export function soundCard(id: string, name: string, extra: Partial<SoundCardRow> = {}): SoundCardRow {
   return { id, name, default: false, pick: false, held_by: null, ...extra };
 }
 
-/** A step of Find my radio: trying the first of 14 ports at 9600, for a search that named no radio (radio 1); `found` has the type that fits the TNC, its profile. */
+/** A step of Find my radio: trying the first of 14 ports at 9600, for radio 1. */
 export function radioSearch(extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage {
   const state = extra.state ?? "trying";
   const profile = extra.profile ?? "";
@@ -701,25 +689,20 @@ export function radioSearch(extra: Partial<RadioSearchMessage> = {}): RadioSearc
   };
 }
 
-/** The value of the topic `radios` as the socket tells it: the rows by the radio's id as text. */
 export const radiosValue = (...rows: RadioRow[]): Record<string, RadioRow> => Object.fromEntries(rows.map((row) => [String(row.id), row]));
 
-/** Radio 1, the FM radio of the tests, with a modem-less line as a test gives it (its state, its problem). */
 export const fmRow = (extra: Partial<RadioRow> = {}): RadioRow => radioRow(1, "kenwood-tnc2", extra);
 
-/** Radio 2, a Mercury HF radio whose modem runs, with what a test gives of it and of its modem. */
 export const hfRow = (extra: Partial<RadioRow> = {}, modem: Partial<ModemState> = {}): RadioRow =>
   radioRow(2, "mercury", { modem: modemState(modem), ...extra });
 
-/** The topic `radios` of these rows, by the radio's id as text. */
 export const radiosTopic = (...rows: RadioRow[]): Map<string, RadioRow> => new Map(rows.map((row) => [String(row.id), row]));
 
-/** The topic `radios` of a station of radio 1 alone, an FM radio of the TNC the tests are about, connected (`connected`) or waiting. */
 export function radiosOf(connected = true): Map<string, RadioRow> {
   return radiosTopic(radioRow(1, "kenwood-tnc2", { state: connected ? "connected" : "waiting" }));
 }
 
-/** The modem of a Sound card radio (Direwolf) running on its card, no packet heard yet; a test gives what it cares about. */
+/** The modem of a Sound card radio running on its card, no packet heard yet. */
 export function soundCardModem(extra: Partial<ModemState> = {}): ModemState {
   return {
     state: "running",
@@ -742,7 +725,10 @@ export function soundCardModem(extra: Partial<ModemState> = {}): ModemState {
   };
 }
 
-/** A radio of the topic `radios`, as the daemon tells it: of the type given, on, connected, at its own place, with what its type may and can do; a test gives what it cares about. */
+/**
+ * A radio of the topic `radios` of the given type: on, connected, with what its type may and can
+ * do.
+ */
 export function radioRow(id: number, type: string, extra: Partial<RadioRow> = {}): RadioRow {
   const known = RADIO_TYPES.find((entry) => entry.key === type);
   if (known === undefined) throw new Error(`no radio type ${type}`);

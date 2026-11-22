@@ -1,6 +1,7 @@
-// A card that stands alone over the map (the statistics card, components/StatsCard.vue): on a tablet and a desktop it is dragged by its head (not its buttons) with a mouse, a finger or a pen, or moved with Alt and the arrow keys while it
-// has the focus (Shift for a big step), anywhere over the map and never outside it (the geometry is lib/cardmove.ts); where it was left is remembered in this browser under `key`, and it is kept inside the map when the map or the card
-// changes size. The station cards have their own (composables/useCardDrag.ts: a row of cards, each one placing the others). The card's own place is in the pixels of its parent, the map's box, from its top left corner.
+// A card standing alone over the map (the statistics card). On a tablet and a desktop it is
+// dragged by its head with a mouse, finger or pen, or moved with Alt and the arrows (Shift: a big
+// step); it stays inside the map and its place is remembered under `key` in the pixels of its
+// parent. The station cards have their own (useCardDrag).
 import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 import { useResized } from "@/composables/useResized";
 import { clampPlace, DRAG_MIN, DRAGGING, keyStep, NOT_HEAD, type Place } from "@/lib/cardmove";
@@ -14,7 +15,6 @@ interface Drag {
   head: HTMLElement;
 }
 
-/** The place remembered under the key, "x,y"; null for none or nonsense. */
 function readPlace(key: string): Place | null {
   const found = /^(-?\d+),(-?\d+)$/.exec(readStored(key) ?? "");
   return found ? { x: Number(found[1]), y: Number(found[2]) } : null;
@@ -24,7 +24,6 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
   const place = ref<Place | null>(readPlace(key));
   let drag: Drag | null = null;
 
-  /** Where the card stands now: its place, else where the page has put it. */
   function current(): Place | null {
     const el = card.value;
     const parent = el?.parentElement;
@@ -34,12 +33,11 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
     return { x: box.left - room.left, y: box.top - room.top };
   }
 
-  /** Puts the card at the place as it is, not kept inside (a sized card keeps itself inside with its size: composables/useCardSize.ts), and remembers it (`keep`; a sizing in progress keeps it at its end). */
+  /** Put the card at the place as it is, not kept inside; remembered unless `keep` is off. */
   const setPlace = (next: Place, keep = true): void => {
     if (keep) writeStored(key, `${next.x},${next.y}`);
     place.value = next;
   };
-  /** Puts the card at the place, kept inside its parent, and remembers it. */
   function put(next: Place): void {
     const el = card.value;
     const parent = el?.parentElement;
@@ -63,7 +61,7 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
     try {
       head.setPointerCapture?.(event.pointerId);
     } catch {
-      // (a pointer that is gone already: the drag goes on with the events that reach the card)
+      // The pointer is gone already.
     }
   }
 
@@ -85,12 +83,11 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
     try {
       drag.head.releasePointerCapture?.(event.pointerId);
     } catch {
-      // (it is let go of already)
+      // It is released already.
     }
     stop();
   }
 
-  /** Alt with an arrow moves the card (a step; Shift for a big one). */
   function keydown(event: KeyboardEvent): void {
     if (!enabled() || !event.altKey || event.ctrlKey || event.metaKey) return;
     const step = keyStep(event.key, event.shiftKey);
@@ -100,7 +97,6 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
     put({ x: at.x + step.x, y: at.y + step.y });
   }
 
-  /** The map or the card changed size: the card is kept inside the map. */
   const keepInside = (): void => {
     if (enabled() && place.value) put(place.value);
   };
@@ -111,10 +107,8 @@ export function useFreeDrag(card: Readonly<Ref<HTMLElement | null>>, key: string
   useResized(card, keepInside);
   onBeforeUnmount(stop);
 
-  /** The place as the card's style. */
   const style = computed(() => (enabled() && place.value ? { left: `${place.value.x}px`, top: `${place.value.y}px` } : undefined));
   const moved = computed(() => enabled() && place.value !== null);
-  /** The listeners of the card (`v-on="on"`). */
   const on = { pointerdown: down, pointermove: move, pointerup: up, pointercancel: up, keydown };
 
   return { place, moved, style, on, current, setPlace };

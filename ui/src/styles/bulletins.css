@@ -60,7 +60,7 @@
   margin-left: 6px;
   color: var(--accent);
 }
-/* the radios a bulletin of ours goes out on, while several are on: tags after "ours", as My objects has them */
+/* the radios a bulletin of ours goes out on, while several are on: tags after "ours" */
 .bulletin-head .own-radio {
   margin-left: 4px;
 }
@@ -70,7 +70,9 @@
 .ownobject.killing {
   opacity: 0.6;
 }
-/* the Objects tab: three group boxes in a column, the tab scrolling as a whole; a row of My objects is selectable as a row of the Nearby tab is, its category a tag in a column of its own (the same left edge in every row), left of the delete button */
+/* the Objects tab: three group boxes in a column, the tab scrolling as a whole; a My objects row
+   is selectable like a Nearby row, with its category as a tag in its own column (same left
+   edge in every row) left of the delete button */
 .objectlist {
   flex: 1;
   min-height: 0;
@@ -97,7 +99,9 @@
 .own-tags {
   padding: 3px 34px 0 0;
 }
-/* while several radios are on, the tags of a row are its category and the radios it goes out on (two names and "+n" at the most): from the column's left edge, wrapping under each other once the column is 13em (the board's fit-content), never narrower than the widest tag */
+/* while several radios are on, a row's tags are its category and the radios it goes out on (two
+   names and "+n" at most): from the column's left edge, wrapping once the column is 13em (the
+   board's fit-content), never narrower than the widest tag */
 .own-tags.several {
   display: flex;
   flex-wrap: wrap;
@@ -122,7 +126,10 @@
   align-items: center;
   gap: 8px;
 }
-/* Local info (QRU) in the Objects tab, the last group box of it, of the Settings groups' look: the legend, the Ask button with the distance field in one row, then a row for each server that answered: its call, its groups as tags in a column of their own (the same left edge in every row), and under them how many objects it sent and how many arrived (in the warn colour with Ask again when fewer) */
+/* Local info (QRU) in the Objects tab, the last group box, styled like the Settings groups: the
+   legend, the Ask button with the distance field in one row, then a row per server that
+   answered: its call, its groups as tags in their own column, and under them how many objects
+   it sent and how many arrived (warn colour with Ask again when fewer) */
 .qru-ask {
   display: flex;
   flex-wrap: wrap;
@@ -169,7 +176,8 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-/* fewer arrived than were sent: the warn plate round the line's words and its button, not the width of the column (the line keeps its place) */
+/* fewer arrived than were sent: the warn plate surrounds the words and the button, not the
+   column width (the line keeps its place) */
 .qru-sent.warn {
   width: fit-content;
   max-width: 100%;
@@ -184,7 +192,9 @@
 .qru-count {
   opacity: 0.75;
 }
-/* the Skeds tab: the board's rows (a time with how long until it, the dial and the calls, the note on one line) beside a column for Delete or Join, which is as wide in every row so that nothing moves when a row has the one or the other or none */
+/* the Skeds tab: the board's rows (a time with how long until it, the dial and the calls, the
+   note on one line) beside a column for Delete or Join, equally wide in every row so that
+   nothing moves when a row has either or none */
 .sked {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 6.5em;

@@ -1,4 +1,6 @@
-// The rule of the Settings tab: an action button that is a row of its own (Download map, Check now, Send feedback / logs) sits in the control column of a labelled row, first, with its (i) after it and the quiet lines of its outcome under it.
+// The rule of the Settings tab: an action button that is a row of its own (Download map, Check now,
+// Send feedback / logs) sits in the control column of a labelled row, first, with its (i) after it
+// and the quiet lines of its outcome under it.
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import ActionRow from "@/components/ActionRow.vue";

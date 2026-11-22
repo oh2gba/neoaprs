@@ -1,6 +1,9 @@
 <script setup lang="ts">
-// The quiet line the page shows once after an update (composables/useWhatsNew.ts): "Updated to NeoAPRS 0.12.0 · What's new", in the place of the toasts and in the colours of a notice (ToastBar draws it when it has nothing
-// else to say, so that an error is never under it). What's new opens the window of the update with the notes of every version since the one this browser saw before; that and the cross both end the line for this version.
+// The quiet line shown once after an update (composables/useWhatsNew.ts): "Updated to NeoAPRS
+// 0.12.0 · What's new", in the toast place and in notice colours. ToastBar draws it only when
+// it has nothing else to say, so an error is never under it. What's new opens the update window
+// with the notes of every version since the one this browser last saw; that and the cross both
+// end the line for this version.
 import IconButton from "@/components/IconButton.vue";
 import { t } from "@/i18n";
 

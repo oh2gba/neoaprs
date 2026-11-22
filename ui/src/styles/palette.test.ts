@@ -1,7 +1,13 @@
-// The palette is designed once (styles/tokens.css) and written nowhere else: no colour literal in the page's source but in the tokens, the map's own style and the map layers that read the tokens; every token has a light and a dark value;
-// every tone that stands as a small word reads at AA (4.5:1) at 11 px on every ground it stands on (the panel, the page, a selected or hovered row, a raised note, an input, a group while it flashes) in both themes, and so does every pair of a
-// word and its plate (a tag, a filled button, the toast); a drag across text is told from every ground and the text reads on it; a warn word is never the bare --warn but its soft pair, the word on its plate; the HF tag is told from every other tag by its lightness; every variable the page uses is defined; docs/palette.md lists every token as the file has it;
-// and the theme colours of the page and of the manifest are the palette's.
+// The palette is designed once (styles/tokens.css) and written nowhere else: no colour literal in
+// the page's source except in the tokens, the map's own style and the map layers that read the
+// tokens. Every token has a light and a dark value. Every tone that stands as a small word reads
+// at AA (4.5:1) at 11 px on every ground it stands on (the panel, the page, a selected or hovered
+// row, a raised note, an input, a group while it flashes) in both themes, and so does every pair
+// of a word and its plate (a tag, a filled button, the toast). A drag across text is told from
+// every ground and the text reads on it. A warn word is never the bare --warn but its soft pair.
+// The HF tag is told from every other tag by its lightness. Every variable the page uses is
+// defined, docs/palette.md lists every token as the file has it, and the theme colours of the
+// page and of the manifest are the palette's.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,11 +37,13 @@ function files(dir: string): string[] {
 }
 const strip = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
-/** Where a colour may be written besides tokens.css: the map's style, and the layers that give it a colour (they read the tokens, and keep a literal for where there is no style sheet). */
+/** Where a colour may be written besides tokens.css: the map's style, and the layers that give
+ * it a colour (they read the tokens and keep a literal where there is no style sheet). */
 const EXCEPTIONS = [/^lib\/basemapstyle\.ts$/, /^lib\/(layers\/)?[a-z]+layers\.ts$/];
 const LITERAL = /(?<![\w&])#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|hwb)\(/;
 
-/** The style the page is drawn with: the style sheets (but the tokens) and the <style> of every component, by path under ui/src. */
+/** The style the page is drawn with: the style sheets (but the tokens) and the <style> of every
+ * component, by path under ui/src. */
 const STYLE: [string, string][] = files(SRC)
   .map((path) => [relative(SRC, path).replaceAll("\\", "/"), path] as const)
   .filter(([name]) => (name.startsWith("styles/") && name.endsWith(".css") && name !== "styles/tokens.css") || name.endsWith(".vue"))
@@ -43,7 +51,8 @@ const STYLE: [string, string][] = files(SRC)
     const text = readFileSync(path, "utf-8");
     return [name, strip(name.endsWith(".vue") ? [...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1] ?? "").join("\n") : text)];
   });
-/** Every rule of the style: where it is, its selector and its declarations (the innermost braces: a rule inside a media query is found too). */
+/** Every rule of the style: where it is, its selector and its declarations (the innermost
+ * braces: a rule inside a media query is found too). */
 const RULES = STYLE.flatMap(([name, css]) =>
   [...css.matchAll(/([^{};]+)\{([^{}]*)\}/g)].map((m) => ({ name, selector: (m[1] ?? "").trim().replace(/\s+/g, " "), body: m[2] ?? "" })),
 );
@@ -57,12 +66,16 @@ function contrast(a: string, b: string): number {
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
 }
 
-/** The tones that stand as a small word on a ground of the page, and the grounds: each word on each ground, 4.5 to 1. (--ok is the plain text; --neutral-soft-fg is the Dummy's tag, which has no plate.) */
+/** The tones that stand as a small word on a ground of the page, and the grounds: each word on
+ * each ground, 4.5 to 1. (--ok is the plain text; --neutral-soft-fg is the Dummy's tag, which
+ * has no plate.) */
 const WORDS = ["--text", "--muted", "--accent", "--ok", "--bad", "--neutral-soft-fg"];
-/** (--attention-bg is the flash of a whole group that a link brought into view: every word of the group stands on it for a moment.) */
+/** --attention-bg is the flash of a whole group that a link brought into view: every word of the
+ * group stands on it for a moment. */
 const GROUNDS = ["--panel", "--bg", "--row-selected", "--row-hover", "--raised", "--input-bg", "--attention-bg"];
 const TAGS = ["accent", "ok", "warn", "bad", "info", "neutral", "lora", "hf"];
-/** A word and the plate it is read on, and only there: a tag, a filled button, the toast, the map's signpost. */
+/** A word and the plate it is read on, and only there: a tag, a filled button, the toast, the
+ * map's signpost. */
 const PLATES: [string, string][] = [
   ...TAGS.map((tone): [string, string] => [`--${tone}-soft-fg`, `--${tone}-soft-bg`]),
   ["--accent-text", "--accent"],
@@ -70,7 +83,7 @@ const PLATES: [string, string][] = [
   ["--panel", "--text"],
   ["--map-sign-ink", "--map-sign-bg"],
 ];
-/** A word of the map's own colours, drawn on the map with its halo: the palette does not reach it. */
+/** A word of the map's own colours, drawn with its halo: the palette does not reach it. */
 const MAP_WORDS = ["--map-label", "--map-own"];
 
 describe("the palette", () => {
@@ -166,7 +179,8 @@ describe("the palette", () => {
   it("checks every tone the page gives a text: each is a word on the grounds, a word on its plate, or the map's", () => {
     const known = new Set([...WORDS, ...PLATES.map(([fg]) => fg), ...MAP_WORDS]);
     const unchecked: string[] = [];
-    // a text's colour, with a fallback or without, as `color`, as `-webkit-text-fill-color`, and as the `fill` of an SVG text
+    // A text's colour, with a fallback or without: `color`, `-webkit-text-fill-color` and the
+    // `fill` of an SVG text.
     const TEXT_COLOUR = /(?<![\w-])(?:color|-webkit-text-fill-color):\s*var\((--[\w-]+)(?:,[^)]*)?\)/g;
     const SVG_FILL = /(?<![\w-])fill:\s*var\((--[\w-]+)(?:,[^)]*)?\)/g;
     for (const { name, selector, body } of RULES) {
@@ -195,8 +209,10 @@ describe("the palette", () => {
         expect({ name, tone, apart: ratio >= 3 }).toEqual({ name, tone, apart: true });
       }
     }
-    expect(luminance(light["--hf-soft-bg"] ?? "")).toBeLessThan(luminance(light["--panel"] ?? "")); // (a dark plate on the light panel)
-    expect(luminance(dark["--hf-soft-bg"] ?? "")).toBeGreaterThan(luminance(dark["--panel"] ?? "")); // (a light plate on the dark one)
+    // A dark plate on the light panel.
+    expect(luminance(light["--hf-soft-bg"] ?? "")).toBeLessThan(luminance(light["--panel"] ?? ""));
+    // A light plate on the dark one.
+    expect(luminance(dark["--hf-soft-bg"] ?? "")).toBeGreaterThan(luminance(dark["--panel"] ?? ""));
   });
 
   it("gives the LoRa radio's tag and a removed radio's tag a tone of their own, each read at AA in both themes: LoRa a plate of its own, a removed radio the quiet word on no plate", () => {
@@ -216,7 +232,8 @@ describe("the palette", () => {
         const removed = contrast(theme["--muted"] ?? "#000000", theme[ground] ?? "#000000");
         if (!(removed >= 4.5)) low.push(`${name}: --muted (a removed radio's tag) on ${ground} ${removed.toFixed(2)}`);
       }
-      // (dimmed: a removed radio's word is quieter than the text, and apart from the FM radio's neutral plate it has none)
+      // Dimmed: a removed radio's word is quieter than the text, and apart from the FM radio's
+      // neutral plate it has none.
       expect(contrast(theme["--muted"] ?? "", theme["--panel"] ?? "")).toBeLessThan(contrast(theme["--text"] ?? "", theme["--panel"] ?? ""));
     }
     expect(low).toEqual([]);

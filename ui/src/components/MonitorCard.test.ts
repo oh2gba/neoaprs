@@ -1,5 +1,7 @@
-// The monitor card over the map (components/MonitorCard.vue): the scope of a radio larger, asked of the daemon while it is there, of the radio chosen in the map's menu (else the first with a scope), named where several radios are on; closed by its cross, dragged by its head like the statistics card and remembered where it was left;
-// its menu (components/MonitorMenu.vue), opened as every menu of the page is, with the speed of its waterfall, which this browser remembers and the box in Settings does not follow.
+// The monitor card over the map (MonitorCard.vue): a radio's scope asked of the daemon while the
+// card is shown, for the radio chosen in the map menu (else the first with a scope), named where
+// several radios are on; closed by its cross, dragged by its head and remembered; its menu
+// (MonitorMenu.vue) with the waterfall speed, which this browser remembers.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { shallowRef } from "vue";
@@ -26,7 +28,8 @@ const rect = (x: number, y: number, w: number, h: number) =>
   ({ x, y, left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, toJSON: () => ({}) }) as DOMRect;
 const scopeCalls = (daemon: ReturnType<typeof fakeDaemon>) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "radio_scope");
 
-/** The sizes of the strips the painter made, one for every look it took: a strip is one line of the picture. */
+/** The sizes of the strips the painter made, one for every look it took: a strip is one line of
+ * the picture. */
 const images: [number, number][] = [];
 
 beforeEach(() => {
@@ -177,8 +180,8 @@ describe("the one counting place", () => {
     const shows = vi.spyOn(Waterfall.prototype, "show");
     const again = mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
     expect(shows).toHaveBeenCalledTimes(1);
-    expect(shows.mock.calls[0][0]).toHaveLength(20); // (the card's picture at once from the page's rows, those it did not see among them)
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]); // (the box looked all the time: the page asked once)
+    expect(shows.mock.calls[0][0]).toHaveLength(20);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
     again.unmount();
     box.unmount();
     expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
@@ -261,7 +264,7 @@ describe("the card's menu", () => {
       await settle(wrapper);
       expect(menu()?.getAttribute("style")).toContain("top: 400px"); // (on the receive level too)
       for (const rule of [/-webkit-touch-callout:\s*none/, /-webkit-user-select:\s*none/, /(^|[^-])user-select:\s*none/])
-        expect(mediaRule("(pointer: coarse)", ".monitorcard .card-body")).toMatch(rule); // (the element that hears the long press: no callout and no selection over the menu)
+        expect(mediaRule("(pointer: coarse)", ".monitorcard .card-body")).toMatch(rule);
       wrapper.unmount();
     } finally {
       vi.useRealTimers();
@@ -314,12 +317,12 @@ describe("the card's menu", () => {
     key("Tab");
     await settle(wrapper);
     expect(menu()).toBeNull();
-    expect(document.activeElement).toBe(wrapper.find(".monitor-picture").element); // (the browser's Tab goes on from there to what comes after the card)
+    expect(document.activeElement).toBe(wrapper.find(".monitor-picture").element);
     wrapper.unmount();
   });
 
   it("closes on a choice, draws the same rows again at once at the new speed, and this browser remembers it", async () => {
-    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(380); // (the picture has room: the painter draws)
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(380);
     const rows = useScopeRows();
     const mountedWith = () => mount(MonitorCard, { global: withDaemon(hfAlone({ scopeOf: rows.of })), attachTo: document.body });
     const speeds = vi.spyOn(Waterfall.prototype, "setSpeed");
@@ -335,7 +338,7 @@ describe("the card's menu", () => {
     expect(menu()).toBeNull();
     expect(localStorage.getItem("NeoAPRS.monitorspeed")).toBe("fast");
     expect(speeds.mock.calls).toEqual([["fast"]]);
-    expect(shows.mock.calls.length).toBe(before + 1); // (drawn again at once, from the page's rows, after the speed was set)
+    expect(shows.mock.calls.length).toBe(before + 1);
     expect(shows.mock.calls.at(-1)?.[0]).toBe(rows.of(2).rows);
     expect(speeds.mock.invocationCallOrder[0]).toBeLessThan(shows.mock.invocationCallOrder.at(-1) ?? 0);
     expect(tall()).toBe(2); // (Fast: the lines of Normal drawn twice as high)
@@ -404,7 +407,8 @@ describe("the card's menu", () => {
 /** A Mercury radio whose modem has the interface (or has not, `scope` false). */
 const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow => radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
 
-/** The page's context with these radios, its counting of who looks given the topic `radios` and the page's rows, as the page makes it. */
+/** The page's context with these radios, its counting of who looks given the topic `radios` and
+ * the page's rows, as the page makes it. */
 function station(...rows: RadioRow[]) {
   const scopeRows = useScopeRows();
   const daemon = fakeDaemon({ radios: radiosTopic(...rows) });
@@ -489,7 +493,7 @@ describe("the card by radio", () => {
       await flushPromises();
       expect(head(wrapper)).toBe(`${name}: Monitor`);
       expect(scopeRows.of(chosen).rows).toHaveLength(5);
-      expect(shows.mock.calls.map(([kept]) => kept.length)).toEqual([5]); // (drawn again as its scope came back: its own picture, not another radio's)
+      expect(shows.mock.calls.map(([kept]) => kept.length)).toEqual([5]);
       expect(scopeCalls(daemon)).toEqual([
         { cmd: "radio_scope", radio: chosen, on: true },
         { cmd: "radio_scope", radio: chosen, on: false },

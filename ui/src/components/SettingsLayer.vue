@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// A row of Settings, Map that belongs to a layer of the map: the list of sources of Aircraft or of Ships (the sources the daemon offers, `layer.offered`, in its order; a stored source that is not among them shows as None), or the receiver's address, which is there only
-// while the row's choice is an own receiver (a Radarcape, or My own receiver; a Radarcape's box has its own (i)), with the state of the receiver under it as a GPS receiver's state is shown (a pill and one line, the flat row of StatusFold: it has nothing behind it, so it is StatusLine alone; the words of lib/receiverstatus.ts). The field is SettingsField, so the label, the (i), the input, the
-// complaint under it and the events are the other rows'. A receiver that has not said yet is looking, so the row's room is there from the first moment.
+// A Map row for a layer: the list of sources of Aircraft or Ships (`layer.offered`, in the daemon's
+// order; a stored source not among them shows as None), or the receiver's address, shown only while
+// the choice is an own receiver, with the receiver's state under it (lib/receiverstatus.ts). A
+// receiver that has not answered yet is looking, so the room is reserved from the first moment.
 import { computed } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import StatusLine from "@/components/StatusLine.vue";

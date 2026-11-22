@@ -1,12 +1,14 @@
 <script setup lang="ts">
-// The handles of a card that is sized (composables/useCardSize.ts): a strip along each edge and a square at each corner, over the card's own edge, so that nothing moves while one is dragged. A screen reader hears each as a handle
-// for the pointer only: a screen reader and the keyboard have the card's own keys (aria-keyshortcuts on the card, said on its head by station.card.size_title). Not shown where the card cannot be sized (a phone).
+// Drag handles for a sizable card: a strip along each edge and a square at each corner, over the
+// card's own edge so that nothing moves while dragging. Pointer only: keyboard and screen reader
+// users have the card's own keys (aria-keyshortcuts). Hidden where the card cannot be sized (a
+// phone).
 import type { CardSizing } from "@/composables/useCardSize";
 import { EDGES, type Edge } from "@/lib/cardsize";
 
 defineProps<{ sizing: CardSizing }>();
 
-/** The class of each handle (styles/card.css), by the edge or corner it stands on. */
+/** The class of each handle (styles/card.css), by edge or corner. */
 const HANDLE: Readonly<Record<Edge, string>> = {
   n: "sizer-n",
   s: "sizer-s",

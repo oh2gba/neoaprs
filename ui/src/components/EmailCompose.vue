@@ -1,7 +1,9 @@
 <script setup lang="ts">
-// The box to write an email in, always at the bottom of the Email tab (ComposeBar, as everywhere): To (an email address; while the box has the focus the addresses used before that match what is typed are listed under it, upward over the mail:
-// a click picks one, the trash can beside it forgets it), the text, and how many of the characters of a message the line "address text" may still have, the address and the space counting. Send, at the lower right, is off while
-// there is no radio to send on, or the radio of email is not connected (its title says so: `offline`, EmailPane's words of the link) or the address or the text is empty or the line is too long or has a character a message cannot carry (its field is marked with the reason), and while the page has no connection to NeoAPRS. After Send the text is empty again and the address stays, for the next mail to the same person; the focus is in the text.
+// The box to write an email, at the bottom of the Email tab (ComposeBar): To (with earlier
+// matching addresses listed while focused), the text, and a counter for the characters the
+// "address text" line may still have. Send is off while no radio can send, the email radio is
+// not connected (`offline`), the address or text is empty or the line cannot be sent, and while
+// the page has no connection. After Send the text clears and the address stays.
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -25,7 +27,7 @@ const text = ref("");
 const textBox = ref<HTMLInputElement | null>(null);
 const listed = ref(false);
 
-/** The characters of a message, the address and the space with the text; the text takes no more (lib/textlimit.ts, as every field with a counter). */
+/** The message length limit: the address, a space and the text (lib/textlimit.ts). */
 const limit = computed<TextLimit>(() => ({ max: LIMITS.message.textMax, measure: (body) => bytes(emailLine(to.value, body)), kind: "address" }));
 const left = computed(() => leftOf(text.value, limit.value));
 const rxOnly = useReceiveOnly();
@@ -33,7 +35,7 @@ const radios = useRadios();
 /** No radio that can send is on: there is none for email to go on. */
 const none = computed(() => radios.email.value === null);
 const socketOpen = useSocketOpen();
-/** Why Send is off: no connection to NeoAPRS, RX only, or no radio for email or its link down (`offline`); undefined when none of them. */
+/** Why Send is off (no connection, RX only, no email radio, link down); undefined if none. */
 const blocked = computed(() =>
   !socketOpen.value
     ? t("pill.daemon_offline")
@@ -41,7 +43,7 @@ const blocked = computed(() =>
       ? sendBlockedReason(props.connected, rxOnly.value)
       : (props.offline ?? sendBlockedReason(false)),
 );
-/** A character the daemon would refuse in a field, the reason; "" while it has none. */
+/** The reason the daemon would refuse a character in a field; "" if none. */
 const refusedIn = (value: string): string => {
   const problem = textRefusal(value);
   return problem === null ? "" : errorReason({ cmd: "send_message", key: null, text: "", ...problem });
@@ -49,7 +51,7 @@ const refusedIn = (value: string): string => {
 const toRefused = computed(() => refusedIn(to.value));
 const textRefused = computed(() => refusedIn(text.value));
 const ready = computed(() => canSendEmail(props.connected, to.value, text.value));
-/** The addresses used before that match what is typed, other than the one that is typed whole. */
+/** Earlier addresses that match what is typed, other than the one typed in full. */
 const suggestions = computed(() => {
   const typed = to.value.trim().toLowerCase();
   return props.addresses.filter((a) => a.toLowerCase() !== typed && a.toLowerCase().includes(typed));
@@ -67,7 +69,7 @@ function leave(event: FocusEvent): void {
   if (!(into instanceof Node) || !(event.currentTarget instanceof Node) || !event.currentTarget.contains(into)) listed.value = false;
 }
 
-/** Esc closes the suggestions when they are open, else it clears the address and the text being written. */
+/** Esc closes the open suggestions, else clears the address and the text. */
 function escape(): void {
   if (shown.value) {
     listed.value = false;
@@ -77,7 +79,7 @@ function escape(): void {
   text.value = "";
 }
 
-/** The text is cleared only once it went to the daemon: Send is off while the socket is closed, so a mail is never lost to it. */
+/** The text clears only once it went to the daemon; Send is off while the socket is closed. */
 function submit(): void {
   if (!ready.value || rxOnly.value || none.value || !socketOpen.value) return;
   emit("send", to.value.trim(), text.value);

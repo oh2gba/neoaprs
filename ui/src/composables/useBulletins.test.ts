@@ -8,7 +8,10 @@ import { ago, bulletin } from "@/test/fixtures";
 
 const board = (...rows: BulletinRow[]) => shallowReactive(new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])));
 
-/** The composable inside a component, with the panel as `usePanel` makes it; `show` is the tab in front before it is made. */
+/**
+ * The composable inside a component, with the panel as `usePanel` makes it; `show` is the tab in
+ * front.
+ */
 function setUp(bulletins: Map<string, BulletinRow>, show?: "bulletins" | "stations", collapsed = false) {
   let made: { panel: ReturnType<typeof usePanel>; fresh: ReturnType<typeof useBulletins>["fresh"] } | undefined;
   mount(

@@ -156,7 +156,8 @@ describe("StationsTable with several cards", () => {
       expect(button(await withFilter("EMAIL-2")).exists()).toBe(false);
       expect(button(await withFilter("email-2")).exists()).toBe(false);
       expect(button(await withFilter("oh2gba")).exists()).toBe(false);
-      expect(button(await withFilter("OH2GBA", null)).exists()).toBe(true); // (while we do not know our call, nothing is ours)
+      // While our call is unknown, nothing is ours.
+      expect(button(await withFilter("OH2GBA", null)).exists()).toBe(true);
     });
   });
 });

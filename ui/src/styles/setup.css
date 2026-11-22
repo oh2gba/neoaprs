@@ -18,15 +18,17 @@
 .setup .radiofind {
   grid-template-columns: 6em 1fr;
 }
-/* the Radio step's boxes (the Radio group's, components/SetupRadio.vue) are the Settings tab's (settings.css); here a box is never wider than the panel (a fieldset is as wide as what it holds unless told), so six of
-   them on a phone wrap their rows instead of running off the side */
+/* the Radio step's boxes (the Radio group's, components/SetupRadio.vue) are the Settings tab's
+   (settings.css); here a box is never wider than the panel (a fieldset is as wide as its content
+   unless told), so six of them on a phone wrap their rows instead of running off the side */
 .setup fieldset.subbox {
   min-width: 0;
 }
 .setup .subbox legend {
   overflow-wrap: anywhere;
 }
-/* the map's note (no map at all, or one that cannot be read) is a layer above the guide, on the top line of the map; the guide makes room under it */
+/* the map's note (no map at all, or one that cannot be read) is a layer above the guide, on the
+   top line of the map; the guide makes room under it */
 .mapwrap:has(.mapnote) .setup {
   top: 58px;
   max-height: calc(100% - 68px);
@@ -238,7 +240,7 @@
   flex-basis: 100%;
   text-align: center;
 }
-/* the page that does not go with its daemon (lib/reload.ts): a sentence and a button, on the whole page */
+/* the page that does not match its daemon (lib/reload.ts): a sentence and a button, full page */
 .mismatch {
   display: flex;
   flex-direction: column;

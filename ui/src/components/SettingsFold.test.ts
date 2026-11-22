@@ -5,7 +5,9 @@ import { useSettingsForm } from "@/composables/useSettingsForm";
 import { fakeDaemon } from "@/test/context";
 import { configValues } from "@/test/fixtures";
 
-// The fold on its own, over the real settings and form of a page whose daemon is a record of the commands: what it makes of each kind of key, and what it does with what is typed, chosen and cancelled.
+// The fold on its own, over the real settings and form of a page whose daemon is a record of the
+// commands: what it makes of each kind of key, and what it does with typed, chosen and cancelled
+// values.
 function make(keys: readonly string[], extra: Record<string, string> = {}, disabled?: (key: string) => boolean) {
   const daemon = fakeDaemon({ config: configValues(extra) });
   const config = daemon.config;

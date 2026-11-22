@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The status report as a row under the Status choice of the My station tab: the radio's status row (StatusFold.vue) with the words of lib/statusreport.ts, when the last report went and when the next may, and behind the arrow what the radio's status is now (a text of our own is the Text field above), how
-// often it is sent, while several radios are on the status on each radio it goes out on (`radios`: "HF: last sent 2 min ago · next in 28 min (every 30 min)", as the beacon's row says each radio's beacon), and, when the
-// status is the radio's, whether rigctld answers. In RX only the row is off in the warn colour. Send status now is a row of its own (SendRow.vue).
+// Status report row under the Status choice of the My station tab: a StatusFold with the words
+// of lib/statusreport.ts. Behind the arrow: the current status, how often it is sent, the line
+// of each radio when several are on (`radios`), and whether rigctld answers when the status is
+// the radio's. Off in the warn colour in RX only. Send status now is SendRow.vue.
 import { computed } from "vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { t } from "@/i18n";
@@ -22,7 +23,7 @@ const props = withDefaults(
     /** the status is ticked for no radio that is on: nothing can send it */
     sentNowhere?: boolean;
     now: number;
-    /** the line of each radio the status goes out on while several radios are on; none while one is */
+    /** the line of each radio the status goes out on while several are on; none while one is */
     radios?: readonly string[];
   }>(),
   { radios: () => [], sentNowhere: false },

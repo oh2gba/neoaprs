@@ -1,5 +1,6 @@
-// Our objects and items as the page handles them: the draft of the form (every field as it is typed), what is wrong with it, the command it makes, and how a row of the list is worded. The daemon checks
-// all of it again (neoaprs/ownobject.py); the page only keeps the user from sending what it would refuse, and says what is wrong in the title of the field.
+// Our objects and items as the page handles them: the form draft, its problems, the command it
+// makes and the wording of a list row. The daemon checks everything again (neoaprs/ownobject.py);
+// the page only keeps the user from sending what would be refused.
 import { t } from "@/i18n";
 import { DIRECT, parsePathSetting } from "@/lib/calls";
 import { untilText } from "@/lib/format";
@@ -13,22 +14,24 @@ import type { Command, OwnObjectRow } from "@/protocol/protocol";
 type Kind = OwnObjectRow["kind"];
 type ObjectCommand = Extract<Command, { cmd: "object_set" }>;
 
-/** The longest name of an object and the shortest and longest of an item. */
+/** The longest name of an object, and the shortest name of an item. */
 export const NAME_MAX = LIMITS.object.nameMax;
 const ITEM_NAME_MIN = LIMITS.object.itemNameMin;
 const NAME_FORBIDDEN = LIMITS.object.nameForbidden;
-/** What an object's comment may not hold (the daemon's `ownobject.py`): narrower than a name's, since `!` and `_` are fine in a comment. */
+/** Characters a comment may not hold (narrower than a name's: `!` and `_` are fine). */
 const COMMENT_FORBIDDEN = "|~";
 
 const holds = (text: string, forbidden: string): boolean => [...forbidden].some((c) => text.includes(c));
 const SPEED_MAX_KMH = LIMITS.object.speedMaxKmh;
 const COURSE_MAX = LIMITS.object.courseMax;
-/** The symbol a new object has: the repeater (the antenna tower), for what objects are mostly used for: a local repeater or frequency, an event, a node or a net. */
+/** The symbol of a new object: the repeater tower. */
 const DEFAULT_SYMBOL = "/r";
 /** How long past its time an object waits for the radio before the list says so. */
 const OVERDUE_MS = 5000;
 
-/** What the form holds: every field as it is typed. `symbol` is the table character and the code character (`/>`), `path` empty for the beacon's. */
+/**
+ * The form's fields as typed. `symbol` is table plus code (`/>`); `path` is empty for the beacon's.
+ */
 export interface ObjectDraft {
   name: string;
   kind: Kind;
@@ -39,18 +42,21 @@ export interface ObjectDraft {
   course: string;
   speed: string;
   path: string;
-  /** The QRU group (as typed: it is sent in capitals), empty for none. */
+  /** The QRU group as typed (sent in capitals), empty for none. */
   qru: string;
   /** Send only when a station asks for it. */
   onRequest: boolean;
-  /** The radios it goes out on (Send on), as they are kept with it, ascending; none for a new one not ticked yet, which starts as the object saved last (`status.new_object_radios`). One that is off is kept: it
-   * counts again when it is on (lib/sendon.ts `inForce`). */
+  /**
+   * The radios it goes out on (Send on), ascending. Empty for a new object not ticked yet, which
+   * starts as the last saved object (`status.new_object_radios`). A radio that is off is kept and
+   * counts again when it is on (lib/sendon.ts `inForce`).
+   */
   radios: RadioId[];
 }
 
 type DraftProblems = Partial<Record<keyof ObjectDraft, string>>;
 
-/** A new object: no name and no place (the user picks one), the repeater as its symbol. */
+/** A new object: no name or place, the repeater symbol. */
 export function emptyDraft(): ObjectDraft {
   return {
     name: "",
@@ -68,7 +74,7 @@ export function emptyDraft(): ObjectDraft {
   };
 }
 
-/** The draft of an object the daemon has, to change it. */
+/** The draft of an existing object, for editing. */
 export function draftOf(row: OwnObjectRow): ObjectDraft {
   return {
     name: row.name,
@@ -86,7 +92,10 @@ export function draftOf(row: OwnObjectRow): ObjectDraft {
   };
 }
 
-/** What is wrong with a name, "" when it is fine or empty: 1 to 9 characters (an item 3 to 9) of printable ASCII, none of `! _ | ~`, no blank at either end. */
+/**
+ * What is wrong with a name ("" if fine or empty): printable ASCII, no `! _ | ~`, no edge blanks,
+ * length limits.
+ */
 export function nameProblem(name: string, kind: Kind): string {
   if (name === "") return "";
   if (name !== name.trim() || !isPrintable(name) || holds(name, NAME_FORBIDDEN)) return t("objects.problem.name_chars");
@@ -94,7 +103,9 @@ export function nameProblem(name: string, kind: Kind): string {
   return kind === "item" && name.length < ITEM_NAME_MIN ? t("objects.problem.item_name", { min: ITEM_NAME_MIN, max: NAME_MAX }) : "";
 }
 
-/** What is wrong with a QRU group, "" when it is fine or empty: 1 to 8 letters and digits, and not one of the words QRU takes for something else. */
+/**
+ * What is wrong with a QRU group ("" if fine or empty): letters and digits, not a reserved word.
+ */
 export function qruProblem(group: string): string {
   const text = group.trim().toUpperCase();
   if (text === "") return "";
@@ -105,12 +116,12 @@ export function qruProblem(group: string): string {
 
 const wholeIn = (text: string, min: number, max: number): boolean => /^\d+$/.test(text.trim()) && Number(text) >= min && Number(text) <= max;
 
-/** How many characters the comment may have: fewer when a course or speed goes in front of it. */
+/** The comment's length limit: lower when a course or speed precedes it. */
 export function commentLimit(draft: ObjectDraft): number {
   return draft.course.trim() === "" && draft.speed.trim() === "" ? LIMITS.object.commentMax : LIMITS.object.commentMaxMotion;
 }
 
-/** What is wrong with each field as it stands (the empty ones are not wrong here: `draftReady` says what is still needed). */
+/** What is wrong with each field; empty fields are not flagged here (`draftReady` covers them). */
 export function draftProblems(draft: ObjectDraft): DraftProblems {
   const found: DraftProblems = {};
   const set = (field: keyof ObjectDraft, text: string): void => {
@@ -151,20 +162,20 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
   return found;
 }
 
-/** The course one step on from the text (`delta` degrees, up or down), round the compass: up from 359 is 0, down from 0 is 359; empty counts as 0. Whole degrees. */
+/** The course one step on (`delta` degrees) round the compass; empty counts as 0. */
 export function steppedCourse(text: string, delta: number): string {
   const now = Math.round(parseNumber(text) ?? 0);
   const span = COURSE_MAX + 1;
   return String((((now + delta) % span) + span) % span);
 }
 
-/** The speed one step on (`delta` km/h), between 0 and the most an object may say; empty counts as 0; a tenth is kept. */
+/** The speed one step on (`delta` km/h), clamped to 0..max, one decimal kept; empty counts as 0. */
 export function steppedSpeed(text: string, delta: number): string {
   const now = parseNumber(text) ?? 0;
   return String(Math.round(Math.min(SPEED_MAX_KMH, Math.max(0, now + delta)) * 10) / 10);
 }
 
-/** Whether Save is on: a name, a position and a symbol, and nothing wrong. */
+/** Whether Save is enabled: name, position and symbol set and no problems. */
 export function draftReady(draft: ObjectDraft): boolean {
   return (
     draft.name !== "" &&
@@ -180,8 +191,10 @@ function sameRadios(row: OwnObjectRow, command: ObjectCommand): boolean {
   return row.radios.length === command.radios.length && row.radios.every((id, i) => id === command.radios[i]);
 }
 
-/** The command that makes or changes the object; null while the draft is not ready, and while there is no radio for it. A new object that has no radios ticked goes on those a new object starts with (`start`: the
- * daemon's `status.new_object_radios`, those of the object saved last). */
+/**
+ * The command that creates or changes the object; null while the draft is not ready or has no
+ * radio. A new object with no radios ticked uses `start` (`status.new_object_radios`).
+ */
 export function objectCommand(draft: ObjectDraft, start: readonly RadioId[] = []): ObjectCommand | null {
   const lat = parseNumber(draft.lat);
   const lon = parseNumber(draft.lon);
@@ -208,7 +221,7 @@ export function objectCommand(draft: ObjectDraft, start: readonly RadioId[] = []
   };
 }
 
-/** Whether the object the daemon has is what the command asked for (so the daemon has taken it). */
+/** Whether the daemon's object matches the command, i.e. the daemon has taken it. */
 export function isObjectOf(row: OwnObjectRow, command: ObjectCommand): boolean {
   const near = (a: number | null, b: number | null): boolean => (a === null || b === null ? a === b : Math.abs(a - b) < 1e-9);
   return (
@@ -228,7 +241,7 @@ export function isObjectOf(row: OwnObjectRow, command: ObjectCommand): boolean {
   );
 }
 
-/** The command that puts an object where the map says (the marker was dragged): everything as it is (its radios too), the place new. */
+/** The command that moves an object (marker dragged): everything unchanged except the place. */
 export function moveCommand(row: OwnObjectRow, lat: number, lon: number): ObjectCommand {
   return {
     cmd: "object_set",
@@ -253,7 +266,10 @@ export function sentText(sent: number): string {
   return t("schedule.sent", { n: sent });
 }
 
-/** What the list says of an object of ours: how often it was sent and when it is sent next, "waiting" when that time has passed (the call is not set or the radio is away), "killing" for one whose kill is going out, "sent only when asked" for one that is never sent on the schedule. */
+/**
+ * The list text for an object of ours: how often sent and when next, "waiting" once that time has
+ * passed (no call set or radio away), "killing" while its kill goes out, or "sent only when asked".
+ */
 export function stateText(row: OwnObjectRow, nowMs: number): string {
   if (row.state === "killing") return t("schedule.killing", { n: row.sent });
   if (row.on_request) return t("schedule.on_request");

@@ -1,12 +1,17 @@
 <script setup lang="ts">
-// The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the My station tab with the keys the beacon sends), in groups (SettingsGroup; the Settings tab's fold by an arrow in the legend, and a group with a complaint of the daemon opens by itself). There is no Save button: a choice (a list, a switch, a symbol, a place
-// picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
-// the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a page of another device has neither (the daemon takes the command and runs the Test for a page on its own computer only, and says in hello which this is); a field
-// left empty shows the default as a placeholder. The Map group has the Radius row and, under it, the Detailed map row with the button that makes the map (MapFetchButton, plain) and under the button the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. Every action that is a row of its own (this one, Check now, Download logs) is an ActionRow. On the Settings tab a link at the top opens the first-run guide again; the default slot is
-// for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The My station tab's Station group
-// starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. The beacon's comment, the status text and the status template have the counter of a text with a limit and take no more (`count` of SettingsField, lib/textlimit.ts). While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The Radio group is SettingsRadio: a box for each radio, the state of its link in view and its fields behind a fold, with Add radio under them; the Digipeater group has an Enable (and its counts) for each radio that may repeat, in a box with the radio's legend where there are several, and a box for each pair of radios (its Enable, its Call and its counts); and the fields of the page's own alert end the
-// Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
-// the access key with a New key button and, under it, the code a phone's camera opens the page from, logged in (PhoneCode). The group Encrypted messages (our key's fingerprint, with a New key button and the (i) that says what the feature is) is there only while the daemon runs with --encryption and so has a key; the Update check group follows, then the Help group (SettingsHelp), and the About group (SettingsAbout) is the last.
+// The daemon's settings, one field per key in the form's scope (the Settings tab, or the My station
+// tab with the keys the beacon sends), in groups (SettingsGroup). There is no Save button: a choice
+// applies at once and a typed field on Enter or blur, after the page's check and then the daemon's;
+// a wrong one shows under its field with the typed text kept. The Undo toast and screen-reader line
+// belong to useSettings, shared with the other tab. Slots: `top` (beacon status above the first
+// group), `status` (the send-status line), and more groups from the page. The alert command has a
+// Test button; a page of another device has neither the command nor the test. The Map group has
+// Radius and the Detailed map row with MapFetchButton and MapFetchNotes. The My station Station
+// group starts with where the position comes from (gps/source) and shows the place only for Fixed;
+// the Beacon group has the Beacon choice and, for a moving station, Travelling. Notifications
+// group: BrowserAlerts. The Internet group has the Enable tickbox and a status row, and asks to set
+// the call first. The Web page group has the access key with a New key button and the PhoneCode.
+// The Encrypted messages group appears only while the daemon runs with --encryption.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
@@ -57,7 +62,8 @@ const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picke
 const emit = defineEmits<{ setup: []; update: []; notes: []; pickPosition: [] }>();
 
 const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, keys, local, connection } = useDaemonContext();
-const newMessageKey = useSure<string>(); // (the New key of encrypted messages asks twice: the stations that have the old key must be sent the new one)
+// New key asks twice: stations holding the old key must be sent the new one.
+const newMessageKey = useSure<string>();
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
 const { groups, question, defaults } = form;
@@ -76,18 +82,34 @@ const SYMBOL_TABLE = "station/symbol_table";
 const SYMBOL_CODE = "station/symbol_code";
 const GPS_DEVICE = "gps/device";
 const info = (key: string) => fieldFor(key, draft);
-/** A field the My station tab greys out while the beacon is Off (shown, with its value, and not changeable). */
+/**
+ * A field the My station tab greys out while the beacon is Off (shown with its value, not
+ * changeable).
+ */
 const greyed = (key: string): boolean =>
-  props.scope === "beacon" && disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0); // (no radio on can send: as RX only)
-/** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
+  props.scope === "beacon" && disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0);
+/**
+ * The network is let in and the daemon has made a key (what is in force, not the switch being
+ * changed).
+ */
 const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
-/** What the phone code holds: the page's first address for other devices (the one on the network where there is one, else the computer's .local name) with the access key in force. */
+/**
+ * What the phone code holds: the page's first address for other devices (the one on the network,
+ * else the .local name) with the access key in force.
+ */
 const phoneLink = computed(() => keyLink(config.value?.urls[0] ?? "", config.value?.values[KEY_KEY] ?? ""));
-/** Our call in force (the iGate logs in as it, and the page where a passcode is requested is told it); the iGate group asks for it first. */
+/**
+ * Our call in force (the iGate logs in as it; the passcode page is told it); the iGate group asks
+ * for it first.
+ */
 const call = computed(() => (config.value?.values["station/call"] ?? "").trim());
-// the answers of the buttons (Test, New key) are said in the toast, so that nothing moves; the answer of Check now is in its row
+// the answers of the buttons (Test, New key) are said in the toast so that nothing moves; the
+// answer of Check now is in its row
 for (const answer of [alertTest.result, newKey.result]) watch(answer, (result) => result && say(result.text));
-/** The keys the Beacon group keeps behind closed headings (the antenna, the path): they are not in the group's own list. */
+/**
+ * The keys the Beacon group keeps behind closed headings (antenna, path); they are not in its own
+ * list.
+ */
 const folded = new Set(props.scope === "beacon" ? BEACON_FOLDS.flatMap((fold) => fold.keys) : []);
 const shown = (keys: readonly string[], inGroup = true) =>
   keys.filter(
@@ -101,13 +123,23 @@ const shown = (keys: readonly string[], inGroup = true) =>
       shownByValues(key, draft),
   );
 const radios = useRadios();
-/** The GPS receiver's Refresh asks for the ports by the radios that have sound cards, so that their boxes keep their cards. */
+/**
+ * The GPS receiver's Refresh asks for the ports by the radios that have sound cards, so that their
+ * boxes keep their cards.
+ */
 const askPorts = () => portsAsks(radios.all.value.map((radio) => radio.row)).forEach((ask) => send(ask));
 /** Who holds a port, for the GPS receiver's: a radio by its name. */
 const gpsHolder = holderOf(0, (id) => radios.byId(id)?.name);
-/** The Digipeater group: an Enable for each radio that may repeat and is on, in a box with the radio's legend where there are several, with its own counts; then a box for each pair of radios, its Enable, Call and counts. */
+/**
+ * The Digipeater group: an Enable per radio that may repeat and is on (boxed with the radio's
+ * legend where there are several, with its counts), then a box per pair of radios with Enable, Call
+ * and counts.
+ */
 const digi = computed(() => digiPlaces(radios.all.value, draft));
-/** The groups with something to show: the Digipeater group only while a radio that may repeat, or a pair of radios, is on. */
+/**
+ * The groups with something to show: the Digipeater group only while a radio that may repeat, or a
+ * pair, is on.
+ */
 const drawn = computed(() => groups.value.filter((group) => group.id !== "digi" || digi.value.keys.length > 0));
 /** The keys of a group's own fields that are shown (the Digipeater group's are its radios'). */
 const keysOf = (group: { id: string; keys: readonly string[] }) => (group.id === "digi" ? digi.value.keys : shown(group.keys));
@@ -117,7 +149,7 @@ function editSymbol(text: string): void {
   settings.edit(SYMBOL_TABLE, text.slice(0, 1));
   settings.edit(SYMBOL_CODE, text.slice(1, 2));
 }
-// a place picked on the map (the My station tab's Choose on map) is our station's latitude and longitude, sent together
+// a place picked on the map (Choose on map) is our latitude and longitude, sent together
 watch(
   () => props.picked,
   (at) => {
@@ -130,14 +162,20 @@ watch(
 );
 /** Only the Settings tab folds its groups. */
 const folds = props.scope === "settings";
-/** A group has something the person must see, so it opens by itself: a complaint of the daemon about one of its fields, or the question it asks about one. */
+/**
+ * A group opens by itself when the person must see it: a complaint about one of its fields, or a
+ * question about one.
+ */
 const needsLook = (groupKeys: readonly string[]): boolean => groupKeys.some((key) => (errors[key] ?? "") !== "" || question.value?.key === key);
-/** A key of a box the Radio group shows: of a radio that is there and not removed (a complaint about a radio removed meanwhile has no field to stand under). */
+/** A key of a box the Radio group shows: of a radio that is there and not removed. */
 const inBox = (key: string): boolean => {
   const id = radioFieldOf(key)?.id;
   return boxedKey(key) && id !== undefined && radios.byId(id)?.removed === false;
 };
-/** The fields that open a group: the Digipeater group's are its radios', the Radio group's its own and those of its boxes. */
+/**
+ * The fields that open a group: the Digipeater group's are its radios', the Radio group's its own
+ * and its boxes'.
+ */
 const lookKeys = (group: { id: string; keys: readonly string[] }): readonly string[] =>
   group.id === "digi"
     ? digi.value.keys
@@ -145,7 +183,10 @@ const lookKeys = (group: { id: string; keys: readonly string[] }): readonly stri
       ? [...group.keys, ...[...Object.keys(errors), question.value?.key ?? ""].filter(inBox)]
       : group.keys;
 const fallback = (key: string) => defaults.value[key] ?? "";
-/** The keys of a group in boxes: a key with a heading of its own (the daemon's alert) starts a box with its legend that runs to the end of the group; the keys before it are in no box. */
+/**
+ * The keys of a group in boxes: a key with its own heading (the daemon's alert) starts a box with a
+ * legend that runs to the end of the group; earlier keys are in no box.
+ */
 function boxesOf(keys: readonly string[]) {
   const boxes: { id: string; sub: (typeof SUBGROUPS)[string] | null; keys: string[] }[] = [];
   for (const key of keys) {
@@ -155,7 +196,7 @@ function boxesOf(keys: readonly string[]) {
   }
   return boxes;
 }
-/** A typed field follows the typing; a choice is made by `choose` (it also says the text it has, which is not typing). */
+/** A typed field follows the typing; a choice is made by `choose`. */
 function typed(key: string, text: string): void {
   const kind = info(key).kind;
   if (kind !== "bool" && kind !== "choice") settings.edit(key, text);

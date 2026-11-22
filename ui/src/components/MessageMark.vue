@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The small mark on a message of ours: a clock while it is being sent, a check once it is acked, a hollow check (in a ring) when it was sent and no ack is expected, a cross when it failed or was rejected, a dash when it was cancelled (lib/messages.ts, `markOf`). Drawn
-// in SVG with the colour of the text, so that it follows the light or dark scheme; the title says what it means. With `mail` (a message to the email gateway) a message whose attempts ran out is the hollow check "sent, not confirmed",
-// never a cross (lib/email.ts).
+// The small mark on a message of ours (lib/messages.ts `markOf`): clock while sending, check
+// once acked, hollow check when no ack is expected, cross when failed or rejected, dash when
+// cancelled. With `mail` a message whose attempts ran out is the hollow check, never a cross
+// (lib/email.ts).
 import { computed } from "vue";
 import { mailMarkOf } from "@/lib/email";
 import { markOf } from "@/lib/messages";

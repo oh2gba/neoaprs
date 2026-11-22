@@ -1,5 +1,6 @@
 /* the messages */
-/* the list of conversations and the open conversation: side by side when the tab is wide (the class wide, MessagesPane), one at a time when it is narrow */
+/* the list of conversations and the open conversation: side by side when the tab is wide (the class
+   wide, MessagesPane), one at a time when narrow */
 .msgpane {
   display: flex;
   flex: 1;
@@ -165,8 +166,10 @@
 .convo-radio {
   flex: none;
 }
-/* the tag of the radio the messages go on, where radios are named: the room of a name of eight characters at the tag's size, and of the widest name of the radios that are on (their tags hidden in the same place,
-   .twowords), the tag at its right, so that Route beside it stays where it is when the radio changes */
+/* the tag of the radio the messages go on, where radios are named: room for a name of eight
+   characters at the tag's size and for the widest name of the radios that are on (their tags
+   hidden in the same place, .twowords), the tag at its right, so that Route beside it stays
+   put when the radio changes */
 .convo-radio {
   display: inline-flex;
   justify-content: flex-end;
@@ -213,7 +216,7 @@
   border-radius: var(--radius-box);
   background: var(--panel);
 }
-/* a query we sent (Ask for status ...): a small grey line in the middle of the thread, not a bubble */
+/* a query we sent (Ask for status ...): a small grey line mid-thread, not a bubble */
 .asked {
   display: flex;
   align-items: center;
@@ -233,7 +236,7 @@
   border-color: transparent;
   background: var(--row-selected);
 }
-/* a message of ours that waits for the one before it to the same station (queued): quiet until its turn comes */
+/* a message of ours that waits for the one before it to the same station: quiet until its turn */
 .bubble.out.queued .bubble-text {
   color: var(--muted);
 }
@@ -251,7 +254,7 @@
   gap: 2px 6px;
   font-size: 11px;
 }
-/* the trash can of a message that is no longer being sent: the compact size of Retry beside it */
+/* the trash can of a message that stopped sending: the compact size of Retry beside it */
 .bubble-meta .bubble-delete {
   min-width: var(--control-h-small);
   min-height: var(--control-h-small);
@@ -326,7 +329,8 @@
 .xbtn.armed {
   color: var(--bad);
 }
-/* the trash can and its "sure?" in one place (TwoWords), each centred, the word always bold: the button is as wide as the word and does not change size when it is pressed */
+/* the trash can and its "sure?" in one place (TwoWords), each centred, the word always bold: the
+   button is as wide as the word and does not change size when pressed */
 .xbtn .twowords > span {
   display: flex;
   align-items: center;
@@ -439,8 +443,10 @@
 .path-line {
   flex-basis: 100%;
 }
-/* Route's first row, where more than one radio is on: one list of the radios, wide enough for "Automatic: " and a name of eight characters and no wider (its first option's words change when a radio is chosen, so it is never
-   sized by them); it shrinks with its row, and at a phone's width it takes the row as the Path field does (.prefs .pathbox .input) */
+/* Route's first row, where more than one radio is on: one list of the radios, wide enough for
+   "Automatic: " and a name of eight characters and no wider (its first option's words change when
+   a radio is chosen, so it is never sized by them); it shrinks with its row, and at a phone's
+   width it takes the row as the Path field does (.prefs .pathbox .input) */
 .route-radio-pick {
   flex: 0 1 15em;
   min-width: 0;
@@ -470,7 +476,8 @@
 .compose-lock.pressed {
   color: var(--accent);
 }
-/* a station whose position says it takes no messages: one line above the box to write in, with the (i) that says why */
+/* a station whose position says it takes no messages: one line above the box to write in, with
+   the (i) that says why */
 .convo-maynot {
   display: flex;
   align-items: center;

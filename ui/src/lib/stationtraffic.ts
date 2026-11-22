@@ -1,8 +1,11 @@
-// The traffic of one station, as its panel in the Stations tab lists it (components/StationTraffic.vue): the packets it sent (its own, or inside a third-party packet: `sender`) and the messages we sent to it (a message,
-// an ack, a directed query), the newest first, at most TRAFFIC_SHOWN. They come from two places: the daemon's answer to `station_traffic` (read from the packet log, so older than the 200 of the Packets tab) and the packets
-// that come after it (the topic `packets`); the same packet in both is one line (`trafficKey`: its time, its direction, its radio and its line; their ids differ). And the state of a directed query of ours in that list: "waiting…"
-// until the answer it asks for comes from the station, "answered" once it has, "no answer" after ANSWER_WAIT_MS without (`queryState`). The answer each query asks for (`answers`): ?APRSP a position, ?APRSS a status,
-// ?APRSD a message that begins "Directs=", ?APRST and ?PING? a message, ?WX? a weather report, any other query any packet of the station after it.
+// The traffic of one station, for its panel in the Stations tab (components/StationTraffic.vue):
+// the packets it sent (its own or inside a third-party packet: `sender`) and the messages we sent
+// it, newest first, at most TRAFFIC_SHOWN. They come from the daemon's answer to `station_traffic`
+// (the packet log, older than the Packets tab's 200) and the later packets of the topic `packets`;
+// the same packet in both is one line (`trafficKey`). Also the state of a directed query of ours:
+// "waiting" until the station answers, "answered", or "no answer" after ANSWER_WAIT_MS. The answer
+// a query asks for (`answers`): ?APRSP a position, ?APRSS a status, ?APRSD a message starting
+// "Directs=", ?APRST and ?PING? a message, ?WX? a weather report, any other query any packet.
 import type { DecodedMessage, PacketRow } from "@/protocol/protocol";
 
 export const TRAFFIC_SHOWN = 50;
@@ -11,7 +14,7 @@ export type QueryState = "waiting" | "answered" | "no_answer";
 
 const time = (row: PacketRow): number => Date.parse(row.heard_at);
 
-/** A message to `call` (not an ack, not a reject) that we sent, when the packet is one. */
+/** Our message to `call` (not an ack or reject), if the packet is one. */
 function ourMessageTo(row: PacketRow, call: string): DecodedMessage | null {
   const d = row.decoded;
   return row.direction === "out" && d.type === "message" && d.addressee === call ? d : null;
@@ -22,10 +25,13 @@ export function isTrafficOf(row: PacketRow, call: string): boolean {
   return row.sender === call || ourMessageTo(row, call) !== null;
 }
 
-/** One packet whichever way it came (the log's answer has the log's numbers as ids, the topic its own). */
+/** One packet whichever way it came (the log and the topic use different ids). */
 export const trafficKey = (row: PacketRow): string => `${row.heard_at} ${row.direction} ${row.radio_id ?? ""} ${row.tnc2}`;
 
-/** The lines of the list: the packets of both places once each, the newest first (the order they came in where the times are equal), without those from the internet while `internet` is off, at most TRAFFIC_SHOWN. */
+/**
+ * The lines of the list: packets of both sources once each, newest first (arrival order for equal
+ * times), without internet packets while `internet` is off, at most TRAFFIC_SHOWN.
+ */
 export function mergeTraffic(live: Iterable<PacketRow>, logged: readonly PacketRow[], internet: boolean): PacketRow[] {
   const seen = new Map<string, PacketRow>();
   for (const row of [...live].sort((a, b) => b.id - a.id)) seen.set(trafficKey(row), row);
@@ -36,13 +42,16 @@ export function mergeTraffic(live: Iterable<PacketRow>, logged: readonly PacketR
     .slice(0, TRAFFIC_SHOWN);
 }
 
-/** The query a packet of ours to `call` is (a message with no id whose text begins with "?"), upper-cased; null for any other packet. */
+/**
+ * The query our packet to `call` is (a message with no id starting with "?"), upper-cased; else
+ * null.
+ */
 export function queryAsked(row: PacketRow, call: string): string | null {
   const d = ourMessageTo(row, call);
   return d !== null && d.msg_id === null && d.ack_id === null && d.rej_id === null && d.text.startsWith("?") ? d.text.toUpperCase() : null;
 }
 
-/** Whether `reply`, a packet the station sent, is the answer the query asks for. */
+/** Whether `reply`, a packet the station sent, answers the query. */
 export function answers(query: string, reply: PacketRow): boolean {
   const d = reply.decoded;
   const message = d.type === "message" && d.ack_id === null && d.rej_id === null ? d.text : null;
@@ -54,7 +63,10 @@ export function answers(query: string, reply: PacketRow): boolean {
   return true;
 }
 
-/** The state of a query of ours (null for a packet that is none): answered when the station sent the answer after it, else waiting for ANSWER_WAIT_MS and then no answer. `rows` are the lines of the list. */
+/**
+ * The state of our query (null if the packet is none): answered once the station sent the answer
+ * after it, else waiting for ANSWER_WAIT_MS, then no answer. `rows` are the list's lines.
+ */
 export function queryState(row: PacketRow, call: string, rows: readonly PacketRow[], now: number): QueryState | null {
   const query = queryAsked(row, call);
   if (query === null) return null;
@@ -63,7 +75,7 @@ export function queryState(row: PacketRow, call: string, rows: readonly PacketRo
   return now - sent >= ANSWER_WAIT_MS ? "no_answer" : "waiting";
 }
 
-/** When the list is next to change by the clock alone: the earliest moment a query that waits has waited long enough; null when none waits. */
+/** The earliest moment a waiting query times out; null if none waits. */
 export function nextDeadline(call: string, rows: readonly PacketRow[], now: number): number | null {
   const due = rows.filter((row) => queryState(row, call, rows, now) === "waiting").map((row) => time(row) + ANSWER_WAIT_MS);
   return due.length === 0 ? null : Math.min(...due);

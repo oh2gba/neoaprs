@@ -1,15 +1,24 @@
 <script setup lang="ts">
-// The stations heard, as a short table that fits the panel: the symbol, the call (a check mark after it for a station heard direct on any radio), how it was heard (a tag each: the radio that heard it by
-// its name, "FM", "HF", "20 m", iGate, Internet; the two radios that heard it last, one in a table as narrow as a phone's, and "+n" for the rest, whose title says them with their times; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the
-// hover title). A column is sorted by a click on its head (again to reverse), the group box over it (StationsFilters: a filter box and the toggles "direct only", "heard on RF only" and "hide timed out", and "On map for")
-// narrows it, our own station is always on top, the selected row is marked and a click on a row selects the station (the map flies to it; with Ctrl it adds a card). The click (or Enter, or Up, Down, Home and End, which
-// select the next row: useRowKeys) also shows the station in the station panel fixed at the bottom of the tab, as the box of every tab is (StationPanel: its actions, its traffic as the lines of the Packets tab, the route
-// of messages to it and "Alert me when…"; composables/useStationPanel.ts); its cross or Esc closes it with the focus back on the row. Nothing in the list opens or grows: every row is one line high. When the filter text is a
-// call that no station has been heard under (not ours, not the email gateway), a button "Message OH2XYZ" under the empty result writes to it all the same. A station past its timeout is off the map: its row is dim and
-// says "timed out" after the time it was heard. Under the list are the count and Forget all, which asks twice ("Really forget all?", 5 s) and has its (i): it removes every station heard with its packets and keeps ours. At
-// the right end of a row are two small buttons, as on the card: a speech bubble that opens the conversation with the station ("Message OH2XYZ") and a trash can that forgets it ("Forget OH2XYZ"; it asks twice like the
-// card's, "sure?" for 5 s; armed together with the panel's Forget); a click on them does not select the row. A right-click on a row (a long press on a touch screen) opens a short menu where the pointer is (StationMenu:
-// Copy call, Show on map, QRZ page), as the Packets tab's copies. A station with an alert set has a small quiet bell after its call (AlertBell: every row has its place, so that nothing moves).
+// The stations heard, as a short table that fits the panel: symbol; call (with a check mark for
+// a station heard direct); how it was heard (one tag per radio by name, "iGate" or "Internet";
+// two radios at most, one in a narrow table, and "+n" for the rest, whose title lists them with
+// times; lib/channels.ts); distance; bearing as a small arrow (north up, "NE, 47°" as its
+// title); and when it was last heard (the newest of anything it sent; the full time is the
+// title). A click on a column head sorts, again reverses. The filter box (StationsFilters)
+// narrows the rows, our own station is always on top, and the selected row is marked. A click
+// on a row selects the station (the map flies to it; with Ctrl it adds a card). The click,
+// Enter, or Up, Down, Home and End (useRowKeys) also show the station in the panel at the
+// bottom of the tab (StationPanel, composables/useStationPanel.ts); its cross or Esc closes it
+// with focus back on the row. Every row is one line high, so nothing in the list opens or grows.
+// When the filter text is a call no station has been heard under (not ours, not the email
+// gateway), a "Message OH2XYZ" button under the empty result writes to it. A timed-out
+// station is off the map: its row is dim and says "timed out" after the time. Under the list
+// are the count and Forget all (asks twice, 5 s; has an (i)), which removes every heard
+// station with its packets and keeps ours. At the right end of a row are a message button and
+// a trash can that forgets the station (asks twice, armed together with the panel's Forget);
+// clicking them does not select the row. A right-click or long press opens a short menu where
+// the pointer is (StationMenu). A station with an alert has a quiet bell after its call
+// (AlertBell; every row reserves its place).
 import TagMark from "@/components/TagMark.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import { computed, ref } from "vue";
@@ -55,11 +64,12 @@ const { stations, now, aging, call: ownCall, send, qru, prefs } = useDaemonConte
 const radios = useRadios();
 const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
-/** The table is narrower than STATIONS_TWO_RADIOS (lib/layout.ts; 0 until it is measured: not narrow). */
+/** The table is narrower than STATIONS_TWO_RADIOS (lib/layout.ts); 0 until measured: not narrow. */
 const narrow = computed(() => width.value > 0 && width.value < STATIONS_TWO_RADIOS);
-/** How many radios "Heard on" shows by their tags: two, and one in a narrow table (a radio's tag is its name, which may be long): the row stays in the width with one tag and "+n". */
+/** Radios shown as tags in "Heard on": two, or one in a narrow table (names may be long); "+n"
+ * stands for the rest. */
 const radioRoom = computed(() => (narrow.value ? 1 : undefined));
-/** The objects that came in answer to a request for local info, with the server that sent each (the Local info tag). */
+/** Objects that answered a local info request, with the server that sent each (Local info tag). */
 const localInfo = computed(() => receivedFrom(qru.value?.servers ?? []));
 const emit = defineEmits<{
   select: [call: string, multi?: boolean];
@@ -69,10 +79,10 @@ const emit = defineEmits<{
   copy: [call: string];
 }>();
 const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
-/** Ctrl (Cmd on a Mac) held: the station's card is added to the open ones, or closed when it is open. */
+/** Ctrl (Cmd on a Mac) held: the card is added to the open ones, or closed if open. */
 const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
 
-/** The columns, with the head of each in the page's language (made again when the language changes). */
+/** The columns, with heads in the page's language (rebuilt when it changes). */
 const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean }[]>(() => [
   { key: null, title: "" },
   { key: "call", title: t("station.table.call") },
@@ -83,19 +93,20 @@ const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean
   { key: null, title: "" },
 ]);
 
-/** The trash can of a row asks twice, as the card's Forget does: the first press arms it ("sure?"), the second (within 5 s) forgets the station. */
+/** The row trash can asks twice like the card's Forget: the first press arms it, the second
+ * (within 5 s) forgets the station. */
 const sure = useSure<string>();
 const armed = (call: string): boolean => sure.armed.value === call;
 const forget = (call: string): void => sure.press(call, () => emit("forget", call));
 
-/** Forget all (at the foot) asks twice as well: the first press arms it ("Really forget all?"), the second (within 5 s) sends the command. It is there to press while some station is heard (ours and our objects are not forgotten). */
+/** Forget all asks twice as well ("Really forget all?", 5 s); ours and our objects are kept. */
 const sureAll = useSure<"all">();
 const anyHeard = computed(() => [...stations.value.values()].some((row) => !row.is_me && !row.own));
 const forgetAll = (): void => sureAll.press("all", () => send({ cmd: "forget_all_stations" }));
 
 /** The menu of a row (StationMenu): composables/useRowMenu.ts. */
 const { menu, menuRow, press, onContextMenu, closeMenu } = useRowMenu(stations);
-/** What the buttons of the panel and of the menu do: the parent's events, and Forget asking twice. */
+/** What the panel and menu buttons do: the parent's events, with Forget asking twice. */
 const rowActions = {
   message: (call: string) => emit("message", call),
   ask: (call: string, kind: QueryKind | "custom", text?: string) => emit("ask", call, kind, text),
@@ -125,7 +136,8 @@ const calls = (): string[] => rows.value.map((row) => row.call);
 /** The station panel at the bottom of the tab (StationPanel): composables/useStationPanel.ts. */
 const panel = useStationPanel(calls);
 const panelRow = computed(() => (panel.open.value === null ? undefined : stations.value.get(panel.open.value)));
-/** A click on a row (or Enter) selects it and shows it in the panel; with Ctrl it adds the card and leaves the panel as it is. Not the click of the finger that was lifted after a long press. */
+/** A click or Enter selects the row and shows it in the panel; with Ctrl it adds the card and
+ * leaves the panel alone. A click ending a long press is ignored. */
 function onRowClick(event: MouseEvent | KeyboardEvent, call: string): void {
   if (event instanceof MouseEvent && press.swallowClick()) return;
   emit("select", call, withKey(event));
@@ -140,7 +152,8 @@ const onRowKey = useRowKeys({
   },
 });
 
-/** The filter text is a call that no station has been heard under (our own row is always listed, so it does not count; and the text is not ours, nor the email gateway's: that has its own tab): a button writes to it all the same, to a station that has not been heard yet. */
+/** The filter text is a call no station has been heard under (not our own, not the email
+ * gateway, which has its own tab): a button writes to it anyway. */
 const strangerCall = computed(() => {
   const typed = normalizeCall(filter.value);
   const ours = ownCall.value ? normalizeCall(ownCall.value) : "";

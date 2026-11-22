@@ -1,12 +1,13 @@
 <script setup lang="ts">
-// The dialog of Send feedback / logs (SettingsHelp opens it), in the middle of the page over a dimmed one as the path builder's is, and with its keys (useDialogFocus: the focus in the text, Tab going round, Esc closing): one text, "Your message", of a few lines
-// and at most NOTE_MAX characters, the logs file under it, Send and Cancel. Send hands the words and whether the file goes with them to the group and closes the dialog, and the group does the sending and tells the outcome; it starts from the group's `draft` and `attached` and tells
-// the group every change, so that what was not sent is there again at the next opening; Cancel, the cross, Esc and a press beside the dialog close it and send nothing.
-// The file is shown attached, as a mail program shows an attachment (its name as the daemon makes it, without the time it is made at), and it is a thing to act on. Its name downloads it, by the means of Download logs (useSupportLogs.collect: the same request, the same saving,
-// in a browser and in the app's window); the group holds that download (`download`), so that it knows the file the daemon made and kept, and Send names it: the very file the person looked into is the one that goes. The × takes the file off, as the × of a hop in the path builder
-// does, so that the words go alone; the file keeps its place and its name, dimmed without its plate (as the mark of a removed radio), and the × is Attach, which puts it back: both faces of that button are in the page (TwoWords), so nothing in the dialog moves. Without the file
-// Send is off until there are words; it is off too while the download runs (the daemon makes one file at a time). No line explains anything: the line under the file says what the download does and did (Collecting…, Saved with the file's full name, or why not), as About's line
-// does, in a room it always has.
+// The dialog of Send feedback / logs (opened by SettingsHelp), with useDialogFocus keys: one text
+// of up to NOTE_MAX characters, the logs file shown as an attachment, Send and Cancel. Send hands
+// the words and whether the file goes to the group, which does the sending, and closes the dialog.
+// The dialog starts from the group's `draft` and `attached` and reports every change so that unsent
+// text returns at the next opening. The file's name downloads it (useSupportLogs.collect); the
+// group holds that download so that Send names the very file the person looked at. The × takes the
+// file off (it stays in place, dimmed, and the × becomes Attach); both faces are in the page
+// (TwoWords), so nothing moves. Send is off until there are words and while the download runs. The
+// line under the file says what the download did.
 import { computed, ref, useId, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import TwoWords from "@/components/TwoWords.vue";
@@ -18,11 +19,14 @@ import { NOTE_MAX } from "@/lib/support";
 
 const props = withDefaults(
   defineProps<{
-    /** the button that opened it, which gets the focus back */
+    /** the button that opened the dialog, which gets the focus back */
     opener: HTMLElement | null;
-    /** the download of the file, which the group holds: Download logs' own means */
+    /** the download of the file, which the group holds */
     download: Pick<SupportLogs, "running" | "saved" | "problem" | "collect">;
-    /** our call, which names the logs file (neoaprs/cli/supportbundle.py, bundle_name: `nocall` without one) */
+    /**
+     * our call, which names the logs file (neoaprs/cli/supportbundle.py, bundle_name: `nocall`
+     * without one)
+     */
     call?: string | null;
     /** the words written at an earlier opening and not sent */
     draft?: string;
@@ -36,9 +40,9 @@ const emit = defineEmits<{ send: [note: string, file: boolean]; draft: [text: st
 const titleId = useId();
 const noteId = useId();
 const dialog = ref<HTMLElement | null>(null);
-/** The words written, from the group's draft: the group keeps them until they were sent. */
+/** The words written, from the group's draft; the group keeps them until sent. */
 const note = ref(props.draft);
-watch(note, (text) => emit("draft", text), { flush: "sync" }); // (at once: Send closes the dialog in the same tick)
+watch(note, (text) => emit("draft", text), { flush: "sync" });
 /** The name the file is shown by. */
 const name = computed(() => `neoaprs-support-${props.call || "nocall"}.zip`);
 const on = ref(props.attached);
@@ -48,9 +52,9 @@ const keys = useDialogFocus(dialog, () => emit("close"), {
   first: () => dialog.value?.querySelector<HTMLElement>("textarea") ?? null,
   back: () => props.opener,
 });
-openTip.value = null; // (a note of the page that was opened by the keyboard does not stay open under the dialog)
+openTip.value = null;
 
-/** A press on the dimmed page beside the dialog closes it; no press in it goes further. */
+/** A press on the dimmed page beside the dialog closes it; no press inside goes further. */
 function press(event: PointerEvent): void {
   event.stopPropagation();
   if (event.target === event.currentTarget) emit("close");

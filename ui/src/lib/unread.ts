@@ -1,33 +1,36 @@
-// When the user can be said to have seen what came, and how the count of what was not is shown. A message counts as seen only while its conversation is open (useConversations) and the Messages tab is the
-// tab on show, the panel is on screen (not folded away, and on a phone not behind the map) and the page itself is visible (a page in a background browser tab, or a minimised window, keeps counting); a message from the email gateway is seen while the Email tab is on show in the same way (useEmail); a bulletin is seen while the Bulletins tab is
-// on show (useBulletins), and a sked is seen while the Skeds tab is on show (useSkeds). The rest of the rules (which message is unread) are in lib/messages.ts, `conversations`.
+// When the user has seen what came, and how the count of what was not is shown. A message is seen
+// only while its conversation is open (useConversations), the Messages tab is on show, the panel is
+// on screen (not folded, and on a phone not behind the map) and the page is visible. An email
+// gateway message is seen while the Email tab is on show (useEmail), a bulletin while the Bulletins
+// tab is (useBulletins), a sked while the Skeds tab is (useSkeds). Which message is unread is
+// decided in lib/messages.ts `conversations`.
 import { t } from "@/i18n";
 import type { TabId } from "@/lib/layout";
 
 export interface PanelView {
   tab: TabId;
-  /** The panel's contents are on screen: unfolded, and on a phone the panel's turn, not the map's (composables/usePanel.ts `onScreen`). */
+  /** The panel is on screen: unfolded, and on a phone the panel's turn (usePanel). */
   onScreen: boolean;
   /** document.visibilityState is not "hidden" */
   visible: boolean;
 }
 
-/** Whether the tab is in front of the user's eyes: it is the tab on show, the panel is on screen and the page is visible. */
+/** Whether the tab is in front of the user: on show, on screen and the page visible. */
 export function isViewingTab(view: PanelView, tab: TabId): boolean {
   return view.tab === tab && view.onScreen && view.visible;
 }
 
-/** The title of the browser tab: "(2) NeoAPRS" with two messages not seen, plain "NeoAPRS" with none. */
+/** The browser tab title: "(2) NeoAPRS" with two unseen messages, else "NeoAPRS". */
 export function titleText(unread: number): string {
   return unread > 0 ? `(${unread}) NeoAPRS` : "NeoAPRS";
 }
 
-/** What a badge says of the messages not seen: "1 message not seen yet". */
+/** A badge's text for unseen messages: "1 message not seen yet". */
 export function unreadText(unread: number): string {
   return t("unread.not_seen", { n: unread });
 }
 
-/** What the badge of a tab says: the messages not seen, the bulletins that are new since the tab was last on show, or the skeds not seen. */
+/** A tab's badge text: unseen messages, new bulletins since last shown, or unseen skeds. */
 export function badgeText(tab: TabId, count: number): string {
   return tab === "bulletins" ? t("unread.new_bulletins", { n: count }) : tab === "skeds" ? t("unread.new_skeds", { n: count }) : unreadText(count);
 }

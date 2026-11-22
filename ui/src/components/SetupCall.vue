@@ -1,11 +1,12 @@
 <script setup lang="ts">
-// Step 1 of the first-run guide: the call without its SSID and the SSID in a dropdown beside it (CallInput), checked as it is typed (the rules of lib/calls.ts; N0CALL is refused). The guide keeps the call as the settings do (`OH2GBA-9`).
+// Step 1 of the first-run guide: the call and the SSID, checked as typed (lib/calls.ts; N0CALL is
+// refused).
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 
 const { guide } = useDaemonContext();
-/** The field's own words, made when the page is drawn so that they follow the language. */
+/** The field's words, made at draw time so that they follow the language. */
 const info = () => ({
   label: t("setup.call.label"),
   empty: "OH2ABC",

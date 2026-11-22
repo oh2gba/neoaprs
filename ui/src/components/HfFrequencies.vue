@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The suggested frequencies in an HF radio's box: the project's list (the daemon says it in the radio's `modem.frequencies`, from a small file on the project's server, else the version page's dial, else the built-in four), one line for each, the band and the dial in
-// the monospace font, as plain text to read: not an input box, and the label says "suggested", since nothing here is read from the radio. The room of four lines (the most the list has: MAX_FREQUENCIES) is kept, so that nothing moves when the list changes length. When the row comes into view (the
-// tab opened, the fold unfolded) the daemon is asked to look at the project's file again (`frequencies`), which it does at most every fifteen minutes; a row that came into view before the socket was open asks when it opens,
-// as the HF tests tab does. The list is the station's.
+// The suggested frequencies in an HF radio's box (`modem.frequencies`: the project's list, else
+// the version page's dial, else the built-in four), one plain-text line each. Room for four
+// lines (MAX_FREQUENCIES) is kept so that nothing moves. When the row comes into view the daemon
+// is asked to refresh the list (`frequencies`; at most every fifteen minutes); a row that
+// appeared before the socket opened asks when it opens.
 import { computed, ref, watch } from "vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useWhenShown } from "@/composables/useWhenShown";
@@ -15,9 +16,9 @@ const { send, connection } = useDaemonContext();
 const row = ref<HTMLElement | null>(null);
 const lines = computed(() => props.radio.row.modem?.frequencies ?? []);
 const ids = boxIds();
-/** The id of the row's output, with the radio's id, in the ids of the place (the Settings tab's, or the setup guide's). */
+/** The id of the row's output, with the radio's id, for the Settings tab or the setup guide. */
 const outputId = computed(() => ids(`hf-frequencies-${props.radio.id}`));
-let missed = false; // the row came into view before the socket was open: it is asked when the socket opens
+let missed = false; // came into view before the socket opened
 useWhenShown(row, () => void (connection.value === "open" ? send({ cmd: "frequencies" }) : (missed = true)));
 watch(connection, (now) => {
   if (now !== "open" || !missed) return;
@@ -47,7 +48,7 @@ watch(connection, (now) => {
 }
 .freq {
   display: block;
-  height: 1.5em; /* (one line exactly, whatever the two fonts' heights: four of them are the 6em kept) */
+  height: 1.5em; /* one line exactly, whatever the fonts' heights */
   white-space: nowrap;
 }
 .band {

@@ -1,7 +1,11 @@
 <script setup lang="ts">
-// One trend graph as inline SVG in the page's colours (the weather card's, the packets by the hour of the statistics card and of a station's card, the speed of a moving station and the signal of a station): a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain, or bars stacked of several parts: the packets of each radio), labelled ticks on both axes, and a line under the pointer with the value and the
-// time of the nearest observation in the heading (the latest observation's while no pointer is on the graph: the heading has the same shape either way, so nothing moves). The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
-// stations can be compared: it is rounded to round numbers as the graph's own range would be.
+// One trend graph as inline SVG in the page's colours, used by the weather card, the packet
+// statistics, and the speed and signal graphs: a smooth line through the readings that carries
+// across gaps, with an optional lighter band up to the gusts, bars (rain), or stacked bars (the
+// packets of each radio); labelled ticks on both axes; and a heading with the value and time
+// of the observation under the pointer (the latest one when there is none), so nothing moves.
+// Scaling and paths are in lib/chart.ts. A series with no value draws only the frame. `range`
+// is the value axis shared by several weather cards, rounded to round numbers.
 import { computed, ref } from "vue";
 import { formatNumber, t } from "@/i18n";
 import {
@@ -34,7 +38,8 @@ const props = withDefaults(
     band?: readonly Point[];
     /** the series is drawn as bars (rain) */
     asBars?: boolean;
-    /** with `asBars`, the parts each bar is made of, stacked in this order from the bottom, each in its tone (a class that sets `--tone`): the packets of each radio; `main` is their sum */
+    /** with `asBars`, the stacked parts of each bar, bottom first, each with a tone class
+     * (sets `--tone`); `main` is their sum */
     parts?: readonly { key: string; tone: string; points: readonly Point[] }[];
     /** the value axis includes 0 (wind, rain) */
     zero?: boolean;

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The credits of the map: a small (i) in the corner, closed until it is clicked. OpenStreetMap's ODbL asks for its credit on every map made from its data, and the author of the symbol set
-// asks for a pointer to the source, and so does the author of the list of device names (CC BY-SA 2.0). The credit of the map data is the licence's own wording and the same in every language; the other is a message of the catalogue.
-// While the aircraft or the ships of a service are on the map (`credits`, composables/useMapTraffic.ts) its credit is there too, in the service's own words with its links (lib/layers/sources.ts), which open in a new tab;
-// while aircraft are drawn (`aircraft`), the credit of their shapes (lib/layers/aircraftshapes.ts).
+// The map credits: a small (i) in the corner, closed until clicked. OpenStreetMap's ODbL, the
+// symbol set and the device-name list (CC BY-SA 2.0) ask for credit; the map data credit is the
+// licence's wording in every language. While aircraft or ships of a service are on the map
+// (`credits`) its credit appears with its links, and the credit for the aircraft shapes while
+// they are drawn (`aircraft`).
 import { ref } from "vue";
 import { t } from "@/i18n";
 import { ATTRIBUTION } from "@/lib/basemapstyle";

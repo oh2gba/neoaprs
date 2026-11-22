@@ -1,5 +1,8 @@
-// The release notes as the update dialog shows them (components/UpdateDialog.vue): a section of the changelog is markdown of the plain kind the project writes, and this reads it into blocks (a heading, a paragraph, a bullet) of parts (text, bold, code),
-// which the dialog draws itself; a link is its text. Anything else is text as it stands. And which of two versions is the newer, as the daemon tells it, for the line the page shows once after an update (composables/useWhatsNew.ts).
+// The release notes as the update dialog shows them (components/UpdateDialog.vue): a changelog
+// section is plain markdown, read here into blocks (a heading, a paragraph, a bullet) of parts
+// (text, bold, code), which the dialog draws itself; a link is its text, anything else is text as
+// it stands. Also which of two versions is newer, as the daemon tells it, for the line the page
+// shows once after an update (composables/useWhatsNew.ts).
 
 export interface NotePart {
   text: string;
@@ -30,7 +33,8 @@ export function noteParts(line: string): NotePart[] {
   return parts;
 }
 
-/** The blocks of a section: a `#` heading of any depth, a `- ` or `* ` bullet, and the lines between blank lines as one paragraph. */
+/** The blocks of a section: a `#` heading of any depth, a `- ` or `* ` bullet, and the lines
+ * between blank lines as one paragraph. */
 export function noteBlocks(text: string): NoteBlock[] {
   const blocks: NoteBlock[] = [];
   let paragraph: string[] = [];
@@ -59,10 +63,12 @@ const VERSION = /^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$/;
 const PART = /\d+|[^\d.\-+]+/g;
 const DIGITS = /^\d+$/;
 
-/** A version as the daemon names one ("0.12.0", "1.0.0-rc1"), not an empty or a made-up text. */
+/** A version as the daemon names one ("0.12.0", "1.0.0-rc1"), not an empty or made-up text. */
 export const isVersion = (text: string): boolean => VERSION.test(text.trim());
 
-/** -1, 0 or 1 as `a` is older than, the same as or newer than `b`, the daemon's way (neoaprs/versions.py): "0.10.0" is newer than "0.9.0", a missing part counts as 0, "1.0.0-rc1" is older than "1.0.0", and "1.0.0-rc2" older than "1.0.0-rc10". */
+/** -1, 0 or 1 as `a` is older than, equal to or newer than `b`, as in neoaprs/versions.py: "0.10.0"
+ * is newer than "0.9.0", a missing part counts as 0, "1.0.0-rc1" is older than "1.0.0", and
+ * "1.0.0-rc2" older than "1.0.0-rc10". */
 export function compareVersions(a: string, b: string): number {
   const left = a.trim().match(PART) ?? [];
   const right = b.trim().match(PART) ?? [];
@@ -71,7 +77,7 @@ export function compareVersions(a: string, b: string): number {
     const y = right[i] ?? "0";
     const xNumber = DIGITS.test(x);
     const yNumber = DIGITS.test(y);
-    // a number comes after a suffix: "1.0.0-rc1" sorts before "1.0.0"
+    // A number comes after a suffix: "1.0.0-rc1" sorts before "1.0.0".
     if (xNumber && yNumber) {
       if (Number(x) !== Number(y)) return Number(x) < Number(y) ? -1 : 1;
     } else if (xNumber !== yNumber) return xNumber ? 1 : -1;

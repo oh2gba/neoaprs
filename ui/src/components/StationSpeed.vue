@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The speed of a moving station over its trip (its track as the map draws it, from the oldest point to now: lib/speed.ts, `tripStart`), as a line on its card (components/StationCard.vue), from the speeds of its positions the daemon has (`speed_series`; the card emits `ask` and
-// components/StationCards.vue sends it) when the card opens and whenever a new position of the station comes. The card shows it only for a station that moves (lib/speed.ts, `isMoving`, from the row, so that a
-// fixed station's card has no room kept for it); until the answer comes the graph is its empty frame over the same span, so the card does not grow when the line arrives.
+// Speed of a moving station over its trip (lib/speed.ts `tripStart`), as a line on its card.
+// The card emits `ask` (`speed_series`) when it opens and on each new position, and shows this
+// only for a moving station (`isMoving`), so fixed stations' cards reserve no room. Until the
+// answer arrives the graph is an empty frame over the same span.
 import { computed, onMounted, watch } from "vue";
 import TrendChart from "@/components/TrendChart.vue";
 import { t } from "@/i18n";

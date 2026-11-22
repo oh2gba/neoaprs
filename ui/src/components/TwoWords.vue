@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The two faces of a button that asks twice ("Forget", then "sure?"; a trash can, then "sure?"): both are in the page, in one place, the one not shown hidden, so that the button is as wide and as high as the larger and the first press moves nothing (`.twowords`, styles/tables.css).
-// `second` says which is shown: the first face until the first press, the second after it, for a screen reader as for the eye (the hidden face is not read).
+// The two faces of a button that asks twice ("Forget", then "sure?"). Both are rendered and the
+// hidden one keeps the width and height (`.twowords`, styles/tables.css), so the first press
+// moves nothing. `second` selects the face shown, for screen readers too.
 defineProps<{ second: boolean }>();
 </script>
 

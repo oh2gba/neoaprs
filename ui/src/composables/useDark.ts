@@ -1,4 +1,4 @@
-// Whether the viewer's system prefers a dark colour scheme, kept up to date (the map's style follows it; the page's own colours follow it in CSS).
+// Whether the system prefers a dark colour scheme, kept up to date.
 import { onBeforeUnmount, ref } from "vue";
 
 export function useDark() {

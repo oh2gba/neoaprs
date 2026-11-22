@@ -1,5 +1,5 @@
-// The two topics of what is known about a station apart from its packets, as tables of rows the page reads: `station_prefs` (what the operator set: its path, RF only, its alert) and `station_keys` (the key it announced for encrypted
-// messages), both by call, and what the hub (lib/hub.ts) does with them: replace the whole table, set a row, delete one.
+// The tables of rows the page reads of what is known about a station apart from its packets:
+// `station_prefs` (path, RF only, alert) and `station_keys`, both by call.
 import { shallowReactive } from "vue";
 import { fillTable, type Store } from "@/lib/hub";
 import type { StationKey, StationPref } from "@/protocol/protocol";

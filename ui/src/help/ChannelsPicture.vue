@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// How a station was heard: on the radio (waves, the tag of the radio, FM), or over the internet (the cloud, APRS-IS, with the dotted outline of a station of the internet).
+// How a station was heard: on the radio (waves, the radio's tag, FM) or over the internet
+// (cloud, APRS-IS, dotted outline of an internet station).
 import { CALLS } from "@/help/calls";
 import { arrow, waves } from "@/help/draw";
 import { t } from "@/i18n";

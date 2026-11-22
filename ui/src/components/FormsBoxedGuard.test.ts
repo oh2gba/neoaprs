@@ -1,6 +1,7 @@
-// A form of fields is a group box (a fieldset with a legend, the look of the Settings groups), on every tab: the one idiom. The forms of the page are the components with a `<form>`; each is listed here with where its box is,
-// so that a form added later has to say how it is boxed. The chat line under a conversation (ComposeBar `inline`: one field, the counter and Send) is a line, not a form of fields, and the dialogs (the setup guide, the access key
-// gate) are boxes themselves.
+// A form of fields is a group box (a fieldset with a legend) on every tab. The forms of the page
+// are the components with a `<form>`; each is listed here with where its box is, so that a form
+// added later has to say how it is boxed. The chat line under a conversation (ComposeBar
+// `inline`) is a line, not a form of fields, and the dialogs are boxes themselves.
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";

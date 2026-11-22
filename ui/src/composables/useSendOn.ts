@@ -1,7 +1,10 @@
-// Send on (components/SendOn.vue), one pattern for everything that goes to no station in particular: the beacon and the status (My station), Ask around (Nearby) and Local info (Objects), bound to the radios' settings;
-// and `useDraftSendOn`, the same row bound to a draft, which the thing's Save or Post applies (an object's own radios, a bulletin's). A tick for each radio that is on
-// and can send, while several are (the radios' own `radio/<id>/beacon`, `status`, `ask` or `local_info`), applied at once. A tick sent waits for the daemon as its draft and shows the value in force else; none is
-// ticked while the radios the thing was ticked for are off (lib/beaconstatus.ts `sendOnTicks`). The daemon's refusal of a tick is the row's one line, which the next press takes away.
+// Send on, one pattern for everything that goes to no station in particular: the beacon and the
+// status, Ask around and Local info, bound to the radios' settings; and `useDraftSendOn`, the same
+// row bound to a draft that the thing's Save or Post applies. A tick for each radio that is on and
+// can send, while several are, is applied at once. A tick sent waits for the daemon like a draft
+// and shows the value in force otherwise; none is ticked while the radios it was ticked for are
+// off (lib/beaconstatus.ts `sendOnTicks`). The daemon's refusal of a tick is the row's one line,
+// which the next press takes away.
 import { computed, type ComputedRef } from "vue";
 import { draftTicks, inForce, ticked } from "@/lib/sendon";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -10,13 +13,9 @@ import { radioValueOf, sendOnTicks, type SendOnField, type SendOnTick } from "@/
 import type { PageRadio, RadioId } from "@/lib/radios";
 
 export interface SendOn {
-  /** the ticks, none while one radio that can send is on (the pane is as it was) */
   ticks: ComputedRef<SendOnTick[]>;
-  /** the radios the thing goes out on as the ticks stand: the ticked ones (none while none is), or the one radio that can send */
   radios: ComputedRef<PageRadio[]>;
-  /** the daemon's refusal of the latest tick, "" for none */
   error: ComputedRef<string>;
-  /** a tick pressed: the radio's setting to `on` */
   tick: (key: string, on: boolean) => void;
 }
 
@@ -41,15 +40,15 @@ export function useSendOn(field: SendOnField, radios: Pick<Radios, "severalSende
 }
 
 export interface DraftSendOn {
-  /** the ticks, none while one radio that can send is on */
   ticks: ComputedRef<SendOnTick[]>;
-  /** the radios the thing goes out on as the draft stands: its own that are on (none while none of them is), or the one radio that can send */
   radios: ComputedRef<PageRadio[]>;
-  /** a tick pressed: the draft's set after it (`set`) */
   tick: (key: string, on: boolean) => void;
 }
 
-/** Send on bound to a draft (the object form's, the Post box's), applied by the form's own Save or Post: `own` is the draft's set as it stands, `set` takes the set after a tick, `name` keeps its ticks apart. */
+/**
+ * Send on bound to a draft, applied by the form's own Save or Post: `own` is the draft's set, `set`
+ * takes the set after a tick.
+ */
 export function useDraftSendOn(
   own: () => readonly RadioId[],
   set: (ids: RadioId[]) => void,

@@ -1,8 +1,12 @@
-// The first-run guide's state (components/SetupGuide.vue): whether it is open, the step, the answers (useSetupAnswers) and Finish. It lives as long as the page does, so that closing the guide and opening it again finds the answers where they
-// were. Finish, on the Radio step, sends one `set_config` with the keys the answers change. An error of the daemon that names a key is shown under its field, and the guide goes to the step that has it. The place of the Position step is sent
-// when the guide goes on from it, else the daemon is told the map is wanted: it makes the map round the place at once, without a click, unless the one it has covers the place (neoaprs/services/mapauto.py), so that it is
-// there soon after the guide. The Radio step is live, as the Radio group of the Settings tab is (components/SetupRadio.vue): its radios are saved as they are changed and stay when the guide is closed, and what it needs before
-// Finish is the page's radios' (lib/setup.ts `radioReady`), not answers; the ports and sound cards are asked for again each time it comes on the screen, so that a radio plugged in meanwhile is listed.
+// The first-run guide's state: whether it is open, the step, the answers (useSetupAnswers) and
+// Finish. It lives as long as the page, so reopening finds the answers. Finish, on the Radio
+// step, sends one `set_config` with the keys the answers change. A daemon error naming a key is
+// shown under its field and the guide goes to its step. The Position step's place is sent when
+// the guide goes on from it, else the daemon is told the map is wanted
+// (neoaprs/services/mapauto.py).
+// The Radio step is live as the Radio group of Settings is: its radios are saved as changed and
+// stay when the guide closes; what Finish needs from it is `radioReady` (lib/setup.ts). The ports
+// and sound cards are asked again each time it shows, so a radio plugged in meanwhile is listed.
 import { computed, reactive, ref, watch, type Ref } from "vue";
 import { useSetupAnswers } from "@/composables/useSetupAnswers";
 import { useSetupSave } from "@/composables/useSetupSave";
@@ -16,20 +20,21 @@ export function useSetupGuide(
   config: Ref<ConfigValues | null>,
   lastError: Ref<Toast | null>,
   send: (command: Command) => boolean,
-  radios: Readonly<Ref<ReadonlyMap<string, RadioRow> | null>> | null = null, // (the ports are asked for by the radios that have sound cards)
+  radios: Readonly<Ref<ReadonlyMap<string, RadioRow> | null>> | null = null,
   connection?: Readonly<Ref<Connection>>,
 ) {
   const open = ref(false);
   const step = ref(0);
-  const peeking = ref(false); // only the head shows, so that the map can be clicked on a narrow page
-  const reached = ref(0); // the furthest step the user has been on: the steps up to it that are right show as done
+  // Only the head shows, so that the map can be clicked on a narrow page.
+  const peeking = ref(false);
+  // The furthest step reached: the right steps up to it show as done.
+  const reached = ref(0);
   const values = computed(() => config.value?.values ?? {});
   const answers = useSetupAnswers(values);
   const { fields, changes, valid } = answers;
   const picking = computed(() => open.value && step.value === 1);
-  const onRadio = computed(() => open.value && step.value === RADIO_STEP); // the Radio step is on the screen
+  const onRadio = computed(() => open.value && step.value === RADIO_STEP);
 
-  /** The guide is finished: closed, and the answers are the settings again. */
   function done(): void {
     close();
     answers.reset();
@@ -58,7 +63,6 @@ export function useSetupGuide(
     if (to >= 0 && to <= LAST_STEP && (to <= step.value || valid.value.slice(0, to).every(Boolean))) step.value = to;
   }
 
-  /** Next, or Finish on the last step. */
   function next(): void {
     if (!valid.value[step.value]) return;
     if (step.value >= LAST_STEP) finish();
@@ -85,7 +89,6 @@ export function useSetupGuide(
     edit: answers.edit,
     show,
     close,
-    /** Only the head shows (on) or all of it (off). */
     peek: (on: boolean) => (peeking.value = on),
     place,
     go,

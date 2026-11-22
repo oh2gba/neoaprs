@@ -10,24 +10,35 @@ import { shown } from "@/test/shown";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, mapFile, mapState, radioRow, radiosTopic, status, toastOf, portRow } from "@/test/fixtures";
 
-/** The settings of the fixtures with `extra` over them, a radio's own keys (`radio/1/port`) and a pair's (`pair/1/2/enabled`) among the radios' values. */
+/**
+ * The settings of the fixtures with `extra` over them: a radio's own keys (`radio/1/port`) and a
+ * pair's (`pair/1/2/enabled`) among the radios' values.
+ */
 function cfg(extra: Record<string, string> = {}) {
   const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => /^(radio|pair)\//.test(key) === radio));
   return configValues(own(false), own(true));
 }
 
-/** The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else the context has. */
+/**
+ * The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else
+ * the context has.
+ */
 function make(extra: Record<string, string> = {}, scope: Scope = "settings", more: Given = {}) {
   const daemon = fakeDaemon({ config: cfg(extra), ...more });
   const wrapper = mount(SettingsForm, { props: { scope }, global: withDaemon(daemon) });
   return { wrapper, send: daemon.send, daemon };
 }
 
-/** This browser alerts with the sound and a notification, so that the page shows both tests (a page on the loopback starts at off, which shows none). */
+/**
+ * This browser alerts with the sound and a notification, so the page shows both tests (a page on
+ * the loopback starts at off, which shows none).
+ */
 const alertWithBoth = () => localStorage.setItem("NeoAPRS.alert.mode", "both");
 afterEach(() => localStorage.clear());
 
-/** The boxes of the Notifications group (the Radio group has two of its own, FM radio and HF radio). */
+/**
+ * The boxes of the Notifications group (the Radio group has two of its own, FM radio and HF radio).
+ */
 const notificationBoxes = (wrapper: ReturnType<typeof make>["wrapper"]) =>
   wrapper.findAll("fieldset.subbox").filter((box) => !["FM radio", "Mercury radio"].includes(box.find("legend").text()));
 
@@ -94,11 +105,13 @@ describe("SettingsForm", () => {
         1 + // (the radio's Enable, the first row of its box)
         3 + // (the radio's own fields behind its status: its type, its port and its speed)
         1 + // (the radio's digipeater in the Digipeater group, radio/1/digipeat)
-        3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
+        // the RX only row of the Radio group, the New version row of the Update check group and the
+        // Logs row of the Help group, which are no settings
+        3 +
         3 + // (the browser's own: Notify me, Sound, Notification)
         1 + // (Language)
         -2 + // (the two receivers' addresses of the Map group: shown only with My own receiver)
-        1, // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list"; one radio has no Name)
+        1, // (Add radio, the last row of the Radio group; one radio has no Name)
     );
     expect(wrapper.find("#set-igate-password").exists()).toBe(false);
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
@@ -314,7 +327,8 @@ describe("SettingsForm", () => {
         ]);
         for (const source of ["gpsd", "serial"]) {
           const moving = make({ "gps/source": source }, "beacon").wrapper;
-          expect(moving.find("#set-beacon-interval_min").attributes("type"), source).toBe("checkbox"); // (Off and On are one tickbox, Beacon)
+          // Off and On are one tickbox, Beacon
+          expect(moving.find("#set-beacon-interval_min").attributes("type"), source).toBe("checkbox");
           expect(options(moving), source).toEqual([]);
         }
       });
@@ -495,8 +509,12 @@ describe("SettingsForm", () => {
       expect(wrapper.findAll(".field p")).toHaveLength(0);
       expect(wrapper.find("[id$='-hint']").exists()).toBe(false);
       for (const field of wrapper.findAll(".field")) {
-        if (field.classes().includes("location-field")) continue; // (the row Location: a button, the place, a closed heading; its coordinate fields are checked on their own)
-        const text = field.find("select").exists() ? field.find("label").text() : field.text(); // (the options of a select are its choices, not words about it; the (i) is closed and says "i")
+        // the row Location: a button, the place, a closed heading; its coordinate fields are
+        // checked on their own
+        if (field.classes().includes("location-field")) continue;
+        // the options of a select are its choices, not words about it; the (i) is closed and says
+        // "i"
+        const text = field.find("select").exists() ? field.find("label").text() : field.text();
         expect(text.length, text).toBeLessThan(42);
       }
     }
@@ -548,7 +566,8 @@ describe("SettingsForm", () => {
         .find((f) => f.find("legend").text() === "FM radio")
         ?.findAll("[id^='set-radio-1-']")
         .map((e) => e.attributes("id"))
-        .filter((id) => id !== "set-radio-1-enabled" && id !== "set-radio-1-find"); // (the radio's fields: its tickbox is the first row of its box)
+        // the radio's fields: its tickbox is the first row of its box
+        .filter((id) => id !== "set-radio-1-enabled" && id !== "set-radio-1-find");
     /** The form with radio 1 of this type. */
     const typed = (type: string, extra: Record<string, string> = {}) => make(extra, "settings", { radios: radiosTopic(radioRow(1, type)) });
 
@@ -606,7 +625,8 @@ describe("SettingsForm", () => {
         }),
       });
       expect(wrapper.find("#set-radio-1-type").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("COM3");
-      expect(wrapper.find<HTMLSelectElement>("#set-radio-1-type").element.value).toBe("kenwood-tnc2"); // (a refused choice shows as it was)
+      // a refused choice shows as it was
+      expect(wrapper.find<HTMLSelectElement>("#set-radio-1-type").element.value).toBe("kenwood-tnc2");
     });
   });
 
@@ -629,7 +649,7 @@ describe("SettingsForm", () => {
         .find((f) => f.find("legend").text() === "FM radio")
         ?.findAll("label")
         .map((l) => l.text())
-        .filter((text) => text !== "Enable" && text !== "Name"); // (the Name is outside the fold, the second row: plan section 6)
+        .filter((text) => text !== "Enable" && text !== "Name"); // (the Name is outside the fold, the second row)
 
     it("is one choice: find automatically, the ports the system lists, and Other", () => {
       const { wrapper } = withPorts();
@@ -771,7 +791,8 @@ describe("SettingsForm", () => {
 
   describe("typed fields", () => {
     const type = async (wrapper: ReturnType<typeof make>["wrapper"], id: string, text: string) => {
-      if (id.startsWith("set-station-l") && !wrapper.find(`#${id}`).exists()) await wrapper.find(".location-place").trigger("click"); // (the coordinates are behind the place)
+      // the coordinates are behind the place
+      if (id.startsWith("set-station-l") && !wrapper.find(`#${id}`).exists()) await wrapper.find(".location-place").trigger("click");
       await wrapper.find(`#${id}`).setValue(text);
     };
 
@@ -961,7 +982,8 @@ describe("SettingsForm", () => {
       expect(boxes[1]?.find("legend").text()).toBe("In this browser");
       expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Sound", "Notification"]);
       expect(boxes[1]?.find("#alert-mode").exists()).toBe(true);
-      expect(group?.findAll(":scope > .field")).toHaveLength(0); // (every field of the group is in one of the two boxes)
+      // every field of the group is in one of the two boxes
+      expect(group?.findAll(":scope > .field")).toHaveLength(0);
       expect(group?.find("h3").exists()).toBe(false);
       expect(titles).not.toContain("Messaging");
       expect(wrapper.findAll("#alert-mode")).toHaveLength(1);
@@ -1202,7 +1224,7 @@ describe("SettingsForm", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
       expect(wrapper.findAll(".field button:not(.info-toggle)").map((b) => b.text())).toEqual([
-        "Refresh", // (the radio's port; one radio has no Name and no Remove, and Add radio has its Add: plan section 6)
+        "Refresh", // (the radio's port; one radio has no Name and no Remove, and Add radio has its Add)
         "Add",
         "Test",
         "Test sound",
@@ -1466,7 +1488,8 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     await locator(wrapper).trigger("keydown", { key: "Enter" });
     expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.1875", "station/lon": "24.7083" } }]]);
     await locator(wrapper).trigger("blur");
-    expect(send).toHaveBeenCalledTimes(1); // (leaving it afterwards sends nothing more: the pair is what it was sent as)
+    // leaving it afterwards sends nothing more: the pair is what it was sent as
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("puts the place back on Esc in the locator, both coordinates, with the reason gone", async () => {
@@ -1688,7 +1711,8 @@ describe("the radios that are on", () => {
     expect(legends(make({}, "settings", FM_OFF).wrapper)).toEqual(
       fm.filter((l) => l !== "Digipeater").flatMap((l) => (l === "FM radio" ? [l, "Mercury radio"] : [l])),
     );
-    // plan section 6: "one Digipeater Enable ... for each radio that may repeat ..., each row with the radio's name when there are several": with both radios on, the one Enable is in the FM radio's box
+    // one Digipeater Enable for each radio that may repeat, each row with the radio's name when
+    // there are several: with both radios on, the one Enable is in the FM radio's box
     expect(legends(make({}, "settings", BOTH).wrapper)).toEqual(
       fm.flatMap((l) => (l === "Digipeater" ? [l, "FM radio"] : l === "FM radio" ? [l, "Mercury radio"] : [l])),
     );

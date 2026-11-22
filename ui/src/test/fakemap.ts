@@ -1,5 +1,5 @@
-// A stand-in for MapLibre in the component tests (there is no WebGL in the test browser): it keeps what the page asked of it and lets a test fire the map's events. The component gets it
-// through a mock of "@/lib/basemap".
+// A stand-in for MapLibre in the component tests (no WebGL): it keeps what the page asked of it
+// and lets a test fire the map's events. Components get it through a mock of "@/lib/basemap".
 import { vi } from "vitest";
 
 export const fakeState = { archive: true, world: false, engine: true };
@@ -15,13 +15,10 @@ export class FakeMap {
   center: { lng: number; lat: number };
   flights: unknown[] = [];
   eases: unknown[] = [];
-  /** what `fitBounds` was asked: the corners and the options */
   fits: { bounds: [[number, number], [number, number]]; options: Record<string, unknown> }[] = [];
   jumps: unknown[] = [];
   pans: unknown[] = [];
-  /** where `project` puts a place, in the pixels of the map; a test sets it */
   screen = { x: 0, y: 0 };
-  /** the place `unproject` gives for any pixel of the map; a test sets it */
   place = { lng: 24.94, lat: 60.17 };
   moving = false;
   styles: unknown[] = [];
@@ -41,7 +38,10 @@ export class FakeMap {
     return map;
   }
 
-  /** `on(event, handler)` or, for a layer, `on(event, layer, handler)`; a test fires the second as `fire(event, payload, layer)`. */
+  /**
+   * `on(event, handler)` or `on(event, layer, handler)`; a test fires the second as `fire(event,
+   * payload, layer)`.
+   */
   on(event: string, ...rest: [Handler] | [string, Handler]): this {
     const handler = rest[rest.length - 1] as Handler;
     const key = rest.length === 2 ? `${event}:${rest[0]}` : event;
@@ -53,15 +53,13 @@ export class FakeMap {
     for (const handler of this.handlers.get(layer === undefined ? event : `${event}:${layer}`) ?? []) handler(payload);
   }
 
-  /** the boxes of the controls that make one (the page's own, as the Layers button's), put in the map's box */
   controls: HTMLElement[] = [];
   addControl(control?: { onAdd?: (map: unknown) => HTMLElement }): void {
     const box = control?.onAdd?.(this);
     if (!box) return;
     this.controls.push(box);
-    this.options.container?.appendChild(box); // (as the engine puts its controls in the map's box)
+    this.options.container?.appendChild(box);
   }
-  /** the part of the map in view that `getBounds` gives; a test sets it */
   bounds = { west: 24.2, south: 60.0, east: 25.2, north: 60.4 };
   getBounds(): { getWest(): number; getSouth(): number; getEast(): number; getNorth(): number } {
     const b = this.bounds;
@@ -74,11 +72,8 @@ export class FakeMap {
   addSource(id: string, source?: { data?: unknown }): void {
     this.sources.set(id, { setData: vi.fn(), data: source?.data });
   }
-  /** the layers the page added, by id, as it gave them */
   specs = new Map<string, { id: string; type?: string; minzoom?: number; layout?: Record<string, unknown> }>();
-  /** the page's layers put under one of the base map's, with the id of that one */
   beneath = new Map<string, string>();
-  /** `before`: the id of the layer it is put under, as the engine does (one of the page's own, or of the base map's) */
   addLayer(layer: { id: string; type?: string; minzoom?: number; layout?: Record<string, unknown> }, before?: string): void {
     const at = before === undefined ? -1 : this.layers.indexOf(before);
     if (at < 0) this.layers.push(layer.id);
@@ -86,7 +81,6 @@ export class FakeMap {
     if (before !== undefined && at < 0) this.beneath.set(layer.id, before);
     this.specs.set(layer.id, layer);
   }
-  /** the style's layers: those of the base map it was made with, the page's own put under one of them, then the page's others in their order */
   getStyle(): { layers: { id: string; type?: string }[] } {
     const style = this.styles[this.styles.length - 1] as { layers?: { id: string; type?: string }[] } | undefined;
     const spec = (id: string) => this.specs.get(id) ?? { id };
@@ -100,7 +94,6 @@ export class FakeMap {
   getLayer(id: string): { id: string } | undefined {
     return this.layers.includes(id) ? { id } : undefined;
   }
-  /** what `setLayoutProperty` set the visibility of a layer to, by its id */
   visibility = new Map<string, string>();
   setLayoutProperty(id: string, name: string, value: string): void {
     if (name === "visibility") this.visibility.set(id, value);
@@ -108,7 +101,6 @@ export class FakeMap {
   getZoom(): number {
     return this.zoom;
   }
-  /** the images the page gave the map, by name (the marks of the aircraft and ships) */
   images = new Map<string, unknown>();
   addImage(name: string, image: unknown): void {
     this.images.set(name, image);
@@ -122,9 +114,7 @@ export class FakeMap {
   updateImage(name: string, image: unknown): void {
     this.images.set(name, image);
   }
-  /** what `queryRenderedFeatures` finds under any point, for the layers asked; a test sets it */
   rendered: { layer: string; properties: Record<string, unknown> }[] = [];
-  /** the point or box each `queryRenderedFeatures` was asked of */
   queried: unknown[] = [];
   queryRenderedFeatures(where?: unknown, options: { layers?: string[] } = {}): { properties: Record<string, unknown> }[] {
     this.queried.push(where);
@@ -193,7 +183,6 @@ export class FakeMarker {
     this.handlers.set(event, [...(this.handlers.get(event) ?? []), handler]);
     return this;
   }
-  /** The user drops the marker at a place: its position moves and `dragend` fires. */
   dragTo(lat: number, lon: number): void {
     this.lngLat = [lon, lat];
     for (const handler of this.handlers.get("dragend") ?? []) handler();

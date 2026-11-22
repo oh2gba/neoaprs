@@ -1,5 +1,6 @@
-// The marker of the place the first-run guide holds, kept on the map: made when there is a place, moved when it changes, taken away when there is none; it can be dragged, and where it is
-// dropped is given to `dropped`, as a click there would be. Returns the marker the map has now.
+// The marker of the place the first-run guide holds, kept on the map: made when there is a place,
+// moved when it changes, removed when there is none; it can be dragged, and where it is dropped is
+// given to `dropped`, as a click there would be. Returns the marker the map has now.
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 
 interface Engine {

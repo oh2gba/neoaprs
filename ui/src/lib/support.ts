@@ -1,6 +1,11 @@
-// What the Help group of the Settings tab needs to ask the daemon for the support file: the facts of this page that the daemon cannot know (`pageInfo`), the request (`requestBundle`: `POST support/bundle` with the same cookie as the page), the name of
-// the file it answers with, the saving of it as a download and the e-mail that goes with it; and Send logs, the same bundle posted to the project by the daemon with a few words of the person (`requestSend`: `POST support/send`, answered with a reference to quote), or the words alone
-// when the person took the file off (`SentFile`). The daemon makes the zip (the log, the settings without the access key, the packets); the page adds page.json and page-errors.json to it by sending `page`.
+// What the Help group of Settings needs to ask the daemon for the support file: the facts only
+// this page knows (`pageInfo`), the request (`requestBundle`: `POST support/bundle`, same
+// cookie as the page), the file name from the answer, saving it as a download, and the e-mail
+// that goes with it. Also Send logs: the same bundle posted to the project by the daemon with a
+// few words from the person (`requestSend`: `POST support/send`, answered with a reference to
+// quote), or the words alone when the person removed the file (`SentFile`). The daemon makes
+// the zip (log, settings without the access key, packets); the page adds page.json and
+// page-errors.json via `page`.
 import { endpoint } from "@/lib/access";
 import { pageBuild } from "@/lib/build";
 import { pad2 } from "@/lib/format";
@@ -8,12 +13,20 @@ import { sizeOf, type SizeClass } from "@/lib/layout";
 import type { Connection } from "@/lib/hub";
 import type { PageErrorEntry } from "@/lib/pageerrors";
 
-/** The daemon takes a body of 256 KB at the most; the page keeps under it and cuts the errors, not the facts. */
+/**
+ * The daemon takes a body of 256 KB at most; the page stays under it by cutting errors, not
+ * facts.
+ */
 export const BODY_MAX_BYTES = 240_000;
-/** The longest note of Send logs; the daemon and the server cut at the same number of characters. */
+/**
+ * The longest Send logs note; the daemon and the server cut at the same number of characters.
+ */
 export const NOTE_MAX = 2000;
 
-/** The file that goes with the words of Send feedback / logs: `true` one the daemon makes at the send, the full name of the one the person downloaded from the dialog (the daemon sends that very file), `false` none. */
+/**
+ * The file that goes with Send feedback / logs: `true` one the daemon makes at the send, the
+ * full name of one the person downloaded (the daemon sends that file), `false` none.
+ */
 export type SentFile = boolean | string;
 
 export interface PageInfo {
@@ -22,7 +35,7 @@ export interface PageInfo {
   userAgent: string;
   language: string;
   timeZone: string;
-  /** `Date.now()` of this browser, and the same as ISO 8601 */
+  /** `Date.now()` of this browser, and the same as ISO 8601. */
   timeMs: number;
   time: string;
   viewport: { width: number; height: number };
@@ -35,7 +48,7 @@ export interface PageInfo {
   errors: PageErrorEntry[];
 }
 
-/** What the browser says of itself; the tests give a stand-in. */
+/** What the browser says of itself; tests give a stand-in. */
 export interface InfoHost {
   navigator: { userAgent: string; language: string; standalone?: boolean; serviceWorker?: { controller: unknown } };
   innerWidth: number;
@@ -59,7 +72,7 @@ function timeZone(): string {
   }
 }
 
-/** The facts about this page and this browser that the support file carries as page.json. */
+/** The facts about this page and browser that the support file carries as page.json. */
 export function pageInfo(given: InfoGiven, host: InfoHost = window, now: number = Date.now()): PageInfo {
   const matches = (query: string): boolean => host.matchMedia?.(query).matches ?? false;
   return {
@@ -81,7 +94,11 @@ export function pageInfo(given: InfoGiven, host: InfoHost = window, now: number 
   };
 }
 
-/** The request body: when it is over the daemon's limit the stacks of the errors are cut short, then the oldest errors go. The note of Send logs goes beside the page, and `file` when it is not a new one (the daemon's default). */
+/**
+ * The request body: over the daemon's limit the error stacks are cut short, then the oldest
+ * errors go. The Send logs note goes beside the page, and `file` when it is not a new one (the
+ * daemon's default).
+ */
 export function bodyOf(info: PageInfo, note?: string, file: SentFile = true): string {
   const size = (text: string): number => new TextEncoder().encode(text).length;
   const body = (page: PageInfo): string => JSON.stringify(note === undefined ? { page } : file === true ? { page, note } : { page, note, file });
@@ -100,14 +117,20 @@ type BundleProblem = "access" | "busy" | "unreachable" | "failed";
 
 export type Bundle = { ok: true; blob: Blob; filename: string } | { ok: false; problem: BundleProblem; status: number };
 
-/** The name the daemon gives (`neoaprs-support-CALL-YYYYmmdd-HHMMSSZ.zip`) when it did not say, made the same way from this browser's clock. */
+/**
+ * The name the daemon gives (`neoaprs-support-CALL-YYYYmmdd-HHMMSSZ.zip`), made the same way
+ * from this browser's clock when it did not say.
+ */
 export function madeName(call: string | null, now: number): string {
   const d = new Date(now);
   const stamp = `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}-${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`;
   return `neoaprs-support-${call ? `${call.replace(/[^\w-]/g, "")}-` : ""}${stamp}.zip`;
 }
 
-/** The file name of a Content-Disposition header, kept to plain characters; null when there is none. */
+/**
+ * The file name of a Content-Disposition header, limited to plain characters; null when there
+ * is none.
+ */
 export function filenameOf(disposition: string | null): string | null {
   const found = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition ?? "");
   const name = (found?.[1] ?? "")
@@ -117,7 +140,10 @@ export function filenameOf(disposition: string | null): string | null {
   return name === "" || /^\.+$/.test(name) ? null : name;
 }
 
-/** Asks the daemon for the support file. The daemon's 401 and 403 are no access, its 429 is another file being made; no answer at all is an unreachable daemon. */
+/**
+ * Ask the daemon for the support file. Its 401 and 403 mean no access, 429 another file is
+ * being made; no answer is an unreachable daemon.
+ */
 export async function requestBundle(info: PageInfo, call: string | null, fetcher: typeof fetch = fetch, now: number = Date.now()): Promise<Bundle> {
   let response: Response;
   try {
@@ -148,7 +174,12 @@ export type Sent = { ok: true; ref: string } | { ok: false; problem: SendProblem
 
 const SERVER_REASONS: ReadonlySet<string> = new Set(["offline", "rate", "too_large", "refused"]);
 
-/** Asks the daemon to send the person's note to the project, with the support file unless `file` is false. The daemon answers 200 with `{ ok, ref }` or `{ ok: false, reason }` (no internet connection, too many sends, too large, refused); its 401 and 403 are no access, its 429 is another file being made. */
+/**
+ * Ask the daemon to send the person's note to the project, with the support file unless `file`
+ * is false. The daemon answers 200 with `{ ok, ref }` or `{ ok: false, reason }` (no internet
+ * connection, too many sends, too large, refused); 401 and 403 mean no access, 429 another file
+ * is being made.
+ */
 export async function requestSend(info: PageInfo, note: string, file: SentFile, fetcher: typeof fetch = fetch): Promise<Sent> {
   let response: Response;
   try {
@@ -176,7 +207,10 @@ export async function requestSend(info: PageInfo, note: string, file: SentFile, 
   }
 }
 
-/** Saves a file the way a link to it would: an object URL, a click on a link that downloads, and the URL given back a moment later. */
+/**
+ * Save a file the way a link would: an object URL, a click on a downloading link, the URL
+ * revoked a moment later.
+ */
 export function saveFile(blob: Blob, filename: string, doc: Document = document, urls: Pick<typeof URL, "createObjectURL" | "revokeObjectURL"> = URL): void {
   const url = urls.createObjectURL(blob);
   const link = doc.createElement("a");

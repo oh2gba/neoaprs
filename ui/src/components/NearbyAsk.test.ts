@@ -34,7 +34,8 @@ function askedOf(extra: Partial<GeneralAsked> = {}): GeneralAsked {
     ...extra,
   };
 }
-/** The topic as the daemon tells it: the last query of each kind, and when each went on each of its radios. */
+/** The topic as the daemon tells it: the last query of each kind, and when each went on each of
+ * its radios. */
 const general = (...asked: GeneralAsked[]): GeneralState => ({
   asked,
   by_radio: asked.flatMap((one) => one.radios.map((radio) => ({ kind: one.kind, radio, at: one.at }))),
@@ -251,7 +252,7 @@ describe("the Send on of Ask around", () => {
       const { wrapper, daemon } = on({ general: general(askedOf({ at: ago(90), radios: [id] })) }, ...rows);
       expect(wrapper.find("#ask-send-on").exists()).toBe(false);
       expect(wrapper.find(".ask-row select:not(.ask-kind)").exists()).toBe(false);
-      expect(lines(wrapper)[0]?.text()).toMatch(rows.length === 2 && rows.every((row) => row.enabled) ? /^FM: Asked who is around/ : /^Asked who is around/); // (beside a radio that only receives, a radio is named as it was)
+      expect(lines(wrapper)[0]?.text()).toMatch(rows.length === 2 && rows.every((row) => row.enabled) ? /^FM: Asked who is around/ : /^Asked who is around/);
       await ask(wrapper).trigger("click");
       expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
     }
@@ -296,7 +297,7 @@ describe("the Send on of Ask around", () => {
     ]);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await ask(wrapper).trigger("click");
-    expect(queries(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]); // (no radio is named: the daemon reads the ticks)
+    expect(queries(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
   });
 
   it("ticks as the daemon has it, greys the last one ticked, and applies a tick at once", async () => {
@@ -363,7 +364,7 @@ describe("the Send on of Ask around", () => {
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     const both = { asked: [askedOf({ at: ago(30), radios: [2] })], by_radio: [...general(first).by_radio, { kind: "aprs" as const, radio: 2, at: ago(30) }] };
     const later = on({ general: both }, ticked(FM), ticked(HF));
-    expect(ask(later.wrapper).attributes("title")).toBe("Asked a moment ago: again in 40 s"); // (the longest: FM's own, though Mercury's is the latest)
+    expect(ask(later.wrapper).attributes("title")).toBe("Asked a moment ago: again in 40 s");
   });
 
   it("is on while one ticked radio is connected, and off with a line for each while none is", () => {
@@ -389,7 +390,7 @@ describe("the Send on of Ask around", () => {
     await tell(daemon, { general: general(askedOf({ at, radios: [2], path: [] })) });
     expect(lines(wrapper)[0]?.text()).toBe(`Mercury: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`);
     await tell(daemon, { general: general(askedOf({ at, radios: [1, 3], path: null })) });
-    expect(lines(wrapper)[0]?.text()).toBe(`FM: Asked who is around at ${time}; answers arrive on the map and in Stations`); // (each radio by its own path, so none named; a radio the page does not have is not named)
+    expect(lines(wrapper)[0]?.text()).toBe(`FM: Asked who is around at ${time}; answers arrive on the map and in Stations`);
     expect(lines(wrapper)[0]?.attributes("title")).toBe("?APRS?");
     await ask(wrapper).trigger("click");
     await tell(daemon, { lastError: toastOf("general_query: radio Mercury is not connected", "radio.not_connected", { name: "Mercury" }) });
@@ -417,7 +418,7 @@ describe("the Send on of Ask around", () => {
     ]);
     expect(cssRule(".toolbar-checks")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".ask-row")).toMatch(/flex-wrap:\s*wrap/);
-    expect(cssRule(".ask-line")).toMatch(/text-overflow:\s*ellipsis/); // (a line with the radios' names in front keeps its one line)
+    expect(cssRule(".ask-line")).toMatch(/text-overflow:\s*ellipsis/);
   });
 });
 

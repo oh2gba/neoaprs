@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// A closed heading in a group of the form (DisclosureBox) with some of its fields under it: the Beacon group's Antenna (power, height, gain and direction, which make the PHG part of the beacon) and Advanced (the path, which is one choice: SettingsPath). The fields are
-// worked as in the form (a field the form greys out, `disabled`, is shown with its value and cannot be changed; the fold still opens): a typed one is sent when it is left or Enter is pressed, a choice at once (the form's `settings` and `form`).
+// A closed heading in a form group with fields under it (the Beacon group's Antenna and Advanced).
+// The fields work as in the form; a field the form greys out is shown with its value and can't be
+// changed.
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsPath from "@/components/SettingsPath.vue";

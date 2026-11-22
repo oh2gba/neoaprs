@@ -1,6 +1,8 @@
-// The errors of the page itself, for the person who is asked to report a fault: every error that Vue, the window or a promise nobody handled raises goes into a ring of the last 50 (which the Help group of the Settings tab sends with the logs,
-// and the support file carries as page-errors.json), and to the daemon as `page_error`, which logs it with the rest. Two limits keep a fault in a loop from flooding the daemon: the same message within a minute is counted, not sent again,
-// and no more than 10 are sent in a minute. An error raised while the capture is reporting is dropped, and nothing here ever throws.
+// The page's own errors, for fault reports: every error from Vue, the window or an unhandled
+// promise goes into a ring of the last 50 (sent with the logs and in the support file as
+// page-errors.json) and to the daemon as `page_error`. The same message within a minute is counted,
+// not resent, and at most 10 are sent a minute. An error raised while reporting is dropped, and
+// nothing here throws.
 import type { App } from "vue";
 import { pageBuild } from "@/lib/build";
 import type { PageErrorCommand } from "@/protocol/protocol";
@@ -12,13 +14,13 @@ export interface PageErrorEntry {
   message: string;
   stack: string;
   source: ErrorSource;
-  /** ISO 8601, UTC: when it came first */
+  /** ISO 8601, UTC: when it first came. */
   at: string;
-  /** when it came last, within the minute after the first */
+  /** When it last came, within the minute after the first. */
   last: string;
-  /** how many more times it came within that minute */
+  /** How many more times it came within that minute. */
   count: number;
-  /** the component a Vue error was raised in; "" for the others and when Vue did not say */
+  /** The component a Vue error was raised in; "" for other errors or when Vue did not say. */
   component: string;
 }
 
@@ -30,7 +32,7 @@ const MESSAGE_MAX = 2000;
 const STACK_MAX = 8000;
 const BUILD_MAX = 64;
 
-/** The words and the stack of whatever was thrown: an Error, a string, or any other value. */
+/** The words and stack of whatever was thrown: an Error, a string, or any other value. */
 function describeError(thrown: unknown): { message: string; stack: string } {
   if (thrown instanceof Error) return { message: thrown.message || thrown.name, stack: thrown.stack ?? "" };
   if (typeof thrown === "string") return { message: thrown, stack: "" };
@@ -59,12 +61,18 @@ export class PageErrors {
     return this.ring.map((entry) => ({ ...entry }));
   }
 
-  /** Takes an error: into the ring, and to the daemon unless it is the same as one of the last minute or the minute's sends are used. */
+  /**
+   * Stores an error, and sends it to the daemon unless it repeats one of the last minute or the
+   * minute's quota is used.
+   */
   record(thrown: unknown, source: ErrorSource, component = ""): void {
     this.guarded(() => this.take(thrown, source, component));
   }
 
-  /** From now on a command goes through `send`, which answers false while the connection is not open; what waited is sent. */
+  /**
+   * From now on commands go through `send`, which answers false while not connected; queued errors
+   * are sent.
+   */
   attach(send: (command: PageErrorCommand) => boolean): void {
     this.sink = send;
     this.flush();
@@ -74,7 +82,7 @@ export class PageErrors {
     this.sink = null;
   }
 
-  /** Sends what waited for the connection, as far as the limit of the minute allows. */
+  /** Sends queued errors as far as the minute's limit allows. */
   flush(): void {
     this.guarded(() => this.drain());
   }
@@ -85,7 +93,7 @@ export class PageErrors {
     try {
       work();
     } catch {
-      this.queue.length = 0; // an error while reporting is dropped: reporting that would loop
+      this.queue.length = 0; // reporting that would loop
     } finally {
       this.busy = false;
     }
@@ -123,10 +131,10 @@ export class PageErrors {
   private drain(): void {
     while (this.queue.length > 0 && this.canSend()) {
       const next = this.queue[0];
-      if (next === undefined || !this.transmit(next)) return; // not connected: it waits
+      if (next === undefined || !this.transmit(next)) return; // not connected: wait
       this.queue.shift();
     }
-    if (this.queue.length > 0) this.queue.length = 0; // the minute's sends are used: the rest is only in the ring
+    if (this.queue.length > 0) this.queue.length = 0; // quota used: the rest stays only in the ring
   }
 
   private canSend(): boolean {
@@ -148,7 +156,7 @@ export class PageErrors {
   }
 }
 
-/** The one the page uses. */
+/** The instance the page uses. */
 export const pageErrors = new PageErrors();
 
 /** The name of the component a Vue error was raised in, as far as Vue knows it. */
@@ -158,7 +166,8 @@ function componentName(instance: unknown): string {
 }
 
 /**
- * Wires the capture in: Vue's handler of an error in a component (which logs it to the console as Vue does when it has none), and the window's `error` and `unhandledrejection`. Returns the way to take the listeners off.
+ * Wires the capture in: Vue's error handler (logging to the console as Vue does without one), and
+ * the window's `error` and `unhandledrejection`. Returns a function that removes the listeners.
  */
 export function installErrorCapture(
   app: App,

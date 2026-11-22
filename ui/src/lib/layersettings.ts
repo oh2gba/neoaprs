@@ -1,5 +1,7 @@
-// Settings, Map: the rows Aircraft and Ships and the receiver's address each may have (components/SettingsLayer.vue). The four keys and what each says of itself; the sources a station is offered are the daemon's (`map.layers[i].offered`), and a stored
-// source that is not among them shows as None. The address field is there only while the row's choice is an own receiver: a Radarcape or My own receiver.
+// Settings, Map: the Aircraft and Ships rows and each one's receiver address
+// (components/SettingsLayer.vue). The four keys and what each says of itself. The offered sources
+// come from the daemon (`map.layers[i].offered`); a stored source not among them shows as None. The
+// address field shows only while the row's choice is an own receiver.
 import type { Choice } from "@/lib/settingchoices";
 import type { FieldInfo, FieldSpec } from "@/lib/settings";
 import { RADARCAPE_NAME, SOURCE_NAMES, isOwn, isService, type LayerName, type SourceName } from "@/lib/layers/sources";
@@ -7,7 +9,10 @@ import { t } from "@/i18n";
 import { AIRCRAFT_SOURCES, SHIP_SOURCES } from "@/protocol/lists";
 import type { MapLayer } from "@/protocol/protocol";
 
-/** The four keys: which layer each is of, and whether it chooses the source or holds the address of an own receiver. */
+/**
+ * The four keys: the layer each belongs to, and whether it chooses the source or holds an own
+ * receiver's address.
+ */
 const KEYS: Readonly<Record<string, { layer: LayerName; role: "source" | "address" }>> = {
   "map/aircraft": { layer: "aircraft", role: "source" },
   "map/aircraft_host": { layer: "aircraft", role: "address" },
@@ -18,10 +23,12 @@ const KEYS: Readonly<Record<string, { layer: LayerName; role: "source" | "addres
 /** The layer a key belongs to and its role, or null for any other key. */
 export const layerKey = (key: string): { layer: LayerName; role: "source" | "address" } | null => KEYS[key] ?? null;
 
-/** The key that chooses the source of a layer. */
 const sourceKey = (layer: LayerName): string => (layer === "aircraft" ? "map/aircraft" : "map/ships");
 
-/** The words of one source in the list: None, a service or the Radarcape by its own name, or My own receiver. */
+/**
+ * The words of one source in the list: None, a service or the Radarcape by name, or My own
+ * receiver.
+ */
 function sourceText(source: SourceName): string {
   if (source === "none") return t("layers.settings.none");
   if (source === "radarcape") return RADARCAPE_NAME;
@@ -29,7 +36,10 @@ function sourceText(source: SourceName): string {
   return t("layers.receiver.own");
 }
 
-/** The list of a layer: the sources offered in the daemon's order (all of the layer's while the daemon has not said). */
+/**
+ * A layer's list: the sources offered, in the daemon's order (all of the layer's until the daemon
+ * has said).
+ */
 export function sourceChoices(layer: LayerName, offered?: readonly SourceName[]): readonly Choice[] {
   const all: readonly SourceName[] = layer === "aircraft" ? AIRCRAFT_SOURCES : SHIP_SOURCES;
   return (offered ?? all).map((source) => ({ value: source, label: sourceText(source) }));
@@ -41,7 +51,10 @@ export function shownSource(stored: string, offered: readonly SourceName[] | und
   return list.includes(stored) ? stored : "none";
 }
 
-/** What the four fields say of themselves (FIELDS of lib/settings.ts); the choices of a source row are all of the layer's here and the offered ones in the form. */
+/**
+ * What the four fields say of themselves (FIELDS of lib/settings.ts); source rows list all of the
+ * layer's choices here.
+ */
 export const LAYER_SPECS: Record<string, FieldSpec> = {
   "map/aircraft": {
     name: "layers.aircraft",
@@ -73,16 +86,19 @@ export const LAYER_SPECS: Record<string, FieldSpec> = {
   },
 };
 
-/** Whether an address field is shown: while the choice of its row (the values the form holds) is an own receiver. */
+/** Whether an address field is shown: while the row's choice is an own receiver. */
 export function layerShown(key: string, values: Readonly<Record<string, string>>): boolean {
   const own = layerKey(key);
   return own === null || own.role === "source" || isOwn(values[sourceKey(own.layer)] ?? "");
 }
 
-/** The layer's row of the topic `map`, if the daemon has said it. */
+/** The layer's row of the topic `map`, if the daemon has sent it. */
 export const layerOf = (layers: readonly MapLayer[] | undefined, layer: LayerName): MapLayer | null => layers?.find((row) => row.layer === layer) ?? null;
 
-/** The address field of a row as its chosen source has it: a Radarcape's (i) says in one line what to type and its box has no word in it (an empty address asks nothing); the others keep their own. */
+/**
+ * The address field of a row as its source has it: a Radarcape's (i) says what to type and its box
+ * has no word; others keep their own.
+ */
 export function addressField(base: FieldInfo, key: string, values: Readonly<Record<string, string>>): FieldInfo {
   const own = layerKey(key);
   if (own?.role !== "address" || values[sourceKey(own.layer)] !== "radarcape") return base;

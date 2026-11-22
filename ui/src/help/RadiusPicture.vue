@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The map radius: the world map is everywhere, the detailed map (streets, with their names) only within the radius around our station.
+// The map radius: the world map is everywhere, the detailed map (streets, with names) only
+// within the radius around our station.
 import { arrow } from "@/help/draw";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpMap from "@/help/HelpMap.vue";

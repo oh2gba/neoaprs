@@ -161,7 +161,7 @@
 }
 .trend-read {
   color: var(--text);
-  /* the value and the time under the pointer, in the room they always have: the heading never moves */
+  /* the value and time under the pointer, in room that is always reserved */
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -246,7 +246,9 @@
   font-weight: 600;
 }
 
-/* the statistics card (components/StatsCard.vue): at the bottom right of the map, clear of the station cards at the left, with its sections; dragged by its head (on a tablet and a desktop), it stands where it was put, in the map's pixels */
+/* the statistics card (components/StatsCard.vue): at the bottom right of the map, clear of the
+   station cards at the left; dragged by its head (tablet, desktop), it stays where put, in the
+   map's pixels */
 :is(.statscard, .packetscard, .monitorcard) {
   left: auto;
   right: 10px;
@@ -273,7 +275,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-/* the first section has no line above it when nothing stands before it; under the graph it has its line, as every other section has */
+/* the first section has no line above it when nothing precedes it; under the graph it has one */
 .stats-fold:first-child > summary.stats-section {
   margin-top: 2px;
   border-top: 0;
@@ -284,12 +286,13 @@
 .stats-chart {
   padding: 0 10px 4px;
 }
-/* each section of the statistics card is a heading that folds what is under it (DisclosureBox): the heading's look above, with the browser's own arrow */
+/* each section is a heading that folds its content (DisclosureBox), with the browser's arrow */
 .stats-fold > summary.stats-section {
   display: list-item;
   cursor: pointer;
 }
-/* the colour of a radio's part of the bars of the statistics card, in the order of the radios, and the internet's; the line of each radio has its mark */
+/* the colour of each radio's part of the stats bars, in radio order, then the internet's; the
+   line of each radio has its mark */
 .series-0 {
   --tone: var(--accent);
 }
@@ -318,7 +321,9 @@
   margin-right: 6px;
   background: var(--tone);
 }
-/* the monitor card (components/MonitorCard.vue) has the statistics card's place and moving above, wider, with the scope's picture at a height of its own, so that nothing moves while it draws; both open, it stands left of it */
+/* the monitor card (components/MonitorCard.vue) has the statistics card's place and moving, is
+   wider, and gives the scope's picture a height of its own so nothing moves while it draws; with
+   both open it stands left of the statistics card */
 .monitorcard {
   width: min(560px, calc(100% - 20px));
 }
@@ -338,8 +343,9 @@
 .monitorcard .field {
   margin: 0 10px 10px;
 }
-/* the Packets card (components/PacketsCard.vue) has the statistics card's place and moving, the monitor's width (the Packets tab's table fits it) and a height of its own, so that it does not grow as the packets come;
-   the tab's log in it fills it and scrolls its lines */
+/* the Packets card (components/PacketsCard.vue) has the statistics card's place and moving, the
+   monitor's width (the Packets tab's table fits it) and a height of its own so it does not grow
+   as packets come; the tab's log fills it and scrolls its lines */
 .packetscard {
   width: min(560px, calc(100% - 20px));
   height: min(480px, calc(100% - 114px));
@@ -350,11 +356,15 @@
   flex-direction: column;
   overflow: hidden;
 }
-/* a card that was sized (composables/useCardSize.ts) has the width and height its style gives; its handles lie over its own edges, a strip along each side and a square at each corner, so that nothing moves while one is dragged */
+/* a card sized with composables/useCardSize.ts has the width and height its style gives; its
+   handles lie over its own edges, a strip along each side and a square at each corner, so that
+   nothing moves while one is dragged */
 .card {
-  --sizer: 8px; /* the strips' thickness, and the room the Packets list leaves at its right for its scrollbar */
+  /* the strips' thickness, and the room the Packets list leaves at its right for its scrollbar */
+  --sizer: 8px;
   --sizer-corner: 14px;
-  --sizer-clear: 14px; /* where the strips at the top right begin and end, clear of the close cross */
+  /* where the strips at the top right begin and end, clear of the close cross */
+  --sizer-clear: 14px;
 }
 .sizer {
   position: absolute;
@@ -420,7 +430,7 @@
   user-select: none !important;
   -webkit-user-select: none !important;
 }
-/* the monitor card that was sized: the picture takes the height that is left under the head and over the level */
+/* the sized monitor card: the picture takes the height left under the head and over the level */
 .monitorcard.sized .card-body {
   display: flex;
   flex-direction: column;
@@ -430,7 +440,10 @@
   height: auto;
   min-height: 80px;
 }
-/* open together, the cards stand side by side (a Packets card that was sized has a place of its own and still counts, so that the monitor does not move across the map when it is first sized) from the right edge of the map: the statistics card, the Packets card, the monitor (composables/useAppShell.ts opens one only where the map has room for it) */
+/* open together, the cards stand side by side from the map's right edge: the statistics card, the
+   Packets card, the monitor (composables/useAppShell.ts opens one only where the map has room).
+   A sized Packets card keeps a place of its own and still counts, so the monitor does not move
+   across the map when it is first sized. */
 .app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)) :is(.packetscard, .monitorcard):not(.moved) {
   right: 360px;
 }
@@ -440,7 +453,9 @@
 .app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)):has(:is(.packetscard:not(.moved), .packetscard.sized)) .monitorcard:not(.moved) {
   right: 930px;
 }
-/* the packets of the station by the hour on its card (components/StationPackets.vue), the speed of a moving one (components/StationSpeed.vue) and the signal of one that was measured (components/StationSignal.vue), between the facts and Details */
+/* a station card's hourly packets (components/StationPackets.vue), the speed of a moving station
+   (components/StationSpeed.vue) and the signal of a measured one (components/StationSignal.vue),
+   between the facts and Details */
 .station-packets,
 .station-speed,
 .station-signal {

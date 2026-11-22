@@ -1,11 +1,14 @@
-// The chrome of the page is not text to select: a drag across a button, a label, a legend, a heading, the head of a table, a menu, the app's header, the tab bar or the header of a conversation paints nothing blue (base.css); what is content stays selectable, and on a touch screen
-// what has a copy menu (`copysource`) gives the long press to the menu, not to the system's selection (responsive.css).
+// The chrome of the page is not text to select: a drag across a button, label, legend, heading,
+// table head, menu, the app header, tab bar or conversation header paints nothing blue
+// (base.css). Content stays selectable, and on a touch screen what has a copy menu (`copysource`)
+// gives the long press to the menu, not to the system's selection (responsive.css).
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { cssRule, mediaRule } from "@/test/css";
 
-/** The style sheets as one, with their comments and their indentation: a rule at the left edge is one outside every media query. */
+/** The style sheets as one, with comments and indentation: a rule at the left edge is outside
+ * every media query. */
 const SHEETS = ["base.css", "responsive.css"].map((file) => readFileSync(resolve(__dirname, file), "utf8")).join("\n");
 
 const CHROME = [
@@ -42,7 +45,8 @@ describe("what is text to select", () => {
   it("gives a long press on a thing with a copy menu to the menu on a touch screen", () => {
     expect(mediaRule("(pointer: coarse)", ".copysource")).toContain("user-select: none;");
     expect(mediaRule("(pointer: coarse)", ".copysource")).toContain("-webkit-touch-callout: none;");
-    expect(SHEETS.match(/^\.copysource/m)).toBeNull(); // (with a mouse the text stays selectable: no rule at the left edge, outside the media query)
+    // With a mouse the text stays selectable: no rule at the left edge, outside the media query.
+    expect(SHEETS.match(/^\.copysource/m)).toBeNull();
   });
 
   it("says a newer version in the accent colour, not in the white that is read on it", () => {

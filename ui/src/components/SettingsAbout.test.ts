@@ -19,7 +19,10 @@ function makeWith(over = {}) {
 
 const ZIP = { "Content-Type": "application/zip", "Content-Disposition": 'attachment; filename="neoaprs-support-OH2GBA-20261021-123456Z.zip"' };
 
-/** The fetch of the page: `answer` is what the daemon says to the next request, kept with what was asked. */
+/**
+ * The fetch of the page: `answer` is what the daemon says to the next request, kept with what was
+ * asked.
+ */
 function daemonSays(answer: () => Promise<Response>) {
   const fetcher = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => answer());
   vi.stubGlobal("fetch", fetcher);

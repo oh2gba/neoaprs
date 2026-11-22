@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import SidePanel from "@/components/SidePanel.vue";
 import { PANEL_MIN, panelMax } from "@/lib/layout";
 
-// The handle at the panel's left edge is dragged with the pointer: the width is the window's width less where the pointer is, held between the least and the most the window allows, and the capture ends with the button.
+// The handle at the panel's left edge is dragged with the pointer: the width is the window's width
+// less the pointer position, held between the least and the most the window allows, and the capture
+// ends with the button.
 const slots = { stations: "<p>stations pane</p>" };
 const innerWidth = window.innerWidth;
 const captured: number[] = [];

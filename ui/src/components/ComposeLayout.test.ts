@@ -1,5 +1,7 @@
-// One layout for writing on every tab (Bulletins, Email, Objects; Messages is the model): the list fills the tab, the box to write in is the last thing in it, and in the box the counter is left of the buttons, the
-// secondary button left of the primary one, which is the last. The behaviour of each box (sending, editing, the two presses of a delete) is tested with the tab; this is only where things are.
+// The layout of the box to write in on every tab (Bulletins, Email, Objects; Messages is the
+// model): the list fills the tab, the box is the last thing in it, and in the box the counter is
+// left of the buttons and the secondary button left of the primary one. The behaviour of each
+// box is tested with its tab.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
@@ -45,7 +47,8 @@ function expectAtTheBottom(wrapper: VueWrapper, list: string): void {
   expect(listAt).toBeLessThan(kids(wrapper).length - 1);
 }
 
-/** In the line under the fields: the counter before the buttons, Cancel (a plain button) before the primary one, which is the last and the one that submits. */
+/** In the line under the fields: the counter before the buttons, Cancel (a plain button) before
+ * the primary one, which is the last and the one that submits. */
 function expectTheBar(wrapper: VueWrapper, primary: string, secondary: string | null): void {
   const foot = barOf(wrapper).find(".composebar-foot");
   const buttons = foot.findAll("button");

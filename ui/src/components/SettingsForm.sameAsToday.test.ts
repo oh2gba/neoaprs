@@ -1,6 +1,8 @@
-// The two radios change the Radio group and nothing else (and the header's marks stay the same) for a station that has the FM radio alone: with radio 1 alone the groups of the Settings tab other than Radio, and the My station tab, draw the ids and the fields that the page drew before the HF radio
-// existed. The expectations below were taken from that page (the commit before the two radios: 43025c0) and are not to be edited to make a change pass; what the radios' own settings changed is said where it is (the ids of radio 1's digipeater
-// and path are its own, `set-radio-1-digipeat` and `set-radio-1-path`; the header says the state of the radio's row in the page's words).
+// Baseline: with the FM radio alone, the Settings tab groups other than Radio, and the My station
+// tab, draw the same ids and fields as with a single radio, and the header marks stay
+// the same. Do not edit the expectations to make a change pass. What the radios' own settings
+// changed is noted where it applies (radio 1's digipeater and path ids are `set-radio-1-digipeat`
+// and `set-radio-1-path`).
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import AppHeader from "@/components/AppHeader.vue";
@@ -22,7 +24,10 @@ interface Box {
   fields: number;
 }
 
-/** What each group other than Radio draws: its legends, the ids inside it (the generated ones, `v-N`, and the group body's own, left out) and how many fields. */
+/**
+ * What each group other than Radio draws: its legends, the ids inside it (generated `v-N` ids and
+ * the group body's own are left out) and the number of fields.
+ */
 function drawn(extra: Record<string, string>, scope: Scope, more: Given = {}): Record<string, Box> {
   localStorage.setItem("NeoAPRS.alert.mode", "both");
   const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
@@ -62,7 +67,9 @@ const SETTINGS_TAB = {
   Digipeater: only("Digipeater", ["set-radio-1-digipeat"]),
   "Web page": only("Web page", ["set-web-network"]),
   Notifications: NOTIFICATIONS,
-  Map: box(["set-map-radius_km", "set-map-aircraft", "set-map-ships"], 3, ["Map", "Layers"]), // (the radius, and in the box Layers the layers' sources: the receivers' addresses are there with My own receiver)
+  // the radius, and in the box Layers the layers' sources: the receivers' addresses are there with
+  // My own receiver
+  Map: box(["set-map-radius_km", "set-map-aircraft", "set-map-ships"], 3, ["Map", "Layers"]),
   "Update check": only("Update check", ["set-update-now"]),
   Help: box(["set-help-send"], 1, ["Help"]),
   About: box(["set-help-logs"], 0, ["About"]),
@@ -122,7 +129,7 @@ describe("the Settings tab and the My station tab with the FM radio alone", () =
   });
 });
 
-// The header with the FM radio alone: the marks of the page before the HF radio existed, with their words, titles and colours (taken from that page, like the lists above).
+// The header with the FM radio alone: the marks with their words, titles and colours.
 describe("the header with the FM radio alone", () => {
   const marks = (link: Link, values: Record<string, string> = {}) => {
     const wrapper = mount(AppHeader, {
@@ -152,7 +159,7 @@ describe("the header with the FM radio alone", () => {
   it("is the Radio mark on the warn plate with the state in words, as it was: waiting, silent, not connected, searching", () => {
     const radio = (row: Parameters<typeof fmRow>[0] | null) => marks({ ...open, radios: row === null ? [] : pageRadiosOf(fmRow(row)), told: row !== null })[1];
     expect(radio(null)).toEqual(["BUTTON", "Radio: waiting…", "No word from the radio yet. Settings → Radio", "tag-warn pill-radio"]);
-    // (the daemon's English reason of before is the log's: the title says the state in the page's words; "entering KISS" is no state of a radio's row)
+    // the title says the state in the page's words; "entering KISS" is no state of a radio's row
     expect(radio({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM" } } })).toEqual([
       "BUTTON",
       "Radio: not connected",

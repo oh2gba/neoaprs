@@ -1,8 +1,13 @@
-/* the path builder (components/PathBuilderDialog.vue): the frame of the update dialog, narrower, on a phone too (it is put at the end of the body, out of the page's root and its size class). The (i) of WIDEn-N sits beside the
-   title. Hops is a row of buttons as the weather's period is (the one chosen filled), with As its packets come beside it, and the tick under them. The picture of the path (PathDrawing) is one line high, a fixed height, and
-   scrolls sideways when a long path does not fit; each element is a chip with its nodes (a drawing and who takes the hop) over the element as the field writes it and its ×; a hop after the second is on the warn plate, an element
-   that is no path orange. The path has room for two lines of text and its count a width of its own, the list of digipeaters a height of its own, so that nothing under them moves as hops come and go; the numbers are tabular and
-   right-aligned in columns of their own */
+/* the path builder (components/PathBuilderDialog.vue): the frame of the update dialog, narrower,
+   on a phone too (it is put at the end of the body, outside the page's root and its size class).
+   The (i) of WIDEn-N sits beside the title. Hops is a row of buttons as the weather's period is
+   (the chosen one filled), with As its packets come beside it and the tick under them. The path
+   picture (PathDrawing) is one line high, a fixed height, and scrolls sideways when a long path
+   does not fit; each element is a chip with its nodes (a drawing and who takes the hop) over the
+   element as the field writes it and its ×; a hop after the second is on the warn plate, an
+   element that is no path orange. The path has room for two lines of text and its count a width
+   of its own, the list of digipeaters a height of its own, so that nothing under them moves as
+   hops come and go; the numbers are tabular and right-aligned in columns of their own */
 .pathbuild {
   display: flex;
   flex-direction: column;
@@ -217,7 +222,8 @@
 .pathbuild-none {
   padding: 6px 8px;
 }
-/* on a phone the frame gives the picture its room: three hops (WIDE1-1,WIDE2-2, in every language) fit on one line without scrolling */
+/* on a phone the frame gives the picture its room: three hops (WIDE1-1,WIDE2-2) fit on one line
+   without scrolling */
 @media (max-width: 420px) {
   .pathbuild-backdrop {
     padding: 8px;

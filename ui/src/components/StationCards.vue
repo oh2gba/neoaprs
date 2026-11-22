@@ -1,11 +1,13 @@
 <script setup lang="ts">
-// The station cards over the map. On a tablet and a desktop they are a row at the left of the map, side by side, the oldest at the left and the newest at the right, each the whole card, as it is alone (with several weather stations open each is the full weather card
-// with its graphs, and the graphs are on the same value axes in every card, so that the stations can be compared). A card has its own cross. Two or more cards have **Close all** over the map's top left, beside the zoom buttons, and **Message these 3** beside it when two or
-// more of the cards are for stations that can be messaged (one text to all of them, in the group compose of the Messages tab). How many there may be is the page's (composables/useSelection.ts), and a row that is wider than the map has room for closes
-// its oldest card (`overflow`): a card is never made narrower. On a tablet and a desktop a card can be dragged by its head, or moved with Alt and the arrows (composables/useCardDrag.ts) anywhere over the map, and it keeps its place while it is open (`places`, the page's, for the session). Moving a card
-// never moves another: the first time one is moved every open card is pinned where it stands (the moved card leaves its slot empty), a card that closes leaves the others where they are, and a card that is opened goes to the first free slot of the row, never on top of a card. On a phone the one card is a bottom sheet that is part of the screen: folded to its head and the first facts, it opens up with a tap or a swipe up on its grip, folds with a swipe down, and a
-// swipe down on the folded sheet closes it; its cross is there too. The card of an aircraft or a ship the map has open (components/LayerCard.vue, composables/useLayerThings.ts) is one more card of the row, after the stations'
-// (it is not pinned or moved, and Close all closes it too); on a phone it is the one sheet: opening it closes a station's card, and opening a station's card closes it.
+// The station cards over the map. On a tablet and desktop they form a row at the left of the map,
+// oldest at the left. Weather cards share the same value axes. A card has a cross; two or more
+// cards add Close all and Message these N. A row wider than the map closes its oldest card
+// (`overflow`). Cards can be dragged by the head or moved with Alt and the arrows (useCardDrag) and
+// keep their places (`places`) for the session. Moving a card never moves another: the first move
+// pins every open card where it stands, a closing card leaves the others, and an opened card takes
+// the first free slot. On a phone the one card is a bottom sheet; a swipe down on the folded sheet
+// closes it. A layer card (aircraft or ship) is one more card of the row; on a phone it replaces a
+// station card.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import LayerCard from "@/components/LayerCard.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
@@ -28,21 +30,29 @@ import type { StationRow } from "@/protocol/protocol";
 const props = defineProps<{
   rows: readonly StationRow[];
   size: SizeClass;
-  /** The calls of the pinned cards (a tablet and a desktop): they stay open past Esc and Close all, and keep their places. */
+  /** The calls of the pinned cards (tablet and desktop): they stay open past Esc and Close all. */
   pinned?: readonly string[];
 }>();
 const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, signalSeriesByCall, stations, prefs, send, traffic } = useDaemonContext();
 const thing = traffic.card;
-/** A card asks for the packets of its station by the hour (when it opens, and each minute): the answer is kept by the call (packetHistoryByCall). */
+/**
+ * A card asks for its station's packets by the hour when it opens and each minute (kept by call).
+ */
 const askPackets = (call: string): boolean => send({ cmd: "packet_history", call, hours: HISTORY_HOURS });
-/** A moving station's card asks for its speeds over its trip (when it opens, and at each new position of the station, which may move where the trip begins). */
+/**
+ * A moving station's card asks for its speeds over its trip, when it opens and at each new
+ * position.
+ */
 function askSpeed(call: string): void {
   const row = props.rows.find((r) => r.call === call);
   if (row !== undefined) send({ cmd: "speed_series", call, hours: tripHours(row, now.value) });
 }
-/** The card of a station with a signal reading asks for its readings of the last day (when it opens, and at each new reading). */
+/**
+ * A card of a station with a signal reading asks for the last day's readings, when it opens and at
+ * each new one.
+ */
 const askSignal = (call: string): boolean => send({ cmd: "signal_series", call, hours: SIGNAL_HOURS });
-// (Forget, Message, Edit, ... are the card's own events: they go on)
+// Forget, Message, Edit and the like are the card's own events and go on
 const emit = defineEmits<{
   close: [call: string];
   closeAll: [];
@@ -56,16 +66,20 @@ const emit = defineEmits<{
   overflow: [];
 }>();
 
-/** Close all: the station cards (the page's) and the card of a thing. */
+/** Close all: the station cards and the card of a thing. */
 function closeAll(): void {
   traffic.close();
   emit("closeAll");
 }
 
-/** The stations of the open cards that a message can go to: stations, not ourselves, and not one the daemon says cannot be messaged (the email gateway, an object...). */
+/**
+ * The stations of the open cards that a message can go to: not ourselves, not stations the daemon
+ * says can't be messaged.
+ */
 const askable = computed(() => props.rows.filter(canMessage).map((row) => row.call));
 
-// the weather graphs of all the open cards are of one span; and while two or more weather stations are open they are on the same value axes too, so that their curves can be compared (one card has its own)
+// the weather graphs of all open cards share one span, and with two or more weather stations open
+// the same value axes
 const span = provideWxSpan();
 const ranges = computed(() => {
   const weather = props.rows.filter(isWeatherStation);
@@ -77,27 +91,31 @@ const ranges = computed(() => {
       );
 });
 
-// a row that is wider than the map has room for is not squeezed: the oldest card closes (the page does that when it hears `overflow`)
-// (a card that was moved is out of the row: it takes no room in it)
+// a row wider than the map is not squeezed: the oldest card closes (the page does that on
+// `overflow`) a moved card is out of the row and takes no room in it
 const stack = ref<HTMLElement | null>(null);
 function fit(): void {
   const el = stack.value;
   if (!el || props.size === "phone") return;
   const cards = [...el.querySelectorAll<HTMLElement>(":scope > .card:not(.moved)")];
   if (cards.length < 2) return;
-  const room = el.clientWidth - CARDS_FREE_SIDE; // (0 where nothing is laid out: no room to measure against)
+  const room = el.clientWidth - CARDS_FREE_SIDE;
   const total = cards.reduce((sum, card) => sum + card.offsetWidth, 0) + CARD_GAP * (cards.length - 1);
   if (el.clientWidth > 0 && total > room) emit("overflow");
 }
 
-// Where the cards that were moved stand (a tablet and a desktop only; the page keeps it, for the session, and uses it for how many cards the row holds: composables/useStationCards.ts). A card that is closed forgets its place.
+// Where the moved cards stand (tablet and desktop only; kept by the page for the session and used
+// for how many cards the row holds). A closed card forgets its place.
 const places = defineModel<Places>("places", { default: () => ({}) });
 const movable = computed(() => props.size !== "phone");
 const placeOf = (call: string): Place | undefined => (movable.value ? places.value[call] : undefined);
 const placeStyle = (place: Place | undefined) => (place ? { left: `${place.x}px`, top: `${place.y}px` } : undefined);
 const drag = useCardDrag(stack, places, () => movable.value);
 const isPinned = (call: string): boolean => props.pinned?.includes(call) ?? false;
-/** A card is pinned where it stands (it gets its place first, so that the cards around it never move it), or its pin is taken away (it stays where it is). */
+/**
+ * Pin a card where it stands (it gets its place first so the cards around it never move it), or
+ * unpin it.
+ */
 function pin(call: string): void {
   const on = !isPinned(call);
   if (on) drag.pinHere(call);
@@ -108,8 +126,9 @@ function resized(): void {
   fit();
 }
 useResized(stack, resized);
-// Cards come and go and the others stay where they are: the cards behind one that closes are pinned where they stand (before the page is drawn without it), and a card that is opened is put in the first free slot (once it is in the page, before it is drawn)
-// (watched as one string, so that a card whose row is made again with the same call, a packet more heard, is no change)
+// The cards behind a closing card are pinned where they stand before the page is drawn without it;
+// an opened card takes the first free slot once it is in the page. Watched as one string so that a
+// packet more from the same call is no change.
 const callsKey = (): string => props.rows.map((row) => row.call).join(" ");
 const callsIn = (key: string): string[] => (key === "" ? [] : key.split(" "));
 watch(callsKey, (key, was) => {
@@ -117,12 +136,13 @@ watch(callsKey, (key, was) => {
   const before = callsIn(was);
   const gone = before.filter((call) => !calls.includes(call));
   if (gone.length === 0) return;
-  // (one write: what the page is told is seen only when it has been drawn again)
+  // one write: what the page is told is seen only after the next draw
   const kept = Object.entries({ ...places.value, ...drag.pinAfter(gone, calls) }).filter(([call]) => calls.includes(call));
   const next = Object.fromEntries(kept);
   if (kept.length !== Object.keys(places.value).length || kept.some(([call, at]) => places.value[call] !== at)) places.value = next;
 });
-// A card that stands where it was put grows downwards (its Details, the graphs of a weather station): when it would leave the map it is kept inside it
+// A card that stands where it was put grows downwards (Details, weather graphs): keep it inside the
+// map.
 let sizes: ResizeObserver | null = null;
 function watchSizes(): void {
   sizes?.disconnect();
@@ -151,7 +171,8 @@ onMounted(() => void nextTick(fit));
 
 const expanded = ref(false);
 const newest = (): string | undefined => props.rows.at(-1)?.call;
-// a card of another station starts folded; on a phone it is the one sheet: a station's card and a thing's do not stand together
+// a card of another station starts folded; on a phone one sheet only: a station's card and a
+// thing's do not stand together
 watch(newest, (call) => {
   expanded.value = false;
   if (call !== undefined && props.size === "phone") traffic.close();
@@ -190,7 +211,7 @@ function up(event: PointerEvent): void {
 function cancel(): void {
   startY = null;
 }
-/** A tap, or the Enter of the keyboard (a swipe has done its work already). */
+/** A tap, or Enter (a swipe has done its work already). */
 function tap(): void {
   if (swiped) swiped = false;
   else apply("toggle");

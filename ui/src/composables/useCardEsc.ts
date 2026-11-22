@@ -1,10 +1,10 @@
-// Esc closes the station cards, all of them at once (and so clears the selection: the rows and the markers are not marked any more). Not when something else on the page takes the key (`blocked`: the setup guide, the panel with the steps of an update, which close with Esc themselves; asked before they have run), not when the
-// key is for a field that has text in it (it is for the field: the filter box of the Stations table clears itself on the first Esc and, empty, lets the next one through), and not when something has handled it already.
+// Esc closes all station cards and clears the selection, unless something else takes the key:
+// `blocked` (checked before they run), a field with text in it, or an already handled event.
 import { onBeforeUnmount, onMounted } from "vue";
 
 const isField = (el: HTMLElement): el is HTMLInputElement | HTMLTextAreaElement => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
 
-/** The key is for the field it was pressed in: one that has text keeps its first Esc, and a select (its list) and a rich text box take theirs. */
+/** True if the key belongs to the field: a field with text keeps its first Esc. */
 export function keepsEsc(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || target.tagName === "SELECT" || (isField(target) && target.value !== ""));
 }

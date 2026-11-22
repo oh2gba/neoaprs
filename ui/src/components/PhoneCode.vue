@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The code a phone's camera opens the page from (Settings, Web page, under the access key): the QR code of `link`, the page's address with the access key after `#`, drawn as one path of dark modules on a white
-// field in both themes, so that every camera reads it. Its box is a square of one size; the viewBox is the code's own size in modules, so a longer address makes the modules smaller and never the box bigger.
-// It is an image named by the row's label (`labelledby`): the address and the key are neither printed nor read aloud.
+// The QR code of `link` (the page address with the access key after `#`), drawn as one path of dark
+// modules on a white field in both themes. The box has a fixed size; the viewBox is the code's size
+// in modules. It is an image named by `labelledby`; the address and key are not printed or read
+// aloud.
 import { computed } from "vue";
 import { qrMatrix, qrPath } from "@/lib/qr";
 

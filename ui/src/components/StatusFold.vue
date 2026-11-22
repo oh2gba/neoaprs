@@ -1,9 +1,11 @@
 <script setup lang="ts">
-// THE status row of a group of the Settings tab, one look for every feature that has one (the Radio, Internet stations, the Digipeater, the Beacon and the Status report): under the group's tickbox, one line in view, the state as a word in the colour of the state (palette: connected
-// ok, connecting and waiting warn, anything else muted) and the quiet detail beside it. The marks of the state are the top bar's; this is the plain words.
-// An arrow in front opens what is behind it (the slot), and is there only when something is: a fold with nothing in it (a slot of lines that are all left out) is a plain row, with no arrow, nothing to click and the room of the arrow kept, so that the words stay under each other.
-// The fold is closed unless `open` (which opens it when it turns true later and never closes it). `link` makes the line a link to the setting it explains (RX only), as the marks of the header lead to theirs (StatusLine.vue); `parts` is a line that keeps its shape whatever it says (StatusLine.vue): the row
-// is laid out as its two lines then (`statushead-parts`), the first beside the state, the second under the state for the whole width of the row.
+// The status row of a Settings group, one look for every feature that has one: under the
+// group's tickbox, one line with the state as a word in its colour (connected: ok; connecting
+// and waiting: warn; else muted) and a quiet detail. The state marks are the top bar's.
+// An arrow opens the slot content and exists only when the slot draws something; otherwise the
+// row is plain, with the arrow's room kept so the words stay aligned. Closed unless `open`
+// (which opens it when it turns true later, never closes it). `link` makes the line a link to
+// the setting it explains; `parts` keeps the line's shape whatever it says (StatusLine.vue).
 import { Comment, Fragment, Text, useSlots, type VNode } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import StatusLine from "@/components/StatusLine.vue";
@@ -20,7 +22,7 @@ withDefaults(
 );
 const slots = useSlots();
 
-/** Whether the nodes of a slot draw anything: a `v-if` that is false is a comment, a text of blanks is nothing. */
+/** Whether the slot nodes draw anything: a false `v-if` leaves a comment, blank text is empty. */
 function drawn(nodes: readonly VNode[] | undefined): boolean {
   return (nodes ?? []).some((node) => {
     if (node.type === Comment) return false;

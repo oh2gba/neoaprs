@@ -1,4 +1,6 @@
-// The Test button of the message alert: it asks the daemon to run the alert command as it is saved (`alert_test`) and keeps the answer (`alert_result`, or the `error` of an empty command) for the form to say. The button waits while a test runs (the command has up to 20 s), is disabled while the field differs from what is saved (the daemon runs the saved one), and the answer goes with the next edit.
+// The Test button of the message alert: asks the daemon to run the saved alert command
+// (`alert_test`) and keeps the answer. The button waits while a test runs (up to 20 s) and is
+// disabled while the field differs from what is saved; the answer goes with the next edit.
 import { computed, ref, watch, type Ref } from "vue";
 import { t } from "@/i18n";
 import type { Toast } from "@/composables/useDaemon";
@@ -9,8 +11,10 @@ import type { AlertResultMessage, Command } from "@/protocol/protocol";
 
 export const ALERT_KEY = "messages/alert_command";
 
-/** How the command ended, in words: it ran, its exit code (with the first line it wrote to stderr, its own words), that it ran out of time, that it could not start; an outcome the page has no words for
- * (a daemon of another build) by whether it went well. */
+/**
+ * How the command ended, in words; an outcome the page has no words for counts by whether it went
+ * well.
+ */
 export function outcomeText(message: AlertResultMessage): string {
   if (message.outcome === "ran") return t("settings.alert_test.ran");
   if (message.outcome === "timeout") return t("settings.alert_test.timeout", { seconds: message.seconds });

@@ -1,24 +1,34 @@
-// What the Internet stations group of the Settings tab says in plain words (components/IgateStatus.vue), in the words and colours of the radio's status row (components/StatusFold.vue): the state as a word (connected, connecting, waiting), one quiet line ("Connected: rotate.aprs2.net · 42 stations within 50 km",
-// "Connecting to rotate.aprs2.net:14580…", "Not connected: the server cannot be reached") and the two lines behind the arrow (the server, the filter). The state as a mark is the top bar's (lib/pills.ts).
-// The group has one tickbox, Enable: the stations of APRS-IS round the map's radius on the map, nothing sent. A connection that is up is connected, whatever the daemon says of its login.
+// What the Internet stations group of the Settings tab says in plain words
+// (components/IgateStatus.vue),
+// in the words and colours of the radio's status row (components/StatusFold.vue): the state as a
+// word
+// (connected, connecting, waiting), one quiet line ("Connected: rotate.aprs2.net · 42 stations
+// within
+// 50 km", "Connecting to rotate.aprs2.net:14580…", "Not connected: the server cannot be reached")
+// and
+// the two lines behind the arrow (the server, the filter). The state as a mark is the top bar's
+// (lib/pills.ts).
+// The group has one tickbox, Enable: the stations of APRS-IS round the map's radius on the map,
+// nothing sent. A connection that is up is connected, whatever the daemon says of its login.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { channelsOf } from "@/lib/channels";
 import type { IgateState, StationRow } from "@/protocol/protocol";
 
 export interface IgateLook {
-  /** the word of the state, as the radio's: connected, connecting, waiting (not connected, and why) */
+  /** The word of the state, as the radio's: connected, connecting, waiting (not connected, and
+   * why). */
   state: string;
-  /** the class that colours it (the radio's `tnc-*`) */
+  /** The class that colours it (the radio's `tnc-*`). */
   tone: string;
-  /** the one line */
+  /** The one line. */
   line: string;
-  /** behind the arrow: the server, and the filter that the map's radius is */
+  /** Behind the arrow: the server, and the filter that the map's radius is. */
   server: string;
   filter: string;
 }
 
-/** How many stations are known from the internet (heard over it, whatever else they were heard by). */
+/** How many stations are known from the internet (heard over it, whatever else heard them). */
 export function internetStations(rows: Iterable<StationRow>): number {
   let n = 0;
   for (const row of rows) if (channelsOf(row).includes("is")) n++;
@@ -27,7 +37,8 @@ export function internetStations(rows: Iterable<StationRow>): number {
 
 const hostOf = (server: string): string => server.split(":")[0] ?? server;
 
-/** Why the iGate is not connected, as the line says it: the words of each reason the daemon gives; "Not connected" for one the page has no words for. */
+/** Why the iGate is not connected, as the line says it: the words for each reason the daemon gives;
+ * "Not connected" for one the page has no words for. */
 const REASON_LINES: Partial<Record<IgateState["reason"], MessageId>> = {
   no_server: "settings.igate.line.no_server",
   no_call: "settings.igate.line.no_call",
@@ -38,7 +49,8 @@ const REASON_LINES: Partial<Record<IgateState["reason"], MessageId>> = {
 };
 const reasonLine = (reason: IgateState["reason"]): string => t(REASON_LINES[reason] ?? "settings.tnc.not_connected");
 
-/** The look for the state the daemon told, the settings in force (`values`, key to text) and the number of stations known from the internet. */
+/** The look for the state the daemon reported, the settings in force (`values`, key to text) and
+ * the number of stations known from the internet. */
 export function igateLook(igate: IgateState, values: Readonly<Record<string, string>>, stations: number): IgateLook {
   const setting = (values["igate/server"] ?? "").trim();
   const km = values["map/radius_km"] ?? "";

@@ -82,7 +82,7 @@ describe("basemapStyle", () => {
     const width = (id: string): number => {
       const paint = layers(style).find((l) => l.id === id)?.paint as { "line-width": unknown[] } | undefined;
       const expression = paint?.["line-width"] ?? [];
-      return Number(expression[expression.indexOf(14) + 1]); // the width at zoom 14
+      return Number(expression[expression.indexOf(14) + 1]); // The width at zoom 14
     };
     expect(width("road-highway")).toBeGreaterThan(width("road-major"));
     expect(width("road-major")).toBeGreaterThan(width("road-minor"));

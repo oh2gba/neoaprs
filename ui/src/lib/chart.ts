@@ -1,5 +1,7 @@
-// The arithmetic of the trend graphs (components/TrendChart.vue): the scales, the ticks with round numbers, the paths of a line, a band and bars, and the point under the pointer. Plain functions of numbers, so that
-// the page draws inline SVG in its own colours with no chart library. A point is a time in ms and a value, null where the station did not send one.
+// The arithmetic of the trend graphs (components/TrendChart.vue): scales, round-number ticks, the
+// paths of a line, a band and bars, and the point under the pointer. Plain functions of numbers, so
+// the page draws inline SVG in its own colours with no chart library. A point is a time in ms and a
+// value, null where the station sent none.
 
 import { weekdayShort } from "@/i18n";
 import { HOUR_MS, pad2 } from "@/lib/format";
@@ -21,14 +23,16 @@ interface TimeTick {
   label: string;
 }
 
-/** The function that maps a value of `domain` to a place in `range` (the range may run backwards: the y axis of a screen); a domain of no width maps everything to the middle. */
+/** The function that maps a value of `domain` to a place in `range` (the range may run backwards,
+ * as a screen's y axis); a domain of no width maps everything to the middle. */
 export function linearScale(domain: readonly [number, number], range: readonly [number, number]): (v: number) => number {
   const [d0, d1] = domain;
   const [r0, r1] = range;
   return (v) => (d1 === d0 ? (r0 + r1) / 2 : r0 + ((v - d0) / (d1 - d0)) * (r1 - r0));
 }
 
-/** The lowest and highest value present; with `zero` the span includes 0 (wind, rain); a series with one value, or none, still has a span. */
+/** The lowest and highest value present; with `zero` the span includes 0 (wind, rain); a series
+ * with one value or none still has a span. */
 export function extent(values: readonly number[], zero: boolean): [number, number] {
   let lo = values.length > 0 ? Math.min(...values) : 0;
   let hi = values.length > 0 ? Math.max(...values) : 1;
@@ -39,7 +43,8 @@ export function extent(values: readonly number[], zero: boolean): [number, numbe
   return hi > lo ? [lo, hi] : [lo - 1, hi + 1];
 }
 
-/** Round tick values (1, 2 or 5 times a power of ten) around [min, max], about `target` of them; the first and last are the new ends of the axis. */
+/** Round tick values (1, 2 or 5 times a power of ten) around [min, max], about `target` of them;
+ * the first and last become the new ends of the axis. */
 export function niceTicks(min: number, max: number, target = 4): Ticks {
   const raw = (max > min ? max - min : 1) / Math.max(1, target);
   const magnitude = 10 ** Math.floor(Math.log10(raw));
@@ -56,7 +61,9 @@ export function tickDecimals(step: number): number {
   return step >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(step) - 1e-9));
 }
 
-/** Ticks on whole hours of the viewer's clock between two times, a step of 1, 2, 3, 6, 12 or 24 hours that gives at most seven; a day step is labelled with the day ("Mon 19"), the others with the hour ("06:00"). */
+/** Ticks on whole hours of the viewer's clock between two times, in a step of 1, 2, 3, 6, 12 or 24
+ * hours that gives at most seven; day steps are labelled with the day ("Mon 19"), the others with
+ * the hour ("06:00"). */
 export function timeTicks(from: number, to: number): TimeTick[] {
   const stepHours = [1, 2, 3, 6, 12, 24].find((s) => (to - from) / (s * HOUR_MS) <= 7.5) ?? 24;
   const d = new Date(from);
@@ -82,14 +89,17 @@ export function usualGap(points: readonly Point[]): number {
 
 const num = (n: number): string => String(Math.round(n * 100) / 100);
 
-/** A curve through the readings that have a value, in places of the screen: x strictly increasing, and the slope of the curve at each reading. */
+/** A curve through the readings that have a value, in screen places: x strictly increasing, with
+ * the slope at each reading. */
 interface Curve {
   xs: number[];
   ys: number[];
   slopes: number[];
 }
 
-/** The slope at an end of the readings from the secant `d0` of the segment there (width `h0`) and the one next to it (`d1`, `h1`; none when there are only two readings): a parabola's slope, held to the direction of `d0` and to three times it. */
+/** The slope at an end of the readings from the secant `d0` of the segment there (width `h0`) and
+ * the next one (`d1`, `h1`; none with only two readings): a parabola's slope, held to the
+ * direction of `d0` and to three times it. */
 function endSlope(d0: number, h0: number, d1?: number, h1?: number): number {
   if (d1 === undefined || h1 === undefined) return d0;
   const raw = (d0 * (2 * h0 + h1) - d1 * h0) / (h0 + h1);
@@ -97,7 +107,11 @@ function endSlope(d0: number, h0: number, d1?: number, h1?: number): number {
   return Math.abs(raw) > 3 * Math.abs(d0) ? 3 * d0 : raw;
 }
 
-/** The monotone cubic through the readings (Fritsch-Carlson, the "monotoneX" of d3): the slope is 0 where the data turns or stays level, else the weighted harmonic mean of the two secants, so that between two readings the curve never goes above or below either of them. Readings at the same time: the later one counts. */
+/** The monotone cubic through the readings (Fritsch-Carlson, d3's "monotoneX"): the slope is 0
+ * where
+ * the data turns or stays level, else the weighted harmonic mean of the two secants, so the curve
+ * never leaves the range between two readings. For readings at the same time the later one counts.
+ * */
 function curveOf(points: readonly Point[], x: (t: number) => number, y: (v: number) => number): Curve {
   const xs: number[] = [];
   const ys: number[] = [];
@@ -137,7 +151,11 @@ function heightAt(c: Curve, at: number): number {
   return (2 * s ** 3 - 3 * s ** 2 + 1) * y0 + (s ** 3 - 2 * s ** 2 + s) * m0 + (-2 * s ** 3 + 3 * s ** 2) * y1 + (s ** 3 - s ** 2) * m1;
 }
 
-/** The path of one smooth curve through the readings that have a value, across the times where there are none and from the first reading to the last, no further: a cubic Bezier for each stretch between two readings, whose control points lie at a third of its width, on the slopes of the monotone cubic. A single reading is a dot of no length (a line cap draws it). */
+/** The path of one smooth curve through the readings that have a value, across gaps and from the
+ * first
+ * reading to the last, no further: a cubic Bezier for each stretch between two readings, with
+ * control points at a third of its width on the slopes of the monotone cubic. A single reading is a
+ * dot of no length (a line cap draws it). */
 export function linePath(points: readonly Point[], x: (t: number) => number, y: (v: number) => number): string {
   const { xs, ys, slopes } = curveOf(points, x, y);
   const first = xs[0];
@@ -152,7 +170,11 @@ export function linePath(points: readonly Point[], x: (t: number) => number, y: 
   return path;
 }
 
-/** The area between two series (the sustained wind and its gusts) that follows their two curves, one closed path from the later of their first readings to the earlier of their last; the edge is taken in small steps of the curves, so that where they cross it stays between them. Nothing for a series with fewer than two readings or no time in common. */
+/** The area between two series (the sustained wind and its gusts) that follows their curves: one
+ * closed
+ * path from the later of their first readings to the earlier of their last, with the edge taken in
+ * small steps so that it stays between them where they cross. Nothing for a series with fewer than
+ * two readings or no time in common. */
 export function bandPath(lower: readonly Point[], upper: readonly Point[], x: (t: number) => number, y: (v: number) => number): string {
   const [low, high] = [curveOf(lower, x, y), curveOf(upper, x, y)];
   const [from, to] = [
@@ -187,7 +209,8 @@ interface Bar {
   height: number;
 }
 
-/** The bars of a series standing on `baseline` (a value), each `width` wide and centred on its time; a value of 0 is a bar of no height, left out. */
+/** The bars of a series standing on `baseline`, each `width` wide and centred on its time; a value
+ * of 0 is a bar of no height and is left out. */
 export function bars(points: readonly Point[], x: (t: number) => number, y: (v: number) => number, baseline: number, width: number): Bar[] {
   const floor = y(baseline);
   return points.flatMap((p) => {
@@ -197,7 +220,8 @@ export function bars(points: readonly Point[], x: (t: number) => number, y: (v: 
   });
 }
 
-/** Bars of several series stacked one on the other, the first at the bottom, each part with its series' tone; the series have their points at the same times (the hours of a graph). A part of 0 is left out. */
+/** Bars of several series stacked, the first at the bottom, each part with its series' tone; the
+ * series have their points at the same times. A part of 0 is left out. */
 export function stackedBars(
   series: readonly { tone: string; points: readonly Point[] }[],
   x: (t: number) => number,
@@ -216,7 +240,8 @@ export function stackedBars(
   );
 }
 
-/** The index of the point nearest in time to `t` among those that have a value; -1 when none has. */
+/** The index of the point nearest in time to `t` among those that have a value; -1 when none has.
+ */
 export function nearestIndex(points: readonly Point[], t: number): number {
   let best = -1;
   let distance = Infinity;

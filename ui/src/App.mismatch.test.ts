@@ -11,7 +11,9 @@ useAppHarness();
 
 const wrong = { version: "0.9.2", protocol: PROTOCOL + 1, page: "index-Daemon01.js" };
 
-/** The page after a load that was made for this daemon already (the guard of lib/reload.ts), which meets it again. */
+/**
+ * The page after a reload made for this daemon already (the guard of lib/reload.ts) meets it again.
+ */
 async function meetTheDaemonTwice() {
   const reload = vi.spyOn(location, "reload").mockImplementation(() => undefined);
   mountApp();

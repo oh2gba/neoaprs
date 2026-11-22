@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// A digipeater's range: the circle it reaches; the stations inside it are heard through it (solid line), the ones outside are not (dashed line, crossed).
+// A digipeater's range: the circle it reaches; stations inside are heard through it (solid
+// line), those outside are not (dashed line, crossed).
 import { CALLS } from "@/help/calls";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpLabel from "@/help/HelpLabel.vue";

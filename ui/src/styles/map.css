@@ -8,9 +8,10 @@
 .stationmap {
   position: absolute;
   inset: 0;
-  /* its own stacking context: a marker (the selected one is raised) and the map's buttons stay under the card, which is above the map */
+  /* its own stacking context: markers and the map's buttons stay under the card above the map */
   z-index: 0;
-  /* nothing of the map shows outside its box, whatever MapLibre's own style does: a marker by the top edge would paint over the page's header (its menu is fixed to the window and is not clipped) */
+  /* nothing of the map shows outside its box, whatever MapLibre's style does: a marker by the top
+     edge would paint over the page's header (its menu is fixed to the window: not clipped) */
   overflow: hidden;
 }
 .mapbox {
@@ -111,7 +112,9 @@
   outline: 2px dashed var(--map-own);
   background: var(--map-halo);
 }
-/* a station known from the internet alone (lib/channels.ts): a dotted outline round the symbol (--map-net) and an italic call, in the muted colour of both themes; the selected one is drawn as any other */
+/* a station known from the internet alone (lib/channels.ts): a dotted outline round the symbol
+   (--map-net) and an italic call, in the muted colour of both themes; the selected one is drawn
+   as any other */
 .stn--net .stn-icon {
   border-radius: 50%;
   outline: 2px dotted var(--map-net);
@@ -256,7 +259,8 @@
   color: inherit;
 }
 
-/* the card of an aircraft or a ship (components/LayerCard.vue): its mark where a station's card has its symbol, an emergency's in the bad colour; its figures keep their width as they change */
+/* the card of an aircraft or a ship (components/LayerCard.vue): its mark where a station's card
+   has its symbol, an emergency's in the bad colour; its figures keep their width as they change */
 .layercard-mark {
   display: inline-flex;
   flex: none;
@@ -271,7 +275,8 @@
 .layercard .card-fields dd {
   font-variant-numeric: tabular-nums;
 }
-/* the unseen first row that gives the labels' column the width of the widest label the card may have; the list starts its own gap higher, so that the row takes no room */
+/* the unseen first row gives the labels' column the width of the widest label the card may have;
+   the list starts its own gap higher so the row takes no room */
 .layercard .card-fields {
   padding-top: 4px;
 }
@@ -296,7 +301,8 @@
   color: var(--text);
   box-shadow: var(--shadow);
 }
-/* the map's download in the settings: the button is on the row Detailed map (an action row), and under it, in the notes of that row, the progress, a failure and the quiet line about the map on disk */
+/* the map download in the settings: the button is on the Detailed map action row, and under it,
+   in that row's notes, the progress, a failure and the quiet line about the map on disk */
 .mapfetch-progress {
   display: flex;
   align-items: center;
@@ -316,16 +322,21 @@
 .mapnote-box .btn {
   pointer-events: auto;
 }
-/* The map waits for a click that sets a place (the setup guide's position, an object's Choose on map): a crosshair instead of the hand. */
+/* While the map waits for a click that sets a place (setup guide position, an object's Choose
+   on map) the cursor is a crosshair. */
 .map-picking .maplibregl-canvas-container.maplibregl-interactive,
 .map-picking .maplibregl-canvas-container.maplibregl-interactive:active {
   cursor: crosshair;
 }
 
-/* The replay of the map (components/ReplayBar.vue, composables/useMapReplay.ts): while it is open the live markers give way to the replay's, which are not buttons. The bar stands at the bottom of the map in the
-   middle, clear of the credits' (i) at the right; the station cards and the statistics card (where it was not dragged) rise above it. Its parts keep their size whatever they show: the clock is a box of 14
-   characters of tabular figures (MM-DD HH:MM:SS), the play button one square. Where the bar is narrow (a tablet's map, a phone) the slider has the first line with play and the cross, and the clock and the
-   choices the second. On a phone it is at the top of the map instead (styles/responsive.css), where the station's sheet does not cover it. */
+/* The map replay (components/ReplayBar.vue, composables/useMapReplay.ts): while it is open the live
+   markers give way to the replay's, which are not buttons. The bar stands at the bottom middle of
+   the map, clear of the credits' (i) at the right; the station cards and the statistics card
+   (where not dragged) rise above it. Its parts keep their size whatever they show: the clock is
+   a box of 14 characters of tabular figures (MM-DD HH:MM:SS), the play button one square. Where
+   the bar is narrow (a tablet's map, a phone) the slider has the first line with play and the
+   cross, and the clock and the choices the second. On a phone it is at the top of the map
+   instead (styles/responsive.css), where the station's sheet does not cover it. */
 .stationmap.replaying .stn:not(.stn--replay) {
   display: none;
 }
@@ -378,7 +389,8 @@
 @container (max-width: 520px) {
   .replay-slider {
     order: 1;
-    flex-basis: calc(100% - 100px); /* (room for play and the cross beside it, 40 px each on a touch screen) */
+    /* room for play and the cross beside it, 40 px each on a touch screen */
+    flex-basis: calc(100% - 100px);
   }
   .replay-close {
     order: 2;
@@ -393,7 +405,8 @@
   bottom: 70px;
 }
 
-/* the Layers button: under + and − in their group (a control of the map's, lib/layers/control.ts), its box beside it at the right; the box has the page's face, not the map's */
+/* the Layers button: under + and − in their group (lib/layers/control.ts), its box beside it at
+   the right; the box has the page's face, not the map's */
 .layers {
   position: relative;
 }
@@ -419,7 +432,9 @@
   box-shadow: var(--shadow);
   font: 14px/1.4 var(--font);
 }
-/* while the box is open the map's corner of controls lies above the station cards and the cards over the map (z-index 3), which would hide its lower rows: the map gives up its own stacking context for that time */
+/* while the box is open the map's corner of controls lies above the station cards and the cards
+   over the map (z-index 3), which would hide its lower rows: the map gives up its own stacking
+   context for that time */
 .stationmap:has(.layers-box) {
   z-index: auto;
 }
@@ -442,7 +457,7 @@
 .layers-source {
   color: var(--muted);
 }
-/* the count of a layer of things: its room is kept at one width, in tabular figures, so that a changing number moves nothing */
+/* the count of a layer: kept at one width in tabular figures, so a changing number moves nothing */
 .layers-count {
   flex: none;
   min-width: 4ch;

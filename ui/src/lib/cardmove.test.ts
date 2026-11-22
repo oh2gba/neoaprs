@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { KEY_STEP, KEY_STEP_BIG, clampPlace, freeSlot, keyStep } from "@/lib/cardmove";
 
-// the row begins at (10, 84) of a map 1200 by 800: in the row's pixels the map is from (-10, -84) to (1190, 716)
+// the row begins at (10, 84) of a map 1200 by 800: in the row's pixels the map is from (-10, -84)
+// to (1190, 716)
 const area = { left: -10, top: -84, right: 1190, bottom: 716 };
 const size = { width: 340, height: 300 };
 

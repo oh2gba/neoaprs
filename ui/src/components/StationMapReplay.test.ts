@@ -83,7 +83,8 @@ describe("the replay of the map", () => {
     daemon.positionHistory.value = answer;
     await flushPromises();
     expect(replayMarkers().map((m) => [m.element.textContent, m.lngLat])).toEqual([["OH2RDG-9", [25.0, 60.0]]]);
-    expect(replayMarkers()[0]?.element.querySelector(".stn-icon")?.classList.contains("stn-plain")).toBe(false); // (the symbol the station book has)
+    // the symbol the station book has
+    expect(replayMarkers()[0]?.element.querySelector(".stn-icon")?.classList.contains("stn-plain")).toBe(false);
     vi.advanceTimersByTime(1000); // (five minutes of the span)
     await flushPromises();
     expect(replayMarkers()[0]?.lngLat).toEqual([25.0, 60.02]);
@@ -95,7 +96,8 @@ describe("the replay of the map", () => {
     vi.advanceTimersByTime(12_000); // (an hour)
     await flushPromises();
     expect(replayMarkers().map((m) => m.element.textContent)).toEqual(["OH2RDG-9", "LEADER"]);
-    expect(replayMarkers()[1]?.element.querySelector(".stn-icon")?.classList.contains("stn-plain")).toBe(true); // (not in the station book now)
+    // not in the station book now
+    expect(replayMarkers()[1]?.element.querySelector(".stn-icon")?.classList.contains("stn-plain")).toBe(true);
   });
 
   it("brings the live map back as it was when it closes, and its cross asks the page to close it", async () => {

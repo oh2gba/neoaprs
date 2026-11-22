@@ -1,11 +1,9 @@
 <script setup lang="ts">
-// The My station tab: the settings the beacon and the status are made from (our station and where its position comes from, the beacon, the status), which apply as they are changed like the Settings tab's. Under the Beacon choice are the state of the beacon (BeaconStatus: the radio's
-// status row; for a fixed station when the last beacon went and when the next is due, for a moving one the GPS and what SmartBeaconing does) and the row Beacon now (SendRow); under the Status choice, while a status is chosen, the status report as a row (StatusReportRow), and the row Send status now at the end of the Status group.
-// useSendNow says when the buttons are on and asks twice; both are off, with a tip that says why, while the transmitter is off (RX only).
-// While several radios are on, the Beacon choice is followed by Send on, a tick for each radio that is on (`radio/<id>/beacon`, applied at once; the last tick that is ticked is greyed, so that the beacon is switched off by
-// the interval alone; none is ticked while the radios it was ticked for are off), and the status row says each radio's beacon behind its arrow. The Status choice is followed by the status's own Send on, the same
-// row (SendOn.vue, `radio/<id>/status`), and its row says the status on each radio behind its arrow. Beacon now goes on
-// the radios the beacon goes out on and Send status now on those the status goes out on, each on while one of them is connected and off with the radios that are not connected as its title. With one radio on, the tab is as it was.
+// The My station tab: station, position source, beacon and status settings, applied as they
+// change. Beacon now and Send status now are off in RX only, with a tip saying why (useSendNow).
+// While several radios are on, each of the beacon and status choices is followed by a Send on
+// row of ticks (SendOn.vue); the last ticked radio is greyed, so the beacon is switched off by
+// the interval alone.
 import BeaconStatus from "@/components/BeaconStatus.vue";
 import SendOn from "@/components/SendOn.vue";
 import SendRow from "@/components/SendRow.vue";
@@ -34,16 +32,16 @@ const radios = useRadios();
 const several = computed(() => radios.severalSenders.value);
 /** The radios Beacon now and the timer send on; with one radio on, that one. */
 const beaconOn = computed(() => beaconRadios(radios.senders.value));
-/** A radio Beacon now would send on is connected (a radio that only listens is none of them); until the daemon has told the radios, the page's link to any radio says it. */
+/** Whether a radio Beacon now would send on is connected; a listening-only radio does not count. */
 const beaconUp = computed(() => (radios.told.value ? beaconOn.value.some((radio) => radio.connected) : connected.value));
 /** The radios Send status now and the timer send the status on; with one radio on, that one. */
 const statusOn = computed(() => statusRadios(radios.senders.value));
-/** No status goes by the timer: the beacon is Off, or the status is ticked for no radio that is on (its row then says no timed status, as the beacon's says no timed beacon). */
+/** No timed status: the beacon is Off, or the status is ticked for no radio that is on. */
 const statusNowhere = computed(() => several.value && statusOn.value.length === 0);
 const statusUntimed = computed(() => beaconOff(config.value?.values ?? {}) || statusNowhere.value);
-/** A radio Send status now would send on is connected (the same until the radios are told). */
+/** Whether a radio Send status now would send on is connected. */
 const statusUp = computed(() => (radios.told.value ? statusOn.value.some((radio) => radio.connected) : connected.value));
-/** The button that waits for its second press: its radio dropping forgets the press, as the link dropping does. */
+/** The armed button: its radio dropping, like the link dropping, cancels the second press. */
 const armedOf = shallowRef<() => SendKey | null>(() => null);
 const linked = computed(() => {
   const armed = armedOf.value();
@@ -51,7 +49,7 @@ const linked = computed(() => {
 });
 const sending = useSendNow(linked, settings.saving, toRef(props, "picking"), () => emit("pickPosition"));
 armedOf.value = () => sending.armed.value;
-/** Why a button that sends is off: RX only, a save on its way, its radios not connected; undefined while it is on. Beacon now and Send status now send while the beacon is Off (that is only no automatic beacon). */
+/** Why a sending button is off (RX only, a save pending, no radio connected); undefined when on. */
 function why(up: boolean, on: readonly PageRadio[]): string | undefined {
   if (receiveOnly.value) return rxOnlyReason();
   if (sending.why.value !== undefined) return sending.why.value;
@@ -62,14 +60,14 @@ const beaconReady = computed(() => sending.ready.value && !receiveOnly.value && 
 const statusReady = computed(() => sending.ready.value && !receiveOnly.value && statusUp.value);
 const beaconWhy = computed(() => why(beaconUp.value, beaconOn.value));
 const statusWhy = computed(() => why(statusUp.value, statusOn.value));
-/** Each radio's beacon behind the status row's arrow, while several radios are on; until the daemon has told the radios, the status says the beacons, as it did. */
+/** Each radio's beacon behind the status row's arrow, while several radios are on. */
 const beaconLines = computed(() =>
   several.value && radios.told.value
     ? beaconOn.value.map((radio) => ({ name: radio.name, beacon: radio.row.beacon, smart: radio.row.allowed.smart_beacon }))
     : [],
 );
 
-/** The status on each radio it goes out on behind the status row's arrow, while several radios are on. */
+/** The status on each radio behind the status row's arrow, while several radios are on. */
 const statusLines = computed(() =>
   several.value && radios.told.value
     ? statusRadioLines(
@@ -79,7 +77,7 @@ const statusLines = computed(() =>
     : [],
 );
 
-/** The beacon's Send on and the status's: one row of ticks each, applied at once (composables/useSendOn.ts). */
+/** The beacon's and the status's Send on: a row of ticks each, applied at once (useSendOn.ts). */
 const { ticks: beaconTicks, error: beaconTickError, tick: beaconTick } = useSendOn("beacon", radios);
 const { ticks: statusTicks, error: statusTickError, tick: statusTick } = useSendOn("status", radios);
 </script>

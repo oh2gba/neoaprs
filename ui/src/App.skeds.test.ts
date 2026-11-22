@@ -7,7 +7,7 @@ import { open as openPage, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
 
-/** The page of a station with the HF radio on: the HF tests tab is there only then (John's decision, "THE SKEDS ARE HF TESTS"). */
+/** A station with the HF radio on: the HF tests tab is there only then. */
 async function open() {
   const page = await openPage();
   page.socket.say({ type: "state", topic: "radios", rev: 1, value: radiosValue(fmRow(), hfRow()) });

@@ -1,28 +1,33 @@
-// The page's layout numbers: the tabs of the panel, how wide the panel may be, and the three sizes of the page (phone, tablet, desktop) with how many station cards fit on the map at each. The sizes are decided here, once, from the window
-// (composables/useViewport.ts), and the page marks its root with the one it is (`size-phone`, ...): the style sheets of ui/src/styles/ use that class and not media queries of their own, so that the script and the style never disagree.
+// The page's layout numbers: the panel's tabs, how wide the panel may be, and the three page sizes
+// (phone, tablet, desktop) with how many station cards fit at each. Sizes are decided here from the
+// window (composables/useViewport.ts) and the root carries the class `size-phone` etc.; style
+// sheets use that class, not media queries.
 
 import { t } from "@/i18n";
 
-export const TAB_IDS = ["messages", "stations", "nearby", "email", "bulletins", "skeds", "objects", "beacon", "packets", "settings"] as const; // by importance: what a person comes for first, the raw packets and the settings last
+// ordered by importance: raw packets and settings last
+export const TAB_IDS = ["messages", "stations", "nearby", "email", "bulletins", "skeds", "objects", "beacon", "packets", "settings"] as const;
 export type TabId = (typeof TAB_IDS)[number];
 
-/** The tabs a station is offered, in the order of TAB_IDS: HF tests (`skeds`) only while a radio of the kind HF is on (they are for a station that tries APRS on HF), every other always. */
+/** The tabs offered, in TAB_IDS order: HF tests (`skeds`) only while an HF radio is on. */
 export function offeredTabs(hfOn: boolean): TabId[] {
   return TAB_IDS.filter((id) => hfOn || id !== "skeds");
 }
 
-/** The name of a tab, in the language of the page. */
 export function tabTitle(id: TabId): string {
   return t(`tab.${id}`);
 }
 
 export const PANEL_MIN = 280;
 export const PANEL_DEFAULT = 480;
-/** From this window width on, a panel the user has not dragged is `PANEL_DEFAULT_WIDE` wide: wide enough for the two columns of the Messages tab and for the ten tabs with their badges (the tabs that do not fit go under a More button). */
+/**
+ * From this window width on, an undragged panel is `PANEL_DEFAULT_WIDE` wide (fits the Messages
+ * columns and ten tabs).
+ */
 const WIDE_WINDOW = 1280;
 export const PANEL_DEFAULT_WIDE = 760;
 
-/** The width of the panel of a user who has not dragged it, for a window this wide. */
+/** The panel width for a user who has not dragged it, for a window this wide. */
 export function defaultPanelWidth(pageWidth: number): number {
   return pageWidth >= WIDE_WINDOW ? PANEL_DEFAULT_WIDE : PANEL_DEFAULT;
 }
@@ -30,28 +35,34 @@ export function defaultPanelWidth(pageWidth: number): number {
 const PANEL_MAX_SHARE = 0.8;
 /** ...but the map keeps at least this many pixels, so on a narrow window the most is less. */
 export const MAP_MIN = 360;
-/** What a remembered width may be at the most (the window it is shown in clamps it again). */
+/** The widest a remembered width may be (the window clamps it again). */
 export const PANEL_STORED_MAX = 20000;
 
 /**
- * How wide the Messages tab must be (the tab itself, not the window: the panel beside the map can be narrow on a wide screen) to show the list of conversations beside the open conversation.
- * 600 px is a list of 240 px, the divider and a conversation of 359 px, which holds the compose row (the text, "67 left" and Send) and bubbles that can still be read; narrower, one of the two at a time.
+ * How wide the Messages tab itself (not the window) must be to show the conversation list beside
+ * the open conversation. 600 px is a 240 px list, the divider and a 359 px conversation; narrower
+ * shows one at a time.
  */
 export const MESSAGES_WIDE = 600;
 
 /**
- * The Packets tab is a table of five columns while the tab itself (not the window) is at least this wide, and one block for each packet under it: the packet line, then the route and the summary in small text. At the 480 px a panel starts with,
- * the packet column of the table is squeezed until its line breaks letter by letter.
+ * The Packets tab is a five-column table while the tab itself (not the window) is at least this
+ * wide; below it each packet is one block. At the default 480 px panel the packet column would be
+ * squeezed until its line breaks.
  */
 export const PACKETS_TABLE = 520;
 
 /**
- * With several radios on, "Heard on" of the Stations table (the table itself, not the window) shows the tags of the two radios that heard a station last while the table is at least this wide, and of the one under it, each
- * time with "+n" for the rest: on a phone (375 to 430 px) the symbol, the call, the distance, the arrow, the time and Message leave the tags about the room of one name of eight letters and "+n", and the row stays in the width.
+ * With several radios on, "Heard on" in the Stations table shows the tags of the two radios that
+ * heard a station last while the table is at least this wide, else one, each with "+n" for the
+ * rest. On a phone (375 to 430 px) there is room for one eight-letter name and "+n".
  */
 export const STATIONS_TWO_RADIOS = 440;
 
-/** The widest the panel may be on a page this wide:80 % of it, leaving the map 360 px; never less than the least. */
+/**
+ * The widest the panel may be on a page this wide: 80 %, leaving the map 360 px; never less than
+ * the least.
+ */
 export function panelMax(pageWidth: number): number {
   return Math.max(PANEL_MIN, Math.min(Math.floor(pageWidth * PANEL_MAX_SHARE), pageWidth - MAP_MIN));
 }
@@ -63,11 +74,20 @@ export function clampWidth(width: number, pageWidth: number): number {
 
 export type SizeClass = "phone" | "tablet" | "desktop";
 
-/** A window narrower than this is a phone (a portrait one; a wide window that is short is a phone held sideways: see `SHORT_HEIGHT`). */
+/**
+ * A window narrower than this is a phone (portrait; a short wide window is a phone sideways, see
+ * `SHORT_HEIGHT`).
+ */
 const PHONE_MAX = 700;
-/** A window narrower than this (and not a phone) is a tablet: the map and the panel side by side, the panel a comfortable fixed width; from here on the panel is the user's to size. */
+/**
+ * A window narrower than this (and not a phone) is a tablet: map and panel side by side, a fixed
+ * panel width.
+ */
 const TABLET_MAX = 1100;
-/** A window shorter than this and narrower than `SHORT_WIDTH` is a phone held sideways (844 by 390, 932 by 430): the tabs and the map take turns there too. */
+/**
+ * A window shorter than this and narrower than `SHORT_WIDTH` is a phone held sideways (844 by 390,
+ * 932 by 430).
+ */
 const SHORT_HEIGHT = 500;
 const SHORT_WIDTH = 1000;
 
@@ -76,11 +96,18 @@ export function sizeOf(width: number, height: number): SizeClass {
   return width < TABLET_MAX ? "tablet" : "desktop";
 }
 
-/** The most cards that may be open side by side at each size: one on a phone (a tap replaces it), two on a tablet, four on a desktop; the row that is wider than the map has room for closes its oldest card (components/StationCards.vue), so a narrow map has fewer. */
+/**
+ * The most cards open side by side per size: one on a phone (a tap replaces it), two on a tablet,
+ * four on a desktop. A row wider than the map closes its oldest card (components/StationCards.vue),
+ * so a narrow map has fewer.
+ */
 export function cardCapacity(size: SizeClass): number {
   return size === "phone" ? 1 : size === "tablet" ? 2 : 4;
 }
 
-/** What the row of cards leaves free of the map's width (`.cardstack` in ui/src/styles/responsive.css: 10 px at each side), and the gap between two cards. */
+/**
+ * The map width the card row leaves free (`.cardstack` in ui/src/styles/responsive.css: 10 px a
+ * side), and the gap between cards.
+ */
 export const CARDS_FREE_SIDE = 20;
 export const CARD_GAP = 8;

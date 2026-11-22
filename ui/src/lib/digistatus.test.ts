@@ -6,7 +6,7 @@ import { ago, lineStats, NOW } from "@/test/fixtures";
 /** What the pair passed onto a radio from radio `heard_on`. */
 const passed = (heard_on: number, extra: Partial<PassStats> = {}): PassStats => ({ heard_on, sent: 0, sent_at: null, held: 0, too_long: 0, ...extra });
 
-/** The pair of radio 1 (FM radio) and radio 2 (Mercury radio), with what was passed onto each. */
+/** The pair of radio 1 (FM) and radio 2 (Mercury), with what was passed onto each. */
 const pair = (ontoFirst: PassStats[] = [], ontoSecond: PassStats[] = []): PairLink => ({
   first: { id: 1, name: "FM radio", stats: lineStats({ passed: ontoFirst }) },
   second: { id: 2, name: "Mercury radio", stats: lineStats({ passed: ontoSecond }) },

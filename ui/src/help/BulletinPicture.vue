@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// What a bulletin is: one station sends, and the same message is on the board of every station that hears it.
+// What a bulletin is: one station sends it and every station that hears it shows it.
 import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpLabel from "@/help/HelpLabel.vue";

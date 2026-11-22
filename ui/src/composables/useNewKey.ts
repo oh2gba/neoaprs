@@ -1,4 +1,6 @@
-// The New key button of the access key: it asks twice ("sure?", for a new key logs every other device out), then asks the daemon for one. The daemon tells the page the new key in the topic `config`; only a failure is shown.
+// The New key button of the access key: it asks twice, because a new key logs every other device
+// out, then asks the daemon for one. The new key arrives in the topic `config`; only a failure is
+// shown.
 import { computed, ref } from "vue";
 import { useSure } from "@/composables/useSure";
 import { renewKey } from "@/lib/access";

@@ -1,8 +1,13 @@
 <script setup lang="ts">
-// THE small mark of the page, one component and one look (styles/tag.css): the count of the header and of a tab, the state of the radio, the iGate or the GPS, the channel a station was heard by, "Receive only", a hop of a message's chain, a call to take off a group.
-// Shape, height, font and padding are the same everywhere; only the colour says what it is, and it is always a soft pair of the palette (styles/tokens.css): `accent` (something to look at: a count), `neutral` (a label), `ok`, `warn`, `bad`, `info` (the four meanings), `hf` (the HF radio's channel: the site's inverse pill, beside the FM radio's neutral one), `lora` (a LoRa radio's: sage), `dummy` (made up: neutral with a dashed border),
-// `removed` (a radio that is removed: what came by it keeps its name, dimmed: the quiet words with no plate, a thin edge),
-// `outline` (the colour of the text, for a mark inside a text that is already coloured). A mark that is pressed is `as="button"`.
+// The small mark of the page, one component and one look (styles/tag.css): the count of the
+// header and tabs, the state of a radio, iGate or GPS, the channel a station was heard by,
+// "Receive only", a hop of a message chain, a call to remove from a group. Shape, height, font
+// and padding are the same everywhere; only the colour differs, always a soft pair of the
+// palette (styles/tokens.css): `accent` (a count), `neutral` (a label), `ok`, `warn`, `bad`,
+// `info` (the four meanings), `hf` (the HF radio's channel: inverse pill), `lora` (a LoRa
+// radio's: sage), `dummy` (made up: neutral, dashed border), `removed` (a removed radio: quiet
+// words, no plate, thin edge), `outline` (text colour, for a mark inside coloured text).
+// A pressed mark is `as="button"`.
 export type TagTone = "accent" | "neutral" | "ok" | "warn" | "bad" | "info" | "hf" | "lora" | "dummy" | "removed" | "outline";
 
 /** The class of each tone, written out so that the style sheet's rules are found by name. */

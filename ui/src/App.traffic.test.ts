@@ -20,7 +20,7 @@ const drawn = (): string[] =>
   );
 const esc = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
 
-/** The page with the aircraft from the own receiver and the ships from Fintraffic ticked, and a table of each told. */
+/** The page with aircraft from the own receiver and ships from Fintraffic ticked, tables sent. */
 async function withTraffic() {
   forgetLayerTicks();
   localStorage.setItem("NeoAPRS.layer.aircraft", "on");

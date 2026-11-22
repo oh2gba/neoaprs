@@ -1,5 +1,8 @@
-// What the station panel of the Stations tab holds for each kind of row (StationPanel): its actions (Ask for weather only for a weather station), the operator's own query held to the daemon's rule, the station's traffic and
-// its settings, saved as they are changed; our own station, our objects and another's object have only what applies to them. No line of text explains anything: a query that breaks the rule is marked and its Ask is off.
+// What the station panel of the Stations tab holds for each kind of row (StationPanel): its
+// actions (Ask for weather only for a weather station), the operator's own query held to the
+// daemon's rule, the station's traffic and its settings, saved as they are changed; our own
+// station, our objects and another's object have only what applies to them. No line of text
+// explains anything: a query that breaks the rule is marked and its Ask is off.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick, shallowReactive } from "vue";

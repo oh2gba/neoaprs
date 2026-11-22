@@ -1,5 +1,7 @@
-// Every labelled input, select and checkbox of the Objects form and of the Settings tab has an (i) beside it (InfoTip), so that a field added later cannot be left without one. A field that deliberately has none is in
-// ALLOWED with the reason; a stale entry (a field that has a tip now or is gone) fails too, so that the list cannot grow into an excuse.
+// Every labelled input, select and checkbox of the Objects form and of the Settings tab has an (i)
+// beside it (InfoTip), so that a field added later cannot be left without one. A field that
+// deliberately has none is in ALLOWED with the reason; a stale entry (a field that has a tip now or
+// is gone) fails too, so that the list cannot grow into an excuse.
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
@@ -15,7 +17,8 @@ import { configValues, ownObject, radioRow, radiosTopic } from "@/test/fixtures"
 
 /** The fields that have no (i) on purpose, by the text of their label, with why. */
 const ALLOWED_OBJECTS: Record<string, string> = {
-  // the place is the Location control of the My station tab, shared by the Objects form and the setup guide; its button and the place in words say what it is
+  // the place is the Location control of the My station tab, shared by the Objects form and the
+  // setup guide; its button and the place in words say what it is
   Latitude: "part of the Location control: a coordinate, in degrees",
   Longitude: "part of the Location control: a coordinate, in degrees",
   Locator: "part of the Location control: a Maidenhead locator, which the field shows",
@@ -25,7 +28,8 @@ const ALLOWED_BULLETINS: Record<string, string> = {};
 // (the Settings tab has none: every field has its (i))
 const ALLOWED_SETTINGS: Record<string, string> = {};
 
-/** The labelled controls of a mounted surface with no (i) in their own field, by the text of their label. */
+/** The labelled controls of a mounted surface with no (i) in their own field, by the text of
+ * their label. */
 function untipped(root: Element): string[] {
   const missing: string[] = [];
   for (const control of root.querySelectorAll<HTMLElement>("input:not([type=hidden]), select, textarea")) {
@@ -48,7 +52,8 @@ function objectsForm(rows = [ownObject("LEADER")]) {
   return mount(ObjectForm, { props: { form: view } });
 }
 
-/** The tab with these settings; a radio's own (`radio/1/tcp_host`) makes radio 1 a TNC over TCP, whose box shows those fields. */
+/** The tab with these settings; a radio's own (`radio/1/tcp_host`) makes radio 1 a TNC over TCP,
+ * whose box shows those fields. */
 function settingsTab(scope: Scope, extra: Record<string, string>) {
   const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
   const tcp = Object.keys(own(true)).length > 0;

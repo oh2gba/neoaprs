@@ -1,7 +1,10 @@
 <script setup lang="ts">
-// How messages to one station are sent, in Route of a conversation and of the station panel: the radio they go on (where more than one is on: the radios that are on, and "Automatic", which names the radio it gives now),
-// then the path they go by and whether it is RF only (the tickbox beside the path), which are there while a radio that is on may carry a path and greyed, the value kept, while the radio in force carries none
-// (`pathless`, composables/useStationRadio.ts), RF only staying live while the messages there go through a gateway (`reply`). For a call the book does not hold the radio's row is there greyed on "Automatic" (`fixed`), so that nothing moves when the station is first heard. The fields say what they want, the page sends it. `heard` is the path that has lately been heard to reach the station (null: none), which the automatic choice of the first attempts goes by.
+// How messages to one station are sent (Route of a conversation and of the station panel): the
+// radio (when more than one is on; "Automatic" names the radio it gives now), then the path and
+// RF only. Path and RF only are greyed, value kept, while the radio in force carries no path
+// (`pathless`); RF only stays live when messages go through a gateway (`reply`). For an unknown
+// call the radio row is shown greyed (`fixed`) so nothing moves when the station is heard.
+// `heard` is the path last heard to reach the station (null: none).
 import { useId } from "vue";
 import StationPath from "@/components/StationPath.vue";
 import StationRfOnly from "@/components/StationRfOnly.vue";
@@ -21,12 +24,12 @@ withDefaults(
     choice?: RadioId | null;
     /** the radio "Automatic" gives now; null when it is not known */
     auto?: string | null;
-    /** the radio cannot be chosen yet (a call the book does not hold, whose choice no row could say back): the row is there, greyed, so that nothing moves when the station is heard */
+    /** the radio cannot be chosen yet (unknown call); the row is greyed so nothing moves later */
     fixed?: boolean;
     /** the path and RF only are offered (a radio that is on may carry a path) */
     pathShown?: boolean;
     pathless?: string;
-    /** the reply path through a gateway on the radio in force that carries no path; empty for none */
+    /** the reply path through a gateway on the radio in force with no path; empty for none */
     reply?: string;
   }>(),
   {
@@ -49,7 +52,10 @@ const emit = defineEmits<{
 }>();
 const id = useId();
 
-/** The radio picked in the list: its id, or null for "Automatic". The list goes back to the choice in force until the station's row says the new one, so that it never shows a choice the daemon refused. */
+/**
+ * The radio picked in the list: its id, or null for "Automatic". The list reverts to the radio
+ * in force until the station's row confirms the change.
+ */
 function picked(event: Event, call: string, choice: RadioId | null): void {
   const list = event.target as HTMLSelectElement;
   emit("radio", call, list.value === "" ? null : Number(list.value));

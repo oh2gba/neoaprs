@@ -41,12 +41,18 @@ const oneRadio = () => radiosTopic(radioRow(1, "kenwood-tnc2"));
 interface Made {
   config?: ConfigValues;
   map?: MapState | null;
-  /** the topic `radios`; by default radio 1 alone (test/context.ts); null while the daemon has not told it */
+  /**
+   * the topic `radios`; by default radio 1 alone (test/context.ts); null while the daemon has not
+   * told it
+   */
   radios?: Map<string, RadioRow> | null;
   ports?: PortsMessage | null;
 }
 
-/** The guide as the page makes it, with the page's settings (the queue the Settings tab has too) and Find my radio over them. */
+/**
+ * The guide as the page makes it, with the page's settings (the queue the Settings tab has too) and
+ * Find my radio over them.
+ */
 function make(opts: Made = {}) {
   const config = ref<ConfigValues | null>(opts.config ?? fresh());
   const lastError = ref<Toast | null>(null);
@@ -81,7 +87,10 @@ function make(opts: Made = {}) {
   const button = (label: string) => wrapper.findAll("button").find((b) => b.text() === label);
   const finish = () => wrapper.find<HTMLButtonElement>("button[type=submit]");
   const configs = () => sent.filter((c) => c.cmd === "set_config");
-  /** The daemon takes the last save and tells the settings again, which is its answer (the queue of the settings sends the next change after it). */
+  /**
+   * The daemon takes the last save and tells the settings again, which is its answer (the queue of
+   * the settings sends the next change after it).
+   */
   const answer = async () => {
     const last = configs().at(-1);
     if (last?.cmd === "set_config" && config.value) {
@@ -90,7 +99,10 @@ function make(opts: Made = {}) {
     }
     await flushPromises();
   };
-  /** Fills the call and the position and stands on the step with this index (1 is the position, 3 the radio). */
+  /**
+   * Fills the call and the position and stands on the step with this index (1 is the position, 3
+   * the radio).
+   */
   const stand = async (step: number) => {
     await type("setup-call", "oh2abc");
     await next();
@@ -114,7 +126,10 @@ const labels = (wrapper: VueWrapper) => wrapper.findAll(".setup-body .field > la
 
 /** The place, sent on its own as the Position step is left (the daemon makes the map round it). */
 const PLACE = { cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } };
-/** What Finish sends on a fresh installation that keeps the symbol: the call, the place, the beacon of a new station; nothing of a radio. */
+/**
+ * What Finish sends on a fresh installation that keeps the symbol: the call, the place, the beacon
+ * of a new station; nothing of a radio.
+ */
 const FINISH = { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } };
 const ONLY = "The station's only radio that is on";
 
@@ -131,7 +146,8 @@ describe("SetupGuide: the frame", () => {
     expect(wrapper.find("[role='dialog']").attributes("aria-label")).toBe("Setup");
     expect(wrapper.findAll(".setup-dot").map((b) => b.attributes("title"))).toEqual(["Call", "Position", "Symbol", "Radio"]);
     expect(wrapper.find(".setup-dot.active").text()).toBe("1");
-    expect(wrapper.findAll(".setup-dot.done")).toHaveLength(0); // the steps ahead have answers already, but are not done
+    // the steps ahead have answers already, but are not done
+    expect(wrapper.findAll(".setup-dot.done")).toHaveLength(0);
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.findAll(".setup-step-name")).toHaveLength(1);
     expect(wrapper.find("button[type=submit]").text()).toBe("Next");
@@ -375,7 +391,8 @@ describe("SetupGuide: the symbol", () => {
     expect(buttons[0]?.attributes("aria-pressed")).toBe("true");
     expect(wrapper.find("#setup-symbol-change").text()).toBe("More symbols…");
     expect(wrapper.find("#setup-symbol-change").classes()).toContain("btn");
-    expect(wrapper.find(".symbolshown").element.tagName).toBe("SPAN"); // (the symbol in force is nothing to click: the button beside it opens the picker)
+    // the symbol in force is nothing to click: the button beside it opens the picker
+    expect(wrapper.find(".symbolshown").element.tagName).toBe("SPAN");
     expect(wrapper.find(".symbolbtn").exists()).toBe(false);
     expect(wrapper.find(".symbolfield-name").text()).toBe("House");
   });
@@ -402,9 +419,9 @@ describe("SetupGuide: the symbol", () => {
   });
 });
 
-// The Radio step is live, as the Radio group of the Settings tab is (plan section 6: "The setup guide's Radio step is live, as the Settings group is"): the same boxes, each change saved as it is made, and Finish waiting for
-// "one enabled radio with no field in error"; left out: RX only, Tune, the level and the scope. Before the round it had the FM radio's fields as answers saved at Finish, and an HF tickbox with nothing
-// behind it (two-radio-ui.md); the tests of that step are these, rewritten to the plan.
+// The Radio step is live, as the Radio group of the Settings tab is: the same boxes, each change
+// saved as it is made, and Finish waiting for one enabled radio with no field in error. Left out:
+// RX only, Tune, the level and the scope.
 describe("SetupGuide: the radio, on a station of one radio", () => {
   it("is the Radio group's one box as the Settings tab has it: its Enable ticked and greyed, its status line, behind the arrow the type, the port, the speed, Find my radio and the Terminal; then Add radio", async () => {
     const { wrapper, stand } = make({ radios: oneRadio(), ports: ports() });
@@ -428,7 +445,8 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
     expect(wrapper.find("#setup-radio-1-find").text()).toBe("Find my radio");
     expect(wrapper.findAll("summary").map((s) => s.text())).toContain("Terminal");
     expect(labels(wrapper)).toEqual(["Enable", "Radio type", "Port", "Speed", "Add radio"]);
-    expect(wrapper.find("#setup-radio-1-name").exists()).toBe(false); // (named only where the station has several radios)
+    // named only where the station has several radios
+    expect(wrapper.find("#setup-radio-1-name").exists()).toBe(false);
     expect(wrapper.find("#setup-radio-add").exists()).toBe(true);
     expect(wrapper.find("#setup-radio-add-button").text()).toBe("Add");
   });
@@ -511,7 +529,8 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
     await wrapper.find("#setup-radio-1-tcp_host").trigger("blur", { relatedTarget: wrapper.find("#setup-radio-1-tcp_port").element });
     expect(configs()).toHaveLength(before);
     await wrapper.find("#setup-radio-1-tcp_port").trigger("blur", { relatedTarget: null });
-    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/tcp_host": "192.168.1.5" } }); // (of the pair, what changed)
+    // of the pair, what changed
+    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/tcp_host": "192.168.1.5" } });
   });
 
   it("has no port, no speed and no host for the Dummy radio, and Finish does not wait for a port", async () => {
@@ -524,9 +543,10 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
     await flushPromises();
     for (const id of ["setup-radio-1-port", "setup-radio-1-baud", "setup-radio-1-tcp_host", "setup-radio-1-tcp_port"])
       expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
-    expect(wrapper.find("#setup-radio-1-find").exists()).toBe(false); // (a radio with no serial line: plan section 6a, as the guide of before had it)
+    expect(wrapper.find("#setup-radio-1-find").exists()).toBe(false); // (a radio with no serial line)
     expect(finish().element.disabled).toBe(false);
-    expect(wrapper.findAll("summary").map((s) => s.text())).toContain("Terminal"); // (the terminal shows the made-up traffic)
+    // the terminal shows the made-up traffic
+    expect(wrapper.findAll("summary").map((s) => s.text())).toContain("Terminal");
   });
 
   it("asks the daemon for the ports when it comes on the screen and again with Refresh", async () => {
@@ -647,11 +667,14 @@ describe("SetupGuide: the radio, on a station of an FM and a Mercury radio", () 
     const { finish, stand, enter } = make({ radios: two({}) });
     await stand(3);
     await enter("setup-radio-1-baud", "12");
-    expect(finish().element.disabled).toBe(false); // (the HF radio is right: plan section 6, "one enabled radio with no field in error")
+    expect(finish().element.disabled).toBe(false); // (the HF radio is right: one enabled radio with no field in error)
   });
 });
 
-/** The six radios of a station: the FM and HF radios of before (1, 2), a KISS TNC called Mobile (3), a Dummy HF radio called 20 m (4), a KISS TNC over TCP (5) and a Mercury modem called by eight wide letters (6). */
+/**
+ * The six radios of a station: FM and HF (1, 2), a KISS TNC called Mobile (3), a Dummy HF radio
+ * called 20 m (4), a KISS TNC over TCP (5) and a Mercury modem with an eight-wide-letter name (6).
+ */
 function sixRadios(extra: Partial<Record<number, Partial<RadioRow>>> = {}): Map<string, RadioRow> {
   return radiosTopic(
     radioRow(1, "kenwood-tnc2", extra[1]),
@@ -728,7 +751,8 @@ describe("SetupGuide: the radio, on a station with no radio (a fresh installatio
     const { wrapper, finish, sent, stand } = make({ radios: radiosTopic() });
     await stand(3);
     expect(legends(wrapper)).toEqual(["New radio"]);
-    expect(wrapper.findAll("#setup-radio-add option").map((o) => o.attributes("value"))).toEqual(["", ...addTypeChoices().map((choice) => choice.value)]); // (Settings' list, in its groups)
+    // Settings' list, in its groups
+    expect(wrapper.findAll("#setup-radio-add option").map((o) => o.attributes("value"))).toEqual(["", ...addTypeChoices().map((choice) => choice.value)]);
     expect(wrapper.findAll("#setup-radio-add optgroup").map((g) => g.attributes("label"))).toEqual(["FM", "Mercury", "LoRa", "Without a radio"]);
     expect(
       addTypeChoices()
@@ -775,7 +799,8 @@ describe("SetupGuide: the radio, on a station with no radio (a fresh installatio
     lastError.value = toastOf("radio_add: the radio could not be stored; nothing changed", "setting.not_stored");
     await flushPromises();
     expect(legends(wrapper)).toEqual(["New radio"]);
-    await tell(daemon, { radioAdded: { type: "radio_added", id: 4 }, radios: radiosTopic(radioRow(4, "kiss")) }); // (added from elsewhere: the guide does not lead to it)
+    // added from elsewhere: the guide does not lead to it
+    await tell(daemon, { radioAdded: { type: "radio_added", id: 4 }, radios: radiosTopic(radioRow(4, "kiss")) });
     await flushPromises();
     expect(document.activeElement?.id).not.toBe("setup-radio-4-enabled");
   });
@@ -870,7 +895,10 @@ describe("SetupGuide: Finish", () => {
     expect(wrapper.find(".setup").exists()).toBe(true);
   });
 
-  /** A port picked on the Radio step and Finish pressed at once: the port's save is sent, then Finish's, and the daemon answers the port's first. */
+  /**
+   * A port picked on the Radio step and Finish pressed at once: the port's save is sent, then
+   * Finish's, and the daemon answers the port's first.
+   */
   const portThenFinish = async () => {
     const made = make({ radios: oneRadio(), ports: ports() });
     await made.stand(3);
@@ -900,7 +928,8 @@ describe("SetupGuide: Finish", () => {
     expect(guide.open).toBe(true);
     expect(wrapper.find(".setup-step-name").text()).toBe("Call");
     expect(wrapper.find(".field-error").text()).toBe("OH2ABC is a placeholder, not a call: set your call first");
-    expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2ABC"); // (what was typed is still there)
+    // what was typed is still there
+    expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2ABC");
   });
 
   it("has the radio step, the last, with nothing of the radios before the daemon has told its settings, and Finish waits for them", async () => {

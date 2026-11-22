@@ -1,7 +1,9 @@
-// How the first-run guide saves (composables/useSetupGuide.ts): Finish sends one `set_config` with the keys the answers change (the call, the place, the symbol and a new station's beacon: the radios of the Radio step were saved
-// as they were changed, as in the Settings tab; the topic `config` told after a save is the answer). The daemon's error that names a key is shown under its field, and the guide
-// goes to the step that has it. When the guide goes on from the Position step, the place is sent on its own when the answers change it (the daemon makes the map round a new place at once), else `map_wanted` says the map of the area is wanted
-// (the daemon makes it unless the one it has covers the place); the guide says so in a quiet line, and the header shows the percent.
+// How the first-run guide saves: Finish sends one `set_config` with the keys the answers change
+// (call, place, symbol, a new station's beacon); the radios of the Radio step are saved as
+// changed, and the topic `config` after a save is the answer. A daemon error naming a key shows
+// under its field and the guide goes to its step. When the guide goes on from the Position step,
+// the place is sent on its own if the answers changed it, else `map_wanted` says the map of the
+// area is wanted (the daemon makes it unless its map covers the place).
 import { computed, ref, watch, type Ref } from "vue";
 import type { useSetupAnswers } from "@/composables/useSetupAnswers";
 import type { Toast } from "@/composables/useDaemon";
@@ -22,7 +24,10 @@ export function useSetupSave(
 ) {
   const saving = ref(false);
   endWithTheSocket(connection, () => (saving.value = false));
-  /** What the daemon held, when Finish sent its save, of each key the save names: a config that holds none of them changed is the answer to another save (a radio's, sent from a box of the Radio step just before). */
+  /**
+   * What the daemon held of each key the save names when Finish sent it: a config with none of them
+   * changed answers another save.
+   */
   let held: Record<string, string> = {};
   const nothing = computed(() => Object.keys(answers.changes.value).length === 0);
 
@@ -34,7 +39,10 @@ export function useSetupSave(
     saving.value = send({ cmd: "set_config", values });
   }
 
-  /** Finish: the first step that is not right is shown, else the changed keys are saved, or nothing is when none is changed. */
+  /**
+   * Finish: show the first step that is not right, else save the changed keys (nothing if none
+   * changed).
+   */
   function finish(): void {
     const bad = answers.valid.value.findIndex((ok) => !ok);
     if (bad >= 0) step.value = bad;
@@ -43,8 +51,11 @@ export function useSetupSave(
     else save();
   }
 
-  /** Going on from the Position step: its place is saved on its own when the answers change it (the daemon makes the map round a new place), else the daemon is told the map of the area is wanted (it makes it unless
-   * the one it has covers the place). One command, not two: the daemon runs commands side by side, so the second could not count on the save. */
+  /**
+   * Going on from the Position step: save the place alone if the answers changed it, else say the
+   * map of the area is wanted. One command, not two: the daemon runs commands side by side, so
+   * the second could not count on the save.
+   */
   watch(step, (now, before) => {
     if (before !== STEP_OF.lat || now <= before) return;
     const values = Object.fromEntries(Object.entries(answers.changes.value).filter(([key]) => key === "station/lat" || key === "station/lon"));
@@ -56,17 +67,18 @@ export function useSetupSave(
     (now) => {
       if (!now) return;
       if (!saving.value) {
-        if (!answers.touched.value) answers.fill(now.values); // (the daemon's word is the answer until the user answers)
+        if (!answers.touched.value) answers.fill(now.values);
         return;
       }
-      if (Object.entries(held).every(([key, text]) => (now.values[key] ?? "") === text)) return; // (not Finish's answer)
+      if (Object.entries(held).every(([key, text]) => (now.values[key] ?? "") === text)) return;
       saving.value = false;
       done();
     },
     { immediate: true },
   );
 
-  // the refusal of Finish's save; one that names a key Finish does not send is a radio's, saved by a box of the Radio step, and stands under that field there
+  // The refusal of Finish's save; one naming a key Finish does not send is a radio's, shown under
+  // that field there.
   watch(lastError, (toast) => {
     if (!toast || !saving.value) return;
     const named = toast.cmd === "set_config" && toast.key !== null;

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The status of the Digipeater group of the Settings tab, under its tickbox and only while it is ticked: the radio's status row (StatusFold.vue) with the words of lib/digistatus.ts, and behind its arrow since when the count runs and the frames the burst limit held back.
-// One under each radio's Enable, with that radio's counts (`tnc`: its row; nothing while they are not told, null), and one under the Call of each pair of radios that is on (`pair`: its two radios with their counts), with
-// what went each way and what was held back or too long for each radio behind the arrow. When the daemon started, the time and whether RX only is ticked are the page's unless they are given.
+// The status of the Digipeater group in Settings, under its tickbox while ticked: a status row
+// (StatusFold.vue) with the words of lib/digistatus.ts. One per radio's Enable (`tnc`) and one
+// per pair of radios that is on (`pair`), with the counts of each way and the held frames behind
+// the arrow.
 import { computed, inject } from "vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { DAEMON_KEY } from "@/composables/useDaemonContext";
@@ -20,11 +21,11 @@ const props = withDefaults(
   },
 );
 const context = inject(DAEMON_KEY, null);
-/** When the daemon started, the time and RX only, as given, else the page's (RX only as the form holds it). */
+/** The daemon start time and RX only as given, else the page's. */
 const startedAt = computed(() => (props.startedAt === undefined ? (context?.status.value?.started_at ?? null) : props.startedAt));
 const now = computed(() => props.now ?? context?.now.value ?? Date.now());
 const rxOnly = computed(() => props.rxOnly ?? context?.settings.draft["station/transmit"] === "false");
-/** What the row says, and its lines behind the arrow, each only when it has something: a pair's since, each way, held and too long; a radio's since and the burst's held. */
+/** The row text and its lines behind the arrow, each only when it has content. */
 const look = computed(() => {
   if (props.pair !== undefined) {
     const pair = pairLook(props.pair, startedAt.value, now.value, rxOnly.value);

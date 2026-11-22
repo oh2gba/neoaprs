@@ -1,11 +1,14 @@
 <script setup lang="ts">
-// The statistics card over the map, opened from the map's menu (components/MapMenu.vue, Statistics): a graph of the packets heard by the hour over the last day, each bar made of the parts of the radios that
-// heard them and of the internet (the daemon is asked for `packet_stats` when the card opens and every minute after; components/TrendChart.vue draws the bars; until the first answer the graph is its empty frame,
-// so that nothing moves when it comes), then what the page has heard, counted up (lib/stats.ts, lib/packetstats.ts) in sections of a few lines each, each a heading that folds what is under it: the stations, how far
-// we reach, the packets, each radio over the last day (with the colour of its part of the bars), what we sent, what went through us, and the radios since the daemon started. Which sections are folded is remembered
-// by this browser. It is at the bottom right of the map, clear of the station cards at the left, and moves as the station book, the packets and the status do. Its cross closes it, and so does Esc with the
-// station cards; whether it is open is remembered by this browser (composables/useAppShell.ts), so it comes back with the page. On a tablet and a desktop (`movable`) it can be dragged by its head anywhere over the map, or moved with Alt
-// and the arrow keys, and where it was left is remembered too (composables/useFreeDrag.ts). On a phone it is a card at the bottom of the screen like the station's.
+// The statistics card over the map, opened from the map menu: a graph of packets heard per hour
+// over the last day (`packet_stats`, asked when the card opens and every minute; TrendChart
+// draws it; an empty frame until the first answer so nothing moves), each bar split into the
+// radios and the internet. Below are counts (lib/stats.ts, lib/packetstats.ts) in foldable
+// sections: stations, reach, packets, each radio over the last day (with its bar colour), sent,
+// forwarded, and radios since the daemon started. Folded sections and whether the card is open
+// are remembered by the browser (composables/useAppShell.ts). It sits at the bottom right of
+// the map; Esc and its cross close it. On a tablet or desktop (`movable`) its head drags it
+// over the map, or Alt with the arrow keys moves it; the position is remembered too
+// (composables/useFreeDrag.ts). On a phone it is a card at the bottom like the station's.
 import { computed, onMounted, ref, watch } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -40,7 +43,7 @@ const sections = computed(() =>
   }),
 );
 
-/** The bars of the graph, from the latest answer of the daemon; the empty frame of the same hours until one came. */
+/** The graph bars from the latest answer; an empty frame over the same hours until then. */
 const chart = computed(() => {
   const stats = page.packetStats.value;
   return stats === null ? { ...emptyHistory(page.now.value, CHART_HOURS), parts: [] } : chartOf(stats, radios.all.value);
@@ -58,7 +61,7 @@ function fold(title: string, open: boolean): void {
 
 const ask = (): boolean => page.send({ cmd: "packet_stats" });
 onMounted(ask);
-// the counts move with the clock (the running hour grows, and at the top of the hour a bar is added): asked again each minute
+// The counts move with the clock, so ask again each minute.
 watch(
   () => Math.floor(page.now.value / 60_000),
   () => void ask(),

@@ -1,9 +1,12 @@
-// The statistics card (components/StatsCard.vue): what the page knows, counted up in a few lines a person would ask for, in sections: the stations (how many, how heard, what they run), how far we reach (the farthest
-// heard direct and on the radio, the digipeaters most used, the ALOHA circle), the packets (the database, the last hour, the five busiest stations, the busiest and the quietest hour of the day, and the latest 200 by kind
-// and by channel), each radio by its name over the last 24 hours, what we sent ourselves, what went through us (the digipeater's copies and the iGate's, the last hour and since the start), and the radios since the
-// daemon started. Most of it is made from what the page has already, the station book, the latest packets, the status and the radios' counters; what the station book cannot say is the daemon's answer to
-// `packet_stats` (lib/packetstats.ts), whose sections and lines keep their shape from before the first answer on. A line with nothing to say is left out, and so is an empty section.
-// Plain functions of what the page has; the words are the `stats.*` messages.
+// The statistics card (components/StatsCard.vue): counts made from what the page knows, in
+// sections: stations (how many, how heard, what they run), reach (farthest heard, most used
+// digipeaters, the ALOHA circle), packets (database, last hour, busiest stations and hours, the
+// latest 200 by kind and channel), each radio over 24 hours, what we sent, what went through
+// us, and the radios since the daemon started. Most of it comes from the station book, the
+// latest packets, the status and the radios' counters; the rest is the daemon's `packet_stats`
+// answer (lib/packetstats.ts), whose sections keep their shape before the first answer. A line
+// with nothing to say, and an empty section, is left out. Plain functions; the words are the
+// `stats.*` messages.
 import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { timedOut, type Aging } from "@/lib/aging";
@@ -19,12 +22,18 @@ import type { IgateState, MapState, PacketHistoryMessage, PacketRow, PacketStats
 
 export interface StatLine {
   label: MessageId;
-  /** what the label's message takes ("Latest {n} by kind") */
+  /** What the label's message takes ("Latest {n} by kind"). */
   params?: Record<string, string | number>;
   value: string;
-  /** the colour of the line's part of the graph (a radio's, the internet's: lib/packetstats.ts) */
+  /**
+   * The colour of the line's part of the graph (a radio's, the internet's:
+   * lib/packetstats.ts).
+   */
   tone?: string;
-  /** what tells the line from the others of its label (a radio's line: its channel's key, `radio-1`, `is`); else the label does */
+  /**
+   * What tells the line from the others with its label (a radio's channel key, `radio-1`,
+   * `is`); else the label.
+   */
   key?: string;
 }
 
@@ -37,28 +46,31 @@ export interface StatsInput {
   stations: ReadonlyMap<string, StationRow>;
   packets: ReadonlyMap<string, PacketRow>;
   status: StatusMessage | null;
-  /** every radio, in the order of their boxes (composables/useRadios.ts `all`): the packets are counted by radio, and the counters of those that are on added up */
+  /**
+   * Every radio in box order (useRadios `all`): packets are counted per radio, counters of
+   * radios that are on are summed.
+   */
   radios: readonly PageRadio[];
   igate: IgateState | null;
-  /** the map's state: the ALOHA circle's radius is in it */
+  /** The map's state; the ALOHA circle's radius is in it. */
   map: MapState | null;
   aging: Aging;
   now: number;
-  /** the daemon's answer to `packet_stats`; null until one came */
+  /** The daemon's answer to `packet_stats`; null until one came. */
   packetStats: PacketStatsMessage | null;
 }
 
-/** How many of a list are named: the devices most run, the digipeaters most used; the busiest stations. */
+/** How many of a list are named (devices, digipeaters, stations). */
 const TOP = 3;
 const BUSIEST = 5;
 const KINDS = ["position", "message", "object", "item", "status", "other", "undecoded"] as const satisfies readonly PacketRow["kind"][];
 
 const whole = (n: number): string => formatNumber(n, 0);
-/** A station that is heard: not ourselves, not our objects. */
+/** A heard station: not ourselves, not our objects. */
 const heard = (row: StationRow): boolean => !row.is_me && !row.own;
 const isStation = (row: StationRow): boolean => row.kind === "station" && heard(row);
 
-/** "OH2RCH-2 (120), OH2RCH-1 (45)": the `top` most counted, the most first, ties by the name. */
+/** The `top` most counted as "OH2RCH-2 (120), OH2RCH-1 (45)", most first, ties by name. */
 function topText(counts: ReadonlyMap<string, number>, top = TOP): string {
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -97,7 +109,10 @@ function stationLines(rows: readonly StationRow[], aging: Aging, now: number): S
   ];
 }
 
-/** The radius of each ALOHA circle, "37 km", and where radios are named (several on) each after its radio's name, "FM: 37 km · FM 2: 12 km"; null for none. */
+/**
+ * The radius of each ALOHA circle ("37 km"); with several radios each is named, "FM: 37 km · FM
+ * 2: 12 km"; null for none.
+ */
 function alohaText(map: MapState | null, radios: readonly PageRadio[]): string | null {
   const circles = map?.aloha ?? [];
   if (circles.length === 0) return null;
@@ -122,17 +137,21 @@ function reachLines(rows: readonly StationRow[], map: MapState | null, radios: r
   ];
 }
 
-/** The latest packets as the page has them (the daemon keeps 200): the ones heard, not those we sent. "By channel" counts them by their tag (lib/channels.ts `packetTag`), said by its word: by the radio that heard
- * them (its name, "FM", "HF", "20 m", with one radio on as with several), iGate and Internet; two radios are never added together, even where their words are the same (a removed radio beside a live one). */
+/**
+ * The latest packets the page has (the daemon keeps 200), heard ones only. "By channel" counts
+ * them by their tag (lib/channels.ts `packetTag`): the radio that heard them by name, iGate and
+ * Internet. Two radios are never added together, even with equal names (a removed radio beside
+ * a live one).
+ */
 function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly PageRadio[]): StatLine[] {
   const rows = [...packets.values()].filter((row) => row.direction === "in");
   if (rows.length === 0) return [];
   const kinds = new Map<string, number>();
-  const channels = new Map<string, { label: string; n: number }>(); // (by the tag's key: a radio's is its id's)
+  const channels = new Map<string, { label: string; n: number }>(); // by the tag's key (a radio's is its id)
   for (const row of rows) {
     kinds.set(row.kind, (kinds.get(row.kind) ?? 0) + 1);
     const tag = packetTag(row, radios);
-    if (tag === null) continue; // (a radio the page does not know yet: no tag, so not counted under one)
+    if (tag === null) continue; // a radio the page does not know yet has no tag and is not counted
     const { key, label } = tag;
     const counted = channels.get(key);
     if (counted === undefined) channels.set(key, { label, n: 1 });
@@ -165,7 +184,7 @@ function packetLines(rows: readonly StationRow[], status: StatusMessage | null):
   ];
 }
 
-/** What the radios that are on counted since the daemon started, added up. */
+/** What the radios that are on counted since the daemon started, summed. */
 type Totals = Pick<TncStats, "frames_in" | "rejected" | "bytes_in" | "bytes_out" | "digipeated">;
 
 function radioTotals(counted: readonly TncStats[]): Totals | null {
@@ -214,14 +233,20 @@ export function mapStats(input: StatsInput): StatSection[] {
 /** How far back the graph of the packets by the hour goes. */
 export const HISTORY_HOURS = 24;
 
-/** The bars of the graph: one point in the middle of each hour counted, and the span of the axis, the whole hours from the first to the end of the running one. */
+/**
+ * The graph's bars: one point in the middle of each counted hour; the axis spans whole hours
+ * from the first to the end of the running one.
+ */
 export function historyPoints(history: PacketHistoryMessage): { from: number; to: number; points: Point[] } {
   const from = Date.parse(history.start);
   const points = history.counts.map((n, i) => ({ t: from + i * HOUR_MS + HOUR_MS / 2, v: n }));
   return { from, to: from + history.counts.length * HOUR_MS, points };
 }
 
-/** The frame of the graph before the daemon's answer came: the same span of whole hours that the answer will have (the running one last), with no bar, so that the graph keeps its place and only fills in. */
+/**
+ * The graph before the daemon's answer: the same span of whole hours with no bar, so the graph
+ * keeps its place and only fills in.
+ */
 export function emptyHistory(now: number, hours = HISTORY_HOURS): { from: number; to: number; points: Point[] } {
   const to = Math.floor(now / HOUR_MS) * HOUR_MS + HOUR_MS;
   return { from: to - hours * HOUR_MS, to, points: [] };

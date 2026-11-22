@@ -1,5 +1,7 @@
-// A radio of a type that only listens (`tnc-text`) on the page of a station that has senders beside it: it is in none of the lists of the radios to send on (the beacon's Send on, Ask around's Send on), its box has
-// no Find my radio, no path and no "find automatically" for its port, and while it is the only radio that is on, the beacon's fields are greyed as with RX only ticked.
+// A radio of a listen-only type (`tnc-text`) on a station that has senders beside it: it is in none
+// of the lists of radios to send on, its box has no Find my radio, no path and no "find
+// automatically" for its port, and while it is the only radio on, the beacon's fields are greyed as
+// with RX only ticked.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { shallowRef } from "vue";
@@ -27,7 +29,8 @@ describe("a radio that only listens beside radios that send", () => {
     for (const wrapper of [settings(TEXT, DUMMY), settings(TEXT, DUMMY, KISS)]) {
       const add = wrapper.find("#set-radio-add").element;
       const rows = [...(add.closest(".group-body")?.children ?? [])];
-      expect(rows[rows.findIndex((row) => row.contains(add)) - 1]?.matches("fieldset.subbox")).toBe(true); // (Add radio right after the last box)
+      // Add radio right after the last box
+      expect(rows[rows.findIndex((row) => row.contains(add)) - 1]?.matches("fieldset.subbox")).toBe(true);
     }
   });
 
@@ -35,7 +38,8 @@ describe("a radio that only listens beside radios that send", () => {
     const wrapper = settings(TEXT, DUMMY);
     expect(wrapper.find("#set-radio-1-find").exists()).toBe(false);
     const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(daemonOf(TEXT, DUMMY, KISS)), attachTo: document.body });
-    expect([beacon.find("#set-radio-1-path").exists(), beacon.find("#set-radio-3-path").exists()]).toEqual([false, true]); // (a Path row for each radio on that may carry one: not the text radio)
+    // a Path row for each radio on that may carry one: not the text radio
+    expect([beacon.find("#set-radio-1-path").exists(), beacon.find("#set-radio-3-path").exists()]).toEqual([false, true]);
     expect(wrapper.find("#set-radio-1-digipeat").exists()).toBe(false);
     expect(wrapper.find("#set-radio-1-port").exists()).toBe(true);
     expect(wrapper.findAll("#set-radio-1-port option").map((option) => option.text())[0]).toBe("not set");

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-// The one control for a place, the same in the My station tab (components/SettingsLocation.vue), the Objects form (components/ObjectForm.vue) and the first-run guide's position step (components/SetupPosition.vue): the row Location with, in the input column, the plain button
-// **Choose on map** (Cancel while the map waits for the click) and, beside it on the same line, the place in force as text ("60.42944 N, 24.14524 E · KP20bk", "Not set"). On a narrow panel the text wraps under the button, never cut off. The text is a button too:
-// a click opens the entry under the row, which has two ways to give the place, the latitude and longitude, and a Maidenhead locator (6 characters: the centre of its square; lib/locator.ts), each following the other. The entry is closed until the person clicks the place ("Not set" is still the thing to click) and opens by itself when a coordinate is
-// wrong. The first-run guide's position step gives `alwaysOpen`: the entry is what the step asks for, so it is open the whole time and the place is plain text, nothing to click. A form that applies as it is changed (the My station tab) gives `apply`: Enter and leaving a field say `commit` (with where focus went and which field), Esc says `cancel`, as the fields of that form do.
-// The locator is kept here, as typed, while it names the place the coordinates hold; any other change of the coordinates writes it again.
+// The one control for a place, used by My station, the Objects form and the setup guide's
+// position step: the row Location with **Choose on map** and the place in force as text. The
+// text is a button that opens an entry for latitude and longitude and a 6-character Maidenhead
+// locator (lib/locator.ts), each following the other; the entry opens by itself when a
+// coordinate is wrong. `alwaysOpen` (setup guide) keeps it open. `apply` (My station) makes
+// Enter and leaving a field emit `commit` and Esc emit `cancel`. The typed locator is kept as
+// typed while it names the place the coordinates hold.
 import { computed, nextTick, ref, useId, watch } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
@@ -26,11 +28,12 @@ const props = withDefaults(
     lon: string;
     /** what is wrong with each, by part */
     errors?: Partial<Record<"lat" | "lon", string>>;
-    /** a coordinate holds a change that is not applied yet (the form applies as it is changed), by part */
+    /** a coordinate holds an unapplied change (when the form applies as it is changed), by part */
     changed?: Partial<Record<"lat" | "lon", boolean>>;
-    /** the fields apply as they are changed: Enter and leaving them say `commit`, Esc says `cancel` */
+    /** the fields apply as changed: Enter or leaving them emits `commit`, Esc emits `cancel` */
     apply?: boolean;
-    /** the entry is open the whole time and the place is plain text (the first-run guide's position step), else it opens on a click or a wrong coordinate */
+    /** the entry stays open and the place is plain text (setup guide); else it opens on a click
+     * or a wrong coordinate */
     alwaysOpen?: boolean;
   }>(),
   { errors: () => ({}), changed: () => ({}), apply: false, alwaysOpen: false },
@@ -47,13 +50,13 @@ const label = useId();
 const entry = `${props.id}-entry`;
 const wrong = computed(() => !!props.errors.lat || !!props.errors.lon);
 const needed = () => wrong.value || props.alwaysOpen;
-/** The entry is open: closed from the start, open when a coordinate is wrong (the guide's the whole time), then as the person leaves it. */
+/** Whether the entry is open: closed at first, open on a wrong coordinate or in the guide. */
 const entering = ref(needed());
 watch(needed, (now) => {
   if (now) entering.value = true;
 });
 
-/** The fields' own words, made when the page is drawn so that they follow the language. */
+/** The fields' words, built at render time so that they follow the language. */
 const degrees = (part: "lat" | "lon") => ({
   label: t(part === "lat" ? "settings.lat.label" : "settings.lon.label"),
   unit: "°",
@@ -61,7 +64,7 @@ const degrees = (part: "lat" | "lon") => ({
 });
 const locatorInfo = () => ({ label: t("settings.locator.label"), empty: "KP20le" });
 
-/** The locator as it was typed, null while the field shows the one of the coordinates. */
+/** The locator as typed; null while the field shows the one derived from the coordinates. */
 const typed = ref<string | null>(null);
 const derived = computed(() => locatorOfText(props.lat, props.lon));
 const shown = computed(() => typed.value ?? derived.value);
@@ -70,12 +73,13 @@ function names(text: string): boolean {
   const at = locatorToPosition(text);
   return at !== null && parseNumber(props.lat) === at.lat && parseNumber(props.lon) === at.lon;
 }
-// a change of the coordinates that the typed locator did not make writes the locator again
+// rewrite the locator when a change did not come from the typed locator
 watch(derived, () => {
   if (typed.value !== null && !names(typed.value)) typed.value = null;
 });
 const locatorError = computed(() => (typed.value === null ? "" : locatorProblem(typed.value)));
-/** The locator holds a change when it was typed as something else than the coordinates say, or when the coordinates do (it is written from them). */
+/** Whether the locator holds an unapplied change: typed differently from the coordinates, or
+ * rewritten from them. */
 const locatorChanged = computed(
   () => !!props.changed.lat || !!props.changed.lon || (typed.value !== null && typed.value.trim().toUpperCase() !== derived.value.toUpperCase()),
 );
@@ -99,7 +103,7 @@ function cancelLocator(): void {
 }
 
 const root = ref<HTMLElement | null>(null);
-/** A click on the place opens or closes the entry; an opened one takes the focus (the first field, the latitude). */
+/** A click on the place opens or closes the entry; opening focuses the latitude field. */
 async function toggle(): Promise<void> {
   entering.value = !entering.value;
   if (!entering.value) return;

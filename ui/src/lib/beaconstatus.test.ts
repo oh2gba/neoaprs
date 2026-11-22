@@ -153,7 +153,8 @@ describe("beaconBlock of a moving station", () => {
 });
 
 describe("beaconBlock with several radios", () => {
-  // (plan 6a: "each radio's line behind the status arrow shows its own interval"; the lines are each radio's own timer, its row of the topic `radios`, by the radio's name)
+  // Each radio's line behind the status arrow is its own timer, from its row of the topic `radios`,
+  // named by the radio.
   const beacon = (last: string | null, next: string | null, interval = 30): BeaconRadio["beacon"] => ({
     last_sent: last,
     next_due: next,
@@ -227,7 +228,8 @@ describe("beaconBlock with several radios", () => {
     expect(moving).toMatchObject({ moving: true, label: "GPS" });
     expect(moving.smart).not.toBeNull();
     expect(moving.radios).toEqual(["FM: last beacon 4 min ago · next in 16 min", "Mercury: last beacon 2 min ago · next in 29 min (every 30 min)"]);
-    expect(beaconBlock(two(), gpsOff(), {}, NOW, radios()).radios[0]).toBe("FM: last beacon 4 min ago · next in 16 min (every 20 min)"); // (a fixed station's FM keeps its interval)
+    // A fixed station's FM keeps its interval
+    expect(beaconBlock(two(), gpsOff(), {}, NOW, radios()).radios[0]).toBe("FM: last beacon 4 min ago · next in 16 min (every 20 min)");
   });
 
   it("has no lines of radios while the beacon is Off or in RX only, moving or not", () => {

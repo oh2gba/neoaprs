@@ -1,6 +1,8 @@
-// A radio of the Sound card type in the Radio group, from the daemon's description of the type alone (RADIO_TYPES): its sound card and its keying chosen from what the daemon lists, Tune, the transmit level within the
-// type's own range, and the receive level of the packets it hears, whose row is there before the first packet so that nothing moves when one comes, dimmed while the radio is keyed; and not offered where the
-// installation does not carry its program.
+// A radio of the Sound card type in the Radio group, from the daemon's description of the type
+// alone (RADIO_TYPES): its sound card and keying chosen from what the daemon lists, Tune, the
+// transmit level within the type's range, and the receive level, whose row is there before the
+// first packet so that nothing moves, dimmed while the radio is keyed. The type is not offered
+// where the installation does not carry its program.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -71,12 +73,14 @@ describe("a Sound card radio's box", () => {
     expect(box().find("#set-radio-3-sound_card").exists()).toBe(true);
     expect(box().find("#set-radio-3-keying").exists()).toBe(true);
     expect(box().find("#set-radio-3-tune").exists()).toBe(true);
-    expect(box().find("#set-radio-3-txlevel-up").attributes("disabled")).toBeDefined(); // (0 dB is the most Direwolf sends: the type's range is -20 to 0)
+    // 0 dB is the most Direwolf sends: the type's range is -20 to 0
+    expect(box().find("#set-radio-3-txlevel-up").attributes("disabled")).toBeDefined();
     expect(fields).toContain("Receive level");
     expect(box().find(".levelvalue").text()).toBe("–");
     expect(box().find(".scope").exists()).toBe(false); // (no scope: the type cannot)
     expect(fields).not.toContain("Peak"); // (Direwolf says no peak of what it sends: no reading that never comes)
-    expect(box().find(".scope-level .infotip").exists()).toBe(true); // (the receive level has its (i), as the HF box's has)
+    // the receive level has its (i), as the HF box's has
+    expect(box().find(".scope-level .infotip").exists()).toBe(true);
   });
 
   it("keeps the room of the receive level, so nothing moves when the first packet comes, and dims it while the radio is keyed", async () => {
@@ -117,7 +121,8 @@ describe("a Sound card radio's box", () => {
     } as unknown as typeof IntersectionObserver;
     const { daemon, wrapper, box } = make();
     globalThis.IntersectionObserver = original;
-    const seen = (entries: { isIntersecting: boolean }[]) => observers.filter((o) => o.target?.querySelector(".levelbar")).forEach((o) => o.run(entries)); // (the Receive level row, not the Transmit level row)
+    // the Receive level row, not the Transmit level row
+    const seen = (entries: { isIntersecting: boolean }[]) => observers.filter((o) => o.target?.querySelector(".levelbar")).forEach((o) => o.run(entries));
     mounted = wrapper;
     await flushPromises();
     const levelAsks = () => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === "radio_level");
@@ -132,7 +137,8 @@ describe("a Sound card radio's box", () => {
     expect(box().find(".levelvalue").text()).toBe("61");
     await tell(daemon, { radios: radios({ rx_level: 31 }) });
     await flushPromises();
-    expect(box().find(".levelvalue").text()).toBe("61"); // (the row's level, every two seconds, does not stand over the level now)
+    // the row's level, every two seconds, does not stand over the level now
+    expect(box().find(".levelvalue").text()).toBe("61");
     await tell(daemon, { radioLevels: new Map([[3, null]]) });
     await flushPromises();
     expect(box().find(".levelvalue").text()).toBe("31");
@@ -164,14 +170,16 @@ describe("a Sound card radio's box", () => {
         .map((o) => o.attributes("value")),
     ).not.toContain("direwolf");
     expect(typeChoices("fm").map((c) => c.value)).toContain("direwolf");
-    expect(typeChoices("fm", ["direwolf"]).map((c) => c.value)).not.toContain("direwolf"); // (the list a radio's type is changed in, too)
+    // the list a radio's type is changed in, too
+    expect(typeChoices("fm", ["direwolf"]).map((c) => c.value)).not.toContain("direwolf");
     expect(typeText("direwolf")).toBe("Sound card");
   });
 
   it("is asked for and takes its own sound cards and proposal, never those of the Mercury radio's answer, as every radio with a sound card does", async () => {
     expect(portsAsks([radioRow(1, "kenwood-tnc2"), radioRow(3, "direwolf")])).toEqual([{ cmd: "list_ports", radio: 3 }]);
     const CODEC = "plughw:CARD=CODEC,DEV=0";
-    const empty = { ...OWN, "radio/2/sound_card": CODEC, "radio/2/keying": "rts:/dev/ttyUSB0", "radio/3/sound_card": "", "radio/3/keying": "" }; // (the HF radio has its own already)
+    // the HF radio has its own already
+    const empty = { ...OWN, "radio/2/sound_card": CODEC, "radio/2/keying": "rts:/dev/ttyUSB0", "radio/3/sound_card": "", "radio/3/keying": "" };
     const config = configValues({});
     const hfAnswer: PortsMessage = { ...ports, radio: 2, keying: "rts:/dev/ttyUSB0", sound_cards: [soundCard(CODEC, "USB Audio CODEC", { pick: true })] };
     const daemon = fakeDaemon({
@@ -228,7 +236,8 @@ describe("a Sound card radio's box", () => {
     await flushPromises();
     const keying = () => [...wrapper.find<HTMLSelectElement>("#set-radio-3-keying").element.options].map((o) => o.value);
     expect(keying()).toEqual(["vox", "cm108", "rts:/dev/ttyUSB1", "dtr:/dev/ttyUSB1", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
-    expect(wrapper.find("#set-radio-3-keying").element.closest("fieldset")?.querySelectorAll("optgroup")).toHaveLength(0); // (no heading: the order alone)
+    // no heading: the order alone
+    expect(wrapper.find("#set-radio-3-keying").element.closest("fieldset")?.querySelectorAll("optgroup")).toHaveLength(0);
   });
 
   it("says why its modem waits, and has the (i) of its keying, Tune and transmit level, in words of any modem: never Mercury's, the ALC or a steady tone", () => {
@@ -247,7 +256,7 @@ describe("a Sound card radio's box", () => {
   });
 
   it("says the same in every language of the page: no Mercury, no ALC, no steady tone in any of them", () => {
-    // The steady tone as each language had written it before its words became any modem's.
+    // The steady tone as written in each language.
     const STEADY: Record<string, RegExp> = {
       en: /steady/i,
       de: /Dauerton/i,

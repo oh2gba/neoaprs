@@ -28,7 +28,7 @@ describe("the minute between two requests", () => {
     expect(askWait(qruAsked("INFO", ago(0)), NOW, "INFO")).toBe(60);
     expect(askWait(qruAsked("INFO", ago(20.4)), NOW, "INFO")).toBe(40);
     expect(askWait(qruAsked("INFO", ago(60)), NOW, "INFO")).toBe(0);
-    expect(askWait(qruAsked("INFO", ago(0)), NOW, "RP70")).toBe(10); // (a group right after the list: only the gap)
+    expect(askWait(qruAsked("INFO", ago(0)), NOW, "RP70")).toBe(10); // A group right after the list: only the gap
     expect(askWait(qruAsked("INFO", ago(9.5)), NOW, "RP70")).toBe(1);
     expect(askWait(qruAsked("INFO", ago(10)), NOW, "RP70")).toBe(0);
     expect(askWait(qruAsked("INFO", ago(3)), NOW)).toBe(7);

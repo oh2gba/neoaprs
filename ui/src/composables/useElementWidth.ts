@@ -1,5 +1,6 @@
-// How wide an element is, kept up to date with a ResizeObserver: the page decides by the width of the panel it is in, not by the window, since the panel beside the map can be narrow on a wide screen.
-// It is 0 until the element is mounted, and a width of 0 (the element is hidden, as the tab of a panel not on show is) is not taken: the last real width stays.
+// The width of an element, kept up to date with a ResizeObserver: the page decides by the width of
+// its panel, not the window. It is 0 until mounted, and a width of 0 (a hidden element) is not
+// taken: the last real width stays.
 import { onBeforeUnmount, onMounted, ref, type Ref } from "vue";
 
 export function useElementWidth(element: Ref<HTMLElement | null>) {

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { TAB_IDS, offeredTabs, type TabId } from "@/lib/layout";
 import { splitTabs, type TabSizes } from "@/lib/tabsplit";
 
-// The widths of the tabs, made up: 580 px in all, the More button 50 px and 24 px more with a count on it.
+// The widths of the tabs, made up: 580 px in all, the More button 50 px and 24 px more with a count
+// on it.
 const tabs: Record<TabId, number> = {
   messages: 80,
   stations: 70,
@@ -25,7 +26,8 @@ describe("which tabs stay in the row", () => {
   });
 
   it("keeps the first ones that fit with the More button, in the order of the tabs, when they do not", () => {
-    expect(split(579)).toEqual({ shown: TAB_IDS.slice(0, 8), hidden: ["packets", "settings"] }); // 480 + the More button of 50 is 530, and the packets make 580
+    // 480 + the More button of 50 is 530, and the packets make 580
+    expect(split(579)).toEqual({ shown: TAB_IDS.slice(0, 8), hidden: ["packets", "settings"] });
     expect(split(400)).toEqual({ shown: TAB_IDS.slice(0, 5), hidden: ["skeds", "objects", "beacon", "packets", "settings"] });
     expect(split(160)).toEqual({ shown: ["messages"], hidden: TAB_IDS.slice(1) });
   });
@@ -41,12 +43,14 @@ describe("which tabs stay in the row", () => {
       hidden: ["bulletins", "skeds", "objects", "beacon", "packets"],
     });
     expect(split(400, "packets").shown).toEqual(["messages", "stations", "nearby", "email", "packets"]);
-    expect(split(400, "email").shown).toEqual(TAB_IDS.slice(0, 5)); // already there: nothing moves
+    expect(split(400, "email").shown).toEqual(TAB_IDS.slice(0, 5)); // Already there: nothing moves
   });
 
   it("drops as many of the last ones as the tab on show needs room for", () => {
     const wide = splitTabs({ tabs: { ...tabs, settings: 200 }, more: 50, moreCount: 24 }, 400, "settings", {});
-    expect(wide.shown).toEqual(["messages", "stations", "settings"]); // 350 of room: the bulletins, the email and the nearby go (330, 260 and 210 with the settings added are too much), 80 + 70 + 200 is just right
+    // 350 of room: the bulletins, the email and the nearby go (330, 260 and 210 with the settings
+    // added are too much), 80 + 70 + 200 is just right.
+    expect(wide.shown).toEqual(["messages", "stations", "settings"]);
   });
 
   it("keeps the tab on show even when nothing else fits", () => {
@@ -58,7 +62,8 @@ describe("which tabs stay in the row", () => {
     const counts = { email: 1, bulletins: 2 };
     expect(split(320, "messages", {}).shown).toEqual(["messages", "stations", "nearby", "email"]); // 260 + 50
     expect(split(320, "messages", counts).shown).toEqual(["messages", "stations", "nearby"]); // 260 + 74 is too much
-    expect(split(400, "messages", counts).shown).toEqual(TAB_IDS.slice(0, 5)); // what is under it has no count: no room kept
+    // What is under it has no count: no room kept
+    expect(split(400, "messages", counts).shown).toEqual(TAB_IDS.slice(0, 5));
   });
 
   it("does not keep room for a count of zero", () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The beacon: our station sends its position (waves) and shows on the map of the others; below, the time line: the position goes out again and again, a clock between two.
+// The beacon: our station sends its position (waves) and shows on others' maps; below, a time
+// line: the position goes out again and again, a clock between two.
 import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpMap from "@/help/HelpMap.vue";

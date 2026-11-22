@@ -1,5 +1,7 @@
-// The chime of the page's alert, made with the Web Audio API when it plays (two short soft tones, a rising fourth): no sound file. A browser lets a page make sound only after a click or a key press, so `unlock`
-// is called from the first one, and `play` makes no sound, and says so, while the audio is still locked.
+// The chime of the page's alert, made with the Web Audio API when it plays (two short soft tones, a
+// rising fourth): no sound file. A browser lets a page make sound only after a click or key press,
+// so `unlock` is called from the first one, and `play` stays silent, and says so, while the audio
+// is still locked.
 const NOTES: readonly (readonly [hz: number, at: number])[] = [
   [784, 0],
   [1047, 0.16],
@@ -15,7 +17,8 @@ interface AudioWindow {
 export class Chime {
   private context: AudioContext | null = null;
 
-  /** Makes the audio context (inside a click or a key press) and lets it run; false when the browser has none or does not let it run. */
+  /** Makes the audio context (inside a click or key press) and lets it run; false if the browser
+   * has none or will not run it. */
   async unlock(): Promise<boolean> {
     try {
       if (this.context === null) {

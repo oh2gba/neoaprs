@@ -1,10 +1,9 @@
 <script setup lang="ts">
-// The Bulletins tab: the message board filling the tab, newest first in four sections (announcements, bulletins, group messages, weather service), each row with
-// who sent it, what it is addressed to (the group of a group bulletin, else the slot: BLN1, BLNA, QST), the text, how often it was heard and how long ago it was last heard. None of these is a conversation and none is answered;
-// nothing ages out: a row stays until the delete button at its corner is pressed twice ("sure?"), which deletes it on the daemon. A right-click on a row (a long press on a touch screen) offers to copy its text and its sender's call (CopyMenu). A bulletin of ours is on the board too, marked "ours" (the call is ours), with how often it was sent
-// and when it goes out next, and while several radios that can send are on the radios it goes out on as tags beside the mark, as Stations' "Heard on" names a station's radios (the first two by their names, then "+n"
-// whose hover names the rest; with one radio on no row has one); its delete stops it and takes it off the board. An (i) at the top (TabHelp) says what a bulletin is. The box to post to the board is fixed at the bottom of the tab (components/BulletinCompose.vue), as the box of every tab. The board stays newest first
-// in each section, as a board is read from the top: the sections and their headings keep their places (a stream oldest first, scrolled to the end, would open on the weather service).
+// The Bulletins tab: the message board, newest first in four sections (announcements, bulletins,
+// group messages, weather service). Rows show sender, addressee, text and how often and how long
+// ago it was heard. Nothing is answered or ages out: a row stays until its delete button is
+// pressed twice. Our own bulletins are marked "ours" with send count, next send and radio tags
+// (as Stations' "Heard on"). Right-click copies (CopyMenu).
 import TagMark from "@/components/TagMark.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import { computed } from "vue";
@@ -26,7 +25,8 @@ import type { BulletinRow, OwnBulletinRow } from "@/protocol/protocol";
 const props = defineProps<{ bulletins: ReadonlyMap<string, BulletinRow>; ownBulletins: ReadonlyMap<string, OwnBulletinRow> }>();
 const { call, now, send } = useDaemonContext();
 const { severalSenders: several, senders, byId } = useRadios();
-/** The tags of a bulletin of ours: the radios it goes out on now, the first two by name, then "+n" whose hover names the rest; none with one radio on. */
+/** Radio tags of our bulletin: the first two by name, then "+n" with the rest in the hover; none
+ * with one radio on. */
 const NONE = { shown: [], rest: [] } as const;
 function tagsOf(own: OwnBulletinRow | undefined): { readonly shown: readonly PageRadio[]; readonly rest: readonly PageRadio[] } {
   if (own === undefined || !several.value) return NONE;
@@ -36,12 +36,12 @@ function tagsOf(own: OwnBulletinRow | undefined): { readonly shown: readonly Pag
   ).flatMap((id) => byId(id) ?? []);
   return { shown: radios.slice(0, HEARD_ON_RADIOS), rest: radios.slice(HEARD_ON_RADIOS) };
 }
-/** The hover words of a radio's tag: "Sent on radio 20 m". */
+/** The hover text of a radio's tag: "Sent on radio 20 m". */
 const sentOn = (radio: PageRadio): string => t("objects.sent_on", { name: radio.name });
-const sure = useSure<string>(); // (the key of a row)
+const sure = useSure<string>();
 const keyOf = (b: BoardEntry) => (b.own ? `own/${b.slot}` : `${b.sender}/${b.slot}`);
 const shown = computed(() => sections<BoardEntry>([...props.bulletins.values(), ...ownEntries(props.ownBulletins.values(), call.value ?? t("chain.you"))]));
-/** The copy menu of a bulletin: its text, and its sender's call. */
+/** The copy menu of a bulletin: its text and its sender's call. */
 const copy = useCopyMenu((item) => {
   const b = shown.value.flatMap((section) => section.rows).find((row) => keyOf(row) === item.dataset["key"]);
   return b === undefined

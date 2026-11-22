@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// A heading that opens and closes what is under it, for what most people never need. It starts closed, or open when `open` is true, and opens when `open` turns true later; it is never closed by the page, only by the person.
-// The look is the page's heading that opens (`disclosure`); `plain` leaves the look to the class the caller gives it (a card's Details, the Raw of a packet), and `summaryClass` is a class of the heading line.
-// It says `folded` with the new state when the person opens or closes it (for a pane that remembers it). The slot `summary` is the heading line when it is more than the title (the radio status with its Reconnect).
+// A heading that opens and closes what is under it. It starts closed, or open when `open` is
+// true, and opens when `open` later turns true; only the person closes it. `plain` leaves the
+// look to the caller's class and `summaryClass` styles the heading line. `folded` reports the
+// new state. The slot `summary` replaces the heading line when it is more than the title.
 import { ref, watch } from "vue";
 
 const emit = defineEmits<{ folded: [open: boolean] }>();

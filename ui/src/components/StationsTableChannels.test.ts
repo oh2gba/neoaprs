@@ -62,7 +62,8 @@ describe("how a station was heard, in the Stations table", () => {
       ["OH2HF", "Mercury"],
     ]);
     const tags = make(fmAndHf).findAll("tbody tr[data-call] .via");
-    expect(tags.map((tag) => tag.attributes("title"))).toEqual(["Heard on radio FM", "Heard on radio Mercury"]); // (plan section 6: what came by a radio that is now off carries its name, "Heard on radio {name}")
+    // A radio that is now off keeps its name: "Heard on radio {name}".
+    expect(tags.map((tag) => tag.attributes("title"))).toEqual(["Heard on radio FM", "Heard on radio Mercury"]);
     expect(tags.map((tag) => tag.classes()[1])).toEqual(["tag-neutral", "tag-hf"]);
   });
 
@@ -91,7 +92,8 @@ describe("how a station was heard, in the Stations table", () => {
     for (const tr of wrapper.findAll("tbody tr[data-call]")) {
       const cells = tr.findAll("td").map((td) => td.classes()[0]);
       expect(cells.slice(0, 3)).toEqual(["symbol", "mono", "heard"]);
-      expect([...tr.get("td.call").element.children].map((c) => c.className.split(" ")[0])).toEqual(["callname", "alert-bell"]); // (the place of the bell of an alert, empty or not)
+      // The bell of an alert has its place, empty or not.
+      expect([...tr.get("td.call").element.children].map((c) => c.className.split(" ")[0])).toEqual(["callname", "alert-bell"]);
       expect(
         tr
           .get("td.heard .via")
@@ -104,8 +106,10 @@ describe("how a station was heard, in the Stations table", () => {
     expect(cssRule(".grid.stations td.call")).toMatch(/white-space:\s*nowrap/);
     expect(cssRule(".grid.stations td")).toMatch(/width:\s*1%/);
     expect(cssRule(".grid.stations td.heard")).toMatch(/width:\s*auto/);
-    expect(cssRule(".size-phone .grid.stations td")).toMatch(/padding-left:\s*4px/); // (on a phone the extra column still leaves the actions in view: no cell is wider than it needs)
-    expect(cssRule(".scroll")).toMatch(/overflow:\s*auto/); // (a table wider than the panel scrolls, a tag is never cut)
+    // On a phone the extra column still leaves the actions in view: no cell is wider than it needs.
+    expect(cssRule(".size-phone .grid.stations td")).toMatch(/padding-left:\s*4px/);
+    // A table wider than the panel scrolls; a tag is never cut.
+    expect(cssRule(".scroll")).toMatch(/overflow:\s*auto/);
     expect(cssRule(".grid.stations tr.internetonly td.heard .via")).toMatch(/font-style:\s*italic/);
   });
 });
@@ -202,8 +206,10 @@ describe("how a station was heard, with several radios", () => {
     expect(labels(wrapper)).toEqual([["OH2SIX", "Shack · 20 m · +2 · Internet"]]);
     const tags = wrapper.findAll("tr[data-call='OH2SIX'] .via");
     expect(tags.map((tag) => tag.classes()[1])).toEqual(["tag-neutral", "tag-dummy", "tag-neutral", "tag-info"]);
-    expect(tags[2]?.attributes("title")).toBe("FM: 10 min ago; Bench: 1 h ago"); // (a colon on every part once one needs it, as on the card)
-    expect(tags[2]?.find(".sr-only").text()).toBe("FM: 10 min ago; Bench: 1 h ago"); // (what the hover says, also for a keyboard and a screen reader)
+    // A colon on every part once one needs it, as on the card.
+    expect(tags[2]?.attributes("title")).toBe("FM: 10 min ago; Bench: 1 h ago");
+    // The hover text, also for a keyboard and a screen reader.
+    expect(tags[2]?.find(".sr-only").text()).toBe("FM: 10 min ago; Bench: 1 h ago");
     expect(tags.filter((tag) => tag.find(".sr-only").exists())).toHaveLength(1);
   });
 
@@ -284,7 +290,8 @@ describe("how a station was heard, with several radios", () => {
     });
   });
 
-  // (plan section 6, "Tags": a Dummy radio's tag and mark stay dashed, whatever its kind; with the Dummy HF radio alone its packets are the Dummy's, as the one radio on says them: "Dummy", where the HF tag of before stood beside it)
+  // A Dummy radio's tag and mark stay dashed, whatever its kind. With the Dummy HF radio alone,
+  // its packets are labelled "Dummy", as the one radio that is on.
   it("says a Dummy Mercury radio's packets Dummy where it is the one radio on, and its name dashed beside FM", () => {
     const made = station("OH2DUM", {
       heard_rf: 0,

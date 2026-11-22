@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// "Send only when asked": the object is kept and not beaconed (the dashed box); a station asks for local info and our station answers with the object.
+// "Send only when asked": the object is kept and not beaconed (dashed box); a station asks for
+// local info and our station answers with the object.
 import { CALLS } from "@/help/calls";
 import HelpBubble from "@/help/HelpBubble.vue";
 import { t } from "@/i18n";

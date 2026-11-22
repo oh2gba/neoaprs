@@ -1,5 +1,8 @@
-// The legend of the box of the daemon's own alert in the Settings tab's Notifications group (`SUBGROUPS` of lib/settings.ts): the alert runs on the computer NeoAPRS runs on, whichever device shows the page. In the desktop app's
-// own window that computer is the one the person is at, and where the window has no alert of its own (Linux and Windows, lib/shell.ts `daemonTells`) this is the one box, with no word of a next group; on a Mac the next box is the window.
+// The legend of the daemon's own alert box in the Settings tab's Notifications group (`SUBGROUPS`
+// of lib/settings.ts). The alert runs on the computer NeoAPRS runs on, whichever device shows the
+// page. In the desktop app that computer is the person's; where the window has no alert of its own
+// (Linux and Windows, lib/shell.ts `daemonTells`) this is the only box, with no word of a next
+// group; on a Mac the next box is the window.
 import type { PictureName } from "@/help/names";
 import { t } from "@/i18n";
 import { daemonTells, inApp } from "@/lib/shell";

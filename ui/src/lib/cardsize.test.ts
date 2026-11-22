@@ -63,7 +63,7 @@ describe("sizeStep", () => {
 
 describe("resizeByKey", () => {
   const map = { width: 1200, height: 800 };
-  const corner = { x: 630, y: 290, width: 560, height: 480 }; // (stands at the map's bottom right)
+  const corner = { x: 630, y: 290, width: 560, height: 480 }; // Stands at the map's bottom right
 
   it("makes a card at the map's bottom right larger to the left and up, its right and bottom sides staying", () => {
     expect(resizeByKey(corner, { dx: 24, dy: 0 }, least, map)).toEqual({ x: 606, y: 290, width: 584, height: 480 });

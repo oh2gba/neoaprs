@@ -99,8 +99,8 @@ const input = (extra = {}) => ({
 describe("the statistics of the map", () => {
   it("counts the stations: heard, on the map, direct, internet only, objects, digipeaters, iGates, weather, and what they run", () => {
     expect(lines(mapStats(input()), "stats.section.stations")).toEqual([
-      "stats.stations=7", // (not ourselves, not the object)
-      "stats.on_map=7", // (not ourselves, not OH2OLD past its timeout)
+      "stats.stations=7", // Not ourselves, not the object
+      "stats.on_map=7", // Not ourselves, not OH2OLD past its timeout
       "stats.direct=2",
       "stats.internet_only=1",
       "stats.objects=1",

@@ -1,23 +1,38 @@
-// The lines of the HF radio's waterfall on the time axis: a line is a fifth of a second of the page's clock (LINE_MS; two fifths at the monitor card's Slow speed, lib/waterfall.ts PACE), and a row is in the line of the moment it was made, so that a row made forty seconds ago stands forty
-// seconds down whether it came live or among the rows the daemon kept, and time without rows is a gap of as many lines. The painter (lib/waterfallpainter.ts) draws them; lib/waterfall.ts has what a line is made of.
+// The lines of the HF radio's waterfall on the time axis: a line is a fifth of a second of the
+// page's clock (LINE_MS; two fifths at the Slow speed, PACE in waterfall.ts). A row goes in the
+// line of the moment it was made, so a row from forty seconds ago stands forty seconds down
+// whether live or kept by the daemon, and time without rows is a gap of as many lines. The
+// painter (waterfallpainter.ts) draws them; waterfall.ts has what a line is made of.
 import { LINES_PER_SECOND, keptLines, lineOf, quarterIn, silentOwn } from "@/lib/waterfall";
 
 /** A line is this many milliseconds of the page's clock: five lines a second. */
 const LINE_MS = 1000 / LINES_PER_SECOND;
-/** The number of the line a moment (milliseconds of the page's clock) falls in, for lines so many milliseconds long: they count up with the time. */
+/**
+ * The number of the line a moment (ms of the page's clock) falls in, for the given line length.
+ */
 const slotOf = (at: number, lineMs = LINE_MS): number => Math.floor(at / lineMs);
-/** A line no row came in (the rows come about every 120 ms, a line is 200) is the line before it again while the newest row is less than this older than the line; after that it is the ground: the modem has been away. */
+/**
+ * A line with no row (rows come about every 120 ms, a line is 200) repeats the line before it
+ * while the newest row is less than this older than the line; after that it is the ground: the
+ * modem has been away.
+ */
 const HOLD_MS = 500;
 
-/** A row as the painter is given it: its bytes over the floor (lib/waterfallfloor.ts), when it was made by the page's clock, and whether it is drawn as our own. */
+/**
+ * A row as the painter is given it: its bytes over the floor, when it was made (page clock),
+ * and whether it is our own.
+ */
 export interface DrawnRow {
   bytes: Uint8Array;
   at: number;
   tx: boolean;
 }
 
-/** A line of the picture: its number, the time it begins, its bytes (null: nothing in it, the ground), whether it is of our own transmission, whether it is the line before it again (no row came in it), and whether the time is
- * written on it (`quarter`: the quarter of a minute that falls in it, whose time is written; `time`, that there is one). */
+/**
+ * A line of the picture: its number, its start time, its bytes (null: the ground), whether it
+ * is our own transmission, whether it repeats the line before (no row came in it), and the
+ * quarter-minute whose time is written on it (`quarter`, with `time` saying there is one).
+ */
 export interface Line {
   slot: number;
   at: number;
@@ -28,16 +43,20 @@ export interface Line {
   quarter: number | null;
 }
 
-/** The lines, one for every slot from the oldest kept to the newest that is whole, the newest first, and the rows of the slot that is not yet whole. A line is either of our own transmission or of what is heard, never of both:
- * when we begin or stop sending within a slot, the rows of it gathered before are let go and the slot is of the new state; a row of ours with nothing in it gathers nothing, so a transmission's first lines are the ground
- * with the mark of a transmission and its edges are clean. */
+/**
+ * The lines, one per slot from the oldest kept to the newest whole one, newest first, and the
+ * rows of the slot not yet whole. A line is either our own transmission or what was heard,
+ * never both: when we begin or stop sending within a slot, the rows gathered before are
+ * dropped. A row of ours with nothing in it gathers nothing, so a transmission starts with
+ * clean edges.
+ */
 export class Lines {
   lines: Line[] = [];
   /** How many lines are kept: two minutes of them. */
   readonly kept: number;
   private open: { slot: number; rows: Uint8Array[]; tx: boolean } | null = null;
   private last = -Infinity; // the time of the newest row
-  /** whether the newest row is of our own transmission */
+  /** Whether the newest row is our own transmission. */
   sending = false;
 
   constructor(readonly lineMs = LINE_MS) {
@@ -54,7 +73,11 @@ export class Lines {
     return this.lines[0]?.slot ?? -Infinity;
   }
 
-  /** A row; how many lines it made whole (the picture moves down by as many). A row older than the newest line whole is taken as of the slot after it: the page's clock went back. */
+  /**
+   * Add a row; returns how many lines it made whole (the picture moves down by as many). A
+   * row older than the newest whole line goes in the slot after it: the page's clock went
+   * back.
+   */
   add(row: DrawnRow): number {
     const slot = Math.max(this.slot(row.at), this.top + 1, this.open?.slot ?? -Infinity);
     const added = this.until(slot);
@@ -65,7 +88,10 @@ export class Lines {
     return added;
   }
 
-  /** Makes every line before `slot` whole: the slot being gathered, and the slots no row came in. Says how many there are. */
+  /**
+   * Make every line before `slot` whole: the slot being gathered and slots no row came in.
+   * Returns how many.
+   */
   until(slot: number): number {
     const first = this.lines.length > 0 ? this.top + 1 : Math.min(this.open?.slot ?? slot, slot);
     let added = 0;
@@ -74,14 +100,19 @@ export class Lines {
     return added;
   }
 
-  /** All again from the rows (oldest first), and every line before the one `now` is in made whole: the picture as it stands at that moment. */
+  /**
+   * Rebuild from the rows (oldest first), making every line before the one `now` is in whole.
+   */
   build(rows: readonly DrawnRow[], now: number): void {
     [this.lines, this.open, this.last, this.sending] = [[], null, -Infinity, false];
     for (const row of rows) this.add(row);
     if (rows.length > 0) this.until(Math.max(this.slot(now), this.top + 1));
   }
 
-  /** The newest lines that have something heard or sent in them, up to `count`, the newest first (a line that is the one before it again is not counted twice). */
+  /**
+   * The newest `count` lines with something heard or sent in them, newest first (a repeated
+   * line is not counted twice).
+   */
   newest(count: number): Line[] {
     const out: Line[] = [];
     for (const line of this.lines) {

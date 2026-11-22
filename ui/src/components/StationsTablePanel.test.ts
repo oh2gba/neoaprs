@@ -1,5 +1,7 @@
-// The station panel of the Stations tab (StationPanel in StationsTable): fixed at the bottom of the tab, as the box of every tab, after the list and its foot; a click on a row (and Up, Down, Home and End) shows that station
-// in it, the row stays marked and no row opens, grows or moves; its cross and Esc close it with the focus back on the row; its buttons say to the page what they do.
+// The station panel of the Stations tab (StationPanel in StationsTable): fixed at the bottom of
+// the tab as the box of every tab, after the list and its foot. A click on a row (or Up, Down,
+// Home, End) shows that station in it; the row stays marked and no row opens, grows or moves.
+// Its cross and Esc close it with focus back on the row; its buttons tell the page what they do.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { nextTick, shallowRef, type ShallowRef } from "vue";
@@ -132,7 +134,8 @@ describe("the station panel: where it is and what shows it", () => {
 
   it("has a height of its own that scrolls inside: the rule gives it half the tab, whatever it holds, and its traffic a fixed height", () => {
     expect(cssRule(".composebar.stationpanel")).toMatch(/flex:\s*0 0 50%/);
-    expect(cssRule(".size-phone .composebar.stationpanel")).toMatch(/flex-basis:\s*40%/); // (a phone keeps a few rows of the list)
+    // A phone keeps a few rows of the list.
+    expect(cssRule(".size-phone .composebar.stationpanel")).toMatch(/flex-basis:\s*40%/);
     expect(cssRule(".stationpanel-body")).toMatch(/overflow-y:\s*auto/);
     expect(cssRule(".stationtraffic")).toMatch(/height:\s*14em/);
   });

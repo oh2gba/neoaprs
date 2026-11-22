@@ -1,5 +1,7 @@
-// The rule for the Settings tab, the My station tab, the Objects form and a station's Route (the station panel's group and the box under a conversation's header): every on/off is a tickbox, never a dropdown with two choices or
-// an On/Off word; a dropdown is a real choice of three values or more; and a state is quiet text in a group, never a tag (the tags of state are the top bar's).
+// The rule for the Settings tab, the My station tab, the Objects form and a station's Route (the
+// station panel's group and the box under a conversation's header): every on/off is a tickbox,
+// never a dropdown with two choices or an On/Off word; a dropdown is a real choice of three values
+// or more; and a state is quiet text in a group, never a tag (the tags of state are the top bar's).
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { ref, shallowRef } from "vue";
@@ -16,7 +18,9 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues, fmRow, heardBy, hfRow, igateState, ownObject, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const ON_OFF = /^(on|off|yes|no|true|false|enabled|disabled|ein|aus|an)$/i;
-/** The dropdowns that have two choices and are no on/off: a list of kinds that grows (the HF radio's type is the Mercury modem and the Dummy HF radio today; the keying is the radio by itself and a CM108 chip before the ports are listed). */
+/** The dropdowns that have two choices and are no on/off: a list of kinds that grows (the HF
+ * radio's type is the Mercury modem and the Dummy HF radio today; the keying is the radio by
+ * itself and a CM108 chip before the ports are listed). */
 const KINDS_OF_TWO = ["set-radio-2-type", "set-radio-2-keying"];
 
 /** The dropdowns of a mounted surface, each as the values it offers. */

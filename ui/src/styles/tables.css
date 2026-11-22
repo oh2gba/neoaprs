@@ -3,7 +3,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  /* a row that is scrolled to (a focused one, one picked from the map) stops under the sticky head, not behind it */
+  /* a row scrolled to (focused or picked from the map) stops under the sticky head */
   scroll-padding-top: 36px;
 }
 .foot {
@@ -24,7 +24,8 @@
   align-items: center;
   gap: 4px;
 }
-/* the filter box and the three tickboxes of the Stations tab wrap onto a second line when they do not fit, the tickboxes together; every tab's content fills the panel, as the Email tab's does */
+/* the filter box and the three tickboxes of the Stations tab wrap onto a second line when they do
+   not fit, the tickboxes together; every tab's content fills the panel, as the Email tab's does */
 .filterbox {
   flex: 1 1 12em;
   min-width: min(12em, 100%);
@@ -71,7 +72,8 @@
   font-weight: 600;
   cursor: pointer;
 }
-/* the room of the sort arrow of a column head, kept whether the arrow is shown or not, so that the columns do not move when the sort changes */
+/* the room of a column head's sort arrow, kept whether or not the arrow is shown, so the columns
+   do not move when the sort changes */
 .headbtn .sortmark {
   display: inline-block;
   box-sizing: border-box;
@@ -123,7 +125,9 @@
 .grid.stations td.heard {
   width: auto;
 }
-/* the buttons at the right end of a row (Message, Forget): they sit in the height of the row (a finger gets 40 px on a touch screen, in the row's 40), and the trash can has room for "sure?" so that the table does not move when it is pressed */
+/* the buttons at the right end of a row (Message, Forget): they sit in the row's height (a finger
+   gets 40 px on a touch screen, in the row's 40), and the trash can has room for "sure?" so the
+   table does not move when it is pressed */
 .grid.stations td.actions {
   padding-left: 0;
   padding-right: 4px;
@@ -151,9 +155,15 @@
 .packet-detail .more {
   padding: 0 6px;
 }
-/* the station panel of the Stations tab (StationPanel): the box of every tab fixed at its bottom (the group box of Bulletins and Email, .composebar.boxed and fieldset.composebox, styles/compose.css, whose `flex: none` this rule overrides), half the height of the
-   tab whichever station it shows (two fifths on a phone, styles/responsive.css), so that the list above keeps its room and nothing moves when a station is picked or a packet comes; what does not fit scrolls inside it. In it the station's actions as buttons in lines
-   that wrap (Forget at the end of its line), its own query, its traffic (a box of a fixed height that scrolls by itself, the lines of the Packets tab) and its settings in group boxes side by side when there is room */
+/* the station panel of the Stations tab (StationPanel): the box of every tab, fixed at its bottom
+   (the group box of Bulletins and Email, .composebar.boxed and fieldset.composebox in
+   styles/compose.css, whose `flex: none` this rule overrides), half the height of the tab
+   whichever station it shows (two fifths on a phone, styles/responsive.css), so that the list
+   above keeps its room and nothing moves when a station is picked or a packet comes; what does
+   not fit scrolls inside it. In it: the station's actions as buttons in lines that wrap (Forget
+   at the end of its line), its own query, its traffic (a box of fixed height that scrolls by
+   itself, the Packets tab's lines) and its settings in group boxes side by side when there is
+   room */
 .composebar.stationpanel {
   display: flex;
   flex: 0 0 50%;
@@ -213,7 +223,8 @@
   flex: 1 1 18em;
   min-width: 0;
 }
-/* the state of a query of ours in a station's traffic (StationTraffic): "waiting…", "answered", "no answer" in one place, the room of the longest kept, after the summary */
+/* the state of a query of ours in a station's traffic (StationTraffic): "waiting…", "answered",
+   "no answer" in one place, the room of the longest kept, after the summary */
 .querystate {
   margin-left: 6px;
   white-space: nowrap;
@@ -231,7 +242,8 @@
   color: var(--warn-soft-fg);
   box-shadow: 0 0 0 2px var(--warn-soft-bg);
 }
-/* the two words of a button that asks twice ("Forget", "Really forget?") in one place, the one not said hidden: the button is as wide as the longer, so that the first press moves nothing */
+/* the two words of a button that asks twice ("Forget", "Really forget?") in one place, the hidden
+   one not shown: the button is as wide as the longer, so the first press moves nothing */
 .twowords {
   display: inline-grid;
 }
@@ -264,7 +276,10 @@
 .grid tr.own td {
   font-weight: 600;
 }
-/* a timed-out row is dimmed cell by cell, not by an opacity on the row, and the bearing's cell is left alone (its arrow is dimmed itself): Chromium leaves stale copies of a row's cells, painted over other rows, when a row that has an opacity on it, and an arrow turned by a transform in it, is moved or changes */
+/* a timed-out row is dimmed cell by cell, not by an opacity on the row, and the bearing's cell is
+   left alone (its arrow is dimmed itself): Chromium leaves stale copies of a row's cells, painted
+   over other rows, when a row with an opacity and a transform-rotated arrow in it moves or
+   changes */
 .grid tr.timedout td:not(.bearing),
 .grid tr.timedout .arrow {
   opacity: 0.55;
@@ -273,8 +288,11 @@
 .grid tr.timedout.selected .arrow {
   opacity: 1;
 }
-/* the Packets tab when it is too narrow for its columns (PACKETS_TABLE, lib/layout.ts; the class stacked of PacketsLog, set by the width of the tab): a packet is one block, the time and the direction on the first line, the packet line (monospace, wrapping at its spaces, and
-   inside a word only when a word is longer than the line), then the route and the summary in small text; the header row is for a screen reader only (sr-only), and the detail row is the full width under its packet */
+/* the Packets tab when too narrow for its columns (PACKETS_TABLE, lib/layout.ts; the class stacked
+   of PacketsLog, set by the tab's width): a packet is one block, the time and direction on the
+   first line, the packet line (monospace, wrapping at its spaces, and inside a word only when a
+   word is longer than the line), then the route and the summary in small text; the header row is
+   for a screen reader only (sr-only), and the detail row is the full width under its packet */
 .grid.packets.stacked,
 .grid.packets.stacked tbody {
   display: block;
@@ -338,7 +356,8 @@
 .grid .in {
   color: var(--ok);
 }
-/* a packet we sent: in the accent, as our own station is on the map (the palette has no amber, and a warn is no direction) */
+/* a packet we sent: in the accent, as our own station is on the map (the palette has no amber,
+   and a warn is no direction) */
 .grid .out {
   color: var(--accent);
   font-weight: 600;
@@ -350,7 +369,8 @@
   white-space: pre-wrap;
   word-break: break-all;
 }
-/* the radio's log (TncTerminal.vue) is as high with one line as with many, so that a line that comes moves nothing above or under it */
+/* the radio's log (TncTerminal.vue) is as high with one line as with many, so a new line moves
+   nothing above or under it */
 .tnclines {
   height: 16em;
   padding: 8px;
@@ -359,7 +379,9 @@
   border-top: 1px solid var(--border);
 }
 
-/* the page's menus that open where the pointer is (a row of the Stations table, a call or a text to copy, the map, the monitor card: right-click, long press, the menu key): at the pointer, over everything, kept in the window */
+/* the page's menus that open where the pointer is (a Stations row, a call or text to copy, the map,
+   the monitor card: right-click, long press, the menu key): at the pointer, over everything, kept
+   in the window */
 .ctxmenu {
   position: fixed;
   z-index: 30;
@@ -403,7 +425,9 @@
   margin: 4px 2px;
   background: var(--border);
 }
-/* a group of choices in a menu (the monitor card's speed, components/MonitorMenu.vue): its title in the look of the statistics card's sections, and every item with the room of the check mark, shown on the one that is on, so that choosing moves no word */
+/* a group of choices in a menu (the monitor card's speed, components/MonitorMenu.vue): its title in
+   the look of the statistics card's sections, and every item with room for the check mark, shown
+   on the one that is on, so that choosing moves no word */
 .ctxmenu-title {
   padding: 5px 12px 2px;
   font-size: 12px;
@@ -426,7 +450,8 @@
 [aria-checked="true"] > .ctxmenu-mark {
   visibility: visible;
 }
-/* the bell of a station with an alert set (AlertBell): in the Stations table every row has its place, empty or not, so that setting an alert makes nothing wider and moves nothing */
+/* the bell of a station with an alert set (AlertBell): in the Stations table every row has its
+   place, empty or not, so setting an alert makes nothing wider and moves nothing */
 .alert-bell {
   display: inline-block;
   width: 14px;
@@ -458,11 +483,13 @@
 .alertbox-km {
   width: 6em;
 }
-/* "On map for" [3 h]: the label and a select as narrow as its longest choice, in the line of the tickboxes */
+/* "On map for" [3 h]: the label and a select as narrow as its longest choice */
 .onmap {
   gap: 6px;
 }
-/* how a station was heard (lib/channels.ts): a quiet tag in a column of its own after the call, so that the tags start at one place whatever the length of the calls, and a row stays one line high; a station known from the internet alone has it in italics */
+/* how a station was heard (lib/channels.ts): a quiet tag in a column of its own after the call, so
+   the tags start at one place whatever the length of the calls and a row stays one line high; a
+   station known from the internet alone has it in italics */
 .grid.stations td.call {
   white-space: nowrap;
 }
@@ -472,7 +499,8 @@
 .grid.stations tr.internetonly td.heard .via {
   font-style: italic;
 }
-/* the channel of a packet (lib/channels.ts) in the Packets tab: a quiet tag, and the packets that came over the internet in italics */
+/* the channel of a packet (lib/channels.ts) in the Packets tab: a quiet tag; packets that came over
+   the internet are in italics */
 .grid.packets td.via {
   white-space: nowrap;
 }

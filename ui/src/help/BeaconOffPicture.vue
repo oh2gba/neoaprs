@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Beacon Off and Beacon now: above, the clock sends nothing (empty beacons on the time line); below, a press of the button sends one beacon all the same.
+// Beacon Off and Beacon now: above, the clock sends nothing (empty beacons on the time line);
+// below, a press of the button sends one beacon anyway.
 import { arrow, waves } from "@/help/draw";
 import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";

@@ -63,7 +63,8 @@ describe("the words of the group in every language", () => {
         const text = String(messages[id]);
         const source = String(english[id]);
         expect(text, id).not.toBe("undefined");
-        // the word is borrowed as it is in German, Italian, Dutch and Portuguese; Dutch says "Help" too
+        // the word is borrowed as it is in German, Italian, Dutch and Portuguese; Dutch says "Help"
+        // too
         const borrowed =
           (id === "settings.help.label" && ["de", "it", "nl", "pt-BR"].includes(locale.code)) || (id === "settings.help.group" && locale.code === "nl");
         if (!borrowed) expect(text, id).not.toBe(source);

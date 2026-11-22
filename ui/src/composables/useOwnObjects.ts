@@ -1,7 +1,10 @@
-// The Objects tab as the page runs it: the form under the list, always there, which adds a new object (nothing selected, no place until one is picked) or changes the one that is selected (`editing`: a click on its row, or Edit on its card), the draft as it is typed,
-// the radios it goes out on (Send on: a new one as the object saved last), the place on the map that the form asks for (`placing`: a click on the map is the place, which `pin` shows meanwhile while the Objects tab is in front), and the commands that make, move and kill an object. The daemon holds the objects (the topic `own_objects`);
-// the page only sends what the user did. The form keeps what was typed until the daemon has the object as it was saved (the topic tells it, and the form is blank again): an error of the daemon leaves it for the user to correct. `cancel` (Esc, the Cancel button)
-// leaves the selection and clears the form. The map moves only for a place the user picks or an object that is selected, never for a blank form. A change from a card opens the Objects tab, wherever it is asked for.
+// The Objects tab: the form under the list, which adds a new object or changes the selected one
+// (`editing`), the draft, the radios it goes out on, the place the form asks for (`placing`; `pin`
+// shows it meanwhile) and the commands that make, move and kill an object. The daemon holds the
+// objects (topic `own_objects`). The form keeps what was typed until the daemon has the object
+// as saved, so a daemon error leaves it for correction. `cancel` leaves the selection and clears
+// the form. The map moves only for a picked place or a selected object. A change from a card
+// opens the Objects tab.
 import { computed, reactive, ref, watch } from "vue";
 import type { Panel } from "@/composables/usePanel";
 import { draftOf, emptyDraft, isObjectOf, moveCommand, objectCommand, type ObjectDraft } from "@/lib/ownobjects";
@@ -11,13 +14,12 @@ import { degreesText, roundPlace, wrapLongitude } from "@/lib/setup";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 
 export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (command: Command) => boolean, panel: Panel) {
-  const editing = ref<string | null>(null); // the name of the object that is selected and being changed; null for a new one
-  const placing = ref(false); // a click on the map is the place of the object
+  const editing = ref<string | null>(null);
+  const placing = ref(false);
   const draft = reactive<ObjectDraft>(emptyDraft());
-  const blank = ref(JSON.stringify(draft)); // the draft of a new object as it stood when the form was last cleared
-  const asked = ref<ReturnType<typeof objectCommand>>(null); // what Save sent, until the daemon has it
+  const blank = ref(JSON.stringify(draft));
+  const asked = ref<ReturnType<typeof objectCommand>>(null);
 
-  /** There is something to leave: an object is selected, or the form holds more than a new, empty object. */
   const dirty = computed(() => editing.value !== null || JSON.stringify(draft) !== blank.value);
   const picking = computed(() => placing.value);
   const pin = computed(() => {
@@ -26,7 +28,6 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (co
     return panel.tab.value === "objects" && lat !== null && lon !== null && onEarth(lat, lon) ? { lat, lon } : null;
   });
 
-  /** The form as a new object: no name, no place, the default symbol, nothing else; no object selected, no place awaited. */
   function clear(): void {
     Object.assign(draft, emptyDraft());
     blank.value = JSON.stringify(draft);
@@ -35,7 +36,6 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (co
     asked.value = null;
   }
 
-  /** The object of this name is selected: the form has what the daemon has of it; the Objects tab in front. */
   function edit(name: string): void {
     const row = rows.get(name);
     if (row === undefined) return;
@@ -46,20 +46,17 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (co
     panel.show("objects");
   }
 
-  /** Leaves the selection and clears the form (Esc, Cancel, and the end of a save). */
   function cancel(): void {
     clear();
   }
 
-  /** The place from a click on the map: five decimals (a metre). */
   function place(lat: number, lon: number): void {
     draft.lat = degreesText(roundPlace(lat));
     draft.lon = degreesText(wrapLongitude(lon));
     placing.value = false;
   }
 
-  /** Sends the object as the form has it; a new one with no radio ticked goes on those a new object starts with (`start`, the daemon's `status.new_object_radios`, which the form knows). The form is blank when the
-   * daemon has the object so (at once for one that is there already as the form has it). */
+  /** Send the object as the form has it; a new one with no radio ticked goes on `start`. */
   function save(start: readonly RadioId[] = []): void {
     const command = objectCommand(draft, start);
     if (command === null) return;
@@ -75,7 +72,7 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (co
     },
   );
 
-  // an object that is gone (killed, forgotten) is no longer selected
+  // An object that is gone is not selected.
   watch(
     () => editing.value !== null && !rows.has(editing.value),
     (gone) => {
@@ -88,13 +85,11 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (co
     if (editing.value === name) cancel();
   }
 
-  /** A marker was dragged: the object is where it was dropped. */
   function move(name: string, lat: number, lon: number): void {
     const row = rows.get(name);
     if (row !== undefined) send(moveCommand(row, lat, lon));
   }
 
-  /** The Choose on map button: the next click on the map is the place, or no longer. */
   function togglePlacing(): void {
     placing.value = !placing.value;
   }

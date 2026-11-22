@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// The card of an aircraft or a ship on the map, one more card of the station cards' row (components/StationCards.vue), in their frame, head and cross: its mark, what it is called and what kind of thing it is in the
-// head (an aircraft's kind, lib/layers/aircraftkinds.ts, a ship's hull), then what its source says of it, a row only where it has something (lib/layers/card.ts), and the source's name last. The labels' column has the
-// width of the widest label the card may have (an unseen first row of no height holds them all), so that the values stand still while a row comes and goes. It is the map's
-// alone: nothing of a station (no Message, no path, no packets, no Forget), it cannot be pinned or dragged, and it closes with its cross (and as the page closes it: components/StationCards.vue,
-// composables/useLayerThings.ts).
+// The card of an aircraft or a ship on the map, in the station cards' row (StationCards.vue):
+// mark, name and kind in the head, then the rows its source gives (lib/layers/card.ts). The
+// label column is as wide as the widest possible label so that values stay still as rows come
+// and go. It belongs to the map only: no Message, path, packets or Forget; it cannot be pinned
+// or dragged.
 import { computed } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import LayerMark from "@/components/LayerMark.vue";

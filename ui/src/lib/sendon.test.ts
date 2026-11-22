@@ -20,7 +20,7 @@ describe("what the panes that ask on the radios of a Send on share", () => {
     expect(radiosBlockedReason([away], several, true)).toBe("Mobile: not connected");
     expect(radiosBlockedReason([away], alone, true)).toBe("The radio is not connected");
     expect(radiosBlockedReason([], alone, true)).toBe("there is no radio: add one, or turn one on");
-    expect(radiosBlockedReason([], alone, false)).toBeUndefined(); // (before the daemon has told its radios)
+    expect(radiosBlockedReason([], alone, false)).toBeUndefined(); // Before the daemon has told its radios
   });
 
   it("names the radios something went on, those that are named and that the page has", () => {
@@ -45,8 +45,8 @@ describe("what the panes that ask on the radios of a Send on share", () => {
 describe("Send on bound to a draft (an object's, a bulletin's)", () => {
   it("has in force the radios of the set that are on, in the order of the boxes; the one radio that can send whatever the set says; none while none of the set is on", () => {
     expect(inForce([3, 1], [1, 2, 3])).toEqual([1, 3]);
-    expect(inForce([1, 3], [1, 2])).toEqual([1]); // (radio 3 is off: kept, not in force)
-    expect(inForce([3], [1, 2])).toEqual([]); // (ticked nowhere: no other radio stands for it)
+    expect(inForce([1, 3], [1, 2])).toEqual([1]); // Radio 3 is off: kept, not in force
+    expect(inForce([3], [1, 2])).toEqual([]); // Ticked nowhere: no other radio stands for it
     expect(inForce([3], [2])).toEqual([2]);
     expect(inForce([], [1, 2])).toEqual([]);
     expect(inForce([3], [])).toEqual([]);
@@ -55,9 +55,9 @@ describe("Send on bound to a draft (an object's, a bulletin's)", () => {
   it("takes a tick on or off, keeps a radio that is off beside the ticks, and starts from the tick alone when none of the set is on", () => {
     expect(ticked([1], [1, 2, 3], 3)).toEqual([1, 3]);
     expect(ticked([1, 3], [1, 2, 3], 1)).toEqual([3]);
-    expect(ticked([1, 4], [1, 2], 2)).toEqual([1, 2, 4]); // (radio 4 is off and stays kept)
-    expect(ticked([4], [1, 2], 2)).toEqual([2]); // (none of the set is on: the tick is its one radio)
-    expect(ticked([2], [1, 2, 3], 3)).toEqual([2, 3]); // (a new one, as the one saved last, and a tick more)
+    expect(ticked([1, 4], [1, 2], 2)).toEqual([1, 2, 4]); // Radio 4 is off and stays kept
+    expect(ticked([4], [1, 2], 2)).toEqual([2]); // None of the set is on: the tick is its one radio
+    expect(ticked([2], [1, 2, 3], 3)).toEqual([2, 3]); // A new one, as the one saved last, and a tick more
   });
 
   it("ticks the radios of the set in force and greys the one left; with none in force none is ticked and none greyed", () => {

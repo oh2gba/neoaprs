@@ -1,9 +1,12 @@
 <script setup lang="ts">
-// The group box to post a sked, at the bottom of the Skeds tab (ComposeBar, as everywhere; the fields are rows like those of the Objects form): the Day (the next 30 UTC days, written in the language of the page), the time from and to in
-// half hours (the label says UTC; a To that is not after From is the next day), the Frequency (one the project suggests, or Other, which brings a row to type one in the form `7.0541 MHz USB`, as the Category of an object brings its own) and
-// the Note, one line with the characters it has left. Post is on when there is a call, the board can be reached and the form is right (lib/skeds.ts); RX only does not matter, nothing here is sent by radio. A sked that has ended already
-// marks the To. The note is cleared when the daemon has the sked (the topic `skeds` tells it); a post it refused stays for the user to correct. The dials are the station's (the project's list, the same in every HF radio's
-// box): when the Frequency row comes on show (at most once a minute), the daemon is asked to look at the project's list again (`frequencies`), as the box does; a row that came on show before the socket was open asks when it opens.
+// The form to post a sked at the bottom of the Skeds tab: Day (next 30 UTC days), time From and To
+// in half hours (UTC; a To not after From is the next day), Frequency (a suggested dial, or Other
+// which brings a field for e.g. `7.0541 MHz USB`) and a one-line Note with a counter. Post is on
+// when there is a call, the board can be reached and the form is valid (lib/skeds.ts); RX only does
+// not matter. A sked that has ended marks the To. The note clears when the daemon has the sked; a
+// refused post stays. The dials are the project's list: when the Frequency row comes on show (at
+// most once a minute) the daemon is asked to refresh it (`frequencies`); a row shown before the
+// socket opened asks when it opens.
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -19,17 +22,18 @@ const frequencies = computed(() => skeds.value?.frequencies ?? []);
 const draft = reactive(startDraft(now.value, frequencies.value));
 const days = computed(() => dayChoices(now.value));
 const OTHER = "other";
-/** The Frequency choice: a dial the project suggests (when it is the one in the draft), else Other. */
+/** The Frequency choice: a suggested dial (when it is the draft's), else Other. */
 const choice = computed(() => (draft.typed ? OTHER : draft.dial));
 const placeholder = computed(() => frequencies.value[0]?.dial ?? "7.0541 MHz USB");
-/** The characters of the note; the field takes no more (lib/textlimit.ts, as every field with a counter). */
+/** The characters of the note; the field takes no more (lib/textlimit.ts). */
 const limit: TextLimit = { max: NOTE_MAX, measure: trimmedCharacters, kind: "characters" };
 const left = computed(() => leftOf(draft.note, limit));
 const over = computed(() => ended(draft, now.value));
 const typedWrong = computed(() => draft.typed && draft.dial.trim() !== "" && draftDial(draft) === null);
 const ready = computed(() => skeds.value?.state === "ok" && mayPostAs(call.value) && draftOk(draft, now.value));
 const frequencyRow = ref<HTMLElement | null>(null);
-let missed = false; // the row came on show before the socket was open: it is asked when the socket opens
+// the row came on show before the socket was open: ask when it opens
+let missed = false;
 const ask = (): void => void (connection.value === "open" ? send({ cmd: "frequencies" }) : (missed = true));
 useWhenShown(frequencyRow, ask);
 watch(connection, (now) => {
@@ -38,11 +42,14 @@ watch(connection, (now) => {
   ask();
 });
 
-/** The day goes on being one of the choices as the UTC day turns. */
+/** The day stays one of the choices as the UTC day turns. */
 watch(days, (list) => {
   if (!list.some((d) => d.value === draft.day)) draft.day = utcDay(now.value);
 });
-/** The dial the project suggests first stands in until one is chosen (the list arrives after the form is made, and is told again with every change of the board). */
+/**
+ * The first suggested dial stands in until one is chosen (the list arrives after the form is made
+ * and after each board change).
+ */
 let chosen = false;
 watch(frequencies, (list) => {
   if (chosen || list[0] === undefined) return;
@@ -56,7 +63,8 @@ function choose(value: string): void {
   draft.dial = value === OTHER ? "" : value;
 }
 
-const asked = ref<{ from: string; to: string; dial: string; note: string } | null>(null); // what was posted, until the daemon has it
+// what was posted, until the daemon has it
+const asked = ref<{ from: string; to: string; dial: string; note: string } | null>(null);
 
 watch(
   () =>

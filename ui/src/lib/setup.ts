@@ -1,6 +1,7 @@
-// The first-run guide's rules (components/SetupGuide.vue): the steps, the symbols it offers, what is wrong with each field as it is typed, and which settings its answers change. The daemon checks
-// everything again when the guide saves; this keeps the user from sending what it would refuse, and the page from sending a key whose value is the one the daemon has. The Radio step has no answers: it is live, as the
-// Radio group of the Settings tab is (plan section 6), and what it needs before Finish is a radio on whose fields have nothing wrong (`radioReady`).
+// The first-run guide's rules (components/SetupGuide.vue): the steps, the offered symbols,
+// per-field problems as typed, and which settings the answers change. The daemon checks everything
+// again on save; this stops the guide sending what would be refused. The Radio step is live like
+// the Settings Radio group; Finish needs `radioReady`.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { normalizeCall } from "@/lib/calls";
@@ -14,7 +15,6 @@ const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position"
 export const STEP_COUNT = STEP_IDS.length;
 export const LAST_STEP = STEP_COUNT - 1;
 
-/** The name of a step, in the language of the page. */
 export const stepTitle = (step: number): string => {
   const id = STEP_IDS[step];
   return id === undefined ? "" : t(id);
@@ -38,19 +38,18 @@ export const SYMBOL_CHOICES: readonly { readonly table: "/"; readonly code: stri
   ] as const satisfies readonly (readonly [string, MessageId])[]
 ).map(([code, id]) => lazyText({ table: "/" as const, code }, { name: () => t(id) }));
 
-/** What the guide asks, as text the way it is typed. */
+/** What the guide asks, as typed text. */
 export interface SetupFields {
   call: string;
   lat: string;
   lon: string;
-  /** the table character and the code character: `/-` */
+  /** The table character and the code character: `/-`. */
   symbol: string;
 }
 
 export type FieldName = keyof SetupFields;
 export type Problems = Partial<Record<FieldName, string>>;
 
-/** The step a field is on. */
 export const STEP_OF: Record<FieldName, number> = {
   call: 0,
   lat: 1,
@@ -58,7 +57,10 @@ export const STEP_OF: Record<FieldName, number> = {
   symbol: 2,
 };
 
-/** The setting each field is the answer to (the locator and the symbol's two characters are the exceptions: they make other keys). */
+/**
+ * The setting each field answers (locator and symbol characters are exceptions: they make other
+ * keys).
+ */
 export const KEY_OF: Record<string, FieldName> = {
   "station/call": "call",
   "station/lat": "lat",
@@ -67,10 +69,12 @@ export const KEY_OF: Record<string, FieldName> = {
   "station/symbol_code": "symbol",
 };
 
-/** The step with the radios (the last). */
 export const RADIO_STEP = STEP_IDS.indexOf("setup.step.radio");
 
-/** The problems of the fields of each step, by field (lib/fieldcheck.ts: an empty field says nothing here). A field that is empty and needed has none: `stepOk` says Next waits for it. */
+/**
+ * Problems of each step's fields, by field (lib/fieldcheck.ts). An empty needed field has none:
+ * `stepOk` holds Next.
+ */
 const CHECKS: ((f: SetupFields) => Problems)[] = [
   (f) => ({ call: problemOf("station/call", f.call, true) }),
   (f) => ({ lat: problemOf("station/lat", f.lat, true), lon: problemOf("station/lon", f.lon, true) }),
@@ -81,7 +85,10 @@ export function stepProblems(step: number, f: SetupFields): Problems {
   return Object.fromEntries(Object.entries(CHECKS[step]?.(f) ?? {}).filter(([, text]) => text !== ""));
 }
 
-/** Whether the step has all the answers it needs: its fields filled and without a problem. The Radio step has none (its radios are `radioReady`'s). */
+/**
+ * Whether the step has all its answers, filled and without a problem. The Radio step has none (see
+ * `radioReady`).
+ */
 export function stepOk(step: number, f: SetupFields): boolean {
   if (Object.keys(stepProblems(step, f)).length > 0) return false;
   switch (step) {
@@ -96,12 +103,15 @@ export function stepOk(step: number, f: SetupFields): boolean {
   }
 }
 
-/** A position as the settings keep it: no trailing zeros, six decimals at the most. */
+/** A position as the settings keep it: no trailing zeros, at most six decimals. */
 export function degreesText(value: number): string {
   return String(Math.round(value * 1e6) / 1e6);
 }
 
-/** A coordinate to five decimals (a metre), as a place picked on the map or found by the browser is kept. */
+/**
+ * A coordinate to five decimals (a metre), as a place picked on the map or found by the browser is
+ * kept.
+ */
 export function roundPlace(degrees: number): number {
   return Math.round(degrees * 1e5) / 1e5;
 }
@@ -111,14 +121,17 @@ export function wrapLongitude(lon: number): number {
   return roundPlace(((((lon + 180) % 360) + 360) % 360) - 180);
 }
 
-/** Whether the text of a setting is the same position or number as the daemon's, however it is written (`60.170` and `60.17`). */
+/**
+ * Whether a setting's text is the same position or number as the daemon's, however written
+ * (`60.170` and `60.17`).
+ */
 function sameNumber(a: string, b: string): boolean {
   const x = parseNumber(a);
   const y = parseNumber(b);
   return x !== null && y !== null ? x === y : a.trim() === b.trim();
 }
 
-/** The guide's fields as they are while the daemon's settings are what they are: the first state of the guide. */
+/** The guide's fields as they are for the daemon's current settings: the guide's first state. */
 export function fieldsFrom(values: Readonly<Record<string, string>>): SetupFields {
   return {
     call: values["station/call"] ?? "",
@@ -128,7 +141,10 @@ export function fieldsFrom(values: Readonly<Record<string, string>>): SetupField
   };
 }
 
-/** How often a new station beacons, in minutes: the guide sets it with the first call, so that the daemon's default can stay Off (an upgrade never starts to transmit). */
+/**
+ * How often a new station beacons, in minutes. The first save sets it so that the daemon's default
+ * can stay Off.
+ */
 export const NEW_STATION_BEACON_MIN = "30";
 
 /** The daemon has no call and no beacon: the first run. */
@@ -136,8 +152,11 @@ function isNewStation(values: Readonly<Record<string, string>>): boolean {
   return (values["station/call"] ?? "") === "" && ["", "0"].includes((values["beacon/interval_min"] ?? "").trim());
 }
 
-/** The settings to save at Finish: the keys whose answer is not what the daemon has, with the text to write (the call, the place and the symbol; the radios were saved as they were changed). A station that has no call
- * yet (the first run) and no beacon interval gets the beacon every NEW_STATION_BEACON_MIN minutes in the same save; the guide run again on a station that has a call leaves the beacon as it is. */
+/**
+ * The settings to save at Finish: keys whose answer differs from the daemon's, with the text to
+ * write. A station with no call and no beacon interval gets a beacon every NEW_STATION_BEACON_MIN
+ * minutes in the same save.
+ */
 export function setupChanges(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
   const wanted: Record<string, string> = {
     "station/call": normalizeCall(f.call),
@@ -150,14 +169,17 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
   return Object.fromEntries(Object.entries(wanted).filter(([key, text]) => !sameNumber(text, values[key] ?? "")));
 }
 
-/** The keys of the Radio group of the Settings tab as the form shows them, for the boxes of the Radio step. */
+/** The keys of the Radio group as the form shows them, for the Radio step's boxes. */
 export function radioStepKeys(values: Readonly<Record<string, string>>, draft: Readonly<Record<string, string>>): string[] {
   const group = groupKeys(Object.keys(values), "settings").find((g) => g.id === "serial");
   return (group?.keys ?? []).filter((key) => shownFor(key) && shownByValues(key, draft));
 }
 
-/** What the Radio step's radios are read from: the settings as the form holds them (their values, what is being changed, what is wrong with a field) and whether the daemon looks for a serial radio among the ports itself (`search`,
- * null before it has said). */
+/**
+ * What the Radio step's radios are read from: the form's settings (values, pending changes, errors)
+ * and whether the daemon searches the ports for a serial radio itself (`search`, null before it has
+ * said).
+ */
 export interface RadioStep {
   values: Readonly<Record<string, string>>;
   draft: Readonly<Record<string, string>>;
@@ -165,8 +187,11 @@ export interface RadioStep {
   search: boolean | null;
 }
 
-/** Whether the Radio step has what Finish needs (plan section 6: "Next needs one enabled radio with no field in error"): a radio that is on (as the form holds it) none of whose fields has a complaint, the page's or the
- * daemon's. A serial port left empty where the daemon does not look for the radio itself is a field that is not right yet: nothing would find the radio (the step of before waited for it too). */
+/**
+ * Whether the Radio step has what Finish needs (plan section 6): a radio that is on with no
+ * complaint on any field, the page's or the daemon's. An empty serial port is a problem where the
+ * daemon does not search for the radio.
+ */
 export function radioReady(radios: readonly PageRadio[], step: RadioStep): boolean {
   const right = (radio: PageRadio): boolean =>
     boxKeys(radio).every((key) => (step.errors[key] ?? "") === "" && !(step.search === false && fieldOfKey(key) === "port" && (step.draft[key] ?? "") === ""));

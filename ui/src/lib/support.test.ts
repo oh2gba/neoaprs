@@ -186,7 +186,8 @@ describe("requestSend", () => {
       [["file", "note", "page"], false],
       [["note", "page"], undefined],
     ]);
-    expect(JSON.parse(bodyOf(info, undefined, false))).toEqual({ page: JSON.parse(JSON.stringify(info)) as unknown }); // (the request of a download has no file to choose)
+    // The request of a download has no file to choose
+    expect(JSON.parse(bodyOf(info, undefined, false))).toEqual({ page: JSON.parse(JSON.stringify(info)) as unknown });
   });
 
   it("cuts a note to the limit", async () => {

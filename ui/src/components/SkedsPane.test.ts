@@ -16,7 +16,8 @@ function pane(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}) {
 }
 const rows = (wrapper: ReturnType<typeof pane>) => wrapper.findAll(".sked");
 
-// The fixtures' time is Wednesday 21 October 2026, 12:00 UTC; a sked() starts in 2 hours and lasts 2.
+// The fixtures' time is Wednesday 21 October 2026, 12:00 UTC; a sked() starts in 2 hours and lasts
+// 2.
 describe("SkedsPane", () => {
   it("has an (i) at the top that says what a sked is, that the board is public and that it is not sent by radio", async () => {
     const wrapper = pane();

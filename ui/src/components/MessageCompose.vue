@@ -1,9 +1,11 @@
 <script setup lang="ts">
-// The box to write a message in, fixed at the bottom of a conversation: the text, how many of the bytes a message may have are left ("12 left") and Send, in one line (ComposeBar of one field, as on every tab). There is no To: the conversation is the station (`to` is its call), or for a group (GroupCompose) the
-// calls that were picked, and then Send says "Send to 3". Send is off while the radio is not connected (its title says so: `offline`, the words of the radio the messages go on, else those of before) or the text is empty or too
-// long (lib/recipients.ts `canSendAll`). With one recipient it says `send`; with several it says `sendMany`, which the
-// page turns into one ordinary message to each. The text is cleared once it is sent, and Send is off while the page has no connection to NeoAPRS; a character a message cannot carry marks the field with the reason. With `lockable` (encrypted messages are on, the station has sent its key and we have ours) a padlock stands before Send: pressed, the message
-// is encrypted (`send` says so), the counter counts the 34 bytes an encrypted message holds, and the text may say ä and ö. The radio is chosen in Route, never here.
+// The box to write a message at the bottom of a conversation: the text, the bytes left and Send
+// (ComposeBar). There is no To: `to` is the station's call, or for a group (GroupCompose) the
+// picked calls, and Send reads "Send to 3". Send is off while the radio is not connected
+// (`offline`) or the text is empty or too long (lib/recipients.ts `canSendAll`). One recipient
+// emits `send`; several emit `sendMany`. With `lockable` a padlock precedes Send: when pressed
+// the message is encrypted, the counter counts the 34 bytes an encrypted message holds and ä and
+// ö are allowed.
 import { computed, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -22,11 +24,13 @@ const props = withDefaults(defineProps<{ to: readonly string[]; connected: boole
 });
 const emit = defineEmits<{ send: [to: string, text: string, locked: boolean]; sendMany: [to: string[], text: string] }>();
 
-/** The text being written: the page's to keep, so that a draft stays when the user goes back to the list and in again. */
+/** The text being written, kept by the page so that a draft survives leaving and re-entering the
+ * conversation. */
 const text = defineModel<string>("text", { default: "" });
 const input = ref<HTMLInputElement | null>(null);
 
-/** The padlock is pressed: the message is encrypted. It lets go when the station can no longer be written to that way (its key forgotten, the switch off). */
+/** The padlock is pressed: the message is encrypted. It releases when the station can no longer
+ * be written to that way. */
 const locked = ref(false);
 watch(
   () => props.lockable,
@@ -34,12 +38,13 @@ watch(
     if (!can) locked.value = false;
   },
 );
-/** The bytes a message holds, 34 when it is encrypted; the field takes no more (lib/textlimit.ts, as every field with a counter). */
+/** The bytes a message holds (34 if encrypted); the field takes no more (lib/textlimit.ts). */
 const limit = computed<TextLimit>(() => ({ max: locked.value ? LIMITS.message.lockedMax : LIMITS.message.textMax, measure: bytes, kind: "bytes" }));
 const left = computed(() => leftOf(text.value, limit.value));
 const rxOnly = useReceiveOnly();
 const socketOpen = useSocketOpen();
-/** A character the daemon would refuse (an encrypted text may have any: it goes sealed); the field is marked with the reason. */
+/** The reason the daemon would refuse a character (an encrypted text may have any); marks the
+ * field. */
 const refused = computed(() => {
   const problem = locked.value ? null : textRefusal(text.value);
   return problem === null ? "" : errorReason({ cmd: "send_message", key: null, text: "", ...problem });
@@ -51,7 +56,7 @@ const sendLabel = computed(() => (props.to.length > 1 ? t("messages.send_to", { 
 
 defineExpose({ focusText: (): void => input.value?.focus() });
 
-/** The text is cleared only once it went to the daemon: Send is off while the socket is closed, so a draft is never lost to it. */
+/** The text clears only once it went to the daemon; Send is off while the socket is closed. */
 function submit(): void {
   if (!ready.value || rxOnly.value || !socketOpen.value) return;
   const [only] = props.to;

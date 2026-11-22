@@ -1,4 +1,5 @@
-// The fold of Local info's Ask (ObjectsQru.vue with RequestPath.vue): the path and RF only of a request to QRU, and that the request is as it always was when they are left alone.
+// The fold of Local info's Ask (ObjectsQru.vue with RequestPath.vue): the path and RF only of a
+// request to QRU, and that the request is unchanged when they are left alone.
 import { mount } from "@vue/test-utils";
 import { shallowReactive } from "vue";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -22,7 +23,8 @@ const pathField = (wrapper: Wrapper) => fold(wrapper).find("input[type='text']")
 const rfOnly = (wrapper: Wrapper) => fold(wrapper).find("input[type='checkbox']");
 const sent = (daemon: ReturnType<typeof make>["daemon"]) => daemon.send.mock.calls.map(([command]) => command);
 let told = 0;
-/** The daemon tells the request it took, long enough ago to hold nothing back: the next press sends. */
+/** The daemon tells the request it took, long enough ago to hold nothing back: the next press
+ * sends. */
 const answer = (daemon: ReturnType<typeof make>["daemon"]) =>
   tell(daemon, { qru: { ...(daemon.qru.value ?? qruState({ asked: null })), asked: qruAsked("INFO", ago(100 + ++told)) } });
 
@@ -268,12 +270,12 @@ describe("the Send on of Local info", () => {
   it("holds a group's button for its server's radio alone: its wait, its link and its path", async () => {
     const servers = answeredOn(2);
     const waiting = on({ qru: qruState({ asked: qruAsked("RP70 150", ago(20), 1), servers }) }, ticked(FM), HF);
-    expect(pills(waiting.wrapper)[0]?.attributes("disabled")).toBeUndefined(); // (the minute of that request is the FM radio's; the server is asked on Mercury)
+    expect(pills(waiting.wrapper)[0]?.attributes("disabled")).toBeUndefined();
     const away = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1), servers }) }, ticked(FM), { ...HF, state: "waiting" });
     expect(pills(away.wrapper)[0]?.attributes("title")).toBe("Mercury: not connected");
     expect(ask(away.wrapper).attributes("disabled")).toBeUndefined();
     const { wrapper, daemon } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1), servers }) }, ticked(FM), HF);
-    await pathField(wrapper).setValue("OH2RDK-7,???"); // (a path that is wrong holds what goes on the FM radio, not what goes on Mercury, which carries none)
+    await pathField(wrapper).setValue("OH2RDK-7,???");
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
     await pills(wrapper)[0]?.trigger("click");
     expect(requests(daemon)).toEqual([{ cmd: "qru_ask", text: "RP70 150", radio: 2 }]);

@@ -1,5 +1,6 @@
-// The makers of rows give the fields of the radios as the daemon sends them for a station with FM radio 1 and HF radio 2 (tests/fixtures/wire/rows.json holds the daemon's own rows), so that a test that reads them
-// does not pass on a row the daemon never sends.
+// The row makers give the radios' fields as the daemon sends them for a station with FM radio 1 and
+// HF radio 2 (tests/fixtures/wire/rows.json holds the daemon's own rows), so that a test does not
+// pass on a row the daemon never sends.
 import { describe, expect, it } from "vitest";
 import { heardBy, message, ownObject, station } from "@/test/fixtures";
 

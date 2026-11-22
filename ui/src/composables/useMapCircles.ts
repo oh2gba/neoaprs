@@ -1,5 +1,6 @@
-// The circles under the markers of the map: the ALOHA circle round our own station, while its row of the Layers box is ticked (`aloha`), and the range circle of the selected station, when it is a digipeater that
-// gave a range (composables/useAlohaCircle.ts, composables/useRangeCircles.ts). `add` makes the layers (the ALOHA circle first, so the range is over it).
+// The circles under the markers: the ALOHA circle round our station while its Layers row is
+// ticked (`aloha`) and the range circle of the selected digipeater with a range. `add` makes the
+// layers, the ALOHA circle first so the range lies over it.
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useAlohaCircle } from "@/composables/useAlohaCircle";
 import { useRangeCircles } from "@/composables/useRangeCircles";

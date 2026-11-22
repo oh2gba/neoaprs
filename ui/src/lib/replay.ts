@@ -1,7 +1,10 @@
-// The replay of the map (the map's menu, Replay: components/ReplayBar.vue, composables/useReplay.ts, composables/useMapReplay.ts) as plain functions: the daemon's answer to `position_history` made into tracks of numbers,
-// where each station was at a time of the span, its trail up to then (fading behind it as a live track does, lib/tracks.ts), and the clock of the bar. A station is shown from its first position in the span and stays
-// at its last; between two positions that are near in time it is moved along the line between them, as far as the time has gone, so that a moving station drives and does not hop; across a longer gap (it was not
-// heard for a while) it waits where it was and jumps. The spans are the hours of the Stations tab's On map for and then days, up to the week the daemon keeps.
+// The map replay (components/ReplayBar.vue, composables/useReplay.ts, useMapReplay.ts) as plain
+// functions: the daemon's `position_history` answer made into tracks, where each station was at
+// a time, its trail up to then (fading as a live track does, lib/tracks.ts), and the bar's
+// clock. A station is shown from its first position in the span and stays at its last. Between
+// two positions near in time it moves along the line between them; across a longer gap it waits
+// where it was and then jumps. Spans are the hours of the Stations tab's "On map for", then
+// days up to the week the daemon keeps.
 import { t } from "@/i18n";
 import { eastOf, wrapLon } from "@/lib/dateline";
 import { pad2 } from "@/lib/format";
@@ -10,13 +13,18 @@ import { STATION_HOURS, trailOpacity } from "@/lib/aging";
 import { LIMITS } from "@/protocol/lists";
 import type { PositionHistoryMessage } from "@/protocol/protocol";
 
-/** How many seconds of the span go by in a second of the replay: the choices of the bar. At 3600× a week plays in under three minutes, a day in 24 seconds: nothing faster is needed, and a faster one would
- * move the stations hours at each tenth of a second the map is drawn. */
+/**
+ * Seconds of the span per second of replay, the bar's choices. 3600x plays a week in under
+ * three minutes; faster would move stations hours per map redraw.
+ */
 export const REPLAY_SPEEDS: readonly number[] = [60, 300, 900, 3600];
 export const DEFAULT_SPEED = 300;
-/** The span the bar asks for when it opens, the default of the Stations tab's On map for. */
+/** The span the bar asks for when it opens: the default of the Stations tab's On map for. */
 export const DEFAULT_HOURS: number = LIMITS.station.defaultHours;
-/** The spans of the bar in hours: those of On map for, then the days of the daemon (SPAN_DAYS of neoaprs/web/replaywire.py: 2, 3 and the 7 its packet log keeps). */
+/**
+ * Spans of the bar in hours: those of On map for, then the daemon's days (SPAN_DAYS of
+ * neoaprs/web/replaywire.py).
+ */
 export const REPLAY_SPANS: readonly number[] = [...STATION_HOURS, ...LIMITS.replay.days.map((days) => days * 24)];
 
 /** A span as the bar says it: hours up to a day ("24 h"), days beyond ("3 days"). */
@@ -24,28 +32,33 @@ export function spanLabel(hours: number): string {
   return hours > 24 && hours % 24 === 0 ? t("weather.span.days", { n: hours / 24 }) : t("station.table.hours", { n: hours });
 }
 
-/** Two positions further apart in time than this are not joined by a drive: the station waits at the first, then jumps. The daemon thins a longer span to a point every few minutes at most, well inside it
- * (GLIDE_MAX_MIN of neoaprs/web/replaywire.py, held to its thinning by a test there), so that a trip of a week glides as a day's does. */
+/**
+ * Positions further apart in time than this are not joined by a drive: the station waits at the
+ * first, then jumps. The daemon thins a longer span well inside it (GLIDE_MAX_MIN of
+ * neoaprs/web/replaywire.py), so a week glides as a day does.
+ */
 const GLIDE_MAX_MS = LIMITS.replay.glideMaxMin * 60_000;
 
-/** A position of a station: when (ms since 1970), lat, lon. */
+/** A position: time (ms since 1970), lat, lon. */
 type ReplayPoint = readonly [number, number, number];
 
 interface ReplayTrack {
   call: string;
-  /** the oldest first */
   points: readonly ReplayPoint[];
 }
 
 export interface ReplayData {
   hours: number;
-  /** where the replay begins and ends, ms since 1970: the span asked for, begun later when the daemon's log does not reach back that far */
+  /**
+   * Where the replay begins and ends, ms since 1970: the span asked for, or later if the
+   * daemon's log is shorter.
+   */
   start: number;
   end: number;
   tracks: readonly ReplayTrack[];
 }
 
-/** The answer of the daemon as the replay plays it: the times as numbers. */
+/** The daemon's answer as the replay plays it: times as numbers. */
 export function replayData(message: PositionHistoryMessage): ReplayData {
   const tracks = Object.entries(message.stations)
     .map(([call, points]) => ({ call, points: points.map(([at, lat, lon]): ReplayPoint => [Date.parse(at), lat, lon]) }))
@@ -68,7 +81,7 @@ function lastAt(points: readonly ReplayPoint[], t: number): number {
   return found;
 }
 
-/** Where the station is at `t` (the time `t` itself, lat, lon): null before its first position. */
+/** Where the station is at `t` (`t`, lat, lon); null before its first position. */
 function headAt(points: readonly ReplayPoint[], t: number): { index: number; head: ReplayPoint } | null {
   const index = lastAt(points, t);
   const from = points[index];
@@ -89,7 +102,10 @@ export function placesAt(data: ReplayData, t: number): [string, number, number][
   return places;
 }
 
-/** The trail of a station up to `t`: its positions at or before `t`, then where it is at `t` when it is on its way to the next; empty before its first position. */
+/**
+ * A station's trail up to `t`: positions at or before `t`, then where it is at `t` if on its
+ * way to the next; empty before the first.
+ */
 export function trailAt(track: ReplayTrack, t: number): ReplayPoint[] {
   const found = headAt(track.points, t);
   if (!found) return [];
@@ -98,12 +114,18 @@ export function trailAt(track: ReplayTrack, t: number): ReplayPoint[] {
   return last && last[1] === found.head[1] && last[2] === found.head[2] ? passed : [...passed, found.head];
 }
 
-/** How long a trail takes to fade, in minutes: a quarter of the span (15 minutes of an hour's replay, 6 hours of a day's); older than that it stays, faint. */
+/**
+ * How long a trail takes to fade, in minutes: a quarter of the span; older than that it stays,
+ * faint.
+ */
 export function trailMinutes(hours: number): number {
   return hours * 15;
 }
 
-/** The lines of the trails at `t`: each station's up to where it is, a stretch the fainter the longer before `t` it was driven. */
+/**
+ * The trail lines at `t`: each station's up to where it is, fainter the longer before `t` it
+ * was driven.
+ */
 export function trailLines(data: ReplayData, t: number): TrackCollection {
   const minutes = trailMinutes(data.hours);
   const features = data.tracks.flatMap((track) =>
@@ -112,10 +134,13 @@ export function trailLines(data: ReplayData, t: number): TrackCollection {
   return { type: "FeatureCollection", features };
 }
 
-/** The clock while there is no span to play (the answer has not come). */
+/** The clock while there is no span to play. */
 export const CLOCK_NONE = "--:--:--";
 
-/** The clock of the bar, in the viewer's time: HH:MM:SS, with the date (MM-DD) before it when the span crosses midnight, so that the hours of two days are told apart. */
+/**
+ * The bar's clock in the viewer's time: HH:MM:SS, with MM-DD before it when the span crosses
+ * midnight.
+ */
 export function replayClock(t: number, start: number, end: number): string {
   const d = new Date(t);
   const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;

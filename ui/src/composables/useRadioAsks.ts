@@ -1,6 +1,9 @@
-// Who looks at something the daemon sends a page of a radio only while it asks (a radio's scope, `radio_scope`; a Sound card radio's receive level ten times a second, `radio_level`), counted in one place: each pane says
-// `look` while it shows it, and of which radio, and the page asks the daemon for that radio (`{ cmd, radio, on: true }`) while at least one pane does, this page is in front, the radio can have it now
-// (`offered`) and the socket is open; asked again when the socket was open anew, since the daemon forgets a page that left. Nobody looking, nothing asked. Each radio is asked for and stopped on its own, at once.
+// Who looks at something the daemon sends only while asked (a radio's scope `radio_scope`, a Sound
+// card radio's receive level `radio_level`), counted in one place: each pane says `look` while it
+// shows it, and of which radio. The page asks the daemon for that radio (`{ cmd, radio, on: true
+// }`) while at least one pane looks, the page is in front, the radio can have it (`offered`) and
+// the socket is open; asked again when the socket was opened anew, as the daemon forgets a page
+// that left. Each radio is asked for and stopped on its own, at once.
 import { computed, onBeforeUnmount, shallowRef, watch, type Ref } from "vue";
 import type { Connection } from "@/lib/hub";
 import { keepList } from "@/lib/keeplist";
@@ -8,11 +11,11 @@ import type { RadioId } from "@/lib/radios";
 import type { Command } from "@/protocol/protocol";
 
 export interface RadioAsks {
-  /** the radios asked for, in the order of `offered`: someone looks at each, the page is in front and the socket is open */
   asked: Readonly<Ref<readonly RadioId[]>>;
-  /** how many panes are looking now */
   lookers: Readonly<Ref<number>>;
-  /** A pane, from its setup on: it looks at `radio` while `looking` is true and stops when it goes. */
+  /**
+   * A pane, from its setup on: it looks at `radio` while `looking` is true and stops when it goes.
+   */
   look: (looking: () => boolean, radio: () => RadioId | null) => void;
 }
 
@@ -23,14 +26,14 @@ export function useRadioAsks(
   visible: Readonly<Ref<boolean>>,
   offered: () => readonly RadioId[] | null,
 ): RadioAsks {
-  /** The panes looking now, each by the radio it looks at. */
   const looking = shallowRef<readonly (() => RadioId | null)[]>([]);
   const asked = computed<readonly RadioId[]>((old) => {
     const wanted = visible.value && connection.value === "open" ? looking.value.map((pane) => pane()) : [];
     const ids = (offered() ?? [...new Set(wanted)].filter((id): id is RadioId => id !== null).sort((a, b) => a - b)).filter((radio) => wanted.includes(radio));
     return keepList(old, ids);
   });
-  // at once, not on the next tick: a pane that looks from its first moment asks in that moment (a socket that is closed says no to nothing: the daemon forgets the page by itself)
+  // At once, not on the next tick: a pane that looks from its first moment asks in that moment. A
+  // closed socket says no to nothing: the daemon forgets the page by itself.
   watch(
     asked,
     (now, was = []) => {
@@ -41,7 +44,7 @@ export function useRadioAsks(
   );
 
   function look(looks: () => boolean, radio: () => RadioId | null): void {
-    const pane = (): RadioId | null => radio(); // (its own, so that two panes of the same radio are two)
+    const pane = (): RadioId | null => radio();
     let now = false;
     const set = (on: boolean): void => {
       if (on === now) return;

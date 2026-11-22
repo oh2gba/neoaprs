@@ -1,8 +1,11 @@
 <script setup lang="ts">
-// The first-run guide: a compact panel over the map with four steps (Call, Position, Symbol, Radio), a step indicator that goes back to any step and forward to the next one that can be reached, Back, and Next (Finish on the last).
-// It opens by itself when the daemon has no call, and again from the Setup button of the Settings tab and from "no call set" in the header; Escape and the cross close it, and what was typed is still there when it is opened again.
-// The state is `useSetupGuide`'s; this is the frame, and a step is a component of its own. On a narrow page "On the map" folds the panel to its head so that the map can be clicked. Next and Finish wait for what the step needs: the
-// answers of the first three, and on the Radio step, which is live, a radio that is on with nothing wrong in its fields (lib/setup.ts `radioReady`, over the page's radios and settings).
+// The first-run guide: a compact panel over the map with four steps (Call, Position, Symbol,
+// Radio), a step indicator, Back and Next (Finish on the last). It opens by itself when the daemon
+// has no call, and from the Setup button and "no call set" in the header; Escape and the cross
+// close it and typed values are kept. The state is `useSetupGuide`'s; each step is its own
+// component. On a narrow page "On the map" folds the panel so the map can be clicked. Next and
+// Finish wait for what the step needs; the Radio step needs a radio that is on with no complaint
+// (lib/setup.ts `radioReady`).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import SetupCall from "@/components/SetupCall.vue";
@@ -17,19 +20,25 @@ import { LAST_STEP, RADIO_STEP, radioReady, STEP_COUNT, stepTitle } from "@/lib/
 
 const { guide, map, config, settings, ports } = useDaemonContext();
 const radios = useRadios();
-/** The Radio step has what Finish needs: a radio on, none of whose fields has a complaint (nothing before the daemon has told its settings and its radios). */
+/**
+ * The Radio step has what Finish needs: a radio on and no complaint on its fields (nothing before
+ * the daemon has listed them).
+ */
 const radiosReady = computed(() => {
   if (config.value === null || !radios.told.value) return false;
   const values = settings.values.value;
   const step = { values, draft: settings.draft, errors: settings.errors, search: ports.value?.search ?? null };
   return radioReady(radios.all.value, step);
 });
-/** Which steps have what they need: the answers', and the radios' for the Radio step. */
+/** Which steps have what they need: the answers, and the radios for the Radio step. */
 const valid = computed(() => guide.valid.map((ok, i) => ok && (i !== RADIO_STEP || radiosReady.value)));
 function next(): void {
   if (valid.value[guide.step]) guide.next();
 }
-/** What the guide says quietly of the map (it is made without a click once the Position step has a place), above the buttons. */
+/**
+ * What the guide says quietly about the map (made without a click once the Position step has a
+ * place), above the buttons.
+ */
 const mapLine = computed(() => setupMapLine(map.value));
 const root = ref<HTMLElement | null>(null);
 
@@ -39,7 +48,9 @@ function onKey(event: KeyboardEvent): void {
 onMounted(() => document.addEventListener("keydown", onKey));
 onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
 
-/** The first field of the step is ready to type in when the guide opens and when the step changes. */
+/**
+ * The first field of the step is ready to type in when the guide opens and when the step changes.
+ */
 watch(
   () => [guide.open, guide.step] as const,
   async ([open]) => {

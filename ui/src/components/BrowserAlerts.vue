@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The browser's part of the Settings tab's "Notifications" group, a box of its own inside the group ("In this browser", components/SettingsBox.vue), laid out as the box "On the NeoAPRS computer" is: a **Notify me** tickbox first, and while it is ticked two tickboxes, **Sound** and **Notification**, each with its Test button
-// beside it (and "Enable notifications…" beside Notification where the page is not a secure context). What is kept is the one choice of lib/alertmode.ts (off, sound, sound and notification, notification only), in the browser and not on the daemon, so each device decides; Alert ticked with neither kind is the sound. The notification is disabled, with the reason as its title, where the browser
-// cannot show one. The answers of the Test buttons are said (`say`) in the page's toast. "Enable notifications…" opens the steps for the person's browser (PopupHelp), which start with the secure page while the daemon serves https (`https`).
-// In the desktop app's own window the daemon's own alert tells of a new message on that same computer (lib/shell.ts `daemonTells`; the window cannot show a notification), so on Linux and Windows this box is not drawn (`alerts.daemonAlone`). On a Mac, where that command has no program to run, it is "In this window": the same box with the Notification row left out, the alert the sound. Install app is left out there: the window is the app.
+// The browser's part of the Notifications group in Settings: Notify me, then Sound and
+// Notification with Test buttons. The choice (lib/alertmode.ts) is kept in the browser, so each
+// device decides. In the desktop app's own window the daemon alerts instead (lib/shell.ts
+// `daemonTells`), so the box is hidden there (`alerts.daemonAlone`); on a Mac it is shown as "In
+// this window" without the Notification row.
 import { computed, ref, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import InstallApp from "@/components/InstallApp.vue";
@@ -14,7 +15,7 @@ import { modeOf, wantsPopup, wantsSound, type AlertMode } from "@/lib/alertmode"
 import type { HttpsState } from "@/protocol/protocol";
 
 const props = defineProps<{ alerts: BrowserAlerts; https?: HttpsState | null; say?: (text: string) => void }>();
-// the answers of the two Test buttons are said in the toast, so that nothing moves
+// Test answers go to the toast so that nothing moves.
 watch([() => props.alerts.soundStatus.value, () => props.alerts.popupStatus.value], ([sound, popup], [soundBefore, popupBefore]) => {
   if (sound && sound !== soundBefore) props.say?.(sound);
   if (popup && popup !== popupBefore) props.say?.(popup);
@@ -25,7 +26,7 @@ const helpOpen = ref(false);
 const on = computed(() => props.alerts.mode.value !== "off");
 const sound = computed(() => wantsSound(props.alerts.mode.value));
 const popup = computed(() => wantsPopup(props.alerts.mode.value));
-/** What the Alert tickbox goes back to when it is ticked again: the last choice that was on. */
+/** The choice the Alert tickbox restores when ticked again: the last one that was on. */
 const remembered = ref<AlertMode>(on.value ? props.alerts.mode.value : props.alerts.why.value === undefined ? "both" : "sound");
 watch(
   () => props.alerts.mode.value,
@@ -34,7 +35,7 @@ watch(
   },
 );
 
-/** The permission is asked here, in the click; the tickboxes show what came of it. */
+/** The permission is requested in the click handler; the tickboxes show the outcome. */
 async function choose(next: AlertMode, event: Event): Promise<void> {
   await props.alerts.choose(next);
   if (event.target instanceof HTMLInputElement)

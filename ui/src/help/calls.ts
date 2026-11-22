@@ -1,5 +1,6 @@
-// The calls and frequencies that the pictures show: the same in every language, so that they are data and not words of the page. No real station's call:
-// Our own call is YOURCALL (N0CALL, the insiders' word, reads as a real call), and the others carry the ITU Q prefix, which no country has (the same calls as the Dummy radio).
+// The calls and frequencies that the pictures show, the same in every language. No real call:
+// our own is YOURCALL (N0CALL reads as a real call) and the others use the ITU Q prefix, which
+// no country has (the same calls as the Dummy radio).
 export const CALLS = {
   me: "YOURCALL",
   car: "YOURCALL-9",

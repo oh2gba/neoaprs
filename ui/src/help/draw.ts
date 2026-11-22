@@ -1,4 +1,5 @@
-// The strokes the pictures of the (i) notes are drawn with, as the `d` of a path: an arrow, and the arcs that stand for radio waves. Every number is rounded to a tenth so that the markup stays short.
+// Strokes for the (i) note pictures, as the `d` of a path: an arrow and arcs for radio waves.
+// Numbers are rounded to a tenth to keep the markup short.
 const round = (n: number): number => Math.round(n * 10) / 10;
 
 /** A line from (x1, y1) to (x2, y2) with an open arrow head of `head` px at the end. */
@@ -8,7 +9,8 @@ export function arrow(x1: number, y1: number, x2: number, y2: number, head = 5):
   return `M${x1} ${y1}L${x2} ${y2}M${wing(0.5)}L${x2} ${y2}L${wing(-0.5)}`;
 }
 
-/** `count` arcs that open away from (x, y) towards `angle` (degrees, 0 is to the right, 90 down), the first at `start` px and the next every `gap` px: radio waves. */
+/** `count` arcs opening away from (x, y) towards `angle` (degrees, 0 right, 90 down), the first
+ * at `start` px, then every `gap` px: radio waves. */
 export function waves(x: number, y: number, angle: number, count = 3, start = 9, gap = 6): string {
   const spread = 0.62;
   const point = (radius: number, turn: number): string => {

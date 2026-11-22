@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// The Help group, the last of the Settings tab but About: the one way to reach the project, **Send feedback / logs**, as the group's primary button with a line above it. It opens a dialog for a few words
-// with the logs file shown attached (its name downloads it, its × takes it off), and then has the daemon send both, or the words alone, to the project, which answers with a reference (composables/useSupportLogs.ts); the (i) beside it says what the file holds. The group says the
-// outcome in one quiet line: the reference, or why not. Saving the logs as a file is About's last line (SettingsAbout) too. What the dialog holds until a send worked is kept here: the words and whether the file is on. The file that was downloaded from it is kept from the download
-// to the Send of that opening, and for the next try of a send that failed; a dialog that was closed without sending forgets it, so that a later Send sends the logs as they are then, not the ones of an hour ago.
+// The Help group: Send feedback / logs as the group's primary button. It opens SendLogsDialog with
+// the logs file attached; Send has the daemon send the words and the file (or the words alone) to
+// the project, which answers with a reference (useSupportLogs). The outcome shows in one quiet
+// line. The group keeps what the dialog holds until a send worked: the words and whether the file
+// is on. The downloaded file is kept from the download to the Send of that opening, and for a retry
+// after a failed send; a dialog closed without sending forgets it, so a later Send uses fresh logs.
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
 import SettingsGroup from "@/components/SettingsGroup.vue";
@@ -15,15 +17,21 @@ import { useSupportLogs } from "@/composables/useSupportLogs";
 const { call, connection, version, panel } = useDaemonContext();
 const given = { call, connection, daemonVersion: version, panelWidth: panel.width };
 const logs = useSupportLogs(given);
-/** The download of the dialog's file and what the dialog says of it: held here, so that it is the same one at the next opening while it runs, and after a send that failed. */
+/**
+ * The dialog file's download and what the dialog says of it, held here so that it is the same one
+ * at the next opening while it runs and after a failed send.
+ */
 const download = useSupportLogs(given);
 const sendLabel = computed(() => (logs.sending.value ? t("settings.help.sending") : t("settings.help.send")));
 const asking = ref(false);
-/** The words of the dialog, kept until they were sent: a send that failed does not take them. */
+/** The words of the dialog, kept until sent: a failed send does not clear them. */
 const draft = ref("");
-/** Whether the file goes with the words: off when the person took it off in the dialog, kept with the words. */
+/** Whether the file goes with the words: off when the person removed it, kept with the words. */
 const attached = ref(true);
-/** The file the daemon made for the latest download from the open dialog, by its full name: Send names it, and the daemon sends that very one. A download that ends while the dialog is closed is saved and not named. */
+/**
+ * The file the daemon made for the latest download from the open dialog, by its full name: Send
+ * names it. A download that ends while the dialog is closed is saved and not named.
+ */
 const made = ref<string | null>(null);
 watch(
   download.saved,
@@ -34,13 +42,19 @@ watch(
 );
 const sendButton = ref<HTMLElement | null>(null);
 
-/** Opens the dialog. It says Saved only of the file that Send will name; why an earlier download failed, and a download that ended while it was closed, are not said again. */
+/**
+ * Open the dialog. It says Saved only for the file Send will name; earlier failures and downloads
+ * ending while closed are not repeated.
+ */
 function ask(): void {
   if (!download.running.value && (made.value === null || download.problem.value !== "")) download.clear();
   asking.value = true;
 }
 
-/** Closes the dialog with nothing sent: the words and whether the file is on stay for the next opening, the file that was downloaded does not. */
+/**
+ * Close the dialog without sending: the words and the attach state stay; the downloaded file does
+ * not.
+ */
 function close(): void {
   asking.value = false;
   made.value = null;

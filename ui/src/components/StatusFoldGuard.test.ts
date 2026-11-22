@@ -1,5 +1,8 @@
-// The rule for every status row of the page (StatusFold): the arrow, and a click that opens something, only when there is something behind it. A row that says "No beacon sent yet · next in 38 min" and opens nothing is a lie.
-// This holds each component that makes a status row, in the state where nothing is behind it and in one where something is; and fails for a new use of StatusFold that is not listed here, so that it gets its two cases.
+// The rule for every status row of the page (StatusFold): the arrow, and a click that opens
+// something, only when there is something behind it. A row that says "No beacon sent yet · next
+// in 38 min" and opens nothing is a lie. This checks each component that makes a status row, with
+// nothing behind it and with something; it fails for a new use of StatusFold that is not listed
+// here, so that it gets its two cases.
 import { mount } from "@vue/test-utils";
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
@@ -22,7 +25,8 @@ function vueFiles(dir: string): string[] {
   );
 }
 
-/** Each component that draws a StatusFold: a row with nothing behind it (null for a row that always has something), and a row with something. */
+/** Each component that draws a StatusFold: a row with nothing behind it (null if it always has
+ * something) and a row with something. */
 const ROWS: Record<string, { bare: (() => ReturnType<typeof mount>) | null; full: () => ReturnType<typeof mount> }> = {
   BeaconStatus: {
     bare: () => mount(BeaconStatus, { props: { status: status({ beacon_interval_min: 60, beacon_next_due: later }), gps: null, values: {}, now: NOW } }),

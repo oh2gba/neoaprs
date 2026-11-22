@@ -1,5 +1,5 @@
-// The Email tab as the page runs it: the thread with the gateway EMAIL-2, how many of its messages are not seen (only while the Email tab is on show, the panel open and the page visible, lib/unread.ts),
-// the addressees used before, and the messages the tab sends: mail, and `get` (Check email). The daemon sends a message to the gateway twice at most, the gateway's acks reaching a station only through an iGate.
+// The Email tab: the thread with the gateway EMAIL-2, its unseen count (only while the tab is
+// shown), the addressees used before and the messages it sends: mail, and `get` (Check email).
 import { computed, shallowRef, watch, type Ref } from "vue";
 import { useAddressBook } from "@/composables/useAddressBook";
 import { useReadMarks } from "@/composables/useConversations";
@@ -9,7 +9,7 @@ import { seenAtStart } from "@/lib/firststart";
 import { EMAIL_GATEWAY, newestIncomingId, threadOf, threadUnread } from "@/lib/messages";
 import type { Command, MessageRow } from "@/protocol/protocol";
 
-/** `loaded`: the daemon has told the messages whole (in a window whose store was new, what it told is seen: lib/firststart.ts). */
+/** `loaded`: the daemon sent all messages (in a window with a new store, they count as seen). */
 export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel, send: (command: Command) => boolean, loaded?: Readonly<Ref<boolean>>) {
   const viewing = useViewing(panel, "email");
   const marks = useReadMarks();
@@ -24,7 +24,8 @@ export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel
     { immediate: true },
   );
 
-  // The rows that came in after `freshAfter` are shown as new (bold): the mark of what was seen when the tab last came on show, so that they stay new for as long as the tab is open and are not new the next time.
+  // Rows after `freshAfter` show as new until the tab is closed; the mark is what was seen when the
+  // tab last came on show.
   const freshAfter = shallowRef(marks.readUpTo(EMAIL_GATEWAY));
   watch(
     [viewing, () => newestIncomingId(thread.value)],
@@ -43,18 +44,15 @@ export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel
 
   const toGateway = (text: string): boolean => send({ cmd: "send_message", to: EMAIL_GATEWAY, text });
 
-  /** Sends the line to the gateway, and remembers `to` (when there is one) once it is sent. */
   function viaGateway(to: string | null, line: string): void {
     if (toGateway(line) && to !== null) book.remember(to);
   }
 
-  /** Sends mail: the line "to text" to the gateway. */
   const sendMail = (to: string, text: string): void => viaGateway(to, emailLine(to, text));
 
-  /** Check email: the gateway sends again the mail it kept for the station. */
   const checkMail = (): void => viaGateway(null, GET_HELD);
 
-  /** Takes a row out of the list (the daemon deletes it; a mail still being sent is cancelled first). */
+  /** Delete a row (a mail still being sent is cancelled first). */
   const remove = (id: number): void => void send({ cmd: "message_delete", id });
 
   return {

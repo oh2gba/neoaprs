@@ -1,9 +1,9 @@
-// What the page's alert needs of the browser, made by hand: an audio context that is locked until it is resumed, a Notification that keeps what was shown, the page's address, whether it is in front.
+// The page's alert dependencies made by hand: an audio context locked until resumed, a Notification
+// that keeps what was shown, the page's address and whether it is in front.
 import { vi } from "vitest";
 
 export class FakeAudioContext {
   static made: FakeAudioContext[] = [];
-  /** what resume() makes of a locked context; "suspended" is a browser that refuses */
   static afterResume: AudioContextState = "running";
   state: AudioContextState = "suspended";
   currentTime = 0;
@@ -33,7 +33,6 @@ export class FakeAudioContext {
     FakeAudioContext.afterResume = "running";
   }
 
-  /** the notes played in all */
   static played(): number {
     return FakeAudioContext.made.reduce((sum, context) => sum + context.oscillators, 0);
   }
@@ -42,7 +41,6 @@ export class FakeAudioContext {
 export class FakeNotification {
   static shown: FakeNotification[] = [];
   static permission: NotificationPermission = "default";
-  /** what the user answers when asked */
   static answer: NotificationPermission = "granted";
   static asked = 0;
   static refuses = false;
@@ -77,7 +75,6 @@ export class FakeNotification {
   }
 }
 
-/** A browser with audio and notifications, a secure context or not; `unstubAllGlobals` takes it away. */
 export function stubBrowser(options: { secure?: boolean; notifications?: boolean } = {}): void {
   FakeAudioContext.reset();
   FakeNotification.reset();
@@ -86,23 +83,27 @@ export function stubBrowser(options: { secure?: boolean; notifications?: boolean
   if (options.notifications ?? true) vi.stubGlobal("Notification", FakeNotification);
 }
 
-/** The page is opened in a browser at this address (a host name or an address): the mark of the app's window that a test before may have left (lib/shell.ts) is gone. */
+/**
+ * The page is opened in a browser at this address; clears the app-window mark a test may have left.
+ */
 export function openedAt(host: string): void {
   sessionStorage.removeItem(IN_APP);
   (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL(`http://${host}:7303/`);
 }
 
-/** What lib/shell.ts keeps in the window's own store once it has seen the mark. */
 const IN_APP = "neoaprs-in-app";
 
-/** The page is the desktop app's own window: the daemon's page on the loopback with the fragment the window adds (neoaprs/desktop/links.py `window_url`), in the web engine of `userAgent`. */
+/**
+ * The page is the desktop app's window: the loopback page with the window's fragment, in the web
+ * engine of `userAgent`.
+ */
 export function openedInApp(userAgent?: string): void {
   sessionStorage.removeItem(IN_APP);
   (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL("http://127.0.0.1:7303/#app");
   if (userAgent !== undefined) vi.stubGlobal("navigator", { userAgent });
 }
 
-/** The user agents of the app's windows: Qt's web engine on Linux and macOS, WebView2 on Windows, and the system's own engine of the window's trial on Linux and macOS (NEOAPRS_WINDOW=web). */
+/** The user agents of the app's windows: Qt's web engine, WebView2, and the system web engine. */
 export const APP_WINDOWS = {
   "Linux, Qt": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.140.0 Chrome/140.0.0.0 Safari/537.36",
   "macOS, Qt": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.140.0 Chrome/140.0.0.0 Safari/537.36",
@@ -111,7 +112,6 @@ export const APP_WINDOWS = {
   "macOS, WKWebView": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
 } as const;
 
-/** Whether the page is in front of the person: visible and in focus. */
 export function setSeen(seen: boolean): void {
   Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (seen ? "visible" : "hidden") });
   vi.spyOn(document, "hasFocus").mockReturnValue(seen);

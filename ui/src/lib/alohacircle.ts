@@ -1,9 +1,11 @@
-// The ALOHA circles of the map: for each radio the daemon worked one out for (`aloha` of the topic `map`: a radio that is on and shares a 1200 baud channel), the ring of points at its radius round our own position, as
-// the line the layer draws (lib/alohalayers.ts).
+// The map's ALOHA circles: for each radio the daemon computed one for (`aloha` of the topic `map`:
+// a radio that is on and shares a 1200 baud channel), the ring of points at its radius round our
+// position, as the line the layer draws (lib/alohalayers.ts).
 import { unwrapLine } from "@/lib/dateline";
 import type { Home } from "@/lib/mapview";
 
-const EARTH_RADIUS_KM = 6371.0088; // the daemon's sphere (neoaprs/geo.py)
+// the daemon's sphere (neoaprs/geo.py)
+const EARTH_RADIUS_KM = 6371.0088;
 const POINTS = 120;
 
 export type LonLat = [number, number];
@@ -13,7 +15,7 @@ export interface AlohaCollection {
   features: { type: "Feature"; properties: { km: number }; geometry: { type: "LineString"; coordinates: LonLat[] } }[];
 }
 
-/** The point `km` from `from` on the great circle that leaves it at `bearing` radians (north is 0). */
+/** The point `km` from `from` on the great circle leaving it at `bearing` radians (north is 0). */
 function destination(from: Home, km: number, bearing: number): LonLat {
   const lat = (from.lat * Math.PI) / 180;
   const lon = (from.lon * Math.PI) / 180;
@@ -23,13 +25,18 @@ function destination(from: Home, km: number, bearing: number): LonLat {
   return [(toLon * 180) / Math.PI, (toLat * 180) / Math.PI];
 }
 
-/** The closed ring of points `km` round `center`, the longitudes running on past the date line instead of wrapping, so that the ring stays one line. */
+/**
+ * The closed ring of points `km` round `center`; longitudes run on past the date line so it stays
+ * one line.
+ */
 export function ringAround(center: Home, km: number): LonLat[] {
   const ring = Array.from({ length: POINTS + 1 }, (_, i) => destination(center, km, (2 * Math.PI * i) / POINTS));
   return unwrapLine(ring);
 }
 
-/** The closed ring of each circle by its radius in km, or no feature at all without a position; a circle of no radius is left out. */
+/**
+ * The ring of each circle by radius in km; no features without a position; zero radii are left out.
+ */
 export function alohaFeatures(home: Home | null, radii: readonly number[]): AlohaCollection {
   if (home === null) return { type: "FeatureCollection", features: [] };
   return {

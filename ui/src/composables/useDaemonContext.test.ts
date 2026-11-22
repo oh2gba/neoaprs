@@ -55,7 +55,9 @@ describe("useDaemonContext", () => {
           radioAdded: daemon.radioAdded,
           config: daemon.config,
           status: daemon.status,
-        }); // (the parts of the daemon the radios are read from, as the page spreads them in: composables/useAppShell.ts)
+          // The parts of the daemon the radios are read from, as the page spreads them in:
+          // composables/useAppShell.ts.
+        });
         return () => h(Pane);
       },
     });

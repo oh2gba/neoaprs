@@ -1,20 +1,34 @@
-// When the beacon is Off (`beacon/interval_min` is 0, for a station that moves too) or transmitting is switched off (RX only): which fields of the My station tab are then greyed out. Off is no automatic beacon and no automatic status (Beacon now still sends), so only the timing is greyed;
-// RX only sends nothing, so all that the beacon says is greyed, shown with its value and not asked; the Station group and the Beacon choice itself are never greyed. The daemon's rule is Config.beacon_on (neoaprs/config.py).
+// When the beacon is Off (`beacon/interval_min` is 0, also for a moving station) or transmitting is
+// off (RX only): which My station fields are greyed. Off means no automatic beacon or status
+// (Beacon now still sends), so only the timing is greyed. RX only sends nothing, so everything the
+// beacon says is greyed (shown, not asked); the Station group and the Beacon choice are never
+// greyed. The daemon's rule is Config.beacon_on (neoaprs/config.py).
 
-/** The antenna's keys belong to the station, though they are the beacon's to send. */
+/** The antenna keys belong to the station, though the beacon sends them. */
 export const ANTENNA = ["beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "beacon/antenna_direction"];
 
-/** Whether the beacon is Off in these settings (key to text): `beacon/interval_min` is 0. False while the settings do not have it. */
+/**
+ * Whether the beacon is Off in these settings (key to text): `beacon/interval_min` is 0. False if
+ * the settings lack it.
+ */
 export function beaconOff(values: Readonly<Record<string, string>>): boolean {
   const interval = values["beacon/interval_min"];
   return interval !== undefined && ["", "0"].includes(interval.trim());
 }
 
-/** Whether transmitting is switched off (`station/transmit` is false: RX only): nothing is sent, so the beacon's fields are greyed as when the beacon is Off. */
+/**
+ * Whether transmitting is off (`station/transmit` is false: RX only): nothing is sent, so beacon
+ * fields are greyed as when Off.
+ */
 const rxOnly = (values: Readonly<Record<string, string>>): boolean => values["station/transmit"] === "false";
 
-/** Whether a field is greyed out (shown, with its value, and not changeable) for these settings: while the beacon is Off only its timing (Travelling and the status's Every: there is no automatic beacon), for what is sent (the place, the symbol, the comment, the path, the antenna, the status text) is still what Beacon now sends; while transmitting is switched off (RX only) all of what the beacon says. `receiveOnly`: no radio that is on can send (the page's
- * `receiveOnly`), which greys as RX only does. */
+/**
+ * Whether a field is greyed out (shown with its value, not changeable) for these settings. While
+ * the beacon is Off only its timing (Travelling and the status's Every); the fields for what is
+ * sent (place, symbol, comment, path, antenna, status text) stay, as Beacon now still sends them.
+ * While transmitting is off (RX only), all the beacon says. `receiveOnly`: no radio that is on can
+ * send (the page's `receiveOnly`); it greys as RX only does.
+ */
 export function disabledByValues(key: string, values: Readonly<Record<string, string>>, receiveOnly = false): boolean {
   if (receiveOnly || rxOnly(values)) return SENT.includes(key) || TIMING.includes(key) || key.startsWith("status/") || key === "station/status";
   return beaconOff(values) && TIMING.includes(key);

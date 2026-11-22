@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// One list of the Nearby tab as a short table, the rows of the Stations table in small: the symbol, the call with the words under it (what makes the station belong to this list), the distance from us and the bearing as a small arrow. A click on a row
-// does what a click on a row of the Stations table does (the station is selected, its card opens and the map flies to it; with Ctrl it adds a card), and so does Enter. A row for a call that was only heard repeating, with no packet of its own,
-// has nothing to select and is not a button. A station past its timeout (off the map) is dim, as in the Stations table. The distance is empty for a station without a position. A right-click on a row (a long press on a touch screen) offers to copy its call (CopyMenu).
+// One Nearby list as a short table: symbol, call with the reason it belongs to this list,
+// distance and bearing arrow. A click or Enter does what a click on a Stations row does (select,
+// open the card, fly to it; Ctrl adds a card). A call only heard repeating has no packet of its
+// own and is not a button. Right-click copies the call (CopyMenu).
 import BearingArrow from "@/components/BearingArrow.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
@@ -18,7 +19,7 @@ const emit = defineEmits<{ select: [call: string, multi?: boolean] }>();
 const { now, aging } = useDaemonContext();
 
 const isOpen = (call: string): boolean => call === props.selected || (props.others ?? []).includes(call);
-/** Ctrl (Cmd on a Mac) held: the station's card is added to the open ones, or closed when it is open. */
+/** Ctrl (Cmd on a Mac) held: the card is added to the open ones, or closed when open. */
 const withKey = (event: MouseEvent | KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
 /** The copy menu of a row: its call. */
 const copy = useCopyMenu((row) => (row.dataset["call"] === undefined ? [] : [{ kind: "call", text: row.dataset["call"] }]));

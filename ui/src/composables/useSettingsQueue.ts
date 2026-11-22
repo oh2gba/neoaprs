@@ -1,17 +1,17 @@
-// The sending of `set_config` one request at a time (composables/useSettings.ts): the daemon's answer to it (the topic `config` told again, or an `error`) carries no id, so the next request waits until the one that is out
-// has been answered, and each answer belongs to exactly one request. A request the daemon does not answer in time is given up, so that the queue cannot stay stuck.
+// Sends `set_config` one request at a time. The daemon's answer (the topic `config` again, or an
+// `error`) carries no id, so the next request waits for the one out, and each answer belongs to
+// exactly one request. A request the daemon does not answer in time is given up, so the queue
+// cannot stay stuck.
 import { computed, ref, shallowRef } from "vue";
 import { t } from "@/i18n";
 import type { Command } from "@/protocol/protocol";
 
-/** How long the daemon may take to answer a `set_config` before it is given up. */
 export const ANSWER_MS = 20000;
 
 export interface Request {
-  /** key to the text to send */
   values: Record<string, string>;
   keys: string[];
-  /** keys that show their old value again when the daemon refuses (a choice; a typed field keeps its text) */
+  /** Keys that show their old value again when the daemon refuses (a choice, not a typed field). */
   revert: string[];
 }
 
@@ -25,7 +25,6 @@ export function useSettingsQueue(
   const saving = computed(() => inflight.value !== null || queue.value.length > 0);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  /** Sends the next request if none is out. */
   function pump(): void {
     const next = queue.value[0];
     if (inflight.value || !next) return;
@@ -42,7 +41,6 @@ export function useSettingsQueue(
     pump();
   }
 
-  /** The request that is out has been answered: it is taken out of flight and given. */
   function release(): Request | null {
     clearTimeout(timer);
     const request = inflight.value;
@@ -55,7 +53,7 @@ export function useSettingsQueue(
     pump();
   }
 
-  /** What the key will be once everything sent and queued has been answered: the last value asked for, else the one in force. */
+  /** The value the key will have once everything sent and queued is answered. */
   function expected(key: string): string {
     for (const request of [...queue.value].reverse()) if (key in request.values) return request.values[key] ?? "";
     const out = inflight.value;

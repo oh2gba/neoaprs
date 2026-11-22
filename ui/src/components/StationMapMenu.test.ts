@@ -139,7 +139,10 @@ describe("the menu of the map", () => {
 /** A Mercury radio whose modem has the interface (or has not, `scope` false). */
 const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow => radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
 
-/** The map with these radios told, and the page's counting of who looks given the topic `radios` as the page makes it. */
+/**
+ * The map with these radios told, and the page's counting of who looks given the topic `radios` as
+ * the page makes it.
+ */
 async function withRadios(...rows: RadioRow[]): Promise<{ wrapper: Awaited<ReturnType<typeof mounted>>["wrapper"]; daemon: FakeDaemon }> {
   const { wrapper, daemon } = await mounted();
   await tell(daemon, { radios: radiosTopic(...rows) });

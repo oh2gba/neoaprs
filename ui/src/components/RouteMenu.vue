@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// "Route" in the header of a conversation: a button (of the one height of the page's buttons: the header is a toolbar) that opens, in a box under the header, the radio the messages to the station go on (where more than one
-// is on), the path they go by and the tickbox RF only (StationPrefs). It is closed until it is pressed, and closed again by Esc, a click or tap outside it, or the focus moving away. A dot on the button says the route is not
-// the default one (a radio chosen, a path of its own on the radio in force, or RF only), which the old closed heading said by being open.
+// "Route" in a conversation header: a button that opens a box with the radio the messages go on,
+// the path and the RF only tickbox (StationPrefs). Esc, an outside click or tap, or focus leaving
+// closes it. A dot on the button says the route is not the default.
 import { computed, ref, watch } from "vue";
 import StationPrefs from "@/components/StationPrefs.vue";
 import { t } from "@/i18n";

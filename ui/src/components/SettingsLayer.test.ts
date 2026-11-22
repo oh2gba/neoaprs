@@ -10,7 +10,9 @@ import type { LayerReceiver } from "@/protocol/protocol";
 const NOW = Date.parse("2026-10-21T12:00:03Z");
 const receiving = (things: number, heard_at: string | null = "2026-10-21T12:00:00Z"): LayerReceiver => ({ state: "receiving", things, heard_at });
 
-/** The Settings tab with the layers of the map as `layers` says them and `extra` over the settings. */
+/**
+ * The Settings tab with the layers of the map as `layers` says them and `extra` over the settings.
+ */
 function make(extra: Record<string, string> = {}, layers = [mapLayer("aircraft"), mapLayer("ships")]) {
   const daemon = fakeDaemon({ config: configValues(extra), map: mapState({ layers }) });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon) });

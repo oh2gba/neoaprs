@@ -1,6 +1,7 @@
-// What a dialog over a dimmed page does with the keyboard (the update dialog, the path builder): the focus goes into it when it opens (to `first`, else to the dialog itself) and, when it closes, to `back` (the button that opened it;
-// a press does not focus a button in every browser) or else back to where it was, Tab and Shift+Tab go round inside it, and Escape closes it. `onKey` is the handler of those keys: the update dialog hears them on the whole page, the path builder on itself. An Escape it takes is marked as handled and goes no further, so that it
-// does not also close what the dialog was opened from (the Route box, a conversation, the Objects form); one that something handled already is left alone.
+// Keyboard handling of a dialog over a dimmed page: focus goes into it on open (to `first`, else
+// the dialog) and back on close (to `back`, else where it was); Tab and Shift+Tab stay inside;
+// Escape closes it. `onKey` handles these keys. An Escape it takes is marked handled, so it does
+// not also close what the dialog was opened from.
 import { nextTick, onBeforeUnmount, onMounted, type Ref } from "vue";
 
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]), summary, [tabindex]:not([tabindex='-1'])";
@@ -17,7 +18,6 @@ export function useDialogFocus(dialog: Readonly<Ref<HTMLElement | null>>, close:
     return [...(dialog.value?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])];
   }
 
-  /** Tab and Shift+Tab go round inside the dialog. */
   function keepFocus(event: KeyboardEvent): void {
     const items = focusables();
     const head = items[0];

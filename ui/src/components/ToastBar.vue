@@ -1,7 +1,10 @@
 <script setup lang="ts">
-// The last error the daemon (or the page) told, for a few seconds; a new one replaces it. The one that says RX only is a link to the tickbox (lib/settinglink.ts). A notice (composables/useNotice.ts: "Asked OH2XYZ for its status") takes the same place, in the colours of the Undo toast, and is replaced by whatever comes next.
-// What is in its slot is a line that stays until it is dismissed (components/WhatsNewLine.vue, after an update): it is drawn in the same place, in the colours of a notice, while there is nothing else to say, and comes back when what
-// was said has gone, so that the two are never one over the other.
+// The last error from the daemon or the page, shown for a few seconds; a new one replaces it.
+// The RX only error links to its tickbox (lib/settinglink.ts). A notice
+// (composables/useNotice.ts) takes the same place in the Undo toast colours.
+// The slot holds a line that stays until dismissed (WhatsNewLine.vue); it is drawn in notice
+// colours while there is nothing else to say and returns after that is gone, so the two never
+// overlap.
 import { onBeforeUnmount, ref, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import type { Toast } from "@/composables/useDaemon";
@@ -16,7 +19,8 @@ const props = defineProps<{ toast: Toast | null; notice?: Notice | null; seconds
 
 const shown = ref<Toast | Notice | null>(null);
 const goTo = useOpenSetting();
-const radios = useRadios(); // (a refusal that names a radio says it as the page does)
+// A refusal that names a radio is shown as the page names it.
+const radios = useRadios();
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 function show(next: Toast | Notice | null): void {
@@ -24,7 +28,7 @@ function show(next: Toast | Notice | null): void {
   shown.value = next;
   if (next) timer = setTimeout(() => (shown.value = null), (props.seconds ?? 8) * 1000);
 }
-// an error that goes (the next one is said at its field) takes only an error with it, never a notice shown since
+// Clearing an error never removes a notice shown since.
 watch(
   () => props.toast,
   (toast) => {

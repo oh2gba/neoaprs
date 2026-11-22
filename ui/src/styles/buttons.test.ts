@@ -3,7 +3,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { cssRule, mediaRule } from "@/test/css";
 
-// One size for the buttons of the page: a text button, an input and a select are --control-h high (32 px), the compact `.btn.small` is --control-h-small (24 px), and nothing else sets the size of a `.btn`.
+// One size for the buttons of the page: a text button, an input and a select are --control-h high
+// (32 px), the compact `.btn.small` is --control-h-small (24 px), and nothing else sets the size
+// of a `.btn`.
 const STYLES = resolve(__dirname);
 const SRC = resolve(__dirname, "..");
 const strip = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -40,7 +42,8 @@ describe("the sizes of the buttons", () => {
       for (const match of strip(readFileSync(file, "utf8")).matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
         const selector = (match[1] ?? "").trim();
         if (!/\.btn(?![\w-])/.test(selector) || !sizes.test(match[2] ?? "")) continue;
-        if (file.endsWith("responsive.css") && /^\.btn,\s*\.btn\.small,/.test(selector) && !/padding|font-size|line-height/.test(match[2] ?? "")) continue; // (the finger's minimum)
+        // The finger's minimum.
+        if (file.endsWith("responsive.css") && /^\.btn,\s*\.btn\.small,/.test(selector) && !/padding|font-size|line-height/.test(match[2] ?? "")) continue;
         found.push(`${file.slice(STYLES.length + 1)}: ${selector.replace(/\s+/g, " ")}`);
       }
     }
@@ -69,7 +72,8 @@ describe("the sizes of the buttons", () => {
   });
 
   it("are small only inside a line of text or a list row: the components listed here; every other button is the normal height", () => {
-    const allowed = new Set(["ConversationThread", "EmailRow", "CopyField", "PopupHelp", "UpdateSteps", "ObjectsQru", "SkedsPane"]); // (message rows, the groups in a server's row, a copy beside a command, the Join of a sked's row)
+    // Message rows, a server row's groups, a copy beside a command, the Join of a sked's row.
+    const allowed = new Set(["ConversationThread", "EmailRow", "CopyField", "PopupHelp", "UpdateSteps", "ObjectsQru", "SkedsPane"]);
     const small = files(resolve(SRC, "components"), ".vue")
       .filter((file) => /class="btn small/.test(readFileSync(file, "utf8")))
       .map((file) => file.replace(/^.*\//, "").replace(/\.vue$/, ""));

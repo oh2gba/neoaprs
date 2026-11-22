@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// What is under the button of the Detailed map row of the Map group of the Settings tab about the map's download: the progress of the job that runs (a bar and its step), what the last job failed with, and, quietly, "Map downloaded 23 Oct" when there is a detailed map.
-// The button that starts and cancels the job is in the row (components/MapFetchButton.vue), the notes go in the row's notes slot (components/ActionRow.vue).
+// The notes under the Detailed map button: the progress of the running job (a bar and its step),
+// what the last job failed with and, quietly, "Map downloaded 23 Oct" when a detailed map
+// exists. The button is MapFetchButton.vue; the notes fill the row's notes slot (ActionRow.vue).
 import { computed } from "vue";
 import { downloadedLine, isRunning, problemText, progressText } from "@/lib/mapfetch";
 import type { MapState } from "@/protocol/protocol";

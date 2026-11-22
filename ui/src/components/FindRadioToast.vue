@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The toast while Find my radio runs (composables/useFindRadio.ts): which port it is trying and how far it is, and Cancel. It goes when the search ends; what the end says is another toast (the Undo of the settings it changed, a notice, or
-// the daemon's error). It is in the colours of the notice.
+// The toast shown while Find my radio runs (composables/useFindRadio.ts): the port being tried,
+// the progress and Cancel. It goes when the search ends; the outcome is a separate toast. It
+// uses the notice colours.
 import { t } from "@/i18n";
 import type { FindRadio } from "@/composables/useFindRadio";
 

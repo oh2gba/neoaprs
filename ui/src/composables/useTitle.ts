@@ -1,4 +1,5 @@
-// The title of the browser tab follows the number of messages not seen: "(2) NeoAPRS", plain "NeoAPRS" with none (lib/unread.ts); while the tab is alerting (useTabAlert) its words take the title on the beats that show them.
+// The browser tab title follows the unseen messages count: "(2) NeoAPRS", else "NeoAPRS"; an
+// alerting tab (useTabAlert) shows its words on the beats.
 import { watchEffect, type Ref } from "vue";
 import { titleText } from "@/lib/unread";
 

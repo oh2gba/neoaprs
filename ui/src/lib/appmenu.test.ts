@@ -1,5 +1,6 @@
-// The engine's own menu in the app's window (lib/appmenu.ts): a right-click on the page shows none (no Back, no Reload), in a text field and on the selected text under the pointer it does (cut, copy, paste), the
-// page's own menus open as before, and in a browser nothing is changed.
+// The engine's own menu in the app's window (lib/appmenu.ts): a right-click on the page shows
+// none (no Back, no Reload); in a text field and on selected text it does (cut, copy, paste);
+// the page's own menus open as before; in a browser nothing is changed.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { keepEngineMenuToText } from "@/lib/appmenu";
 
@@ -11,13 +12,16 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-/** Puts `html` in the page and returns the element `selector` names. */
+/** Put `html` in the page and return the element `selector` names. */
 function place(html: string, selector: string): HTMLElement {
   document.body.innerHTML = html;
   return document.querySelector<HTMLElement>(selector) as HTMLElement;
 }
 
-/** Right-clicks `target` at (`x`, `y`): true when the engine's menu would show (the event was not prevented). */
+/**
+ * Right-click `target` at (`x`, `y`): true when the engine's menu would show (the event was not
+ * prevented).
+ */
 function rightClick(target: Element, x = 10, y = 10): boolean {
   const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x, clientY: y });
   return target.dispatchEvent(event);
@@ -87,7 +91,7 @@ describe("in the app's window", () => {
     const quiet = place(`<div class="map"><canvas></canvas></div>`, "canvas");
     const stopsOnly = vi.fn((event: MouseEvent) => event.stopPropagation());
     quiet.addEventListener("contextmenu", stopsOnly);
-    expect(rightClick(quiet)).toBe(false); // (a handler that only stops the event does not let the engine's menu through)
+    expect(rightClick(quiet)).toBe(false); // a handler that only stops the event does not let the engine's menu through
     expect(stopsOnly).toHaveBeenCalledTimes(1);
   });
 

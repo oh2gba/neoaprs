@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The Dummy radio: no radio, made-up stations (dashed) that answer, and nothing that goes out on the air (crossed).
+// The Dummy radio: no radio, made-up stations (dashed) that answer, and nothing that goes out
+// on the air (crossed).
 import { CALLS } from "@/help/calls";
 import { arrow, waves } from "@/help/draw";
 import { t } from "@/i18n";

@@ -1,5 +1,7 @@
-// The map's layers of traffic and their sources as the page names them: the catalogue's id of each layer's name (the Layers box and Settings, Map), the sources' own names, which are the same in every
-// language, and the credit each service is owed while its layer is on the map. The sources a station is offered come from the daemon (`map.layers`, AIRCRAFT_SOURCES and SHIP_SOURCES of the lists).
+// The map's traffic layers and their sources as the page names them: the catalogue's id of each
+// layer's name (the Layers box and Settings, Map), the sources' own names, which are the same in
+// every language, and the credit each service is owed while its layer is on the map. The sources a
+// station is offered come from the daemon (`map.layers`, AIRCRAFT_SOURCES and SHIP_SOURCES).
 import type { MessageId } from "@/i18n/catalogue";
 import type { MapLayer } from "@/protocol/protocol";
 
@@ -27,7 +29,8 @@ export interface CreditPart {
   readonly href?: string;
 }
 
-/** The credit of each service, in pieces: the text is the pieces one after another, and a piece with an address is a link to it (opened in a new tab). The own receivers are owed none. */
+/** The credit of each service, in pieces: the text is the pieces joined, and a piece with an
+ * address links to it (opened in a new tab). Own receivers are owed none. */
 export const CREDITS: Readonly<Record<ServiceName, readonly CreditPart[]>> = {
   adsbfi: [{ text: "adsb.fi", href: "https://adsb.fi/" }],
   adsblol: [{ text: "adsb.lol", href: "https://www.adsb.lol/" }, { text: ", " }, { text: "ODbL 1.0", href: "https://opendatacommons.org/licenses/odbl/1-0/" }],
@@ -39,7 +42,8 @@ export const CREDITS: Readonly<Record<ServiceName, readonly CreditPart[]>> = {
   ],
 };
 
-/** Whether a source is a device of the station's own (a Radarcape, an aircraft receiver of the operator's own, or an AIS receiver). */
+/** Whether a source is a device of the station's own (a Radarcape, an aircraft receiver or an AIS
+ * receiver). */
 export const isOwn = (source: string): source is OwnName => source === "receiver" || source === "radarcape";
 
 /** Whether a source is a service on the internet (one with its own name and a credit). */

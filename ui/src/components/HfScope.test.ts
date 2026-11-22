@@ -1,6 +1,8 @@
-// The scope in the HF radio's box (HfScope.vue, HfWaterfall.vue, composables/useHfScope.ts) and the Transmit level row (HfLevelRow.vue): the fold, folded at first and remembered in the browser; the rows asked of the daemon only while it is open, this page is
-// in front and the modem has the interface; the waterfall drawn from the rows and from what the page keeps of them, whole at once when it is mounted again, with the stations heard on the HF radio written on it; the receive
-// level as a bar with its zones; the gain buttons and the peak that turns orange.
+// The scope in the HF radio's box (HfScope.vue, HfWaterfall.vue, composables/useHfScope.ts) and
+// the Transmit level row (HfLevelRow.vue): the fold, closed at first and remembered; rows asked
+// of the daemon only while it is open, the page is in front and the modem has the interface; the
+// waterfall drawn from the rows and the page's memory, with the stations heard written on it;
+// the receive level bar; the gain buttons and the peak.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, shallowReactive, shallowRef } from "vue";
@@ -33,7 +35,8 @@ const clock = { now: NOW };
 let packets = shallowReactive(new Map<string, PacketRow>());
 let hf = shallowRef<ModemState | null>(null);
 let rows = useScopeRows(packets, () => clock.now);
-/** Rows of the daemon, one after the other, a tenth of a second apart (two to a line of the picture). */
+/** Rows of the daemon, one after the other, a tenth of a second apart (two to a line of the
+ * picture). */
 const say = async (...told: ScopeRow[]): Promise<void> => {
   for (const row of told) {
     rows.hfScopeRow(row, 2);
@@ -41,7 +44,8 @@ const say = async (...told: ScopeRow[]): Promise<void> => {
   }
   await flushPromises();
 };
-/** The time of a packet heard `ago` milliseconds before now, as the daemon writes it (whole seconds). */
+/** The time of a packet heard `ago` milliseconds before now, as the daemon writes it (whole
+ * seconds). */
 const heardNow = (ago = 0): string => new Date(clock.now - ago).toISOString().replace(/\.\d+Z$/, "Z");
 const scopeCalls = (daemon: FakeDaemon) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "radio_scope");
 
@@ -86,7 +90,7 @@ beforeEach(() => {
     },
   );
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context as unknown as CanvasRenderingContext2D);
-  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(420); // (the room the box in Settings gives the picture)
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(420);
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(240);
 });
 afterEach(() => {
@@ -242,8 +246,8 @@ describe("the picture and the receive level", () => {
     fold.element.open = true;
     await fold.trigger("toggle");
     await flushPromises();
-    expect(box.find(".levelvalue").text()).toBe("– dBFS"); // (the level is of the rows that come, and of the newest the daemon kept)
-    expect(lines()).toBe(52); // (as it stands at 10.5 s: the half second of rows ten seconds down, the time away the ground over it)
+    expect(box.find(".levelvalue").text()).toBe("– dBFS");
+    expect(lines()).toBe(52);
     calls.length = 0;
     rows.hfScopeHistory({ rows: [], clock: clock.now }, 2); // (the daemon kept nothing: the modem was started anew)
     await flushPromises();
@@ -259,7 +263,7 @@ describe("the picture and the receive level", () => {
     calls.length = 0;
     const again = make();
     await flushPromises();
-    expect(lines()).toBe(5 + 150); // (from memory at once: the five lines of that second, and the 30 s since at the top, as the ground)
+    expect(lines()).toBe(5 + 150);
     const made = rows.of(2).rows.map((kept) => kept.at);
     const daemon = Array.from({ length: 310 }, (_, i) => ({ row: scopeRow({}, -60), age: clock.now - (NOW + i * 100 + 5) }));
     calls.length = 0;
@@ -281,7 +285,7 @@ describe("the picture and the receive level", () => {
     await open();
     await say(scopeRow(), scopeRow(), scopeRow());
     calls.length = 0;
-    packets.set("2", packet(2, { source: "OH2GAX", radio_id: 2, heard_at: heardNow(), snr: -3.2 })); // (the SNR the radio measured of the frame)
+    packets.set("2", packet(2, { source: "OH2GAX", radio_id: 2, heard_at: heardNow(), snr: -3.2 }));
     packets.set("3", packet(3, { source: "OH2FM", radio_id: 1 }));
     packets.set("4", packet(4, { source: "OH2IS", radio_id: 2, via: "is" }));
     packets.set("5", packet(5, { source: "OH2GBA", radio_id: 2, direction: "out" }));
@@ -312,7 +316,7 @@ describe("the picture and the receive level", () => {
     const first = await open();
     await say(scopeRow(), scopeRow(), scopeRow());
     first.wrapper.unmount();
-    packets.set("7", packet(7, { source: "OH2AWAY", radio_id: 2, heard_at: heardNow() })); // (told while the page showed another tab: written down all the same)
+    packets.set("7", packet(7, { source: "OH2AWAY", radio_id: 2, heard_at: heardNow() }));
     await flushPromises();
     clock.now += 5_000;
     calls.length = 0;
@@ -370,7 +374,7 @@ describe("the Transmit level row", () => {
   it("saves one dB less or more at each press, and stops at Mercury's limits", async () => {
     const { box, daemon } = make({ scope: true }, { ...HF_ON, "radio/2/tx_gain_db": "0" });
     await buttons(box)[1].trigger("click");
-    await tell(daemon, { config: configValues({}, { ...HF_ON, "radio/2/tx_gain_db": "1" }) }); // (the daemon has saved it and says so: only then is the next press taken)
+    await tell(daemon, { config: configValues({}, { ...HF_ON, "radio/2/tx_gain_db": "1" }) });
     expect(level(box).find(".txlevel-value").text()).toBe("+1 dB");
     await buttons(box)[0].trigger("click");
     await buttons(box)[0].trigger("click");
@@ -414,7 +418,8 @@ describe("the Transmit level row", () => {
 const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow => radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
 
 describe("the scope in each radio's box", () => {
-  /** The page's context with these radios, its counting of who looks given the topic `radios` and the page's rows, as the page makes it. */
+  /** The page's context with these radios, its counting of who looks given the topic `radios`
+   * and the page's rows, as the page makes it. */
   function station(...radios: RadioRow[]) {
     const daemon = fakeDaemon({ radios: radiosTopic(...radios), scopeOf: rows.of, packets });
     daemon.scope = useScopeLooks(daemon.send, daemon.connection, shallowRef(true), { radios: daemon.radios });

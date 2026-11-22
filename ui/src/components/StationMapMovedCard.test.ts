@@ -5,7 +5,8 @@ import { FakeMap, resetFakes } from "@/test/fakemap";
 import { mountStationMap } from "@/test/stationmap";
 import { NOW, ago, station, table } from "@/test/fixtures";
 
-// A map 390 wide and 380 high with a card of the row over its bottom (10, 130 to 380, 370), and a card the user has moved to its top left (20, 20 to 150, 100).
+// A map 390 wide and 380 high with a card of the row over its bottom (10, 130 to 380, 370), and a
+// card the user has moved to its top left (20, 20 to 150, 100).
 const rect = (left: number, top: number, right: number, bottom: number): DOMRect => ({
   left,
   top,
@@ -67,7 +68,8 @@ describe("StationMap with a card the user has moved", () => {
     FakeMap.last().screen = { x: 80, y: 60 };
     await wrapper.setProps({ selected: "OH2PU-9" });
     await flushPromises();
-    expect(FakeMap.last().pans).toEqual([{ offset: [-110, 0], options: { duration: 300 } }]); // (there is no room above it: beside it, 40 px from its right edge)
+    // there is no room above it: beside it, 40 px from its right edge
+    expect(FakeMap.last().pans).toEqual([{ offset: [-110, 0], options: { duration: 300 } }]);
   });
 
   it("does not take the moved card for part of the row: a marker between the two is left where it is", async () => {
@@ -100,6 +102,7 @@ describe("StationMap with a card the user has moved", () => {
     const wrapper = await mounted(MOVED);
     await wrapper.setProps({ selected: "OH2PU-9", focus: { call: "OH2PU-9", n: 1 } });
     await flushPromises();
-    expect(FakeMap.last().flights).toEqual([{ center: [24.65, 60.2], zoom: 11, offset: [135, 0] }]); // (the middle, 195/190, goes to 40 px right of the card's right edge, 330)
+    // the middle, 195/190, goes to 40 px right of the card's right edge, 330
+    expect(FakeMap.last().flights).toEqual([{ center: [24.65, 60.2], zoom: 11, offset: [135, 0] }]);
   });
 });

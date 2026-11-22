@@ -6,7 +6,10 @@ import { usePanel } from "@/composables/usePanel";
 import type { Command, SkedRow, SkedsState } from "@/protocol/protocol";
 import { sked, skedsState } from "@/test/fixtures";
 
-/** The composable inside a component, with the panel as `usePanel` makes it; `show` is the tab in front before it is made. */
+/**
+ * The composable inside a component, with the panel as `usePanel` makes it; `show` is the tab in
+ * front.
+ */
 function setUp(rows: SkedRow[], show?: "skeds" | "stations", collapsed = false, connected = true) {
   const topic = shallowRef<SkedsState | null>(skedsState(rows));
   const live = ref(connected);

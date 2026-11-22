@@ -17,8 +17,10 @@ describe("problemOf", () => {
     expect(problemOf("station/lat", "abc")).toBe("Not a number");
     expect(problemOf("station/lon", "181")).toBe("Between -180 and 180");
     expect(problemOf("map/radius_km", "5")).toBe("10 to 300");
-    expect(problemOf("status/interval_min", "7")).toBe(""); // (a choice of the page: the daemon is the judge of a stored one)
-    expect(problemOf("beacon/interval_min", "7")).toBe(""); // (a choice of the page: the daemon is the judge of a stored one)
+    // A choice of the page: the daemon is the judge of a stored one.
+    expect(problemOf("status/interval_min", "7")).toBe("");
+    // A choice of the page: the daemon is the judge of a stored one.
+    expect(problemOf("beacon/interval_min", "7")).toBe("");
     expect(problemOf("serial/baud", "")).toBe("");
     expect(problemOf("serial/baud", "12")).toBe("300 to 921600");
     expect(problemOf("tcp/port", "")).toBe("1 to 65535");

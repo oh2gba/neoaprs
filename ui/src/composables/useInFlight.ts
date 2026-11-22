@@ -1,11 +1,11 @@
-// A command whose button waits for the daemon: while it is in flight the button does not send it again (a second click, a second Enter). It lands when its answer is told (`answered` changes), when the daemon refuses it
-// (an error that names the command), when the socket closes (an answer lost with it never comes) or after ANSWER_MS, so that the button cannot stay off for good.
+// A command whose button waits for the daemon, so a second click or Enter does not send it again.
+// The wait ends when the answer arrives (`answered` changes), the daemon refuses the command (an
+// error naming it), the socket closes, or after ANSWER_MS, so the button cannot stay off for good.
 import { computed, getCurrentScope, inject, onScopeDispose, ref, watch, type Ref, type WatchSource } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { DAEMON_KEY } from "@/composables/useDaemonContext";
 import type { Connection } from "@/lib/hub";
 
-/** How long a command may wait for its answer before its button is free again. */
 export const ANSWER_MS = 20_000;
 
 export interface InFlightParts {
@@ -13,7 +13,9 @@ export interface InFlightParts {
   connection: Readonly<Ref<Connection>>;
 }
 
-/** `cmd`: the command, as an error that refuses it names it; `answered`: what the daemon tells when it was done (without it the caller says so with `land`). */
+/**
+ * `cmd`: the command, as a refusing error names it; `answered`: what the daemon sends when done.
+ */
 export function useInFlight(cmd: string, answered: WatchSource | null, parts: InFlightParts | null) {
   const busy = ref(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -23,7 +25,6 @@ export function useInFlight(cmd: string, answered: WatchSource | null, parts: In
     busy.value = false;
   }
 
-  /** Sends by `send` unless the command is in flight; true when it went. */
   function run(send: () => boolean): boolean {
     if (busy.value) return false;
     const sent = send();
@@ -44,18 +45,23 @@ export function useInFlight(cmd: string, answered: WatchSource | null, parts: In
   return { busy, run, land };
 }
 
-/** useInFlight with the page's context (a component mounted without one, a test, has only the answer and the time). */
+/**
+ * `useInFlight` with the page's context; a component mounted without one has only the answer and
+ * time.
+ */
 export function useCommandInFlight(cmd: string, answered: WatchSource | null) {
   return useInFlight(cmd, answered, inject(DAEMON_KEY, null));
 }
 
-/** Whether the socket to the daemon is open: a box that sends is off while it is not (true without the page's context, a test). */
+/** Whether the socket to the daemon is open (true without the page's context). */
 export function useSocketOpen(): Readonly<Ref<boolean>> {
   const context = inject(DAEMON_KEY, null);
   return computed(() => context === null || context.connection.value === "open");
 }
 
-/** Ends a wait for an answer when the socket closes: the daemon forgets a page that has gone, so the answer never comes. */
+/**
+ * End the wait when the socket closes: the daemon forgets a gone page, so the answer never comes.
+ */
 export function endWithTheSocket(connection: Readonly<Ref<Connection>> | null | undefined, end: () => void): void {
   if (connection) watch(connection, (state) => state !== "open" && end());
 }

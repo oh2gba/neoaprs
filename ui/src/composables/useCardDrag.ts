@@ -1,5 +1,5 @@
-// Moving the station cards over the map (components/StationCards.vue). On a tablet and a desktop a card is dragged by its head (the symbol and the call: not its buttons and links) with a mouse, a finger or a pen, or moved with Alt and the arrow keys while it has the focus,
-// and it stays where it was put while it is open. Where the cards stand, and that moving one never moves another, is composables/useCardPlaces.ts.
+// Moving the station cards over the map. On a tablet and a desktop a card is dragged by its head
+// with a mouse, finger or pen, or moved with Alt and the arrow keys while focused.
 import { onBeforeUnmount, watch, type Ref } from "vue";
 import { useCardPlaces, type Places } from "@/composables/useCardPlaces";
 import { DRAG_MIN, DRAGGING, keyStep, NOT_HEAD, type Place } from "@/lib/cardmove";
@@ -15,7 +15,6 @@ interface Drag {
   head: HTMLElement;
 }
 
-/** The call of the card whose head was pressed (not on a button or a link of it), with the head. */
 function headPressed(row: HTMLElement | null, event: Event): { call: string; head: HTMLElement } | null {
   const target = event.target instanceof Element ? event.target : null;
   const head = target?.closest<HTMLElement>(".card-head");
@@ -33,7 +32,7 @@ export function useCardDrag(stack: Readonly<Ref<HTMLElement | null>>, places: Re
   }
 
   function down(event: PointerEvent): void {
-    if (drag && !drag.head.isConnected) stop(); // (its card closed under the pointer: the release went nowhere)
+    if (drag && !drag.head.isConnected) stop();
     const pressed = enabled() && event.button <= 0 && !drag ? headPressed(stack.value, event) : null;
     const origin = pressed ? current(pressed.call) : null;
     if (!pressed || !origin) return;
@@ -41,7 +40,7 @@ export function useCardDrag(stack: Readonly<Ref<HTMLElement | null>>, places: Re
     try {
       pressed.head.setPointerCapture?.(event.pointerId);
     } catch {
-      // (a pointer that is gone already: the drag goes on with the events that reach the row)
+      // The pointer is gone already.
     }
   }
 
@@ -63,12 +62,12 @@ export function useCardDrag(stack: Readonly<Ref<HTMLElement | null>>, places: Re
     try {
       drag.head.releasePointerCapture?.(event.pointerId);
     } catch {
-      // (it is let go of already)
+      // It is released already.
     }
     stop();
   }
 
-  /** Alt with an arrow moves the card that has the focus (a step; Shift for a big one); the first move pins every card where it stands. */
+  /** Alt with an arrow moves the focused card (Shift: a big step). */
   function key(event: KeyboardEvent): void {
     if (!enabled() || !event.altKey || event.ctrlKey || event.metaKey) return;
     const step = keyStep(event.key, event.shiftKey);

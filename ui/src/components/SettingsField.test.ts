@@ -5,7 +5,10 @@ import { bytes, characters, type TextLimit } from "@/lib/textlimit";
 
 const COMMENT: TextLimit = { max: 43, measure: characters, kind: "characters" };
 
-/** A typed setting with a limit, whose value follows what it says (as the settings form's draft does). */
+/**
+ * A typed setting with a limit, whose value follows what it says (as the settings form's draft
+ * does).
+ */
 function field(value = "", count: TextLimit | null = COMMENT) {
   const wrapper = mount(SettingsField, {
     props: {

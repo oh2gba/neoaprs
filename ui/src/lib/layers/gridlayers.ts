@@ -1,6 +1,9 @@
-// The layers of the locator grid (lib/layers/grid.ts): thin lines in the map's label colour at a low strength (the subsquares' lines without names fainter still), and one name in each cell in the regular face, muted,
-// with the halo of the map's text. The names never push a name of the base map away and are never pushed away themselves: one cell's name never meets another's. The colours are the page's own (styles/tokens.css),
-// read when the layers are made, which is again whenever the style is set (the colour scheme changed).
+// The layers of the locator grid (lib/layers/grid.ts): thin lines in the map's label colour at
+// a low strength (the subsquare lines, which have no names, fainter still), and one name in
+// each cell in the regular face, muted, with the halo of the map's text. The names never push a
+// base map name away and are never pushed away themselves: one cell's name never meets
+// another's. The colours are the page's own (styles/tokens.css), read when the layers are made,
+// which happens again whenever the style is set (the colour scheme changed).
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { paletteColor } from "@/lib/alohalayers";
 import { FONT_REGULAR } from "@/lib/basemapstyle";
@@ -36,7 +39,6 @@ export function addGridLayers(map: MapLibreMap, data: GridCollection): void {
   });
 }
 
-/** What the grid's layers draw. */
 export function setGridData(map: MapLibreMap, data: GridCollection): void {
   void map.getSource<GeoJSONSource>(GRID_SOURCE)?.setData(data);
 }

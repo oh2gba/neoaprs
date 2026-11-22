@@ -1,5 +1,7 @@
-// The page's corners are three tokens, the site's shapes (styles/tokens.css): --radius (4 px) for a control, --radius-box (6 px) for a group, a card, a menu or a bubble, --radius-pill for the tag; a corner
-// written anywhere else is one of them, 0, or 50 % (a circle). The instruments keep their own (plan §7: the level bar and the scope's picture stay as they are).
+// The page's corners are three tokens, the site's shapes (styles/tokens.css): --radius (4 px) for
+// a control, --radius-box (6 px) for a group, card, menu or bubble, --radius-pill for the tag. A
+// corner written anywhere else is one of them, 0, or 50 % (a circle). The instruments keep their
+// own: the level bar and the scope's picture stay as they are.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -19,13 +21,15 @@ const strip = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** A corner as the page may write it: each of its one to four parts a token, 0 or 50 %. */
 const PART = /^(var\(--radius(?:-box|-pill)?\)|0|50%)$/;
-/** The corners written as a number, each with its reason: the file, the value. A listed one that is gone fails too, so the list cannot go stale. */
+/** The corners written as a number, each with its reason: the file, the value. A listed one that
+ * is gone fails too, so the list cannot go stale. */
 const KEPT: Record<string, string> = {
-  "components/LevelBar.vue": "5px", // (the level bar: an instrument's scale, plan §7)
-  "components/HfScope.vue": "4px", // (the scope's picture: an instrument, plan §7)
+  "components/LevelBar.vue": "5px", // the level bar: an instrument's scale
+  "components/HfScope.vue": "4px", // the scope's picture: an instrument
 };
 
-/** Every corner the page writes: where, and the value. A .vue file's <style> and its inline styles are read, a .ts file's strings too. */
+/** Every corner the page writes: where, and the value. A .vue file's <style> and its inline
+ * styles are read, a .ts file's strings too. */
 function corners(): { name: string; value: string }[] {
   return files(SRC)
     .map((path) => relative(SRC, path).replaceAll("\\", "/"))

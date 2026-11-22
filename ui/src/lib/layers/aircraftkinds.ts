@@ -1,7 +1,8 @@
-// Which shape an aircraft is drawn with (lib/layers/aircraftshapes.ts, tar1090's shapes), by a small table of our own: first by the emitter category its transponder sends (`category`: A1 light to A7 rotorcraft,
-// B1 glider to B6 unmanned; the C ones, vehicles and obstacles on the ground, never reach the page), then, where the category says only how heavy the aircraft is (A1 to A5) or nothing, by its ICAO type designator
-// (`designator`: `R44`, `A388`, `C25B`), from a short list written from ICAO's public designators (Doc 8643): helicopters, gliders, balloons, drones, the four-engined and the wide-bodied heavies, the
-// airliners, the business jets, the twins with propellers and the light singles. An aircraft of which nothing is known is the general one.
+// Which shape an aircraft is drawn with (lib/layers/aircraftshapes.ts). First by emitter category
+// (`category`: A1 light to A7 rotorcraft, B1 glider to B6 unmanned; the C ones, on the ground,
+// never reach the page). Where the category says only the weight (A1 to A5) or nothing, by ICAO
+// type designator (`designator`: `R44`, `A388`) against a short list from ICAO's public designators
+// (Doc 8643). An aircraft of which nothing is known gets the general shape.
 import type { AircraftShape } from "@/lib/layers/aircraftshapes";
 
 /** The shape of each emitter category that names a kind or a weight. */
@@ -20,10 +21,13 @@ const BY_CATEGORY: Readonly<Record<string, AircraftShape>> = {
   B6: "drone", // unmanned
 };
 
-/** The categories that say only how heavy an aircraft is: its type designator, where it is in the list, says more. */
+/** The categories that say only how heavy an aircraft is; its type designator may say more. */
 const WEIGHT_ONLY = new Set(["", "A1", "A2", "A3", "A4", "A5"]);
 
-/** The type designators that say the kind, in the order they are tried; a dot stands for any one letter or figure. */
+/**
+ * The type designators that name the kind, in the order tried; a dot matches any one letter or
+ * digit.
+ */
 const BY_DESIGNATOR: readonly (readonly [AircraftShape, RegExp])[] = [
   [
     "helicopter",
@@ -40,7 +44,7 @@ const BY_DESIGNATOR: readonly (readonly [AircraftShape, RegExp])[] = [
   ["light", /^(C15.|C17.|C18.|C20.|C21.|P28.|PA18|PA38|SR20|SR22|DA20|DA40|BE33|BE35|BE36|M20P|PC12|C208|TBM.)$/],
 ];
 
-/** The shape of an aircraft by what its source says of it: its emitter category and its type designator (both upper case, "" when not known). */
+/** The shape for an emitter category and a type designator (both upper case, "" when unknown). */
 export function aircraftShape(category: string, designator: string): AircraftShape {
   const kind = BY_CATEGORY[category];
   if (kind !== undefined && !WEIGHT_ONLY.has(category)) return kind;

@@ -1,5 +1,6 @@
-// What the daemon tells back about the settings (composables/useSettings.ts): the topic `config`, told again after every save, is the answer to the request in flight and the new value of every field that was not touched; an `error`
-// of `set_config` is the answer too, and names the key it refused.
+// What the daemon answers about the settings: the topic `config`, sent again after every save, is
+// the answer to the request in flight and the new value of every untouched field; an `error` of
+// `set_config` is an answer too and names the key it refused.
 import { watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { RadioNames } from "@/i18n/errortext";
@@ -9,7 +10,10 @@ import { refusalFor } from "@/lib/settinglinks";
 import { pairFieldOf } from "@/lib/settingspair";
 import type { ConfigValues } from "@/protocol/protocol";
 
-/** A pair's keys the daemon no longer tells (a radio removed, a type changed) leave the draft, so that the free calls do not count a pair that is gone; one edited or waiting for its answer stays. */
+/**
+ * Drop keys of a pair the daemon does not send any more (radio removed, type changed); edited
+ * or waiting ones stay.
+ */
 function dropGonePairs(
   draft: Record<string, string>,
   told: Readonly<Record<string, string>>,
@@ -32,10 +36,11 @@ export function useSettingsAnswers(
   refuse: (request: Request, reason: string, key: string) => void,
   radios?: RadioNames,
 ): void {
-  // The answer carries no id, so a tell of the settings for another reason releases the request in flight too. A tell that changed none of its keys may be such a one: the request is kept as `unsure`, so that a
-  // refusal of it that comes later, while the next one is out, still reaches its field.
+  // The answer carries no id, so a settings update for another reason also releases the request
+  // in flight. An update that changed none of its keys may be such a one: keep the request as
+  // `unsure`, so that a later refusal of it still reaches its field.
   let unsure: Request | null = null;
-  // a value the person has not touched follows the daemon; one being edited, or waiting in the queue, does not (what the request in flight sent is taken the way the daemon writes it)
+  // An untouched value follows the daemon; one being edited or queued does not.
   watch(
     config,
     (now, before) => {
@@ -59,7 +64,7 @@ export function useSettingsAnswers(
     if (!toast || toast.cmd !== "set_config") return;
     const request = queue.inflight.value;
     const earlier = unsure;
-    // a refusal that names a key of that request and none of the one in flight is its own: it goes to its field, and the one in flight still waits
+    // A refusal naming a key of that request and none of the one in flight goes to its field.
     if (earlier !== null && toast.key !== null && earlier.keys.includes(toast.key) && !request?.keys.includes(toast.key)) {
       unsure = null;
       refuse(earlier, refusalFor(toast, earlier.keys, radios).reason, toast.key);

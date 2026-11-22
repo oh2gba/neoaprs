@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The call as the My station tab and the setup guide ask for it: the call without its SSID in a text field, and the SSID in a dropdown beside it (the recommendations of aprs.org, so that nobody has to look up the number). The value is the call as
-// the settings keep it (`OH2GBA-9`), put together here and taken apart again. The field takes letters and digits in capitals; a dash with a number after it, typed or pasted (`OH2GBA-9`), moves the number into the dropdown (and out of the
-// field when the field is left, or at once when it was pasted); nothing else is let in. Choosing in the dropdown says `choose` (a call is there to be sent), but not while the field holds no call.
+// The call as My station and the setup guide ask for it: a text field for the call and a
+// dropdown for the SSID (the aprs.org recommendations). The value is the combined call
+// (`OH2GBA-9`). A typed or pasted "-9" moves the number into the dropdown. Choosing in the
+// dropdown emits `choose`, unless the field holds no call.
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
 import { callInput, joinCall, splitCall } from "@/lib/calls";
@@ -17,13 +18,14 @@ const emit = defineEmits<{
 }>();
 
 const first = splitCall(props.modelValue);
-/** What the field shows: the call, and for a moment the dash and number being typed. */
+/** What the field shows: the call, plus the dash and number while they are being typed. */
 const text = ref(first.base);
 const ssid = ref(first.ssid);
 const choices = computed(() => ssidChoices());
 const joined = (): string => joinCall(callInput(text.value).base, ssid.value);
 
-// a value that came from outside (Esc, an undo, a change from another page) is shown; the value this field has just said is not shown again, so that a dash being typed stays
+// Show a value that came from outside (Esc, an undo, another page), but not the one this field
+// just emitted, so a dash being typed stays.
 watch(
   () => props.modelValue,
   (value) => {
@@ -45,7 +47,7 @@ function typed(event: Event): void {
   emit("update:modelValue", joinCall(input.base, ssid.value));
 }
 
-/** The field is finished with: the number that was being typed stays only in the dropdown. */
+/** The field is finished with: a number being typed stays only in the dropdown. */
 function settle(field: EventTarget | null): void {
   text.value = callInput(text.value).base;
   if (field instanceof HTMLInputElement) field.value = text.value;

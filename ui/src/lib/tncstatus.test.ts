@@ -6,7 +6,8 @@ import { lineText, rowPillClass, rowPillText, rowStatus, statsCounts } from "@/l
 import type { ModemState, RadioProblem, RadioRow } from "@/protocol/protocol";
 import { NOW, ago, fmRow, hfRow, lineStats, radioRow } from "@/test/fixtures";
 
-// A radio's line as its row of the topic `radios` says it, in plain words: the same words for every radio.
+// A radio's line as its row of the topic `radios` says it, in plain words: the same words for every
+// radio.
 describe("the line of a radio's row", () => {
   const row = (type: string, extra: Partial<RadioRow> = {}) => radioRow(3, type, extra);
 

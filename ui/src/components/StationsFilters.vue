@@ -1,7 +1,9 @@
 <script setup lang="ts">
-// The group box over the Stations table that narrows it: the filter box (Esc clears its text; with the box empty Esc is not taken, and goes on to close the newest card), the tickboxes "hide timed out", "direct only" and
-// "heard on RF only" (it leaves out the stations known from the internet alone, and is there only once a station has been received over the internet: until then there is nothing for it to leave out), and "On map for" [3 h], how
-// long a station stays on the map: the setting of the daemon (the same in every browser), changed at once with an Undo. The text and the tickboxes are the table's (StationsTable), which lists its rows by them.
+// The group box over the Stations table that narrows it: the filter box (Esc clears it; when
+// empty Esc goes on to close the newest card), the tickboxes "hide timed out", "direct only"
+// and "heard on RF only" (shown once an internet-only station has been received), and
+// "On map for" [3 h], the daemon's setting for how long a station stays on the map, changed at
+// once with an Undo. Text and tickboxes belong to the table (StationsTable).
 import { computed } from "vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";

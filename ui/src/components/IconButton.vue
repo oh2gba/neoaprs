@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// The one small button for a row or a card: a trash can for "delete", a cross for "close", an envelope for "message" (MessageGlyph, the one picture of a message everywhere on the page), a route of three hops for "path" (the path builder of a path field), a pin for "pin" and a padlock for "lock" (toggles: `pressed` says whether it is on, shown to a screen reader as aria-pressed and by the filled pin or lock), always at least 32 by 32 pixels so that a finger hits it. `label` is what a screen reader says (it names the thing),
-// the hover title is "Delete" or "Close" ("Pin card" or "Unpin card" for a pin) unless `title` says more (what a delete does on the air); a "message" and a "path" button's is its label ("Message OH2XYZ", "Build the path"). `armed` is the first press of a delete, which asks twice (useSure): it says "sure?" in place of the trash can until the second press; both are in the page, in one place (TwoWords), so the button is as wide as "sure?" before the press too and nothing moves under the finger.
+// The one small button for a row or card: delete, close, message (MessageGlyph), path, pin and
+// lock (toggles; `pressed` becomes aria-pressed), at least 32 by 32 px. `label` is the
+// screen-reader name. `armed` is the first press of a delete (useSure): it shows "sure?" in a
+// fixed-width slot (TwoWords) so that nothing moves under the finger.
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import { t } from "@/i18n";

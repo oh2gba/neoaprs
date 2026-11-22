@@ -1,12 +1,15 @@
 <script setup lang="ts">
-// What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a check mark beside the call for a station that was heard direct (no repeater), when it was last heard, for each way it was heard ("FM 3 min ago · Internet 40 s ago", by the radio that heard it; lib/channels.ts; the full time of the latest when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
-// the altitude, the voice frequency with its tone, offset and range (when it gave one), the PHG or range it gave (a digipeater's reach; the antenna's direction as a small arrow), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"; none for a station known from the internet alone) and one for the internet ("Heard by iGate OH2GW-10 via OH2RCH-2", "Sent over the internet, not heard on the air"; for a station that came over it) and, for such a station, that a message to it is not possible. A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
-// A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). A station that is heard has the bars of its packets in each of the last 24 hours under its facts, above Details
-// (components/StationPackets.vue: the daemon counts them by the station's call, the source of its packets), and a station that moves the line of its speed over its trip (the span of its trail on the map) under them (components/StationSpeed.vue), and a station whose radio measured the signal of its packets (SNR, and RSSI where the radio gives it) says it with the last time of a reading in a row under the last heard and has the line of the SNR over the last day under those graphs (components/StationSignal.vue); our own
-// station, an object and an item have neither (ours is what we send, and an object's or an item's packets are its sender's). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
-// A station with an alert set ("Alert me when…" of the Stations table) has a small quiet bell at the end of the line of its call (AlertBell), with what it watches as its hover title.
-// The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it). The head is not text to select (it is the handle); a right-click on it offers to copy the call (CopyMenu).
-// Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
+// What the daemon knows of one station, as a card over the map: symbol, name, call (with a check
+// mark when heard direct), last heard per channel, altitude, voice frequency, PHG or range, status,
+// comment, the device it runs, and how its packets reach us. A weather station has a weather panel
+// at the top (WeatherPanel). A heard station shows packets per hour (StationPackets), a moving one
+// its speed (StationSpeed), and one whose radio measured the signal shows the signal. Objects and
+// items have neither the packets chart nor the signal; ours is what we send. "Message" opens the
+// Messages tab with the station as addressee. A station with an alert has a quiet bell (AlertBell)
+// by its call. The pin beside the cross (tablet and desktop) keeps the card past Esc, Close all and
+// a reload. The head is the drag handle and not selectable; a right-click offers to copy the call
+// (CopyMenu). Several cards can be open (Ctrl+click, StationCards). Forget removes the station from
+// the book and asks twice, resetting after 5 s (`useSure`).
 import { computed, watch } from "vue";
 import AlertBell from "@/components/AlertBell.vue";
 import TwoWords from "@/components/TwoWords.vue";
@@ -47,19 +50,25 @@ const props = withDefaults(
     now: number;
     aging?: Aging;
     weatherSeries?: WeatherSeriesMessage | null;
-    /** The station's packets by the hour, the daemon's latest answer for it. */
+    /** The station's packets by the hour, the daemon's latest answer. */
     packetHistory?: PacketHistoryMessage | null;
-    /** The speeds of a moving station, the daemon's latest answer for it. */
+    /** The speeds of a moving station, the daemon's latest answer. */
     speedSeries?: SpeedSeriesMessage | null;
-    /** The readings of the station's signal, the daemon's latest answer for it. */
+    /** The readings of the station's signal, the daemon's latest answer. */
     signalSeries?: SignalSeriesMessage | null;
     /** The value axes the open weather cards share. */
     ranges?: Ranges;
-    /** The card can be moved by its head (a tablet and a desktop; the bottom sheet of a phone cannot), and pinned. */
+    /**
+     * The card can be moved by its head and pinned (tablet and desktop; not the phone's bottom
+     * sheet).
+     */
     movable?: boolean;
     /** The card is pinned: it stays on the map until its cross is clicked. */
     pinned?: boolean;
-    /** The alert the operator set on the station (a small bell at the end of the line of the call), null for none. */
+    /**
+     * The alert the operator set on the station (a bell at the end of the call line); null for
+     * none.
+     */
     alert?: AlertWhen | null;
   }>(),
   {
@@ -102,15 +111,21 @@ const fromUs = computed(() =>
     : t("station.from_us_value", { distance: distanceText(props.row.distance_km), bearing: bearingText(props.row.bearing_deg) }),
 );
 const position = computed(() => (props.row.lat === null || props.row.lon === null ? null : positionText(props.row.lat, props.row.lon)));
-/** Only a station that moves has a speed and a course worth saying: "85 km/h, course 96° E". */
+/** Only a moving station has a speed and course worth saying: "85 km/h, course 96° E". */
 const moving = computed(() => {
   const { speed_kmh: speed, course_deg: course } = props.row;
   if (speed === null || speed <= 0) return null;
   return course === null ? speedText(speed) : t("station.speed_course", { speed: speedText(speed), course: bearingText(course) });
 });
-/** When it was last heard, by every radio and channel: "FM 3 min ago · Internet 40 s ago", with a typed name "FM: 3 min ago · 20 m: 1 h ago"; the plain age for a row nothing was counted for. */
+/**
+ * When it was last heard per radio and channel: "FM 3 min ago · Internet 40 s ago"; the plain age
+ * for a row nothing was counted for.
+ */
 const heardOn = computed(() => heardTimes(props.row, radios.all.value, props.now) || agoWords(props.row.last_heard, props.now));
-/** The signal of the latest packet heard direct from the station that a radio measured, with when it was ("SNR −3 dB, 5 min ago"); null for a station with no reading, and for an object, an item and ours (the reading of their packets is their sender's): nothing is said. */
+/**
+ * The signal of the latest packet heard direct that a radio measured, with its age ("SNR −3 dB, 5
+ * min ago"); null without a reading, and for objects, items and ours.
+ */
 const signal = computed(() => {
   if (!heardStation.value) return null;
   const { snr, rssi, signal_at: at } = props.row;
@@ -119,15 +134,21 @@ const signal = computed(() => {
 });
 const weather = computed(() => isWeatherStation(props.row));
 const heardStation = computed(() => props.row.kind === "station" && !props.row.is_me && !props.row.own);
-/** The graph of its signal, for a heard station whose latest reading is in the graph's day: decided from the row, so that its room is there before the answer. */
+/**
+ * The signal graph, for a heard station whose latest reading is within the graph's day; decided
+ * from the row so that its room exists before the answer.
+ */
 const signalGraph = computed(() => heardStation.value && props.row.signal_at !== null && Date.parse(props.row.signal_at) >= props.now - SIGNAL_HOURS * HOUR_MS);
 const reached = computed(() => (heardStation.value ? reachedText(props.row) : null));
-/** The PHG, range, DF or area the station gave, a row each (a digipeater's range is what a person asks for first; the last given is kept until another comes). */
+/**
+ * The PHG, range, DF or area the station gave, one row each; the last given is kept until another
+ * comes.
+ */
 const extensions = computed(() => extensionRows(props.row.extensions));
 
 /** The copy menu of the head: the call. */
 const copy = useCopyMenu(() => [{ kind: "call", text: props.row.call }]);
-/** How its latest packet over the internet got there, its own line (a station heard both ways has this and the radio's). */
+/** How its latest packet over the internet got there, on its own line. */
 const internet = computed(() => (!props.row.is_me && !props.row.own ? internetText(props.row, props.stations) : null));
 </script>
 

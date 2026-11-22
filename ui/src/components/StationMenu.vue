@@ -1,8 +1,11 @@
 <script setup lang="ts">
-// The menu of a row of the Stations table, as short as the Packets tab's (CopyMenu): Copy call, Show on map (or its card, for a station with no position) and the QRZ page of a station; the rest a station offers is in its panel
-// at the bottom of the tab (StationPanel), which a click on the row opens. It opens where the pointer is (a right-click or a long press), is kept inside the window, takes the focus on its first item, is moved in by Up, Down,
-// Home and End, and closed by Esc (the focus goes back to `trigger`), a press outside it, Tab, or an item that was chosen (useContextMenu). The row it is for is `row`; an item is said to the page with one event, the parent does
-// it; the QRZ page is a link, which opens in a tab of its own.
+// The menu of a Stations table row, as short as the Packets tab's (CopyMenu): Copy call, Show on
+// map (or its card, for a station with no position) and the QRZ page; the rest is in the
+// station panel (StationPanel). It opens where the pointer is (right-click or long press), stays
+// inside the window, focuses its first item, moves with Up, Down, Home and End, and closes on
+// Esc (focus returns to `trigger`), a press outside, Tab, or a chosen item (useContextMenu).
+// `row` is the row it is for; an item is reported with one event and the parent acts. The QRZ
+// page is a link that opens in a new tab.
 import { computed, ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import { t } from "@/i18n";

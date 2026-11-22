@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// The Messages tab, laid out like Signal by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; MESSAGES_WIDE, lib/layout.ts). Wide: the list of conversations (ConversationList) at the left, a divider, and the open
-// conversation (ConversationView) at the right, or a quiet "Choose a conversation" while none is open. Narrow: one of the two fills the tab, the list until a conversation is picked, then the conversation with a back arrow (and Esc) to the list. A conversation counts as open
-// (and its messages as seen, composables/useConversations.ts) while `selected` is a call, so on a narrow page the list showing means no conversation is open: going back says `select` null. A chat starts from a station (its card's Message button), not here. `group` is the
-// compose for one text to several stations (GroupCompose), which the page opens with a list of calls and which takes the place of the conversation. The text being written is kept here, so that it is there when the user goes back to the list and in again. Everything the
-// tab can do is an event; App.vue passes the daemon's state in and sends the commands.
+// The Messages tab, laid out by the tab's own width (MESSAGES_WIDE, lib/layout.ts): wide shows
+// the list (ConversationList) and the open conversation (ConversationView) side by side; narrow
+// shows one of them, with a back arrow and Esc to the list. A conversation counts as open while
+// `selected` is a call, so on a narrow page a visible list means none is open. `group` is the
+// compose for one text to several stations (GroupCompose). Everything the tab does is an event;
+// App.vue passes the state in.
 import { computed, nextTick, ref } from "vue";
 import ConversationList from "@/components/ConversationList.vue";
 import ConversationView from "@/components/ConversationView.vue";
@@ -22,18 +23,19 @@ const props = withDefaults(
     selected: string | null;
     thread: readonly MessageRow[];
     showOverheard: boolean;
-    /** the calls of the group compose that is open (one text to several stations), null when there is none; the page opens it (useMessagesView `openGroup`) */
+    /** the calls of the open group compose; null when none (opened by useMessagesView
+     * `openGroup`) */
     group?: readonly string[] | null;
   }>(),
   { group: null },
 );
 const emit = defineEmits<{
-  /** a conversation was picked; null: the open one was left (the way back on a narrow page) */
+  /** a conversation was picked; null: the open one was left (back on a narrow page) */
   select: [call: string | null];
-  /** the recipients of the group compose that are left, or null: it was closed */
+  /** the recipients still in the group compose; null: it was closed */
   "update:group": [calls: string[] | null];
   send: [to: string, text: string, locked: boolean];
-  /** one text to several stations: a message of its own for each */
+  /** one text to several stations: a separate message for each */
   sendMany: [to: string[], text: string];
   retry: [id: number];
   cancel: [id: number];
@@ -46,7 +48,7 @@ const emit = defineEmits<{
 const { now, stations } = useDaemonContext();
 const radios = useRadios();
 
-/** Whether the link of the radio each recipient of the group is messaged on is up: the station's radio now (each text is a message of its own), for a call the book does not hold the radio of a call no radio heard. */
+/** Whether the link of each group recipient's radio is up (each text is a separate message). */
 const groupConnected = computed(() =>
   (props.group ?? []).every((call) => (radios.forStation(stations.value.get(call) ?? null) ?? radios.unheard.value)?.connected === true),
 );
@@ -57,10 +59,11 @@ const wide = computed(() => width.value >= MESSAGES_WIDE);
 const draft = ref("");
 const groupDraft = ref("");
 
-/** Whether a conversation, or the group compose, is shown (on a narrow page: instead of the list). */
+/** Whether a conversation or the group compose is shown (on a narrow page: instead of the list). */
 const isOpen = computed(() => props.selected !== null || props.group !== null);
 
-/** Leaves the conversation (the way back to the list on a narrow page, Esc on either), and puts the focus on its row again. */
+/** Leave the conversation (back to the list on a narrow page, Esc on either) and refocus its
+ * row. */
 async function back(): Promise<void> {
   const was = props.selected;
   if (was === null) return;
@@ -69,10 +72,9 @@ async function back(): Promise<void> {
   [...(root.value?.querySelectorAll<HTMLElement>(".conv") ?? [])].find((row) => row.dataset.call === was)?.focus({ preventScroll: true });
 }
 
-/**
- * Esc deselects: the group compose is closed, or the open conversation is left (wide: the right side shows the empty state; narrow: back to the list). What is inside goes first: the Route box and the list of a box in it take their own Esc (and say so with
- * stopPropagation), and a text box with text in it keeps the text, so that one Esc does nothing to the selection; with the box empty Esc goes through.
- */
+/** Esc closes the group compose or leaves the open conversation. Inner Esc handlers go first
+ * (they stop propagation), and a text box with text keeps its text; an empty box lets Esc
+ * through. */
 function onEsc(event: KeyboardEvent): void {
   if (event.defaultPrevented) return;
   if (event.target instanceof HTMLInputElement && event.target.type === "text" && event.target.value !== "") return;
@@ -80,7 +82,7 @@ function onEsc(event: KeyboardEvent): void {
   else if (props.selected !== null) void back();
 }
 
-/** A text sent from the group compose goes out and the view closes: nothing is opened (the conversations are in the list as the messages go out). */
+/** A text sent from the group compose goes out and the view closes; no conversation is opened. */
 function sent(send: () => void): void {
   send();
   groupDraft.value = "";

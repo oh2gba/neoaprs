@@ -1,4 +1,5 @@
-// A text put on the clipboard and the page saying so ("Copied OH2RDG"; a long text is cut short in the toast): what the copy menu and the map's menu do when an item is chosen. Nothing is said when the browser refused.
+// Put a text on the clipboard and say so ("Copied OH2RDG"; a long text is cut in the toast).
+// Used by the copy menu and the map menu. Nothing is said when the browser refuses.
 import { t } from "@/i18n";
 import { copyText } from "@/lib/clipboard";
 import { saidText } from "@/lib/copy";

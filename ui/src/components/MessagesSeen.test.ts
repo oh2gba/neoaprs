@@ -1,4 +1,6 @@
-// What counts as seen in the Messages tab, in both layouts: a message is seen only while its conversation is open and visible, which on a narrow tab means the conversation shown and not the list.
+// What counts as seen in the Messages tab, in both layouts: a message is seen only while its
+// conversation is open and visible, which on a narrow tab means the conversation shown and not the
+// list.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, shallowReactive } from "vue";
@@ -18,7 +20,8 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-/** The page's wiring of the tab (App.vue): the Messages tab on show, the conversations and the thread from the view of the messages. */
+/** The page's wiring of the tab (App.vue): the Messages tab on show, the conversations and the
+ * thread from the view of the messages. */
 async function page(size: number, ...rows: MessageRow[]) {
   width = stubWidth(size);
   const messages = shallowReactive(new Map(rows.map((r) => [String(r.id), r])));

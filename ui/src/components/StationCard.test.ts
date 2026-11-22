@@ -450,7 +450,8 @@ describe("StationCard", () => {
   it("asks for the series when it opens, gives the panel the answer, and asks again when the switch changes", async () => {
     const wrapper = mount(StationCard, { props: { row: weatherStation("OH2MUI"), now: NOW, weatherSeries: series("OH2MUI", 24, 12) } });
     expect(wrapper.emitted("weather")).toEqual([["OH2MUI", 24]]);
-    expect(wrapper.findAll(".wx figure")).toHaveLength(4); // (the weather graphs; the bars of its packets are the fifth, under the facts)
+    // the weather graphs; the bars of its packets are the fifth, under the facts
+    expect(wrapper.findAll(".wx figure")).toHaveLength(4);
     expect(wrapper.findAll("[data-packets] figure")).toHaveLength(1);
     expect(wrapper.emitted("packets")).toEqual([["OH2MUI"]]);
     await wrapper.findAll(".wx-span button")[1]?.trigger("click");
@@ -485,7 +486,8 @@ describe("StationCard", () => {
       const button = wrapper.find(".card-foot .forget");
       await button.trigger("click");
       expect(shown(button)).toBe("Really kill?");
-      expect(button.findAll(".twowords > span").map((face) => face.text())).toEqual(["Kill", "Really kill?"]); // (both are there: the button keeps its width)
+      // both are there: the button keeps its width
+      expect(button.findAll(".twowords > span").map((face) => face.text())).toEqual(["Kill", "Really kill?"]);
       expect(button.classes()).toContain("danger");
       expect(wrapper.emitted("kill")).toBeUndefined();
       vi.advanceTimersByTime(5001);

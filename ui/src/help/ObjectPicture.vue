@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// What an object is: our map with a car station (us) and two objects that we send, a repeater with its frequency and a meeting point; the arrows take them to the maps of two other stations.
+// What an object is: our map with a car station (us) and two objects we send, a repeater with
+// its frequency and a meeting point; arrows take them to the maps of two other stations.
 import { CALLS } from "@/help/calls";
 import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";

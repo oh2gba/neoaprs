@@ -1,12 +1,18 @@
-// What the page checks of a value before it sends it, for the settings form (once the person has finished the field: Enter, or leaving it) and for the first-run guide (as it is typed): enough to keep a half-typed call, position or
-// number from going to the daemon. Every figure is LIMITS (the daemon's own constants); the rules that are code are held to the daemon's by ui/src/protocol/vectors.json. The daemon checks every value again against the settings
-// in force (and the rules between settings: the comment against the power, the status against the rigctld, the port against the radio type); its refusal is shown under the field.
+// What the page checks of a value before sending it: in the settings form once the field is
+// finished (Enter or leaving it), and in the first-run guide as it is typed. Enough to keep a
+// half-typed call, position or number from going to the daemon. Every figure is in LIMITS (the
+// daemon's constants); the rules that are code are held to the daemon's by
+// ui/src/protocol/vectors.json. The daemon checks every value again against the settings in
+// force and the rules between settings; its refusal is shown under the field.
 import { t } from "@/i18n";
 import { baseCall, mayTransmitAs, normalizeCall, parsePathSetting, placeholderCall } from "@/lib/calls";
 import { flatKeyOf, radioFieldOf } from "@/lib/settingsradio";
 import { LIMITS, SYMBOL_TABLES } from "@/protocol/lists";
 
-/** The whole numbers the daemon limits, by setting: whether an empty field is a value (none, or the profile's own). */
+/**
+ * The whole numbers the daemon limits, by setting: whether an empty field is a value (none, or
+ * the profile's own).
+ */
 const WHOLE: Record<string, boolean> = {
   "serial/baud": true,
   "tcp/port": false,
@@ -17,7 +23,10 @@ const WHOLE: Record<string, boolean> = {
   "gps/baud": true,
 };
 
-/** A radio's own setting is checked as the same field of the radios of before (`radio/3/baud` as `serial/baud`): the rules of a speed, a host or a TCP port are the same for every radio. */
+/**
+ * A radio's own setting is checked by the rules of the generic field (`radio/3/baud` as
+ * `serial/baud`): a speed, host or TCP port has the same rules for every radio.
+ */
 function asFlat(key: string): string {
   const field = radioFieldOf(key)?.field;
   return (field === undefined ? null : flatKeyOf(field)) ?? key;
@@ -43,7 +52,10 @@ export function onEarth(lat: number, lon: number): boolean {
   return Math.abs(lat) <= latitude.max && Math.abs(lon) <= longitude.max;
 }
 
-/** What is wrong with a call as it stands, or "" when it is fine (or still empty: Next waits for it, but nothing is said yet). A placeholder such as N0CALL is the call the programs ship with, never a call. */
+/**
+ * What is wrong with a call as it stands, or "" when it is fine or still empty (Next waits for
+ * it). A placeholder such as N0CALL is the call the programs ship with, never a call.
+ */
 export function callProblem(text: string): string {
   if (text.trim() === "") return "";
   if (placeholderCall(text)) return t("settings.check.placeholder_call", { call: baseCall(text) });
@@ -54,7 +66,9 @@ export function callOk(text: string): boolean {
   return text.trim() !== "" && callProblem(text) === "";
 }
 
-/** What is wrong with a latitude or a longitude (`limit` 90 or 180), "" when it is fine or empty. */
+/**
+ * What is wrong with a latitude or a longitude (`limit` 90 or 180), "" when it is fine or empty.
+ */
 export function degreesProblem(text: string, limit: number): string {
   if (text.trim() === "") return "";
   const value = parseNumber(text);
@@ -71,8 +85,11 @@ export function symbolProblem(text: string): string {
   return code >= "!" && code <= "~" ? "" : t("settings.check.symbol_code");
 }
 
-/** What is wrong with the text of a setting as it stands, or "" when the page has nothing against it (the daemon may still refuse it). `quiet`: an empty field says nothing, whether or not the setting needs a value (the guide:
- * its Next waits for the answer). */
+/**
+ * What is wrong with the text of a setting as it stands, or "" when the page has nothing
+ * against it (the daemon may still refuse it). `quiet`: an empty field says nothing, whether or
+ * not the setting needs a value (the guide's Next waits for the answer).
+ */
 export function problemOf(key: string, text: string, quiet = false): string {
   const flat = asFlat(key);
   if (flat !== key) return problemOf(flat, text, quiet);
@@ -93,7 +110,10 @@ export function problemOf(key: string, text: string, quiet = false): string {
   }
 }
 
-/** Whether the text typed is the value the daemon has already, however it is written (`60.170` and `60.17`, `oh2gba` and `OH2GBA`): nothing then needs sending. */
+/**
+ * Whether the typed text is the value the daemon already has, however written (`60.170` and
+ * `60.17`, `oh2gba` and `OH2GBA`): nothing then needs sending.
+ */
 export function sameValue(key: string, typed: string, current: string): boolean {
   if (typed === current) return true;
   if (asFlat(key) !== key) return sameValue(asFlat(key), typed, current);
@@ -105,7 +125,11 @@ export function sameValue(key: string, typed: string, current: string): boolean 
   return false;
 }
 
-/** What is wrong with the keys of a pair taken together: a position needs both its latitude and its longitude (both empty is no position, which is fine), so one empty while the other is not is refused, under the empty one. */
+/**
+ * What is wrong with the keys of a pair taken together: a position needs both latitude and
+ * longitude (both empty is fine), so one empty while the other is not is refused, under the
+ * empty one.
+ */
 export function pairProblems(keys: readonly string[], texts: Readonly<Record<string, string>>): Record<string, string> {
   if (!keys.includes("station/lat") || !keys.includes("station/lon")) return {};
   const lat = (texts["station/lat"] ?? "").trim();

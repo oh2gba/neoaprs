@@ -1,4 +1,7 @@
-// The copy menu of a call or a text (CopyMenu, useCopyMenu): what a right-click, the menu key and a long press open on the rows of the conversations, the title of a conversation, a bubble, a row of Nearby, the head of a card, a bulletin, a mail, a packet and an own object; what an item copies and says.
+// The copy menu of a call or a text (CopyMenu, useCopyMenu): what a right-click, the menu key and a
+// long press open on the rows of the conversations, the title of a conversation, a bubble, a row of
+// Nearby, the head of a card, a bulletin, a mail, a packet and an own object; what an item copies
+// and says.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";

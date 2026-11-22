@@ -1,4 +1,6 @@
-// Esc in the Objects tab. A page of an earlier test would take the key too (its listeners are on the document), so the pages are unmounted after each test (src/test/setup.ts does it for every file), in a file of their own.
+// Esc in the Objects tab. A page from an earlier test would take the key too (its listeners are on
+// the document), so pages are unmounted after each test (src/test/setup.ts), in a file of their
+// own.
 import "@/test/mockmap";
 import { describe, expect, it } from "vitest";
 import { flushPromises, type VueWrapper } from "@vue/test-utils";
@@ -119,7 +121,8 @@ describe("App: Esc in the Objects form", () => {
     await esc();
     expect(name(wrapper)?.element.value).toBe("MARK");
     expect(wrapper.find("#pane-objects .location-pick").text()).toBe("Choose on map");
-    FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } }); // (the map no longer waits for a place)
+    // The map does not wait for a place any more.
+    FakeMap.last().fire("click", { lngLat: { lat: 59.5, lng: 24.5 } });
     await flushPromises();
     expect(wrapper.find("#pane-objects .location-place").text()).toBe("Not set");
     await esc();

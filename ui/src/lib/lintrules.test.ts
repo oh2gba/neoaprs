@@ -1,7 +1,9 @@
 // @vitest-environment node
-// The rules of eslint.config.js that keep what a station sent a text on the page, shown at work on made-up sources: every way to make markup or code of a text is refused where it is written (a template, a script,
-// the service worker), what only sets a text is let through, and a test keeps reading the markup a component made. A rule that nobody has seen refusing anything is a guess, and `npm run lint` on a clean tree
-// says nothing about it. Each source is linted as the content of a file that exists, because the typed rules ask the TypeScript project for the file they are given.
+// The rules of eslint.config.js that keep a station's text from becoming markup or code on the
+// page, run on made-up sources: every way to make markup or code of a text is refused (template,
+// script, service worker), setting a text is allowed, and a test keeps reading the markup a
+// component made. Each source is linted as the content of an existing file, because the typed
+// rules ask the TypeScript project for the file.
 import { ESLint } from "eslint";
 import { expect, it } from "vitest";
 
@@ -22,7 +24,10 @@ type Case = [line: string, refused: boolean];
 
 const eslint = new ESLint();
 
-/** The lines among `cases` that ESLint refuses by one of the rules above when `before`, the lines and `after` are the content of `file`. A source that does not parse fails here: it would show nothing. */
+/**
+ * The lines among `cases` that ESLint refuses by one of the rules when `before`, the lines and
+ * `after` are the content of `file`. A source that does not parse fails: it would show nothing.
+ */
 async function refused(file: string, before: string[], cases: Case[], after: string[]): Promise<string[]> {
   const lines = [...before, ...cases.map(([line]) => line), ...after];
   const [result] = await eslint.lintText(lines.join("\n") + "\n", { filePath: file });

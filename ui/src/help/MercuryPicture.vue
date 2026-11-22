@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The Mercury HF modem: our station and a distant one, far apart, the signal going up and coming down between them (the ionosphere's arc); each has waves of its own, and a station without the modem (dashed) hears nothing.
+// The Mercury HF modem: our station and a distant one with the signal going up and coming down
+// between them (the ionosphere's arc); a station without the modem (dashed) hears nothing.
 import { CALLS } from "@/help/calls";
 import { waves } from "@/help/draw";
 import { t } from "@/i18n";

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The delivery chain under a message of ours (lib/chain.ts): the chips of its latest attempt (the line above it already says which attempt that is), the first naming the radio it went on where radios are named. Nothing for a
-// message with no attempt kept.
+// The delivery chain under a message of ours (lib/chain.ts): the chips of its latest attempt,
+// the first naming the radio where radios are named. Nothing for a message with no attempt kept.
 import { computed } from "vue";
 import ChainChips from "@/components/ChainChips.vue";
 import { useRadios } from "@/composables/useRadios";
@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{ row: MessageRow; heardDirect?: Readonly
 });
 
 const radios = useRadios();
-/** The name the "you" chip carries: the attempt's radio where radios are named (more than one on, or that radio not on); null where they are not. */
+/** The name on the "you" chip: the attempt's radio where radios are named; null otherwise. */
 const radioName = (id: number | null): string | null => (id !== null && radios.named(id) ? (radios.byId(id)?.name ?? null) : null);
 
 /** The chips of the latest attempt, or null when none is kept. */

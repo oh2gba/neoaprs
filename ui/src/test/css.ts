@@ -1,13 +1,17 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-// (the comments are taken out: a comment above a rule is not part of its selector.) The page's style sheets, as one, in the order main.ts imports them
+// The page's style sheets as one, in the order main.ts imports them, with comments taken out
+// (a comment above a rule is not part of its selector).
 const SHEETS = [...readFileSync(resolve(__dirname, "../main.ts"), "utf8").matchAll(/^import "\.\/(styles\/[^"]+\.css)";$/gm)].map((match) => match[1] ?? "");
 const SHEET = SHEETS.map((file) => readFileSync(resolve(__dirname, "..", file), "utf8"))
   .join("\n")
   .replace(/\/\*[\s\S]*?\*\//g, "");
 
-/** The declarations of the rules of the style sheets whose selector is exactly `selector` (outside a media query), as written, one after the other; "" when there is none. */
+/**
+ * The declarations, as written, of the rules whose selector is exactly `selector` (outside a media
+ * query); "" if none.
+ */
 export function cssRule(selector: string): string {
   let found = "";
   for (const match of SHEET.matchAll(/^([^{}@]+)\{([^{}]*)\}/gm)) {
@@ -16,7 +20,10 @@ export function cssRule(selector: string): string {
   return found;
 }
 
-/** The declarations of the rules inside the `@media` block whose condition is `query` (as written, e.g. "(pointer: coarse)") whose selector is exactly `selector`, one after the other; "" when there is none. */
+/**
+ * The declarations of the rules in the `@media` block with condition `query` whose selector is
+ * exactly `selector`; "" if none.
+ */
 export function mediaRule(query: string, selector: string): string {
   const start = SHEET.indexOf(`@media ${query} {`);
   if (start < 0) return "";

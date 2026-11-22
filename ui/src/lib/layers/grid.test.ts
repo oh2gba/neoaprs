@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { MAX_CELLS, cellCount, gridFeatures, namedStep, type GridFeature, type GridView } from "@/lib/layers/grid";
 import { positionToLocator } from "@/lib/locator";
 
-/** The part of the map a window of `w` by `h` pixels shows round a place at a zoom (the engine's tiles of 512 px, the mercator). */
+/**
+ * The part of the map a window of `w` by `h` pixels shows around a place at a zoom (512 px tiles,
+ * Mercator).
+ */
 function viewAt(lat: number, lon: number, zoom: number, w = 1280, h = 800): GridView {
   const world = 512 * 2 ** zoom;
   const halfLon = ((w / 2) * 360) / world;
@@ -111,7 +114,7 @@ describe("the locator grid", () => {
   });
 
   describe("across the date line", () => {
-    /** A longitude in -180..180, as the copy of the world in the middle has it. */
+    /** A longitude in -180..180, as the central copy of the world has it. */
     const wrapped = (lon: number) => ((((lon + 180) % 360) + 360) % 360) - 180;
     const view = (west: number, east: number, zoom = 5): GridView => ({ west, east, south: -44, north: -36, zoom });
 

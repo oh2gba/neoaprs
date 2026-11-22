@@ -21,7 +21,8 @@ function tip(props: { label?: string } = {}) {
   return wrapper;
 }
 
-/** A page `width` wide in which the (i) has its left edge at `left` and the open note is `box` wide. */
+/** A page `width` wide in which the (i) has its left edge at `left` and the open note is `box`
+ * wide. */
 function layout(width: number, left: number, box: number): void {
   Object.defineProperty(document.documentElement, "clientWidth", { value: width, configurable: true });
   Object.defineProperty(document.documentElement, "clientHeight", { value: 800, configurable: true });
@@ -140,7 +141,7 @@ describe("InfoTip", () => {
     expect(closeAll).not.toHaveBeenCalled();
     expect(closeForm).not.toHaveBeenCalled();
     expect(outer).not.toHaveBeenCalled();
-    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); // (the next Esc is theirs)
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     expect(closeForm).toHaveBeenCalledTimes(1);
   });
 
@@ -191,7 +192,7 @@ describe("InfoTip", () => {
     await wrapper.vm.$nextTick();
     await wrapper.vm.$nextTick();
     const style = wrapper.find<HTMLElement>(".info-text").element.style;
-    expect([style.left, style.top, style.width]).toEqual(["102px", "124px", "280px"]); // its right edge at 382 = 390 - 8
+    expect([style.left, style.top, style.width]).toEqual(["102px", "124px", "280px"]);
     expect(cssRule(".info-text")).toMatch(/position:\s*fixed/);
     expect(Number(/z-index:\s*(\d+)/.exec(cssRule(".info-text"))?.[1])).toBeGreaterThan(10);
   });

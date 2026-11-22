@@ -1,15 +1,17 @@
 <script setup lang="ts">
-// The box to write in, the same on every tab that has a form. A form of fields is a group box (fieldset and legend, the look of the Settings groups): the legend is `label`, the fields are the default slot, and under them one line
-// with, at its right, the counter (LeftCounter: "12 left", orange and "3 over" when the text is too long, its room kept for the full limit `leftMax`; none when `left` is not given) and then the buttons (slot `buttons`: the secondary one, Cancel, left of the primary one, which is rightmost).
-// The slot `aside` is what goes at the left of that line (no form has anything there now; the space keeps the counter and the buttons at the right). `inline` is the chat line under a conversation (the Messages tab's): no box and
-// no legend, one field that grows, the counter and the button in the same line, fixed at the bottom of the conversation. A phone's keyboard must not hide the field being typed in: the field is
-// brought into view when it takes the focus. The form sends `submit` (Enter in a field, or the button of type submit).
+// The form box used on every tab that has a form: a fieldset with `label` as legend, the fields
+// in the default slot, and a line with the counter (LeftCounter, room kept for `leftMax`) and
+// the buttons (slot `buttons`, primary rightmost). The slot `aside` fills the left of that line.
+// `inline` is the chat line under a conversation: no box or legend, one growing field. The
+// focused field is scrolled into view so that a phone keyboard does not hide it. The form emits
+// `submit`.
 import LeftCounter from "@/components/LeftCounter.vue";
 
 defineProps<{ label: string; left?: number; leftMax?: number; leftTitle?: string; inline?: boolean }>();
 const emit = defineEmits<{ submit: [] }>();
 
-/** The on-screen keyboard takes a moment to come up; then the field being typed in is scrolled into view (the page is as high as the window that is left: 100dvh). */
+/** Wait for the on-screen keyboard, then scroll the focused field into view (the page is 100dvh
+ * high). */
 function seen(event: FocusEvent): void {
   const field = event.target;
   if (field instanceof HTMLElement) window.setTimeout(() => field.scrollIntoView?.({ block: "nearest" }), 300);

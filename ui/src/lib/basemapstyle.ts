@@ -1,18 +1,22 @@
-// The base map of the page: the two files the daemon serves (the world map under it, to zoom 4, which ships with the program, or the daemon's own to zoom 5, and data/basemap.pmtiles, the detailed OpenStreetMap extract of the area round the station, made by the daemon
-// without a click once a place is set, or from the Settings tab) and the MapLibre style that draws them, in a light and a dark colour scheme. Layer names and kinds are those of the Protomaps basemap tiles (docs.protomaps.com/basemaps/layers): the earth, the land use
-// (forest, parks, built-up land), the water, the roads by class, the buildings at zoom 14, the boundaries and the names of countries, places and roads. A layer a tile lacks draws nothing.
-// The world's layers are drawn first and the detailed map's on top of them, so the world shows where the detailed map has no tile (outside its area, or past the zoom it ends at). Without a file (the daemon has no world map either) the style is a blank
-// background, and the stations are drawn over it all the same.
+// The base map: the two files the daemon serves (the world map to zoom 4 or 5, and
+// data/basemap.pmtiles, the detailed OpenStreetMap extract round the station) and the MapLibre
+// style that draws them in a light and a dark scheme. Layer names and kinds are those of the
+// Protomaps basemap tiles (docs.protomaps.com/basemaps/layers); a layer a tile lacks draws nothing.
+// The world layers are drawn first and the detailed map on top, so the world shows where the
+// detailed map has no tile. With no file at all the style is a blank background.
 import { locale } from "@/i18n";
 import type { ExpressionSpecification, LayerSpecification, StyleSpecification, VectorSourceSpecification } from "maplibre-gl";
 
-/** Where the daemon serves the two files, relative to the page. */
+/** The files the daemon serves, relative to the page. */
 export const BASEMAP_FILE = "basemap.pmtiles";
 export const WORLD_FILE = "basemap-world.pmtiles";
 export const MAX_ZOOM = 18;
-/** The map opens at this zoom, centred on our own station: the neighbourhood of southern Finland. */
+/** The map opens at this zoom, centred on our own station. */
 export const OPEN_ZOOM = 9;
-/** The ODbL asks for this on every map made from OpenStreetMap data: the licence's own wording, the same in every language (the credit of the symbol set is a message of the catalogue). */
+/**
+ * The ODbL requires this credit on every map made from OpenStreetMap data; the wording is the same
+ * in every language.
+ */
 export const ATTRIBUTION = "© OpenStreetMap contributors, Protomaps";
 
 export const FONT_REGULAR = "NotoSans-Regular";
@@ -106,12 +110,12 @@ function kindIn(kinds: string[]): ExpressionSpecification {
   return ["in", ["get", "kind"], ["literal", kinds]];
 }
 
-/** A number that grows with the zoom: `[zoom, value, zoom, value, ...]`, exponentially (roads widen faster than the map zooms). */
+/** A number that grows exponentially with the zoom: `[zoom, value, zoom, value, ...]`. */
 function byZoom(stops: number[], base = 1.5): ExpressionSpecification {
   return ["interpolate", ["exponential", base], ["zoom"], ...stops];
 }
 
-/** The name of a place in the language of the page where the tiles carry one, else the local name. */
+/** The name of a place in the page language if the tiles carry one, else the local name. */
 function names(): ExpressionSpecification {
   const language = locale.value.split("-")[0] ?? "en";
   return ["coalesce", ["get", `name:${language}`], ["get", "name"]];
@@ -245,7 +249,7 @@ function placeLabel(id: string, details: string[], p: Palette, minzoom: number, 
   };
 }
 
-/** The names of the countries, from the world's zoom 1 where the world map (zoom 4 of the daemon's shipped file) is all there is: small capitals that give way to the towns' names as the map comes closer. */
+/** Country names from zoom 1: small capitals that give way to town names as the map zooms in. */
 function countryLabel(p: Palette): LayerSpecification {
   return {
     id: "place-country",
@@ -299,22 +303,23 @@ function labelLayers(p: Palette): LayerSpecification[] {
   ];
 }
 
-/** The addresses of the two archives, absolute (named after `pmtiles://`); null for one the daemon does not have. */
+/** The absolute addresses of the two archives (named after `pmtiles://`); null if absent. */
 export interface Archives {
   detail: string | null;
   world: string | null;
 }
 
-/** The layers of the detailed map drawn from the world's file instead: the same layers, with their own ids. */
+/** The detailed map's layers drawn from the world file instead, with their own ids. */
 function fromWorld(layers: LayerSpecification[]): LayerSpecification[] {
   return layers.map((layer) => ({ ...layer, id: WORLD_PREFIX + layer.id, source: WORLD_SOURCE }) as LayerSpecification);
 }
 
 function vectorSource(archive: string): VectorSourceSpecification {
-  return { type: "vector", url: `pmtiles://${archive}`, attribution: ATTRIBUTION }; // (the zooms and the bounds are those of the file's header)
+  // Zooms and bounds come from the file's header.
+  return { type: "vector", url: `pmtiles://${archive}`, attribution: ATTRIBUTION };
 }
 
-/** The style over the archives (the glyph files are at `glyphs`, a template with {fontstack} and {range}). With no archive it is a blank background. */
+/** The style over the archives; `glyphs` is a template with {fontstack} and {range}. */
 export function basemapStyle(archives: Archives, dark: boolean, glyphs: string): StyleSpecification {
   const p = dark ? DARK : LIGHT;
   const drawn = archives.detail !== null || archives.world !== null;

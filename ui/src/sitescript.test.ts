@@ -1,5 +1,7 @@
-// The project page's script (site/site.js) as far as it shows the board of HF tests: the page's own table says no test is planned, and when a sked to come was read its rows are the call, the time (now, for one that has begun) and the dial, each
-// value written as text. The script is run on a made-up page with a fetch of its own.
+// The project page's script (site/site.js) as far as it shows the board of HF tests: the page's
+// table says no test is planned, and when a sked to come was read its rows are the call, the time
+// (now, for one that has begun) and the dial, each written as text. The script is run on a made-up
+// page with its own fetch.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

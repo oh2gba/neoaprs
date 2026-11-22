@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, the call with its SSID dropdown, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it, and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
-// when a choice is made (a list, a switch), `commit` when a typed field is finished with Enter or left (with the element focus went to), `cancel` for Esc in a field that holds a change or a complaint.
-// A `disabled` field is shown greyed with its value, as the My station tab shows what belongs to a beacon that is Off. A typed field with a limit (`count`: the beacon's comment, the status) has the counter of every text with a limit right of it (LeftCounter, as the
-// box to write a message in has), and takes no more than the limit (lib/textlimit.ts typedInto, as every field with a counter): what goes beyond it is cut there, and a value that is already longer can only be made shorter. A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
+// One setting: label, input (checkbox, choice, call with SSID, or read-only), default as
+// placeholder, unit, the daemon's complaint and a slot for a button. Events: `update:modelValue`
+// while typing and on a choice, `commit` when a typed field ends (Enter or blur), `cancel` for Esc
+// in a changed field. A `disabled` field is greyed with its value. A field with `count` shows a
+// counter and takes no more than the limit (lib/textlimit.ts typedInto). `info.tip` adds an (i).
 import { computed } from "vue";
 import CallInput from "@/components/CallInput.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -20,9 +21,15 @@ const props = defineProps<{
   fallback: string;
   error: string;
   changed: boolean;
-  /** the field applies as it is changed (the settings form): Enter and leaving it say `commit`, Esc says `cancel`; else it is a field of a form with a button (the setup guide), where Enter submits */
+  /**
+   * the field applies as it is changed (the settings form): Enter and blur say `commit`, Esc says
+   * `cancel`; else it belongs to a form with a button, where Enter submits
+   */
   apply?: boolean;
-  /** greyed out: the control and its label are dimmed and cannot be changed, the value is kept (the (i) still opens) */
+  /**
+   * greyed out: control and label are dimmed and cannot be changed, the value is kept (the (i)
+   * still opens)
+   */
   disabled?: boolean;
   /** the limit of a typed field: its counter, and typing stops there */
   count?: TextLimit | undefined;
@@ -31,11 +38,13 @@ const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value:
 
 const errorId = computed(() => `${props.id}-error`);
 const describedBy = computed(() => (props.error ? errorId.value : undefined));
-/** What is left of the limit; negative when the value is already longer ("3 over"). */
+/** What is left of the limit; negative when the value is already longer. */
 const left = computed(() => (props.count === undefined ? 0 : leftOf(props.modelValue, props.count)));
 const placeholder = computed(() => props.info.empty ?? (props.fallback !== "" ? props.fallback : t("settings.default_placeholder")));
 
-/** The options of a choice: the words for each value, and the value in force when it is none of them (a setting changed from the shell). */
+/**
+ * The options of a choice: the words for each value, plus the value in force if it is none of them.
+ */
 const options = computed<Choice[]>(() => {
   const listed = (props.info.choices ?? []).map((c) => (typeof c === "string" ? { value: c, label: c } : c));
   return props.modelValue === "" || listed.some((c) => c.value === props.modelValue)
@@ -43,7 +52,9 @@ const options = computed<Choice[]>(() => {
     : [...listed, { value: props.modelValue, label: props.info.other?.(props.modelValue) ?? props.modelValue }];
 });
 
-/** The options as the list draws them: each run of options of one group under its heading (an `optgroup`), those of no group by themselves. */
+/**
+ * The options as the list draws them: grouped options under a heading (`optgroup`), the rest alone.
+ */
 const sections = computed<{ group: string | undefined; choices: Choice[] }[]>(() =>
   options.value.reduce<{ group: string | undefined; choices: Choice[] }[]>((runs, choice) => {
     const last = runs.at(-1);

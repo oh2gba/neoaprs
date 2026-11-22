@@ -121,8 +121,8 @@ describe("the digipeaters", () => {
     expect(rangeCircleOf(rows, "OH2RCH-3")).toEqual({ call: "OH2RCH-3", lat: 60.2, lon: 24.9, km: 40 });
     expect(rangeCircleOf(rows, "OH2RCH-2")).toEqual({ call: "OH2RCH-2", lat: 60.2, lon: 24.9, km: 21.4 });
     expect(rangeCircleOf(rows, null)).toBeNull();
-    expect(rangeCircleOf(rows, "OH2FILL")).toBeNull(); // (a digipeater with no range)
-    expect(rangeCircleOf(rows, "OH2CAR")).toBeNull(); // (not a digipeater of the list)
+    expect(rangeCircleOf(rows, "OH2FILL")).toBeNull(); // a digipeater with no range
+    expect(rangeCircleOf(rows, "OH2CAR")).toBeNull(); // not a digipeater of the list
     expect(rangeCircleOf(rows, "NOBODY")).toBeNull();
   });
 
@@ -135,10 +135,12 @@ describe("the digipeaters", () => {
       station("OH2NET", { distance_km: 90, heard_direct: 3, heard_rf: 0, heard_is: 4 }),
     ];
     expect(rangeCircleOf(mine, "OH2GBA")).toEqual({ call: "OH2GBA", lat: 60.17, lon: 24.94, km: 31.5 });
-    expect(rangeCircleOf([mine[0], mine[3]], "OH2GBA")).toBeNull(); // (nothing heard direct)
-    const hf = station("OH2HF", { distance_km: 800, heard_direct: 5, last_direct_at: null }); // (heard direct on the HF radio alone, which carries no path: plan 6b)
+    expect(rangeCircleOf([mine[0], mine[3]], "OH2GBA")).toBeNull(); // nothing heard direct
+    // heard direct on the HF radio alone, which carries no path
+    const hf = station("OH2HF", { distance_km: 800, heard_direct: 5, last_direct_at: null });
     expect(rangeCircleOf([...mine, hf], "OH2GBA")?.km).toBe(31.5);
-    expect(rangeCircleOf([station("OH2GBA", { is_me: true, lat: null, lon: null }), mine[1]], "OH2GBA")).toBeNull(); // (no position of ours)
+    // no position of ours
+    expect(rangeCircleOf([station("OH2GBA", { is_me: true, lat: null, lon: null }), mine[1]], "OH2GBA")).toBeNull();
     expect(rangeCircleOf([station("X", { symbol_code: "#", lat: null, lon: null, extensions: extensions({ phg: phg(5) }) })], "X")).toBeNull();
     expect(rangeCircleOf([station("X", { symbol_code: "#", extensions: extensions({ range_km: 0 }) })], "X")).toBeNull();
     expect(rangeCircleOf([station("X", { symbol_code: "#", last_position_at: ago(5 * 3600), extensions: extensions({ range_km: 9 }) })], "X")?.km).toBe(9);

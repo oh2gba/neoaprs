@@ -1,25 +1,25 @@
-// The drawn shapes of the map's layers, as SVG path data pointing north, on a square of 16 by 16 or on an aircraft's own box: the mark of each row of the Layers box (components/LayerMark.vue) and the images the
-// map draws an aircraft or a ship with, so that the box is the legend. A mark is filled or stroked, in the token of what it stands for on the map (the tracks' blue, the label colour of the circle and the grid, the
-// layers' own colour of the things). An aircraft has the shape of its kind (lib/layers/aircraftshapes.ts); the box's row of the aircraft shows the airliner.
+// Shapes drawn for the map layers, as SVG path data pointing north, on a 16 by 16 square or an
+// aircraft's own box: the mark of each row of the Layers box (components/LayerMark.vue) and the
+// images the map draws aircraft and ships with, so that the box is the legend. A mark is filled or
+// stroked in the token of what it stands for (styles/tokens.css). An aircraft has the shape of its
+// kind (lib/layers/aircraftshapes.ts); the box's aircraft row shows the airliner.
 import { AIRCRAFT_SHAPES, type AircraftShape } from "@/lib/layers/aircraftshapes";
 
-/** A shape of the box and the map. */
 export type MarkName = "layers" | "track" | "circle" | "grid" | "hull" | "diamond" | AircraftShape;
 
 export interface Mark {
-  /** the path on a square of 16 by 16, pointing north */
+  /** The path on a 16 by 16 square, pointing north. */
   readonly d: string;
-  /** filled, or a line of 1.5 */
+  /** Filled, or a line of 1.5. */
   readonly fill: boolean;
-  /** the dashes of a line, as `stroke-dasharray` */
+  /** The dashes of a line, as `stroke-dasharray`. */
   readonly dash?: string;
-  /** the colour token it is drawn in (styles/tokens.css) */
+  /** The colour token it is drawn in (styles/tokens.css). */
   readonly token: string;
-  /** the box the path is drawn on, where it is not the square of 16 */
+  /** The box the path is drawn on, where it is not the 16 square. */
   readonly viewBox?: string;
 }
 
-/** The square every mark is drawn on. */
 export const MARK_SIZE = 16;
 
 export const MARKS: Readonly<Record<MarkName, Mark>> = {
@@ -38,7 +38,7 @@ export const MARKS: Readonly<Record<MarkName, Mark>> = {
   ...aircraftMarks(),
 };
 
-/** The aircraft's shapes as marks, filled in the layers' own colour. */
+/** The aircraft's shapes as marks, filled in the layers' colour. */
 function aircraftMarks(): Record<AircraftShape, Mark> {
   const entries = Object.entries(AIRCRAFT_SHAPES).map(([name, shape]) => [name, { d: shape.d, viewBox: shape.viewBox, fill: true, token: "--map-layer" }]);
   return Object.fromEntries(entries) as Record<AircraftShape, Mark>;

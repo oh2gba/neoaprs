@@ -1,5 +1,6 @@
-// The menu of a row of the Stations table (StationMenu): which station it is for, where it stands and what gets the focus back when it closes. It is opened by a right-click on the row or a long press on a touch screen, where
-// the pointer is; `n` makes a menu opened again a new one, in its new place. A menu whose station is forgotten closes.
+// The menu of a Stations table row: which station, where it stands and what regains the focus on
+// close. A right-click or a long press opens it at the pointer; `n` makes a reopened menu a new
+// one. A menu whose station is forgotten closes.
 import { computed, ref, watch, type Ref } from "vue";
 import { useLongPress } from "@/composables/useLongPress";
 import { menuPoint } from "@/lib/copy";
@@ -22,7 +23,7 @@ export function useRowMenu(stations: Readonly<Ref<ReadonlyMap<string, StationRow
   function openMenu(call: string, x: number, y: number, trigger: HTMLElement): void {
     menu.value = { call, x, y, trigger, n: ++menus };
   }
-  /** The right button on a row (or the menu key): the menu is where the pointer is, and the browser's own is not shown. A key has no pointer: the menu is at the row. */
+  /** The right button or menu key on a row: open at the pointer, or at the row for a key. */
   function onContextMenu(event: MouseEvent, call: string): void {
     event.preventDefault();
     const row = event.currentTarget as HTMLElement;

@@ -13,7 +13,8 @@ describe("App: stations and the map", () => {
     expect(FakeMarker.live()).toHaveLength(3); // the fourth has no position
     expect(wrapper.findAll("#pane-stations tbody tr")).toHaveLength(4);
     expect(wrapper.find("#pane-stations tbody tr").text()).toContain("OH2GBA");
-    expect(FakeMap.last().jumps).toEqual([{ center: [24.94, 60.17], zoom: 9 }]); // the map opened on the world before the daemon said where we are
+    // The map opened on the world before the daemon said where we are.
+    expect(FakeMap.last().jumps).toEqual([{ center: [24.94, 60.17], zoom: 9 }]);
   });
 
   it("keeps a timed out station off the map but in the table, and shows it while it is selected", async () => {

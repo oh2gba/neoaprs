@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// A tickbox row of the Radio group (RX only, and Enable of the FM radio's box and of the HF radio's), worked as the form works a choice: it applies at once (`form.choose`). RX only is the setting the other way round (lib/settings.ts `valueFor`, `storedFor`).
-// `only` greys the tickbox of the station's only radio (dimmed, its value kept, the (i) still opens) with a hover title that says why: a station has at least one radio, so there is no refusal to show.
+// A tickbox row of the Radio group (RX only, Enable), applied at once (`form.choose`). RX only is
+// the setting inverted (lib/settings.ts `valueFor`, `storedFor`). `only` greys the tickbox of the
+// only radio, with a hover title that says why.
 import { computed } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import type { Settings } from "@/composables/useSettings";

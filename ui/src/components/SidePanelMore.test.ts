@@ -9,8 +9,11 @@ import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
 import { configValues, radioRow, radiosTopic } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
-// Fake measurements: the width of what the probe holds (the tabs, the More button and the More button with a count; jsdom lays nothing out) and, by stubWidth, the width of the bar. The tabs add up to 580 px, the More button is 50 px and 74 with a count;
-// the room is the width of the bar less the 1 px the page keeps back (and the Map button of a phone, whose offsetWidth is 0 here unless a test says another).
+// Fake measurements: the width of what the probe holds (the tabs, the More button, and the More
+// button with a count; jsdom lays nothing out) and, by stubWidth, the width of the bar. The tabs
+// add up to 580 px, the More button is 50 px and 74 with a count; the room is the bar's width less
+// the 1 px the page keeps back (and a phone's Map button, whose offsetWidth is 0 here unless a test
+// says otherwise).
 const TABS: Record<TabId, number> = {
   messages: 80,
   stations: 70,
@@ -46,7 +49,10 @@ type Wrapper = Awaited<ReturnType<typeof make>>;
 /** The radios of a station with the HF radio on beside the FM radio. */
 const WITH_HF = () => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
 const slots = { messages: "<p>messages pane</p>", stations: "<p>stations pane</p>" };
-/** The panel of a station with the HF radio on, which has all ten tabs (without one, "the HF tests tab" below). */
+/**
+ * The panel of a station with the HF radio on, which has all ten tabs (without one, "the HF tests
+ * tab" below).
+ */
 async function make(room: number, extra: Record<string, unknown> = {}, size: SizeClass = "tablet") {
   width = stubWidth(room);
   const wrapper = mount(SidePanel, {
@@ -99,7 +105,8 @@ describe("the tabs in a row, and the ones that do not fit under More", () => {
     expect(probe.find("button").exists()).toBe(false);
     expect(cssRule(".tabs-probe")).toMatch(/visibility:\s*hidden/);
     expect(cssRule(".tabs-probe")).toMatch(/width:\s*max-content/);
-    // fixed, not absolute: a row wider than the window must add nothing to the page's width, or the page can be moved sideways under its hidden overflow (a click on a tab did: the title stood cut off)
+    // fixed, not absolute: a row wider than the window must add nothing to the page's width, or the
+    // page can be scrolled sideways under its hidden overflow
     expect(cssRule(".tabs-probe")).toMatch(/position:\s*fixed/);
   });
 
@@ -124,7 +131,8 @@ describe("the tabs in a row, and the ones that do not fit under More", () => {
     TABS.messages = 110;
     await wrapper.setProps({ badges: { messages: 12 } });
     await flushPromises();
-    expect(row(wrapper)).toEqual(TAB_IDS.slice(0, 8)); // 610 is more than 590: 540 for the tabs and the More button takes 50
+    // 610 is more than 590: 540 for the tabs and the More button takes 50
+    expect(row(wrapper)).toEqual(TAB_IDS.slice(0, 8));
   });
 
   it("has the More button in a bar with the padding of the tabs, so that the bar is as high with it as without", () => {
@@ -306,7 +314,8 @@ describe("on a phone", () => {
     try {
       const narrow = await make(587, {}, "phone");
       expect(narrow.find(".tabmenu").exists()).toBe(true); // 587 - 40 - 6 - 1 = 540 < 580
-      expect(row(narrow)).toEqual(TAB_IDS.slice(0, 8)); // 540 - 50 = 490: 80 + 70 + 60 + 50 + 70 + 50 + 50 + 50 = 480, the packets make 530
+      // 540 - 50 = 490: 80 + 70 + 60 + 50 + 70 + 50 + 50 + 50 = 480, the packets make 530
+      expect(row(narrow)).toEqual(TAB_IDS.slice(0, 8));
     } finally {
       if (original) Object.defineProperty(HTMLElement.prototype, "offsetWidth", original);
     }
@@ -384,7 +393,8 @@ describe("the HF tests tab, only while a radio of the kind Mercury is on", () =>
   });
 
   it("is measured out of the split as before: nine tabs that fit need no More button where ten did", async () => {
-    // (the ten add up to 580 px, the nine to 530: in 540 px the ten need More, the nine fit, Settings stays in the row)
+    // (the ten add up to 580 px, the nine to 530: in 540 px the ten need More, the nine fit,
+    // Settings stays in the row)
     expect(button(await within(withHf(), 541)).exists()).toBe(true);
     const nine = await within(fmAlone(), 541);
     expect(button(nine).exists()).toBe(false);

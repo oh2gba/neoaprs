@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// One row of the Email tab's list (lib/mailitems.ts): "To jane@example.com" or "From EMAIL-2" over the text (one line; a click opens the row to show it whole, with the time, the route after the tag of the radio it came on where radios are named, as a bubble has it, and the chain of digipeaters), and for
-// a message of ours its state in words with its mark (Sending (1 of 2), Delivered, Not confirmed, Rejected) and Retry or Cancel where they apply. The corner has the trash can, which asks twice. A row that came in and has not
-// been seen is bold with a bar at its left (`fresh`). Retry is off while the mail cannot go (`offline`, its reason as the title). A right-click on the row (a long press on a touch screen) offers to copy its text and the address (CopyMenu).
+// One row of the Email tab's list (lib/mailitems.ts): "To jane@example.com" or "From EMAIL-2"
+// over the text; a click shows the whole row. For ours it shows the state with its mark and
+// Retry or Cancel. The corner trash asks twice. An unseen incoming row is bold with a bar
+// (`fresh`). Retry is off while the mail cannot go (`offline`). Right-click copies (CopyMenu).
 import { computed, ref } from "vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -24,13 +25,13 @@ const props = withDefaults(defineProps<{ item: MailItem; fresh: boolean; now: nu
 const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [id: number] }>();
 
 const open = ref(false);
-const sure = useSure<number>(); // (the id of the row, armed by the first press of the trash can)
+const sure = useSure<number>();
 const row = computed(() => props.item.row);
 const state = computed(() => mailState(row.value));
-/** The radio a mail that came in came on, where radios are named. */
+/** The radio an incoming mail came on, where radios are named. */
 const cameOn = useCameOn();
 const on = computed(() => cameOn(row.value));
-/** The copy menu of the row: the text (when there is one) and the address (when there is one). */
+/** The copy menu of the row: its text and address, when present. */
 const copy = useCopyMenu(() => [
   ...(props.item.text === "" ? [] : [{ kind: "message" as const, text: props.item.text }]),
   ...(props.item.address === "" ? [] : [{ kind: "address" as const, text: props.item.address }]),

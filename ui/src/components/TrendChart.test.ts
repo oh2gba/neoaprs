@@ -34,7 +34,8 @@ describe("TrendChart", () => {
     const wrapper = make();
     const svg = wrapper.find("svg");
     svg.element.getBoundingClientRect = () => ({ left: 0, width: 320, top: 0, height: 100, right: 320, bottom: 100, x: 0, y: 0, toJSON: () => ({}) });
-    await svg.trigger("pointermove", { clientX: 36 + ((TO - 10 * HOUR - FROM) / (24 * HOUR)) * 278 + 2 }); // the plot is 278 wide from 36: just right of the observation 10 h ago
+    // The plot is 278 wide from 36: just right of the observation 10 h ago.
+    await svg.trigger("pointermove", { clientX: 36 + ((TO - 10 * HOUR - FROM) / (24 * HOUR)) * 278 + 2 });
     expect(wrapper.find(".trend-cursor").exists()).toBe(true);
     expect(wrapper.find(".trend-dot").exists()).toBe(true);
     expect(wrapper.find(".trend-read").text()).toMatch(/^9\.0 °C {2}\d\d:\d\d:\d\d$/);

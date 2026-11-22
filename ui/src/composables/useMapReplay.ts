@@ -1,7 +1,8 @@
-// The map's replay as the map runs it (components/StationMap.vue; opened from the map's menu, Replay, and closed by the bar's cross or Esc, which the page decides: `on`): its clock (composables/useReplay.ts), and
-// what it draws, a marker with the APRS symbol and the call where each station was at the time of the replay and its trail up to there (lib/replay.ts, lib/replaylayers.ts). While it is on, the live markers give
-// way (the class `replaying` of the map's root hides them, styles/map.css) and so do the live tracks and the route; they go on being kept up to date underneath, so that closing the replay brings the live map back
-// as it is. A span with no positions in it is said in the toast. `add` is the map's, with its other layers, each time the style is set.
+// The map's replay: its clock (useReplay) and what it draws, a marker with the APRS symbol and the
+// call where each station was at the replay time, with its trail up to there. While on, the live
+// markers, tracks and route give way (class `replaying` on the map's root) but stay up to date
+// underneath. A span with no positions is said in a toast. `add` is the map's, called each time
+// the style is set.
 import { onBeforeUnmount, watch } from "vue";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -15,7 +16,6 @@ interface Engine {
   Marker: new (options: { element: HTMLElement; anchor: "center" }) => Marker;
 }
 
-/** What the map lends the replay: the map, and the engine its markers are made with (null until they are there), and whether the replay is open (the page's). */
 interface ReplayParts {
   map: MapLibreMap | null;
   engine: Engine | null;
@@ -64,7 +64,6 @@ export function useMapReplay(parts: () => ReplayParts) {
     }
   }
 
-  /** The layers of the replay, made with the map's others; the live ones give way at once when the replay is on. */
   function add(): void {
     const { map } = parts();
     if (!map) return;
@@ -84,7 +83,7 @@ export function useMapReplay(parts: () => ReplayParts) {
   watch(clock.data, (data) => {
     if (data && data.tracks.length === 0) page.say(t("map.replay.none", { span: spanLabel(data.hours) }));
   });
-  if (on()) clock.ask(); // (the page was opened with the replay on)
+  if (on()) clock.ask();
   onBeforeUnmount(clear);
 
   return { clock, add };

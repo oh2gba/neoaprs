@@ -1,6 +1,7 @@
-// The check mark after a call, the ring of the map and the filter "direct only" count a station heard direct on ANY radio, HF too (plan 6b; i3/final.md section 5): they read the time the daemon gives for any radio
-// (`last_direct_any_at`), and the time of the radios that may carry a path (`last_direct_at`) only against a daemon that does not give it. The reach circle, Nearby's direct list and the farthest direct stay the path
-// radios' (`last_direct_at`).
+// The check mark after a call, the map ring and the "direct only" filter count a station heard
+// direct on any radio, HF too. They read `last_direct_any_at`, and fall back to `last_direct_at`
+// (radios that may carry a path) only if the daemon does not give it. The reach circle, Nearby's
+// direct list and the farthest direct still use `last_direct_at`.
 import { describe, expect, it } from "vitest";
 import { heardDirect, heardDirectRecently } from "@/lib/routes";
 import { directAt, listStations } from "@/lib/stations";

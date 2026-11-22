@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// The messages with one station as bubbles, the oldest first: ours at the right, theirs at the left. In a bubble the text, and under it, small, the time, for ours the mark and the state with Retry or Cancel where they apply (and a small trash can, pressed twice, for one that is no longer being sent and was never acked), the delivery chain
-// of the digipeaters its packet went by (MessageChain, whose first chip names the radio where radios are named) under ours, and under one that came in the route it came by ("via OH2RCH-2") with the SNR the radio measured of it
-// ("direct · SNR −3 dB"; nothing for a radio that measures none), after the tag of the radio it came on where radios are named (more than one on, or that radio not on). An encrypted message carries a padlock beside its time
-// (lib/lock.ts), and one that cannot be read here, or a key announcement, shows what it is in place of a text. It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
-// (null: a new message is being written, and nothing is said). Retry is off while the radio the messages go on is not connected (`offline`, its reason as the title), as Send is. A right-click on a bubble (a long press on a touch screen) offers to copy its text (CopyMenu). A query we sent (the Stations table's menu: `?APRSS` and the like, sent with no message id) is no bubble but a small grey line in the middle, "You asked for its status", with the time. The Email tab has its own list (EmailList).
+// The messages with one station as bubbles, oldest first, ours at the right: text, time and, for
+// ours, the mark, the state with Retry or Cancel and the delivery chain (MessageChain); for
+// incoming ones the route and SNR. Encrypted messages carry a padlock; unreadable ones and key
+// announcements show what they are. A query we sent (no message id) is a small grey line. `peer`
+// is null while a new message is being written. Retry is off while the radio is not connected
+// (`offline`). Right-click copies the text (CopyMenu).
 import { computed, ref } from "vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -29,18 +30,20 @@ const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; peer: st
   offline: undefined,
 });
 const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [id: number] }>();
-const sure = useSure<number>(); // (the id of the message, armed by the first press of its trash can)
+const sure = useSure<number>();
 
 const log = ref<HTMLElement | null>(null);
 const cameOn = useCameOn();
-/** Each message with the note of the query it is, if it is one, the mark of what it is besides text (a padlock, a key), and the radio it came on where it is named. */
+/** Each message with the note of its query if it is one, its mark (padlock, key) and its radio
+ * tag where radios are named. */
 const items = computed(() => props.thread.map((m) => ({ m, asked: askedNote(m), seal: sealMarkOf(m), on: cameOn(m) })));
 
-/** What the radio measured of a message that came in ("SNR −3 dB"); null for one of ours (the delivery mark has the ack's) and when it gave none. */
+/** What the radio measured of an incoming message ("SNR −3 dB"); null for ours or when it gave
+ * none. */
 const reading = (m: MessageRow): string | null => (m.direction === "in" ? readingText(m) : null);
 
 useToNewest(log, () => [props.peer, props.thread.length]);
-/** The copy menu of a bubble: the text of its message. */
+/** The copy menu of a bubble: its message text. */
 const copy = useCopyMenu((bubble) => {
   const row = props.thread.find((m) => String(m.id) === bubble.dataset["id"]);
   return row === undefined ? [] : [{ kind: "message", text: row.text }];

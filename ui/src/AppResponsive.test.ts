@@ -122,7 +122,8 @@ describe("several station cards on a desktop (1400 by 900)", () => {
   });
 
   it("closes the oldest card when the row of cards is wider than the map has room for, and never makes a card narrower", async () => {
-    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1000 }); // (the row: 980 px between the margins)
+    // The row: 980 px between the margins.
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1000 });
     Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => 300 });
     try {
       const { wrapper } = await open(1920, 1080);

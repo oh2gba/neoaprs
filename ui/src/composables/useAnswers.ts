@@ -1,4 +1,4 @@
-// The latest answer to each command that is answered with a message of its own, kept for the component that asked: `weather_series`, `packet_history`, `packet_stats`, `speed_series`, `signal_series`, `station_traffic`, `position_history`, `alert_test`, `list_ports`, `find_radio`, `update_check` and `release_notes`; and what the hub (lib/hub.ts) does with them: keep the message.
+// The latest answer to each command that has a message of its own, kept for the asking component.
 import { shallowRef } from "vue";
 import type { Store } from "@/lib/hub";
 import type {
@@ -34,31 +34,19 @@ type AnswerHandlers = Pick<
 
 export function useAnswers() {
   const weatherSeries = shallowRef<WeatherSeriesMessage | null>(null);
-  /** The latest answer for each station: several weather cards are open at once, each with its own graphs. */
   const weatherSeriesByCall = shallowRef<ReadonlyMap<string, WeatherSeriesMessage>>(new Map());
-  /** The packets heard by the hour, for the graph of the statistics card (the answer that has no call: every packet heard). */
   const packetHistory = shallowRef<PacketHistoryMessage | null>(null);
-  /** The packets of one station by the hour, the latest answer for each: several station cards are open at once, each with its own graph. */
-  /** What the statistics card counts from the packet log beyond the station book (`packet_stats`). */
   const packetStats = shallowRef<PacketStatsMessage | null>(null);
   const packetHistoryByCall = shallowRef<ReadonlyMap<string, PacketHistoryMessage>>(new Map());
-  /** The speeds of each moving station whose card is open, the latest answer for each. */
   const speedSeriesByCall = shallowRef<ReadonlyMap<string, SpeedSeriesMessage>>(new Map());
-  /** The signal readings of each station whose card is open, the latest answer for each. */
   const signalSeriesByCall = shallowRef<ReadonlyMap<string, SignalSeriesMessage>>(new Map());
-  /** The latest packets of each station whose panel was opened in the Stations tab, the latest answer for each. */
   const stationTrafficByCall = shallowRef<ReadonlyMap<string, StationTrafficMessage>>(new Map());
-  /** Where the stations were over the span the map's replay asked for. */
   const positionHistory = shallowRef<PositionHistoryMessage | null>(null);
   const alertResult = shallowRef<AlertResultMessage | null>(null);
-  /** The latest list of the ports, whichever radio it was asked for (the ports are the machine's). */
   const ports = shallowRef<PortsMessage | null>(null);
-  /** The latest answer for each radio it was asked for: its sound cards and the proposals are that radio's own. */
   const portsByRadio = shallowRef<ReadonlyMap<number, PortsMessage>>(new Map());
   const updateResult = shallowRef<UpdateResultMessage | null>(null);
-  /** What is new up to the version the update dialog asked for. */
   const releaseNotes = shallowRef<ReleaseNotesMessage | null>(null);
-  /** The latest `radio_search` of the search the page started: a step, or the end of it. */
   const radioSearch = shallowRef<RadioSearchMessage | null>(null);
   const handlers: AnswerHandlers = {
     weatherSeries: (message) => {
@@ -83,7 +71,6 @@ export function useAnswers() {
     releaseNotes: (message) => (releaseNotes.value = message),
     radioSearch: (message) => (radioSearch.value = message),
   };
-  /** The answers as the page reads them (useDaemon spreads them into what it returns). */
   const refs = {
     weatherSeries,
     weatherSeriesByCall,

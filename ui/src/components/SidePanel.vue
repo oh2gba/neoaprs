@@ -1,9 +1,13 @@
 <script setup lang="ts">
-// The panel at the right of the map (on a phone it is the whole screen under the header, in turns with the map): the tabs Messages, Stations, Nearby, Email, Bulletins, HF tests (only while a radio of the kind HF is on; a tab
-// remembered that is not offered gives way to the first, HF tests once the daemon has told its radios), Objects, Beacon, Packets and Settings, in one row (the tab on show is not bold or wider: the others do not move) as many as fit in the width of the panel, measured, in that order, and the rest under one "More" button at the end of the row with a menu of them (TabMenu), which carries their badges added up; the tab on show is always in the row, in the place of the last one if it would not be (lib/tabsplit.ts) (a tab can carry a badge with a count; the folded panel shows the messages not seen, those of the Messages and the Email tab, on its handle: the same count as the header), a button that folds it away, and a handle
-// to drag its width (up to 80 % of the window, the map keeping 360 px). The tab and the width are the page's to remember; a remembered width that is too much for the window is shown clamped, and is whole again when the window is wide again. The contents of every tab stay mounted, so that a filter or a scroll position is there when the tab is back.
-// By the size of the page (lib/layout.ts): a desktop has the handle and the user's width; a tablet has a width of its own (CSS) and the fold button; a phone has neither, and its tab bar starts with a Map button: the map and the open tab take turns (`view`),
-// a tab picked in the bar brings the panel, the Map button the map, and the contents of the tab are the whole area under the bar.
+// The panel at the right of the map (on a phone the whole screen under the header, alternating with
+// the map). Tabs: Messages, Stations, Nearby, Email, Bulletins, HF tests (only while an HF radio is
+// on), Objects, Beacon, Packets and Settings, in one row as many as fit the measured width, the
+// rest under "More". The selected tab is not bold or wider so the others do not move. The desktop
+// panel has a drag handle for its width (up to 80 % of the window, leaving the map 360 px); a
+// remembered width that is too large is shown clamped. Tab contents stay mounted so that filters
+// and scroll positions survive. By page size (lib/layout.ts): a tablet has a CSS width and a fold
+// button; a phone has neither and its tab bar starts with a Map button, so the map and the open tab
+// take turns (`view`).
 import TagMark from "@/components/TagMark.vue";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import TabBadge from "@/components/TabBadge.vue";
@@ -27,7 +31,9 @@ const emit = defineEmits<{
 }>();
 
 const KEY_STEP = 24;
-/** The right margin of the Map button (ui/src/styles/responsive.css), which the row of tabs does not have. */
+/**
+ * The right margin of the Map button (ui/src/styles/responsive.css), which the row of tabs lacks.
+ */
 const MAP_MARGIN = 6;
 const pageWidth = ref(window.innerWidth);
 const shown = computed(() => clampWidth(props.width, pageWidth.value));
@@ -37,12 +43,17 @@ const onResize = (): void => {
 onMounted(() => window.addEventListener("resize", onResize));
 onBeforeUnmount(() => window.removeEventListener("resize", onResize));
 
-/** The tabs of this station: HF tests only while a radio of the kind HF is on (not before the daemon has told its radios: most stations have no HF radio, and the row is drawn once as it will stay); a remembered HF
- * tests tab keeps its place until the daemon has told them. */
+/**
+ * The tabs of this station: HF tests only while an HF radio is on. Before the daemon has listed its
+ * radios the row is drawn without it, except that a remembered HF tests tab keeps its place.
+ */
 const radios = useRadios();
 const hfOn = computed(() => radios.enabled.value.some((radio) => radio.kind === "hf"));
 const offered = computed(() => offeredTabs(hfOn.value || (!radios.told.value && props.tab === "skeds")));
-/** A tab remembered (or asked for) that this station is not offered gives way to the first (HF tests only once the daemon has told its radios: until then it is offered while it is the tab). */
+/**
+ * A remembered or requested tab that this station does not offer gives way to the first one
+ * (HF tests is offered until the radios are listed, while it is the tab).
+ */
 watch(
   [offered, () => props.tab],
   ([tabs, tab]) => {
@@ -53,7 +64,10 @@ watch(
 );
 
 const phone = computed(() => props.size === "phone");
-/** A phone has no folded panel (the map has its turn); a tablet's panel has the width of its size (ui/src/styles/responsive.css), a desktop's the user's. */
+/**
+ * A phone has no folded panel; a tablet's panel width comes from CSS (responsive.css), a desktop's
+ * from the user.
+ */
 const folded = computed(() => props.collapsed && !phone.value);
 /** The open tab shows; on a phone only in its turn. */
 const paneOn = computed(() => !phone.value || props.view === "panel");
@@ -61,14 +75,20 @@ function pick(id: TabId): void {
   emit("update:tab", id);
   emit("update:view", "panel");
 }
-/** The messages not seen (those of the Messages tab and of the Email tab), the count of the header: shown on the handle while the panel is folded, when no tab is. The new bulletins and skeds are not messages and are not in it. */
+/**
+ * The unseen messages (Messages and Email tabs), the header's count, shown on the handle while the
+ * panel is folded. New bulletins and skeds are not counted.
+ */
 const unseen = computed(() => (props.badges.messages ?? 0) + (props.badges.email ?? 0));
 const unseenTitle = computed(() => unreadText(unseen.value));
 
 const probe = ref<HTMLElement | null>(null);
 const box = ref<HTMLElement | null>(null);
 const mapButton = ref<HTMLElement | null>(null);
-/** The tabs in the row and the tabs under More, measured on the probe (the tabs drawn out of the way): the room is the bar's width without the Map button of a phone. */
+/**
+ * The tabs in the row and under More, measured on the probe (tabs drawn out of the way); the room
+ * is the bar's width without a phone's Map button.
+ */
 const { split, measure } = useTabsFit(
   box,
   probe,
@@ -77,7 +97,10 @@ const { split, measure } = useTabsFit(
   () => props.badges,
   () => offered.value,
 );
-/** What the More button counts, to measure it with the right number of digits: the badges of all the tabs offered added up (the ones under it are some of them). */
+/**
+ * What the More button counts, measured with the right number of digits: all offered tabs' badges
+ * added.
+ */
 const countDigits = computed(() => "8".repeat(String(offered.value.reduce((sum, id) => sum + (props.badges[id] ?? 0), 0)).length));
 /** The room of the tab names changes with a badge (more digits). */
 watch(
@@ -101,7 +124,7 @@ function drag(event: PointerEvent): void {
   handle.addEventListener("pointercancel", stop);
 }
 
-/** The arrows (and Home, End) of the row of tabs move to the tab beside and show it; the row is one stop of Tab, the tab on show. */
+/** The arrows, Home and End move to the neighbouring tab and show it; the row is one Tab stop. */
 function arrow(event: KeyboardEvent, id: TabId): void {
   const list = split.value.shown;
   const at = list.indexOf(id);
@@ -188,7 +211,8 @@ function nudge(event: KeyboardEvent): void {
             </button>
           </div>
           <TabMenu v-if="split.hidden.length > 0" :tabs="split.hidden" :badges="badges" @pick="pick" />
-          <!-- the tabs and the More button again, out of the way and for no one: their widths are what the row is split by (the same markup as the real ones) -->
+          <!-- the probe: the tabs and the More button again, out of the way; their widths split -->
+          <!-- the row -->
           <div ref="probe" class="tabs-probe" aria-hidden="true" inert>
             <span v-for="id in TAB_IDS" :key="id" class="tab" :data-tab="id">
               {{ tabTitle(id) }}

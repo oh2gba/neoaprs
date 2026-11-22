@@ -1,15 +1,25 @@
-// The page's service worker (registered by lib/worker.ts, built into neoaprs/page/sw.js by vite.config.ts, which puts the build of the page in for 406b4c4837: a hash of the files, not the version of NeoAPRS). It is what lets a browser install the page as an app and
-// open its shell while the daemon is away; it never stands between the page and the daemon:
-//  - assets/ (the files whose names carry the hash of their content): cache first, kept on first use, and the ones the shell names are fetched once the shell has come; the caches of the old build are deleted when a new worker activates.
-//  - the shell (index.html), the manifest, the icons, the symbol sheets and the glyph files: network first, the cache only when the daemon cannot be reached (a connection that fails, or a 5xx), so that an update is never hidden behind an old page.
-//  - everything else is left to the browser as if there were no worker: the access routes, the base map's tiles and their byte ranges, any request that is not a GET or has a query, any other host, sw.js itself. (The socket is not a fetch.)
-const BUILD = "406b4c4837";
+// The page's service worker (registered by lib/worker.ts, built into neoaprs/page/sw.js by
+// vite.config.ts, which sets `fd65c22304` to a hash of the files). It lets a browser install
+// the page as an app and open its shell while the daemon is away; it never stands between the page
+// and the daemon:
+//  - assets/ (hash-named files): cache first, kept on first use; the ones the shell names are
+//    fetched once the shell has come; caches of old builds are deleted when a new worker activates.
+//  - the shell (index.html), manifest, icons, symbol sheets and glyph files: network first, the
+//    cache only when the daemon cannot be reached (a failed connection or a 5xx), so an update is
+//    never hidden behind an old page.
+//  - everything else is left to the browser: access routes, base map tiles and byte ranges, any
+//    request that is not a GET or has a query, other hosts, sw.js itself. (The socket is not a
+//    fetch.)
+const BUILD = "fd65c22304";
 const PAGE = `neoaprs-${BUILD}-page`;
 const ASSETS = `neoaprs-${BUILD}-assets`;
 const SHELL = /^(?:|index\.html|manifest\.webmanifest|(?:icons|symbols|fonts)\/.+)$/;
 const HASHED = /^assets\/[^/]+-[\w-]{8}\.\w+$/;
 
-/** What the worker does with a request: "assets", "shell", or "" to leave it alone. `scope` is the address of the folder the page is in, which ends with a slash. */
+/**
+ * What the worker does with a request: "assets", "shell", or "" to leave it alone. `scope` is the
+ * page folder's address, ending with a slash.
+ */
 function kind(request, scope) {
   if (request.method !== "GET" || request.headers.has("range") || !request.url.startsWith(scope)) return "";
   const url = new URL(request.url);
@@ -25,11 +35,11 @@ async function keepAsset(cache, url) {
     const answer = await fetch(url);
     if (answer.status === 200) await cache.put(url, answer);
   } catch {
-    // the file is fetched, and kept, when the page asks for it
+    // The page fetches and keeps the file when it asks for it.
   }
 }
 
-/** The files of assets/ that the shell names, so that the page opens offline after a single visit. */
+/** The files of assets/ that the shell names, so the page opens offline after a single visit. */
 async function keepAssetsOf(html) {
   const cache = await caches.open(ASSETS);
   const names = new Set(html.match(/\.\/assets\/[^"'()\s]+/g) ?? []);
@@ -45,7 +55,10 @@ async function cacheFirst(request) {
   return answer;
 }
 
-/** The answer of the network, kept for the day it is away. The shell is kept under the folder's own address, whether it was asked for as it or as index.html. */
+/**
+ * The network's answer, kept for when it is away. The shell is kept under the folder's own
+ * address, whether asked for as it or as index.html.
+ */
 async function networkFirst(request, event) {
   const cache = await caches.open(PAGE);
   const path = new URL(request.url).pathname;

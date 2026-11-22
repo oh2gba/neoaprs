@@ -1,4 +1,4 @@
-// Where our own station is: the place of the settings, else the one the daemon's status has; null while there is none.
+// Where our own station is: the place of the settings, else the daemon's status; null if none.
 import { computed, type Ref } from "vue";
 import type { Home } from "@/lib/mapview";
 import type { ConfigValues, StatusMessage } from "@/protocol/protocol";

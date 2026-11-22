@@ -1,9 +1,11 @@
 <script setup lang="ts">
-// The traffic of one station in its panel of the Stations tab: the packets it sent and the messages we sent to it, newest first, the latest 50 (lib/stationtraffic.ts), as the lines of the Packets tab (PacketLines: the same
-// columns, the same block of each packet when the panel is narrower than PACKETS_TABLE, the same detail under a line that is clicked). The daemon is asked for the station's packets in its log when the panel opens on it
-// (`station_traffic`), and the packets that come after are added as they come; while Internet stations is off none from APRS-IS is shown. A directed query of ours says how it went after its summary: "waiting…", "answered"
-// when the answer it asks for came from the station, "no answer" after two minutes; the three words take the room of the longest, so that the line does not move when the word changes. The packet's SNR follows its summary where the radio measured one. The clock wakes the list at the moment
-// a query's two minutes are up, and not otherwise.
+// Traffic of one station in its panel: the latest 50 packets it sent and messages we sent to it
+// (lib/stationtraffic.ts), newest first, laid out as the Packets tab lines (PacketLines). The
+// daemon is asked (`station_traffic`) when the panel opens; later packets are added as they
+// arrive, none from APRS-IS while Internet stations is off. A directed query shows "waiting…",
+// "answered" or "no answer" (after two minutes); the three words share the width of the longest.
+// SNR follows the summary where the radio measured one. A timer wakes the list only when a
+// query's two minutes are up.
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import PacketLines from "@/components/PacketLines.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -22,7 +24,8 @@ const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
 const stacked = computed(() => width.value > 0 && width.value < PACKETS_TABLE);
 
-/** The packets of the station that came by the topic while the panel shows it: kept here, so that one that falls out of the 200 of the topic stays in the list. */
+/** Packets of the station received while the panel shows it; kept here so that one falling out
+ * of the topic's 200 stays listed. */
 const live = ref(new Map<string, PacketRow>());
 watch(
   () => props.call,
@@ -59,7 +62,7 @@ watch(
 watch(rows, () => (now.value = Date.now()));
 onBeforeUnmount(() => clearTimeout(timer));
 
-/** What the radio measured of a packet the station sent ("SNR −3 dB"); null for one of ours and when it gave none. */
+/** The radio's measured SNR ("SNR −3 dB") for a packet the station sent; null if none. */
 const heard = (row: PacketRow): string | null => (row.direction === "in" ? readingText(row) : null);
 
 const STATES: readonly QueryState[] = ["waiting", "answered", "no_answer"];

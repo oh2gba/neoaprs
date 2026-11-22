@@ -1,6 +1,9 @@
-// The messages of the topic `messages`: grouped into conversations (one for each other station), the thread of one, how many are unread, and the rules the compose box shows (the call, the bytes
-// a message may still have). Messages we only overheard (sent to another station) are no conversation of ours: with `showOverheard` each pair of stations is listed as one, read-only in spirit.
-// The daemon checks all of this again; the page only keeps the user from sending what it would refuse. What a call is, and a path, is lib/calls.ts.
+// Messages of the topic `messages`: conversations (one per other station), a thread, unread counts
+// and the compose-box rules (the call, the bytes a message may still have).
+// Overheard messages (sent to another station) are no conversation of ours; with `showOverheard`
+// each pair of stations is listed as one.
+// The daemon checks all of this again; the page only stops the user sending what it would refuse.
+// What a call or a path is lives in lib/calls.ts.
 import { t } from "@/i18n";
 import { normalizeCall } from "@/lib/calls";
 import { dateTimeText } from "@/lib/format";
@@ -10,34 +13,36 @@ import { LIMITS } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
 
 export interface Conversation {
-  /** the other station */
+  /** The other station. */
   call: string;
-  /** the newest message of the conversation */
+  /** The newest message of the conversation. */
   last: MessageRow;
   count: number;
-  /** messages that came in after the newest one the user has seen (never an overheard one) */
+  /** Messages that came in after the newest one the user has seen (never an overheard one). */
   unread: number;
-  /** a pair of other stations, "OH2AAA>OH2BBB", whose messages we only heard */
+  /** A pair of other stations, "OH2AAA>OH2BBB", whose messages we only heard. */
   overheard: boolean;
 }
 
-/** The APRS email gateway (aprs-is.net/Email.aspx): messages to and from it are the Email tab's, not conversations of the Messages tab. */
+/** The APRS email gateway (aprs-is.net/Email.aspx); its messages belong to the Email tab. */
 export const EMAIL_GATEWAY = LIMITS.message.gateway;
 
 const encoder = new TextEncoder();
 
-/** Whether the call, as it is typed, is the email gateway. */
+/** Whether the call, as typed, is the email gateway. */
 export function isGateway(call: string): boolean {
   return normalizeCall(call) === EMAIL_GATEWAY;
 }
 
-/** The other station of a message: who sent it when it came in, who it went to when we sent it; for one we overheard the pair "sender>addressee". */
+/** The other station of a message: the sender if it came in, else the addressee; "sender>addressee"
+ * if overheard. */
 export function peerOf(row: MessageRow): string {
   if (row.state === "overheard") return `${row.from_call}>${row.to_call}`;
   return row.direction === "in" ? row.from_call : row.to_call;
 }
 
-/** The call to write to from a conversation: the other station, or the sender of an overheard pair. */
+/** The call to write to from a conversation: the other station, or the sender of an overheard pair.
+ */
 export function replyTo(call: string): string {
   return call.split(">")[0] ?? call;
 }
@@ -53,22 +58,26 @@ export function overheardPair(call: string): [string, string] | null {
   return at < 0 ? null : [call.slice(0, at), call.slice(at + 1)];
 }
 
-/** A conversation as its row and its thread name it: the call, or the pair of an overheard one with room round the arrow, "OH2AAA > OH2BBB". */
+/** A conversation as its row and thread name it: the call, or "OH2AAA > OH2BBB" for an overheard
+ * pair. */
 export function conversationName(call: string): string {
   return call.replaceAll(">", " > ");
 }
 
 const QUERY_TEXT: Record<string, QueryKind> = { "?APRSP": "position", "?APRSS": "status", "?APRSD": "heard", "?APRST": "trace", "?WX?": "weather" };
 
-/** The note a row of the conversation is when it is a query of ours: a message of ours with no message id whose text begins with "?" (what the station panel of the Stations tab sends: once, with no id, so that no ack is
- *  waited for), in words: "You asked for its status", and for a query of the operator's own "You asked ?APRSH OH2GBA"; null for any other message. The thread shows such a row as a grey line, not as a bubble. */
+/** The note for a row that is a query of ours: a message of ours with no id whose text begins with
+ * "?"
+ * (no ack is waited for), such as "You asked for its status"; null for any other message.
+ * The thread shows such a row as a grey line, not a bubble. */
 export function askedNote(row: Pick<MessageRow, "direction" | "msg_id" | "text" | "state">): string | null {
   if (row.direction !== "out" || row.msg_id !== null || row.state === "overheard" || !row.text.startsWith("?")) return null;
   const kind = QUERY_TEXT[row.text];
   return kind === undefined ? t("messages.asked.custom", { text: row.text }) : t(`messages.asked.${kind}`);
 }
 
-/** Whether the text is printable ASCII only (space to tilde): the characters every text the daemon puts on the air is limited to, whatever else its field forbids. */
+/** Whether the text is printable ASCII only (space to tilde), as everything the daemon sends on the
+ * air must be. */
 export function isPrintable(text: string): boolean {
   return /^[\x20-\x7e]*$/.test(text);
 }
@@ -83,7 +92,8 @@ export function bytesLeft(text: string): number {
   return LIMITS.message.textMax - textBytes(text);
 }
 
-/** The conversations, the one with the newest message first; the email gateway's is not among them. `readUpTo(call)` is the highest message id the user has seen in the conversation. */
+/** The conversations, newest message first; the email gateway's is not among them.
+ * `readUpTo(call)` is the highest message id the user has seen in the conversation. */
 export function conversations(rows: Iterable<MessageRow>, readUpTo: (call: string) => number, showOverheard = false): Conversation[] {
   const byCall = new Map<string, Conversation>();
   for (const row of rows) {
@@ -103,7 +113,8 @@ export function conversations(rows: Iterable<MessageRow>, readUpTo: (call: strin
   return [...byCall.values()].sort((a, b) => (isNewer(a.last, b.last) ? -1 : 1));
 }
 
-/** Whether the message came in after the newest one the user has seen (`readUpTo`, a message id). */
+/** Whether the message came in after the newest one the user has seen (`readUpTo`, a message id).
+ */
 function isUnread(row: MessageRow, readUpTo: number): boolean {
   return row.state === "received" && row.id > readUpTo;
 }
@@ -121,17 +132,17 @@ export function unreadTotal(list: readonly Conversation[]): number {
   return list.reduce((sum, c) => sum + c.unread, 0);
 }
 
-/** The messages with one station, the oldest first. */
+/** The messages with one station, oldest first. */
 export function threadOf(rows: Iterable<MessageRow>, call: string): MessageRow[] {
   return [...rows].filter((r) => peerOf(r) === call).sort((a, b) => a.id - b.id);
 }
 
-/** The highest id among the messages that were sent to us; 0 for none. */
+/** The highest id among the messages sent to us; 0 for none. */
 export function newestIncomingId(rows: readonly MessageRow[]): number {
   return rows.reduce((most, r) => (r.state === "received" && r.id > most ? r.id : most), 0);
 }
 
-/** The highest id among the messages that were sent to us, by the station they came from. */
+/** The highest id among the messages sent to us, by sender. */
 export function newestIncomingByCall(rows: Iterable<MessageRow>): Map<string, number> {
   const newest = new Map<string, number>();
   for (const row of rows) {
@@ -142,12 +153,12 @@ export function newestIncomingByCall(rows: Iterable<MessageRow>): Map<string, nu
   return newest;
 }
 
-/** Which attempt a message that is being sent is at, of how many it was given when it was sent: "attempt 3 of 6". */
+/** Which attempt a message being sent is at, of how many it was given: "attempt 3 of 6". */
 export function attemptText(row: MessageRow): string {
   return t("messages.attempt", { attempt: row.attempts, max: row.attempts_max });
 }
 
-/** Why a failed message of ours failed: its reason when it has one (a frame its radio does not carry), else that no answer came after its attempts. */
+/** Why a failed message of ours failed: its reason if it has one, else that no answer came. */
 export function failedText(row: MessageRow): string {
   return row.failure === "too_long_for_radio" ? t("messages.state.too_long_for_radio") : t("messages.state.failed", { n: row.attempts });
 }
@@ -182,17 +193,19 @@ export function canRetry(row: MessageRow): boolean {
   return row.direction === "out" && (row.state === "failed" || row.state === "unconfirmed" || row.state === "rejected" || row.state === "cancelled");
 }
 
-/** A message of ours that is no longer being sent and was never acked (failed, unconfirmed, refused or cancelled) can be deleted from the conversation. */
+/** A message of ours that is no longer being sent and was never acked can be deleted. */
 export function canDelete(row: MessageRow): boolean {
   return canRetry(row);
 }
 
-/** A message of ours that is being sent, or waits for the one before it to the same station (queued), can be stopped. */
+/** A message of ours that is being sent, or queued behind one to the same station, can be stopped.
+ */
 export function canCancel(row: MessageRow): boolean {
   return row.direction === "out" && (row.state === "sending" || row.state === "queued");
 }
 
-/** The path a message to the station goes by: its own when it has one (empty is direct), else the beacon's. `own` says which. */
+/** The path a message to the station goes by: its own if it has one (empty is direct), else the
+ * beacon's. */
 export function effectivePath(paths: ReadonlyMap<string, string>, fallback: string, call: string): { text: string; own: boolean } {
   const own = paths.get(normalizeCall(call));
   return own === undefined ? { text: fallback, own: false } : { text: own, own: true };
@@ -202,19 +215,24 @@ type MarkKind = "clock" | "check" | "hollow" | "cross" | "dash";
 
 interface Mark {
   kind: MarkKind;
-  /** what hovering over the mark says */
+  /** What hovering over the mark says. */
   title: string;
 }
 
-/** The small mark on a message of ours: a clock while it is being sent (the title says which attempt) or waits for the message before it to the station (queued), a check once acked (the title has the time of the ack), a hollow check when its attempts were used up with no ack and none was expected (the station was given 1 or 2), a cross when it failed or was rejected, a dash when
- * it was cancelled; the title of one that was settled by an ack or a reject adds the SNR the radio measured of it. None for a message that came in or was overheard: it has its time only. */
+/** The small mark on a message of ours: a clock while sending or queued, a check once acked, a
+ * hollow
+ * check when the attempts ran out with no ack expected, a cross when it failed or was rejected, a
+ * dash
+ * when cancelled. The title of a settled one adds the SNR the radio measured. None for a message
+ * that came in or was overheard. */
 export function markOf(row: MessageRow): Mark | null {
   const mark = markWithoutSignal(row);
   const signal = mark === null ? null : readingText(row);
   return mark === null || signal === null ? mark : { ...mark, title: t("messages.mark.with_signal", { mark: mark.title, signal }) };
 }
 
-/** The mark as `markOf` says it, with the SNR of the ack that came back added to the title of a message that was settled (its reading is null until then). */
+/** The mark as `markOf` says it, with the SNR of the returned ack added to the title (null until
+ * then). */
 function markWithoutSignal(row: MessageRow): Mark | null {
   if (row.direction !== "out") return null;
   switch (row.state) {
@@ -236,7 +254,7 @@ function markWithoutSignal(row: MessageRow): Mark | null {
   }
 }
 
-/** Whether the conversation is shown as one with something new in it: it has messages not seen, and it is not the one that is open. */
+/** Whether the conversation has unseen messages and is not the one that is open. */
 export function isHighlighted(unread: number, call: string, open: string | null): boolean {
   return unread > 0 && call !== open;
 }

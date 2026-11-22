@@ -1,9 +1,8 @@
 <script setup lang="ts">
-// The path being built in the path builder (PathBuilder.vue): drawn as what it means (PathDrawing: you, a node for each hop labelled with who takes it, the stations that hear the last one; each element with a × that takes it out);
-// under it the path as the field will get it (OH2RDK-7,WIDE2-1, DIRECT for none), orange with the reason in its title when it cannot go (the field's rule, or an alias that is no path), and the number of hops in all (the Ns of the
-// WIDE aliases and one for each other element: WIDE2-2 is 2) as a tag, on the warn plate when it is more than the network usually allows and orange when the path is no path, the reason in its hover title; and a field to type a hop into (a
-// call with an SSID or an alias, one or several separated by commas, lower case taken as capitals) with Add, which is off while what is typed is no hop or the path is full. The picture is one line high and the count has a
-// width of its own, so that what is below does not move as hops come and go.
+// The path being built: the drawing (PathDrawing), the path text as the field will get it (orange
+// with the reason when it cannot go), the number of hops as a tag (warn plate above the usual
+// limit), and a field to type hops with Add. The count has a fixed width so that nothing below
+// moves.
 import { computed, ref } from "vue";
 import PathDrawing from "@/components/PathDrawing.vue";
 import TagMark from "@/components/TagMark.vue";

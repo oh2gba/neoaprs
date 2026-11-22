@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import EmailCompose from "@/components/EmailCompose.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
 
-/** The form in the page's context: radio 1 alone, which internet gateways hear (email goes on it). */
+/** The form in the page's context: radio 1 alone, which internet gateways hear (email goes on
+ * it). */
 function box(extra: Record<string, unknown> = {}) {
   return mount(EmailCompose, { props: { connected: true, addresses: [], ...extra }, attachTo: document.body, global: withDaemon(fakeDaemon()) });
 }
@@ -51,7 +52,7 @@ describe("EmailCompose", () => {
     expect(send(wrapper).attributes("disabled")).toBeUndefined();
     await wrapper.find("#mail-text").setValue("x".repeat(50));
     expect(send(wrapper).attributes("disabled")).toBeUndefined();
-    await wrapper.find("#mail-to").setValue("jane.doe@example.com"); // (the text takes no more, but a longer address can push the line over)
+    await wrapper.find("#mail-to").setValue("jane.doe@example.com");
     expect(send(wrapper).attributes("disabled")).toBeDefined();
     await wrapper.find("#mail-to").setValue("jane@example.com");
     expect(send(wrapper).attributes("disabled")).toBeUndefined();

@@ -16,7 +16,8 @@ describe("App", () => {
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(0);
     socket.say(hello());
     await flushPromises();
-    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(0); // (not before the daemon has told its radios)
+    // Not before the daemon has told its radios.
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(0);
     socket.say({ type: "state", topic: "radios", rev: 0, value: radiosValue(fmRow()) });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
@@ -103,7 +104,7 @@ describe("App", () => {
   });
 
   it("asks for the ports again when a radio lets go of what it held, so that its sound card is free for another radio", async () => {
-    // (the owner, 16 November 2026: radio 1 on a sound card, then made a Dummy; the card stayed greyed for a second radio, "even though we are not using it")
+    // A sound card released by a radio changed to a Dummy is offered to another radio.
     const wrapper = mountApp();
     await flushPromises();
     const socket = FakeSocket.last();

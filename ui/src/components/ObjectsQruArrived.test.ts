@@ -1,5 +1,6 @@
-// What a request for a group came to: how many objects the server's closing line says it sent and how many arrived (Local info), Ask again for the ones that did not, and the way from there to the Stations tab, where the objects are
-// (with the Local info tag, StationsTable).
+// What a request for a group came to: how many objects the server's closing line says it sent and
+// how many arrived (Local info), Ask again for the ones that did not, and the way from there to the
+// Stations tab, where the objects are (with the Local info tag, StationsTable).
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ObjectsQru from "@/components/ObjectsQru.vue";
@@ -11,7 +12,8 @@ import { NOW, ago, qruState, station, table, qruAsked } from "@/test/fixtures";
 const attend = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
 vi.mock("@/lib/attention", () => ({ attend }));
 
-/** The server of the exchange with OH2DPN: INFO 150 listed TEST(1); TEST 150 was asked and its closing line says one object went. */
+/** The server of the exchange with OH2DPN: INFO 150 listed TEST(1); TEST 150 was asked and its
+ * closing line says one object went. */
 const dpn = (over: Record<string, unknown>) => ({
   call: "OH2DPN",
   groups: [{ name: "TEST", count: 1 }],

@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// The terminal of the radio, closed until it is wanted: the latest lines of what the TNC saw and did, newest last, in the viewer's time, following the end unless it was scrolled up. It is under the radio status of the Settings tab
-// and under the fields of the Radio step of the setup guide (any radio's row: only the lines are read); `toggle` says whether it was opened or closed (the guide puts the radio it shows in force when it opens).
+// The terminal of a radio, closed until wanted: the latest lines of what the TNC saw and did,
+// newest last, in the viewer's time, following the end unless scrolled up. It sits under the
+// radio status in Settings and under the Radio step fields of the setup guide; `toggle` reports
+// opening or closing (the guide puts the shown radio in force when it opens).
 import { computed, nextTick, ref, watch } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import { t } from "@/i18n";

@@ -6,7 +6,10 @@ import type { StationRow } from "@/protocol/protocol";
 type Mark = StationRow["route_marks"][number];
 
 const US = { lat: 60.17, lon: 24.94 };
-/** A route the way the daemon tells it; `lat` and `lon` are where the station was when the packet was heard. */
+/**
+ * A route the way the daemon tells it; `lat` and `lon` are where the station was when the
+ * packet was heard.
+ */
 const mark = (kind: Mark["kind"], hops: string[] = [], extra: Partial<Mark> = {}): Mark => ({
   kind,
   hops,

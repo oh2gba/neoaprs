@@ -10,7 +10,8 @@ import { cssRule } from "@/test/css";
 import { fakeDaemon, ofRadios, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
 
-/** The form with a place picked (60.17, 24.94), unless `placed` is false: a new object has none to start with. */
+/** The form with a place picked (60.17, 24.94), unless `placed` is false: a new object has none
+ * to start with. */
 function form(rows: OwnObjectRow[] = [], placed = true) {
   const table = new Map(rows.map((r) => [r.name, r]));
   const sent: Command[] = [];
@@ -19,7 +20,7 @@ function form(rows: OwnObjectRow[] = [], placed = true) {
     tab: ref("objects"),
   } as unknown as Panel);
   if (placed) view.place(60.17, 24.94);
-  const wrapper = mount(ObjectForm, { props: { form: view }, global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })) }); // (the page's context: radio 1 alone, a serial TNC, a moving station's symbol)
+  const wrapper = mount(ObjectForm, { props: { form: view }, global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })) });
   const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === label);
   const input = (label: string) => field(label)?.find<HTMLInputElement>("input");
   /** The entry under the place (latitude, longitude, locator), opened by a click on the place. */
@@ -140,7 +141,7 @@ describe("ObjectForm", () => {
   it("takes a name of nine characters at the most, and has no choice of kind", () => {
     const { wrapper, input } = form();
     expect(input("Name")?.attributes("maxlength")).toBe("9");
-    expect(wrapper.findAll("select").map((s) => s.attributes("id")?.endsWith("-category"))).toEqual([true]); // (the Category is the only choice; none of the kind)
+    expect(wrapper.findAll("select").map((s) => s.attributes("id")?.endsWith("-category"))).toEqual([true]);
   });
 
   it("makes an object, always, for a new one", async () => {
@@ -204,7 +205,7 @@ describe("ObjectForm", () => {
     const { wrapper, field, view } = form();
     expect(field("Symbol")?.find("input").exists()).toBe(false);
     expect(field("Symbol")?.find(".symicon .stn-layer").exists()).toBe(true);
-    expect(field("Symbol")?.findAll("button:not(.info-toggle)")).toHaveLength(1); // (the picture and its name are the button: there is no Change)
+    expect(field("Symbol")?.findAll("button:not(.info-toggle)")).toHaveLength(1);
     await field("Symbol")?.find("button.symbolbtn").trigger("click");
     const house = wrapper.findAll(".sympick-symbol").find((b) => b.text() === "House");
     await house?.trigger("click");
@@ -217,7 +218,7 @@ describe("ObjectForm", () => {
     const { wrapper } = form();
     const row = wrapper.find(".location-field");
     expect(row.classes()).toContain("field");
-    expect(row.element.previousElementSibling?.querySelector(".symbolfield, .symbolfield-name")).not.toBeNull(); // (after the symbol, before the comment)
+    expect(row.element.previousElementSibling?.querySelector(".symbolfield, .symbolfield-name")).not.toBeNull();
     expect(row.element.nextElementSibling?.querySelector("label")?.textContent).toBe("Comment");
     expect([...row.element.children].map((c) => c.className.split(" ")[0])).toEqual(["field-label", "field-control"]);
     expect(row.find(".field-label").text()).toBe("Location");

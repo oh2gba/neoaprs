@@ -1,11 +1,13 @@
-// The station cards that are pinned (components/StationCard.vue, composables/useSelection.ts), kept in this browser (lib/storage.ts, so each device decides): the calls, and where each card stands over the map (a place, or null for
-// a card that was never put anywhere). Read when the page starts, written when a pin or a place changes; a value that is not what was written (another version, edited by hand) is ignored.
+// The pinned station cards (components/StationCard.vue, composables/useSelection.ts), kept in this
+// browser (lib/storage.ts, so each device decides): the calls, and where each card stands over the
+// map (a place, or null). Read at page start, written when a pin or place changes; a value that is
+// not what was written is ignored.
 import { readStored, removeStored, writeStored } from "@/lib/storage";
 import type { Place } from "@/lib/cardmove";
 
 const KEY = "pinnedcards";
 
-/** The pinned cards by the call of the station, each with its place in the row of cards (null: none). */
+/** The pinned cards by station call, each with its place in the card row (null: none). */
 export type Pinned = Record<string, Place | null>;
 
 const isCoordinate = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
@@ -29,7 +31,10 @@ export function loadPinned(): Pinned {
   }
 }
 
-/** Remembers the pinned cards: `calls` in the order they were pinned, each with its place in `places` (null where it has none). Nothing pinned is nothing stored. */
+/**
+ * Remembers the pinned cards: `calls` in pinning order, each with its place in `places` (null if
+ * none). Nothing pinned stores nothing.
+ */
 export function savePinned(calls: readonly string[], places: Readonly<Record<string, Place | undefined>>): void {
   if (calls.length === 0) return removeStored(KEY);
   const out: Pinned = {};

@@ -1,6 +1,8 @@
-// The code a phone's camera reads: uqr's matrix is module for module the symbol Project Nayuki's own encoder makes for the same text (qr.fixture.json, made with its Python port qrcodegen 1.8.0 at level M,
-// boosted, its own mask) inside a quiet zone of four light modules, for the shortest address with a key, the longest IPv4 one over https, a 63-letter .local name, and the address the screenshots show; and the
-// path draws exactly the dark modules, with nothing in it but numbers and path letters.
+// The code a phone camera reads: uqr's matrix equals, module for module, the symbol Project
+// Nayuki's encoder makes for the same text (qr.fixture.json, made with its Python port qrcodegen
+// 1.8.0, level M, boosted, own mask) inside a four-module quiet zone, for the shortest address with
+// a key, the longest IPv4 one over https, a 63-letter .local name and the address the screenshots
+// show; and the path draws exactly the dark modules.
 import { describe, expect, it } from "vitest";
 import fixture from "@/lib/qr.fixture.json";
 import { qrMatrix, qrPath } from "@/lib/qr";

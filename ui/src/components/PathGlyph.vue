@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The small drawings of the path builder's picture (PathDrawing.vue), in the line of the page's icon buttons (IconButton: 16 by 16, a stroke of 1.5 in the colour of the text, round ends): "you" (a person, the station that
-// sends), "wide" (a mast with its waves: a wide-area digipeater, or the one named), "any" (a house and the mast side by side: a hop any digipeater takes, a home (fill-in) one too), "none"
-// (a crossed circle: an alias that no digipeater takes as it is meant) and "air" (waves round a point: the stations that hear the last hop). Only a picture: what it means is in the hover title of what holds it.
+// The small drawings of the path builder's picture, in the style of the page's icon buttons: "you",
+// "wide", "any", "none" and "air". Only a picture; the meaning is in the hover title of what holds
+// it.
 defineProps<{ kind: "you" | "wide" | "any" | "none" | "air" }>();
 </script>
 

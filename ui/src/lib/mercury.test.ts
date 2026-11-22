@@ -67,7 +67,7 @@ describe("the keying choices of a radio whose sound card sits on one USB hub wit
       "rts:/dev/ttyS0",
       "dtr:/dev/ttyS0",
     ]);
-    expect(keyingChoices(two, "", "ftx1")[2]?.label).toBe("RTS on /dev/ttyUSB1"); // (the same words: no heading, no mark)
+    expect(keyingChoices(two, "", "ftx1")[2]?.label).toBe("RTS on /dev/ttyUSB1"); // same words: no heading, no mark
     const plain = keyingChoices(two).map((c) => c.value);
     expect(keyingChoices(two, "", null).map((c) => c.value)).toEqual(plain);
     expect(keyingChoices(two, "", "none of them").map((c) => c.value)).toEqual(plain);

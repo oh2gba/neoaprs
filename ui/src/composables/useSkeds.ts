@@ -1,7 +1,8 @@
-// The Skeds tab as the page runs it: the board is asked for (`skeds_wanted`) when the tab comes on show while the daemon is connected (and so when a page loads with the tab in front, once the socket is open, and again after a reconnect) and every 15
-// minutes while it stays on show (the daemon reads at most that often whatever the page asks), and the count of the skeds
-// not seen yet. What was seen is the ids of the skeds that were on the board while the tab was on show, kept in the browser (lib/storage.ts), the last 200 of them. A sked of ours is never new. The tab is on show when
-// it is the tab in front, the panel is open and the page is visible (lib/unread.ts), as for the bulletins. In a window whose store was new, the first board told is seen (lib/firststart.ts).
+// The Skeds tab: the board is asked for (`skeds_wanted`) when the tab comes on show while the
+// daemon is connected, and every 15 minutes while it stays on show, plus the count of unseen
+// skeds. What was seen is the ids of the skeds on the board while the tab was on show, kept in
+// the browser, the last 200. A sked of ours is never new. In a window with a new store, the first
+// board sent counts as seen.
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { useViewing, type Panel } from "@/composables/usePanel";
 import { seenAtStart } from "@/lib/firststart";
@@ -10,9 +11,7 @@ import { readStored, writeStored } from "@/lib/storage";
 import type { Command, SkedsState } from "@/protocol/protocol";
 
 const KEY = "skedsseen";
-/** How often the page asks again while the tab stays on show. */
 export const ASK_EVERY_MS = 15 * 60_000;
-/** The most ids kept: the board holds 100 skeds. */
 const KEPT = 200;
 
 function stored(): Set<string> {
@@ -43,7 +42,10 @@ export function useSkeds(skeds: Readonly<Ref<SkedsState | null>>, panel: Panel, 
   );
   onBeforeUnmount(() => clearInterval(timer));
 
-  /** The ids another window of the browser saw since are kept (the stored list is read again), and the board's own go last, so that the oldest dropped are never ones still on it. */
+  /**
+   * Keep ids another window saw since (the stored list is read again), the board's own last, so the
+   * oldest dropped are never on it.
+   */
   function see(board: readonly { id: string }[]): void {
     const known = new Set([...stored(), ...seen.value]);
     const live = board.map((r) => r.id);

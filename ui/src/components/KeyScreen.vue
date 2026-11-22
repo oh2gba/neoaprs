@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// What a device on the network sees before it is let in: one field for the access key and one button. A wrong key is told under the field; the right one makes the daemon give this browser a session, and the page opens.
+// What a device on the network sees before it is let in: an access key field and a button. A
+// wrong key is reported under the field; the right one gets a session and the page opens.
 import { onMounted, ref } from "vue";
 import { t } from "@/i18n";
 import { login } from "@/lib/access";

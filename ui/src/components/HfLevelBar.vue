@@ -1,7 +1,9 @@
 <script setup lang="ts">
-// The receive level of a radio's audio, one row of the scope: a bar with its good range, and the number. The level comes with every row of the waterfall of `radio` (the page's memory of that radio's rows; null while no radio has a scope: no level) while `on` (the caller asks for the rows), and from the
-// newest of the rows the daemon kept when they come; while the radio transmits the rows are of our own signal, so the bar is dimmed and holds the last level received (the bar is components/LevelBar.vue). The box in Settings (components/HfScope.vue) has the (i) of it (`tip`), and where the radio's sound card has a capture level of its own the slider of it before the bar (`card`: the radio and the
-// form, components/CardSlider.vue; its room is kept whatever the card has, so that the bar never moves when it comes); the monitor card over the map (components/MonitorCard.vue) has the row alone.
+// The receive level of a radio's audio, one row of the scope: a bar with its good range and the
+// number. The level comes from the waterfall rows of `radio` while `on`. While the radio
+// transmits the bar is dimmed and holds the last level received. The Settings box (HfScope.vue)
+// adds the (i) (`tip`) and the capture-level slider (`card`); the monitor card (MonitorCard.vue)
+// shows the row alone.
 import { computed, onBeforeUnmount, ref, useId, watch } from "vue";
 import CardSlider from "@/components/CardSlider.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -20,7 +22,7 @@ const level = ref<number | null>(null);
 const transmitting = ref(false);
 let stop: (() => void) | null = null;
 
-/** Listens to the rows while they are asked for: the level starts again with them. */
+/** Listens to the rows while they are asked for; the level restarts with them. */
 function listen(on: boolean): void {
   stop?.();
   stop = null;
@@ -50,7 +52,7 @@ watch(
 );
 onBeforeUnmount(() => listen(false));
 
-/** The card's own capture level, where the box has the slider of it. */
+/** The card's own capture level, where the box has the slider for it. */
 const capture = computed(() => (props.card?.radio.row.card.read ? props.card.radio.row.card.rx : null));
 const zone = computed(() => (level.value === null ? "low" : levelZone(level.value)));
 const fill = computed(() => (level.value === null ? 0 : levelPercent(level.value)));

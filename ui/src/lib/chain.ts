@@ -1,6 +1,11 @@
-// The delivery chain of a message of ours (the `attempts_detail` of its row), as the chips the thread shows: "you → OH2RCH-2 → OH2RDG → OH2CUB-7". A hop is plain with a check when a copy of our own packet was heard with that hop used, grey with a "?"
-// when none was (a digipeater we never hear direct cannot be confirmed from here), blue with "internet" when it was seen only in a copy an iGate gated back; the recipient is plain on the ack, orange on failure, grey while it waits.
-// The "you" chip names the radio the attempt went out on where radios are named (`radio`, the name: more than one radio on, or that radio not on), as every tag and bubble does; none is the unmarked default.
+// The delivery chain of a message of ours (the `attempts_detail` of its row), as the chips the
+// thread
+// shows: "you → OH2RCH-2 → OH2RDG → OH2CUB-7". A hop is plain with a check when a copy of our own
+// packet was heard with that hop used, grey with a "?" when none was (a digipeater we never hear
+// direct cannot be confirmed), blue with "internet" when seen only in a copy an iGate gated back;
+// the recipient is plain on the ack, orange on failure, grey while it waits.
+// The "you" chip names the radio the attempt went out on where radios are named (`radio`: more than
+// one radio on, or that radio not on), as every tag and bubble does.
 import { t } from "@/i18n";
 import { clockText, dateTimeText } from "@/lib/format";
 import { failedText } from "@/lib/messages";
@@ -10,23 +15,26 @@ type ChipKind = "you" | "heard" | "internet" | "unheard" | "acked" | "failed" | 
 
 export interface Chip {
   kind: ChipKind;
-  /** the call, or "you" */
+  /** The call, or "you". */
   text: string;
-  /** what follows the call: a check, a cross, "?" or "internet"; empty for none */
+  /** What follows the call: a check, a cross, "?" or "internet"; empty for none. */
   mark: string;
-  /** what hovering over the chip says */
+  /** What hovering over the chip says. */
   title: string;
 }
 
 const MARKER = /^(TCPIP|TCPXX|NOGATE|RFONLY|NOTCP|qA)/;
 const ALIAS = /^(?:WIDE|TRACE|RELAY|ECHO|GATE|TEMP|TRACK|SAR|ARISS|APRSAT|[A-Z]{2,3}(?=\d))\d?(?:-\d{1,2})?$/;
 
-/** Whether a call is an alias of a path (WIDE2-1, TRACE3-3, RELAY, ARISS, a regional SS3-3), as the daemon reads one (neoaprs/route.py): any digipeater may answer it, so there is no one station to hear. A star after it is ignored. */
+/** Whether a call is an alias of a path (WIDE2-1, TRACE3-3, RELAY, ARISS, a regional SS3-3), as the
+ * daemon reads one (neoaprs/route.py): any digipeater may answer it, so no one station hears it. A
+ * star after it is ignored. */
 export function isAlias(call: string): boolean {
   return ALIAS.test(call.replace(/\*$/, ""));
 }
 
-/** Whether a path element is a marker for the iGates and the internet (RFONLY, NOGATE, TCPIP, TCPXX, a q-construct such as qAR) and no hop: nothing repeats it, so the chain has no chip for it. */
+/** Whether a path element is a marker for iGates and the internet (RFONLY, NOGATE, TCPIP, TCPXX, a
+ * q-construct such as qAR) and no hop: nothing repeats it, so the chain has no chip for it. */
 export function isMarker(call: string): boolean {
   return MARKER.test(call);
 }
@@ -65,14 +73,19 @@ function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean, ma
   return { kind: "waiting", text, mark: "", title: waiting };
 }
 
-/** The "you" chip of an attempt: the radio's name as its mark where it is named, none where it is not. */
+/** The "you" chip of an attempt: the radio's name as its mark where radios are named, none
+ * otherwise. */
 function youChip(time: string, radio: string | null): Chip {
   if (radio === null) return { kind: "you", text: t("chain.you"), mark: "", title: t("chain.sent", { time }) };
   return { kind: "you", text: t("chain.you"), mark: radio, title: t("chain.sent_on", { time, name: radio }) };
 }
 
-/** The chips of one attempt: us, each digipeater of its path (RFONLY, NOGATE, TCPIP and the like are not hops), a chip for a copy that came back over the internet when no hop shows it, and the recipient. `latest` is the newest attempt of the message, the one a failure is told on;
- * `radio` the name of the radio it went on where radios are named, null where they are not. */
+/** The chips of one attempt: us, each digipeater of its path (RFONLY, NOGATE, TCPIP and the like
+ * are not
+ * hops), a chip for a copy that came back over the internet when no hop shows it, and the
+ * recipient.
+ * `latest` is the newest attempt of the message, the one a failure is told on; `radio` is the name
+ * of the radio it went on where radios are named, null where they are not. */
 export function chainOf(
   row: MessageRow,
   attempt: AttemptRow,
@@ -86,6 +99,7 @@ export function chainOf(
   if (attempt.internet !== null && !attempt.hops.some((hop) => hop.by_internet)) {
     chips.push({ kind: "internet", text: t("chain.internet"), mark: "", title: t("chain.copy_back", { by: attempt.internet }) });
   }
-  chips.push(recipientChip(row, attempt, latest, mail)); // (mail: a gateway whose ack may never reach us is not failed)
+  // A mail gateway's ack may never reach us, so it is not failed.
+  chips.push(recipientChip(row, attempt, latest, mail));
   return chips;
 }

@@ -27,11 +27,13 @@ describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, Internet, digipeater, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
     expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
-    expect(groups[0]?.keys).toEqual(["station/transmit", "serial/last_port"]); // (the radios' own fields are in their boxes)
+    // The radios' own fields are in their boxes
+    expect(groups[0]?.keys).toEqual(["station/transmit", "serial/last_port"]);
     expect(groups[1]?.title).toBe("Internet stations");
-    expect(groups[1]?.keys).toEqual(["igate/enabled"]); // (igate/server and igate/password are left to the shell)
+    expect(groups[1]?.keys).toEqual(["igate/enabled"]); // Igate/server and igate/password are left to the shell
     expect(groups[2]?.title).toBe("Digipeater");
-    expect(groups[2]?.keys).toEqual([]); // (its fields are the radios' radio/<id>/digipeat: the form draws it while a radio may repeat)
+    // Its fields are the radios' radio/<id>/digipeat: the form draws it while a radio may repeat.
+    expect(groups[2]?.keys).toEqual([]);
     expect(groups[4]?.title).toBe("Notifications");
     expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
     expect(groups[5]?.keys).toEqual(["map/radius_km", "map/aircraft", "map/aircraft_host", "map/ships", "map/ships_host"]);
@@ -132,9 +134,10 @@ describe("groupKeys", () => {
     const at = (url: string) => (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL(url);
     at("http://127.0.0.1:7303/#app");
     expect(tips().filter((line) => line.includes("this computer"))).toHaveLength(1);
-    at("http://127.0.0.1:7303/"); // (the window's reload, without the fragment: the window still knows)
+    // The window's reload, without the fragment: the window still knows.
+    at("http://127.0.0.1:7303/");
     expect(tips().join(" ")).toMatch(/this computer/);
-    expect(tips().join(" ")).not.toMatch(/NeoAPRS computer|browser|window/); // (one box: no word of a next group)
+    expect(tips().join(" ")).not.toMatch(/NeoAPRS computer|browser|window/); // One box: no word of a next group
     sessionStorage.clear();
     at(browser);
   });
@@ -422,7 +425,7 @@ describe("portOptions", () => {
     expect(listedOf(2).map((c) => c.disabled ?? false)).toEqual([false, true, true]);
     expect(listedOf(0).map((c) => c.disabled ?? false)).toEqual([true, false, true]);
     expect(listedOf(1, "/dev/ttyUSB0")[0]).toEqual({ value: "/dev/ttyUSB0", label: "/dev/ttyUSB0 - FT232R" });
-    expect(portOptions(held, "", "").every((c) => c.disabled !== true)).toBe(true); // (a box that gives no holder)
+    expect(portOptions(held, "", "").every((c) => c.disabled !== true)).toBe(true); // A box that gives no holder
   });
   it("greys a port a radio the page does not know holds, with its own label", () => {
     const held = { ...ports(), ports: [{ ...row("/dev/ttyUSB0", "FT232R"), held_by: 9 }] };
@@ -457,7 +460,8 @@ describe("the beacon being Off", () => {
   it("is an interval of 0 or empty, for a fixed and a moving station alike, and not a settings list that lacks the interval", () => {
     expect([beaconOff(off), beaconOff({ "beacon/interval_min": " 0 " }), beaconOff({ "beacon/interval_min": "" })]).toEqual([true, true, true]);
     expect([beaconOff({ "beacon/interval_min": "30" }), beaconOff({ "beacon/interval_min": "20" }), beaconOff({})]).toEqual([false, false, false]);
-    expect(beaconOff({ "beacon/interval_min": "0", "hf/enabled": "true", "fm/enabled": "false" })).toBe(true); // (one interval for both radios: Off switches both beacons off)
+    // One interval for both radios: Off switches both beacons off
+    expect(beaconOff({ "beacon/interval_min": "0", "hf/enabled": "true", "fm/enabled": "false" })).toBe(true);
   });
   it("greys only the timing, Travelling and the status's Every, and nothing of what is sent, of the Station group or of the Beacon choice", () => {
     for (const values of [off, { ...off, "gps/source": "gpsd" }]) {
@@ -515,7 +519,9 @@ describe("the beacon being Off", () => {
   });
 });
 
-// The radios' own settings (`radio/3/port`) and the station's of the radios (`email/radio`): no group of the form places them; the boxes of the Radio group, the Email tab's list and the Digipeater group do.
+// The radios' own settings (`radio/3/port`) and the station's of the radios (`email/radio`): no
+// group of the form places them; the boxes of the Radio group, the Email tab's list and the
+// Digipeater group do.
 describe("the radios' own settings in the form", () => {
   it("are in no group: the radios' places show them", () => {
     const groups = groupKeys([...CONFIG_KEYS, "radio/3/port", "radio/3/digipeat", "radio/1/port", "email/radio"], "settings");
@@ -533,7 +539,8 @@ describe("the radios' own settings in the form", () => {
   });
 
   it("name the types of radio in the catalogue's words, the radio type of before's list too", () => {
-    const flat = new Set<string>(TNC_PROFILES.map((profile) => profile.key)); // (the FM types the setting of before takes: a type with no TNC profile, the Sound card's, is the radios' own alone)
+    // A type with no TNC profile (the Sound card's) belongs to the radios' own settings alone.
+    const flat = new Set<string>(TNC_PROFILES.map((profile) => profile.key));
     expect(FIELDS["tnc/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.label))).toEqual(
       typeChoices("fm")
         .filter((c) => flat.has(c.value))
@@ -542,7 +549,8 @@ describe("the radios' own settings in the form", () => {
     expect(FIELDS["hf/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.value))).toEqual(["mercury", "dummy-hf"]);
     expect(typeChoices().map((c) => c.value)).toEqual(RADIO_TYPES.map((type) => type.key));
     expect([typeText("kiss-tcp"), typeText("dummy-hf"), typeText("nothing")]).toEqual(["Your own Direwolf or soundmodem", "Dummy Mercury radio", "nothing"]);
-    for (const type of RADIO_TYPES) expect(typeText(type.key), type.key).not.toBe(type.key); // (every type the daemon lists has its name in the catalogue: no type's key on the page)
+    // Every type the daemon lists has its name in the catalogue: no type's key on the page.
+    for (const type of RADIO_TYPES) expect(typeText(type.key), type.key).not.toBe(type.key);
   });
 });
 
@@ -586,10 +594,12 @@ describe("the keys of a radio's box", () => {
     const both = digiPlaces(radios, { "radio/1/digipeat": "false", "radio/3/digipeat": "true" });
     expect(both.keys).toEqual(["radio/1/digipeat", "radio/3/digipeat"]);
     expect(Object.values(both.boxes).map((b) => b.text)).toEqual(["FM radio", "Mobile"]);
-    expect(both.status).toEqual({ "radio/3/digipeat": { tnc: radios[2]?.row } }); // (the status row only under an Enable that is on)
-    const one = digiPlaces([radioOf(1, "kiss", { enabled: false }), radioOf(2, "mercury", { enabled: false }), radios[2]], {}); // (radio 3 the only radio on)
+    // The status row only under an Enable that is on
+    expect(both.status).toEqual({ "radio/3/digipeat": { tnc: radios[2]?.row } });
+    // Radio 3 the only radio on
+    const one = digiPlaces([radioOf(1, "kiss", { enabled: false }), radioOf(2, "mercury", { enabled: false }), radios[2]], {});
     expect([one.keys, one.boxes, one.status]).toEqual([["radio/3/digipeat"], {}, {}]);
-    // plan section 6: "each row with the radio's name when there are several": one radio that may repeat beside another radio that is on says its radio
+    // A radio that may repeat, beside another radio that is on, shows its radio name.
     const other = digiPlaces([radioOf(1, "kiss", { enabled: false }), radios[2], radioOf(4, "dummy-hf", { kind: "hf", number: 2 })], {});
     expect([other.keys, Object.values(other.boxes).map((b) => b.text)]).toEqual([["radio/3/digipeat"], ["Mobile"]]);
   });
@@ -623,7 +633,8 @@ describe("the pairs of radios of the Digipeater group", () => {
       "pair/1/3/enabled",
       "pair/2/3/enabled",
     ]);
-    expect(digiPlaces(four, all).boxes["pair/1/4/enabled"]?.text).toBe("FM radio 2 and FM radio"); // (the first is the radio whose box comes first)
+    // The first is the radio whose box comes first
+    expect(digiPlaces(four, all).boxes["pair/1/4/enabled"]?.text).toBe("FM radio 2 and FM radio");
   });
 
   it("give none for a radio that only receives, a Dummy beside a real one, a radio that is off or removed, and a pair the daemon did not tell", () => {
@@ -633,7 +644,8 @@ describe("the pairs of radios of the Digipeater group", () => {
     expect(pairKeys(digiPlaces([FM, radioOf(4, "mercury", { enabled: false })], values))).toEqual([]);
     expect(pairKeys(digiPlaces([FM, radioOf(5, "mercury", { removed: true })], values))).toEqual([]);
     expect(pairKeys(digiPlaces([FM, radioOf(6, "mercury")], values))).toEqual([]);
-    expect(pairKeys(digiPlaces([radioOf(2, "dummy"), radioOf(3, "dummy-hf")], values))).toEqual(["pair/2/3/enabled"]); // (two Dummy radios are a pair)
+    // Two Dummy radios are a pair
+    expect(pairKeys(digiPlaces([radioOf(2, "dummy"), radioOf(3, "dummy-hf")], values))).toEqual(["pair/2/3/enabled"]);
   });
 
   it("leave the boxes of the radios' own digipeaters as they are, before the pairs", () => {

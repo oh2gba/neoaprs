@@ -1,6 +1,8 @@
-// What to do to update, for the way this copy was installed (the daemon says: `install` of its hello), in plain words. The steps are data, so that the dialog (components/UpdateDialog.vue, UpdateSteps.vue) only draws them: a line of words (made in
-// the language of the page when they are asked for), a command to copy, a file to download. Words of a developer's tools (git, uv) are only in the steps of a clone of the repository; a copy installed from the
-// wheel (`uv-tool`, `pip`: what releases before 0.16 offered) is sent to the release page, where the supported installs are, since no file of a release updates it.
+// What to do to update, for the way this copy was installed (the daemon says: `install` of its
+// hello). The steps are data that the dialog (components/UpdateDialog.vue, UpdateSteps.vue) only
+// draws: words, a command to copy, a file to download. Developer tools (git, uv) appear only for a
+// clone of the repository; a wheel install (`uv-tool`, `pip`) is sent to the release page, where
+// the supported installs are.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { InstallInfo, UpdateState } from "@/protocol/protocol";
@@ -9,9 +11,9 @@ const RELEASES = "https://github.com/oh2gba/neoaprs/releases";
 
 export interface Step {
   text: string;
-  /** a command to run, with a button that copies it */
+  /** A command to run, with a button that copies it. */
   command?: string;
-  /** a file to download, or a page to open: a button */
+  /** A file to download, or a page to open: a button. */
   link?: { href: string; label: string };
 }
 
@@ -30,7 +32,10 @@ function fileName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
-/** Quits and starts again: a service is restarted with `command`, a program started by hand is quit and started. */
+/**
+ * Quits and starts again: a service is restarted with `command`, a program started by hand is quit
+ * and started.
+ */
 function restart(service: boolean, command: string): Step {
   return service ? { text: t("help.update.restart_service"), command } : { text: t("help.update.restart") };
 }
@@ -56,7 +61,7 @@ function appImageSteps(install: InstallInfo, version: string): Step[] {
 }
 
 function debSteps(install: InstallInfo, version: string): Step[] {
-  // the machine's architecture is known for amd64 and arm64; for any other the release page lists the files, and the command takes whichever one was downloaded
+  // The architecture is known for amd64 and arm64; for any other the release page lists the files.
   const file = install.arch ? debName(version, install.arch) : `neoaprs_${version}_*.deb`;
   return [
     install.arch
@@ -68,7 +73,7 @@ function debSteps(install: InstallInfo, version: string): Step[] {
 }
 
 function macSteps(install: InstallInfo, version: string): Step[] {
-  // the app is built for Apple silicon; a Mac of another kind is sent to the release page, which says so
+  // The app is built for Apple silicon; another Mac is sent to the release page.
   return [
     install.arch === "arm64"
       ? { text: t("help.update.macos.download"), link: { href: dmgUrl(version), label: dmgName(version) } }
@@ -80,7 +85,10 @@ function macSteps(install: InstallInfo, version: string): Step[] {
   ];
 }
 
-/** The steps to the version `version` for a copy installed as `install`; null while the daemon has not said how (then the release page is all there is). */
+/**
+ * The steps to version `version` for a copy installed as `install`; null while the install is
+ * unknown (only the release page then).
+ */
 export function updateHelp(install: InstallInfo | null, version: string): Step[] {
   switch (install?.kind) {
     case "windows-installer":
@@ -98,12 +106,14 @@ export function updateHelp(install: InstallInfo | null, version: string): Step[]
         restart(install.service, "systemctl --user restart neoaprs"),
       ];
     default:
-      // the kind is not known yet, or the copy was installed from the wheel, which a release no longer carries: the release page has the supported installs
+      // Install kind unknown, or a wheel install: the release page lists the supported installs.
       return [{ text: t("help.update.release_page"), link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } }];
   }
 }
 
-/** What Update now is doing, in words: null while nothing runs (the button shows) or it has failed (the problem shows). */
+/**
+ * What Update now is doing, in words: null while nothing runs (the button shows) or it has failed.
+ */
 export function progressText(state: UpdateState, kind: InstallInfo["kind"] | undefined, connected: boolean): string | null {
   switch (state.state) {
     case "downloading":
@@ -130,11 +140,11 @@ const PROBLEMS = {
   no_restart: "help.update.problem.no_restart",
 } as const satisfies Record<Exclude<UpdateState["problem"], "">, MessageId>;
 
-/** Why Update now failed, in words; empty when it did not. */
+/** Why Update now failed, in words; empty if it did not. */
 export function problemText(problem: UpdateState["problem"]): string {
   return problem === "" ? "" : t(PROBLEMS[problem]);
 }
 
-/** Is Update now on its way (the button gives way to the progress)? */
+/** Whether Update now is in progress (the button gives way to the progress). */
 export const updateRunning = (state: UpdateState | null): boolean =>
   state !== null && ["downloading", "verifying", "installing", "restarting"].includes(state.state);

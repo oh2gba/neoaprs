@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The monitor card's menu (components/MonitorCard.vue), opened by a right-click on the card, a long press on its body or the menu key on the picture: the speed of its waterfall, Slow, Normal or Fast, the one that is on with a
-// check mark in a column every item keeps, so that choosing moves no word (lib/waterfall.ts PACE says what a speed is). It opens where the pointer is and is kept inside the window, takes the focus on its first item, is moved in
-// with the arrow keys and closed by Esc (the focus goes back to the picture), a press outside it or an item that was chosen (useContextMenu), as every menu of the page. The card opens it (useMonitorMenu) and hears `speed` and `close`.
+// The monitor card's menu (MonitorCard.vue): the waterfall speed, Slow, Normal or Fast
+// (lib/waterfall.ts PACE), the current one checked in a column every item keeps so that choosing
+// moves no word. It behaves as every menu of the page (useContextMenu); the card opens it
+// (useMonitorMenu) and handles `speed` and `close`.
 import { ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import { t } from "@/i18n";
@@ -25,7 +26,8 @@ function label(speed: Speed): string {
   }
 }
 
-/** Tab leaves the menu from the picture, so that the browser moves on to what comes after the card: the menu itself stands at the end of the page. */
+/** Tab leaves the menu from the picture, so that the browser continues after the card: the menu
+ * itself sits at the end of the page. */
 function onKey(event: KeyboardEvent): void {
   if (event.key === "Tab") props.trigger?.focus();
   menu.onKey(event);

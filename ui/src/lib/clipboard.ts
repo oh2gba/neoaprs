@@ -1,4 +1,5 @@
-// Puts text on the clipboard: the browser's own way where the page may use it (a secure page: the loopback address is one), else the old one through a text field, which a page opened from another computer over plain http has to use.
+// Put text on the clipboard: the browser's way on a secure page (loopback counts), else the old
+// way through a text field, which a page opened over plain http from another computer must use.
 
 /** True when the text is on the clipboard. */
 export async function copyText(text: string): Promise<boolean> {
@@ -8,7 +9,7 @@ export async function copyText(text: string): Promise<boolean> {
       return true;
     }
   } catch {
-    // refused: the old way
+    // Refused: fall back to the old way.
   }
   const field = document.createElement("textarea");
   field.value = text;

@@ -1,15 +1,18 @@
-// The QR code of a text, for the code a phone's camera opens the page from (components/PhoneCode.vue): the matrix of its modules made by uqr at error correction level M, raised to a higher level where the
-// text still fits the same size, with the quiet zone of four modules round it that a reader needs; and one SVG path that draws its dark modules, a run of them in a row as one rectangle. The path is numbers and
-// path letters only, so it holds nothing of the text it was made from. The notice of uqr's licence is the legal comment before qrMatrix, code the build keeps, so the built page carries it: uqr's own files have none.
+// The QR code of a text, for the code a phone camera opens the page from
+// (components/PhoneCode.vue):
+// the module matrix made by uqr at error correction level M, raised where the text still fits the
+// same size, with a four-module quiet zone; and one SVG path of the dark modules (runs in a row as
+// one rectangle). The path holds only numbers and path letters, nothing of the text. uqr's licence
+// notice is the legal comment before qrMatrix, which the build keeps.
 import { encode } from "uqr";
 
 /*! uqr 0.1.3, MIT License, (c) Project Nayuki, (c) 2023 Anthony Fu */
-/** The modules of the code of `text`, row by row, the quiet zone included: true is dark. */
+/** The modules of the code of `text`, row by row, quiet zone included: true is dark. */
 export function qrMatrix(text: string): boolean[][] {
   return encode(text, { ecc: "M", boostEcc: true, border: 4 }).data;
 }
 
-/** The dark modules of a matrix as one SVG path in a box of `size` by `size` units, one unit a module. */
+/** The dark modules as one SVG path in a `size` by `size` box, one unit per module. */
 export function qrPath(matrix: readonly (readonly boolean[])[]): { size: number; d: string } {
   const parts: string[] = [];
   matrix.forEach((row, y) => {

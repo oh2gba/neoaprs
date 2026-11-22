@@ -1,4 +1,6 @@
-// One tag for the whole page: the header's count and the tabs', the state pills, the channel of a station, Receive only and the chips of a chain are all the Tag component, and its size is written once: no place that uses it gives it another height, font or padding.
+// One tag for the whole page: the header's count and the tabs', the state pills, the channel of a
+// station, Receive only and the chips of a chain are all the Tag component, and its size is
+// written once: no place that uses it gives it another height, font or padding.
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import TagMark from "@/components/TagMark.vue";

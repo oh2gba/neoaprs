@@ -23,7 +23,8 @@ describe("App: the alert of this browser", () => {
     const boxes = groups[0]?.findAll("fieldset.subbox") ?? [];
     expect(boxes.map((b) => b.find("legend").text().replace(/ i$/, ""))).toEqual(["On the NeoAPRS computer", "In this browser"]);
     expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Notify me", "Command"]);
-    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me"]); // (the loopback starts unticked: no tests)
+    // The loopback starts unticked: no tests.
+    expect(boxes[1]?.findAll("label").map((l) => l.text())).toEqual(["Notify me"]);
     expect(boxes[0]?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
     expect(boxes[1]?.findAll("button:not(.info-toggle)")).toHaveLength(0);
     await boxes[1]?.find("#alert-mode").setValue(true);
@@ -166,11 +167,13 @@ describe("App: the alert of this browser", () => {
     stubBrowser();
     FakeNotification.permission = "granted";
     openedAt("192.168.1.20");
-    localStorage.setItem(MODE_KEY, "both"); // (the choice this test is about, stated, not left to the address's default)
+    // The choice this test is about, stated, not left to the address's default.
+    localStorage.setItem(MODE_KEY, "both");
     vi.spyOn(window, "focus").mockImplementation(() => undefined);
     const { wrapper, socket } = await open();
     patch(socket, 1, "4", incoming(4, "OH2DPN", { text: "Moi!" }));
-    await vi.waitFor(() => expect(FakeNotification.shown.map((n) => n.title)).toEqual(["APRS message from OH2DPN"])); // (under the load of the whole suite the notification comes a moment after one flush)
+    // Under the load of the whole suite the notification comes a moment after one flush.
+    await vi.waitFor(() => expect(FakeNotification.shown.map((n) => n.title)).toEqual(["APRS message from OH2DPN"]));
     FakeNotification.shown[0]?.onclick?.();
     await vi.waitFor(() => expect(tabButton(wrapper, "Messages")?.attributes("aria-selected")).toBe("true"));
     expect(wrapper.find("#pane-messages").text()).toContain("Moi!");

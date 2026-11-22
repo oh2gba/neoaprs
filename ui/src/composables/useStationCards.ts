@@ -1,6 +1,9 @@
-// The station cards as the page runs them: the stations whose cards are open (composables/useSelection.ts, as many as the size of the window has room for), Esc, which closes them all, and the clicks of the map and of the table. A click on a marker is its card
-// alone, or with Ctrl (Cmd) held added to the open ones; the map itself lets go of all of them. A click on a row of the table does the same, and a phone, which shows the tab or the map, shows the map with the card.
-// Esc closes the statistics card and the replay of the map too (`alsoClose`, the page's). A pinned card (a tablet and a desktop) is not let go of by any of that: it has its place over the map and stays until its cross is clicked, and both are kept in this browser (lib/pinned.ts), so it comes back with the page.
+// The station cards: the open stations (useSelection, as many as the window has room for), Esc
+// closing them all, and the clicks of the map and table. A click on a marker or row opens its
+// card alone, or with Ctrl (Cmd) adds it; the map itself lets go of all. A phone shows the map
+// with the card. Esc also closes the statistics card and the map replay (`alsoClose`). A pinned
+// card is kept by none of that: it stays until its cross is clicked and is kept in the browser
+// (lib/pinned.ts).
 import { computed, ref, watch, type Ref } from "vue";
 import { useCardEsc } from "@/composables/useCardEsc";
 import type { Places } from "@/composables/useCardDrag";
@@ -14,12 +17,10 @@ export function useStationCards(
   send: (command: Command) => boolean,
   layout: Layout,
   blocked: () => boolean,
-  /** The daemon has told the stations (a pinned card of a station it does not have is gone only then). */
   ready?: Readonly<Ref<boolean>>,
-  /** What else Esc closes with the cards (the statistics card, the replay of the map); true when it closed something. */
   alsoClose: () => boolean = () => false,
 ) {
-  // where the cards the user has moved stand (components/StationCards.vue keeps them in step with the open cards); only for the session, except those of the pinned cards, and not on a phone, whose card is a sheet
+  // Where moved cards stand; kept for the session (and with pinned cards), not on a phone.
   const saved = loadPinned();
   const places = ref<Places>(Object.fromEntries(Object.entries(saved).flatMap(([call, place]) => (place === null ? [] : [[call, place] as const]))));
   const pinned = ref<string[]>(Object.keys(saved));

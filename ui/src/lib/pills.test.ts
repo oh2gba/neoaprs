@@ -77,7 +77,8 @@ describe("the Radio mark", () => {
     expect(t(radio({})!.title)).toBe("Radio connected. Settings → Radio");
   });
 
-  // (no internals on the page: while the line is being opened the title says the state in the page's words, the log has the rest)
+  // (no internals on the page: while the line is being opened the title says the state in the
+  // page's words, the log has the rest)
   it("says searching in its title while the line is being opened, never the port or the device the daemon tries", () => {
     for (const row of [{ problem: problem("radio.searching") }, { problem: problem("radio.not_connected", { name: "FM" }) }, { problem: null }]) {
       const mark = radio({ state: "connecting", ...row })!;
@@ -128,14 +129,15 @@ describe("the radio marks with the Mercury radio", () => {
     expect(radios([FM_OFF, hfRow()]).map((p) => [said(p), String(p.tone)])).toEqual([["Radio", "ok"]]);
   });
 
-  // (plan section 6, decision 1: the short name is the label everywhere; "FM radio" and "HF radio" were the two-radio texts, now the radio's name)
+  // The short name is the label everywhere.
   it("is two marks, one for each radio by its short name, while both are on, each in the tone of its own radio and leading to its own box", () => {
     const two = radios([fmRow(), hfRow()]);
     expect(two.map((p) => [p.id, said(p), String(p.tone), p.target, p.focus])).toEqual([
       ["radio-1", "FM", "ok", "settings", "set-radio-1-enabled"],
       ["radio-2", "Mercury", "ok", "settings", "set-radio-2-enabled"],
     ]);
-    expect(two.map((p) => t(p.title, p.titleValues))).toEqual(["FM: connected. Settings → Radio", "Mercury: connected. Settings → Radio"]); // (plan section 6 "Texts": a name stands before a colon)
+    // A name stands before a colon.
+    expect(two.map((p) => t(p.title, p.titleValues))).toEqual(["FM: connected. Settings → Radio", "Mercury: connected. Settings → Radio"]);
     const fmDown = radios([fmRow({ state: "waiting", problem: problem("radio.not_connected") }), hfRow()]);
     expect(fmDown.map((p) => [said(p), String(p.tone)])).toEqual([
       ["FM: not connected", "warn"],
@@ -214,7 +216,7 @@ describe("the radio marks with any number of radios", () => {
     const rows = SIX.map((row) => (row.id === 4 ? { ...row, ...down(4) } : row));
     const [mark] = ofRadios(rows);
     expect([mark && said(mark), String(mark?.tone), mark?.focus]).toEqual(["20 m: not connected", "warn", "set-radio-4-enabled"]);
-    expect(mark && t(mark.title, mark.titleValues)).toContain("; 20 m: not connected;"); // (the words of the mark itself)
+    expect(mark && t(mark.title, mark.titleValues)).toContain("; 20 m: not connected;"); // The words of the mark itself
     const silent = SIX.map((row) =>
       row.id === 3 ? { ...row, state: "silent" as const, problem: { code: "radio.silent" as const, params: { since: ago(300) } } } : row,
     );

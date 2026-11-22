@@ -1,5 +1,6 @@
-// A packet of the log told in a few plain facts, for the detail a click opens: who sent it, what kind of packet it is, what it says (the position, the text, the object's name), and how it reached us or which path we sent it by. The raw line and the decoded JSON stay
-// behind "Raw" for the few who want them. Everything here is a plain function of one packet row.
+// A logged packet as a few plain facts for the click-through detail: sender, kind, content
+// (position, text, object name) and how it reached us or which path we sent it by. The raw line and
+// decoded JSON stay behind "Raw". Everything here is a plain function of one packet row.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { altitudeText, bearingText, dateTimeText, positionText, speedText } from "@/lib/format";
@@ -14,11 +15,16 @@ import type { DecodedOther, DecodedStatus, DecodedUndecoded, DecodedWeather, Pac
 export interface Fact {
   label: string;
   text: string;
-  /** a route: the line may break between the words, not in a callsign (components/RouteText.vue) */
+  /**
+   * A route: the line may break between words, not inside a callsign (components/RouteText.vue).
+   */
   route?: boolean;
 }
 
-/** The kinds of "other" packets the daemon names (a telemetry packet that is no report is one too), with the message that says each. */
+/**
+ * The kinds of "other" packets the daemon names (a non-report telemetry packet is one), with the
+ * message for each.
+ */
 const OTHER: Record<DecodedOther["kind"], MessageId> = {
   weather: "packets.kind.weather",
   capabilities: "packets.kind.capabilities",
@@ -34,7 +40,7 @@ const OTHER: Record<DecodedOther["kind"], MessageId> = {
   unknown: "packets.kind.other",
 };
 
-/** Why a packet could not be read, in words, by the daemon's code of it. */
+/** Why a packet could not be read, in words, by the daemon's code. */
 const WHY: Record<DecodedUndecoded["code"], MessageId> = {
   empty: "packets.why.empty",
   position: "packets.why.position",
@@ -49,7 +55,8 @@ export function kindWords(row: PacketRow): string {
   const d = row.decoded;
   if (d.type === "telemetry") return t("packets.kind.telemetry");
   if (d.type === "other") {
-    const id = OTHER[d.kind] as MessageId | undefined; // (a kind of a newer daemon has no words here: the plain "Other packet")
+    // a kind from a newer daemon has no words: plain "Other packet"
+    const id = OTHER[d.kind] as MessageId | undefined;
     return t(id ?? "packets.kind.other");
   }
   return t(`packets.kind.${row.kind}`);
@@ -60,7 +67,10 @@ function weatherText(w: DecodedWeather): string {
   return parts.filter((part) => part !== "").join(", ");
 }
 
-/** Where, how it moves and what the sender added: the facts of a position that is part of a position report, an object or an item. */
+/**
+ * Where, how it moves and what the sender added: the facts of a position in a position report,
+ * object or item.
+ */
 function positionFacts(p: PositionFields): Fact[] {
   const where = positionText(p.lat, p.lon);
   const facts: Fact[] = [{ label: t("station.field.position"), text: p.ambiguity > 0 ? t("packets.position_approximate", { position: where }) : where }];
@@ -118,7 +128,7 @@ function contentFacts(row: PacketRow): Fact[] {
     case "other":
       return d.text === "" ? [] : [{ label: t("packets.fact.text"), text: d.text }];
     case "undecoded": {
-      const why = WHY[d.code] as MessageId | undefined; // (a code of a newer daemon: the plain word)
+      const why = WHY[d.code] as MessageId | undefined; // a code from a newer daemon: the plain word
       return [
         { label: t("packets.fact.why"), text: t(why ?? "packets.why.damaged") },
         { label: t("packets.fact.text"), text: d.text },
@@ -127,13 +137,17 @@ function contentFacts(row: PacketRow): Fact[] {
   }
 }
 
-/** The one line of a packet in the Summary column of a table of packets: what kind it is and what it says, in the page's words ("Message · OH2RDG · Hello"). */
+/**
+ * The one line of a packet in the Summary column: kind and content ("Message · OH2RDG · Hello").
+ */
 export function summaryText(row: PacketRow): string {
   return [kindWords(row), ...contentFacts(row).map((fact) => fact.text)].join(" · ");
 }
 
-/** The facts of a packet, in the order they are told: from, kind, what it says, how it travelled ("Came by": its tag and what it means, "FM - heard on radio FM", "20 m - heard on radio 20 m"), when. `radios`
- * every radio in the order of the boxes. */
+/**
+ * The facts of a packet in telling order: from, kind, content, how it travelled ("Came by": its tag
+ * and meaning, "FM - heard on radio FM"), when. `radios` is every radio in box order.
+ */
 export function packetFacts(row: PacketRow, radios: readonly PageRadio[] = []): Fact[] {
   const known = radios;
   const facts: Fact[] = [{ label: t("packets.fact.from"), text: row.source }, { label: t("packets.fact.kind"), text: kindWords(row) }, ...contentFacts(row)];

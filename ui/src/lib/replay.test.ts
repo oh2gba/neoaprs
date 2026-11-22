@@ -8,7 +8,10 @@ const T0 = Date.parse(START);
 const MIN = 60_000;
 const at = (minutes: number): string => new Date(T0 + minutes * MIN).toISOString().replace(".000", "");
 
-/** A span of three hours: a car that drives (positions 2 min apart, then a gap of an hour), a digipeater heard once, and a station with nothing (not drawn). */
+/**
+ * A span of three hours: a car that drives (positions 2 min apart, then an hour's gap), a
+ * digipeater heard once, and a station with no position (not drawn).
+ */
 function message(): PositionHistoryMessage {
   return {
     type: "position_history",
@@ -82,7 +85,8 @@ describe("where the stations are", () => {
     expect(trailAt(car, T0 + 5 * MIN)).toEqual([]);
     const trail = trailAt(car, T0 + 13 * MIN);
     expect(trail.map(([t]) => (t - T0) / MIN)).toEqual([10, 12, 13]);
-    expect(trailAt(car, T0 + 40 * MIN).map(([t]) => (t - T0) / MIN)).toEqual([10, 12, 14]); // (waiting where it was)
+    // Waiting where it was.
+    expect(trailAt(car, T0 + 40 * MIN).map(([t]) => (t - T0) / MIN)).toEqual([10, 12, 14]);
     expect(trailAt(car, T0 + 100 * MIN).map(([t]) => (t - T0) / MIN)).toEqual([10, 12, 14, 74, 76]);
   });
 });
@@ -92,10 +96,12 @@ describe("the trails' lines", () => {
     expect(trailMinutes(3)).toBe(45);
     const lines = trailLines(replayData(message()), T0 + 75 * MIN);
     const car = lines.features.filter((f) => f.properties.call === "OH2RDG-9");
-    expect(car.map((f) => f.properties.opacity)).toEqual([0.15, 1]); // (the drive of an hour ago faint, joined as one line; the last minute whole)
+    // The drive of an hour ago is faint and joined as one line; the last minute is whole.
+    expect(car.map((f) => f.properties.opacity)).toEqual([0.15, 1]);
     expect(car[0]?.geometry.coordinates).toHaveLength(4);
     expect(car.flatMap((f) => f.geometry.coordinates).at(-1)).toEqual([25.1, 60.11]);
-    expect(lines.features.some((f) => f.properties.call === "OH2RCH-2")).toBe(false); // (one position: no line)
+    // One position: no line.
+    expect(lines.features.some((f) => f.properties.call === "OH2RCH-2")).toBe(false);
   });
 
   it("are none before anyone is heard", () => {

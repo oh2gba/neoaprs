@@ -1,14 +1,24 @@
 <script setup lang="ts">
-// "NeoAPRS 0.7.0 is available": the dialog in the middle of the page, over a dimmed page (the whole screen on a phone), opened by the header's Update mark, the header's badge of a phone and the Settings tab's answer
-// to Check now. The version this copy is, what is new (the project's note of the version page, and the release notes themselves: the dialog asks the daemon for them, `release_notes`, and shows the sections of the versions between this one and the new one in a box
-// that scrolls; while they are fetched it says so, and when they cannot be it offers the release page on GitHub instead), then the update itself: **Update now** where the daemon can
-// do it (the topic `update` says so: the Windows installer, an AppImage), with its progress, a Cancel while it downloads and the problem in words when it fails; and the steps by hand for the way this copy
-// was installed (lib/update.ts, UpdateSteps), folded under Update now (also when it failed: opening by itself, they would move the dialog, which stands in the middle).
-// The box of Update now keeps its shape in every state, so that nothing moves under the pointer when the button is pressed: a line for what is going on (empty until then; the room of the longest text of every state in
-// nine languages: two lines, three on a phone) and under it a row as high as a button, which holds the button, or the bar and Cancel, or nothing (styles/help.css). The focus goes into the dialog and stays in it; Escape, the cross and a click beside it close it, which
-// does not stop an update. The longer explanation is in the manual (Updating).
-// The same window in its notes form (`notesOnly`, composables/useWhatsNew.ts), opened from Settings → Update check and from the line the page shows once after an update: "What's new in NeoAPRS 0.12.0", the version that runs, and only
-// the notes, of that version or with `since` of every version after that one up to it (the daemon reads them from the changelog at our own tag); no note of the version page, no update, no steps, and the release page when they cannot be fetched.
+// "NeoAPRS 0.7.0 is available": a centred dialog over a dimmed page (the whole screen on a
+// phone), opened by the header's Update mark, the phone's header badge and the Settings tab's
+// Check now. It shows the current version and what is new (the version page note and the
+// release notes, which the daemon supplies on `release_notes`; between this version and the new
+// one, in a scrolling box; the GitHub release page is offered if they cannot be fetched). Then
+// the update itself: **Update now** where the daemon can do it (the topic `update` says so: the
+// Windows installer, an AppImage) with progress, Cancel while downloading and the problem in
+// words on failure; and the manual steps for the way this copy was installed (lib/update.ts,
+// UpdateSteps), folded under Update now, also after a failure, since opening by themselves
+// would move the dialog.
+// The Update now box keeps its shape in every state so nothing moves under the pointer: a line
+// for what is going on (sized for the longest text of every state in nine languages: two
+// lines, three on a phone) and below it a row as high as a button, holding the button, or the
+// bar and Cancel, or nothing (styles/help.css). Focus goes into the dialog and stays; Escape,
+// the cross and a click beside it close it, which does not stop an update.
+// In its notes form (`notesOnly`, composables/useWhatsNew.ts), opened from Settings → Update
+// check and from the line shown once after an update, it shows "What's new in NeoAPRS 0.12.0"
+// and only the notes of the running version, or with `since` of every version after that one
+// up to it (the daemon reads them from the changelog); no version page note, no update, no
+// steps; the release page is offered when the notes cannot be fetched.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import UpdateSteps from "@/components/UpdateSteps.vue";
@@ -26,9 +36,9 @@ const steps = computed(() => updateHelp(install.value, props.version));
 const note = computed(() => (props.notesOnly ? "" : (status.value?.update?.message ?? "")));
 /** The daemon's answer for this version and this `since`: null while it has not come. */
 const notes = computed(() => (notesAnswer.value?.version === props.version && notesAnswer.value.since === (props.since ?? "") ? notesAnswer.value : null));
-/** The sections to show, each as blocks; the version of a section heads it when there are several. */
+/** The sections to show, each as blocks; with several, each is headed by its version. */
 const sections = computed(() => (notes.value?.sections ?? []).map((section) => ({ version: section.version, blocks: noteBlocks(section.text) })));
-/** The daemon can update itself: Update now is offered (and stays while one runs, whatever the topic says after). */
+/** The daemon can update itself: Update now is offered (and stays while one runs). */
 const running = computed(() => updateRunning(selfUpdate.value));
 const offered = computed(() => selfUpdate.value?.supported === true || running.value);
 const progress = computed(() => (selfUpdate.value ? progressText(selfUpdate.value, install.value?.kind, connection.value === "open") : null));

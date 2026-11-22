@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, h, ref } from "vue";
 import { usePopup, type PopupOptions } from "@/composables/usePopup";
 
-/** A button that opens a box, with a second button outside it; the popup is wired as the options say. */
+/** A button that opens a box, and a second button outside it; the popup is wired by the options. */
 function make(options: Partial<Pick<PopupOptions, "focusAway" | "stopEscape" | "escapeAnywhere">> = {}) {
   const parent: string[] = [];
   const Popup = defineComponent({

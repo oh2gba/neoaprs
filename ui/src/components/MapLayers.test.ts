@@ -175,8 +175,10 @@ describe("the rows of the box", () => {
   });
 
   it("fit the box on a phone (375 px) in English, the longest with its source and its count", () => {
-    // The box beside the button has 375 - 10 - 40 - 8 - 16 = 301 px; a row less its padding, tick, mark and gaps has 245 px for its words, about 28 characters at 14 px, and a row of things after its source
-    // and its count has 245 - 8 - 4ch - 8 about 26 characters for its name and source.
+    // The box beside the button has 375 - 10 - 40 - 8 - 16 = 301 px; a row less its padding, tick,
+    // mark and gaps has 245 px for its words, about 28 characters at 14 px, and a row of things
+    // after its source and its count has 245 - 8 - 4ch - 8 about 26 characters for its name and
+    // source.
     for (const entry of LAYER_TABLE) {
       const words = t(entry.name);
       expect(words.length, words).toBeLessThanOrEqual(entry.part === "own" ? 28 : 26 - "Fintraffic".length);

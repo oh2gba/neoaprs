@@ -1,4 +1,4 @@
-// Where the map looks, as it is remembered between visits.
+// Where the map looks, remembered between visits.
 import type { Marker } from "maplibre-gl";
 import type { MarkerDom } from "@/lib/markerdom";
 import { readStored, writeStored } from "@/lib/storage";
@@ -18,13 +18,15 @@ export interface Placed {
   lon: number;
 }
 
-/** A request to fly to a station; `n` counts up, so that asking for the same station again flies there again. */
+/**
+ * A request to fly to a station; `n` counts up so asking for the same station again flies again.
+ */
 export interface Focus {
   call: string;
   n: number;
 }
 
-/** Where we are (the station's position of the settings). */
+/** Where we are (the station's position setting). */
 export interface Home {
   lat: number;
   lon: number;
@@ -46,7 +48,7 @@ function isView(value: unknown): value is MapView {
   );
 }
 
-/** The view of the last visit, null when none was kept (or it is garbage). */
+/** The view of the last visit; null if none was kept or it is invalid. */
 export function readView(): MapView | null {
   const text = readStored(KEY);
   if (text === null) return null;

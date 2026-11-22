@@ -73,7 +73,7 @@ describe("ObjectsPane", () => {
     expect(tags[0]?.classes()).toContain("tag-neutral");
     expect(items[0]?.find(".bulletin-head").text()).not.toContain("Category");
     expect(cssRule(".own-tags")).toMatch(/padding:/);
-    // (with one radio the column is today's: one tag, at its own width, from the column's left edge)
+    // with one radio the column has one tag, at its own width, from the column's left edge
     expect(items.some((i) => i.find(".own-tags").classes().includes("several"))).toBe(false);
     expect(cssRule(".own-tags")).not.toMatch(/display|justify-content|max-width/);
     expect(items.map((i) => i.find(".bulletin-meta").text())).toEqual(["sent only when asked", "sent 2 times, next in 3 min", "sent 2 times, next in 3 min"]);
@@ -140,7 +140,7 @@ describe("ObjectsPane", () => {
         [
           ["Shack", "Sent on radio Shack", "tag-neutral"],
           ["20m", "Sent on radio 20m", "tag-hf"],
-          ["+4", "Sent on radio HFdummy; Sent on radio Mobile; Sent on radio Remote12; Sent on radio 40m", "tag-neutral"], // (the title of "+n" as Stations has it)
+          ["+4", "Sent on radio HFdummy; Sent on radio Mobile; Sent on radio Remote12; Sent on radio 40m", "tag-neutral"],
         ],
         [
           ["HFdummy", "Sent on radio HFdummy", "tag-dummy"],

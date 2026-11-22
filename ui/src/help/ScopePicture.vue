@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The HF radio's scope: a distant station sends (waves), and the waterfall of the audio shows its frame as a block in the marked band at the top, the newest rows, over the faint specks of the noise, with the receive level under it as a bar in the
-// good range.
+// The HF radio's scope: a distant station sends (waves); the waterfall shows its frame as a
+// block in the marked band at the top over faint noise specks, with the receive level below as
+// a bar in the good range.
 import { CALLS } from "@/help/calls";
 import { waves } from "@/help/draw";
 import HelpFrame from "@/help/HelpFrame.vue";

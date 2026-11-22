@@ -1,4 +1,8 @@
-/** The build of this page: the name of the main script its index.html loaded (`index-<hash>.js` of assets/), as the daemon names the page it serves in hello; empty in development and in the tests. The page knows no version of NeoAPRS: it learns the daemon's from hello (lib/reload.ts). */
+/**
+ * The build of this page: the name of the main script its index.html loaded (`index-<hash>.js` of
+ * assets/), as the daemon names the served page in hello; empty in development and tests. The page
+ * knows no NeoAPRS version: it learns the daemon's from hello (lib/reload.ts).
+ */
 export function pageBuild(doc: Document = document): string {
   for (const script of Array.from(doc.querySelectorAll<HTMLScriptElement>("script[type=module][src]"))) {
     const found = /assets\/(index-[\w-]+\.js)/.exec(script.getAttribute("src") ?? "");

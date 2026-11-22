@@ -1,6 +1,9 @@
-// The path builder on its own (PathBuilder.vue with its dialog): it opens from its button over the page, starts from the field's path, makes the aliases from the Hops choice and the tick of home digipeaters, draws the path as
-// what it means with its hops in all, marks one of more hops than the network usually allows and refuses one that is no path, builds a path from the digipeaters we hear and the ones next to them in the routes, from a
-// station's route turned round and from what is typed, holds it to the field's rule, and gives it to the field only on Use.
+// The path builder on its own (PathBuilder.vue with its dialog): it opens from its button, starts
+// from the field's path, makes the aliases from the Hops choice and the home digipeaters tick,
+// draws the path with its hop count, marks a path with more hops than the network usually allows,
+// refuses one that is no path, builds a path from the digipeaters heard, those next to them in
+// routes, a station's route turned round and typed text, holds it to the field's rule, and gives it
+// to the field only on Use.
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import PathBuilder from "@/components/PathBuilder.vue";
@@ -10,7 +13,10 @@ import { ago, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const quiet = (call: string, extra: Partial<StationRow> = {}): StationRow =>
   station(call, { heard_via: [], last_route: "", best_route: "", route_marks: [], suggested_path: null, ...extra });
-/** OH2RDK-7 is heard direct (it repeated OH2DPN's packets for us), and OH2DPN's packets came by OH2RCH-2 then OH2RDK-7. */
+/**
+ * OH2RDK-7 is heard direct (it repeated OH2DPN's packets for us), and OH2DPN's packets came by
+ * OH2RCH-2 then OH2RDK-7.
+ */
 const STATIONS = new Map(
   [
     quiet("OH2DPN", { heard_via: [["OH2RDK-7", 12]], best_route: "via OH2RCH-2 → OH2RDK-7", suggested_path: "OH2RDK-7,OH2RCH-2" }),
@@ -41,7 +47,10 @@ const pressed = (): string[] => all(".pathbuild-seg button[aria-pressed='true']"
 const tick = (): HTMLInputElement | null => dialog()?.querySelector<HTMLInputElement>(".pathbuild-home input") ?? null;
 /** The nodes of the picture between you and the stations around: who takes each hop. */
 const nodes = (): string[] => all(".pathbuild-node .pathbuild-kind").map(text);
-/** Each element of the path as the picture writes it under its nodes ("" for a call, which is its node's label). */
+/**
+ * Each element of the path as the picture writes it under its nodes ("" for a call, which is its
+ * node's label).
+ */
 const texts = (): string[] => all(".pathbuild-chip").map((chip) => text(chip.querySelector(".pathbuild-text .mono")));
 const choices = (): string[] => all(".pathbuild-choice .pathbuild-call").map(text);
 const heading = (): string => text(dialog()?.querySelector(".pathbuild-heading"));
@@ -229,7 +238,8 @@ describe("the path builder", () => {
   });
 
   it("offers only the digipeaters a radio that may carry a path heard (plan 6b): one heard direct on Mercury alone is none, one heard on FM too is", async () => {
-    // (OH2HFD has a digipeater's symbol and was heard direct, 400 km away, by the HF radio only; OH2BTH by both radios)
+    // OH2HFD has a digipeater's symbol and was heard direct, 400 km away, by the HF radio only;
+    // OH2BTH by both radios
     const rows = new Map(STATIONS);
     rows.set(
       "OH2HFD",

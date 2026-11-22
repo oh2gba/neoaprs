@@ -1,4 +1,5 @@
-// What the page works out from the stations heard: ours with the symbol of the settings (the daemon has heard none of its own), the path that has lately been heard to reach each station that has one (what its messages go by at first when the operator set none), and the stations heard direct.
+// What the page works out from the stations heard: our own station with the symbol of the settings,
+// the path lately heard to reach each station, and the stations heard direct.
 import { computed, type Ref } from "vue";
 import { withOwnSymbol } from "@/lib/stations";
 import type { ConfigValues, StationRow } from "@/protocol/protocol";

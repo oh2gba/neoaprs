@@ -1,4 +1,5 @@
-// The call with its SSID in a dropdown beside it (CallInput), in the My station tab and in the setup guide: the call is the letters and digits, the stored setting stays `OH2GBA-9`.
+// The call with its SSID in a dropdown beside it (CallInput), in the My station tab and the setup
+// guide: the call is letters and digits, the stored setting stays `OH2GBA-9`.
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -152,9 +153,11 @@ describe("the SSID choices", () => {
       const labels = labelIds.map((id) => texts(messages[id] ?? "")[0] ?? "");
       expect(labels.every((label) => label.trim() !== "")).toBe(true);
       labels.slice(1).forEach((label, i) => expect(label.startsWith(`-${i + 1} · `), label).toBe(true));
-      expect(new Set(labels.slice(0, 1).concat(labels.slice(5, 15))).size).toBe(11); // (the others of -1 to -4 and -15 are one thing)
+      // the others of -1 to -4 and -15 are one thing
+      expect(new Set(labels.slice(0, 1).concat(labels.slice(5, 15))).size).toBe(11);
       expect(texts(messages["settings.ssid.label"] ?? "")).toEqual(["SSID"]);
-      expect(texts(messages["settings.call.tip2"] ?? "")[0]).not.toMatch(/-9|-10/); // (the line of the (i) says what the SSID is; the dropdown has the numbers)
+      // the line of the (i) says what the SSID is; the dropdown has the numbers
+      expect(texts(messages["settings.call.tip2"] ?? "")[0]).not.toMatch(/-9|-10/);
     });
 
     it(`are the dropdown's options in ${locale.name}`, () => {

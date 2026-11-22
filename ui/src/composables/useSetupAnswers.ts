@@ -1,6 +1,7 @@
-// The answers of the first-run guide (composables/useSetupGuide.ts): the fields as they are typed, what is wrong with each, which steps have what they need, the place on the map they make, and the settings they change. They start as the
-// daemon's settings and follow them until the user answers; the position is the latitude and the longitude (the locator of the Location control is only another way to type them). The Radio step has no answers: its radios are
-// changed as in the Settings tab (components/SetupRadio.vue).
+// The answers of the first-run guide: the typed fields, the daemon's complaints, which steps have
+// what they need, the place on the map and the settings they change. They start as the daemon's
+// settings and follow them until the user answers. The position is latitude and longitude; the
+// locator is another way to type them. The Radio step has no answers (see SetupRadio).
 import { computed, reactive, ref, type Ref } from "vue";
 import {
   degreesText,
@@ -19,8 +20,9 @@ import { onEarth, parseNumber } from "@/lib/fieldcheck";
 
 export function useSetupAnswers(values: Ref<Record<string, string>>) {
   const fields = reactive<SetupFields>(fieldsFrom({}));
-  const errors = reactive<Problems>({}); // the daemon's complaints, by field
-  const touched = ref(false); // an answer was typed or picked: the settings no longer fill the answers
+  const errors = reactive<Problems>({});
+  // An answer was typed or picked: the settings do not fill the answers any more.
+  const touched = ref(false);
 
   const changes = computed(() => setupChanges(fields, values.value));
   const valid = computed(() => Array.from({ length: STEP_COUNT }, (_, i) => stepOk(i, fields)));
@@ -39,26 +41,24 @@ export function useSetupAnswers(values: Ref<Record<string, string>>) {
     for (const key of Object.keys(errors)) delete errors[key as FieldName];
   }
 
-  /** The answers are the daemon's settings. */
   function fill(now: Record<string, string>): void {
     Object.assign(fields, fieldsFrom(now));
   }
 
-  /** The answers are the daemon's settings again, nothing answered. */
   function reset(): void {
     fill(values.value);
     clearErrors();
     touched.value = false;
   }
 
-  /** The answer to a field, as typed; the position and the locator follow from each other. */
+  /** Set a field as typed; the position and the locator follow from each other. */
   function edit(field: FieldName, text: string): void {
     touched.value = true;
     fields[field] = text;
     delete errors[field];
   }
 
-  /** A place from the map or the browser: five decimals (a metre), the longitude brought into -180 to 180. */
+  /** A place from the map or the browser: five decimals, longitude brought into -180 to 180. */
   function place(lat: number, lon: number): void {
     edit("lat", degreesText(roundPlace(lat)));
     edit("lon", degreesText(wrapLongitude(lon)));

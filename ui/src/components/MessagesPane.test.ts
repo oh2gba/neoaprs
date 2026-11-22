@@ -32,7 +32,8 @@ afterEach(() => {
 let daemon: FakeDaemon;
 const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
 
-/** The tab, as wide as the test says, with the conversation with OH2RDG open. The page's part of it is given as `paths`, `rfOnly`, `heardPaths`, `heardDirect` and `connected`. */
+/** The tab, as wide as the test says, with the conversation with OH2RDG open. The page's part of
+ * it is given as `paths`, `rfOnly`, `heardPaths`, `heardDirect` and `connected`. */
 async function pane({
   paths = new Map<string, string>(),
   rfOnly = new Set<string>(),

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The one calm line at the top: the title, which is a link to the project's page (it looks like the title, not like a link: only a hover or the keyboard shows it), the button "no call set" on the warn plate while the call is empty (it opens the first-run guide: nothing is transmitted
-// until a call is set), the marks that say how things stand at the right (Daemon in a browser, Radio, or a mark for each of two radios on, or one Radios mark for three and more, RX only, Beacon off, Internet, GPS: lib/pills.ts, each a button that opens the place where it is set, with a hover title that says what it means; the Daemon mark has nothing to open), and the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's).
-// The Map mark says how far the download of the detailed map is. Our call is not here, nor the version: the call is in the Settings tab, the version in Settings → Update check. A newer version is the first mark, Update, which opens Settings → New version.
+// The top line: the title link, the "no call set" button, the status marks (lib/pills.ts, each a
+// button that opens where it is set) and the count of unseen messages. The call and the version
+// are shown in Settings, not here.
 import TagMark from "@/components/TagMark.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import { t } from "@/i18n";
@@ -9,15 +9,14 @@ import type { HeaderPill, PillTarget } from "@/lib/pills";
 import { unreadText } from "@/lib/unread";
 
 defineProps<{
-  /** Our call from the settings; only an empty one matters here (the button), null while the daemon has not said. */
+  /** The station call from the settings; null until the daemon has reported it. */
   call: string | null;
   unread: number;
-  /** The marks before the count (Update, Daemon, Radio or the radios', RX only, Beacon off, GPS, Internet). */
+  /** The marks before the count. */
   pills?: readonly HeaderPill[];
 }>();
 const emit = defineEmits<{ messages: []; setup: []; open: [target: PillTarget, focus: string] }>();
 
-/** The project's page. */
 const PROJECT_URL = "https://neo.oh2gba.eu/";
 </script>
 

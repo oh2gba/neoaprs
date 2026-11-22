@@ -6,7 +6,8 @@ import { configValues } from "@/test/fixtures";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
 import { NOW, sked, skedsState } from "@/test/fixtures";
 
-// The fixtures' time is Wednesday 21 October 2026, 12:00 UTC: the form opens on that day, from 12:00 to 13:00, on 3.5850 MHz USB (80 m, the first of the list).
+// The fixtures' time is Wednesday 21 October 2026, 12:00 UTC: the form opens on that day, from
+// 12:00 to 13:00, on 3.5850 MHz USB (80 m, the first of the list).
 let daemon: FakeDaemon;
 beforeEach(() => (daemon = fakeDaemon({ skeds: skedsState() })));
 const sent = (cmd: string) => daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
@@ -190,7 +191,8 @@ describe("SkedCompose", () => {
       await wrapper.find("form").trigger("submit");
       const [command] = sent("sked_post") as { from: string; to: string; dial: string }[];
       await tell(daemon, { skeds: skedsState([sked("x", { ours: false, from: command?.from, to: command?.to, dial: command?.dial })]) });
-      expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("Mercury"); // (somebody else's sked of the same times is not ours)
+      // somebody else's sked of the same times is not ours
+      expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("Mercury");
       await tell(daemon, { skeds: skedsState([sked("y", { ours: true, from: command?.from, to: command?.to, dial: command?.dial })]) });
       expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("");
     });
@@ -250,7 +252,10 @@ describe("SkedCompose", () => {
   });
 });
 
-/** The page's observer of what comes into view, made to say so when the test does; the observer of before is put back by `restore`. */
+/**
+ * The page's observer of what comes into view, made to say so when the test does; the observer of
+ * before is put back by `restore`.
+ */
 function observing() {
   const original = globalThis.IntersectionObserver;
   const observer: { callback?: (entries: { isIntersecting: boolean }[]) => void; target?: Element } = {};
@@ -278,7 +283,8 @@ describe("SkedCompose's dials", () => {
       daemon.connection.value = "connecting";
       form();
       observer.callback?.([{ isIntersecting: true }]);
-      expect(sent("frequencies")).toHaveLength(1); // (no toast that the socket is not open: it is asked when the socket opens)
+      // no toast that the socket is not open: it is asked when the socket opens
+      expect(sent("frequencies")).toHaveLength(1);
     } finally {
       restore();
     }

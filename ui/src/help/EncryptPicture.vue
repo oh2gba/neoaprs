@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Encrypted messages: on the upper line the two stations give each other their keys (a key goes each way). On the lower line our message goes out locked (the padlock on the bubble): the other station, which has the key, reads it,
-// and a third station that hears it too sees only the lock (its bubble is dim and crossed out).
+// Encrypted messages: on the upper line the two stations exchange keys. On the lower line our
+// message goes out locked (padlock on the bubble); the station with the key reads it, and a
+// third station hearing it sees only the lock (its bubble is dim and crossed out).
 import { CALLS } from "@/help/calls";
 import { arrow } from "@/help/draw";
 import { t } from "@/i18n";

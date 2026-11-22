@@ -1,5 +1,7 @@
-// The page's context (composables/useDaemonContext.ts) for a test that mounts a pane on its own: every part a pane may inject is there, quiet (a connected radio, the settings of the fixtures, no stations, the topic `radios` of radio 1 alone), and a test gives the parts it cares about
-// (a plain value, or a ref that it changes later) and reads `send`, which records the commands, and `say`, which records what the page would say in its toast. `withDaemon(context)` is the `global` option of a mount.
+// The page's context for a test that mounts a pane on its own: every part a pane may inject is
+// there, quiet, and a test gives the parts it cares about (a value, or a ref it changes later).
+// `send` records the commands, `say` the toast; `withDaemon(context)` is the `global` option of a
+// mount.
 import { computed, isRef, nextTick, shallowReactive, shallowRef, type Ref } from "vue";
 import { vi, type Mock } from "vitest";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
@@ -21,26 +23,24 @@ import type { Connection } from "@/lib/hub";
 import type { Command, PacketRow, RadioRow, RadioSearchMessage, StationKey, StationPref, StationRow } from "@/protocol/protocol";
 import { NOW, configValues, radiosOf, radiosTopic } from "@/test/fixtures";
 
-/** The context as a test changes it: the parts that are refs are writable. */
 export type FakeDaemon = { [K in keyof DaemonContext]: DaemonContext[K] extends Readonly<Ref<infer T>> ? Ref<T> : DaemonContext[K] } & {
   send: Mock<(command: Command) => boolean>;
   say: Mock<(text: string) => void>;
-  /** the tables of the map's layers as the daemon told them (`layer_things`: a test hands them to `handlers.layerThings`) */
   layerTables: ReturnType<typeof useLayerTables>;
-  /** the map's replay is open (what the page's traffic looks at) */
   replayOpen: Ref<boolean>;
 };
-/** What a test gives: a plain value, or a ref it changes later. */
 export type Given = { [K in keyof DaemonContext]?: DaemonContext[K] extends Readonly<Ref<infer T>> ? T | Ref<T> : DaemonContext[K] };
 
-/** Who looks at the scope: the one a test gave, else the page's own counting over the topic `radios`, as the shell gives it. */
+/** Who looks at the scope: the one a test gave, else the page's own counting over `radios`. */
 function scopeOf(over: Given, send: FakeDaemon["send"], connection: Ref<Connection>, radios: Ref<RadioTopic>): ScopeLooks {
   return over.scope ?? useScopeLooks(send, connection, pageVisible(), { radios });
 }
 
 type RadioTopic = ReadonlyMap<string, RadioRow> | null;
 
-/** The aircraft and ships of the map's layers: the one a test gave, else the page's own over the fake's parts, with the tables a test tells (`layerTables`) and the replay a test opens (`replayOpen`). */
+/**
+ * The aircraft and ships: the one a test gave, else the page's own with the tables a test sends.
+ */
 function trafficOf(over: Given, parts: Pick<TrafficParts, "send" | "connection" | "map" | "now">) {
   const layerTables = useLayerTables();
   const replayOpen = shallowRef(false);
@@ -48,7 +48,7 @@ function trafficOf(over: Given, parts: Pick<TrafficParts, "send" | "connection" 
   return { layerTables, replayOpen, traffic };
 }
 
-/** The topic `radios`: the one a test gave, else radio 1 alone (fixtures `radiosOf`), connected while the context is, until a test tells its own (null: before the daemon told it). */
+/** The topic `radios`: the one a test gave, else radio 1 alone, connected while the context is. */
 function radiosPart(given: RadioTopic | Ref<RadioTopic> | undefined, connected: Ref<boolean>): Ref<RadioTopic> {
   if (isRef(given)) return given;
   const told = shallowRef<RadioTopic | "default">(given === undefined ? "default" : given);
@@ -58,14 +58,12 @@ function radiosPart(given: RadioTopic | Ref<RadioTopic> | undefined, connected: 
   });
 }
 
-/** The context a test mounts a pane in; a part given as a value is put in a ref. */
 export function fakeDaemon(over: Given = {}): FakeDaemon {
   const send = vi.fn((_command: Command) => true);
   const part = <T>(given: T | Ref<T> | undefined, fallback: T): Ref<T> => (isRef(given) ? given : shallowRef(given === undefined ? fallback : given));
   const config = part(over.config, configValues());
   const lastError = part(over.lastError, null);
   const ports = part(over.ports, null);
-  /** The answers by radio: the ones a test gave, else the one `ports` holds when it names a radio (as the store keeps it). */
   const portsByRadio =
     over.portsByRadio === undefined
       ? computed(() => new Map(ports.value?.radio == null ? [] : [[ports.value.radio, ports.value]]))
@@ -140,23 +138,21 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     guide: over.guide ?? useSetupGuide(config, lastError, sender, radios, connection),
     panel: over.panel ?? usePanel(),
   };
-  // the alert of the browser listens to the window: it is made when a pane asks for it
+  // The browser alert listens to the window: it is made when a pane asks for it.
   let alerts = over.alerts;
   Object.defineProperty(context, "alerts", { enumerable: true, get: () => (alerts ??= useBrowserAlerts(() => undefined)) });
   return context as unknown as FakeDaemon;
 }
 
-/** The `global` option of a mount: the context provided to the pane. */
 export function withDaemon(context: DaemonContext = fakeDaemon()): { provide: Record<symbol, DaemonContext> } {
   return { provide: { [DAEMON_KEY as symbol]: context } };
 }
 
-/** A station of these radios as the daemon tells them: the topic `radios`. */
 export function ofRadios(...rows: RadioRow[]): Given {
   return { radios: radiosTopic(...rows), config: configValues() };
 }
 
-/** What the daemon tells after the pane is up: those parts of the context change, and the pane follows. */
+/** What the daemon sends after the pane is up: those parts of the context change. */
 export async function tell(daemon: FakeDaemon, parts: Given): Promise<void> {
   for (const [key, value] of Object.entries(parts)) (Reflect.get(daemon, key) as Ref<unknown>).value = value;
   await nextTick();

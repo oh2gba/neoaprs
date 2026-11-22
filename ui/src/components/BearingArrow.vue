@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// A direction as a small arrow, north up, turned by the angle: the bearing to a station in the Stations table, and the direction an antenna favours on a station's card. No direction (an omni antenna) is a small circle.
-// It says nothing in words; the caller gives the words (the compass point and the degrees) as the hover title and to a screen reader (`label`).
+// A direction as a small arrow, north up: the bearing to a station in the Stations table and the
+// direction an antenna favours on a card. No direction (an omni antenna) is a small circle. The
+// caller gives the words as `label`.
 withDefaults(defineProps<{ deg: number | null; label?: string; size?: number }>(), { label: undefined, size: 14 });
 </script>
 

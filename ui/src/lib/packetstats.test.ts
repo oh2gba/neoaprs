@@ -6,7 +6,10 @@ import { radioRow, radiosTopic } from "@/test/fixtures";
 
 const RADIOS = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { name: "Shack", number: 2 })), null);
 
-/** An answer of `hours` hours from midnight UTC: FM 2 an hour, Mercury 1 (5 in the running hour), the internet 10. */
+/**
+ * An answer of `hours` hours from midnight UTC: FM 2 an hour, Mercury 1 (5 in the running hour),
+ * the internet 10.
+ */
 function answer(hours: number, more: Partial<PacketStatsMessage> = {}): PacketStatsMessage {
   return {
     type: "packet_stats",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The call and its SSID: one call sign for several stations, told apart by the number after it (-9 a car, -10 an iGate).
+// The call and its SSID: one call sign for several stations, told apart by the number after it
+// (-9 a car, -10 an iGate).
 import { CALLS } from "@/help/calls";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpLabel from "@/help/HelpLabel.vue";

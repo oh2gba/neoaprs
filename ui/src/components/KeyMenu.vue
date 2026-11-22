@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// "Key" in the header of a conversation, beside Route, while encrypted messages are on: a button of the same make that opens a box under the header with the station's key (its fingerprint and when it was heard, or that it has not sent one),
-// Send my key (our public key goes to the station as an ordinary message) and, when the station's key is here, Forget key (pressed twice: the next key it announces is then taken). Closed by Esc, a click outside or the focus moving away, as Route is.
-// A dot on the button says the station's key is here. Send my key is off while the radio the messages to the station go on is not connected (`offline`, its reason), as Send is (plan 6a).
+// "Key" in a conversation header, beside Route, while encrypted messages are on: it opens a box
+// with the station's key, Send my key and, when the station's key is here, Forget key (pressed
+// twice). It closes on Esc, a click outside or the focus moving away. A dot on the button says
+// the station's key is here. Send my key is off while the radio is not connected (`offline`).
 import { ref, watch } from "vue";
 import TwoWords from "@/components/TwoWords.vue";
 import { t } from "@/i18n";

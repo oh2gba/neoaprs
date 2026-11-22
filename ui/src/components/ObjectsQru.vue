@@ -1,11 +1,14 @@
 <script setup lang="ts">
-// Local info (QRU), the last group box of the Objects tab (the stations that ask are answered with the objects that have a QRU group, the form's field; here we ask): **Ask** sends INFO to the stations near us (one request by radio only: the daemon sends it once, with RFONLY, at most one in a minute, and refuses it in RX only) with a distance in km that starts at the
-// map's radius (empty: the servers' own). While several radios that can send are on, Send on stands under it (SendOn.vue, the beacon's row: a tick for each radio, `radio/<id>/local_info`, applied at once): the request goes once on each ticked radio that is connected, and the state word of the status line names the
-// radios it went on ("FM, Mercury: Asked"). A server's row carries the tag of the radio it answered on, and its groups' buttons and Ask again go on that radio (a fact: it is where the server hears us); with one radio on there is no row, no tag and nothing is named. Ask is off while none of its radios is connected, with that as its reason. Under Send on the closed fold of the request's Path and
-// RF only (RequestPath.vue, shared with Ask around; one fold for every radio, remembered by this browser for this box; there only while some radio that is on may carry a path, and greyed with its values kept while no ticked radio
-// carries one; left as they are, an empty path and RF only ticked, the command carries neither and the request goes by the path of messages to QRU with RFONLY, as it always did); then the one status row of the groups (StatusFold): when the last request was sent and waiting for answers, then how many servers answered or that none did, or why it was refused. Ask is held for the minute,
-// with the time left in its title, and while the path is wrong, with the reason. The servers that answered are a row each: its call, its groups as tags, by their plain names (the number of objects in each; a press asks that group, with the same distance) and under them, quiet, how many objects its closing line says it sent and how many arrived ("sent 1 · 1 arrived"; its closing line is the hover). Fewer than it sent, once the daemon has waited for late ones, is the warn colour with Ask again
-// (the same request; it obeys the same waits as Ask). The objects themselves arrive as ordinary objects (the map, the Stations tab, where they carry the Local info tag); "in Stations" opens that tab and flashes the first of them.
+// Local info (QRU), the last group box of the Objects tab. **Ask** sends INFO to the stations
+// near us (the daemon sends it once with RFONLY, at most once a minute, and refuses it in RX
+// only) with a distance in km starting at the map's radius. While several sending radios are on,
+// Send on follows (SendOn.vue, `radio/<id>/local_info`): the request goes once on each ticked
+// connected radio. A server's row carries the tag of the radio it answered on, and its group
+// buttons and Ask again use that radio. Under Send on is the closed fold of the request's Path
+// and RF only (RequestPath.vue, shared with Ask around). One status row (StatusFold) follows,
+// then a row per answering server with its groups as tags and how many objects it sent and how
+// many arrived. The objects arrive as ordinary objects (map, Stations tab with the Local info
+// tag).
 import { computed, ref, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import RequestPath from "@/components/RequestPath.vue";
@@ -34,31 +37,36 @@ import type { Command, QruServer } from "@/protocol/protocol";
 const { qru, receiveOnly, send, config, lastError, now, panel, prefs } = useDaemonContext();
 const radios = useRadios();
 const { told, severalSenders: several, senders, allowsPath, byId, named, pathOf } = radios;
-/** Local info's Send on: its ticks, and the radios the request INFO goes on as they stand. */
+/** Local info's Send on: its ticks and the radios INFO goes on. */
 const { ticks, radios: on, error: tickError, tick } = useSendOn("local_info", radios);
-/** The path and RF only of a request, remembered by this browser apart from Ask around's: one for every radio. */
+/** A request's path and RF only, remembered by this browser apart from Ask around's: one for all
+ * radios. */
 const request = useRequestPath("qru");
-/** Whether a request on these radios has a path and RF only to set: some radio that is on may carry one (else the fold is not there), and one of these does (else it is greyed). */
+/** Whether a request on these radios has a path and RF only to set: some radio that is on may
+ * carry one (else no fold), and one of these does (else greyed). */
 const routable = (to: readonly PageRadio[]): boolean => allowsPath.value && (to.length === 0 || to.some((radio) => radio.carriesPath));
-/** The path a request goes by on a radio when none is typed: on radio 1 the one set for the station QRU (the topic `station_prefs`), else the radio's own. */
+/** The path a request uses on a radio when none is typed: on radio 1 the one set for the station
+ * QRU (topic `station_prefs`), else the radio's own. */
 const qruPath = (radio: PageRadio): string => (radio.id === PREFS_RADIO ? effectivePath(prefs.paths.value, pathOf(radio), "QRU").text : pathOf(radio));
-/** The path the request INFO goes by with none typed: the one its radios share; null while theirs differ. */
+/** The path INFO uses when none is typed: the one the radios share; null while they differ. */
 const usual = computed(() => sharedPath(on.value, qruPath));
-const typed = ref<string | null>(null); // (what the person typed; null until then, and the field is the map's radius)
+const typed = ref<string | null>(null); // typed text; null until typed (the field is then the map's radius)
 const km = computed({
   get: () => typed.value ?? config.value?.values["map/radius_km"] ?? "",
   set: (text: string) => (typed.value = text),
 });
 const wrong = computed(() => kmWrong(km.value));
 const servers = computed(() => qru.value?.servers ?? []);
-/** The radio a server answered on, while it is on and can send: where a request to it goes; null for none (the request then goes on the ticked radios). */
+/** The radio a server answered on while it is on and can send: where a request to it goes; null:
+ * the ticked radios. */
 const radioOf = (server: QruServer): PageRadio | null => senders.value.find((radio) => radio.id === server.radio) ?? null;
 /** The radios a request to a server goes on: the one it answered on, else those of Send on. */
 const toServer = (server: QruServer): readonly PageRadio[] => {
   const one = radioOf(server);
   return one === null ? on.value : [one];
 };
-/** Each server with what its row says of the objects it sent, and the radio it answered on where a radio is named (its tag). */
+/** Each server with what its row says of the objects it sent, and its answering radio's tag
+ * where radios are named. */
 const rows = computed(() =>
   servers.value.map((server) => {
     const answered = server.radio === null || !named(server.radio) ? undefined : byId(server.radio);
@@ -66,19 +74,21 @@ const rows = computed(() =>
   }),
 );
 const asked = computed(() => qru.value?.asked ?? null);
-/** The seconds before the request may go on the radios: the waits are each radio's (the topic tells the last request, with its radios), and a request waits for every radio it would go on. */
+/** The seconds before the request may go on the radios: waits are per radio (the topic reports
+ * the last request and its radios) and a request waits for every radio it would go on. */
 const waitOn = (to: readonly PageRadio[], text: string | null): number => {
   const last = asked.value;
   const theirs = last !== null && (last.radios.length === 0 || to.length === 0 || to.some((radio) => last.radios.includes(radio.id)));
   return askWait(theirs ? last : null, now.value, text);
 };
-const refusal = ref(""); // (why the daemon refused the last request, until the next one)
+const refusal = ref("");
 const look = computed(() => {
   const found = qruLook(asked.value, servers.value, refusal.value, now.value);
   const name = refusal.value !== "" ? "" : radiosNamed(asked.value?.radios ?? [], byId, named);
   return found === null || name === "" ? found : { ...found, state: t("radio.line", { name, line: found.state }) };
 });
-/** Why a request on the radios that waits `seconds` may not go, or undefined when it may (RX only, the radios, the path, its wait); "" while it goes on no radio that is on (ticked nowhere: the row of ticks shows it). */
+/** Why a request on the radios that waits `seconds` may not go (RX only, radios, path, wait);
+ * undefined when it may; "" while it goes on no radio that is on. */
 const heldBy = (to: readonly PageRadio[], seconds: number): string | undefined => {
   const problem = routable(to) ? request.problem.value : "";
   return receiveOnly.value
@@ -88,10 +98,11 @@ const heldBy = (to: readonly PageRadio[], seconds: number): string | undefined =
       : (radiosBlockedReason(to, named, told.value) ?? (problem !== "" ? problem : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined));
 };
 const why = computed(() => heldBy(on.value, waitOn(on.value, requestText("INFO", km.value))));
-/** Why a group's button is off, or undefined when it may be pressed (RX only, the server's radio, the path, or its own wait). */
+/** Why a group's button is off (RX only, the server's radio, the path or its own wait);
+ * undefined when it may be pressed. */
 const groupWhy = (server: QruServer, word: string): string | undefined => heldBy(toServer(server), waitOn(toServer(server), requestText(word, km.value)));
 
-/** A request in flight: no button sends another until the daemon has told it or refused it. */
+/** A request in flight: no button sends another until the daemon reports or refuses it. */
 const asking = useCommandInFlight("qru_ask", () => asked.value?.at);
 
 watch(lastError, (toast) => {
@@ -102,8 +113,9 @@ watch(
   () => (refusal.value = ""),
 );
 
-/** The request as the command carries it: the text, the path and RF only only when the fold says other than the usual (an empty path and RF only ticked: the path of messages to QRU with RFONLY), and the one radio of a
- * request to a server while several are on (none: the radios of Send on). */
+/** The request as the command carries it: the text, the path and RF only only when the fold
+ * differs from the usual (an empty path and RF only ticked), and the single radio of a request
+ * to a server while several are on (none: Send on's radios). */
 function command(text: string, to: readonly PageRadio[], one: PageRadio | null): Command {
   const radio = several.value && one !== null ? { radio: one.id } : {};
   return !routable(to) || (request.sent.value === null && request.rfOnly.value)
@@ -111,7 +123,8 @@ function command(text: string, to: readonly PageRadio[], one: PageRadio | null):
     : { cmd: "qru_ask", text, path: request.sent.value, rf_only: request.rfOnly.value, ...radio };
 }
 
-/** Sends the request for INFO with the distance of the field on the radios of Send on, unless it is held (RX only, the radios, the path, or its wait). */
+/** Send the INFO request with the field's distance on Send on's radios, unless held (RX only,
+ * radios, path, wait). */
 function ask(): void {
   const text = requestText("INFO", km.value);
   if (text === null || why.value !== undefined) return;
@@ -119,7 +132,8 @@ function ask(): void {
   asking.run(() => send(command(text, on.value, null)));
 }
 
-/** Sends the request for a group of a server, with the distance of the field, on the radio the server answered on, unless it is held (a group may go ten seconds after INFO, whose minute is not its own). */
+/** Send the request for a server's group with the field's distance on the radio the server
+ * answered on, unless held. A group may go ten seconds after INFO, whose minute is not its own. */
 function askGroup(server: QruServer, word: string): void {
   const text = requestText(word, km.value);
   if (text === null || groupWhy(server, word) !== undefined) return;
@@ -127,17 +141,18 @@ function askGroup(server: QruServer, word: string): void {
   asking.run(() => send(command(text, toServer(server), radioOf(server))));
 }
 
-/** Why Ask again is off (RX only, the server's radio, the path, or the wait for that request), or undefined when it may be pressed. */
+/** Why Ask again is off (RX only, the server's radio, the path or that request's wait);
+ * undefined when it may be pressed. */
 const againWhy = (server: QruServer, text: string): string | undefined => heldBy(toServer(server), waitOn(toServer(server), text));
 
-/** The same request once more, as it went (its own distance, not the field's), on the radio the server answered on. */
+/** The same request again as it went (its own distance), on the radio the server answered on. */
 function again(server: QruServer, text: string): void {
   if (againWhy(server, text) !== undefined) return;
   refusal.value = "";
   asking.run(() => send(command(text, toServer(server), radioOf(server))));
 }
 
-/** The Stations tab, with the row of the first of the objects that arrived flashed. */
+/** The Stations tab, with the row of the first arrived object flashed. */
 function inStations(names: readonly string[]): void {
   panel.show("stations");
   const [first] = names;

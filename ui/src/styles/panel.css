@@ -42,8 +42,11 @@
 .headmail.badge {
   margin: 0 0 0 auto;
 }
-/* the marks before the count (lib/pills.ts): they are pushed to the right with the count, and when the row is too narrow they fold as whole marks, never half of one and never the count: the row is one mark high and wraps, so what does not fit goes to a line that is clipped.
-   The last mark folds first (Internet, then GPS); RX only or Beacon off stays longest. A single mark that is wider than the row is shortened with an ellipsis. */
+/* the marks before the count (lib/pills.ts): pushed right with the count; when the row is too
+   narrow they fold as whole marks, never half of one and never the count: the row is one mark
+   high and wraps, so what does not fit goes to a clipped line. The last mark folds first
+   (Internet, then GPS); RX only or Beacon off stays longest. A single mark wider than the row is
+   shortened with an ellipsis. */
 .headpills {
   display: flex;
   flex-wrap: wrap;
@@ -86,11 +89,13 @@
   position: relative;
   display: flex;
   flex: none;
-  /* at the right the fold button (26 px and its 6 px) keeps its place; the tabs and the More button start 6 px from the left */
+  /* the fold button (26 px and its 6 px) keeps its place at the right; the tabs and the More
+     button start 6 px from the left */
   padding: 4px 38px 0 6px;
   border-bottom: 1px solid var(--border);
 }
-/* the tabs that fit, in one row: SidePanel splits them by what the width of the panel allows (the rest are under the More button), so none is cut off and none scrolls; the clip only covers what the browser rounds */
+/* the tabs that fit, in one row: SidePanel splits them by the panel width (the rest are under
+   the More button), so none is cut off and none scrolls; the clip only covers browser rounding */
 .tabs {
   display: flex;
   flex: 0 1 auto;
@@ -99,8 +104,10 @@
   overflow: hidden;
   gap: 0;
 }
-/* the tabs and the More button again, out of the way and as wide as they want: SidePanel measures them (the widths are the ones of the real ones, which have the same classes). Fixed, not absolute: a row
-   that is wider than the window must add nothing to the page's width, or the page can be moved sideways under its hidden overflow (a click on a tab did so: the title stood cut off at the left edge) */
+/* the tabs and the More button again, out of the way and as wide as they want: SidePanel measures
+   them (the widths are those of the real ones, which have the same classes). Fixed, not absolute:
+   a row wider than the window must add nothing to the page's width, or the page can be moved
+   sideways under its hidden overflow */
 .tabs-probe {
   position: fixed;
   top: 0;
@@ -155,7 +162,10 @@
   outline-offset: -2px;
   background: var(--row-hover);
 }
-/* 8 px at each side of a name: the ten English names take about 693 px, which the 716 px that the 760 px of the default panel leaves beside the fold button holds; at 10 px they would take 40 px more. The counts of a busy day, the longer names of es and fr and a narrower panel send the last tabs under More (the split is measured, so nothing wraps) */
+/* 8 px at each side of a name: the ten English names take about 693 px, which the 716 px that the
+   760 px default panel leaves beside the fold button holds; at 10 px they would take 40 px more.
+   Busy counts, longer names (es, fr) and a narrower panel send the last tabs under More (the
+   split is measured, so nothing wraps) */
 .tab {
   flex: none;
   white-space: nowrap;
@@ -167,7 +177,7 @@
   font: inherit;
   cursor: pointer;
 }
-/* (the count's look is the tag's, styles/tag.css: here only where it stands) */
+/* the count's look is the tag's (styles/tag.css): here only where it stands */
 .badge {
   margin-left: 4px;
 }
@@ -182,7 +192,8 @@
   min-height: 0;
   overflow: auto;
 }
-/* the (i) of a tab (TabHelp): a thin bar at the top with the (i) at its right end, the note opening leftward as the Email tab's does */
+/* the (i) of a tab (TabHelp): a thin bar at the top with the (i) at its right end, the note
+   opening leftward as the Email tab's does */
 .tab-help {
   display: flex;
   flex: none;

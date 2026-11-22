@@ -1,12 +1,13 @@
 <script setup lang="ts">
-// How a group bulletin works: one station sends BLN3HAMS and all three stations hear it; the two that follow the group HAMS show it on their board, the third shows nothing.
+// How a group bulletin works: one station sends BLN3HAMS and all three stations hear it; the
+// two following the group HAMS show it on their board, the third shows nothing.
 import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpLabel from "@/help/HelpLabel.vue";
 import HelpStation from "@/help/HelpStation.vue";
 import { arrow, waves } from "@/help/draw";
 
-/** The three stations that hear it; those that follow the group show it, and carry its name. */
+/** The three stations that hear it; those following the group show it and carry its name. */
 const boards = [
   { y: 8, shown: true, group: "HAMS", code: ">" },
   { y: 56, shown: false, group: "", code: "-" },

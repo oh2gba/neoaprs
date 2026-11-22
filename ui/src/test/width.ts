@@ -1,4 +1,5 @@
-// For the tests of what depends on how wide an element is (composables/useElementWidth.ts): the width every element reports, and a ResizeObserver that tells the elements being observed when the test changes it.
+// For tests that depend on an element's width (useElementWidth): the width every element reports,
+// and a ResizeObserver that notifies the observed elements when it changes.
 import { vi } from "vitest";
 
 interface Watcher {
@@ -6,7 +7,10 @@ interface Watcher {
   disconnected: boolean;
 }
 
-/** Makes every element `width` px wide; the returned `set` changes it and tells the observers, `restore` puts the browser's own back. */
+/**
+ * Make every element `width` px wide; `set` changes it and notifies the observers, `restore` undoes
+ * it.
+ */
 export function stubWidth(width: number) {
   let current = width;
   const watchers = new Set<Watcher>();

@@ -83,7 +83,8 @@ describe("the usual spacing", () => {
   });
 });
 
-/** The segments of a path made of `M` and `C` as the numbers of the start and the three points of each. */
+/** The segments of a path made of `M` and `C` as the numbers of the start and the three points of
+ * each. */
 function segments(path: string): number[][] {
   const [start, ...rest] = path.split("C");
   const first = (start ?? "").slice(1).split(",").map(Number);
@@ -108,7 +109,7 @@ describe("linePath", () => {
     expect(path.match(/M/g)).toHaveLength(1);
     const segs = segments(path);
     expect(segs).toHaveLength(5); // 6 readings with a value
-    expect(segs[1]?.slice(-2)).toEqual([3, 3]); // the reading at 3 follows the one at 1 directly
+    expect(segs[1]?.slice(-2)).toEqual([3, 3]); // The reading at 3 follows the one at 1 directly
     expect(segs[3]?.slice(-2)).toEqual([600, 5]);
     expect(segs[4]?.slice(-2)).toEqual([601, 6]);
   });
@@ -134,7 +135,7 @@ describe("linePath", () => {
 
   it("is level at a turning point and between equal readings", () => {
     const segs = segments(linePath([at(0, 1), at(10, 5), at(20, 2), at(30, 2), at(40, 2)], (t) => t / MIN, identity));
-    expect(segs[0]?.[5]).toBe(5); // the peak: the control points beside it are at its height
+    expect(segs[0]?.[5]).toBe(5); // The peak: the control points beside it are at its height
     expect(segs[1]?.[3]).toBe(5);
     expect(segs[2]).toEqual([20, 2, 20 + 10 / 3, 2, 30 - 10 / 3, 2, 30, 2].map((n) => Math.round(n * 100) / 100));
   });

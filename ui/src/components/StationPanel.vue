@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// The station panel of the Stations tab: what a click on a row shows, fixed at the bottom of the tab as the box of every tab is (the group box of the Bulletins and Email tabs: styles/compose.css), with the station's call
-// as its legend and a cross at its right that closes it (Esc anywhere in it too: `close`, and the parent gives the focus back to the row). It has a height of its own (half the tab, two fifths on a phone), the same whichever station it shows and whatever comes,
-// and what does not fit in it scrolls inside it, so that the list above never moves. In it, in this order: Message and the directed queries (Ask for weather only to a weather station, lib/stations.ts `panelItems`) with
-// the operator's own query under them (StationQuery), for a station that takes messages; Show on map (or its card), Copy call, the QRZ page and, at the end of the line, Forget, which asks twice like the row's trash can
-// ("Really forget?", the same 5 s; its button keeps the width of the longer words, so that nothing moves); the station's traffic, as the lines of the Packets tab, with the state of each query of ours (StationTraffic); and
-// the route of messages to it (StationPrefs: its radio where more than one is on, its path and RF only, as under "Route" of a conversation) and "Alert me when…" (StationAlertChoices; a station heard that is not ours), in group
-// boxes side by side when there is room, saved as each is changed. The queries go on the station's radio (each is a message of its own: the station's radio now, composables/useStationRadio.ts): they are off while its link
-// is down, and Trace the route, which asks for a path, is greyed while that radio carries none and left out while no radio that is on may carry one. Our own station has Show, Copy and QRZ, an object of ours Show and Copy, another's object Show, Copy and Forget. The buttons say what they do with events, and the parent does it.
+// The panel at the bottom of the Stations tab for the selected station: call as legend, a close
+// button (Esc too), a fixed height so the list above never moves, and scrolling inside.
+// Contents, in order: Message and the directed queries (lib/stations.ts `panelItems`) with the
+// own query below (StationQuery); Show on map, Copy call, QRZ and Forget (asks twice); the
+// station's traffic (StationTraffic); route settings (StationPrefs) and alerts
+// (StationAlertChoices) in group boxes. Queries go out on the station's radio and are off while
+// its link is down; Trace the route is greyed while that radio carries no path. Own station
+// and objects have only the actions that apply. Buttons emit events; the parent acts.
 import { computed } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import TwoWords from "@/components/TwoWords.vue";
@@ -57,10 +57,10 @@ const {
 );
 const rxOnly = useReceiveOnly();
 
-/** The query that asks for a path: the one a radio without paths cannot carry. */
+/** The query that asks for a path, which a radio without paths cannot carry. */
 const PATH_QUERY: PanelItem = "ask_trace";
 const items = computed(() => panelItems(props.row).filter((item) => item !== PATH_QUERY || pathShown.value));
-/** Why a query is off: RX only, the station's radio not connected, a path asked of a radio that carries none; undefined when it may go (Message always may: it opens the conversation). */
+/** Why a query is off: RX only, radio not connected or without paths; undefined if allowed. */
 function blocked(item: PanelItem): string | undefined {
   if (item === "message") return undefined;
   if (rxOnly.value) return rxOnlyReason();

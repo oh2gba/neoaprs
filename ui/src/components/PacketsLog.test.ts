@@ -217,7 +217,9 @@ describe("PacketsLog", () => {
 describe("PacketsLog on a narrow tab", () => {
   let width: ReturnType<typeof stubWidth> | undefined;
   afterEach(() => width?.restore());
-  /** The page with a tab `size` px wide, once it is measured (the width is taken when the tab is mounted). */
+  /**
+   * The page with a tab `size` px wide, once measured (the width is taken when the tab is mounted).
+   */
   const narrow = async (size = 380, map = packets) => {
     width = stubWidth(size);
     const wrapper = mount(PacketsLog, { props: { packets: map }, attachTo: document.body });
@@ -330,7 +332,8 @@ describe("PacketsLog with several radios", () => {
   it("filters by a radio's name", async () => {
     const wrapper = log();
     await wrapper.find("input[type='search']").setValue("shack");
-    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Shack"]); // (by the word Via shows: the iGate's packet says the radio in its title only)
+    // by the word Via shows: the iGate's packet says the radio in its title only
+    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Shack"]);
   });
 
   it("says in the detail which radio a packet came by", async () => {
@@ -345,7 +348,8 @@ describe("PacketsLog with several radios", () => {
 
   it("names the radio for a station with one radio on too (FM, not RF), the HF radio that is off by its name, and gives no tag to a radio the page does not know", () => {
     const wrapper = log([SIX[0], { ...SIX[1], enabled: false, state: "stopped" }]);
-    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "", "Dummy", "", "Mercury", "FM"]); // (radios 3 to 6 are not of this station: no tag but the Dummy's mark)
+    // radios 3 to 6 are not of this station: no tag but the Dummy's mark
+    expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "", "Dummy", "", "Mercury", "FM"]);
     expect(wrapper.findAll("td.via")[2]?.find(".tag").exists()).toBe(false);
   });
 });

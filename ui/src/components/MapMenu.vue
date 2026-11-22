@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The menu a right-click (a long press on a touch screen) opens on the map itself, where the pointer is: the place under it to copy as decimal degrees ("Copy position 60.17000, 24.94000") or as a Maidenhead locator
-// ("Copy locator KP20le"), and last, under a line, Statistics, which opens the statistics card over the map (components/StatsCard.vue), Packets, which opens the Packets tab's log as a card over the map (components/PacketsCard.vue; it has the tab's name), Monitor, which opens a radio's scope as a card over the map (components/MonitorCard.vue; one for each radio that has a scope now, none without, each with its radio's name where several radios are on: "20 m: Monitor"), and Replay, which plays back how the stations moved (components/ReplayBar.vue). A copy puts the text on the clipboard and the page says so in its toast. The menu
-// is kept inside the window, takes the focus, is moved in with the arrow keys and closed by Esc, a press outside it or an item that was chosen (useContextMenu). The map opens it (components/StationMap.vue) and hears `close`, `card` (which card: `stats`, `packets`, `monitor`) and `replay`.
+// The menu opened by right-click (long press) on the map: copy the place as decimal degrees or
+// as a Maidenhead locator, then Statistics, Packets, Monitor (one per radio that has a scope)
+// and Replay. StationMap.vue opens it and handles `close`, `card` (`stats`, `packets`,
+// `monitor`) and `replay`. It behaves as every menu of the page (useContextMenu).
 import { computed, ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import type { MapCard } from "@/composables/useMapMenu";
@@ -21,7 +22,7 @@ const list = ref<HTMLElement | null>(null);
 const buttons = ref<HTMLElement[]>([]);
 const menu = useContextMenu({ x: () => props.x, y: () => props.y, trigger: () => props.trigger, list, buttons, close: () => emit("close") });
 
-/** The place as it is copied: signed decimal degrees to 5 places (about a metre), the way other programs take them. */
+/** The place as copied: signed decimal degrees to 5 places (about a metre). */
 const place = computed(() => `${props.lat.toFixed(5)}, ${props.lon.toFixed(5)}`);
 const locator = computed(() => positionToLocator(props.lat, props.lon));
 
@@ -30,7 +31,7 @@ async function copy(text: string): Promise<void> {
   await copyAndSay(text, say);
 }
 
-/** A Monitor for each radio that has a scope, with its name where several radios are on. */
+/** A Monitor item per radio that has a scope, named where several radios are on. */
 const monitors = computed(() =>
   scope.radios.value.map((radio) => {
     const name = radios.several.value ? radios.byId(radio)?.name : undefined;
@@ -38,7 +39,8 @@ const monitors = computed(() =>
   }),
 );
 
-/** The place of an item among the buttons, for the arrow keys: the two to copy come first (the locator is not always there), then Statistics, Packets, the Monitors, Replay. */
+/** An item's place among the buttons, for the arrow keys: the copy items first (the locator is
+ * not always there), then Statistics, Packets, the Monitors, Replay. */
 const first = computed(() => (locator.value === "" ? 1 : 2));
 const at = computed(() => ({ stats: first.value, packets: first.value + 1, monitor: first.value + 2, replay: first.value + 2 + monitors.value.length }));
 

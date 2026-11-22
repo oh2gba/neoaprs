@@ -1,5 +1,6 @@
-// An alert set on a station fired (the daemon's message `station_alert`, which every page that is open is told once): the page alerts as it does for a message to us, as the choice of this browser says (the chime, the notification, the browser
-// tab; composables/useBrowserAlerts.ts), and says what happened in its toast with the time ("12:03 OH2XYZ is on the air"), whatever that choice is. Each message is taken as it comes (`sync`): one packet can fire two alerts at once.
+// A station alert fired (the daemon's `station_alert`, sent once to every open page): the page
+// alerts as for a message to us, as this browser's choice says, and says what happened in its
+// toast with the time. Each message is taken as it comes (`sync`): one packet can fire two alerts.
 import { watch, type Ref } from "vue";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import { firedLine } from "@/lib/stationalert";

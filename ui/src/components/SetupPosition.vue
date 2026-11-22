@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Step 2 of the first-run guide: where the station is, with the Location control of the My station tab and of the Objects form (components/LocationField.vue): **Choose on map** (it folds the guide to its head so that the whole map is free; the map shows a crosshair while it waits for the click, and a pin that
-// can be dragged shows the place), the place as text ("60.42945 N, 24.14524 E · KP20le", "Not set") and, open the whole time, the latitude, the longitude and the Maidenhead locator (6 characters: the centre of the square). Next waits for a place.
+// Step 2 of the first-run guide: the station's place, with the Location control (LocationField):
+// Choose on map (folds the guide, shows a crosshair and a draggable pin), the place as text, and
+// the latitude, longitude and Maidenhead locator fields. Next waits for a place.
 import LocationField from "@/components/LocationField.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { placeOfText } from "@/lib/locator";

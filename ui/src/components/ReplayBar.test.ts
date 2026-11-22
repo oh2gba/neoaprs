@@ -89,11 +89,13 @@ describe("the replay's bar", () => {
     const span = () => wrapper.find<HTMLSelectElement>(".replay-span").element;
     replay.ask();
     await nextTick();
-    expect([speed().disabled, span().disabled]).toEqual([false, false]); // (another span may be chosen while one is on its way)
+    // another span may be chosen while one is on its way
+    expect([speed().disabled, span().disabled]).toEqual([false, false]);
     await answered(positionHistory);
     expect(replay.playing.value).toBe(true);
     expect([speed().disabled, span().disabled]).toEqual([true, true]);
-    expect(cssRule(".input:disabled")).not.toMatch(/width|height|padding|margin|border|font/); // (off, a select keeps its size: only its look changes)
+    // off, a select keeps its size: only its look changes
+    expect(cssRule(".input:disabled")).not.toMatch(/width|height|padding|margin|border|font/);
     expect([speed().title, span().title]).toEqual(["Speed: can be changed while paused", "Span: can be changed while paused"]);
     await wrapper.find(".replay-play").trigger("click");
     expect([speed().disabled, span().disabled]).toEqual([false, false]);

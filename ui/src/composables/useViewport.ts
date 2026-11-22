@@ -1,4 +1,4 @@
-// The size of the window and the size class it makes (lib/layout.ts: phone, tablet, desktop), kept up to date: a window that is resized, a phone that is turned.
+// The window size and the size class it makes (lib/layout.ts), kept up to date.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { sizeOf } from "@/lib/layout";
 

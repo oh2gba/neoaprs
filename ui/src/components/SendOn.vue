@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Send on as a row of the form (composables/useSendOn.ts): the label, a tick for each radio by its name (the last one ticked greyed), and the daemon's refusal under them. The Beacon group's, the Status group's, Ask around's
-// and Local info's (bound to the radios' settings), the object form's and the Post box's (bound to their drafts, `useDraftSendOn`) are this one row, each with its own `id` (the label's, which the group is named by).
+// Send on as a form row (useSendOn): the label, a tick per radio by name (the last one ticked is
+// greyed) and the daemon's refusal under them. One row serves the Beacon, Status, Ask around, Local
+// info, object form and Post box, each with its own `id`.
 import { t } from "@/i18n";
 import type { SendOnTick } from "@/lib/beaconstatus";
 import { fieldId } from "@/lib/radios";

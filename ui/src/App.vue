@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, what is nearby, the packets, the messages, the email, the bulletins, the skeds, our objects, the beacon and the settings (which open with the state of the radio link). The state of the daemon and the radio is in the header, as marks.
-// A daemon of another protocol or another build of the page makes it a notice (`VersionMismatch`) instead of the page.
-// The layout only: the page put together, and what the panes share (the daemon's state, `send`, the settings, the guide, the panel), is `useAppShell`; a pane takes from the context what is the page's as a whole, and as props what is its own (the rows it lists, the one that is open).
+// The page layout: header, map and the side panel. The shared state (daemon, `send`, settings,
+// guide, panel) is in `useAppShell`; panes take page-wide state from the context and their own
+// rows as props. A daemon of another protocol shows `VersionMismatch` instead.
 import AppHeader from "@/components/AppHeader.vue";
 import BeaconPane from "@/components/BeaconPane.vue";
 import BulletinsPane from "@/components/BulletinsPane.vue";
@@ -64,9 +64,7 @@ const {
   stationActions,
 } = useAppShell();
 
-/** A mark of the header: its tab, and the group of the control it leads to brought into view and flashed. */
 const goTo = (target: PillTarget, control: string): void => openSetting(panel, target, control);
-/** A card the map's menu opened over the map. */
 const cardsOpen = { stats: statsOpen, packets: packetsOpen, monitor: monitorOpen };
 const openCard = (name: MapCard): void => void (cardsOpen[name].value = true);
 const { send, ownObjects, ownBulletins, bulletins, packets, lastError, mismatch } = daemon;

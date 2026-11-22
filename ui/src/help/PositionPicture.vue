@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Where the position comes from: fixed (a station that stays where it is) or a GPS (a station that moves, the beacon at the turns).
+// Where the position comes from: fixed (a station that stays put) or GPS (a moving station,
+// the beacon at the turns).
 import { waves } from "@/help/draw";
 import HelpFrame from "@/help/HelpFrame.vue";
 import HelpSymbol from "@/help/HelpSymbol.vue";

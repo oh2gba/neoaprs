@@ -1,6 +1,9 @@
-// The layers of the tracks of the stations (lib/tracks.ts): a line that fades with age for every station that moved, and for the selected station (every open card) its trail drawn to be read: above the others, orange,
-// heavier and solid whatever its age, on a pale casing so that it shows on any ground, with a dot at each position the station was heard at, which fades with the age of the position as the stretches of the other tracks do.
-// `setTrackData` gives both sources what to draw: with the row Tracks of the Layers box not ticked (`all` false) only the selected stations' own tracks; the colours are the map tokens of styles/tokens.css, read when the layers are made (the literals are what is used where a page has no style sheet).
+// The layers for the stations' tracks (lib/tracks.ts): a line that fades with age for every station
+// that moved, and for the selected station (every open card) a trail drawn to be read: on top,
+// orange, heavier and solid whatever its age, on a pale casing so it shows on any ground, with a
+// dot at each position heard that fades with the position's age. `setTrackData` feeds both sources;
+// with the Tracks row of the Layers box unticked (`all` false) only the selected stations' tracks
+// show. Colours are the map tokens of styles/tokens.css, read when the layers are made.
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import type { Aging } from "@/lib/aging";
 import { paletteColor } from "@/lib/alohalayers";
@@ -62,7 +65,10 @@ export function addTrackLayers(map: MapLibreMap): void {
   });
 }
 
-/** What the layers draw: the lines of the stations' tracks, `selected` among them marked, and the points of the selected ones; with `all` false the lines of the selected ones only. */
+/**
+ * What the layers draw: the stations' track lines (`selected` among them marked) and the selected
+ * ones' points; with `all` false only the selected ones' lines.
+ */
 export function setTrackData(
   map: MapLibreMap,
   rows: readonly StationRow[],

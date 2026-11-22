@@ -63,7 +63,8 @@ describe("the ring of errors", () => {
   it("holds the last 50", () => {
     const { errors, clock } = make();
     for (let i = 0; i < RING_SIZE + 5; i++) {
-      clock.now += SAME_MESSAGE_MS; // (a minute apart, so that none is the same as the last and none hits the limit of sends)
+      // A minute apart, so that none is the same as the last and none hits the limit of sends.
+      clock.now += SAME_MESSAGE_MS;
       errors.record(new Error(`e${i}`), "window");
     }
     const messages = errors.entries().map((e) => e.message);
@@ -98,7 +99,7 @@ describe("the limits on the page's side", () => {
     expect(sent).toHaveLength(1);
     expect(errors.entries()).toHaveLength(1);
     expect(errors.entries()[0]).toMatchObject({ count: 2, at: "2026-10-21T12:00:00.000Z", last: "2026-10-21T12:00:30.000Z" });
-    clock.now += SAME_MESSAGE_MS; // (a minute after the first)
+    clock.now += SAME_MESSAGE_MS; // A minute after the first
     errors.record(new Error("boom"), "window");
     expect(sent).toHaveLength(2);
     expect(errors.entries().map((e) => e.count)).toEqual([2, 0]);
@@ -123,7 +124,7 @@ describe("the limits on the page's side", () => {
     errors.flush();
     expect(sent.map((c) => c.message)).toEqual(Array.from({ length: QUEUE_SIZE }, (_, i) => `e${i + 3}`));
     errors.flush();
-    expect(sent).toHaveLength(QUEUE_SIZE); // (nothing is sent twice)
+    expect(sent).toHaveLength(QUEUE_SIZE); // Nothing is sent twice
     expect(errors.entries()).toHaveLength(QUEUE_SIZE + 3);
   });
 
@@ -154,7 +155,7 @@ describe("the limits on the page's side", () => {
     let calls = 0;
     errors.attach(() => {
       calls += 1;
-      errors.record(new Error("while reporting"), "window"); // (an error raised by the report itself is dropped)
+      errors.record(new Error("while reporting"), "window"); // An error raised by the report itself is dropped
       throw new Error("send failed");
     });
     expect(() => errors.record(new Error("first"), "window")).not.toThrow();

@@ -51,7 +51,8 @@ describe("Forget all at the foot of the Stations table", () => {
       ["Really forget all?", false],
     ]);
     expect(cssRule(".twowords > .twowords-off")).toMatch(/visibility:\s*hidden/);
-    expect(cssRule(".grid.stations td.actions .forgetbtn")).not.toMatch(/min-width/); // (the trash can of a row is as wide as its two faces, not as a guess)
+    // The trash can of a row is as wide as its two faces, not a guess.
+    expect(cssRule(".grid.stations td.actions .forgetbtn")).not.toMatch(/min-width/);
   });
 
   it("takes the question back after 5 seconds", async () => {

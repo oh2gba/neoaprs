@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// What a click on a packet of the log opens: the packet in a few plain facts (who sent it, what kind it is, what it says, how it reached us or which path we sent it by, when; lib/packetview.ts), and under "Raw", closed, the packet as the parser decoded it, as JSON.
+// What a click on a packet opens: a few plain facts about it and, folded under "Raw", the decoded
+// JSON.
 import { computed } from "vue";
 import { t } from "@/i18n";
 import DisclosureBox from "@/components/DisclosureBox.vue";

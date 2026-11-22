@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The button that sends something now (Beacon now, Send status now): a secondary button, as the tab's one main action is the settings themselves; shared by the beacon status and the status line of the My station tab: it asks twice (`armed`: it says "Really send?", in the danger colour, as wide as before: TwoWords); the tab's useSendNow decides when it is on
-// (`disabled`, with `why` on hover) and what a press does.
+// The button that sends something now: a secondary button that asks twice (`armed` shows "Really
+// send?", see TwoWords). The caller decides when it is `disabled` (with `why` on hover) and what a
+// press does.
 import TwoWords from "@/components/TwoWords.vue";
 import { t } from "@/i18n";
 

@@ -1,11 +1,12 @@
-// The floor under the waterfall (lib/waterfallfloor.ts): its behaviour on noise, on a receiver's passband shape, on a step in the noise, on a carrier, on frames and on our own transmission; and the feed of the daemon's rows.
+// Tests of the waterfall floor (lib/waterfallfloor.ts): noise, passband shape, steps, carriers,
+// frames, our own transmission, and the row feed.
 import { describe, expect, it } from "vitest";
 import { BINS, ROWS_PER_SECOND, binOfHz, byteOfDb, dbOfByte } from "@/lib/waterfall";
 import { AFTER_TX_MS, Floor, RowFeed } from "@/lib/waterfallfloor";
 
 const [BAND_FROM, BAND_TO] = [Math.round(binOfHz(1200)), Math.round(binOfHz(1800))];
 
-/** Numbers from 0 to 1 that are the same at every run. */
+/** Numbers from 0 to 1, the same at every run. */
 function dice(seed: number): () => number {
   let a = seed;
   return () => {
@@ -16,12 +17,15 @@ function dice(seed: number): () => number {
   };
 }
 
-/** A row of noise as the modem's spectra give it: each bin its own draw about the mean power `level(bin)` dB (two spectra averaged: the mean of two exponential draws). */
+/**
+ * A row of noise as the modem gives it: each bin an exponential draw about mean power
+ * `level(bin)` dB, two spectra averaged.
+ */
 function noise(random: () => number, level: (bin: number) => number): Float32Array {
   return Float32Array.from({ length: BINS }, (_, i) => level(i) + 10 * Math.log10((-Math.log(1 - random()) - Math.log(1 - random())) / 2));
 }
 
-/** Feeds a floor `seconds` of noise, `signal(bin)` dB of signal power over the noise added where it is given. */
+/** Feed a floor `seconds` of noise, with `signal(bin)` dB of signal power added where given. */
 function listen(
   floor: Floor,
   random: () => number,
@@ -47,7 +51,10 @@ const floorOf = (floor: Floor): Float32Array => floor.now() ?? new Float32Array(
 
 describe("the floor", () => {
   const flat = (): number => -40;
-  /** A receiver's filter: 6 dB of tilt across the passband, a ripple of 1.5 dB, and a skirt at each end that is 11 dB down at the last bin. */
+  /**
+   * A receiver's filter: 6 dB tilt across the passband, 1.5 dB ripple, and skirts 11 dB down
+   * at the last bin.
+   */
   const skirt = (bins: number): number => -14 / (1 + Math.exp((bins - 4) / 3));
   const filter = (bin: number): number => -40 - (6 * bin) / BINS + 1.5 * Math.cos((2 * Math.PI * bin) / 120) + skirt(bin) + skirt(BINS - 1 - bin);
 
@@ -60,7 +67,7 @@ describe("the floor", () => {
     const now = floorOf(floor);
     expect(Math.abs(mean(now) + 40)).toBeLessThan(1.5);
     expect(Math.max(...now) - Math.min(...now)).toBeLessThan(1.5);
-    // the noise over it is spread about 0 dB: the bytes that are drawn
+    // The noise over it is spread about 0 dB: these are the bytes drawn.
     expect(Math.abs(mean(Array.from(floor.over(noise(random, flat)), dbOfByte)))).toBeLessThan(2.5);
   });
 
@@ -70,7 +77,8 @@ describe("the floor", () => {
     const error = floorOf(floor).map((v, bin) => v - filter(bin));
     const middle = mean(error);
     expect(Math.abs(middle)).toBeLessThan(1.5);
-    expect(Math.max(...Array.from(error, (e) => Math.abs(e - middle)))).toBeLessThan(2.5); // (the skirts, where there are fewest bins to go by)
+    // skirts: fewest bins to go by
+    expect(Math.max(...Array.from(error, (e) => Math.abs(e - middle)))).toBeLessThan(2.5);
     expect(Math.max(...Array.from(error.subarray(20, BINS - 20), (e) => Math.abs(e - middle)))).toBeLessThan(0.8);
   });
 
@@ -83,7 +91,7 @@ describe("the floor", () => {
     listen(floor, random, 2, flat);
     listen(floor, random, 1, () => -30); // the noise rises by 10 dB and stays
     expect(mean(floorOf(floor)) - before).toBeGreaterThan(1.5);
-    expect(mean(floorOf(floor)) - before).toBeLessThan(4); // (no faster than 3 dB a second)
+    expect(mean(floorOf(floor)) - before).toBeLessThan(4); // no faster than 3 dB a second
     listen(floor, random, 5, () => -30);
     expect(Math.abs(mean(floorOf(floor)) - before - 10)).toBeLessThan(1);
     listen(floor, random, 6, flat);
@@ -97,7 +105,7 @@ describe("the floor", () => {
     listen(floor, random, 60, filter, (bin) => (bin >= 99 && bin <= 102 ? 30 : null));
     const after = floorOf(floor);
     for (const bin of [95, 99, 100, 102, 106]) expect(Math.abs(after[bin] - before[bin])).toBeLessThan(0.8);
-    // and the carrier is still drawn at its strength after that minute
+    // The carrier is still drawn at its strength after that minute.
     const row = noise(random, (bin) => filter(bin) + (bin === 100 ? 30 : 0));
     expect(dbOfByte(floor.over(row)[100])).toBeGreaterThan(22);
   });
@@ -115,7 +123,7 @@ describe("the floor", () => {
     for (const shift of moved()) expect(Math.abs(shift)).toBeLessThan(0.8);
     listen(floor, random, 2, filter);
     for (const shift of moved()) expect(Math.abs(shift)).toBeLessThan(0.8);
-    // three more frames with two seconds between them: most of the half minute's seconds have a frame in them
+    // Three more frames two seconds apart: most seconds of the half minute have a frame.
     for (let i = 0; i < 3; i++) {
       listen(floor, random, 3.8, filter, frame);
       listen(floor, random, 2, filter);
@@ -128,7 +136,8 @@ describe("the floor", () => {
     listen(floor, random, 6, flat);
     const raised = (bin: number): number => (bin >= BAND_FROM && bin < BAND_TO ? -30 : -40);
     listen(floor, random, 10, raised);
-    expect(mean(floorOf(floor), BAND_FROM + 10, BAND_TO - 10)).toBeLessThan(-38); // (ten seconds are not yet "stays")
+    // ten seconds are not yet a lasting change
+    expect(mean(floorOf(floor), BAND_FROM + 10, BAND_TO - 10)).toBeLessThan(-38);
     listen(floor, random, 25, raised);
     expect(Math.abs(mean(floorOf(floor), BAND_FROM + 25, BAND_TO - 25) + 30)).toBeLessThan(1.5);
     expect(Math.abs(mean(floorOf(floor), 0, BAND_FROM - 25) + 40)).toBeLessThan(1.5);
@@ -141,10 +150,11 @@ describe("the floor", () => {
     listen(floor, random, 8, filter);
     const played = new Float32Array(BINS).fill(-20);
     const own = floor.over(played, true);
-    expect(new Set(own).size).toBe(1); // (the audio we play is as flat as it was made)
-    expect(Math.abs(dbOfByte(own[0]) - 23)).toBeLessThan(2.5); // (over the passband's middle: -43 dB there)
+    expect(new Set(own).size).toBe(1); // the audio we play is flat
+    expect(Math.abs(dbOfByte(own[0]) - 23)).toBeLessThan(2.5); // over the passband's middle: -43 dB there
     const heard = Array.from(floor.over(played), dbOfByte);
-    expect(heard[0] - heard[150]).toBeGreaterThan(5); // (as a received row it would stand higher over the skirt's lower floor)
+    // as a received row it would stand higher over the skirt's lower floor
+    expect(heard[0] - heard[150]).toBeGreaterThan(5);
   });
 });
 
@@ -158,13 +168,15 @@ describe("the feed of the daemon's rows", () => {
     const own = feed.take(row(-10, true), 2100);
     expect(own.tx).toBe(true);
     expect(dbOfByte(own.bytes[0])).toBeCloseTo(30, 0);
-    expect(dbOfByte(feed.take(row(-40), 2100 + AFTER_TX_MS).bytes[0])).toBeCloseTo(0, 0); // (the floor did not learn our transmission)
+    // the floor did not learn our transmission
+    expect(dbOfByte(feed.take(row(-40), 2100 + AFTER_TX_MS).bytes[0])).toBeCloseTo(0, 0);
   });
 
   it("counts the rows of the moment after our transmission as ours, and starts again when it is cleared", () => {
     const feed = new RowFeed();
     feed.take(row(-40, true), 1000);
-    expect(feed.take(row(-80), 1000 + AFTER_TX_MS - 1).tx).toBe(true); // (the modem's empty buffer: not learnt as the floor)
+    // the modem's empty buffer: not learnt as the floor
+    expect(feed.take(row(-80), 1000 + AFTER_TX_MS - 1).tx).toBe(true);
     expect(feed.take(row(-40), 1000 + AFTER_TX_MS).tx).toBe(false);
     feed.take(row(-40, true), 5000);
     feed.clear();

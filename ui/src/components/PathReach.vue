@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// How far the path goes, the two plain controls of the path builder that make its aliases (lib/pathreach.ts): **Hops**, Direct, 1, 2 or 3 in all, one pressed when the path is that many (none for a longer path or one that is no
-// path), and **Home digis may take the first hop**, which makes the first alias hop WIDE1-1 (a home, fill-in, digipeater takes it as well as a wide one) and else a wide one: 1 is WIDE1-1 or WIDE2-1, 2 WIDE1-1,WIDE2-1 or WIDE2-2,
-// 3 WIDE1-1,WIDE2-2 or WIDE3-3. A choice keeps the digipeaters named at the start of the path as far as they go, and the hops left are wide ones after them; Direct is none at all. The tick follows a path that starts with an alias
-// and changes it at once; it is off, with the reason in its title, while the first hop is a digipeater named (it is that one) or the path is none of the choices. Each choice's hover title is the path it makes. What is put in
-// the slot (As its packets come) sits beside the choices.
+// How far the path goes: the two controls of the path builder that make its aliases
+// (lib/pathreach.ts). Hops is Direct, 1, 2 or 3 in all; "Home digis may take the first hop" makes
+// the first alias hop WIDE1-1 instead of WIDE n-N. A choice keeps the digipeaters already named at
+// the start of the path. The tick is off, with the reason in its title, while the first hop is a
+// named digipeater or the path matches none of the choices. The slot sits beside the choices.
 import { computed, useId } from "vue";
 import { t } from "@/i18n";
 import { pathOf } from "@/lib/pathbuilder";
@@ -15,7 +15,7 @@ const emit = defineEmits<{ set: [hops: string[]]; home: [on: boolean] }>();
 const id = useId();
 const pressed = computed(() => reachOf(props.hops));
 const named = computed(() => splitPath(props.hops).lead[0] ?? null);
-/** Why the tick is off: the first hop is named, or the path is none of the choices; "" while it is on. */
+/** Why the tick is off: the first hop is named or the path is none of the choices; "" while on. */
 const homeOff = computed(() =>
   named.value !== null ? t("pathbuilder.home_named", { call: named.value }) : pressed.value === null ? t("pathbuilder.home_choose") : "",
 );

@@ -23,7 +23,6 @@ export class FakeSocket implements SocketLike {
     this.closed = true;
   }
 
-  /** A binary frame, as the browser gives it with `binaryType` "arraybuffer". */
   sayBytes(bytes: Uint8Array): void {
     this.onmessage?.(new MessageEvent("message", { data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }));
   }

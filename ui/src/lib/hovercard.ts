@@ -1,6 +1,8 @@
-// The card that follows the pointer to a station's marker on the map: after a short delay it shows what matters at a glance (who, how long ago, status, comment, how far and in which direction, the
-// temperature of a weather station, how the packets reach us) and goes when the pointer leaves. One element serves every marker, and the aircraft and ships the map draws itself too (`rest`: the map says where
-// the thing is and what its box says, lib/layers/card.ts, with the thing's mark before its name). A touch screen has no pointer to rest on a marker, so only a mouse shows it, and a tap opens the full card as ever.
+// The card that follows the pointer to a station's marker: after a short delay it shows who,
+// how long ago, status, comment, distance and direction, a weather station's temperature, and
+// how packets reach us; it goes when the pointer leaves. One element serves every marker, and
+// the aircraft and ships the map draws itself (`rest`, see lib/layers/card.ts). Only a mouse
+// shows it; a touch screen has no resting pointer and a tap opens the full card.
 import { t } from "@/i18n";
 import { heardWords } from "@/lib/channels";
 import { agoWords, bearingText, distanceText } from "@/lib/format";
@@ -13,20 +15,23 @@ import type { StationRow } from "@/protocol/protocol";
 const DELAY_MS = 250;
 const MARGIN = 6; // least distance to the edge of the map
 const GAP = 8; // between the marker and the card
-const LABEL = 16; // the height of the call under a marker
+const LABEL = 16; // height of the call under a marker
 
 export interface HoverRow {
   label: string;
   text: string;
 }
 
-/** The radios the card names (composables/useRadios.ts `Radios`: every radio in the order of the boxes). */
+/** The radios the card names (useRadios `Radios`: every radio in box order). */
 export type HoverRadios = Readonly<{ all: Readonly<{ value: readonly PageRadio[] }> }>;
 
 const NO_RADIOS: HoverRadios = { all: { value: [] } };
 
-/** The rows the card has for a station: only those that have something to say. "Heard on" says the radios that heard it by their names (with their times while several are on), iGate and Internet; nothing for a
- * station heard on the one radio alone. */
+/**
+ * The card's rows for a station, only those with something to say. "Heard on" names the radios
+ * that heard it (with times while several are on), iGate and Internet; nothing for a station
+ * heard on the one radio alone.
+ */
 export function hoverRows(row: StationRow, nowMs: number, radios: HoverRadios = NO_RADIOS): HoverRow[] {
   const rows: HoverRow[] = [{ label: t("station.hover.heard"), text: agoWords(row.last_heard, nowMs) }];
   const heard = heardWords(row, radios.all.value, nowMs);
@@ -61,7 +66,7 @@ interface HoverMark {
   bad: boolean;
 }
 
-/** What the card says: a head of two parts (a mark before them, for an aircraft or a ship) and its rows. */
+/** What the card says: a two-part head (with a mark for an aircraft or ship) and its rows. */
 export interface HoverContent {
   title: string;
   sub: string;
@@ -71,7 +76,7 @@ export interface HoverContent {
 
 const SVG = "http://www.w3.org/2000/svg";
 
-/** A mark as the card's head shows it: 16 px, saying nothing to a screen reader (the title does). */
+/** The head mark: 16 px, hidden from screen readers (the title says it). */
 function markElement(mark: HoverMark): SVGSVGElement {
   const svg = document.createElementNS(SVG, "svg");
   svg.setAttribute("class", mark.bad ? "hc-mark emergency" : "hc-mark");
@@ -88,7 +93,10 @@ function markElement(mark: HoverMark): SVGSVGElement {
 /** Where on the screen the card's thing is. */
 export type HoverBox = Pick<DOMRect, "left" | "top" | "right" | "bottom" | "width">;
 
-/** What the card is shown for: its key (a station's call), where it is, and what it says now (null when it is gone). */
+/**
+ * What the card is shown for: its key (a station's call), where it is, and what it says now (null
+ * when it is gone).
+ */
 interface Shown {
   key: string;
   box: () => HoverBox;
@@ -99,20 +107,20 @@ export class HoverCard {
   private readonly card = element("div", "hovercard");
   private timer: ReturnType<typeof setTimeout> | null = null;
   private shownFor: Shown | null = null;
-  private coming: string | null = null; // (the key the timer is for)
+  private coming: string | null = null; // the key the timer is for
 
   constructor(
     private readonly container: HTMLElement,
     private readonly lookup: (call: string) => StationRow | undefined,
     private readonly now: () => number,
-    private readonly radios: HoverRadios = NO_RADIOS, // (the page's radios: `useRadios()`)
+    private readonly radios: HoverRadios = NO_RADIOS, // the page's radios (`useRadios()`)
   ) {
     this.card.setAttribute("role", "tooltip");
     this.card.hidden = true;
     container.append(this.card);
   }
 
-  /** Makes the marker show the card for the station when a mouse rests on it. */
+  /** Show the card for the station when a mouse rests on it. */
   attach(target: HTMLElement, call: string): void {
     target.addEventListener("pointerenter", (event) => {
       if (event.pointerType === "mouse") this.enter({ key: call, box: () => target.getBoundingClientRect(), content: () => this.station(call) });
@@ -121,7 +129,10 @@ export class HoverCard {
     target.addEventListener("pointerdown", () => this.hide());
   }
 
-  /** A mouse rests on a thing the map draws itself (an aircraft, a ship): the card is shown for it after the delay, and stays while the mouse is on the same thing. */
+  /**
+   * A mouse rests on a thing the map draws itself: show the card after the delay, keep it
+   * while the mouse stays on the same thing.
+   */
   rest(key: string, box: () => HoverBox, content: () => HoverContent | null): void {
     if (this.shownFor?.key === key || (this.timer !== null && this.coming === key)) return;
     this.enter({ key, box, content });
@@ -139,13 +150,16 @@ export class HoverCard {
     this.refresh();
   }
 
-  /** What the card says of a station, from its row as it is now. */
+  /** What the card says of a station, from its current row. */
   private station(call: string): HoverContent | null {
     const row = this.lookup(call);
     return row ? { title: row.call, sub: symbolLabel(row), rows: hoverRows(row, this.now(), this.radios) } : null;
   }
 
-  /** Writes the card again from what it is shown for as it is now (the age moves on; the row may have changed or gone). */
+  /**
+   * Write the card again from what it is shown for now (the age moves on; the row may have
+   * changed or gone).
+   */
   refresh(): void {
     const open = this.shownFor;
     const content = open ? open.content() : null;
@@ -187,7 +201,7 @@ export class HoverCard {
     this.card.hidden = true;
   }
 
-  /** The marker of the station is gone: so is the card, if it was for that one. */
+  /** The marker is gone, so the card is too if it was for that station. */
   release(call: string): void {
     if (this.shownFor?.key === call) this.hide();
   }

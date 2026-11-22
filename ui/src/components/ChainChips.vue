@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One attempt's chips in a row, with an arrow between them (lib/chain.ts makes them).
+// One attempt's chips in a row with arrows between them (lib/chain.ts builds them).
 import TagMark from "@/components/TagMark.vue";
 import type { Chip } from "@/lib/chain";
 

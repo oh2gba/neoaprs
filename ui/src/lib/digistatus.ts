@@ -1,20 +1,30 @@
-// What the Digipeater group of the Settings tab says in plain words, for a radio's own digipeater (the fill-in, `digiLook`) and for a pair of radios (`pairLook`) (components/DigipeaterStatus.vue), in the words and colours of the radio's status row (components/StatusFold.vue): "on" with how many packets it repeated and when the last went ("12 packets repeated · last 3 min ago",
-// "None repeated yet"), or "off" in the warn colour while RX only is ticked, and behind the arrow since when it counts and, if the burst limit held frames back, how many. The count is the daemon's, since it started (the radio's row).
+// What the Digipeater group says in plain words, for a radio's own digipeater (`digiLook`) and for
+// a pair of radios (`pairLook`) (components/DigipeaterStatus.vue), in the words and colours of the
+// radio's status row (components/StatusFold.vue): "on" with how many packets were repeated and when
+// the last went ("12 packets repeated · last 3 min ago", "None repeated yet"), or "off" in the warn
+// colour while RX only is ticked. Behind the arrow: since when it counts and, if the burst limit
+// held frames back, how many. The counts are the daemon's, since it started.
 import { t } from "@/i18n";
 import { ageText, dateTimeText } from "@/lib/format";
 import type { PassStats, RadioRow, TncStats } from "@/protocol/protocol";
 
 export interface DigiLook {
   state: string;
-  /** the class that colours the state (the radio's `tnc-*`) */
+  /** The class that colours the state (the radio's `tnc-*`). */
   tone: string;
   line: string;
-  /** behind the arrow: since when it counts, and the frames the burst limit held back (empty when none) */
+  /**
+   * Behind the arrow: since when it counts, and the frames the burst limit held back (empty when
+   * none).
+   */
   since: string;
   held: string;
 }
 
-/** The look for the counters of the TNC, when the daemon started (`startedAt`, ISO), the time now and whether RX only is ticked (nothing is repeated). */
+/**
+ * The look for a radio's counters: when the daemon started (`startedAt`, ISO), the time now, and
+ * whether RX only is ticked.
+ */
 export function digiLook(tnc: Pick<RadioRow, "stats">, startedAt: string | null, nowMs: number, rxOnly: boolean): DigiLook {
   const { digipeated, digipeated_at, digipeat_held } = tnc.stats;
   const behind = {
@@ -29,20 +39,26 @@ export function digiLook(tnc: Pick<RadioRow, "stats">, startedAt: string | null,
   return { state: t("settings.digi.on"), tone: "tnc-connected", line, ...behind };
 }
 
-/** One radio of a pair: its id, what the page calls it (its box's legend) and its counts (`stats.passed`: what the pair passed onto it, by the radio heard on). */
+/**
+ * One radio of a pair: its id, its name (the box legend) and its counts (`stats.passed`: what the
+ * pair passed onto it, by radio heard on).
+ */
 interface PairEnd {
   id: number;
   name: string;
   readonly stats: TncStats;
 }
 
-/** A pair of radios, in the order of their boxes. */
+/** A pair of radios, in box order. */
 export interface PairLink {
   first: PairEnd;
   second: PairEnd;
 }
 
-/** The look of a pair's status row: the fill-in row's state, line and since, and behind the arrow what went each way and, by the radio it was for, what was held back and what was too long (empty when none). */
+/**
+ * The look of a pair's status row: state, line and since, and behind the arrow what went each way
+ * and, per radio, what was held back or too long.
+ */
 export interface PairLook {
   state: string;
   tone: string;
@@ -57,7 +73,10 @@ export interface PairLook {
 const passedOnto = (to: PairEnd, from: PairEnd): Pick<PassStats, "sent" | "sent_at" | "held" | "too_long"> =>
   to.stats.passed.find((entry) => entry.heard_on === from.id) ?? { sent: 0, sent_at: null, held: 0, too_long: 0 };
 
-/** The look for a pair's counts, both ways together, when the daemon started (`startedAt`, ISO), the time now and whether RX only is ticked (nothing is passed). */
+/**
+ * The look for a pair's counts, both ways together: when the daemon started (`startedAt`, ISO), the
+ * time now, and whether RX only is ticked.
+ */
 export function pairLook(pair: PairLink, startedAt: string | null, nowMs: number, rxOnly: boolean): PairLook {
   const ends = [pair.first, pair.second] as const;
   const onto = [passedOnto(pair.first, pair.second), passedOnto(pair.second, pair.first)] as const;

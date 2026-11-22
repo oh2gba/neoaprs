@@ -1,4 +1,5 @@
-// Imported first by a test that mounts the map: replaces the MapLibre loader of the page with the fake of test/fakemap.ts.
+// Imported first by a test that mounts the map: replaces the page's MapLibre loader with
+// test/fakemap.ts.
 import { vi } from "vitest";
 
 vi.mock("@/lib/basemap", async () => {

@@ -186,7 +186,7 @@ describe("the header with any number of radios", () => {
     expect(named.findAll(".headpill").map((mark) => [mark.text(), mark.attributes("title")])).toEqual([
       ["Shack", "Shack: connected. Settings → Radio"],
       ["Portable", "Portable: connected. Settings → Radio"],
-    ]); // (plan section 6 "Texts": a typed name stands before a colon, never inside a sentence)
+    ]); // a typed name stands before a colon, never inside a sentence
     const one = header({ pills: marksOf([SIX[0]]) });
     expect(one.findAll(".headpill").map((mark) => mark.text())).toEqual(["Radio"]);
   });

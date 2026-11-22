@@ -9,7 +9,10 @@ import { aircraft, layerThings, mapLayer, ship } from "@/test/layerfixtures";
 
 let scope: EffectScope;
 
-/** A page's traffic over parts a test changes: the topic `map` with aircraft from the own receiver and ships from Fintraffic, the socket open, the page in front, the replay closed. */
+/**
+ * A page's traffic over parts a test changes: topic `map` with aircraft and ships, socket open,
+ * page in front, replay closed.
+ */
 function make(layers = [mapLayer("aircraft", { source: "receiver" }), mapLayer("ships", { source: "fintraffic" })]) {
   const send = vi.fn((_command: Command) => true);
   const parts = {

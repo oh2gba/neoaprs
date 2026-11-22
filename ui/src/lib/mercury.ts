@@ -1,5 +1,8 @@
-// The two settings of the Mercury HF modem as the Radio group shows them: the sound card as a choice among what the daemon found (`sound_cards` of the ports message), and the keying
-// as one choice built from the ports the daemon lists: the radio keys itself (VOX), a CM108 sound chip, or the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), which is how a radio's `keying` is written.
+// The two settings of the Mercury HF modem as the Radio group shows them: the sound card as a
+// choice among what the daemon found (`sound_cards` of the ports message), and the keying as
+// one choice built from the ports the daemon lists: the radio keys itself (VOX), a CM108 sound
+// chip, or the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), which is how a radio's
+// `keying` is written.
 import { t } from "@/i18n";
 import { heldChoice, type HolderOf } from "@/lib/portchoice";
 import type { Choice } from "@/lib/settingchoices";
@@ -8,8 +11,13 @@ import type { PortsMessage } from "@/protocol/protocol";
 
 const LINES = ["rts", "dtr"] as const;
 
-/** The sound cards as the choice of the Sound card field: the system's name for each, with the id as the hover title; a name that two cards share has its id after it; a card another radio holds is greyed with its name (lib/portchoice.ts,
- * not the one in force, `current`). There is no choice of leaving it to the daemon: the daemon's proposal (`soundCardPick`) is preselected and stored. */
+/**
+ * The sound cards as the choice of the Sound card field: the system's name for each, with the
+ * id as the hover title; a name two cards share gets its id after it; a card another radio
+ * holds is greyed with its name (lib/portchoice.ts), unless it is the one in force, `current`.
+ * There is no choice of leaving it to the daemon: the daemon's proposal (`soundCardPick`) is
+ * preselected and stored.
+ */
 export function soundCardChoices(ports: PortsMessage | null, holder: HolderOf = () => null, current = ""): Choice[] {
   const cards = ports?.sound_cards ?? [];
   return cards.map((c) =>
@@ -25,19 +33,30 @@ export function soundCardChoices(ports: PortsMessage | null, holder: HolderOf = 
 /** The sound card the daemon proposes (the id), "" when none is listed. */
 export const soundCardPick = (ports: PortsMessage | null): string => ports?.sound_cards.find((c) => c.pick)?.id ?? "";
 
-/** Between the two devices of a Windows sound card in one id (the one it records from, then the one it plays to: neoaprs/mercury.py, PAIR). */
+/**
+ * Separates the two devices of a Windows sound card in one id: the one it records from, then
+ * the one it plays to (neoaprs/mercury.py, PAIR).
+ */
 const PAIR = "|";
 
-/** The listed card a setting made before names otherwise: one of the two devices of a Windows card (before the two were one choice), or a Linux card by its number (before it was named, as a reboot
- * renumbers the cards: what the number means now is what the station runs with now); "" when `value` is a listed card's id already or none matches. */
+/**
+ * The listed card that an older setting names otherwise: one of the two devices of a Windows
+ * card, or a Linux card by its number (a reboot renumbers cards, so what the number means now
+ * is what the station runs with now); "" when `value` is a listed card's id already or none
+ * matches.
+ */
 export const soundCardWith = (ports: PortsMessage | null, value: string): string => {
   const cards = ports?.sound_cards ?? [];
   if (value === "" || value.includes(PAIR) || cards.some((c) => c.id === value)) return "";
   return cards.find((c) => (c.id.includes(PAIR) && c.id.split(PAIR).includes(value)) || (c.numbered !== "" && c.numbered === value))?.id ?? "";
 };
 
-/** The ways of keying: the radio by itself, a CM108 chip, then RTS and DTR of every serial port the daemon lists (a Bluetooth device has no line to key with), those of the ports that sit with the radio's
- * sound card first (`group`: the card's `usb_group`; the order alone says it). The value in force stays offered when its port is not listed. */
+/**
+ * The ways of keying: the radio by itself, a CM108 chip, then RTS and DTR of every serial port
+ * the daemon lists (a Bluetooth device has no line to key with), those of ports sitting with
+ * the radio's sound card first (`group`: the card's `usb_group`). The value in force stays
+ * offered when its port is not listed.
+ */
 export function keyingChoices(ports: PortsMessage | null, current = "", group: string | null = null): Choice[] {
   const kinds = LIMITS.mercury.pttKinds;
   const plain: Choice[] = [

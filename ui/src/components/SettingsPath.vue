@@ -1,9 +1,12 @@
 <script setup lang="ts">
-// The beacon's path as one choice: Recommended (the empty setting; the path of the station's symbol, WIDE1-1,WIDE2-1 for a moving station and WIDE2-2 for a fixed one: the `recommended` the form works out), Direct only (no digipeaters) and Custom, which shows a field for the calls. Recommended and Direct only apply at once (`choose`);
-// the custom calls apply on Enter or when the field is left (`commit`), and Esc (`cancel`) puts the path in force back. A path that is neither of the first two (WIDE2-2) shows as Custom with its calls in the field. An empty custom
-// field is the recommended path again. The path builder's button (PathBuilder) beside the choice builds a path from the one in force, held to the setting's rule; Use applies it at once, as a choice does (DIRECT is Direct only).
-// With the radios: a Path row for each radio that is on and may carry a path (lib/beaconstatus.ts `pathRows`), each named while several radios are on ("FM: path") and each the radio's own setting (`radio/<id>/path`),
-// worked on the page's settings as the form works its fields; each row's Recommended is the path that radio really takes while its own is empty (a LoRa radio's WIDE1-1, else the station's symbol's). A page with no context has the one row of the props.
+// The beacon's path as one choice: Recommended (the empty setting; the symbol's path, `recommended`
+// from the form), Direct only, and Custom with a field for calls. Recommended and Direct only apply
+// at once (`choose`); custom calls apply on Enter or blur (`commit`), Esc (`cancel`) restores the
+// path in force. A path that is neither of the first two shows as Custom. An empty custom field is
+// Recommended again. The PathBuilder button builds from the path in force; Use applies it at once.
+// With radios: one Path row per radio that is on and may carry a path (lib/beaconstatus.ts
+// `pathRows`), each radio's own setting (`radio/<id>/path`); its Recommended is the path that radio
+// really takes while its own is empty. Without context there is one row from the props.
 import { computed, inject, ref, watch } from "vue";
 import PathBuilder from "@/components/PathBuilder.vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -25,7 +28,7 @@ const props = defineProps<{
   changed: boolean;
   recommended: string;
   disabled?: boolean;
-  /** one radio's row of the rows this component draws for the radios: drawn as it is, with no rows of its own */
+  /** one radio's row of the rows drawn for the radios: drawn as it is, with no rows of its own */
   row?: boolean;
 }>();
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: [] }>();
@@ -40,12 +43,15 @@ const valueOf = (key: string): string => settings?.draft[key] ?? inForce(key);
 const changedOf = (key: string): boolean => settings !== undefined && valueOf(key) !== settings.expected(key);
 const infoOf = (name: string | null): FieldInfo => (name === null ? props.info : { ...props.info, label: t("settings.path.on_radio", { name }) });
 const idOf = (key: string): string => `set-${fieldId(key)}`;
-/** What a radio's Recommended is: the path its type recommends (LoRa WIDE1-1), else the station's symbol's, the one of the props: what the daemon sends on it while its own path is empty. */
+/**
+ * What a radio's Recommended is: its type's path (LoRa WIDE1-1), else the symbol's: what the daemon
+ * sends while its own path is empty.
+ */
 const recommendedOf = (id: number): string => {
   const radio = radios.byId(id);
   return radio === undefined ? props.recommended : recommendedFor(radio, props.recommended);
 };
-/** A radio's typed path is checked as the beacon's is (the setting's rule), and sent. */
+/** A radio's typed path is checked as the beacon's is, and sent. */
 function commitRow(key: string): void {
   if (settings === undefined) return;
   const problem = problemOf("beacon/path", settings.draft[key] ?? "");
@@ -61,7 +67,7 @@ const RECOMMENDED_CHOICE = "recommended";
 const DIRECT_CHOICE = "direct";
 const CUSTOM_CHOICE = "custom";
 
-/** Which of the three the setting as it stands is. */
+/** Which of the three choices the setting stands at. */
 const kind = computed(() => {
   const text = callListText(props.modelValue);
   return text === "" ? RECOMMENDED_CHOICE : text === DIRECT ? DIRECT_CHOICE : CUSTOM_CHOICE;
@@ -70,7 +76,10 @@ const typing = ref(kind.value === CUSTOM_CHOICE);
 /** The field was changed since Custom was picked: leaving it unchanged sends nothing. */
 const edited = ref(false);
 const shown = computed(() => (typing.value ? CUSTOM_CHOICE : kind.value));
-/** The calls the field starts with: the path in force when it is custom, else the recommended one to edit from. */
+/**
+ * The calls the field starts with: the path in force when custom, else the recommended one to edit
+ * from.
+ */
 const start = computed(() => (kind.value === CUSTOM_CHOICE ? props.modelValue : props.recommended));
 const text = ref(start.value);
 
@@ -81,7 +90,8 @@ const choices = computed<Choice[]>(() => [
 ]);
 const field = computed<FieldInfo>(() => ({ ...props.info, kind: "choice", choices: choices.value }));
 
-// the path in force changes (the daemon took a choice, another page changed it): the field follows, unless the calls are being typed
+// the path in force changes (the daemon took a choice, another page changed it): the field follows
+// unless being typed in
 watch(
   () => props.modelValue,
   () => {
@@ -135,7 +145,7 @@ function escape(event: KeyboardEvent): void {
   text.value = start.value;
 }
 
-// a path the daemon refused stays in the field it was typed in
+// a path the daemon refused stays in the field
 watch(
   () => props.error,
   (now) => {

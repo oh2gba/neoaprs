@@ -1,8 +1,13 @@
-// How a station's packets reach us, drawn on the map, and no more than two routes: the route of its latest packet, solid, and the route of the latest packet before it that came another way, greyed. The daemon keeps just these two
-// (`route_marks`, newest first, each with where the station was when the packet was heard, so that a moving station's routes start where it was). A packet heard on the radio runs from the station through each digipeater that has a position to
-// our own station; a third-party packet starts at the iGate that put it on the air; a packet that an iGate heard on the radio and put on the internet runs from the station through its digipeaters to the iGate, which ends the line with its call and a
-// small internet mark, and when the iGate has no position the line ends at the last digipeater that has one. A packet heard direct, and one that never was on the air (an app), have no line. A hop with no position (`?` or a station we have
-// not placed) is left out and the line goes on to the next. `routeHops` reads the text of a route as the daemon words it (`last_route`: "via OH2RCH-1 → OH2RCH-3", "via OH7JHF-1 (internet) → OH2RCH-3").
+// How a station's packets reach us, drawn on the map: at most two routes, the latest packet's
+// (solid) and the latest earlier packet that came another way (greyed). The daemon keeps just
+// these (`route_marks`, newest first, each with the station's place when heard).
+// A packet heard on the radio runs from the station through each digipeater with a position to
+// our station. A third-party packet starts at the iGate that put it on the air. A packet an iGate
+// put on the internet runs from the station through its digipeaters to the iGate, which ends the
+// line with its call and an internet mark (or at the last digipeater with a position). A packet
+// heard direct, or one never on the air (an app), has no line. A hop without a position is skipped.
+// `routeHops` reads the daemon's route text (`last_route`: "via OH2RCH-1 → OH2RCH-3",
+// "via OH7JHF-1 (internet) → OH2RCH-3").
 import { t } from "@/i18n";
 import { unwrapLine } from "@/lib/dateline";
 import { hasPosition } from "@/lib/stations";
@@ -19,7 +24,7 @@ interface RouteLine {
 
 interface RouteDot {
   type: "Feature";
-  /** `label` is what is written beside the dot, `end` is 1 for the iGate that ends a line */
+  /** `label` is written beside the dot; `end` is 1 for the iGate that ends a line */
   properties: { call: string; label: string; previous: number; end: number };
   geometry: { type: "Point"; coordinates: LonLat };
 }
@@ -30,14 +35,14 @@ export interface RouteCollection {
 }
 
 interface Hops {
-  /** the iGate that put a third-party packet on the air; the line starts there, as the station itself was not heard */
+  /** the iGate that put a third-party packet on the air; the line starts there */
   gate: string | null;
   hops: string[];
 }
 
 const GATE_SUFFIX = " (internet)";
 
-/** The calls of a route as the wire words it; null for a station heard direct and for none. */
+/** The calls of a route in the daemon's wording; null for a station heard direct or none. */
 export function routeHops(text: string): Hops | null {
   if (!text.startsWith("via ")) return null;
   const calls = text.slice(4).split(" → ");
@@ -51,13 +56,13 @@ function placeOf(stations: ReadonlyMap<string, StationRow>, call: string): LonLa
   return row && hasPosition(row) ? [row.lon, row.lat] : null;
 }
 
-/** Where the station was when the packet was heard; where it is now when that was not known; null when it has no place at all. */
+/** Where the station was when the packet was heard, else where it is now; null if unknown. */
 function startOf(row: StationRow, mark: Mark): LonLat | null {
   if (mark.lat !== null && mark.lon !== null) return [mark.lon, mark.lat];
   return hasPosition(row) ? [row.lon, row.lat] : null;
 }
 
-/** The line of one route and the dots on it; null when it has no line to draw. */
+/** The line of one route and the dots on it; null if there is no line to draw. */
 function oneRoute(row: StationRow, mark: Mark, stations: ReadonlyMap<string, StationRow>, us: LonLat, previous: number): RouteCollection["features"] | null {
   if (mark.kind === "app") return null;
   const gated = mark.kind === "gated";
@@ -83,7 +88,10 @@ function oneRoute(row: StationRow, mark: Mark, stations: ReadonlyMap<string, Sta
   return [{ type: "Feature", properties: { call: row.call, previous }, geometry: { type: "LineString", coordinates: unwrapLine(line) } }, ...dots];
 }
 
-/** The line of the route of the station's latest packet and, apart, the one before it that came another way (`previous`, greyed); empty with no station, no place of ours or no route to draw. */
+/**
+ * The latest packet's route line and, apart, the earlier one that came another way (`previous`,
+ * greyed); empty with no station, no home place or no route.
+ */
 export function routeFeatures(
   row: StationRow | undefined,
   stations: ReadonlyMap<string, StationRow>,

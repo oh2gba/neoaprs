@@ -1,5 +1,7 @@
-// What the shell puts in the page's context about the radios (composables/useAppShell.ts): the topic `radios`, which the panes read as several radios on (plan section 6's rule) and
-// `connected` (any radio that is on has its line up: what Send and the station's questions wait for). Read from the context a pane of the page is given, on the page mounted as the App tests mount it.
+// What the shell puts in the page's context about the radios: the topic `radios`, which the panes
+// read as several radios on, and `connected` (any radio that is on has its line up: what Send and
+// the station's questions wait for). Read from the context a pane is given, on the page mounted as
+// the App tests mount it.
 import "@/test/mockmap";
 import { flushPromises, mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
@@ -13,7 +15,7 @@ import { useRadios } from "@/composables/useRadios";
 
 useAppHarness();
 
-/** The page told these radios, and the context its panes read. */
+/** The page was sent these radios; the context its panes read. */
 async function shellWith(rows: RadioRow[]): Promise<DaemonContext> {
   const { wrapper, socket } = await open();
   socket.say({ type: "state", topic: "radios", rev: 1, value: Object.fromEntries(rows.map((row) => [String(row.id), row])) });

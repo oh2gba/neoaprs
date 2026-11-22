@@ -7,9 +7,14 @@
   padding: 8px;
   border-top: 1px solid var(--border);
 }
-/* the box of a form on the tabs Bulletins, Email and Objects (ComposeBar.vue): a group box, the look of the Settings groups (a fieldset with its legend, styles/settings.css); the fields, and under them the counter and the buttons at the
-   right, the secondary one (Cancel) left of the primary one. On Bulletins and Email it is fixed at the bottom of the tab, the list above it scrolling; on Objects it is the first box of the tab. The chat line under a conversation
-   (`inline`: Messages) is no box: a line over the bottom edge, the field, the counter and the button in a row. The tab (.pane) leaves the notch alone on a phone, and the page is 100dvh high, so the keyboard does not cover it. */
+/* the box of a form on the Bulletins, Email and Objects tabs (ComposeBar.vue): a group box in the
+   look of the Settings groups (a fieldset with its legend, styles/settings.css): the fields,
+   and under them the counter and the buttons at the right, the secondary one (Cancel) left of
+   the primary. On Bulletins and Email it is fixed at the bottom of the tab with the list above
+   scrolling; on Objects it is the first box. The chat line under a conversation (`inline`:
+   Messages) is no box: a line over the bottom edge with field, counter and button in a row. The
+   tab (.pane) leaves the notch alone on a phone, and the page is 100dvh high, so the keyboard
+   does not cover it. */
 .composebar {
   display: flex;
   flex: none;
@@ -43,7 +48,7 @@ fieldset.composebox {
 .composebar .field {
   margin: 0;
 }
-/* a fold of the form (DisclosureBox, as the Moving of the Objects form): its fields are as far apart as the fields of the form */
+/* a fold of the form (DisclosureBox): its fields are as far apart as the form's fields */
 .composebar-fields > .disclosure > .disclosure-body {
   display: flex;
   flex-direction: column;
@@ -74,8 +79,10 @@ fieldset.composebox {
 .field-control .mail-address {
   flex: 1;
 }
-/* the counter of a text with a limit (LeftCounter.vue), the same in every box and field: its room is the width of the widest it says (`data-room`, the full limit left, and `data-over`, as many over, two
-   lines laid before it unseen with no height, in the weight of "3 over"), the number at its right end, on one line, so that nothing beside it moves while the number shrinks or goes over */
+/* the counter of a text with a limit (LeftCounter.vue): its room is the width of the widest text
+   it says (`data-room`, the full limit left; `data-over`, as many over, in the weight of "3
+   over"; both laid before it unseen with no height), the number at its right end on one line,
+   so that nothing beside it moves as the number shrinks or goes over */
 .compose-left {
   display: inline-block;
   flex: none;

@@ -1,7 +1,7 @@
-// What the map's Layers box switches on the map of the stations, made with the map: the box's place under the zoom buttons (`listen` adds it to the map's controls: lib/layers/control.ts, `place` for
-// components/MapLayers.vue), and the layers the station and the page draw themselves under their ticks (composables/useMapLayers.ts): `add` makes the locator grid first, so that it lies under everything,
-// then the circles (the ALOHA circle while it is ticked, the range of the selected digipeater: composables/useMapCircles.ts), then the aircraft and ships (composables/useMapTraffic.ts: `clicked`, `counts`,
-// `credits` and `shapes` are theirs); `tracks` says whether every track is drawn or only the open cards' own.
+// What the map's Layers box switches on: the box's place under the zoom buttons (`listen`,
+// `place`), and the layers drawn under its ticks. `add` makes the locator grid first, so that it
+// lies under everything, then the circles, then the aircraft and ships. `tracks` says whether
+// every track is drawn or only the open cards' own.
 import { ref } from "vue";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useMapCircles } from "@/composables/useMapCircles";
@@ -29,7 +29,6 @@ export function useMapBoxLayers(map: () => MapLibreMap | null, selected: () => s
       circles.add(to);
       traffic.add(to);
     },
-    /** `hover`: the map's hover box, which shows the aircraft and ships too */
     listen: (to: MapLibreMap, hover: HoverCard | null = null): void => {
       to.addControl(layersControl(place), "top-left");
       grid.listen(to);

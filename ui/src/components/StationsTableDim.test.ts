@@ -8,7 +8,9 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { cssRule } from "@/test/css";
 import { ago, station, table } from "@/test/fixtures";
 
-// Rows drawn over each other (Chromium kept stale copies of the cells of a dimmed row, painted over other rows, when the rows moved or changed): a row of the table has no opacity of its own, and nothing but the head is sticky.
+// Rows drawn over each other: Chromium kept stale copies of the cells of a dimmed row, painted
+// over other rows, when the rows moved or changed. A table row has no opacity of its own, and
+// nothing but the head is sticky.
 const stations = table(
   station("OH2GBA", { is_me: true, distance_km: null, bearing_deg: null, last_heard: ago(500) }),
   station("OH2FRESH", { bearing_deg: 90, last_heard: ago(30), last_position_at: ago(60) }),
@@ -63,7 +65,8 @@ describe("the rows of the Stations table", () => {
       const ofTheGrid = (match[1] ?? "")
         .split(",")
         .map((part) => part.trim())
-        .filter((selector) => selector.startsWith(".grid")); // (the table's own rules: a menu or popup beside it may float)
+        // The table's own rules: a menu or popup beside it may float.
+        .filter((selector) => selector.startsWith(".grid"));
       for (const selector of ofTheGrid) expect(selector).toMatch(/^\.grid th$/);
     }
     const selected = wrapper.find("tbody tr.timedout.selected");

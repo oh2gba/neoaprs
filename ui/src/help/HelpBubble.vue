@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// A speech bubble in a picture with a short text that is the same in every language ("QRU", "QRV 145.500"), its tail under the left end. `lit` draws it in the accent colour: the one that is sent.
+// A speech bubble in a picture with a short text that is the same in every language ("QRU",
+// "QRV 145.500"), its tail under the left end. `lit` draws it in the accent colour (sent).
 defineProps<{ x: number; y: number; w: number; text: string; lit?: boolean }>();
 </script>
 

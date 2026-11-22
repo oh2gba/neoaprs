@@ -1,4 +1,6 @@
-// The range circle of the selected digipeater on the map (lib/nearby.ts, `rangeCircleOf`): the ring of points at its range round its position, as a polygon for the pale fill and its outline (the layers are in lib/rangelayers.ts), and the box round it that the map fits itself to.
+// The selected digipeater's range circle on the map (lib/nearby.ts `rangeCircleOf`): the ring of
+// points at its range as a polygon for the pale fill and outline (layers in lib/rangelayers.ts),
+// and the box the map fits itself to.
 import { ringAround, type LonLat } from "@/lib/alohacircle";
 
 export interface RangeCollection {
@@ -6,7 +8,7 @@ export interface RangeCollection {
   features: { type: "Feature"; properties: { call: string; km: number }; geometry: { type: "Polygon"; coordinates: LonLat[][] } }[];
 }
 
-/** One polygon for each circle (`km` round `lat`, `lon`); no feature for a circle with no radius. */
+/** One polygon per circle (`km` round `lat`, `lon`); none for a circle with no radius. */
 export function rangeFeatures(circles: readonly { call: string; lat: number; lon: number; km: number }[]): RangeCollection {
   return {
     type: "FeatureCollection",
@@ -20,7 +22,7 @@ export function rangeFeatures(circles: readonly { call: string; lat: number; lon
   };
 }
 
-/** The south-west and north-east corners of the box round the circle, from the points of its ring (the longitudes run on past the date line there, as the ring does); null for a circle with no radius. */
+/** The south-west and north-east corners of the box round the circle's ring; null for no radius. */
 export function circleBounds(circle: { lat: number; lon: number; km: number }): [LonLat, LonLat] | null {
   if (!(circle.km > 0)) return null;
   const ring = ringAround({ lat: circle.lat, lon: circle.lon }, circle.km);

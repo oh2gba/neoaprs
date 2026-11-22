@@ -62,8 +62,9 @@ describe("packetFacts", () => {
     const hfAlone = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")), null);
     expect(Object.fromEntries(packetFacts(hf, hfAlone).map((f) => [f.label, f.text]))["Came by"]).toBe("Mercury - heard on radio Mercury");
     const hfOff = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })), null);
-    expect(Object.fromEntries(packetFacts(hf, hfOff).map((f) => [f.label, f.text]))["Came by"]).toBe("Mercury - heard on radio Mercury"); // (the Mercury radio off: what came by it carries its name, plan section 6)
-    expect(facts(hf)).not.toHaveProperty("Came by"); // (before the radios are told: no word that names no radio)
+    // the Mercury radio off: what came by it carries its name
+    expect(Object.fromEntries(packetFacts(hf, hfOff).map((f) => [f.label, f.text]))["Came by"]).toBe("Mercury - heard on radio Mercury");
+    expect(facts(hf)).not.toHaveProperty("Came by"); // before the radios are told: no word that names no radio
     const six = pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "kiss", { name: "Shack", number: 2 })), null);
     const came = (row: PacketRow) => Object.fromEntries(packetFacts(row, six).map((f) => [f.label, f.text]))["Came by"];
     expect(came(withDecoded({ radio_id: 3 }, { type: "position", ...position }))).toBe("Shack - heard on radio Shack");

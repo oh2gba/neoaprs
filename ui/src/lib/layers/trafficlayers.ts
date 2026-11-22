@@ -1,8 +1,11 @@
-// The map's layer of aircraft and ships (lib/layers/traffic.ts): each thing a flat mark in the layers' own colour (`--map-layer`; an emergency in `--bad`) with a thin halo so that it shows on any ground, an aircraft
-// the shape of its kind at its own size (lib/layers/aircraftshapes.ts, 17 to 30 px), a ship's hull and the diamond 16 px, turned to where it heads, faded by its age; from zoom 10 its name under it, as far under as its mark is large, in the regular face
-// and the muted colour of the map's text, giving way to the base map's names and to each other. The marks are images the map is given, one for each shape and colour, drawn from the shapes of the Layers box
-// (lib/layers/marks.ts) at the density of the screen the page opened on (twice at least, three times at most) and given again with the layers, which are made again whenever the style is set (the
-// colour scheme changed: the colours are read from styles/tokens.css then).
+// The map's layer of aircraft and ships (lib/layers/traffic.ts): each a flat mark in the layer
+// colour (`--map-layer`, `--bad` for an emergency) with a thin halo, so it shows on any ground.
+// An aircraft has the shape of its kind (lib/layers/aircraftshapes.ts), a ship a hull and a
+// diamond; marks turn to the heading and fade with age. From zoom 10 the name shows under the
+// mark, giving way to the base map's names and to each other. The marks are images given to the
+// map, one per shape and colour (lib/layers/marks.ts), at the screen density the page opened
+// on, and given again with the layers, which are rebuilt when the style is set (colours are
+// read from styles/tokens.css).
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { paletteColor } from "@/lib/alohalayers";
 import { FONT_REGULAR } from "@/lib/basemapstyle";
@@ -15,21 +18,23 @@ const TRAFFIC_SOURCE = "traffic";
 const TRAIL_SOURCE = "traffic-trail";
 const TRAIL_LAYER = "traffic-trail";
 export const TRAFFIC_LAYER = "traffic";
-/** The things' names. */
 const TRAFFIC_NAMES_LAYER = "traffic-names";
 /** A thing's name shows from this zoom on. */
 const NAMES_FROM_ZOOM = 10;
 /** The halo's width in pixels, half of it outside the shape. */
 const HALO = 2;
 
-/** How many image pixels a pixel of the page has: the screen's density, twice at least and three times at most, read when the marks are made. */
+/** Image pixels per page pixel: the screen density, 2 to 3, read when the marks are made. */
 const pixelRatio = (): number => Math.min(3, Math.max(2, Math.ceil(globalThis.devicePixelRatio || 1)));
 
 /** The name's size in pixels, and the room between the foot of a mark and the top of its name. */
 const NAME_SIZE = 11;
 const NAME_GAP = 1.9;
 
-/** How far under its place a name stands, for each size of mark a thing has: the mark's half and the gap, in the name's ems (0.9 under a mark of 16). */
+/**
+ * How far under its place a name stands for each size of mark: the mark's half plus the gap, in
+ * the name's ems.
+ */
 const NAME_OFFSET: ExpressionSpecification = [
   "match",
   ["get", "side"],
@@ -37,7 +42,10 @@ const NAME_OFFSET: ExpressionSpecification = [
   ["literal", [0, 0.9]],
 ] as unknown as ExpressionSpecification;
 
-/** A shape drawn in a colour with its halo, its box fitted to the middle of a square of its side, as the map takes an image; null where the browser draws nothing (no canvas). */
+/**
+ * A shape drawn in a colour with its halo, fitted to the middle of a square, as the map takes
+ * an image; null when there is no canvas.
+ */
 function drawShape(shape: ThingShape, fill: string, halo: string, ratio: number): ImageData | null {
   if (typeof Path2D === "undefined") return null;
   const canvas = document.createElement("canvas");
@@ -54,13 +62,15 @@ function drawShape(shape: ThingShape, fill: string, halo: string, ratio: number)
   context.lineJoin = "round";
   context.lineWidth = HALO / scale;
   context.strokeStyle = halo;
-  context.stroke(path); // (the outer half stays round the fill: the halo)
+  context.stroke(path); // the outer half stays round the fill: the halo
   context.fillStyle = fill;
   context.fill(path);
   return context.getImageData(0, 0, canvas.width, canvas.height);
 }
 
-/** Gives the map the marks in the colours of the scheme that is on (an image it has already is drawn anew). */
+/**
+ * Give the map the marks in the colours of the scheme that is on (existing images are redrawn).
+ */
 function addTrafficImages(map: MapLibreMap): void {
   const halo = paletteColor("--map-halo", "rgba(255, 255, 255, 0.9)");
   const colours = { plain: paletteColor("--map-layer", "#8e24aa"), bad: paletteColor("--bad", "#b9401d") };
@@ -70,13 +80,16 @@ function addTrafficImages(map: MapLibreMap): void {
       const image = drawShape(shape, emergency ? colours.bad : colours.plain, halo, ratio);
       if (!image) return;
       const name = imageName(shape, emergency);
-      if (map.hasImage(name)) map.removeImage(name); // (an image keeps the ratio it was added with)
+      if (map.hasImage(name)) map.removeImage(name); // an image keeps the ratio it was added with
       map.addImage(name, image, { pixelRatio: ratio });
     }
   }
 }
 
-/** The first of the base map's names (the names of the roads, the places), before which the things' names are drawn: none on a blank map. */
+/**
+ * The first of the base map's name layers, before which the names of things go; none on a blank
+ * map.
+ */
 function firstBaseName(map: MapLibreMap): string | undefined {
   return map.getStyle().layers.find((layer) => layer.type === "symbol")?.id;
 }
@@ -86,9 +99,11 @@ export function addTrafficLayers(map: MapLibreMap, data: TrafficCollection = NO_
   if (map.getSource(TRAFFIC_SOURCE)) return;
   const ink = paletteColor("--map-label", "#1d2125");
   const halo = paletteColor("--map-halo", "rgba(255, 255, 255, 0.9)");
-  const before = firstBaseName(map); // (asked before the marks are added: the page's own layers come after the base map's)
+  // asked before the marks are added: the page's own layers come after the base map's
+  const before = firstBaseName(map);
   map.addSource(TRAFFIC_SOURCE, { type: "geojson", data });
-  // the way the thing whose card is open has gone: under the marks (and over the grid and the circles, which were made first)
+  // The trail of the thing whose card is open goes under the marks, over the grid and circles
+  // made first.
   map.addSource(TRAIL_SOURCE, { type: "geojson", data: trail });
   map.addLayer({
     id: TRAIL_LAYER,
@@ -111,7 +126,8 @@ export function addTrafficLayers(map: MapLibreMap, data: TrafficCollection = NO_
     },
     paint: { "icon-opacity": ["get", "opacity"] },
   });
-  // The names: a layer of their own under the base map's names, so that the map places those first and a thing's name gives way to them and to the other things' names.
+  // The names are a layer of their own under the base map's names, so the map places those first
+  // and a thing's name gives way to them and to other names.
   map.addLayer(
     {
       id: TRAFFIC_NAMES_LAYER,
@@ -137,7 +153,6 @@ export function addTrafficLayers(map: MapLibreMap, data: TrafficCollection = NO_
   );
 }
 
-/** What the layer draws. */
 export function setTrafficData(map: MapLibreMap, data: TrafficCollection): void {
   void map.getSource<GeoJSONSource>(TRAFFIC_SOURCE)?.setData(data);
 }

@@ -1,4 +1,6 @@
-// A word to the user that is no error: the toast "Asked OH2XYZ for its status", "Copied OH2XYZ". One at a time, a new one replaces the one shown (`n` counts up, so that the same words twice are two notices); ToastBar shows it in the place of the daemon's errors.
+// A word to the user that is no error ("Copied OH2XYZ"). A new one replaces the one shown (`n`
+// counts up, so the same words twice are two notices); ToastBar shows it in place of the daemon's
+// errors.
 import { shallowRef } from "vue";
 
 export interface Notice {

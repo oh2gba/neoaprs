@@ -1,16 +1,10 @@
 <script setup lang="ts">
-// The box of one radio in the Radio group of the Settings tab (and of the setup guide's Radio step): a box with the radio's legend (while it is named, the name typed; else the box's word of its kind: "FM radio", "HF radio 2") that folds by its arrow, kept in
-// this browser by the radio (`settings.fold.radio-3`). In it, in this order:
-// - Enable, its tickbox, with the (i) of its kind; greyed while it is the only radio on (`only`), since a station keeps one radio on; a tick on its way is told to the group (`pending`), so that the others' follow at once;
-// - while the station has several radios (`named`; a station of one radio has the box it always had), Name and Remove, outside the status, so that a radio that is off can be renamed and removed: the Name's placeholder is what the radio is called without one
-//   ("HF 2"), a name is sent when the field is left or Enter is pressed (`radio_change`; one that another radio is called by is refused here in the daemon's words), and Remove asks twice (`radio_remove`), and is off for the only radio on;
-// - while the radio is on, its status line (RadioStatus) and behind its arrow the Radio type (the types of its kind), the type's fields (SettingsRadioFields) and what the type can do: the suggested frequencies, Find my radio,
-//   and with `tools` (the Settings tab; the guide leaves them out) Tune, the transmit level and the scope.
-// A radio is worked by its own settings (`radio/3/port`), `radio_change` for its Enable, type and name, and told by its row of the topic `radios`. The daemon's
-// refusal of a change of the radio stands under the field it is about (its coded text), in the box that asked last (the refusal names no radio), and what was chosen stays shown until the radio's row says it or the
-// daemon refuses it (a change that could not be sent, or whose answer the lost connection took, shows the daemon's again at once). The fold opens by itself while the radio is on and not connected, for a complaint about one of its fields, and for a refusal; the page leads to a box by lib/attention.ts (the radio just added). The
-// box says which radio it is to what is pressed inside it (`data-radio`, the name while several radios are on, the type): Find my radio searches for that radio. Its ids and its fold are the place's (lib/settingsradio.ts BOX_IDS: the setup
-// guide's Radio step shows the same boxes while the Settings tab's are on the page too).
+// The box of one radio in the Radio group (also in the setup guide), folding by its arrow.
+// It holds, in order: Enable, Name and Remove (when the station has several radios), the status
+// line, and behind the arrow the type, its fields and what the type can do.
+// Settings are the radio's own (`radio/3/port`); `radio_change` sends Enable, type and name.
+// The daemon's refusal appears under the field it is about, in the box that asked last.
+// Ids and fold state come from lib/settingsradio.ts BOX_IDS.
 import { computed, nextTick, ref, watch } from "vue";
 import FindRadioRow from "@/components/FindRadioRow.vue";
 import HfFrequencies from "@/components/HfFrequencies.vue";
@@ -43,7 +37,9 @@ const props = withDefaults(
     settings: Settings;
     form: SettingsFormState;
     defaults: Record<string, string>;
-    /** the station has several radios: the box has Name and Remove, and its legend is the name typed */
+    /**
+     * the station has several radios: the box has Name and Remove, and its legend is the name typed
+     */
     named?: boolean;
     /** it is the only radio on: its Enable is greyed and its Remove off */
     only?: boolean;
@@ -52,25 +48,25 @@ const props = withDefaults(
   }>(),
   { named: false, only: false, tools: true },
 );
-/** `pending`: the tick of the radio on its way to the daemon (null once it is told back or refused). */
+/** `pending`: the tick of the radio on its way to the daemon (null once answered or refused). */
 const emit = defineEmits<{ pending: [enabled: boolean | null] }>();
 const context = useDaemonContext();
 const { send, now, lastError, connection, status } = context;
 const radios = useRadios();
-/** The ids of the place the box is in (the Settings tab's, or the setup guide's: lib/settingsradio.ts BOX_IDS). */
+/** The ids of the place the box is in (the Settings tab or the setup guide). */
 const ids = boxIds();
 
-/** What the operator changed and the daemon has not told back yet: the tick, the type, the name. Each is shown until the radio's row says it or it is refused. */
+/** What the operator changed and the daemon has not confirmed yet: the tick, the type, the name. */
 const pending = ref<{ enabled?: boolean; type?: PageRadio["type"]; name?: string }>({});
 const enabled = computed(() => pending.value.enabled ?? props.radio.enabled);
 const type = computed(() => pending.value.type ?? props.radio.type);
 const connected = computed(() => props.radio.row.state === "connected");
 const fields = computed(() => boxKeys({ ...props.radio, type: type.value }));
 const can = computed(() => props.radio.row.can);
-/** Find my radio is in the box of a radio with a serial line (plan section 6a). */
+/** Find my radio is offered for a radio with a serial line. */
 const findable = computed(() => can.value.find);
 
-/** The change of a radio the page asked last (one for the page), and the daemon's refusal of it under its field. */
+/** The change the page asked last, and the daemon's refusal of it. */
 type Part = Asked["part"];
 const asked = askedOn(context);
 const refusal = ref<{ part: Part; text: string } | null>(null);
@@ -78,7 +74,7 @@ function change(part: Part, values: Omit<RadioChangeCommand, "cmd" | "radio">): 
   refusal.value = null;
   asked.value = { radio: props.radio.id, part };
   pending.value = { ...pending.value, [part]: values[part] };
-  // not sent: the toast says not connected, and the box shows the daemon's again (once the change has been drawn, so that the control the operator worked is drawn back)
+  // not sent: the box shows the daemon's value again once the change has been drawn
   if (!send({ cmd: "radio_change", radio: props.radio.id, ...values })) void nextTick(() => settle(part));
 }
 function settle(part: Part): void {
@@ -92,7 +88,7 @@ watch(lastError, (toast) => {
   refusal.value = { part: mine.part, text: errorReason(toast, radios) };
   settle(mine.part);
 });
-// the row says what was asked: what is shown is the daemon's again (a row that changes for anything else, its state, keeps what was chosen)
+// the row confirms what was asked: show the daemon's value again
 watch(
   () => props.radio,
   (radio) => {
@@ -102,7 +98,7 @@ watch(
     if (asking.name !== undefined && radio.row.name === asking.name) settle("name");
   },
 );
-// a change lost with the connection is never told back: the box shows the daemon's again, and the radios the daemon tells when it is back say what is in force
+// a change lost with the connection is never confirmed: show the daemon's value again
 watch(connection, (state) => {
   if (state !== "open") for (const part of ["enabled", "type", "name"] as const) if (pending.value[part] !== undefined) settle(part);
 });
@@ -112,7 +108,7 @@ watch(
 );
 const refused = (part: Part): string => (refusal.value?.part === part ? refusal.value.text : "");
 
-/** The Enable of the radio: the words and the (i) of its kind's Enable; of a type that only listens, an (i) that says so in place of what its kind sends. */
+/** The Enable of the radio, with the (i) of its kind; a listen-only type has its own (i). */
 const enableInfo = computed<FieldInfo>(() => {
   const own = FIELDS[`${props.radio.kind}/enabled`] ?? { label: t("settings.enable.label"), kind: "bool" };
   const kind = typeOf(props.radio)?.can.transmit === false ? { ...own, tip: [t("settings.rx_enabled.tip1"), t("settings.fm_enabled.tip2")] } : own;
@@ -122,7 +118,7 @@ function tick(text: string): void {
   change("enabled", { enabled: text === "true" });
 }
 
-/** The Radio type of the radio: the types of its kind, with the (i) of the one list. */
+/** The Radio type of the radio: the types of its kind. */
 const typeInfo = computed<FieldInfo>(() => ({
   ...(FIELDS[props.radio.kind === "hf" ? "hf/profile" : "tnc/profile"] ?? { label: t("settings.profile.label") }),
   kind: "choice",
@@ -134,7 +130,9 @@ function choose(key: string): void {
   change("type", { type: chosen });
 }
 
-/** The Name: what is typed, sent when the field is left or Enter is pressed; it follows the daemon while it is not being edited. */
+/**
+ * The Name: sent when the field is left or Enter is pressed; follows the daemon while not edited.
+ */
 const name = ref(props.radio.row.name);
 const nameProblem = ref("");
 watch(
@@ -151,11 +149,13 @@ const nameInfo = computed<FieldInfo>(() => ({
   tipLabel: t("radio.name.tip_label"),
   tip: [t("radio.name.tip1")],
 }));
-/** Whether another radio of the station is called by this name already (its name or, without one, its label "FM 2"), case folded as the daemon compares names. */
+/** Whether another radio already has this name (or, without one, this label), case folded. */
 const taken = (typed: string): boolean =>
   typed !== "" && radios.all.value.some((other) => !other.removed && other.id !== props.radio.id && other.name.toLowerCase() === typed.toLowerCase());
-/** Whether a name is in the form of the label of a radio with no name of its own: a word of a kind as the catalogue has it (FM, Mercury, LoRa: the same in every language), alone or with a space and a number
- * ("FM 2"), case folded (the daemon refuses these itself: `radio.name_label`). The name of a band ("HF", "20 m") is no kind's word and is taken. */
+/**
+ * Whether a name has the form of an unnamed radio's label (a kind word alone or with a number, case
+ * folded). The daemon refuses these too (`radio.name_label`); a band name such as "20 m" is a name.
+ */
 const labelLike = (typed: string): boolean => {
   const folded = typed.toLowerCase().replace(/ \d+$/, "");
   return Object.values(KIND_WORDS).some((id) => t(id).toLowerCase() === folded);
@@ -184,7 +184,10 @@ function typing(text: string): void {
 const sure = useSure<"remove">();
 const remove = (): void => sure.press("remove", () => send({ cmd: "radio_remove", radio: props.radio.id }));
 
-/** The box opens by itself: the radio is on and not connected, the daemon complains about one of its fields or asks about one, or a change of it was refused. */
+/**
+ * The box opens by itself when the radio is on and not connected, or a field has a complaint or a
+ * refusal.
+ */
 const look = computed(() => {
   const mine = fields.value;
   return (

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// A sentence of the catalogue with markup inside it: the message names a place for each piece, `{link}` or `{code}`, and the caller gives the piece as the slot of that name (`<template #link><a>...</a></template>`).
-// The sentence stays one message, so that a language can put the pieces where its words want them. The values that are text are `params`; a name that has no value is a slot.
+// A catalogue sentence with markup: the message names places like `{link}` or `{code}` and the
+// caller fills each with a slot of that name. The sentence stays one message so that a language can
+// reorder the pieces. Values that are text are `params`; a name with no value is a slot.
 import { computed } from "vue";
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";

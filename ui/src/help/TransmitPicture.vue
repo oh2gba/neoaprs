@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// RX only: our station hears the others (an arrow in), and what it would send goes nowhere (dashed, crossed out).
+// RX only: our station hears the others (arrow in); what it would send goes nowhere (dashed,
+// crossed out).
 import { CALLS } from "@/help/calls";
 import { arrow } from "@/help/draw";
 import { t } from "@/i18n";

@@ -1,6 +1,9 @@
-// The layers of the map's replay (lib/replay.ts, composables/useMapReplay.ts): the trails of the stations up to the time of the replay, a line in the colour of the live tracks that fades behind each station, over the
-// live layers; and the live tracks and the route of the selected station, which give way while the replay plays and come back as they were when it closes (their data goes on being set meanwhile). The colour is
-// read when the layer is made, which is again whenever the style is set (the colour scheme changed).
+// The layers of the map's replay (lib/replay.ts, composables/useMapReplay.ts): the station
+// trails up to the replay time, a line in the colour of the live tracks that fades behind each
+// station, over the live layers; and the live tracks and the selected station's route, which
+// give way while the replay plays and return as they were when it closes (their data keeps
+// being set meanwhile). The colour is read when the layer is made, which happens again whenever
+// the style is set (the colour scheme changed).
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { paletteColor } from "@/lib/alohalayers";
 import { ROUTE_LAYERS } from "@/lib/routelayers";

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The access key: typed once on a phone (the dots in the field), after which the phone stays logged in (the tick).
+// The access key: typed once on a phone (dots in the field), after which the phone stays
+// logged in (the tick).
 import { arrow } from "@/help/draw";
 import HelpFrame from "@/help/HelpFrame.vue";
 

@@ -19,12 +19,14 @@ describe("App: RX only", () => {
     const radio = wrapper.findAll("#pane-settings fieldset").find((f) => f.find("legend").text() === "Radio");
     expect(radio?.find(".field label").text()).toBe("RX only");
     expect(radio?.find(".field input").attributes("type")).toBe("checkbox");
-    expect((radio?.find(".field input").element as HTMLInputElement).checked).toBe(false); // (unticked: the station transmits)
+    // Unticked: the station transmits.
+    expect((radio?.find(".field input").element as HTMLInputElement).checked).toBe(false);
     expect(radio?.find(".field .infotip").exists()).toBe(true);
     await tabButton(wrapper, "My station")?.trigger("click");
     expect(wrapper.find("#pane-beacon").text()).not.toContain("RX only");
     await radio?.find(".field input").setValue(true);
-    expect(socket.sent).toContainEqual({ cmd: "set_config", values: { [KEY]: "false" } }); // (ticked: RX only, which is station/transmit false)
+    // Ticked: RX only, which is station/transmit false.
+    expect(socket.sent).toContainEqual({ cmd: "set_config", values: { [KEY]: "false" } });
   });
 
   it("shows the RX only mark on the warn plate after the Daemon and Radio marks, in place of the old badge, while transmitting is off, and none while it is on", async () => {
@@ -110,7 +112,8 @@ describe("App: RX only", () => {
     await tabButton(wrapper, "Objects")?.trigger("click");
     expect(wrapper.find("#pane-objects form button[type=submit]").attributes("title")).toBe("RX only: nothing is sent");
     await say(socket, 2, { [KEY]: "true" });
-    expect(wrapper.find("#pane-objects form button[type=submit]").attributes("title")).toBe("Choose a place first"); // (a new object has no place until one is picked)
+    // A new object has no place until one is picked.
+    expect(wrapper.find("#pane-objects form button[type=submit]").attributes("title")).toBe("Choose a place first");
   });
 
   it("says the beacon is off in the toast when the daemon refuses Beacon now for that, and the daemon's RX only refusal in the page's words", async () => {

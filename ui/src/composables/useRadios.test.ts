@@ -138,7 +138,8 @@ describe("useRadios", () => {
     expect(ids(enabled.value)).toEqual([1, 2, 4, 5, 3, 6]);
     expect([ids(senders.value), severalSenders.value, unheard.value?.id]).toEqual([[1, 2, 3, 6], true, 1]);
     expect(all.value.map((radio) => named(radio.id))).toEqual([true, true, true, true, true, true]);
-    expect(all.value.map((radio) => radio.carriesPath)).toEqual([true, false, false, false, true, true]); // (a LoRa board carries WIDE1-1; the two that only receive carry none)
+    // A LoRa board carries WIDE1-1; the two that only receive carry none.
+    expect(all.value.map((radio) => radio.carriesPath)).toEqual([true, false, false, false, true, true]);
   });
 
   it("gives the radio a station or a message goes on, any radio by its id, and for a call nothing is known of the radio the daemon names for a call no radio heard", () => {

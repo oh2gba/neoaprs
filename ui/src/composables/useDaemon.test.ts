@@ -322,7 +322,9 @@ describe("useDaemon", () => {
     expect(reload).toHaveBeenCalledTimes(1);
     expect(daemon.mismatch.value).toBeNull();
     FakeSocket.all = [];
-    const { daemon: second, socket: again } = setUp(); // the page after the load: the guard in the session storage is what the first load was made for
+    // The page after the load: the guard in the session storage is what the first load was made
+    // for.
+    const { daemon: second, socket: again } = setUp();
     again.say(hello(wrong));
     expect(reload).toHaveBeenCalledTimes(1);
     expect(second.mismatch.value).toEqual({ page: `-/${PROTOCOL}`, neoaprs: `9.9.9, index-Daemon01.js/${PROTOCOL + 1}` });

@@ -1,5 +1,6 @@
-// A radio of a type that only listens (`tnc-text`: a Yaesu FTM, a TNC that prints what it hears): it is in no list of the radios to send on, and while it is the only kind of radio on, the header says RX only
-// with a title of its own, and the page is receive only as with RX only ticked.
+// A radio type that only listens (`tnc-text`, e.g. a TNC that prints what it hears) is in no list
+// of radios to send on. While it is the only radio on, the header says RX only with its own title
+// and the page is receive-only, as with RX only ticked.
 import { describe, expect, it } from "vitest";
 import { t } from "@/i18n";
 import { headerPills } from "@/lib/pills";

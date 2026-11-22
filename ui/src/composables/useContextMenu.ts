@@ -1,5 +1,7 @@
-// What a menu that opens where the pointer is has in common (the menu of a row of the Stations table, StationMenu; the copy menu of a call or a text, CopyMenu): it is a list of items at `x`, `y`, kept inside the window (moved left and up as far as it needs), it takes
-// the focus on its first item when it is shown, Up, Down, Home and End move in it, Esc closes it (the focus goes back to `trigger`), and so do a press outside it and Tab. The component owns its items and what choosing one does, and says `close` when it is done.
+// What a menu that opens at the pointer has in common (StationMenu, CopyMenu): a list of items at
+// `x`, `y`, kept inside the window, which takes the focus on its first item when shown. Up, Down,
+// Home and End move in it; Esc, a press outside and Tab close it (the focus goes back to
+// `trigger`). The component owns its items and says `close` when it is done.
 import { computed, nextTick, onMounted, ref, type Ref } from "vue";
 import { usePopup } from "@/composables/usePopup";
 
@@ -9,16 +11,13 @@ export interface ContextMenuOptions {
   x: () => number;
   y: () => number;
   trigger: () => HTMLElement | null;
-  /** the `ul` of the menu */
   list: Readonly<Ref<HTMLElement | null>>;
-  /** the items, in their order */
   buttons: Readonly<Ref<HTMLElement[]>>;
   close: () => void;
 }
 
 export function useContextMenu({ x, y, trigger, list, buttons, close }: ContextMenuOptions) {
   const open = ref(false);
-  /** Where the menu stands: where it was asked for, kept inside the window. */
   const at = ref({ left: x(), top: y() });
 
   function closeMenu(): void {
@@ -50,7 +49,7 @@ export function useContextMenu({ x, y, trigger, list, buttons, close }: ContextM
     }
   }
 
-  /** Keeps the menu inside the window: where it was asked for, moved left and up as far as it needs. */
+  /** Keep the menu inside the window, moved left and up as far as it needs. */
   function clamp(): void {
     const box = list.value?.getBoundingClientRect();
     if (!box) return;

@@ -1,4 +1,4 @@
-// The addressees of the Email tab used before (addresses and the names of contacts), the newest first, remembered in the browser (lib/storage.ts).
+// The addressees the Email tab used, newest first, kept in the browser.
 import { shallowRef } from "vue";
 import { forgetAddress, parseAddresses, rememberAddress } from "@/lib/email";
 import { readStored, writeStored } from "@/lib/storage";
@@ -13,11 +13,8 @@ export function useAddressBook() {
     writeStored(KEY, JSON.stringify(list));
   }
 
-  /** The list as stored now: another window of the browser may have changed it since. */
   const now = (): string[] => parseAddresses(readStored(KEY));
-  /** Puts the addressee first in the list. */
   const remember = (to: string): void => keep(rememberAddress(now(), to));
-  /** Takes the addressee out of the list. */
   const forget = (name: string): void => keep(forgetAddress(now(), name));
 
   return { addresses, remember, forget };

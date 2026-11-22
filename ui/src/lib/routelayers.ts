@@ -1,5 +1,9 @@
-// The layers of the routes of the selected station (lib/routeline.ts): a pale casing under the line so that it shows on any ground, the latest route solid, the one before it grey, thinner and dashed, a dot on
-// each digipeater with its call beside it, and the iGate that ends a route to the internet in the colour of the internet. The colours are the page's own (ui/src/styles/tokens.css), read when the layers are made, which is again whenever the style is set (the colour scheme changed).
+// The layers of the selected station's routes (lib/routeline.ts): a pale casing under the line
+// so it shows on any ground, the latest route solid, the one before it grey, thinner and
+// dashed, a dot on each digipeater with its call beside it, and the iGate that ends a route to
+// the internet in the internet's colour. The colours are the page's own
+// (ui/src/styles/tokens.css), read when the layers are made, which happens again whenever the
+// style is set (the colour scheme changed).
 import type { ExpressionSpecification, Map as MapLibreMap } from "maplibre-gl";
 import { FONT_REGULAR } from "@/lib/basemapstyle";
 import type { RouteCollection } from "@/lib/routeline";
@@ -14,7 +18,10 @@ const PREVIOUS: ExpressionSpecification = ["==", ["get", "previous"], 1];
 const LATEST: ExpressionSpecification = ["==", ["get", "previous"], 0];
 const IGATE: ExpressionSpecification = ["==", ["get", "end"], 1];
 
-/** A colour of the page's palette (`--map-route`), else the one given where the style sheet is not there. */
+/**
+ * A colour of the page's palette (`--map-route`), else the one given where the style sheet is
+ * not there.
+ */
 function paletteColor(name: string, fallback: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }

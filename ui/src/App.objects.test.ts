@@ -36,7 +36,10 @@ describe("App: the Objects tab", () => {
         .find((f) => f.find("label").text() === label)
         ?.find<HTMLInputElement>("input");
     const button = (wrapper: VueWrapper, text: string) => wrapper.findAll("#pane-objects button").find((b) => b.text() === text);
-    /** The place of the form in words (the text beside Choose on map), and a coordinate of the entry behind it, which a click on the place opens. */
+    /**
+     * The place of the form in words (the text beside Choose on map) and a coordinate of the entry
+     * behind it.
+     */
     const placeText = (wrapper: VueWrapper) => wrapper.find("#pane-objects .location-place").text();
     const coordinate = async (wrapper: VueWrapper, label: string) => {
       if (!wrapper.find("#pane-objects .location-entry").exists()) await wrapper.find("#pane-objects .location-place").trigger("click");

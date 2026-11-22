@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Receive only: the stations that APRS-IS has within the map's radius come to our map, one way. Nothing goes back, and nothing of it goes on the air.
+// Receive only: stations that APRS-IS has within the map radius reach our map, one way. Nothing
+// goes back or onto the air.
 import { CALLS } from "@/help/calls";
 import { arrow } from "@/help/draw";
 import { t } from "@/i18n";

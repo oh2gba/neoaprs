@@ -14,7 +14,8 @@ const ask = (wrapper: ReturnType<typeof mount>) => wrapper.find("button.btn");
 const pills = (wrapper: ReturnType<typeof mount>) => wrapper.findAll("button.qru-group");
 const asked = (text: string) => ({ cmd: "qru_ask", text });
 let told = 0;
-/** The daemon tells the request it took, long enough ago to hold nothing back: the next press sends. */
+/** The daemon tells the request it took, long enough ago to hold nothing back: the next press
+ * sends. */
 const answer = (daemon: ReturnType<typeof fakeDaemon>) =>
   tell(daemon, { qru: { ...(daemon.qru.value ?? qruState({ asked: null })), asked: qruAsked("INFO", ago(100 + ++told)) } });
 const row = (wrapper: ReturnType<typeof mount>) => wrapper.find(".qrustatus");
@@ -100,7 +101,7 @@ describe("Local info in the Objects tab", () => {
     await row(wrapper).find("summary").trigger("click");
     expect(row(wrapper).text()).toContain("Last request: RP70 150");
     expect(ask(wrapper).attributes("title")).toBe("Next request in 5 s");
-    expect(pills(wrapper).map((p) => p.attributes("title"))).toEqual(["Next request in 55 s", "Next request in 5 s"]); // (RP70 again, RP2M)
+    expect(pills(wrapper).map((p) => p.attributes("title"))).toEqual(["Next request in 55 s", "Next request in 5 s"]);
     await pills(wrapper)[1]?.trigger("click");
     expect(daemon.send).not.toHaveBeenCalled();
     await tell(daemon, { now: NOW + 6_000 });

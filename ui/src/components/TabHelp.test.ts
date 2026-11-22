@@ -1,4 +1,5 @@
-// The (i) at the top of a tab: a thin bar with the (i) at its right end, whose note says what the tab is for.
+// The (i) at the top of a tab: a thin bar with the (i) at its right end, whose note says what the
+// tab is for.
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import TabHelp from "@/components/TabHelp.vue";
@@ -23,6 +24,8 @@ describe("TabHelp", () => {
   it("is a thin bar with the (i) at the right whose note opens leftward, as the Email tab's bar is", () => {
     expect(cssRule(".tab-help")).toMatch(/justify-content:\s*flex-end/);
     expect(cssRule(".tab-help")).toMatch(/flex:\s*none/);
-    expect(cssRule(".info-text")).toMatch(/position:\s*fixed/); // (the note is fixed in the window and placed by the (i), so that it opens leftward from the corner and no edge clips it)
+    // The note is fixed in the window and placed by the (i), so it opens leftward from the corner
+    // and no edge clips it.
+    expect(cssRule(".info-text")).toMatch(/position:\s*fixed/);
   });
 });

@@ -1,17 +1,23 @@
-// The note over the map (components/StationMap.vue): which of the two map files the daemon has, whether the engine could be loaded, and which sources the engine could not open an archive of. From these: the id of the message that stands over the map when
-// it cannot be drawn well (or none) and whether it has the button that goes to where the map is made.
+// The note over the map: from which map files the daemon has, whether the engine loaded and
+// which sources it could not open, the id of the message shown when the map cannot be drawn well
+// (or none), and whether it has the button to where the map is made.
 import { computed, ref } from "vue";
 import type { MessageId } from "@/i18n/catalogue";
 import { BASE_SOURCE, WORLD_SOURCE } from "@/lib/basemapstyle";
 import type { DaemonContext } from "@/composables/useDaemonContext";
 
-/** `page`: the first-run guide (whether it is open) and the base map's state (whether a download runs). */
+/** `page`: whether the first-run guide is open and whether a base map download runs. */
 export function useMapNote(page: Pick<DaemonContext, "guide" | "map">) {
-  const files = ref({ detail: false, world: false }); // which of the two files the daemon has
-  const engineFailed = ref(false); // the map engine could not be loaded, or the browser has no WebGL
-  const unreadable = ref<string[]>([]); // the sources whose archive the engine could not open (a file that is not a PMTiles archive)
+  const files = ref({ detail: false, world: false });
+  // The engine could not be loaded, or the browser has no WebGL.
+  const engineFailed = ref(false);
+  // Sources whose archive the engine could not open (not a PMTiles archive).
+  const unreadable = ref<string[]>([]);
 
-  /** What stands over the map: the no-detail line is left out while the first-run guide is open (it makes the detailed map itself) or a download runs. */
+  /**
+   * The note over the map; the no-detail line is left out while the guide is open or a download
+   * runs.
+   */
   const note = computed<MessageId | "">(() => {
     if (engineFailed.value) return "map.note.no_engine";
     const { detail, world } = files.value;
@@ -19,16 +25,19 @@ export function useMapNote(page: Pick<DaemonContext, "guide" | "map">) {
     if ((!detail || unreadable.value.includes(BASE_SOURCE)) && (!world || unreadable.value.includes(WORLD_SOURCE))) return "map.note.unreadable";
     return !detail && !page.guide.open && page.map.value?.state !== "downloading" ? "map.note.no_detail" : "";
   });
-  /** ... and whether it has the button that goes to where the map is made (not over the guide, which has its own quiet line about the map). */
+  /** Whether the note has the button to where the map is made (not over the guide). */
   const offerDownload = computed(
     () =>
       !page.guide.open &&
       (note.value === "map.note.no_basemap" || note.value === "map.note.no_detail" || (note.value === "map.note.unreadable" && files.value.detail)),
   );
 
-  /** A source whose archive cannot be opened (the error has no tile: it is the file's header or directory that failed) is a map file that cannot be drawn. */
+  /**
+   * A source whose archive cannot be opened (an error with no tile: the header or directory
+   * failed).
+   */
   function onMapError(event: unknown): void {
-    const { sourceId, tile } = event as { sourceId?: string; tile?: unknown }; // (the engine adds the source and the tile to the error event it fires)
+    const { sourceId, tile } = event as { sourceId?: string; tile?: unknown };
     if (sourceId && tile === undefined && [BASE_SOURCE, WORLD_SOURCE].includes(sourceId) && !unreadable.value.includes(sourceId)) {
       unreadable.value = [...unreadable.value, sourceId];
     }

@@ -1,5 +1,7 @@
-// Calls `shown` when an element comes into view (and `useInView`, whether it is in view now): when its tab is opened, when the fold it is in is unfolded, when it is scrolled to (an IntersectionObserver), at most once in `everyMs`, and once when it is made where there is no observer. For
-// the rows that ask the daemon for something fresh when the person looks at them (the HF box's suggested frequencies).
+// Calls `shown` when an element comes into view (and `useInView`, whether it is in view now): when
+// its tab opens, its fold unfolds or it is scrolled to (IntersectionObserver), at most once in
+// `everyMs`, and once when made where there is no observer. For rows that ask the daemon for
+// something fresh when looked at.
 import { onBeforeUnmount, onMounted, ref, type Ref } from "vue";
 
 export function useWhenShown(target: Readonly<Ref<HTMLElement | null>>, shown: () => void, everyMs = 60_000): void {
@@ -24,8 +26,7 @@ export function useWhenShown(target: Readonly<Ref<HTMLElement | null>>, shown: (
   onBeforeUnmount(() => observer?.disconnect());
 }
 
-/** Whether the element is in view now: its tab open, the fold it is in unfolded, scrolled to (an IntersectionObserver); in view from its making where there is no observer. For the rows that are sent something
- * the daemon sends only to a page that shows it (a Sound card radio's receive level ten times a second, components/SoundCardLevel.vue). */
+/** Whether the element is in view now; in view from its making where there is no observer. */
 export function useInView(target: Readonly<Ref<HTMLElement | null>>): Readonly<Ref<boolean>> {
   const inView = ref(false);
   let observer: IntersectionObserver | null = null;

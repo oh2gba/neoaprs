@@ -9,7 +9,8 @@
   font: inherit;
   min-width: 0;
 }
-/* the text area of a dialog (Send logs): a few lines, a size of its own that the person cannot drag, so that nothing round it moves */
+/* the text area of a dialog (Send logs): a few lines, a fixed size the person cannot drag, so
+   nothing round it moves */
 .input.area {
   height: auto;
   padding: 6px 8px;
@@ -33,7 +34,9 @@ tbody tr:focus-visible {
 .input.invalid {
   border-color: var(--bad);
 }
-/* The one text button: --control-h high like the inputs and selects beside it, filled (.primary, .danger) or not. Only .small is lower, --control-h-small, and only where the button sits in the line of a text or a list row. */
+/* The one text button: --control-h high like the inputs and selects beside it, filled (.primary,
+   .danger) or not. Only .small is lower (--control-h-small), and only where the button sits in
+   a line of text or a list row. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -49,7 +52,7 @@ tbody tr:focus-visible {
   line-height: 1.4;
   cursor: pointer;
 }
-/* the envelope that says "message" (components/MessageGlyph.vue), beside a text or alone in a small button */
+/* the message envelope (components/MessageGlyph.vue), beside a text or alone in a small button */
 .msgglyph {
   flex: none;
   vertical-align: -0.2em;
@@ -71,7 +74,8 @@ tbody tr:focus-visible {
   border-color: var(--bad);
   color: var(--on-strong);
 }
-/* the site's buttons under the pointer: the plain one takes the accent's edge, a filled one lightens; colours only, nothing of the size */
+/* buttons under the pointer: a plain one takes the accent's edge, a filled one lightens; colours
+   only, never the size */
 .btn:not(.primary):not(.danger):not(:disabled):hover {
   border-color: var(--accent);
 }
@@ -105,7 +109,8 @@ a.btn {
   text-align: center;
   color: var(--muted);
 }
-/* a problem is a warn: petrol on the lime plate (the dark theme: lime on a dark lime plate), its 1-px edge the plate's own */
+/* a problem is a warn: petrol on the lime plate (dark theme: lime on a dark lime plate), with a
+   1px edge in the plate's colour */
 .problem {
   margin: 0 8px;
   padding: 6px 8px;

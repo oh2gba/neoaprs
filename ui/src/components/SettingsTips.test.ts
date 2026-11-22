@@ -1,4 +1,5 @@
-// The (i) beside the Settings tab's fields that a non-developer may not understand: closed until clicked, then a few plain sentences.
+// The (i) beside the Settings tab's fields that a non-developer may not understand: closed until
+// clicked, then a few plain sentences.
 import { DOMWrapper, mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -28,7 +29,7 @@ describe("the (i) of the Settings tab", () => {
       "set-radio-1-type",
       "Which radio type to pick",
       /An FM radio on a Digirig.* is Sound card\..*KISS TNC.*Mercury modem is heard only by stations with Mercury.*Dummy/s,
-    ], // (the one (i) of the one list, plan section 6; no file of the documents on the page)
+    ], // (the one (i) of the one list)
     ["set-radio-1-port", "About the port", /Find automatically looks for it.*\/dev\/ttyUSB0.*COM3.*Refresh reads the list again/s],
     ["set-radio-1-baud", "About the speed", /Leave it empty.*57600 for a NinoTNC/s],
     ["set-map-radius_km", "About the radius", /bigger download.*150 km is a region/s],

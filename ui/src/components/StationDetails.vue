@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The rest of a station's card, closed until "Details" is opened: how its packets reach us (the path of the latest one as it was sent, how many came direct and by which repeaters, the best route and the path to send by),
-// when it was first heard, the number of packets (all of them, and those of the last hour), and what the daemon decodes beyond the position, a line each (the PHG, range, DF and area are on the card itself): the storm data of a hurricane object, what a signpost says, the Maidenhead locator of its status, and the telemetry channels with the names and units it defined.
-// A row with nothing to say is left out. It is for the few who want to know; the card says the main facts (components/StationCard.vue).
+// The rest of a station's card, folded until "Details" is opened: how its packets reach us, when it
+// was first heard, packet counts, and what the daemon decodes beyond the position (storm data,
+// signpost text, Maidenhead locator, telemetry). Rows with nothing to say are left out.
 import { computed } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import { t } from "@/i18n";
@@ -14,7 +14,10 @@ const props = defineProps<{ row: StationRow }>();
 
 const heard = computed(() => heardText(props.row));
 const best = computed(() => bestText(props.row));
-/** "312" for our own station and our objects, which are not heard; "312 · 14 in the last hour" for any other. */
+/**
+ * "312" for our own station and objects, which are not heard; "312 · 14 in the last hour"
+ * otherwise.
+ */
 const packets = computed(() =>
   props.row.is_me || props.row.own ? String(props.row.packets) : t("station.packets_value", { total: props.row.packets, hour: props.row.packets_hour }),
 );

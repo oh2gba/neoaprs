@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The numbered steps of an update by hand (lib/update.ts makes them for the way this copy was installed): a line of words, a file or a page as a button, a command with a button that copies it.
+// The numbered steps of an update by hand (made by lib/update.ts for the way this copy was
+// installed): text, a file or page as a button, and a command with a copy button.
 import { onBeforeUnmount, ref } from "vue";
 import { t } from "@/i18n";
 import { copyText } from "@/lib/clipboard";

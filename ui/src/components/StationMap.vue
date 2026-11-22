@@ -1,14 +1,22 @@
 <script setup lang="ts">
-// The map: the base map the daemon serves (no request leaves the machine), a marker with the APRS symbol and the call for every station that has a position, and a line for the track of
-// every station that has more than one (the selected station's heavier, solid, on a pale casing and with a dot at each position: lib/tracklayers.ts); a mouse resting on a marker shows a small card with the station's main facts (lib/hovercard.ts), and the selected station has the route its packets come by drawn
-// to our own station (lib/routeline.ts). A marker dims and a track fades on the way to the station's timeout, and a station heard direct within the hour has a ring round its marker; a station past it is not drawn (unless it is the selected one, whose marker shows). The daemon always has a world map (the one that ships with the program), so the map is drawn from the first second; without any base map file, or when the files cannot be read, the background is blank and a line says so (over the first-run guide too: it is
-// the note's own layer, above the guide), and the stations are drawn all the same. With only the world map a line says there is no detailed map, with a button that takes the user to where it is made (not while the first-run guide is open, which makes it itself, or a download runs);
-// when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
-// opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
-// holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
-// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, Statistics, which opens the statistics card over the map, Packets, the Packets tab as a card over the map, Monitor, a radio's scope as a card (each a `card` of the page's, by its name; Monitor one for each radio that has a scope, the radio chosen kept by composables/useScopeLooks.ts), and Replay, which plays back how the stations moved over the last hours, the live markers, tracks and route giving way to it while it is open (`replay`, the page's: composables/useMapReplay.ts, components/ReplayBar.vue). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts). The Layers button under the zoom buttons opens a box whose ticks, this browser's own, take the
-// tracks (but the open cards' own), the ALOHA circle, the locator grid (composables/useMapGrid.ts) and the aircraft and ships (composables/useMapTraffic.ts: a click on one opens its card among the station cards) off the map or put them on (components/MapLayers.vue, composables/useMapBoxLayers.ts); the grid lies under everything else. The selected station, when it is a digipeater of the Nearby tab that gave
-// a range (PHG or RNG), has a pale circle of that range under the markers too (lib/rangecircles.ts), one at a time; when such a station is picked the map fits itself to the whole circle instead of flying to the point (composables/useMapFollow.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix (composables/useFollowMe.ts).
+// The map: the daemon's base map (no request leaves the machine), a marker with the APRS symbol and
+// call for every station with a position, and a track line for stations with more than one position
+// (the selected station's is heavier, with a dot at each position: lib/tracklayers.ts). A resting
+// mouse shows a card of the station's facts (lib/hovercard.ts); the selected station's route to our
+// own station is drawn (lib/routeline.ts). Markers dim and tracks fade towards the station's
+// timeout; a station heard direct within the hour has a ring; a station past its timeout is not
+// drawn unless selected. The daemon always has the shipped world map; with only that, a note says
+// there is no detailed map and offers to go where it is made (not while the guide is open or a
+// download runs). When the daemon makes the files again (`filesKey` changes) the style is set
+// again. One map for the life of the page, opened where we are (zoom 9; on the world with no
+// position) or where it was left; the colour scheme follows the system. While the guide asks for a
+// position (`picking`) a click is a place (`pick`) and the guide's place (`pin`) has a marker the
+// map flies to when typed. Our own object or item (`own`) has a draggable marker; the drop is its
+// new place (`move`). A right-click or long press opens the map menu (useMapMenu, MapMenu): copy
+// the place, Statistics, Packets, Monitor (cards over the map), and layer toggles (MapLayers). A
+// station with a range (PHG or RNG) has a pale circle under the markers (lib/rangecircles.ts), and
+// picking it fits the map to the circle (useMapFollow). While the beacon is mobile and the GPS has
+// a fix, Follow me keeps the map centred on the fix.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import { locale, t } from "@/i18n";
@@ -43,20 +51,24 @@ import { useMapReplay } from "@/composables/useMapReplay";
 import { hasPosition } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
-const WORLD_VIEW = { lat: 20, lon: 0, zoom: 1.5 }; // where the map opens while we have no position
+// where the map opens while we have no position
+const WORLD_VIEW = { lat: 20, lon: 0, zoom: 1.5 };
 const LABELS_FROM_ZOOM = 8;
 
 const props = withDefaults(
   defineProps<{
     selected: string | null;
-    /** The stations of the other cards that are open (Ctrl+click): their markers are marked as the selected one's is (the route is drawn for the selected one only). */
+    /**
+     * The stations of the other open cards (Ctrl+click): their markers are marked like the selected
+     * one's (the route is drawn only for the selected one).
+     */
     others?: readonly string[];
     focus: Focus | null;
     /** A click on the map is a place for the first-run guide. */
     picking?: boolean;
     /** The place the first-run guide holds, shown with a marker. */
     pin?: Home | null;
-    /** The replay is open (the page's: Esc closes it with the cards). */
+    /** The replay is open (Esc closes it with the cards). */
     replay?: boolean;
   }>(),
   { others: () => [], picking: false, pin: null, replay: false },
@@ -69,10 +81,12 @@ const emit = defineEmits<{
   card: [name: MapCard];
   replay: [open: boolean];
 }>();
-const [page, radios] = [useDaemonContext(), useRadios()]; // (the radios: the hover card names each radio by its name where radios are named)
-/** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
+const [page, radios] = [useDaemonContext(), useRadios()];
+/**
+ * Changes when the map files on the daemon change (their dates); null until the daemon has told.
+ */
 const mapFiles = computed(() => filesKey(page.map.value));
-const [root, host] = [ref<HTMLElement | null>(null), ref<HTMLElement | null>(null)]; // (the page's box round the map, and the map's own)
+const [root, host] = [ref<HTMLElement | null>(null), ref<HTMLElement | null>(null)];
 const card = useClearOfCard(root, host);
 const stationOf = (call: string): StationRow | undefined => page.stations.value.get(call);
 const selectedCall = (): string | null => props.selected;
@@ -84,18 +98,25 @@ const { files, engineFailed, unreadable, note, offerDownload, onMapError } = use
 const placed = new Map<string, Placed>();
 let map: MapLibreMap | null = null;
 let engine: Awaited<ReturnType<typeof loadMapEngine>> | null = null;
-let generation = 0; // counts the times the files were made again: the addresses carry it, so that the reader of the archives starts afresh
+// counts the times the files were made again: the addresses carry it so the archive reader starts
+// afresh
+let generation = 0;
 let seenKey: string | null = mapFiles.value;
-let shown = ""; // the addresses the style on the map was made with
-let centred = true; // the view is the one of the last visit, or has been set to where we are
+let shown = "";
+let centred = true;
 let gone = false;
 let pinMarker: Marker | null = null;
 let hover: HoverCard | null = null;
-let clicked = false; // the pin moved because the map was clicked: the map is where the user is looking already
+// the pin moved because the map was clicked: the map is where the user is looking already
+let clicked = false;
 let picks = 0;
-const markerPick = ref<Focus | null>(null); // the marker clicked last: the map fits itself to a digipeater's range circle when it is one (composables/useMapFollow.ts)
+// the marker clicked last: the map fits a digipeater's range circle when it is one
+const markerPick = ref<Focus | null>(null);
 
-/** The tracks are drawn again once a minute, and when a station changes; the fading is in steps that wide anyway. */
+/**
+ * The tracks are drawn again once a minute and when a station changes; the fading goes in steps
+ * that wide.
+ */
 const minute = computed(() => Math.floor(page.now.value / 60_000));
 
 const archives = (): Archives => ({
@@ -104,7 +125,7 @@ const archives = (): Archives => ({
 });
 const styleFor = (dark: boolean) => basemapStyle(archives(), dark, glyphsUrl());
 
-/** The daemon has other files: ask which it has, and set the style again if the addresses are other ones. */
+/** The daemon has other files: ask which, and set the style again if the addresses changed. */
 async function refreshBasemap(): Promise<void> {
   files.value = await archivesPresent();
   if (gone || !map) return;
@@ -122,15 +143,18 @@ function drawRoute(): void {
 
 function addLayers(): void {
   if (!map) return;
-  box.add(map); // (first: the grid and the circles, under the tracks and the route)
+  box.add(map);
   addTrackLayers(map);
   drawTracks();
   addRouteLayers(map, routeFeatures(undefined, page.stations.value, null));
   drawRoute();
-  replay.add(); // (last: over the live layers, which it hides while it plays)
+  replay.add();
 }
 
-/** The stations that are drawn: with a position and not past their timeout (a station whose card is open is drawn, with its track, whatever its timeout). */
+/**
+ * The stations drawn: with a position and not past their timeout (a station with an open card is
+ * drawn with its track regardless).
+ */
 const drawn = (): StationRow[] =>
   [...page.stations.value.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(page.aging.value, row, page.now.value)));
 
@@ -142,9 +166,9 @@ function makePlaced(call: string): Placed | null {
   if (!map || !engine) return null;
   const dom = buildMarkerDom();
   dom.root.addEventListener("click", (event: MouseEvent) => {
-    event.stopPropagation(); // not a click on the map, which lets go of the selection
+    event.stopPropagation();
     hover?.hide();
-    emit("select", call, event.ctrlKey || event.metaKey); // (Ctrl, or Cmd on a Mac, adds the card to the open ones)
+    emit("select", call, event.ctrlKey || event.metaKey);
     markerPick.value = { call, n: ++picks };
   });
   hover?.attach(dom.root, call);
@@ -156,7 +180,10 @@ function makePlaced(call: string): Placed | null {
   return { marker, dom, lat: NaN, lon: NaN };
 }
 
-/** A station with a card open (the selected one, or one of the others): its marker shows, and is marked, even when it is past its timeout. */
+/**
+ * A station with an open card (the selected one or another): its marker shows and is marked even
+ * past its timeout.
+ */
 const isOpen = (call: string): boolean => call === props.selected || props.others.includes(call);
 const openCalls = (): string[] => (props.selected === null ? [...props.others] : [...props.others, props.selected]);
 
@@ -190,21 +217,24 @@ function syncMarkers(): void {
   hover?.refresh();
 }
 
-/** The marker of the place the guide holds: made when there is one, moved when it changes, gone when it is. */
+/**
+ * The marker of the guide's place: made when there is one, moved when it changes, removed when it
+ * is gone.
+ */
 function syncPin(): void {
-  if (map && engine) pinMarker = placePin(engine, map, pinMarker, props.pin, pickAt); // (the pin dropped somewhere else is the place, as a click there would be)
+  if (map && engine) pinMarker = placePin(engine, map, pinMarker, props.pin, pickAt);
 }
 
 function onClick(event?: { lngLat?: { lat: number; lng: number }; point?: { x: number; y: number }; originalEvent?: MouseEvent }): void {
-  if (!props.picking && box.clicked(event)) return; // (an aircraft or a ship: its card)
-  if (!(event?.originalEvent?.ctrlKey || event?.originalEvent?.metaKey)) emit("select", null); // (a Ctrl+click beside a marker leaves the cards open)
+  if (!props.picking && box.clicked(event)) return;
+  if (!(event?.originalEvent?.ctrlKey || event?.originalEvent?.metaKey)) emit("select", null);
   if (props.picking && event?.lngLat) pickAt(event.lngLat.lat, event.lngLat.lng);
 }
 
 function pickAt(lat: number, lon: number): void {
   clicked = true;
   emit("pick", { lat, lon });
-  void nextTick(() => (clicked = false)); // after the update the click causes
+  void nextTick(() => (clicked = false));
 }
 
 const mapMenu = useMapMenu(host, () => ({ map, hover }));
@@ -237,19 +267,19 @@ async function create(): Promise<void> {
       maxZoom: MAX_ZOOM,
       dragRotate: false,
       pitchWithRotate: false,
-      attributionControl: false, // the page draws its own: a small (i), closed until clicked
+      attributionControl: false, // the page draws its own (i)
     });
   } catch {
-    engineFailed.value = true; // a browser without WebGL
+    engineFailed.value = true; // no WebGL
     return;
   }
   map.touchZoomRotate.disableRotation();
   map.addControl(new engine.NavigationControl({ showCompass: false }), "top-left");
   labelControls();
   map.on("style.load", addLayers);
-  box.listen(map, hover); // (the Layers button under the zoom buttons; the hover box of the aircraft and ships)
+  box.listen(map, hover);
   map.on("movestart", () => hover?.hide());
-  map.on("dragstart", release); // (a drag by the person; the map's own easing is none)
+  map.on("dragstart", release);
   map.on("click", onClick);
   map.on("contextmenu", mapMenu.onContextMenu);
   map.on("error", onMapError);
@@ -296,7 +326,7 @@ watch(
 );
 watch(mapFiles, (key) => {
   if (key === null || key === seenKey) return;
-  if (seenKey !== null) generation += 1; // (the first word from the daemon is not a change)
+  if (seenKey !== null) generation += 1;
   seenKey = key;
   void refreshBasemap();
 });
@@ -320,8 +350,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- the note is beside the map and not in it: the map is a layer of its own, under the first-run guide, and the note is above the guide. The page's own classes are on the root and never on the
-       map's box, whose classes MapLibre sets (`maplibregl-map`, which clips the markers to the box): a class bound by Vue there is written as the whole class list and took MapLibre's away. -->
+  <!-- The page's classes go on the root, never on the map's box: MapLibre sets that -->
+  <!-- box's classes (`maplibregl-map`), and a class bound by Vue there replaces them all. -->
   <div ref="root" class="stationmap" :class="{ 'map-picking': props.picking, replaying: props.replay }" v-on="mapMenu.on">
     <div ref="host" class="mapbox" role="application" :aria-label="t('map.label')"></div>
     <MapMenu v-if="mapMenu.menu.value" :key="mapMenu.key.value" v-bind="mapMenu.menu.value" :trigger="host" v-on="menuEvents" />

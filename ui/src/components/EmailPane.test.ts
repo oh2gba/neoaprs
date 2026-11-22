@@ -24,7 +24,8 @@ function pane({ connected = true, ...extra }: Record<string, unknown> = {}) {
   });
 }
 type Pane = ReturnType<typeof pane>;
-/** The rows of the list, the newest first: the list itself is oldest first (see "the list order" below), so the row numbers here count from its bottom. */
+/** The rows of the list, the newest first: the list itself is oldest first (see "the list order"
+ * below), so the row numbers here count from its bottom. */
 const rows = (wrapper: Pane) => wrapper.findAll(".mail").reverse();
 const bar = (wrapper: Pane, label: string) => wrapper.findAll(".mail-bar button").find((b) => b.text() === label);
 

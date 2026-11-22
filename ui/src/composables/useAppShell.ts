@@ -1,6 +1,11 @@
-// The page put together (App.vue is its layout): the daemon, the clock, the settings that apply as they are changed, the first-run guide, the panel, the tabs' models, the station cards, the statistics card, the replay of the map, the aircraft and ships of the map's layers (composables/useLayerThings.ts: Esc closes a thing's card with the station cards) and the places picked on the map, with what the shell itself decides:
-// the ports are asked for each time the daemon is connected, the guide opens once by itself when the daemon has no call, the steps of an update are open on purpose and go with the newer version, the notes of the version that runs open from Settings and from the
-// line shown once after an update (useWhatsNew), and the mail of the header opens the tab that has the messages not seen. What the panes share is provided to them (`useDaemonContext`); what only the layout needs is returned.
+// The page put together (App.vue is its layout): the daemon, the clock, the settings, the
+// first-run guide, the panel, the tab models, the station cards, the statistics card, the map
+// replay, the aircraft and ships layers and the places picked on the map, with what the shell
+// itself decides: ports are asked for each time the daemon connects, the guide opens once by
+// itself when the daemon has no call, the update steps are open on purpose and go with the newer
+// version, the notes of the running version open from Settings and from the line shown once
+// after an update, and the header mail opens the tab with unseen messages. What the panes share
+// is provided (`useDaemonContext`); what only the layout needs is returned.
 import { computed, ref, watch, type Ref, type WritableComputedRef } from "vue";
 import { provideDaemon } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
@@ -45,14 +50,16 @@ import type { ConfigValues, RadioRow } from "@/protocol/protocol";
 
 const NO_RADIOS: ReadonlyMap<string, RadioRow> = new Map();
 
-/** The radios as the shell reads them (the panes read them through composables/useRadios.ts, which the shell itself cannot ask: it is the one that provides the page's context). */
 function useShellRadios(daemon: ReturnType<typeof useDaemon>) {
   const all = computed(() => pageRadios(daemon.radios.value ?? NO_RADIOS, daemon.config.value));
   const enabled = computed(() => enabledRadios(all.value));
   return { all, enabled };
 }
 
-/** The guide opens once, when the daemon says it has no call (the page's first word of a fresh install): not again when the settings are told again, nor when the call is set. */
+/**
+ * The guide opens once, when the daemon says it has no call: not again when the settings are sent
+ * again.
+ */
 function openGuideOnce(config: Readonly<Ref<ConfigValues | null>>, guide: SetupGuide): void {
   let shown = false;
   watch(
@@ -67,11 +74,10 @@ function openGuideOnce(config: Readonly<Ref<ConfigValues | null>>, guide: SetupG
   );
 }
 
-/** What the panes read of the daemon's state besides the topics themselves: who and where we are, the stations heard, how they age, the settings and the stations' own choices. */
 function useDerived(daemon: ReturnType<typeof useDaemon>) {
   const { config, status, lastError, send } = daemon;
   const radios = useShellRadios(daemon);
-  const settings = useSettings(config, lastError, send, { byId: (id: number) => radios.all.value.find((radio) => radio.id === id) }); // (a refusal of Save names its radio as the page does)
+  const settings = useSettings(config, lastError, send, { byId: (id: number) => radios.all.value.find((radio) => radio.id === id) });
   const prefs = useStationPrefs(daemon.stationPrefs, send);
   const keys = useStationKeys(daemon.stationKeys, status, send);
   const heard = useHeardIndex(daemon.stations, config);
@@ -103,11 +109,14 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
       const values = config.value?.values ?? {};
       return recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? "");
     }),
-    connected: computed(() => radios.enabled.value.some((radio) => radio.connected)), // (any radio that is on)
+    connected: computed(() => radios.enabled.value.some((radio) => radio.connected)),
   };
 }
 
-/** The models of the tabs that have something not seen (messages, email, bulletins, skeds), and the count of them all: the one of the header, of the folded panel's handle and of the browser tab's title. */
+/**
+ * The tab models with something unseen, and the count of them all (header, folded panel handle,
+ * browser tab title).
+ */
 function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof usePanel>) {
   const { messages, send } = daemon;
   const talk = useMessagesView(messages, panel, send, daemon.messagesLoaded);
@@ -123,7 +132,10 @@ function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof 
   usePageAlerts(messages, daemon.messagesLoaded, alerts.announce);
   const unread = computed(() => talk.unread.value + mail.unread.value);
   useTitle(unread, alerts.tabTitle);
-  /** The mail of the header: the Messages tab, or the Email tab when the messages not seen are all the gateway's. */
+  /**
+   * The header mail: the Messages tab, or the Email tab when the unseen messages are all the
+   * gateway's.
+   */
   function openUnread(): void {
     if (talk.unread.value > 0 || mail.unread.value === 0) talk.openMessages();
     else panel.show("email");
@@ -131,7 +143,10 @@ function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof 
   return { talk, mail, board, sked, alerts, unread, openUnread };
 }
 
-/** The windows of an update: the panel with the steps of one, open on purpose and gone when the newer version is, and the notes of the version that runs (useWhatsNew). */
+/**
+ * The update windows: the steps panel, open on purpose and gone with the newer version, and the
+ * notes (useWhatsNew).
+ */
 function useUpdateWindows(daemon: ReturnType<typeof useDaemon>) {
   const updateOpen = ref(false);
   const newer = computed(() => daemon.status.value?.update?.version ?? null);
@@ -140,24 +155,30 @@ function useUpdateWindows(daemon: ReturnType<typeof useDaemon>) {
   return { updateOpen, newer, whatsNew };
 }
 
-/** The cards that open over the map from its menu, in the order they stand from the map's right edge, and the width of each (card.css); each takes its width and the margin at its right. */
+/**
+ * The cards that open from the map's menu, in order from the map's right edge, with the width of
+ * each (card.css).
+ */
 const OVERLAYS = ["stats", "packets", "monitor"] as const;
 type Overlay = (typeof OVERLAYS)[number];
 const CARD_PX: Record<Overlay, number> = { stats: 340, packets: 560, monitor: 560 };
 const MARGIN_PX = 10;
 
-/** What opens over the map from its menu: the statistics card, the Packets card, the monitor and the replay; closeOverlays closes them (an Esc the station cards pass on) and says whether one was open. The cards
- * stand side by side where the map has room for them; where it has not (a phone, a narrow map) opening one closes those that leave it no room, and of those remembered open the ones that do not fit beside the
- * ones before them (in OVERLAYS' order) are not shown until there is room or those are closed. The monitor is shown only while a radio has a scope. */
+/**
+ * What opens over the map from its menu: the statistics card, the Packets card, the monitor and
+ * the replay; `closeOverlays` closes them and says whether one was open. The cards stand side by
+ * side where the map has room; where it has not, opening one closes those that leave it no room,
+ * and remembered-open cards that do not fit beside the ones before them (OVERLAYS' order) stay
+ * hidden until there is room. The monitor is shown only while a radio has a scope.
+ */
 function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<Ref<boolean>>, mapWidth: Readonly<Ref<number>>) {
-  // each open from the map's menu, closed by its cross or Esc, and remembered by this browser
+  // Each open from the map's menu, closed by its cross or Esc, and remembered by this browser.
   const open: Record<Overlay, WritableComputedRef<boolean>> = {
-    stats: usePersistedFlag("stats", ["open", "closed"], false), // components/StatsCard.vue
-    packets: usePersistedFlag("packets", ["open", "closed"], false), // components/PacketsCard.vue
-    monitor: usePersistedFlag("monitor", ["open", "closed"], false), // components/MonitorCard.vue, a radio's scope larger
+    stats: usePersistedFlag("stats", ["open", "closed"], false),
+    packets: usePersistedFlag("packets", ["open", "closed"], false),
+    monitor: usePersistedFlag("monitor", ["open", "closed"], false),
   };
   const available = (card: Overlay): boolean => card !== "monitor" || scopeAvailable.value;
-  /** Whether the cards fit side by side: one always does; a width not yet measured is room. */
   const fits = (cards: readonly Overlay[]): boolean =>
     cards.length <= 1 || (!phone.value && (mapWidth.value === 0 || cards.reduce((px, card) => px + CARD_PX[card] + MARGIN_PX, 0) <= mapWidth.value));
   const shown = computed(() =>
@@ -174,7 +195,7 @@ function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<
       }
     });
   }
-  // the replay of the map (components/StationMap.vue runs it, composables/useMapReplay.ts): open from the map's menu, closed by its cross or Esc, the statistics card's way; not remembered, it is a look back for now
+  // The map replay: open from the map's menu, closed by its cross or Esc, not remembered.
   const replayOpen = ref(false);
   const closeReplay = (): boolean => {
     const was = replayOpen.value;
@@ -182,7 +203,7 @@ function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<
     return was;
   };
   const closeOverlays = (): boolean => {
-    const cards = shown.value; // (what is shown now: a card that is hidden stays remembered)
+    const cards = shown.value;
     for (const card of cards) open[card].value = false;
     return [cards.length > 0, closeReplay()].some(Boolean);
   };
@@ -199,17 +220,21 @@ function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<
   };
 }
 
-/** What the radios hold now, and which of them there are, as one text: the list of ports and sound cards says who holds each, so it is asked again when this changes. */
+/**
+ * What the radios hold now as one text: the ports list says who holds each device, so it is asked
+ * again when this changes.
+ */
 const holdsOf = (rows: Iterable<RadioRow>): string =>
   [...rows]
     .map((row) => `${row.id}:${row.type}:${row.enabled}:${row.removed}:${row.holds.map((held) => `${held.resource}=${held.value}`).join(",")}`)
     .sort()
     .join(";");
 
-/** The ports the system lists, for the Settings tab and the setup guide: asked each time the daemon is connected (not before: a command then is refused with a toast), and only once the topic `radios` is told,
- * so that a radio with sound cards is asked for by its id (the connection opens with the hello, before the radios come; on a reconnect the radios kept are told already). And asked again whenever what the radios
- * hold changes (a radio let go of its sound card or its port: its type changed, it was switched off or removed): the list says who holds each device, and a card shown as held by a radio that let it go
- * could not be chosen for another. */
+/**
+ * The ports the system lists: asked each time the daemon is connected, and once the topic `radios`
+ * is sent so that a radio with sound cards is asked for by id; asked again whenever what the radios
+ * hold changes, because the list says who holds each device.
+ */
 function askPortsOnOpen(daemon: ReturnType<typeof useDaemon>): void {
   const { connection, radios, send } = daemon;
   let owed = false;
@@ -243,13 +268,14 @@ export function useAppShell() {
 
   const objects = useOwnObjects(daemon.ownObjects, send, panel);
   const picks = useMapPicks(guide, objects);
-  // the size of the page, what a phone shows (the map or the tab), and the station cards: one, or several with Ctrl+click on a desktop and a tablet
+  // The page size, what a phone shows (map or tab), and the station cards.
   const layout = useLayout(
     panel,
     computed(() => guide.open),
     picks.pickingTab,
   );
-  // Esc ends a place the map waits for and then leaves the object selected in the Objects tab and clears its form (before the cards, which take the Esc that is left)
+  // Esc ends a place the map waits for, then leaves the selected object and clears the form, before
+  // the cards take the Esc that is left.
   const escBlocked = () => guide.open || updateOpen.value || whatsNew.open.value !== null;
   useFormEsc({
     cancelPick: () => {
@@ -266,17 +292,18 @@ export function useAppShell() {
   });
   const scope = useScopeLooks(send, connection, pageVisible(), { radios: daemon.radios });
   const level = useRadioAsks("radio_level", send, connection, pageVisible(), () => null);
-  const mapwrap = ref<HTMLElement | null>(null); // (the map's box, bound by App.vue)
+  const mapwrap = ref<HTMLElement | null>(null);
   const mapWidth = useElementWidth(mapwrap);
-  const overlays = useMapOverlays(scope.available, layout.phone, mapWidth); // (what opens over the map from its menu: the cards, the replay)
-  const traffic = useLayerThings({ ...daemon, visible: pageVisible(), replay: overlays.replayOpen, now: derived.now, store: daemon.layerTables }); // (the map's aircraft and ships)
+  const overlays = useMapOverlays(scope.available, layout.phone, mapWidth);
+  const traffic = useLayerThings({ ...daemon, visible: pageVisible(), replay: overlays.replayOpen, now: derived.now, store: daemon.layerTables });
   const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, () =>
     [overlays.closeOverlays(), traffic.close()].some(Boolean),
   );
-  // the notices (a toast that is no error), what the menu of a row of the Stations table sends or copies, and the alerts set on stations that fire
+  // The notices, what a Stations table row's menu sends or copies, and the station alerts that
+  // fire.
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);
-  useStationAlerts(daemon.stationAlert, tabs.alerts, say); // (an alert set on a station that fired: as a message alerts, and in the toast)
+  useStationAlerts(daemon.stationAlert, tabs.alerts, say);
   const findRadio = useFindRadio(daemon.radioSearch, lastError, connection, send, derived.settings, config, say);
 
   provideDaemon({

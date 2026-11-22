@@ -1,10 +1,16 @@
-// A query the operator writes in the station panel of the Stations tab (the custom query; the daemon's command `query` with `custom`), held to the rule the daemon holds it to (neoaprs/message.py, `query_text`): after the
-// spaces at its ends are taken off it begins with "?" and says something after it, is printable ASCII without | ~ { (a { would begin a message id, and a query has none) and fits in the text of a message, 67 characters
-// (LIMITS.message, which the daemon's protocol gives). It goes on the air upper-cased, as the specification's queries and the calls in them are.
+// A query the operator writes in the station panel of the Stations tab (the custom query; the
+// daemon's command `query` with `custom`), held to the daemon's rule (neoaprs/message.py
+// `query_text`): after leading and trailing spaces are removed it begins with "?" and says
+// something after it, is printable ASCII without | ~ { (a { would begin a message id, and a
+// query has none) and fits in the text of a message, 67 characters (LIMITS.message). It goes on
+// the air upper-cased, as the specification's queries and the calls in them are.
 import { textRefusal } from "@/lib/recipients";
 import { LIMITS } from "@/protocol/lists";
 
-/** What is wrong with a query: it is no query ("?" and something after it), it is too long, or it has a character a query cannot carry. */
+/**
+ * What is wrong with a query: it is no query ("?" and something after it), it is too long, or it
+ * has a character a query cannot carry.
+ */
 export type QueryProblem = "form" | "long" | "chars";
 
 /** The query as it is sent, or what is wrong with it. */

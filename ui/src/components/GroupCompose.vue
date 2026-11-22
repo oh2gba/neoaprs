@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// One text to several stations, in the place of a conversation: the header has the recipients as chips (a click on one, or its ×, takes it out; the last one out closes the view), a close button and on a narrow page the back arrow "‹"; under it the quiet room where a
-// thread would be, and at the bottom the box to write in with "12 left" and "Send to 3" (MessageCompose). It is opened by the page with a list of calls (composables/useMessagesView.ts `openGroup`, from the map's station cards) and is no conversation: it sends one ordinary
-// message to each recipient and closes, and the conversations appear in the list as the messages go out. Esc closes it, as the back arrow does on a narrow page.
+// One text to several stations, in place of a conversation: a header with the recipients as
+// chips (removing the last one closes the view), then the compose box (MessageCompose, "Send to
+// 3"). The page opens it with a list of calls (useMessagesView `openGroup`). It sends one
+// ordinary message per recipient and closes. Esc closes it.
 import TagMark from "@/components/TagMark.vue";
 import { onMounted, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";

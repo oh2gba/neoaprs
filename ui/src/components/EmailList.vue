@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// The Email tab's list: every message to and from the gateway EMAIL-2 as a row (EmailRow), the oldest first and scrolled to the newest at the bottom, as the Messages tab is, so that the newest mail is next to the box to write in under it. It fills the
-// height the tab leaves it and scrolls. Rows that came in after `freshAfter` (a message id) are the new ones. `offline` is why a mail cannot go now (EmailPane's words): Retry is off with it as its title.
+// The Email tab's list: every message to and from the gateway EMAIL-2, oldest first and scrolled
+// to the newest like the Messages tab, so that the newest mail is next to the compose box. It
+// fills the height the tab leaves and scrolls. Rows after `freshAfter` (a message id) are new.
+// `offline` is why a mail cannot go now; Retry is off with it as its title.
 import { computed, ref } from "vue";
 import EmailRow from "@/components/EmailRow.vue";
 import { useNow } from "@/composables/useNow";

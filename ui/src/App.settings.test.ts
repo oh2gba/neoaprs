@@ -62,7 +62,10 @@ describe("App: the Settings tab", () => {
   describe("settings that apply as they are changed", () => {
     const sets = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
     const toast = (wrapper: VueWrapper) => wrapper.find(".toast");
-    /** The daemon tells the settings again with these changes, a radio's own (`radio/1/digipeat`) among the radios' values. */
+    /**
+     * The daemon sends the settings again with these changes, a radio's own among the radios'
+     * values.
+     */
     const told = (socket: FakeSocket, changes: Record<string, string>) => {
       const own = (radio: boolean) => Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("radio/") === radio));
       socket.say({ type: "state", topic: "config", rev: 1, value: configValues(own(false), own(true)) });
@@ -153,7 +156,8 @@ describe("App: the Settings tab", () => {
     await wrapper.find("#pane-settings .updateline button.btn").trigger("click");
     const panel = wrapper.find(".updatedialog");
     expect(panel.find("h2").text()).toBe("NeoAPRS 0.4.0 is available");
-    expect(panel.find("a[href$='/releases/tag/v0.4.0']").exists()).toBe(true); // (a copy installed from the wheel is sent to the release page)
+    // A copy installed from the wheel is sent to the release page.
+    expect(panel.find("a[href$='/releases/tag/v0.4.0']").exists()).toBe(true);
     socket.say(status());
     await flushPromises();
     expect(wrapper.find(".updatedialog").exists()).toBe(false);

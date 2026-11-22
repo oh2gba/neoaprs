@@ -1,5 +1,8 @@
-// What the beacon status of a moving station says in plain words (lib/beaconstatus.ts, components/BeaconStatus.vue), as the radio status does for the TNC (lib/tncstatus.ts): a word for the state on a pill, one line with the fix or why there
-// is none, and the line that says when SmartBeaconing sends next. The fix is told by the daemon (the topic `gps`); the address or the port that is being connected to is a setting.
+// What the beacon status of a moving station says in plain words (lib/beaconstatus.ts,
+// components/BeaconStatus.vue), as lib/tncstatus.ts does for the radio: a word on a pill for
+// the state, one line with the fix or why there is none, and the line saying when
+// SmartBeaconing sends next. The daemon reports the fix (topic `gps`); the address or port
+// being connected to is a setting.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { NONE, ageText, altitudeText, positionText, speedText, untilText } from "@/lib/format";
@@ -13,7 +16,11 @@ const STATES: Record<GpsState["state"], MessageId> = {
   stale: "gps.state.stale",
 };
 
-/** Whether the station moves: its position is a GPS's (`gps/source` is gpsd or serial) and the beacon follows it; else it is a fixed station at the home position. `values` are the settings, key to text. */
+/**
+ * Whether the station moves: its position is a GPS's (`gps/source` is gpsd or serial) and the
+ * beacon follows it; else it is a fixed station at the home position. `values` are the
+ * settings, key to text.
+ */
 export function isMoving(values: Readonly<Record<string, string>>): boolean {
   const source = values["gps/source"];
   return source === "gpsd" || source === "serial";
@@ -29,10 +36,13 @@ const REASONS: Record<Exclude<GpsState["last_beacon_reason"], "">, MessageId> = 
   request: "gps.reason.request",
 };
 
-/** The decimals of a place in the line of a fix: four, 11 m. */
+/** Decimals of a place in the line of a fix: four, 11 m. */
 const FIX_DECIMALS = 4;
 
-/** What the fix says besides where it is: the speed, the course, the altitude and the satellites, each only when the receiver gave it. */
+/**
+ * What the fix says besides where it is: speed, course, altitude and satellites, each only when
+ * the receiver gave it.
+ */
 function facts(gps: GpsState): string[] {
   return [
     ...(gps.speed_kmh === null ? [] : [speedText(gps.speed_kmh)]),
@@ -42,7 +52,10 @@ function facts(gps: GpsState): string[] {
   ];
 }
 
-/** The line that connecting is told in: what is being connected to, from the settings (`values`, key to text). */
+/**
+ * The line shown while connecting: what is being connected to, from the settings (`values`, key
+ * to text).
+ */
 function connectingText(gps: GpsState, values: Readonly<Record<string, string>>): string {
   const host = (values["gps/host"] ?? "").trim();
   const device = (values["gps/device"] ?? "").trim();
@@ -51,7 +64,11 @@ function connectingText(gps: GpsState, values: Readonly<Record<string, string>>)
   return t("gps.connecting");
 }
 
-/** The GPS line of the beacon status: "Off", "Connecting to gpsd at 127.0.0.1:2947", "No fix yet", "Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago" or "Fix lost 3 min ago". */
+/**
+ * The GPS line of the beacon status: "Off", "Connecting to gpsd at 127.0.0.1:2947", "No fix
+ * yet", "Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago" or "Fix
+ * lost 3 min ago".
+ */
 export function gpsStatus(gps: GpsState, values: Readonly<Record<string, string>>, nowMs: number): string {
   if (gps.state === "off") return t("gps.off");
   if (gps.state === "connecting") return connectingText(gps, values);
@@ -61,7 +78,10 @@ export function gpsStatus(gps: GpsState, values: Readonly<Record<string, string>
   return t("gps.fix", { facts: [positionText(gps.lat, gps.lon, FIX_DECIMALS), ...facts(gps), ...age].join(t("gps.separator")) });
 }
 
-/** Why there is no fix, in words, where the status line does not already say it (the daemon's reason, `GpsState.reason`); "" for none, for a fix and for an old fix, which the line states. */
+/**
+ * Why there is no fix, where the status line does not already say it (the daemon's
+ * `GpsState.reason`); "" for none, for a fix and for an old fix, which the line states.
+ */
 const WHY_NO_FIX: Record<Exclude<GpsState["reason"], "">, MessageId> = {
   no_port: "gps.reason.no_port",
   no_address: "gps.reason.no_address",
@@ -69,17 +89,24 @@ const WHY_NO_FIX: Record<Exclude<GpsState["reason"], "">, MessageId> = {
   no_answer: "gps.reason.no_answer",
 };
 export function gpsProblem(gps: GpsState): string {
-  const id = WHY_NO_FIX[gps.reason as Exclude<GpsState["reason"], "">] as MessageId | undefined; // (none for "" and for a code of a daemon of another build)
+  // none for "" and for a code from a daemon of another build
+  const id = WHY_NO_FIX[gps.reason as Exclude<GpsState["reason"], "">] as MessageId | undefined;
   return id !== undefined && gps.state !== "fix" && gps.state !== "stale" ? t(id) : "";
 }
 
-/** The reason the last beacon of a moving station went out, in words: "first fix", "time", "turn", "Beacon now". */
+/**
+ * The reason the last beacon of a moving station went out: "first fix", "time", "turn", "Beacon
+ * now".
+ */
 export function reasonText(reason: GpsState["last_beacon_reason"]): string {
   return reason === "" ? NONE : t(REASONS[reason]);
 }
 
-/** The SmartBeaconing line of the beacon status of a moving station: that nothing is sent without a fix, or when SmartBeaconing sends the next timed beacon and what the last one went for ("SmartBeaconing: next timed beacon in 42 s, last
- * sent 12 s ago (turn)"); null for a fixed station (the daemon says the beacon follows the GPS in `mobile`). */
+/**
+ * The SmartBeaconing line of a moving station's beacon status: that nothing is sent without a
+ * fix, or when the next timed beacon goes and what the last one was for ("SmartBeaconing: next
+ * timed beacon in 42 s, last sent 12 s ago (turn)"); null for a fixed station.
+ */
 export function mobileBeaconText(gps: GpsState | null, nowMs: number): string | null {
   if (gps === null || !gps.mobile) return null;
   if (gps.state !== "fix") return t("gps.beacon.no_fix");

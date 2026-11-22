@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The small menu a right-click (the menu key, or a long press on a touch screen) opens on a call or a text anywhere but the Stations table, which has a menu of its own (StationMenu): one item for each thing under the pointer, "Copy OH2RDG", "Copy message", "Copy packet".
-// The item puts the text on the clipboard and the page says so in its toast ("Copied OH2RDG"; a long message is cut short there). It opens where the pointer is and is kept inside the window, takes the focus, is moved in with the arrow keys and closed by Esc,
-// a press outside it or an item that was chosen (useContextMenu). The component it belongs to opens it (useCopyMenu) and hears `close`.
+// The small menu opened by right-click, the menu key or a long press on a call or text anywhere
+// but the Stations table (StationMenu): one item per thing under the pointer, such as "Copy
+// OH2RDG" or "Copy message". It behaves as every menu of the page (useContextMenu); the owner
+// opens it (useCopyMenu) and handles `close`.
 import { ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";

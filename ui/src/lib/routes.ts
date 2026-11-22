@@ -1,4 +1,5 @@
-// How the packets of a station reached us, as the page words it: the counts of the card and the path the daemon suggests to send by. The daemon works the routes out (neoaprs/route.py); these only format.
+// How the packets of a station reached us, as the page words it: the counts of the card and the
+// path the daemon suggests. The daemon works the routes out (neoaprs/route.py); this only formats.
 import { t } from "@/i18n";
 import { ageSeconds } from "@/lib/format";
 import { routeHops } from "@/lib/routeline";
@@ -11,12 +12,15 @@ type Counts = Pick<StationRow, "heard_direct" | "heard_via" | "heard_rf_gated" |
 const DIRECT_RECENT_SEC = 3600;
 type Suggestion = Pick<StationRow, "best_route" | "suggested_path">;
 
-/** A station we heard a packet from, in words: `?` is a repeater that put no call in the packet (WIDE1 and the like). */
+/** A station we heard a packet from, in words: `?` is a repeater that put no call in the packet
+ * (WIDE1 and the like). */
 export function viaName(call: string): string {
   return call === "?" ? t("route.unnamed_repeater") : call;
 }
 
-/** A route as the daemon writes it ("direct", "via OH2RCH-2", "via OH7JHF-1 (internet) → OH2RCH-3"), in the words of the page's language. `unnamed` is how a repeater that put no call in the packet (`?`) is written; text that is no route stays as it is. */
+/** A route as the daemon writes it ("direct", "via OH2RCH-2", "via OH7JHF-1 (internet) → OH2RCH-3")
+ * in the page's language. `unnamed` is how a repeater with no call in the packet (`?`) is written;
+ * text that is no route stays as it is. */
 export function routeWords(text: string, unnamed = "?"): string {
   if (text === "direct") return t("route.direct");
   const route = routeHops(text);
@@ -25,7 +29,8 @@ export function routeWords(text: string, unnamed = "?"): string {
   return t("route.via", { hops: [...gate, ...route.hops.map((hop) => (hop === "?" ? unnamed : hop))].join(" → ") });
 }
 
-/** "12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3, 2 via an iGate, 5 over the internet"; "-" before any packet is counted. */
+/** "12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3, 2 via an iGate, 5 over the internet"; "-" before
+ * any packet is counted. */
 export function heardText(row: Counts): string {
   const parts: string[] = [];
   if (row.heard_direct > 0) parts.push(t("route.heard.direct", { n: row.heard_direct }));
@@ -35,7 +40,8 @@ export function heardText(row: Counts): string {
   return parts.length === 0 ? "-" : parts.join(", ");
 }
 
-/** The route most packets came by and what is suggested from it: "via OH2RCH-2; send by OH2RCH-2", "direct; send direct", "via ? → OH2RCH-2; unknown repeater, send by WIDE1-1,WIDE2-1". */
+/** The route most packets came by and what is suggested from it: "via OH2RCH-2; send by OH2RCH-2",
+ * "direct; send direct", "via ? → OH2RCH-2; unknown repeater, send by WIDE1-1,WIDE2-1". */
 export function bestText(row: Suggestion): string {
   if (row.best_route === "") return "-";
   const route = routeWords(row.best_route);
@@ -51,12 +57,15 @@ export function heardDirectRecently(row: Direct, nowMs: number): boolean {
   return at !== null && ageSeconds(at, nowMs) <= DIRECT_RECENT_SEC;
 }
 
-/** Whether a station (not our own, not an object) was heard direct on any radio at some time: its call has the check mark. */
+/** Whether a station (not our own, not an object) was heard direct on any radio at some time: its
+ * call has the check mark. */
 export function heardDirect(row: Pick<StationRow, "kind" | "is_me"> & Direct): boolean {
   return row.kind === "station" && !row.is_me && directAt(row) !== null;
 }
 
-/** The way of the latest packet written for a person: "direct", "via OH2RCH-2", "via a repeater → OH2RCH-2" (a repeater that put no call in the packet), "via OH7JHF-1 (internet)"; before a route is known, the way most of its packets came by; null when none is known (a station known from the internet alone has no route). */
+/** The way of the latest packet for a person: "direct", "via OH2RCH-2", "via a repeater →
+ * OH2RCH-2", "via OH7JHF-1 (internet)"; before a route is known, the way most packets came; null
+ * if none is known (a station known from the internet alone has no route). */
 export function reachedText(row: Pick<StationRow, "last_route" | "heard_direct" | "heard_via" | "heard_rf_gated">): string | null {
   if (row.last_route !== "") return routeWords(row.last_route, t("route.hop.repeater"));
   if (row.heard_direct > 0) return t("route.direct");
@@ -65,7 +74,10 @@ export function reachedText(row: Pick<StationRow, "last_route" | "heard_direct" 
   return row.heard_rf_gated > 0 ? t("route.via_internet") : null;
 }
 
-/** How the latest packet that came over the internet got there, in one plain line: "Heard by iGate OH2GW-10 via OH2RCH-2", "Heard by iGate OH2GW-10 directly", "Sent over the internet, not heard on the air" (for an object or item, "... by OH2HCY", the station that reported it); an iGate whose place is not known says so (the map's line ends at the last hop that has one). Null when it is not known. */
+/** How the latest packet that came over the internet got there, in one plain line: "Heard by iGate
+ * OH2GW-10 via OH2RCH-2", "Heard by iGate OH2GW-10 directly", "Sent over the internet, not heard
+ * on the air" (for an object or item, "... by OH2HCY", the reporting station); an iGate with no
+ * known place says so. Null when not known. */
 export function internetText(
   row: Pick<StationRow, "internet_reach"> & Partial<Pick<StationRow, "kind" | "reported_by">>,
   stations: ReadonlyMap<string, StationRow>,

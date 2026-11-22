@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BASEMAP_FILE, WORLD_FILE } from "@/lib/basemapstyle";
 import type { archivesPresent as ArchivesPresent, loadMapEngine as LoadMapEngine } from "@/lib/basemap";
 
-// MapLibre and the PMTiles reader are the library's own and heavy; what is tested is what the page asks of them: the worker file, the protocol, once, and a load that fails is tried again.
+// MapLibre and the PMTiles reader are libraries and heavy; the test covers what the page asks
+// of them: the worker file, the protocol, once, and a retry after a failed load.
 const library = vi.hoisted(() => ({
   setWorkerUrl: vi.fn(),
   addProtocol: vi.fn(),

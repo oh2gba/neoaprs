@@ -1,5 +1,5 @@
-// The station map mounted for its tests: the props it was given before the page's context existed (`stations`, `home`, `now`, `dark`, `aging`, `gps` and `filesKey` are the context's now, the others the map's own props), put where they belong,
-// and `setProps` of the wrapper sends each of them to the same place, so that a test changes the map's input the way it did.
+// The station map mounted for its tests: the props given before the page's context existed are put
+// where they belong, and `setProps` of the wrapper sends each to the same place.
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
 import StationMap from "@/components/StationMap.vue";
@@ -9,7 +9,7 @@ import { mapFile, mapState } from "@/test/fixtures";
 
 const AMBIENT = ["stations", "home", "now", "dark", "aging", "gps"] as const;
 
-/** The map state that has the `filesKey` of the old tests: "<detail modified> <world modified>", a dash for a file that is not there. */
+/** The map state with the `filesKey` of the old tests: "<detail modified> <world modified>". */
 function mapOf(key: string | null | undefined) {
   if (key === null || key === undefined) return null;
   const [detail = "-", world = "-"] = key.split(" ");

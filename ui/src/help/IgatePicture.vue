@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// An iGate: the stations on the radio side, the iGate that passes their packets on, and the internet (APRS-IS) side, in both directions.
+// An iGate: the stations on the radio side, the iGate that passes their packets on, and the
+// internet (APRS-IS) side, in both directions.
 import { CALLS } from "@/help/calls";
 import { arrow, waves } from "@/help/draw";
 import { t } from "@/i18n";

@@ -74,7 +74,8 @@ describe("App: two objects", () => {
     socket.say({ type: "patch", topic: "own_objects", rev: 1, ops: [{ op: "set", key: "ALPHA", value: ownObject("ALPHA", { state: "killing", sent: 0 }) }] });
     await flushPromises();
     expect(wrapper.findAll("#pane-objects .ownobject strong").map((e) => e.text())).toEqual(["ALPHA", "BRAVO"]);
-    socket.say({ type: "state", topic: "own_objects", rev: 0, value: both }); // (a reload: the daemon tells the table whole)
+    // A reload: the daemon tells the table whole.
+    socket.say({ type: "state", topic: "own_objects", rev: 0, value: both });
     await flushPromises();
     expect(wrapper.findAll("#pane-objects .ownobject strong").map((e) => e.text())).toEqual(["ALPHA", "BRAVO"]);
   });

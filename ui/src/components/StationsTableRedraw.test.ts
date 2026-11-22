@@ -1,5 +1,8 @@
-// The Stations table is not drawn again for a patch of the topic `radios` that changes only a radio's counts (a radio's row changes with every line its TNC sees, up to four times a second): with several radios on,
-// the tags of "Heard on" name the radios, and a radio stays the same object while nothing of its own changes (composables/useRadios.ts), so the tags read nothing of the row that the counts change.
+// The Stations table is not drawn again for a patch of the topic `radios` that changes only a
+// radio's counts (a radio's row changes with every line its TNC sees, up to four times a
+// second). With several radios on, the tags of "Heard on" name the radios; a radio stays the
+// same object while nothing of its own changes (composables/useRadios.ts), so the tags read
+// nothing of the row that the counts change.
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, shallowRef } from "vue";

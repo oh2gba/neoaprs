@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// "Install app": shown only where the browser has offered to install the page as an app (composables/useInstall.ts); nothing is there otherwise.
+// "Install app": shown only where the browser has offered to install the page as an app
+// (composables/useInstall.ts).
 import { t } from "@/i18n";
 import { useInstall } from "@/composables/useInstall";
 

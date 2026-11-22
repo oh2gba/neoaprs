@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The question under a setting whose change could cut the device off ("This device will lose the page. Turn off?"), with Yes and Cancel. Cancel has the focus, and Esc cancels.
+// The question under a setting whose change could cut the device off, with Yes and Cancel.
+// Cancel has the focus and Esc cancels.
 import { onMounted, ref } from "vue";
 import { t } from "@/i18n";
 

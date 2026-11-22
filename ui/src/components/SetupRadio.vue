@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// Step 4 of the first-run guide, live as the Radio group of the Settings tab is (plan section 6): the same group (SettingsRadio with `guide`), a box for each radio of the station that is not removed (RadioBox: its Enable, its Name and
-// Remove while the station has several radios, its status line and behind the arrow its type, the type's fields, the frequencies, Find my radio and the Terminal), and Add radio under them. A change applies at once, as in the
-// Settings tab (the same settings, the same queue and Undo), so a radio made or changed here stays when the guide is closed. Left out: RX only, Tune, the transmit level and the scope.
-// A station with no radio (a fresh installation) has one box, the radio it is adding: Add radio, the type from the whole list and its Add; once the new radio's row has come its box takes the place of this one, with the
-// type's fields and its status line at once, and Add radio under it. Before the daemon has told its settings and its radios the step has nothing (before the topic `radios` the radios would be those of the settings of
-// before, two boxes where the station may have one). The ids are the guide's own (`setup-fm-enabled`,
-// lib/settingsradio.ts BOX_IDS): every tab stays mounted, so the Settings tab's boxes are on the page too.
+// Step 4 of the first-run guide, live like the Radio group: the same group (SettingsRadio with
+// `guide`) with a RadioBox per radio and Add radio under them. A change applies at once, with the
+// same settings, queue and Undo as the Settings tab. Left out: RX only, Tune, the transmit level
+// and the scope. A station with no radio has one box for the radio being added; when its row
+// arrives the box is replaced by the radio's own. Before the daemon has listed settings and radios
+// the step is empty. The ids are the guide's own (lib/settingsradio.ts BOX_IDS); the Settings tab's
+// boxes are in the page too.
 import { computed, provide, ref, watch } from "vue";
 import RadioAdd from "@/components/RadioAdd.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
@@ -25,16 +25,18 @@ const form = useSettingsForm(config, settings, "settings");
 const { defaults } = form;
 const radios = useRadios();
 const keys = computed(() => radioStepKeys(settings.values.value, settings.draft));
-/** The station has no radio (none, or every one removed): the step is the box of the radio it is adding. */
+/**
+ * The station has no radio (none, or all removed): the step is the box of the radio being added.
+ */
 const none = computed(() => radios.all.value.every((radio) => radio.removed));
 
-// the first radio, added from that box: the page leads to its box once its row has come, to its type (its Enable is greyed: it is the only radio), and a refusal of the add ends the wait (the group's own Add radio leads to
-// the radios it adds)
+// the first radio, added from that box: lead to its box once its row has come, to its type (its
+// Enable is greyed as the only radio); a refusal of the add ends the wait
 const adding = ref(false);
 watch(
   () => radios.added.value,
   (radio, before) => {
-    if (radio === null || radio.id === before?.id || !adding.value) return; // (a change of the row of the radio added before is no new radio)
+    if (radio === null || radio.id === before?.id || !adding.value) return;
     adding.value = false;
     void attend(placedId(PLACE, radioElementId(radio, "type")));
   },

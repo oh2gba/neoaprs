@@ -1,9 +1,8 @@
 <script setup lang="ts">
-// The path being built in the path builder, drawn as what it means (lib/pathreach.ts): you, then one node for each hop, then the stations that hear the last one. A node is labelled with who may take the hop: "any digi" (WIDE1-1:
-// a home, fill-in, digipeater as well as a wide one; a house and a mast), "wide digi" (a hop of a WIDEn-N of n 2 or more: a mast), the call of a digipeater named (a mast) or of another alias, and a crossed circle for an alias
-// that is no path. The nodes of one element of the path are on one chip, with the element as the field writes it under them (WIDE2-2 under its two wide hops; nothing more under a call, which is the node's label) and its × that
-// takes it out: so the text and the hops are seen side by side. A chip that is no path is orange; a hop after the second is on the warn plate, as the count of PathHops is. Each node's hover title says in a sentence who takes it, the text's
-// says what n and N are. The picture is one line high whatever it holds and scrolls sideways when a long path does not fit, so that nothing under it moves as hops come and go.
+// The path being built, drawn as what it means: you, one node per hop, then the stations that hear
+// the last hop. A node is labelled by who may take the hop. The nodes of one path element share a
+// chip that shows the element's text and a × that removes it. The picture is one line high and
+// scrolls sideways.
 import { t } from "@/i18n";
 import { isAlias } from "@/lib/chain";
 import { USUAL_HOPS, type HopKind, type PathMeaning, type PathPart } from "@/lib/pathreach";

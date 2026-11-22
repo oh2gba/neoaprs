@@ -1,4 +1,6 @@
-// The page mounted as the tests of App.*.test.ts need it: the daemon's state as a socket tells it, the way to the tab buttons, and the page's globals (a desktop window, the clock at the fixtures' time, no storage) put in place and taken away around each test.
+// The page mounted as the App.*.test.ts files need it: the daemon's state as a socket tells it, the
+// way to the tab buttons, and the page's globals (a desktop window, the clock at the fixtures'
+// time, no storage) put in place and removed around each test.
 import "@/test/mockmap";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, vi } from "vitest";
@@ -22,12 +24,14 @@ export const messages = {
   "3": incoming(3, "OH2PU-9", { text: "Are you there?", at: ago(300) }),
 };
 
-/** The page, mounted on the document. */
 export function mountApp() {
   return mount(App, { attachTo: document.body });
 }
 
-/** The page mounted, and the daemon's first words told over the fake socket: the four stations, two packets, radio 1, the settings, three messages, a path for one station and the status. */
+/**
+ * The page mounted, and the daemon's first words sent over the fake socket (stations, packets,
+ * radio 1, settings, messages, status).
+ */
 export async function open() {
   const wrapper = mountApp();
   await flushPromises();
@@ -36,7 +40,7 @@ export async function open() {
   socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
   socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1), "2": packet(2, { tnc2: "OH2SEC>APRS:!6007.20N/02429.40E-" }) } });
   socket.say({ type: "state", topic: "radios", rev: 0, value: Object.fromEntries(radiosOf()) });
-  socket.say({ type: "state", topic: "config", rev: 0, value: configValues() }); // (the clock stands at the fixtures' time, so nothing times out)
+  socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
   socket.say({ type: "state", topic: "messages", rev: 0, value: messages });
   socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "OH2RCH-2", rf_only: false, alert: null } } });
   socket.say(status());
@@ -46,19 +50,22 @@ export async function open() {
 
 export const tabButton = (wrapper: VueWrapper, title: string) => wrapper.findAll("[role='tab']").find((t) => t.text().startsWith(title));
 
-/** Around each test of the file that calls it: the panel 720 px wide (the Messages tab has the list beside the conversation; the narrow layout is tried where a test says so), a desktop window, the fake socket, and the clock at the fixtures' time. */
+/**
+ * Around each test of the file: a 720 px wide panel, a desktop window, the fake socket and the
+ * clock at the fixtures' time.
+ */
 export function useAppHarness(): { setPanelWidth: (px: number) => void } {
   let panelWidth: ReturnType<typeof stubWidth>;
   beforeEach(() => {
     panelWidth = stubWidth(720);
-    window.innerWidth = 1400; // a desktop (the tests of the other sizes set their own)
+    window.innerWidth = 1400;
     window.innerHeight = 900;
     FakeSocket.all = [];
     resetFakes();
     localStorage.clear();
     sessionStorage.clear();
     vi.stubGlobal("WebSocket", FakeSocket);
-    vi.useFakeTimers({ toFake: ["Date"] }); // (the clock stands at the fixtures' time: a station times out after 3 hours)
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);
   });
   afterEach(() => {

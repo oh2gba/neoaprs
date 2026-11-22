@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// "Enable notifications in Firefox": the steps, for the browser this is, to let it show notifications for the address the page was opened at (BrowserAlerts opens it from Enable notifications…). The host and the origin come from the address of the page,
-// each with a Copy button, as the person types them into a page of the browser that this page cannot open. Once the page is reloaded as a secure context the notification choices are there and this panel is not shown.
-// While the daemon serves https (`https.on`) the first step is the secure page, with the guide to install its certificate (HttpsGuide) below it, and the steps of http stay for whoever keeps it.
+// Steps for Firefox to allow notifications for this page's address, with Copy buttons for the
+// values to type. Host and origin come from the page's address. While the daemon serves https,
+// the first step is the secure page with its certificate guide.
 import { computed } from "vue";
 import CopyField from "@/components/CopyField.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
@@ -13,7 +13,7 @@ import { secureUrl } from "@/lib/httpshelp";
 import { browserKind, CHROMIUM, FLATPAK_COMMANDS, flagAddress, isChromium, onLinuxDesktop } from "@/lib/popuphelp";
 import type { HttpsState } from "@/protocol/protocol";
 
-/** What the person types into Firefox: the page of its settings and the name of the setting. */
+/** What the person types into Firefox: the settings page and the setting name. */
 const FIREFOX_CONFIG = "about:config";
 const FIREFOX_KEY = "dom.securecontext.allowlist";
 
@@ -24,9 +24,9 @@ const secure = computed(() => props.https?.on === true);
 const userAgent = navigator.userAgent;
 const kind = computed(() => browserKind(userAgent, (navigator as { brave?: unknown }).brave !== undefined));
 const chromium = computed(() => (isChromium(kind.value) ? CHROMIUM[kind.value] : undefined));
-/** The host name or address alone: Firefox's list is of hosts. */
+/** The host name or address alone, as Firefox's list holds hosts. */
 const host = location.hostname;
-/** Scheme, host and port: the flag of Chrome and the others is of origins. */
+/** Scheme, host and port, as the flag of Chrome and others holds origins. */
 const origin = location.origin;
 const browser = computed(() => (kind.value === "firefox" ? "Firefox" : chromium.value?.name));
 

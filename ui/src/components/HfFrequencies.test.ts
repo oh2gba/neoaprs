@@ -1,5 +1,7 @@
-// The suggested frequencies row of the HF radio's box (HfFrequencies.vue, composables/useWhenShown.ts): the label says "suggested", the entries are plain text one to a line, band then the dial in the monospace font, the room of four lines is kept,
-// the list follows what the daemon says, and the daemon is asked to look at the project's file when the row comes into view, at most once a minute from one page.
+// The suggested frequencies row of the HF radio's box (HfFrequencies.vue): plain-text entries
+// one to a line, the room of four lines kept, the list following what the daemon says, and the
+// daemon asked to refresh the project's file when the row comes into view, at most once a minute
+// from one page.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -1,5 +1,6 @@
-// How the page writes what the daemon tells: ages, distances, bearings, positions, times. Times arrive as UTC ISO 8601 with a Z and are shown in the viewer's own time. The words (the units of a length of time, "ago", "in") and
-// the way a number is written (the decimal point) are the page's language's (src/i18n); the units of measure (km, MB, hPa, °C) and the compass letters are the same in every language.
+// How the page writes what the daemon tells: ages, distances, bearings, positions, times.
+// Times arrive as UTC ISO 8601 and are shown in the viewer's time. Words and the decimal point
+// follow the page language (src/i18n); units of measure and compass letters do not.
 import { formatNumber, t } from "@/i18n";
 
 const SECOND = 1000;
@@ -12,12 +13,12 @@ export const NONE = "-";
 type Unit = "s" | "min" | "h" | "d";
 const span = (unit: Unit, n: number): string => t(`time.span.${unit}`, { n });
 
-/** The instant of a time of the wire, in ms since 1970; NaN for text that is none. */
+/** The instant of a wire time in ms since 1970; NaN if it does not parse. */
 function parseTime(iso: string | null): number {
   return iso === null ? NaN : Date.parse(iso);
 }
 
-/** A length of time in ms in its largest whole unit: "12 s", "3 min", "5 h", "2 d". */
+/** A length of time in its largest whole unit: "12 s", "3 min", "5 h", "2 d". */
 function spanText(ms: number): string {
   if (ms < MINUTE) return span("s", Math.floor(ms / SECOND));
   if (ms < HOUR_MS) return span("min", Math.floor(ms / MINUTE));
@@ -25,19 +26,21 @@ function spanText(ms: number): string {
   return span("d", Math.floor(ms / DAY));
 }
 
-/** How long ago: "12 s", "3 min", "5 h", "2 d". A time in the future (the clocks differ a little) is "0 s". */
+/** How long ago ("12 s", "3 min"); a time in the future counts as "0 s". */
 export function ageText(iso: string | null, nowMs: number): string {
   const then = parseTime(iso);
   return Number.isNaN(then) ? NONE : spanText(Math.max(0, nowMs - then));
 }
 
-/** What the daemon costs the machine, in a sentence of the page's language, for a tooltip: "NeoAPRS uses 0.3 % of one processor core and 42 MB of memory, running for 3 h" (without the memory when it is not known). */
+/**
+ * What the daemon costs the machine, as a tooltip sentence; the memory part is left out if unknown.
+ */
 export function processText(cpuPercent: number, rssMb: number | null, uptimeSec: number): string {
   const values = { cpu: formatNumber(cpuPercent, 1), span: spanText(Math.max(0, uptimeSec) * SECOND) };
   return rssMb === null ? t("footer.cost_no_memory", values) : t("footer.cost", { ...values, mb: formatNumber(Math.round(rssMb), 0) });
 }
 
-/** How long until: "in 12 s", "in 3 min", "in 5 h", "in 2 d"; "now" for a time that has come. */
+/** How long until ("in 12 s"); "now" once the time has come. */
 export function untilText(iso: string | null, nowMs: number): string {
   const then = parseTime(iso);
   if (Number.isNaN(then)) return NONE;
@@ -49,7 +52,7 @@ export function untilText(iso: string | null, nowMs: number): string {
   return t("time.in", { span: span("d", Math.ceil(left / DAY)) });
 }
 
-/** The age in seconds of a time of the wire, Infinity for none. */
+/** The age in seconds of a wire time; Infinity for none. */
 export function ageSeconds(iso: string | null, nowMs: number): number {
   const then = parseTime(iso);
   return Number.isNaN(then) ? Infinity : Math.max(0, (nowMs - then) / SECOND);
@@ -69,7 +72,7 @@ export function hourMinuteText(iso: string): string {
   return clockText(iso).slice(0, 5);
 }
 
-/** "nothing heard since 02:43 (5 h)": the radio is silent; the time of the latest byte in the viewer's time and how long ago. */
+/** "nothing heard since 02:43 (5 h)": the time of the latest byte and how long ago. */
 export function silentText(since: string | null, nowMs: number): string {
   return since === null ? t("time.nothing_heard") : t("time.nothing_heard_since", { time: hourMinuteText(since), span: ageText(since, nowMs) });
 }
@@ -81,12 +84,12 @@ export function dateTimeText(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? NONE : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${clockText(iso)}`;
 }
 
-/** How long ago, in words: "2 min ago"; a dash for none. The full time goes in a hover title (`dateTimeText`). */
+/** "2 min ago"; a dash for none. The full time belongs in a hover title (`dateTimeText`). */
 export function agoWords(iso: string | null, nowMs: number): string {
   return iso === null ? NONE : t("time.ago", { span: ageText(iso, nowMs) });
 }
 
-/** Kilometres, one decimal under 10 and whole above; the figure is rounded first, so that 9.96 is "10" and not "10.0". */
+/** Kilometres: one decimal under 10, whole above. Rounded first, so 9.96 is "10", not "10.0". */
 export function distanceText(km: number | null): string {
   if (km === null) return NONE;
   const tenths = Math.round(km * 10) / 10;
@@ -114,7 +117,10 @@ export function bearingTitle(deg: number | null): string {
   return `${compassPoint(whole)}, ${whole}°`;
 }
 
-/** "60.17000 N 24.94000 E": degrees with N or S, E or W, to `decimals` decimals (5, about a metre, unless said). */
+/**
+ * "60.17000 N 24.94000 E": degrees with N or S, E or W, to `decimals` decimals (5, about a metre,
+ * unless said).
+ */
 export function positionText(lat: number | null, lon: number | null, decimals = 5): string {
   if (lat === null || lon === null) return NONE;
   const negative = (x: number): boolean => x < 0 && Math.round(Math.abs(x) * 10 ** decimals) > 0;
@@ -130,7 +136,9 @@ export function altitudeText(m: number | null): string {
   return m === null ? NONE : `${Math.round(m)} m`;
 }
 
-/** A vertical speed in metres a second with one decimal in the language's own form and its sign, a real minus sign for a descent; level flight is a plain 0; a dash for none. */
+/**
+ * A vertical speed in m/s with one decimal and a sign (a real minus for descent); level is "0 m/s".
+ */
 export function verticalText(ms: number | null): string {
   if (ms === null) return NONE;
   const tenths = Math.round(Math.abs(ms) * 10) / 10;
@@ -144,7 +152,9 @@ export function pathText(path: readonly string[]): string {
 
 const BYTE_UNITS = ["B", "kB", "MB", "GB", "TB"];
 
-/** Bytes in thousands, as every size on the page is told: `15 kB`, `1.5 MB`, `493 MB`; the unit is chosen after rounding, so that it is never `1000 kB`. */
+/**
+ * Bytes in powers of 1000 (`15 kB`, `1.5 MB`); the unit is chosen after rounding, never `1000 kB`.
+ */
 export function bytesText(bytes: number): string {
   let value = Math.max(0, bytes);
   let unit = 0;

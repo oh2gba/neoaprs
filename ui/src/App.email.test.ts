@@ -61,7 +61,9 @@ describe("App: the Email tab", () => {
       expect(wrapper.findAll("#pane-email .mail").map((m) => m.find(".mail-title").text())).toEqual(["To me", "From EMAIL-2"]);
       expect(wrapper.findAll("#pane-messages .conv-call").map((c) => c.text())).toEqual(["OH2PU-9", "OH2RDG"]);
       expect(tabButton(wrapper, "Messages")?.find(".badge").text()).toBe("2");
-      expect(wrapper.find(".headmail").text()).toContain("3"); // the messages not seen, the gateway's one included: the count of the title and of the folded panel's handle too
+      // The messages not seen, the gateway's one included: the count of the title and of the folded
+      // panel's handle too.
+      expect(wrapper.find(".headmail").text()).toContain("3");
     });
 
     it("shows what came in while the tab was away in bold until the tab is left again", async () => {

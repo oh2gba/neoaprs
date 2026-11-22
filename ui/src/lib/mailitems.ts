@@ -1,6 +1,8 @@
-// The Email tab's list: every message to and from the gateway EMAIL-2 as one row of a mail list (not a conversation). A message of ours is a mail ("To jane@example.com" and its text) or the `get` of Check email ("Checked email"),
-// with its state in words: Sending (1 of 2), Delivered, Not confirmed, Rejected. What the gateway sent is "From EMAIL-2" (its replies) or, when its text starts with an email address, the mail it forwards, "From jane@example.com".
-// The gateway's acks are no rows: the daemon uses them to settle the mail they belong to.
+// The Email tab's list: every message to and from the gateway EMAIL-2 as one row of a mail list.
+// A message of ours is a mail ("To jane@example.com") or the `get` of Check email, with its state
+// in words. What the gateway sent is "From EMAIL-2" (its replies) or, when its text starts with an
+// email address, the mail it forwards. The gateway's acks are no rows: the daemon uses them to
+// settle the mail they belong to.
 import { monthShort, t } from "@/i18n";
 import { isCheck } from "@/lib/email";
 import { dateTimeText, pad2 } from "@/lib/format";
@@ -15,20 +17,20 @@ export interface MailItem {
   title: string;
   /** the text under it (empty for a command, which says all in its title) */
   text: string;
-  /** the line as it was sent or came in, for the title of the text */
+  /** the line as sent or received, for the text's title */
   line: string;
   /** the email address the mail is to or from; empty for the gateway's own reply and the check */
   address: string;
 }
 
 export interface MailState {
-  /** the words: "Sending (1 of 2)", "Delivered", "Not confirmed", "Rejected", "Cancelled", "Too long for the radio" */
+  /** the words: "Sending (1 of 2)", "Delivered", "Not confirmed", "Rejected", "Cancelled" */
   word: string;
-  /** ok (the plain text), bad (orange) or plain, for the colour of the words */
+  /** the colour of the words: ok (plain text), bad (orange) or plain */
   tone: "ok" | "bad" | "plain";
 }
 
-/** A message of ours, read: the `get` of Check email in words, anything else a mail to the first word (an old shortcut command, `me jane@example.com`, is one too: the page no longer has shortcuts). */
+/** A message of ours: the `get` of Check email, else a mail to the first word. */
 function outgoing(row: MessageRow): MailItem {
   const line = row.text.trim();
   if (isCheck(line)) return { row, kind: "get", title: t("email.checked"), text: "", line, address: "" };
@@ -39,7 +41,10 @@ function outgoing(row: MessageRow): MailItem {
   return { row, kind: "mail", title: t("email.to", { address: to }), text, line, address: to };
 }
 
-/** What came in from the gateway: its text starting with an email address and a blank (`<jane@example.com>` or `jane@example.com:` too) is mail it forwards, from that address; else it is the gateway's own reply. */
+/**
+ * What came in from the gateway: text starting with an email address (`<jane@example.com>` and
+ * `jane@example.com:` too) is a forwarded mail from it; else the gateway's own reply.
+ */
 function incoming(row: MessageRow): MailItem {
   const line = row.text.trim();
   const forwarded = /^<?([^\s@<>]+@[^\s@<>:]+?)>?:?\s+(.+)$/.exec(line);
@@ -49,18 +54,20 @@ function incoming(row: MessageRow): MailItem {
   return { row, kind: "reply", title: t("email.from", { address: row.from_call }), text: line, line, address: "" };
 }
 
-/** The row of the list for a message to or from the gateway. */
+/** The list row for a message to or from the gateway. */
 export function mailItem(row: MessageRow): MailItem {
   return row.direction === "in" ? incoming(row) : outgoing(row);
 }
 
-/** The rows of the list, the oldest first: the newest is at the bottom, next to the form that writes the next, as in the Messages tab. */
+/** The rows, oldest first, so the newest is next to the form (as in the Messages tab). */
 export function mailItems(thread: readonly MessageRow[]): MailItem[] {
   return [...thread].sort((a, b) => a.id - b.id).map(mailItem);
 }
 
-/** The state of a message of ours in words. A mail whose attempts ran out without an ack is "Not confirmed", never failed: the gateway's acks reach us only through an iGate. A mail that was never sent because
- * it does not fit the radio says so. Null for a message that came in. */
+/**
+ * The state of a message of ours in words. A mail whose attempts ran out without an ack is "Not
+ * confirmed", never failed (acks reach us only through an iGate). Null for an incoming message.
+ */
 export function mailState(row: MessageRow): MailState | null {
   if (row.direction !== "out") return null;
   switch (row.state) {
@@ -85,7 +92,7 @@ export function mailState(row: MessageRow): MailState | null {
   }
 }
 
-/** When a row is from, short: "12:41" today, "21 Oct 12:41" before; the full date and time is the title of it. */
+/** A short time: "12:41" today, "21 Oct 12:41" before; the full time is its title. */
 export function mailTime(iso: string, nowMs: number): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return dateTimeText(iso);

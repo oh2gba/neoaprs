@@ -1,5 +1,6 @@
-// The words of the three kinds of the Bulletins form follow the daemon's plan (neoaprs/decay.py, on the wire as LIMITS.bulletin): with another plan the choice says the other numbers, in every language, and
-// no catalogue holds a number of its own.
+// The words of the three Bulletins form kinds follow the daemon's plan (neoaprs/decay.py, sent as
+// LIMITS.bulletin): with another plan the choice shows other numbers in every language, and no
+// catalogue holds a number of its own.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "@/i18n";
 import { LOCALES } from "@/i18n/locales";

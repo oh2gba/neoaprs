@@ -13,7 +13,7 @@ describe("a query we sent, in the conversation", () => {
     expect(askedNote(asked(1, "?APRSP", { state: "sending", attempts: 0 }))).toBe("You asked for its position");
     expect(askedNote(asked(1, "?WX?"))).toBe("You asked for its weather");
     expect(askedNote(asked(1, "?APRSH OH2GBA"))).toBe("You asked ?APRSH OH2GBA"); // (a query of the operator's own)
-    expect(askedNote(message(1, { text: "?APRSS", msg_id: "07" }))).toBeNull(); // (typed by the operator: a message with an id, a bubble)
+    expect(askedNote(message(1, { text: "?APRSS", msg_id: "07" }))).toBeNull();
     expect(askedNote(incoming(2, "OH2RDG", { text: "?APRSS", msg_id: null }))).toBeNull();
     expect(askedNote(asked(1, "?APRSS", { state: "overheard", direction: "in" }))).toBeNull();
     expect(askedNote(asked(1, "Hello"))).toBeNull();

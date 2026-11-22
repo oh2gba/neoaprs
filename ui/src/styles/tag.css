@@ -1,5 +1,7 @@
-/* THE tag (components/TagMark.vue): the one small mark of the page, the same height, font and padding wherever it stands (the count in the header and on a tab, the state of the radio, the channel of a station, Receive only, the hops of a chain); the tone only says what it is.
-   The classes a place adds to it (badge, via, rxonly...) place it and never change its size. */
+/* The tag (components/TagMark.vue): the one small mark of the page, the same height, font and
+   padding wherever it stands (the count in the header and on a tab, the radio state, a station's
+   channel, Receive only, the hops of a chain); the tone only says what it is. The classes a place
+   adds to it (badge, via, rxonly...) place it and never change its size. */
 .tag {
   display: inline-block;
   box-sizing: border-box;
@@ -16,7 +18,8 @@
   white-space: nowrap;
   vertical-align: middle;
 }
-/* the colour of a tag is its meaning, and always a soft pair of the palette (styles/tokens.css): quiet, never loud; the HF radio's alone is the site's inverse pill, told from the others by its lightness */
+/* the colour of a tag is its meaning, always a soft pair of the palette (styles/tokens.css):
+   quiet, never loud; the HF radio's alone is the site's inverse pill, told by its lightness */
 .tag-accent {
   background: var(--accent-soft-bg);
   color: var(--accent-soft-fg);
@@ -41,7 +44,8 @@
   background: var(--info-soft-bg);
   color: var(--info-soft-fg);
 }
-/* the HF radio: a petrol plate with white in the light theme, a mint one with petrol in the dark (the FM radio is the neutral) */
+/* the HF radio: a petrol plate with white in the light theme, a mint one with petrol in the dark
+   (the FM radio is the neutral) */
 .tag-hf {
   background: var(--hf-soft-bg);
   color: var(--hf-soft-fg);
@@ -51,13 +55,15 @@
   background: var(--lora-soft-bg);
   color: var(--lora-soft-fg);
 }
-/* a radio that is removed: what came by it keeps its name, dimmed (the quiet words on no plate, a thin edge), whatever its kind */
+/* a removed radio: what came by it keeps its name, dimmed (quiet words on no plate, a thin edge),
+   whatever its kind */
 .tag-removed {
   border-color: var(--border);
   background: none;
   color: var(--muted);
 }
-/* what is made up (the Dummy radio): neutral, with a dashed border, as the stations of the internet have a dotted outline on the map */
+/* what is made up (the Dummy radio): neutral with a dashed border, as internet stations have a
+   dotted outline on the map */
 .tag-dummy {
   border-style: dashed;
   border-color: var(--muted);

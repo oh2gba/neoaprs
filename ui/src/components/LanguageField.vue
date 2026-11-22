@@ -1,5 +1,7 @@
 <script setup lang="ts">
-// The choice of the page's language, at the top of the Settings tab: one list, every language by its own name. It is kept in this browser (src/i18n), not on the daemon, so each device decides; until it is chosen the page follows the browser's own languages.
+// The page's language choice at the top of Settings: every language by its own name. It is kept
+// in this browser (src/i18n), not on the daemon, so each device decides; until chosen the page
+// follows the browser's languages.
 import InfoTip from "@/components/InfoTip.vue";
 import { availableLocales, locale, setLocale, t } from "@/i18n";
 

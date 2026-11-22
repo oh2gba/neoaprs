@@ -56,7 +56,8 @@ describe("calls: a path", () => {
     expect(parsePath("A,B,C,D,E,F,G,H,I")).toBeNull();
     expect(parsePath("WIDE 1")).toBeNull();
     expect(parsePath("WIDE1-16")).toBeNull();
-    expect(parsePath("DIRECT")).toBeNull(); // (DIRECT is no digipeater: the word for none, see parsePathSetting)
+    // DIRECT is not a digipeater: it is the word for none (see parsePathSetting).
+    expect(parsePath("DIRECT")).toBeNull();
   });
 });
 

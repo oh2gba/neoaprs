@@ -1,6 +1,8 @@
-// The page's end of the conversation with the daemon (PROTOCOL.md): one WebSocket to /ws on the page's own host, `hello`, then the `state` of every topic and `patch` after it. Plain code with
-// no Vue: what the messages say is handed to a `Store`, which the composable (composables/useDaemon.ts) makes reactive; the socket and the timers can be replaced, so the tests drive it.
-// The socket is opened again by itself when it closes (1, 2, 4 ... 30 seconds), at once when the daemon has said nothing on it for 25 s or the page is woken (`wake`: a phone that slept may never see the close), and a topic whose revision skips is asked for again with `subscribe`.
+// The page's end of the daemon conversation (PROTOCOL.md): one WebSocket to /ws, `hello`, then the
+// `state` of every topic and `patch` after it. Plain code without Vue: messages go to a `Store`,
+// which useDaemon.ts makes reactive. The socket reopens when it closes (1, 2, 4 ... 30 s), at once
+// after 25 s of silence or `wake`, and a topic whose revision skips is asked for again with
+// `subscribe`.
 import type {
   AlertResultMessage,
   BulletinRow,
@@ -40,10 +42,13 @@ import { parseScopeFrame, type ScopeHistory, type ScopeRow } from "@/lib/scopero
 
 export const FIRST_DELAY_MS = 1000;
 export const MAX_DELAY_MS = 30000;
-/** The daemon tells every page its status every 10 s (neoaprs/web/api.py STATUS_EVERY_SEC): an open socket that has said nothing for this long is gone though no close came (a phone that slept, a network that changed). */
+/**
+ * The daemon sends the status every 10 s (neoaprs/web/api.py STATUS_EVERY_SEC); a socket silent for
+ * longer is dead.
+ */
 export const QUIET_MS = 25000;
 const CHECK_MS = 5000;
-/** The messages that answer a command, by the method of the store that keeps each. */
+/** The messages that answer a command, by the store method that keeps each. */
 const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   weather_series: "weatherSeries",
   packet_history: "packetHistory",
@@ -65,7 +70,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, radios, messages, bulletins, own_objects, own_bulletins, station_prefs, station_keys) is told item by item, the others (tnc, hf, config, map, update, gps, igate, qru, general) as a whole. */
+/** Where what the daemon says goes. Keyed topics are sent item by item, the others whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -84,15 +89,25 @@ export interface Store {
   ports(message: PortsMessage): void;
   radioSearch(message: RadioSearchMessage): void;
   radioAdded(message: RadioAddedMessage): void;
-  /** a Sound card radio's receive level as it is now, told ten times a second to a page that asked (`radio_level`) */
+  /**
+   * A Sound card radio's receive level, ten times a second, to a page that asked (`radio_level`).
+   */
   radioLevel(message: RadioLevelMessage): void;
-  /** a layer's whole table of aircraft or ships, told to a page that looks at the layer (`layer_look`) */
+  /**
+   * A layer's whole table of aircraft or ships, sent to a page that looks at the layer
+   * (`layer_look`).
+   */
   layerThings(message: LayerThingsMessage): void;
-  /** an alert set on a station fired (not an answer: every page is told, once) */
+  /** An alert set on a station fired (sent once to every page, not an answer). */
   stationAlert(message: StationAlertMessage): void;
-  /** a row of a radio's waterfall, told to a page that asked for its scope: a binary frame, not a message (PROTOCOL.md) */
+  /**
+   * A row of a radio's waterfall for a page that asked for its scope: a binary frame (PROTOCOL.md).
+   */
   hfScopeRow(row: ScopeRow, radio: RadioId): void;
-  /** the rows of the waterfall the daemon kept, oldest first with their ages, and the daemon's clock, told to a page when it begins to look (no row: what the page holds is to be forgotten) */
+  /**
+   * The kept waterfall rows, oldest first with ages, and the daemon's clock; empty means forget
+   * what is held.
+   */
   hfScopeHistory(history: ScopeHistory, radio: RadioId): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
@@ -131,7 +146,7 @@ export interface Store {
   delOwnBulletin(slot: string): void;
 }
 
-/** The method of the store that takes the whole value of each topic. */
+/** The store method that takes the whole value of each topic. */
 const REPLACERS: Record<TopicName, keyof Store> = {
   stations: "replaceStations",
   packets: "replacePackets",
@@ -152,11 +167,11 @@ const REPLACERS: Record<TopicName, keyof Store> = {
   skeds: "replaceSkeds",
 };
 
-/** What the hub needs of a WebSocket: the browser's has more. */
+/** What the hub needs of a WebSocket (the browser's has more). */
 export interface SocketLike {
   onopen: ((event: Event) => void) | null;
   onmessage: ((event: MessageEvent) => void) | null;
-  /** how a binary frame is given: the hub asks for `arraybuffer` where the socket has the field */
+  /** How a binary frame is given: `arraybuffer` where the socket has the field. */
   binaryType?: string;
   onclose: ((event: CloseEvent) => void) | null;
   onerror: ((event: Event) => void) | null;
@@ -166,15 +181,15 @@ export interface SocketLike {
 
 interface HubOptions {
   url: () => string;
-  /** makes the socket; the browser's WebSocket by default */
+  /** Makes the socket; the browser's WebSocket by default. */
   socket?: (url: string) => SocketLike;
-  /** the daemon has said hello: the caller looks at its version and protocol (lib/reload.ts) */
+  /** The daemon said hello: the caller checks its version and protocol (lib/reload.ts). */
   onHello?: (message: HelloMessage) => void;
-  /** a socket closed before the daemon said anything: it may have been refused */
+  /** A socket closed before the daemon said anything; it may have been refused. */
   refused?: () => void;
 }
 
-/** Replaces what a keyed topic's table holds with the rows the daemon told. */
+/** Replaces what a keyed topic's table holds with the rows the daemon sent. */
 export function fillTable<T>(into: Map<string, T>, rows: Record<string, T>): void {
   into.clear();
   for (const [key, row] of Object.entries(rows)) into.set(key, row);
@@ -196,7 +211,7 @@ function isMessage(value: unknown): value is Message {
   return isRecord(value) && typeof value.type === "string" && (MESSAGE_TYPES as readonly string[]).includes(value.type);
 }
 
-/** The text of a frame as a message of the daemon, null when it is none (the daemon's output is checked against the same models in its tests; this only looks at the tag). */
+/** The text of a frame as a daemon message, null if it is none. Only the tag is checked here. */
 export function parseMessage(text: string): Message | null {
   try {
     const data: unknown = JSON.parse(text);
@@ -213,10 +228,10 @@ export class Hub {
   private watch: ReturnType<typeof setInterval> | undefined;
   private wanted = false;
   private live = false;
-  /** When the daemon last said anything on the socket that is open. */
+  /** When the daemon last said anything on the open socket. */
   private heardAt = 0;
   private readonly revs = new Map<TopicName, number>();
-  /** The topics asked for again, whose state has not come yet: one ask each. */
+  /** Topics asked for again whose state has not come yet: one ask each. */
   private readonly asked = new Set<TopicName>();
 
   constructor(
@@ -224,7 +239,10 @@ export class Hub {
     private readonly options: HubOptions,
   ) {}
 
-  /** Opens the socket and keeps it open: a closed one is opened again after a wait that doubles, and one that has gone quiet at once. */
+  /**
+   * Opens the socket and keeps it open: a closed or silent socket is reopened after a doubling
+   * wait.
+   */
   open(): void {
     this.wanted = true;
     clearInterval(this.watch);
@@ -232,7 +250,10 @@ export class Hub {
     this.connect();
   }
 
-  /** The page is in front again, or the network is back: a socket that has gone quiet is opened again, and a wait for the next try ends now. */
+  /**
+   * The page is in front again or the network is back: a quiet socket is reopened and a pending
+   * wait ends.
+   */
   wake(): void {
     if (!this.wanted) return;
     if (this.socket === null) {
@@ -253,7 +274,7 @@ export class Hub {
     this.store.connection("closed");
   }
 
-  /** Sends a command; false when the socket is not open (the caller says so). */
+  /** Sends a command; false when the socket is not open. */
   send(command: Command): boolean {
     if (this.socket === null || !this.live) return false;
     this.socket.send(JSON.stringify(command));
@@ -285,7 +306,7 @@ export class Hub {
       else if (event.data instanceof ArrayBuffer) this.row(event.data);
     };
     socket.onclose = () => {
-      if (this.socket !== socket) return; // an older socket that closes late
+      if (this.socket !== socket) return; // older socket closing late
       this.socket = null;
       const spoke = this.live;
       this.live = false;
@@ -293,10 +314,10 @@ export class Hub {
       if (!spoke) this.options.refused?.();
       this.retry();
     };
-    socket.onerror = () => undefined; // the close that follows says it
+    socket.onerror = () => undefined;
   }
 
-  /** The daemon has spoken: the connection is up and the wait starts over. */
+  /** The daemon spoke: the connection is up and the wait starts over. */
   private up(): void {
     this.live = true;
     this.delay = FIRST_DELAY_MS;
@@ -305,7 +326,10 @@ export class Hub {
     this.store.connection("open");
   }
 
-  /** A socket the daemon has said nothing on for QUIET_MS is let go (its late close is ignored): one that was talking is replaced at once, one that never said anything is tried again after the wait. */
+  /**
+   * Drops a socket silent for QUIET_MS (its late close is ignored): reconnects at once if it ever
+   * spoke, else after the wait.
+   */
   private dropQuiet(): void {
     const socket = this.socket;
     if (socket === null || Date.now() - this.heardAt < QUIET_MS) return;
@@ -324,7 +348,7 @@ export class Hub {
     this.delay = nextDelay(this.delay);
   }
 
-  /** One frame of the daemon. */
+  /** Handles one frame of the daemon. */
   handle(text: string): void {
     const message = parseMessage(text);
     if (message === null) return;
@@ -353,7 +377,7 @@ export class Hub {
     }
   }
 
-  /** A binary frame: a row of the waterfall, the rows the daemon kept, or a frame of a kind this page does not know, which is let go. */
+  /** A binary frame: a waterfall row, the kept rows, or an unknown kind, which is dropped. */
   private row(data: ArrayBuffer): void {
     const frame = parseScopeFrame(data);
     if (frame === null) return;
@@ -361,7 +385,10 @@ export class Hub {
     else this.store.hfScopeHistory(frame.history, frame.radio);
   }
 
-  /** The answer to a command (the weather series, the packets by the hour, the ports...), kept by the store under its own name; a pong is nothing to keep. */
+  /**
+   * The answer to a command (weather series, packets by the hour, ports...), kept by the store
+   * under its own name.
+   */
   private answer(message: Message): void {
     const name = ANSWERS[message.type];
     if (name !== undefined) (this.store[name] as (m: Message) => void)(message);
@@ -377,9 +404,9 @@ export class Hub {
   private onPatch(topic: string, rev: number, ops: Extract<Message, { type: "patch" }>["ops"]): void {
     if (!isTopic(topic)) return;
     const before = this.revs.get(topic);
-    if (before !== undefined && rev <= before) return; // what the page has already
+    if (before !== undefined && rev <= before) return;
     if (before === undefined || rev !== before + 1) {
-      // a patch was missed: the topic is sent whole, once, however many patches follow before it comes
+      // A patch was missed: ask for the whole topic once, however many patches arrive before it.
       if (!this.asked.has(topic) && this.send({ cmd: "subscribe", topics: [topic] })) this.asked.add(topic);
       return;
     }
@@ -395,7 +422,8 @@ export class Hub {
     }
   }
 
-  // The values arrive as `unknown`; the daemon checks every one against its models before it sends (web/outbound.py), so an object of the right topic is taken as the topic's type.
+  // The daemon checks every value against its models before sending (web/outbound.py), so the
+  // topic's type is trusted.
   private replace(topic: TopicName, value: unknown): void {
     (this.store[REPLACERS[topic]] as (value: unknown) => void).call(this.store, value);
   }

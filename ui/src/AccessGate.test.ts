@@ -38,7 +38,10 @@ describe("AccessGate", () => {
   });
 
   describe("a phone that came by the code, with the key in the address", () => {
-    /** The daemon answers each request in turn with the next status, and the address's fragment at each request is kept. */
+    /**
+     * The daemon answers each request with the next status; the address fragment at each request is
+     * kept.
+     */
     function scanned(address: string, ...statuses: number[]) {
       history.replaceState(null, "", address);
       const daemon = new FakeFetch();

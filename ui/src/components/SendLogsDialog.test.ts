@@ -1,7 +1,12 @@
-// Send feedback / logs of the Help group: the group's one button, the dialog it opens (one text, the logs file under it, Send and Cancel, the page's dialog keys), what goes to the daemon (the page's info and the note, only when Send is pressed), the button in progress, and the one quiet
-// line after it: the reference, or why it was not sent. The file's row: its name downloads the file by the means of Download logs (the same request; the daemon keeps what it made and Send names it), its × takes the file off so that the words go alone (Send is off without words then),
-// Attach puts it back, and nothing in the dialog moves for any of it; what the dialog holds is kept by the group until a send worked (the words, the file on or off); the file that was downloaded is named by the Send of that opening and by the next try of a send that failed, and forgotten when the dialog is closed with nothing sent; the row's words in nine
-// languages, and no line that explains.
+// Send feedback / logs of the Help group: the group's one button, the dialog it opens (one text,
+// the logs file under it, Send and Cancel, the page's dialog keys), what goes to the daemon (the
+// page info and the note, only on Send), the button in progress, and the one quiet line after it
+// (the reference, or why it was not sent). The file row: its name downloads the file as Download
+// logs does, its × takes the file off so that the words go alone (Send is then off without words),
+// Attach puts it back, and nothing in the dialog moves. The group keeps what the dialog holds until
+// a send worked; the downloaded file is named by the Send of that opening and by a retry after a
+// failure, and forgotten when the dialog is closed with nothing sent. The row's words exist in nine
+// languages; no line explains.
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref, shallowRef } from "vue";
@@ -29,7 +34,10 @@ const zip = (): Promise<Response> =>
 
 const address = (input: RequestInfo | URL | undefined): string => (typeof input === "string" ? input : input instanceof URL ? input.href : (input?.url ?? ""));
 
-/** The fetch of the page with the daemon's two routes: `bundle` answers Download logs, `send` the dialog's Send. */
+/**
+ * The fetch of the page with the daemon's two routes: `bundle` answers Download logs, `send` the
+ * dialog's Send.
+ */
 function daemonRoutes(bundle: () => Promise<Response> = zip, send: () => Promise<Response> = () => json({ ok: true, ref: REF })) {
   return daemonSays(() => Promise.reject(new Error("unused"))).mockImplementation((input) => (address(input).endsWith("/support/bundle") ? bundle() : send()));
 }
@@ -376,7 +384,8 @@ describe("the file's row", () => {
     await press(fileName());
     await typeAndSend("x");
     await open();
-    expect(statusLine().textContent?.trim()).toBe(`Saved ${MADE}.`); // (the file that goes is still the one that was saved)
+    // the file that goes is still the one that was saved
+    expect(statusLine().textContent?.trim()).toBe(`Saved ${MADE}.`);
     fetcher.mockImplementation(() => json({ ok: true, ref: REF }));
     await press(button("Send"));
     expect(asked(fetcher.mock.calls[2]).body.file).toBe(MADE);
@@ -405,7 +414,8 @@ describe("the file's row", () => {
       expect(statusLine().textContent?.trim()).toBe("");
       expect(area().value).toBe("words that stay");
       await press(button("Send"));
-      expect(Object.keys(asked(fetcher.mock.calls[1]).body).sort()).toEqual(["note", "page"]); // (no name: the daemon makes the file now)
+      // no name: the daemon makes the file now
+      expect(Object.keys(asked(fetcher.mock.calls[1]).body).sort()).toEqual(["note", "page"]);
     },
   );
 
@@ -606,7 +616,10 @@ describe("the × of the file", () => {
 });
 
 describe("nothing in the dialog moves", () => {
-  /** The row as it stands in the page: every element with its classes but the ones that only colour it, and the words that take room (both faces of the ×, shown or not). */
+  /**
+   * The row as it stands in the page: every element with its classes but the ones that only colour
+   * it, and the words that take room (both faces of the ×, shown or not).
+   */
   const shape = () =>
     [...row().querySelectorAll("*")].map((part) => [
       part.tagName,
@@ -644,7 +657,8 @@ describe("nothing in the dialog moves", () => {
       expect(cssRule(selector), selector).not.toBe("");
       expect(cssRule(selector), selector).not.toMatch(sizes);
     }
-    // (Attach is underlined as a link is: the line is on the box of the two faces, where it reaches the word; one on the button would stop at that box)
+    // (Attach is underlined as a link is: the line is on the box of the two faces, where it reaches
+    // the word; one on the button would stop at that box)
     expect(cssRule(".logsdialog-attached.off .logsdialog-x .twowords")).toMatch(/text-decoration:\s*underline/);
     expect(cssRule(".logsdialog-attached.off .logsdialog-x")).not.toMatch(/text-decoration/);
     expect(cssRule(".logsdialog-x")).toMatch(/flex:\s*none/);
@@ -653,7 +667,8 @@ describe("nothing in the dialog moves", () => {
   it("always has the room for what the download says, a line of its own under the file: two lines, three on a phone, and the dialog has its own width", async () => {
     expect(cssRule(".logsdialog-status")).toMatch(/min-height:\s*2\.8em/);
     expect(cssRule(".logsdialog-status")).toMatch(/line-height:\s*1\.4/);
-    expect(cssRule(".logsdialog-status")).not.toMatch(/flex/); // (not beside Send and Cancel, where a file's full name takes three lines on a phone)
+    // not beside Send and Cancel, where a file's full name takes three lines on a phone
+    expect(cssRule(".logsdialog-status")).not.toMatch(/flex/);
     expect(mediaRule("(max-width: 420px)", ".logsdialog-status")).toMatch(/min-height:\s*4\.2em/);
     expect(cssRule(".logsdialog")).toMatch(/width:\s*min\(460px, 100%\)/);
     daemonRoutes();
@@ -687,7 +702,8 @@ describe("the words of the file's row in nine languages", () => {
       const [download, remove, attach] = NEW.map((id) => String(messages[id]));
       expect(download).toContain("{file}");
       expect(remove).toContain("{file}");
-      expect(remove).toBe(String(messages["pathbuilder.remove"]).replace("{call}", "{file}")); // (the words of the path builder's ×)
+      // the words of the path builder's ×
+      expect(remove).toBe(String(messages["pathbuilder.remove"]).replace("{call}", "{file}"));
       expect(attach).toMatch(/^\S+$/u);
       expect(new Set([download, remove, attach]).size).toBe(3);
       for (const id of GONE) expect(messages[id], id).toBeUndefined();

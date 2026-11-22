@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The path: our packet is repeated by the fill-in digipeater (WIDE1-1) and then by a wide-area one (WIDE2-1), two hops, before the other stations hear it; the path as it is written is under the chain.
+// The path: our packet is repeated by the fill-in digipeater (WIDE1-1), then a wide-area one
+// (WIDE2-1), two hops; the written path is under the chain.
 import { CALLS } from "@/help/calls";
 import { t } from "@/i18n";
 import HelpFrame from "@/help/HelpFrame.vue";

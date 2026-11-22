@@ -1,5 +1,7 @@
-// The rules of the daemon that are code and not numbers, held to the page's copy of them: ui/src/protocol/vectors.json is written by scripts/gen-protocol.py from what the daemon's Python answers for each input
-// (tests/test_vectors.py holds the file to the daemon), and every case is asserted here against the page's own function. A rule changed on one side alone fails a test on that side.
+// The rules of the daemon that are code and not numbers, held to the page's copy:
+// ui/src/protocol/vectors.json is written by scripts/gen-protocol.py from the daemon's answers
+// (tests/test_vectors.py holds the file to the daemon), and every case is asserted here against the
+// page's own function. A rule changed on one side alone fails a test.
 import { describe, expect, it } from "vitest";
 import { bytesLeft } from "@/lib/messages";
 import { canPost, postCommand, textOk, type PostDraft } from "@/lib/bulletins";

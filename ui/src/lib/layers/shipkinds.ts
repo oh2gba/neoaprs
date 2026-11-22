@@ -1,8 +1,10 @@
-// What kind of ship a ship is, in words, from the type of ship and cargo it sends by AIS (1 to 99; the second figure of 20 to 99 is the cargo it carries, which the card leaves out): a passenger ship, a cargo
-// ship, a tanker, or one of the ships of the 30s and the 50s that have a figure of their own (fishing, sailing, a tug, a pilot...). A type that names no kind (the reserved ones, the spare ones) has none.
+// What kind of ship a ship is, in words, from the AIS ship and cargo type (1 to 99; the second
+// digit of 20 to 99 is the cargo, which the card leaves out): passenger, cargo, tanker, or one with
+// its own figure in the 30s and 50s (fishing, sailing, tug, pilot...). A type that names no kind
+// (reserved or spare) has none.
 import type { MessageId } from "@/i18n/catalogue";
 
-/** The kinds that have one figure of their own. */
+/** The kinds that have a figure of their own. */
 const ONE: Readonly<Record<number, MessageId>> = {
   30: "layers.kind.fishing",
   31: "layers.kind.towing",
@@ -22,7 +24,7 @@ const ONE: Readonly<Record<number, MessageId>> = {
   59: "layers.kind.noncombatant",
 };
 
-/** The kinds that are a whole ten, by its first figure. */
+/** The kinds that are a whole ten, by its first digit. */
 const TENS: Readonly<Record<number, MessageId>> = {
   2: "layers.kind.wing_in_ground",
   4: "layers.kind.high_speed",
@@ -32,7 +34,10 @@ const TENS: Readonly<Record<number, MessageId>> = {
   9: "layers.kind.other",
 };
 
-/** The kind of ship of an AIS type, as the catalogue's id; null where the type is not known or names no kind. */
+/**
+ * The kind of ship for an AIS type, as the catalogue's id; null where the type is unknown or names
+ * no kind.
+ */
 export function shipKind(type: number | null): MessageId | null {
   if (type === null || !Number.isInteger(type) || type < 1 || type > 99) return null;
   return ONE[type] ?? TENS[Math.floor(type / 10)] ?? null;

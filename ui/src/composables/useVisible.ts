@@ -1,4 +1,5 @@
-// Whether the page is visible (document.visibilityState): false in a background browser tab or a minimised window. A message that comes then is not seen (lib/unread.ts).
+// Whether the page is visible (document.visibilityState): false in a background tab or a minimised
+// window.
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
 export function useVisible() {
@@ -14,7 +15,7 @@ export function useVisible() {
   return visible;
 }
 
-/** Whether the page is visible, for the page's own life: no component to hang the listener on (the counting of who looks at the scope, composables/useScopeLooks.ts). */
+/** Whether the page is visible, outside any component (no hook to attach the listener to). */
 export function pageVisible() {
   const visible = ref(document.visibilityState !== "hidden");
   document.addEventListener("visibilitychange", () => {

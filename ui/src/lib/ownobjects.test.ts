@@ -207,7 +207,8 @@ describe("moveCommand", () => {
       on_request: false,
       radios: [1],
     });
-    expect(moveCommand(ownObject("WIDE", { radios: [1, 3] }), 60, 25)).toMatchObject({ radios: [1, 3] }); // (every radio it goes on, not the word of before)
+    // Every radio it goes on, not the word of before
+    expect(moveCommand(ownObject("WIDE", { radios: [1, 3] }), 60, 25)).toMatchObject({ radios: [1, 3] });
     expect(moveCommand(ownObject("WIDE", { radios: [1, 3] }), 60, 25)).not.toHaveProperty("radio");
   });
 

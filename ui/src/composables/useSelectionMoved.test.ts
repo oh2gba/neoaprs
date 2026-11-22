@@ -19,7 +19,8 @@ function setUp(capacity: number) {
   };
 }
 
-// (a card the user has moved leaves its slot empty and stands where it is put: as far as how many may be open goes it is a card like the others)
+// A moved card leaves its slot empty and stands where it is put; for the open-card limit it counts
+// like the others.
 describe("useSelection counts every open card against the capacity", () => {
   it("closes the oldest card when a new one would be one too many, wherever the cards stand", () => {
     const { picked } = setUp(2);

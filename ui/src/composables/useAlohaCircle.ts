@@ -1,6 +1,5 @@
-// The ALOHA circles on the map: their layers made with the others, and their lines drawn again when a radius or our position changes, or the row ALOHA circle of the Layers box is ticked or not (`on`: with it off
-// nothing is drawn). One circle for each radio the daemon worked one out for (the topic `map`'s `aloha`: a radio that is on whose type shares a 1200 baud channel, from what that radio heard), each in the map's one
-// look. The circle has no title: the box names it, and Statistics, Reach gives each radius.
+// The ALOHA circles on the map: one per radio the daemon computed one for (topic `map`, `aloha`),
+// drawn again when a radius or our position changes or the Layers row is toggled (`on`).
 import { watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { alohaFeatures } from "@/lib/alohacircle";

@@ -1,5 +1,6 @@
-// The message board as the Bulletins tab shows it: the rows of the topic `bulletins` grouped into announcements, bulletins, group messages and weather service bulletins, each newest first, what to call a row, and how many
-// are new since the tab was last on show. The daemon decides what a bulletin is and that nothing on it ages out (neoaprs/bulletin.py); these only arrange and word it.
+// The Bulletins tab's board: rows of the topic `bulletins` grouped into announcements, bulletins,
+// group messages and weather service bulletins, newest first, plus naming and the new-row count.
+// The daemon decides what a bulletin is and that none ages out (neoaprs/bulletin.py).
 import { t } from "@/i18n";
 import { ageText, untilText } from "@/lib/format";
 import { sentText } from "@/lib/ownobjects";
@@ -9,7 +10,10 @@ import type { BulletinRow, Command, OwnBulletinRow } from "@/protocol/protocol";
 
 type Kind = BulletinRow["kind"];
 
-/** A row of the board: what was heard, or (`own`) what we post, written in the same columns: the sender is our call, `first_heard` is when it was posted, `last_heard` when it was last sent and `times_heard` how often. */
+/**
+ * A board row: heard, or (`own`) posted by us. For our own the sender is our call, `first_heard` is
+ * the post time, `last_heard` the last send and `times_heard` the send count.
+ */
 export interface BoardEntry extends BulletinRow {
   own?: OwnBulletinRow;
 }
@@ -22,7 +26,7 @@ interface Section<T extends BulletinRow> {
 
 const SECTIONS: readonly Kind[] = ["announcement", "bulletin", "group", "nws"];
 
-/** The board in its four sections (announcements, bulletins, group messages, weather service), each newest first by the last hearing; a section with nothing in it is left out. */
+/** The board in four sections, each newest first by last hearing; empty sections are left out. */
 export function sections<T extends BulletinRow>(rows: Iterable<T>): Section<T>[] {
   const all = [...rows].sort((a, b) =>
     a.last_heard === b.last_heard ? a.sender.localeCompare(b.sender) || a.slot.localeCompare(b.slot) : a.last_heard < b.last_heard ? 1 : -1,
@@ -30,31 +34,31 @@ export function sections<T extends BulletinRow>(rows: Iterable<T>): Section<T>[]
   return SECTIONS.map((kind) => ({ kind, title: t(`bulletins.section.${kind}`), rows: all.filter((r) => r.kind === kind) })).filter((s) => s.rows.length > 0);
 }
 
-/** What a row is addressed to, as it is called: the group of a group bulletin ("HAMS"), else the slot ("BLN1", "BLNA", "QST"). */
+/** What a row is addressed to: the group of a group bulletin ("HAMS"), else the slot ("BLN1"). */
 export function targetOf(row: BulletinRow): string {
   return row.group === "" ? row.slot : row.group;
 }
 
-/** How often a bulletin was heard and how long ago it was last: "heard once, 3 min ago", "heard 3 times, 3 min ago". */
+/** How often and how long ago a bulletin was heard: "heard 3 times, 3 min ago". */
 export function heardText(times: number, lastHeard: string | null, nowMs: number): string {
   return t("bulletins.heard", { n: times, span: ageText(lastHeard, nowMs) });
 }
 
-/** When the newest text on the board was first heard, in ms since 1970; 0 for an empty board. */
+/** When the newest text was first heard, in ms since 1970; 0 for an empty board. */
 export function newestFirstHeard(rows: Iterable<BulletinRow>): number {
   let newest = 0;
   for (const row of rows) newest = Math.max(newest, Date.parse(row.first_heard) || 0);
   return newest;
 }
 
-/** How many rows have a text first heard after `seenUpTo` (ms since 1970): a bulletin new on the board, or one whose sender changed the text. */
+/** How many rows have a text first heard after `seenUpTo` (new bulletins and changed texts). */
 export function newCount(rows: Iterable<BulletinRow>, seenUpTo: number): number {
   let count = 0;
   for (const row of rows) if ((Date.parse(row.first_heard) || 0) > seenUpTo) count++;
   return count;
 }
 
-/** The bulletins of ours as rows of the board, under our call. */
+/** Our bulletins as board rows under our call. */
 export function ownEntries(rows: Iterable<OwnBulletinRow>, call: string): BoardEntry[] {
   return [...rows].map((own) => ({
     sender: call,
@@ -69,7 +73,7 @@ export function ownEntries(rows: Iterable<OwnBulletinRow>, call: string): BoardE
   }));
 }
 
-/** What the board says of a bulletin of ours: how often it was sent and when it goes out next, "ended" once its schedule is over. */
+/** The board text for our bulletin: send count and next send, or "ended" once finished. */
 export function ownMeta(own: OwnBulletinRow, nowMs: number): string {
   if (own.next_at === null) return own.sent === 0 ? sentText(0) : t("schedule.ended", { n: own.sent });
   return t("schedule.next", { n: own.sent, when: untilText(own.next_at, nowMs) });
@@ -78,27 +82,30 @@ export function ownMeta(own: OwnBulletinRow, nowMs: number): string {
 export type PostKind = "bulletin" | "announcement" | "group";
 type PostCommand = Extract<Command, { cmd: "bulletin_post" }>;
 
-/** The kinds of what is posted, with the identifiers each has: a number for a bulletin and for a group bulletin, a capital letter for an announcement. */
+/** The post kinds with their identifiers: digits for bulletins, capitals for announcements. */
 export const POST_KINDS: { kind: PostKind; ids: string }[] = [
   { kind: "bulletin", ids: "0123456789" },
   { kind: "announcement", ids: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
   { kind: "group", ids: "0123456789" },
 ];
 
-/** How long a post of each kind is sent, in the unit its words have (hours, and days for an announcement): the daemon's own plan (LIMITS.bulletin, from neoaprs/decay.py). A group bulletin is sent as a bulletin is. */
+/**
+ * How long a post of each kind is sent (hours; days for an announcement), from the daemon's plan
+ * (LIMITS.bulletin, neoaprs/decay.py). A group bulletin is sent like a bulletin.
+ */
 const REPEATED: Record<PostKind, number> = {
   bulletin: LIMITS.bulletin.repeatHours,
   announcement: LIMITS.bulletin.announcementRepeatDays,
   group: LIMITS.bulletin.repeatHours,
 };
 
-/** What a kind of post is called in the choice of the compose box, with what it does: "Bulletin (sent for 4 hours)", "Announcement (sent for 3 days)", "Group bulletin (to one group, sent for 4 hours)". */
+/** The compose box's name for a kind: "Bulletin (sent for 4 hours)". */
 export function kindTitle(kind: PostKind): string {
   return t(`bulletins.kind.${kind}`, { n: REPEATED[kind] });
 }
 export const GROUP_MAX = LIMITS.bulletin.groupMax;
 
-/** What the compose box holds: the kind, the identifier, the group of a group bulletin and the text. */
+/** What the compose box holds. */
 export interface PostDraft {
   kind: PostKind;
   id: string;
@@ -111,40 +118,40 @@ export function idsOf(kind: PostKind): string {
   return POST_KINDS.find((k) => k.kind === kind)?.ids ?? "";
 }
 
-/** The group as it is sent: capitals, no blanks. */
+/** The group as sent: capitals, no blanks. */
 export function groupOf(text: string): string {
   return text.trim().toUpperCase();
 }
 
-/** The slot a draft is for: `BLN1`, `BLNA`, `BLN3HAMS`. */
+/** The slot of a draft: `BLN1`, `BLNA`, `BLN3HAMS`. */
 export function slotOf(draft: PostDraft): string {
   return `BLN${draft.id}${draft.kind === "group" ? groupOf(draft.group) : ""}`;
 }
 
 const GROUP = new RegExp(`^[A-Z0-9]{1,${GROUP_MAX}}$`);
 
-/** Whether the group is one the daemon takes: one to `GROUP_MAX` letters and digits. */
+/** Whether the daemon accepts the group: 1 to `GROUP_MAX` letters and digits. */
 export function groupOk(text: string): boolean {
   return GROUP.test(groupOf(text));
 }
 
-/** Whether the text can be sent as it is: printable ASCII without the characters a message may not hold (`| ~ {`), at most as many characters as a message has. */
+/** Whether the text can be sent: printable ASCII without `| ~ {`, within the message length. */
 export function textOk(text: string): boolean {
   const trimmed = text.trim();
   return trimmed !== "" && textRefusal(trimmed) === null && trimmed.length <= LIMITS.message.textMax;
 }
 
-/** How many characters more the text may have; negative when it is too long. */
+/** How many characters more the text may have; negative when too long. */
 export function charsLeft(text: string): number {
   return LIMITS.message.textMax - text.trim().length;
 }
 
-/** Whether Post is on: a text that fits and, for a group bulletin, a group. */
+/** Whether Post is enabled: a fitting text and, for a group bulletin, a group. */
 export function canPost(draft: PostDraft): boolean {
   return textOk(draft.text) && idsOf(draft.kind).includes(draft.id) && (draft.kind !== "group" || groupOk(draft.group));
 }
 
-/** The command that posts the draft; null while it cannot be posted. */
+/** The command that posts the draft; null if it cannot be posted. */
 export function postCommand(draft: PostDraft): PostCommand | null {
   return canPost(draft) ? { cmd: "bulletin_post", slot: slotOf(draft), text: draft.text.trim() } : null;
 }

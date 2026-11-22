@@ -1,4 +1,5 @@
-// The groups of the Settings tab fold by the arrow in their legend, the state is kept per browser, and a group that must be seen opens by itself.
+// The groups of the Settings tab fold by the arrow in their legend, the state is kept per browser,
+// and a group that must be seen opens by itself.
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";

@@ -1,4 +1,5 @@
-// main.ts mounts the page; what is tested here is its wiring: the app it makes has the handler of errors set, and the window's listeners are on.
+// main.ts mounts the page; this tests its wiring: the app has the error handler set and the
+// window's listeners are on.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as VueModule from "vue";
 import type { App } from "vue";

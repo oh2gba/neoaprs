@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The signal of a station's packets over the last day, as a line on its card (components/StationCard.vue), in the pattern of the speed graph (components/StationSpeed.vue): the SNR of each packet heard direct from it (the RSSI where the radio gives that and not the SNR), from the readings
-// the daemon has (`signal_series`; the card emits `ask` and components/StationCards.vue sends it) when the card opens and whenever a new reading of the station comes. The card shows it only for a station whose latest reading
-// (`signal_at` of the row) is in the last day, from the row, so that the room is kept before the answer comes and nothing moves when it does: the graph is its empty frame until then, and stays that frame for a station
-// with fewer than two readings in the day.
+// Line graph of a station's signal over the last day on its card: the SNR of each packet heard
+// direct (the RSSI when the radio gives no SNR). The card emits `ask` (`signal_series`) when it
+// opens and on each new reading. It shows the graph only when the row's `signal_at` is within
+// the last day, so room is reserved before the answer; with fewer than two readings the graph
+// stays an empty frame.
 import { computed, onMounted, watch } from "vue";
 import TrendChart from "@/components/TrendChart.vue";
 import { t } from "@/i18n";

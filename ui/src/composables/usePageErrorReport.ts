@@ -1,4 +1,5 @@
-// The errors of the page (lib/pageerrors.ts) go to the daemon through the page's socket, quietly: a toast for an error that could not be reported would be one more error. They wait while the socket is not open and are sent when it is.
+// Page errors go to the daemon through the socket, quietly, waiting while it is closed: a toast for
+// an unreportable error would be one more error.
 import { onBeforeUnmount, onMounted, watch, type Ref } from "vue";
 import type { Connection, Hub } from "@/lib/hub";
 import { pageErrors } from "@/lib/pageerrors";

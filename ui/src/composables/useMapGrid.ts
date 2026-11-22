@@ -1,5 +1,5 @@
-// The locator grid on the map while its tick is on (composables/useMapLayers.ts): its layers made with the others (`add`, first, so that the grid lies under everything else), and drawn again for the part of the
-// map in view when the view stops moving (`listen`) and when the tick changes; with the tick off it draws nothing.
+// The locator grid on the map while its tick is on: its layers are made first with `add`, so it
+// lies under everything else, and drawn again for the visible part when the view stops moving.
 import { watch } from "vue";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { NO_GRID, gridFeatures, type GridCollection } from "@/lib/layers/grid";

@@ -345,7 +345,8 @@ describe("StationMap", () => {
     expect(cssRule(".stationmap")).toMatch(/overflow:\s*hidden/);
     const wrapper = await mounted();
     const box = wrapper.find(".mapbox").element;
-    box.classList.add("maplibregl-map"); // (as MapLibre does: its style sheet clips the markers to the box by this class)
+    // as MapLibre does: its style sheet clips the markers to the box by this class
+    box.classList.add("maplibregl-map");
     await wrapper.setProps({ picking: true, replay: true });
     await wrapper.setProps({ picking: false, replay: false });
     expect([...box.classList]).toEqual(["mapbox", "maplibregl-map"]);

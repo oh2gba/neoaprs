@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// The words of a status row (StatusFold): the state in the colour of its tone and the quiet line beside it, which is a link to a setting when it explains one (`link`: the id of the control in the Settings tab and the hover title; a click opens the tab and flashes the group, lib/attention.ts).
-// A line that changes while nothing else does (a connected radio's: what its modem does, when a packet last came) comes in its `parts`, each on a line of its own that is never wrapped and is cut with an ellipsis where
-// the row is too narrow (the whole line is the hover title the caller gives), so that the row is as high whatever the parts say and nothing under it moves: the first part beside the state, the next under the state
-// for the whole width of the row (settings.css `.statushead-parts`). The dot between two parts is not drawn; it is there so that the element's text is the whole line. Two elements and no root of its own: they are
-// the content of the row's heading, whether the row folds or not.
+// The words of a status row (StatusFold): the state in its tone colour and a quiet line beside
+// it. `link` (a control id in the Settings tab, also the title) turns the line into a link
+// that opens the tab and flashes the group (lib/attention.ts). `parts` are lines that change
+// while nothing else does; each stays on one line, ellipsised, so the row keeps its height
+// (settings.css `.statushead-parts`). The separator dot is not drawn, but keeps the text whole.
+// Renders two elements without a root: the content of the row's heading.
 import { useOpenSetting } from "@/composables/useOpenSetting";
 import type { SettingLink } from "@/lib/settinglink";
 

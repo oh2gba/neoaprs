@@ -1,5 +1,7 @@
 <script setup lang="ts">
-// The status of the Internet stations group of the Settings tab, under its tickbox and only while it is ticked: the radio's status row (StatusFold.vue) with the words of lib/igatestatus.ts, and behind its arrow the server and the filter. The state as a mark is in the top bar of the page.
+// The status of the Internet stations group in Settings, shown under its tickbox while ticked: a
+// status row (StatusFold.vue) with the words of lib/igatestatus.ts and the server and filter
+// behind its arrow.
 import { computed } from "vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { igateLook } from "@/lib/igatestatus";

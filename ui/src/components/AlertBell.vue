@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// A small quiet bell for a station that has an alert set (lib/stationalert.ts), with what it watches as its hover title and its name for a screen reader ("Alert when on the air, within 10 km"): beside the call in the Stations table and on the
-// station's card. In the table every row has its place, empty without an alert, so that setting one makes nothing wider and moves nothing; the card shows it only when there is one. Drawn in SVG with the colour of quiet text.
+// A quiet bell for a station that has an alert set (lib/stationalert.ts), beside the call in the
+// Stations table and on the station's card. The table always keeps the slot, empty without an
+// alert, so that setting one moves nothing.
 import { computed } from "vue";
 import { t } from "@/i18n";
 import { alertSummary } from "@/lib/stationalert";

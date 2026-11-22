@@ -1,6 +1,10 @@
-// The options of a serial port in the Settings and My station tabs (the TNC's, the GPS receiver's): find automatically (the empty port; "not set" for a port that has no search), the ports the system lists, the port the settings name or the search found when the system does not list it (a udev link such as /dev/brainbox_3,
-// a by-id name), and "Other..." to type a path or a socket address. A port (or a sound card: lib/mercury.ts) that another of the station's radios or the GPS receiver holds is greyed with the holder's name ("Mobile: COM3"), as the daemon would
-// refuse it; the one in force stays as it is, so that a setting that conflicts already still shows.
+// The options of a serial port in the Settings and My station tabs (the TNC's, the GPS
+// receiver's): find automatically (the empty port; "not set" for a port that has no search),
+// the ports the system lists, the port the settings name or the search found when the system
+// does not list it (a udev link such as /dev/brainbox_3, a by-id name), and "Other..." to type
+// a path or a socket address. A port (or sound card: lib/mercury.ts) held by another radio or
+// the GPS receiver is greyed with the holder's name ("Mobile: COM3"), as the daemon would
+// refuse it; the one in force stays as it is, so a setting that already conflicts still shows.
 import { t } from "@/i18n";
 import type { Choice } from "@/lib/settingchoices";
 import type { PortsMessage } from "@/protocol/protocol";
@@ -8,18 +12,27 @@ import type { PortsMessage } from "@/protocol/protocol";
 /** The value of the option that opens a text field; never a port. */
 export const PORT_OTHER = "\u0000other";
 
-/** Who holds a device, as an option says it: null while it is free, or held by the box's own holder; else the holder's name ("" for a holder the page does not know by name). */
+/**
+ * Who holds a device, as an option says it: null while it is free or held by the box's own
+ * holder; else the holder's name ("" for a holder the page does not know by name).
+ */
 export type HolderOf = (heldBy: number | null) => string | null;
-/** Nobody of the station holds anything (a box that gives no holder). */
+/** Nobody holds anything (a box that gives no holder). */
 const FREE: HolderOf = () => null;
 
-/** The holders of the box of `own` (a radio's id, 0 for the GPS receiver's port): a device held by another radio is named by that radio's name as the page calls it (one the page does not know is held all the same,
- * without a name), the GPS receiver's by its word. */
+/**
+ * The holders of the box of `own` (a radio's id, 0 for the GPS receiver's port): a device held
+ * by another radio is named by that radio's name on the page (one the page does not know is
+ * held all the same, without a name), the GPS receiver's by its word.
+ */
 export function holderOf(own: number, nameOf: (id: number) => string | undefined): HolderOf {
   return (heldBy) => (heldBy === null || heldBy === own ? null : heldBy === 0 ? t("gps.label") : (nameOf(heldBy) ?? ""));
 }
 
-/** A device as an option: greyed with its holder's name while another holds it (with its own label alone when the holder has no name here), unless it is the one in force. */
+/**
+ * A device as an option: greyed with its holder's name while another holds it (its own label
+ * alone when the holder has no name here), unless it is the one in force.
+ */
 export function heldChoice(choice: Choice, heldBy: number | null, holder: HolderOf, current: string): Choice {
   const name = holder(heldBy);
   if (name === null || choice.value === current) return choice;
@@ -38,8 +51,11 @@ function listedPorts(ports: PortsMessage | null, holder: HolderOf = FREE, curren
   );
 }
 
-/** The options for the port `current` (what the form holds) with `found` the port the search found last. Where the daemon does not search (Windows, macOS) the empty port is "none chosen", and for a port the daemon never searches for (`unset`, the GPS receiver's)
- * it is "not set". */
+/**
+ * The options for the port `current` (what the form holds), with `found` the port the last
+ * search found. Where the daemon does not search (Windows, macOS) the empty port is "none
+ * chosen", and for a port it never searches for (`unset`, the GPS receiver's) it is "not set".
+ */
 export function portOptions(ports: PortsMessage | null, current: string, found: string, unset = false, holder: HolderOf = FREE): Choice[] {
   const listed = listedPorts(ports, holder, current);
   const empty: Choice = {

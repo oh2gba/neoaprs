@@ -1,4 +1,6 @@
-// Where the signal of what was heard is shown: under a message that came in, in a packet's detail, in a station's traffic, on the station's card (the row with the last time, the graph) and in the title of our message's mark. Nothing is shown, and nothing moves, for a packet without a reading.
+// Where the signal of a heard packet is shown: under an incoming message, in a packet's detail, in
+// a station's traffic, on the station's card (the last-time row and the graph) and in the title of
+// our message's mark. Nothing is shown, and nothing moves, for a packet without a reading.
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { nextTick, shallowRef } from "vue";
@@ -17,7 +19,10 @@ afterEach(() => document.body.replaceChildren());
 const MINUS = "\u2212";
 
 describe("the signal under a message that came in", () => {
-  /** The page of the FM radio (radio 1) on and the HF radio (radio 2) off, whose word HF a message that came by it carries. */
+  /**
+   * The page of the FM radio (radio 1) on and the HF radio (radio 2) off, whose word HF a message
+   * that came by it carries.
+   */
   const today = () =>
     withDaemon(fakeDaemon({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) }));
   const line = (extra: Parameters<typeof incoming>[2]) =>

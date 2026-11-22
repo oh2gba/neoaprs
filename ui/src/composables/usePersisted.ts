@@ -1,8 +1,8 @@
-// A ref that is remembered in localStorage (lib/storage.ts): read when it is made, written when it changes.
+// A ref remembered in localStorage: read when made, written when it changes.
 import { computed, ref, watch, type Ref, type WritableComputedRef } from "vue";
 import { readStored, readStoredNumber, writeStored } from "@/lib/storage";
 
-/** A text that is one of `allowed` (anything else that was stored is ignored). */
+/** A text that is one of `allowed`; anything else stored is ignored. */
 export function usePersisted<T extends string>(key: string, fallback: T, allowed: readonly T[]): Ref<T> {
   const stored = readStored(key);
   const value = ref(allowed.find((a) => a === stored) ?? fallback) as Ref<T>;
@@ -10,7 +10,10 @@ export function usePersisted<T extends string>(key: string, fallback: T, allowed
   return value;
 }
 
-/** A yes or no, remembered as one of two words (`words` is the word for yes, then the one for no); anything else that was stored is `fallback`. */
+/**
+ * A yes or no stored as one of two words (`words`: yes, then no); anything else stored is
+ * `fallback`.
+ */
 export function usePersistedFlag(key: string, words: readonly [yes: string, no: string], fallback: boolean): WritableComputedRef<boolean> {
   const [yes, no] = words;
   const stored = usePersisted(key, fallback ? yes : no, words);
@@ -23,7 +26,7 @@ export function usePersistedNumber(key: string, fallback: number, min: number, m
   return value;
 }
 
-/** A text as it was typed, at most `max` characters (a longer one that was stored is cut). */
+/** A text as typed, at most `max` characters; a longer stored one is cut. */
 export function usePersistedText(key: string, fallback: string, max: number): Ref<string> {
   const value = ref((readStored(key) ?? fallback).slice(0, max));
   watch(value, (v) => writeStored(key, v));

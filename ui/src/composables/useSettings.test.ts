@@ -13,7 +13,7 @@ function setUp(extra: Record<string, string> = {}) {
   const send = vi.fn((_command: Command) => true);
   const settings = useSettings(config, lastError, send);
   let errors = 0;
-  /** The daemon accepts the request in flight: it tells the settings again, with these values put in. */
+  /** The daemon accepts the request in flight: it sends the settings again with these values. */
   const answer = async (changes: Record<string, string> = {}) => {
     const own = (radio: boolean) => Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("radio/") === radio));
     config.value = configValues({ ...config.value?.values, ...own(false) }, { ...config.value?.radio_values, ...own(true) });
@@ -307,7 +307,8 @@ describe("useSettings: no toast", () => {
   });
 });
 
-// The radios' own settings (`radio/3/port`) and the station's (`email/radio`), which the daemon tells apart in `config.radio_values`: the form works them as it works the others.
+// Radio settings (`radio/3/port`) and the station's (`email/radio`), sent in `config.radio_values`:
+// the form works them like the others.
 describe("useSettings: the radios' own settings", () => {
   const withOwn = (config: ConfigValues, own: Record<string, string>): ConfigValues => ({
     ...config,
@@ -343,7 +344,8 @@ describe("useSettings: the radios' own settings", () => {
   });
 });
 
-// A pair of radios' keys (`pair/1/3/enabled`) are told for the radios that are there: when the daemon stops telling them, the form stops counting the pair's call as taken.
+// A pair of radios' keys (`pair/1/3/enabled`) are sent for the radios that exist; when the daemon
+// stops sending them, the form stops counting the pair's call as taken.
 describe("useSettings: the keys of a pair that is gone", () => {
   const both = { "pair/1/2/enabled": "true", "pair/1/2/ssid": "14", "pair/1/3/enabled": "true", "pair/1/3/ssid": "15" };
   const callsOf = (draft: Record<string, string>) =>
